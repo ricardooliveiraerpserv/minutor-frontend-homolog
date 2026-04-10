@@ -5,7 +5,7 @@ import { useApiQuery } from '@/hooks/use-query'
 import { Timesheet, PaginatedResponse } from '@/types'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Clock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Clock, ChevronLeft, ChevronRight, Globe, Webhook } from 'lucide-react'
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
 
@@ -31,6 +31,23 @@ function formatDate(d: string | null | undefined) {
 
 function formatMinutes(minutes: number) {
   return `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}`
+}
+
+function OriginBadge({ origin }: { origin?: string }) {
+  if (origin === 'webhook') {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+        <Webhook size={9} />
+        Auto
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
+      <Globe size={9} />
+      Web
+    </span>
+  )
 }
 
 export default function TimesheetsPage() {
@@ -79,33 +96,37 @@ export default function TimesheetsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Data</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Projeto</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Ticket</th>
-              <th className="text-right px-3 py-2.5 text-zinc-500 font-medium">Tempo</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium whitespace-nowrap">Data</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Origem</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Colaborador</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Projeto</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Cliente</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Tipo Contrato</th>
+              <th className="text-right px-3 py-2.5 text-zinc-500 font-medium">Tempo</th>
             </tr>
           </thead>
           <tbody>
             {loading && Array.from({ length: 8 }).map((_, i) => (
               <tr key={i} className="border-b border-zinc-100 dark:border-zinc-800/60">
                 <td className="px-3 py-2.5"><Skeleton className="h-3 w-20" /></td>
-                <td className="px-3 py-2.5"><Skeleton className="h-3 w-32" /></td>
-                <td className="px-3 py-2.5 hidden md:table-cell"><Skeleton className="h-3 w-24" /></td>
-                <td className="px-3 py-2.5 hidden lg:table-cell"><Skeleton className="h-3 w-16" /></td>
-                <td className="px-3 py-2.5"><Skeleton className="h-3 w-12 ml-auto" /></td>
                 <td className="px-3 py-2.5"><Skeleton className="h-4 w-16 rounded-full" /></td>
+                <td className="px-3 py-2.5 hidden sm:table-cell"><Skeleton className="h-4 w-12 rounded" /></td>
+                <td className="px-3 py-2.5 hidden md:table-cell"><Skeleton className="h-3 w-24" /></td>
+                <td className="px-3 py-2.5"><Skeleton className="h-3 w-32" /></td>
+                <td className="px-3 py-2.5 hidden lg:table-cell"><Skeleton className="h-3 w-24" /></td>
+                <td className="px-3 py-2.5 hidden xl:table-cell"><Skeleton className="h-3 w-28" /></td>
+                <td className="px-3 py-2.5"><Skeleton className="h-3 w-12 ml-auto" /></td>
               </tr>
             ))}
 
             {!loading && error && (
               <tr>
-                <td colSpan={6} className="px-3 py-8 text-center text-zinc-500">
+                <td colSpan={8} className="px-3 py-8 text-center text-red-500">
                   {error}
                 </td>
               </tr>
@@ -113,7 +134,7 @@ export default function TimesheetsPage() {
 
             {!loading && !error && data?.items.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-12 text-center text-zinc-500">
+                <td colSpan={8} className="px-3 py-12 text-center text-zinc-500">
                   <Clock size={24} className="mx-auto mb-2 opacity-30" />
                   Nenhum apontamento encontrado
                 </td>
@@ -128,7 +149,18 @@ export default function TimesheetsPage() {
                 <td className="px-3 py-2.5 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
                   {formatDate(ts.date)}
                 </td>
-                <td className="px-3 py-2.5 max-w-[200px]">
+                <td className="px-3 py-2.5">
+                  <Badge variant={STATUS_VARIANT[ts.status] ?? 'secondary'} className="text-[10px] whitespace-nowrap">
+                    {ts.status_display ?? STATUS_LABEL[ts.status] ?? ts.status}
+                  </Badge>
+                </td>
+                <td className="px-3 py-2.5 hidden sm:table-cell">
+                  <OriginBadge origin={ts.origin} />
+                </td>
+                <td className="px-3 py-2.5 text-zinc-700 dark:text-zinc-300 hidden md:table-cell">
+                  {ts.user?.name ?? '—'}
+                </td>
+                <td className="px-3 py-2.5 max-w-[160px]">
                   <Link
                     href={`/timesheets/${ts.id}`}
                     className="text-zinc-800 dark:text-zinc-200 hover:text-blue-500 dark:hover:text-blue-400 truncate block"
@@ -136,19 +168,14 @@ export default function TimesheetsPage() {
                     {ts.project?.name ?? `Projeto #${ts.project_id}`}
                   </Link>
                 </td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden md:table-cell truncate max-w-[160px]">
+                <td className="px-3 py-2.5 text-zinc-500 hidden lg:table-cell truncate max-w-[140px]">
                   {ts.customer?.name ?? ts.project?.customer?.name ?? '—'}
                 </td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden lg:table-cell">
-                  {ts.ticket ?? '—'}
+                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[140px]">
+                  {ts.project?.contract_type_display ?? '—'}
                 </td>
                 <td className="px-3 py-2.5 text-right text-zinc-700 dark:text-zinc-300 whitespace-nowrap font-mono">
                   {formatMinutes(ts.effort_minutes)}
-                </td>
-                <td className="px-3 py-2.5">
-                  <Badge variant={STATUS_VARIANT[ts.status] ?? 'secondary'} className="text-[10px]">
-                    {ts.status_display ?? STATUS_LABEL[ts.status] ?? ts.status}
-                  </Badge>
                 </td>
               </tr>
             ))}
