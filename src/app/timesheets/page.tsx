@@ -42,11 +42,11 @@ function SortHeader({
   )
 }
 
-const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  pending:    'secondary',
-  approved:   'default',
-  rejected:   'destructive',
-  conflicted: 'outline',
+const STATUS_CLASS: Record<string, string> = {
+  pending:    'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  approved:   'bg-green-500/20 text-green-400 border-green-500/30',
+  rejected:   'bg-red-500/20 text-red-400 border-red-500/30',
+  conflicted: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
 }
 
 const STATUS_OPTIONS = [
@@ -413,7 +413,7 @@ export default function TimesheetsPage() {
                   {formatDate(ts.date)}
                 </td>
                 <td className="px-3 py-2.5">
-                  <Badge variant={STATUS_VARIANT[ts.status] ?? 'secondary'} className="text-[10px] whitespace-nowrap">
+                  <Badge variant="outline" className={`text-[10px] whitespace-nowrap border ${STATUS_CLASS[ts.status] ?? 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'}`}>
                     {ts.status_display ?? ts.status}
                   </Badge>
                 </td>
