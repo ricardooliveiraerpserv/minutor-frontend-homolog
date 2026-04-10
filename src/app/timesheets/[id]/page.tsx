@@ -37,7 +37,8 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
 export default function TimesheetDetailPage() {
   const params = useParams()
   const id = params.id as string
-  const { data: ts, loading, error } = useApiQuery<Timesheet>(`/timesheets/${id}`)
+  const { data: raw, loading, error } = useApiQuery<{ success: boolean; data: Timesheet }>(`/timesheets/${id}`)
+  const ts = raw?.data ?? (raw as unknown as Timesheet | null)
 
   return (
     <AppLayout
