@@ -25,7 +25,7 @@ export function useAuth() {
 
   const login = async (email: string, password: string) => {
     const data = await api.post<AuthResponse>('/auth/login', { email, password })
-    localStorage.setItem('minutor_token', data.access_token)
+    localStorage.setItem('minutor_token', data.token ?? data.access_token)
     setUser(data.user)
     return data.user
   }
