@@ -11,6 +11,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
+import { secureUrl } from '@/lib/api'
 
 interface HeaderProps {
   title?: string
@@ -52,7 +53,7 @@ export function Header({ title, actions }: HeaderProps) {
           <DropdownMenuTrigger className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors outline-none">
             <span className="flex items-center gap-2">
               <Avatar className="w-6 h-6">
-                <AvatarImage src={user?.profile_photo_url ?? undefined} />
+                <AvatarImage src={secureUrl(user?.profile_photo_url)} />
                 <AvatarFallback className="text-xs bg-blue-600 text-white">{initials}</AvatarFallback>
               </Avatar>
               <span className="text-xs text-zinc-700 dark:text-zinc-300 max-w-[120px] truncate">

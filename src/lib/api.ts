@@ -1,5 +1,14 @@
 const API_URL = '/api/v1'
 
+/**
+ * Garante que URLs de storage usem HTTPS.
+ * Necessário como fallback enquanto APP_URL do backend não estiver configurado com https://.
+ */
+export function secureUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined
+  return url.replace(/^http:\/\//, 'https://')
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message)

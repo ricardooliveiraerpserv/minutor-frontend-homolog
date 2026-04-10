@@ -82,6 +82,7 @@ export interface Expense {
   status: string
   charge_client: boolean
   receipt_path?: string
+  receipt_url?: string
   reviewed_by?: number
   reviewedBy?: User
   created_at: string
