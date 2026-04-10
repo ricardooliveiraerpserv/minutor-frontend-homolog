@@ -5,7 +5,7 @@ import { useApiQuery } from '@/hooks/use-query'
 import { Timesheet, PaginatedResponse } from '@/types'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Clock, ChevronLeft, ChevronRight, Globe, Webhook, RefreshCw, FileSpreadsheet, Plus, ChevronsUpDown, ChevronUp, ChevronDown, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Clock, ChevronLeft, ChevronRight, Globe, Webhook, RefreshCw, FileSpreadsheet, Plus, ChevronsUpDown, ChevronUp, ChevronDown, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react'
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
@@ -200,6 +200,18 @@ export default function TimesheetsPage() {
 
   const resetPage = useCallback(() => setPage(1), [])
 
+  const hasFilters = !!(status || serviceTypeId || contractTypeId || startDate || endDate || ticket)
+
+  const clearFilters = useCallback(() => {
+    setStatus('')
+    setServiceTypeId('')
+    setContractTypeId('')
+    setStartDate('')
+    setEndDate('')
+    setTicket('')
+    setPage(1)
+  }, [])
+
   const handleExport = async () => {
     setExporting(true)
     try {
@@ -310,7 +322,8 @@ export default function TimesheetsPage() {
         </div>
       </div>
 
-      <div className="mb-4">
+      <div className="flex items-end gap-3 mb-4">
+        <div>
         <label className="block text-xs font-medium text-zinc-500 mb-1">Ticket</label>
         <input
           type="text"
@@ -319,6 +332,17 @@ export default function TimesheetsPage() {
           placeholder="Digite o número do ticket..."
           className="w-56 px-3 py-2 rounded-md text-xs border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
+        </div>
+
+        {hasFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-zinc-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 border border-zinc-200 dark:border-zinc-700 transition-colors"
+          >
+            <X size={11} />
+            Limpar filtros
+          </button>
+        )}
       </div>
 
       {data && (
