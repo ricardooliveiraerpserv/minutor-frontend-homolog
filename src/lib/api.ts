@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://minutor-backend-production.up.railway.app/api/v1'
+const API_URL = '/api/v1'
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
