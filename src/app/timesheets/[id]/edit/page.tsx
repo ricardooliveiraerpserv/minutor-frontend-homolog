@@ -22,7 +22,7 @@ export default function EditTimesheetPage() {
   const { data: raw, loading, error } = useApiQuery<{ success: boolean; data: Timesheet }>(`/timesheets/${id}`)
   const ts = raw?.data ?? (raw as unknown as Timesheet | null)
 
-  const { data: projectsData } = useApiQuery<ProjectsResponse>('/projects?per_page=200&status=active')
+  const { data: projectsData, error: projectsError } = useApiQuery<ProjectsResponse>('/projects?minimal=1&status=active&pageSize=200')
   const projects = projectsData?.items ?? []
 
   const [form, setForm] = useState({
@@ -100,19 +100,23 @@ export default function EditTimesheetPage() {
           {/* Projeto */}
           <div>
             <label className="block text-xs font-medium text-zinc-500 mb-1">Projeto *</label>
-            <select
-              required
-              value={form.project_id}
-              onChange={set('project_id')}
-              className="w-full px-3 py-2 rounded-md text-xs border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">Selecione um projeto...</option>
-              {projects.map(p => (
-                <option key={p.id} value={String(p.id)}>
-                  {p.code ? `[${p.code}] ` : ''}{p.name}
-                </option>
-              ))}
-            </select>
+            {projectsError ? (
+              <p className="text-xs text-red-500 py-1">{projectsError}</p>
+            ) : (
+              <select
+                required
+                value={form.project_id}
+                onChange={set('project_id')}
+                className="w-full px-3 py-2 rounded-md text-xs border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Selecione um projeto...</option>
+                {projects.map(p => (
+                  <option key={p.id} value={String(p.id)}>
+                    {p.code ? `[${p.code}] ` : ''}{p.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Data */}
