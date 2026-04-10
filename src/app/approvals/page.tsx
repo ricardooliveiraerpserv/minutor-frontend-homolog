@@ -22,7 +22,8 @@ interface PendingExpenses {
   pagination: { current_page: number; last_page: number; total: number; per_page: number }
 }
 
-function formatDate(d: string) {
+function formatDate(d: string | null | undefined) {
+  if (!d) return '—'
   const [y, m, day] = d.split('-')
   return `${day}/${m}/${y}`
 }

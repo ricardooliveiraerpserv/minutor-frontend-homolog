@@ -23,7 +23,8 @@ const STATUS_LABEL: Record<string, string> = {
   conflicted: 'Conflito',
 }
 
-function formatDate(d: string) {
+function formatDate(d: string | null | undefined) {
+  if (!d) return '—'
   const [y, m, day] = d.split('-')
   return `${day}/${m}/${y}`
 }
