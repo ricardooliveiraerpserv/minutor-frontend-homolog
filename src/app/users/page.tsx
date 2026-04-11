@@ -47,8 +47,8 @@ const PROFILE_OPTIONS: { value: ProfileType; label: string }[] = [
 
 const CONSULTANT_OPTIONS: { value: ConsultantType; label: string }[] = [
   { value: 'horista',   label: 'Horista' },
-  { value: 'bh_fixo',   label: 'Banco de Horas Fixo' },
-  { value: 'bh_mensal', label: 'Banco de Horas Mensal' },
+  { value: 'bh_fixo',   label: 'Fixo' },
+  { value: 'bh_mensal', label: 'Banco de Horas' },
 ]
 
 // Map profile → role name to send to backend
