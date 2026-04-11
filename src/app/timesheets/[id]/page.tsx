@@ -3,18 +3,13 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useApiQuery } from '@/hooks/use-query'
 import { Timesheet } from '@/types'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { ArrowLeft, Clock, Calendar, User, FolderOpen, Ticket } from 'lucide-react'
+import { PageHeader, Badge, Skeleton } from '@/components/ds'
+import {
+  ArrowLeft, Clock, Calendar, User, FolderOpen, Ticket,
+  Globe, Webhook, Building2, Hash, FileText, CheckCircle,
+} from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-
-const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  pending:    'secondary',
-  approved:   'default',
-  rejected:   'destructive',
-  conflicted: 'outline',
-}
 
 function formatDate(d: string | null | undefined) {
   if (!d) return '—'
@@ -22,15 +17,58 @@ function formatDate(d: string | null | undefined) {
   return `${day}/${m}/${y}`
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | null }) {
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+  children,
+}: {
+  icon: React.ElementType
+  label: string
+  value?: string | null
+  children?: React.ReactNode
+}) {
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
-      <Icon size={14} className="text-zinc-400 mt-0.5 shrink-0" />
+    <div
+      className="flex items-start gap-4 py-4"
+      style={{ borderBottom: '1px solid var(--brand-border)' }}
+    >
+      <span
+        className="mt-0.5 shrink-0 p-2 rounded-lg"
+        style={{ background: 'rgba(0,245,255,0.06)', color: 'var(--brand-primary)' }}
+      >
+        <Icon size={13} />
+      </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] text-zinc-500 mb-0.5">{label}</p>
-        <p className="text-xs text-zinc-800 dark:text-zinc-200">{value ?? '—'}</p>
+        <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--brand-subtle)' }}>
+          {label}
+        </p>
+        {children ?? (
+          <p className="text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+            {value ?? '—'}
+          </p>
+        )}
       </div>
     </div>
+  )
+}
+
+function OriginChip({ origin }: { origin?: string }) {
+  if (origin === 'webhook') return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}
+    >
+      <Webhook size={11} /> Auto (Movidesk)
+    </span>
+  )
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}
+    >
+      <Globe size={11} /> Web (manual)
+    </span>
   )
 }
 
@@ -41,72 +79,137 @@ export default function TimesheetDetailPage() {
   const ts = raw?.data ?? (raw as unknown as Timesheet | null)
 
   return (
-    <AppLayout
-      title="Detalhe do Apontamento"
-      actions={
-        <Link
-          href="/timesheets"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
-        >
-          <ArrowLeft size={12} />
-          Voltar
-        </Link>
-      }
-    >
-      {loading && (
-        <div className="max-w-xl space-y-4">
-          <Skeleton className="h-5 w-40" />
-          <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 p-4 space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+    <AppLayout title="Apontamento">
+      <div className="max-w-2xl mx-auto">
+        <PageHeader
+          icon={Clock}
+          title="Detalhe do Apontamento"
+          subtitle={ts ? `#${ts.id} · ${formatDate(ts.date)}` : 'Carregando...'}
+          actions={
+            <Link href="/timesheets">
+              <span
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs transition-colors hover:bg-white/5"
+                style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}
+              >
+                <ArrowLeft size={12} /> Voltar
+              </span>
+            </Link>
+          }
+        />
+
+        {loading && (
+          <div
+            className="rounded-2xl p-6 space-y-4"
+            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+          >
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {error && (
-        <div className="text-sm text-red-500 py-4">{error}</div>
-      )}
+        {error && (
+          <p className="text-sm py-4" style={{ color: 'var(--brand-danger)' }}>{error}</p>
+        )}
 
-      {!loading && ts && (
-        <div className="max-w-xl space-y-4">
-          <div className="flex items-center gap-3">
-            <Badge variant={STATUS_VARIANT[ts.status] ?? 'secondary'}>
-              {ts.status_display ?? ts.status}
-            </Badge>
-            {ts.rejection_reason && (
-              <span className="text-xs text-red-500">{ts.rejection_reason}</span>
-            )}
-          </div>
-
-          <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800">
-            <InfoRow icon={Calendar} label="Data" value={formatDate(ts.date)} />
-            <InfoRow icon={Clock} label="Período" value={`${ts.start_time} – ${ts.end_time} (${ts.effort_hours})`} />
-            <InfoRow icon={User} label="Colaborador" value={ts.user?.name} />
-            <InfoRow icon={FolderOpen} label="Projeto" value={ts.project?.name} />
-            {ts.ticket && (
-              <InfoRow icon={Ticket} label="Ticket" value={`${ts.ticket}${ts.ticket_subject ? ` — ${ts.ticket_subject}` : ''}`} />
-            )}
-          </div>
-
-          {ts.observation && (
-            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
-                <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">Observação</p>
-              </div>
-              <div
-                className="px-4 py-3 text-xs text-zinc-700 dark:text-zinc-300 prose prose-sm dark:prose-invert max-w-none [&_img]:max-w-full [&_img]:rounded-md [&_img]:mt-2"
-                dangerouslySetInnerHTML={{ __html: ts.observation }}
-              />
+        {!loading && ts && (
+          <div className="space-y-5">
+            {/* Status + origem */}
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
+              <OriginChip origin={ts.origin} />
+              {ts.rejection_reason && (
+                <span className="text-xs" style={{ color: 'var(--brand-danger)' }}>
+                  {ts.rejection_reason}
+                </span>
+              )}
             </div>
-          )}
 
-          {ts.reviewedBy && (
-            <p className="text-[11px] text-zinc-400">
-              Revisado por <strong>{ts.reviewedBy.name}</strong>
-              {ts.reviewed_at && ` em ${formatDate(ts.reviewed_at.slice(0, 10))}`}
-            </p>
-          )}
-        </div>
-      )}
+            {/* Card principal */}
+            <div
+              className="rounded-2xl px-6"
+              style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+            >
+              <InfoRow icon={Calendar} label="Data" value={formatDate(ts.date)} />
+              <InfoRow icon={Clock} label="Período">
+                <p className="text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+                  {ts.start_time} – {ts.end_time}
+                  <span
+                    className="ml-2 px-2 py-0.5 rounded-lg text-xs font-bold"
+                    style={{ background: 'rgba(0,245,255,0.1)', color: 'var(--brand-primary)' }}
+                  >
+                    {ts.effort_hours}
+                  </span>
+                </p>
+              </InfoRow>
+              <InfoRow icon={User} label="Colaborador" value={ts.user?.name} />
+              <InfoRow icon={Building2} label="Cliente" value={ts.customer?.name ?? ts.project?.customer?.name} />
+              <InfoRow icon={FolderOpen} label="Projeto">
+                <p className="text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+                  {ts.project?.name ?? '—'}
+                  {ts.project?.contract_type_display && (
+                    <span
+                      className="ml-2 text-[10px] px-1.5 py-0.5 rounded"
+                      style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}
+                    >
+                      {ts.project.contract_type_display}
+                    </span>
+                  )}
+                </p>
+              </InfoRow>
+              {ts.ticket && (
+                <InfoRow icon={Ticket} label="Ticket">
+                  <p className="text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+                    <span style={{ color: 'var(--brand-primary)' }}>#{ts.ticket}</span>
+                    {ts.ticket_subject && (
+                      <span className="ml-2" style={{ color: 'var(--brand-muted)' }}>— {ts.ticket_subject}</span>
+                    )}
+                  </p>
+                </InfoRow>
+              )}
+              {ts.movidesk_appointment_id && (
+                <InfoRow icon={Hash} label="ID Movidesk" value={String(ts.movidesk_appointment_id)} />
+              )}
+              {/* sem last border */}
+            </div>
+
+            {/* Observação */}
+            {ts.observation && (
+              <div
+                className="rounded-2xl overflow-hidden"
+                style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+              >
+                <div
+                  className="flex items-center gap-2 px-6 py-3"
+                  style={{ borderBottom: '1px solid var(--brand-border)' }}
+                >
+                  <FileText size={13} style={{ color: 'var(--brand-primary)' }} />
+                  <span className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--brand-subtle)' }}>
+                    Observação
+                  </span>
+                </div>
+                <div
+                  className="px-6 py-4 text-sm leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
+                  style={{ color: 'var(--brand-muted)' }}
+                  dangerouslySetInnerHTML={{ __html: ts.observation }}
+                />
+              </div>
+            )}
+
+            {/* Revisão */}
+            {ts.reviewedBy && (
+              <div
+                className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs"
+                style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}
+              >
+                <CheckCircle size={13} style={{ color: 'var(--brand-primary)' }} />
+                Revisado por <strong style={{ color: 'var(--brand-muted)' }}>{ts.reviewedBy.name}</strong>
+                {ts.reviewed_at && ` em ${formatDate(ts.reviewed_at.slice(0, 10))}`}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </AppLayout>
   )
 }
