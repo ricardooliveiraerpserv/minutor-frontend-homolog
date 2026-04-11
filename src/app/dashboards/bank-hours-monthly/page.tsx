@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import React, { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import DashboardIndicators from '@/components/dashboard/DashboardIndicators'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -155,36 +156,6 @@ function ProjectsTable({ items, loading }: { items: ProjectItem[]; loading: bool
   )
 }
 
-// ─── Indicator helpers ────────────────────────────────────────────────────────
-
-function IndicatorCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-      <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{title}</h3>
-      <div className="space-y-2">{children}</div>
-    </div>
-  )
-}
-
-function IndicatorRow({ label, value, max, current }: { label: string; value: string; max: number; current: number }) {
-  const pct = max > 0 ? Math.round((current / max) * 100) : 0
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs truncate" style={{ color: 'var(--brand-muted)' }}>{label}</span>
-        <span className="text-xs font-bold shrink-0" style={{ color: 'var(--brand-text)' }}>{value}</span>
-      </div>
-      <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--brand-border)' }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'var(--brand-primary)' }} />
-      </div>
-    </div>
-  )
-}
-
-function EmptyMsg() {
-  return <p className="text-xs py-2" style={{ color: 'var(--brand-subtle)' }}>Nenhum dado disponível.</p>
-}
-
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 export default function BankHoursMonthlyPage() {
@@ -205,14 +176,11 @@ export default function BankHoursMonthlyPage() {
   const [summary,      setSummary]      = useState<SummaryData | null>(null)
   const [projectsList, setProjectsList] = useState<ProjectItem[]>([])
   const [maintList,    setMaintList]    = useState<ProjectItem[]>([])
-  const [reqHours,     setReqHours]     = useState<{ requester: string; total_hours: number }[]>([])
-  const [svcHours,     setSvcHours]     = useState<{ service: string; total_hours: number }[]>([])
-  const [statusData,   setStatusData]   = useState<{ status: string; ticket_count: number }[]>([])
-  const [loadingSummary,    setLoadingSummary]    = useState(false)
-  const [loadingProjects,   setLoadingProjects]   = useState(false)
-  const [loadingMaint,      setLoadingMaint]      = useState(false)
-  const [loadingIndicators, setLoadingIndicators] = useState(false)
+  const [loadingSummary,  setLoadingSummary]  = useState(false)
+  const [loadingProjects, setLoadingProjects] = useState(false)
+  const [loadingMaint,    setLoadingMaint]    = useState(false)
   const [activeTab, setActiveTab] = useState<'total' | 'projects' | 'maintenance' | 'indicators'>('total')
+  const [indicatorParams, setIndicatorParams] = useState<URLSearchParams>(new URLSearchParams())
 
   useEffect(() => {
     if (!isAdmin) return
@@ -270,25 +238,10 @@ export default function BankHoursMonthlyPage() {
       .finally(() => setLoadingMaint(false))
   }, [buildParams, isAdmin])
 
-  const fetchIndicators = useCallback(() => {
-    if (!selectedProject && isAdmin) return
-    const params = buildParams()
-    setLoadingIndicators(true)
-    Promise.all([
-      api.get<any>(`/dashboards/bank-hours-monthly/indicators/hours-by-requester?${params}`),
-      api.get<any>(`/dashboards/bank-hours-monthly/indicators/hours-by-service?${params}`),
-      api.get<any>(`/dashboards/bank-hours-monthly/indicators/tickets-by-status?${params}`),
-    ]).then(([req, svc, status]) => {
-      setReqHours(Array.isArray(req?.data) ? req.data : [])
-      setSvcHours(Array.isArray(svc?.data) ? svc.data : [])
-      setStatusData(Array.isArray(status?.data) ? status.data : [])
-    }).catch(() => {}).finally(() => setLoadingIndicators(false))
-  }, [buildParams, isAdmin])
-
   useEffect(() => { fetchSummary() }, [fetchSummary])
   useEffect(() => { if (activeTab === 'projects')    fetchProjectsList() }, [fetchProjectsList, activeTab])
   useEffect(() => { if (activeTab === 'maintenance') fetchMaintList()    }, [fetchMaintList, activeTab])
-  useEffect(() => { if (activeTab === 'indicators')  fetchIndicators()   }, [fetchIndicators, activeTab])
+  useEffect(() => { setIndicatorParams(buildParams()) }, [buildParams])
 
   const hasFilters = !isAdmin || !!selectedProject
 
@@ -445,42 +398,11 @@ export default function BankHoursMonthlyPage() {
 
             {/* ── INDICADORES ── */}
             {activeTab === 'indicators' && (
-              <div className="space-y-6">
-                {loadingIndicators ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="rounded-2xl p-5 animate-pulse h-48" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Horas por Solicitante */}
-                    <IndicatorCard title="Horas por Solicitante">
-                      {reqHours.length === 0
-                        ? <EmptyMsg />
-                        : reqHours.slice(0, 10).map(r => (
-                          <IndicatorRow key={r.requester} label={r.requester} value={`${r.total_hours.toFixed(1)}h`} max={reqHours[0]?.total_hours} current={r.total_hours} />
-                        ))}
-                    </IndicatorCard>
-                    {/* Horas por Serviço */}
-                    <IndicatorCard title="Horas por Serviço">
-                      {svcHours.length === 0
-                        ? <EmptyMsg />
-                        : svcHours.slice(0, 10).map(r => (
-                          <IndicatorRow key={r.service} label={r.service} value={`${r.total_hours.toFixed(1)}h`} max={svcHours[0]?.total_hours} current={r.total_hours} />
-                        ))}
-                    </IndicatorCard>
-                    {/* Tickets por Status */}
-                    <IndicatorCard title="Tickets por Status">
-                      {statusData.length === 0
-                        ? <EmptyMsg />
-                        : statusData.slice(0, 10).map(r => (
-                          <IndicatorRow key={r.status} label={r.status} value={String(r.ticket_count)} max={statusData[0]?.ticket_count} current={r.ticket_count} />
-                        ))}
-                    </IndicatorCard>
-                  </div>
-                )}
-              </div>
+              <DashboardIndicators
+                basePath="/dashboards/bank-hours-monthly/indicators"
+                params={indicatorParams}
+                disabled={!hasFilters}
+              />
             )}
           </div>
         )}
