@@ -54,6 +54,70 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
   )
 }
 
+// ─── TRADUÇÕES DE PERMISSÕES ─────────────────────────────────────────────────
+
+const PERMISSION_LABELS: Record<string, string> = {
+  'admin.full_access': 'Acesso total ao sistema',
+  'roles.view': 'Visualizar perfis de acesso', 'roles.create': 'Criar perfis de acesso',
+  'roles.update': 'Editar perfis de acesso', 'roles.delete': 'Excluir perfis de acesso',
+  'permissions.view': 'Visualizar permissões', 'permissions.create': 'Criar permissões',
+  'permissions.update': 'Editar permissões', 'permissions.delete': 'Excluir permissões',
+  'projects.view': 'Visualizar projetos', 'projects.view_sensitive_data': 'Ver dados sensíveis de projetos',
+  'projects.view_costs': 'Ver custos de projetos', 'projects.create': 'Criar projetos',
+  'projects.update': 'Editar projetos', 'projects.delete': 'Excluir projetos',
+  'projects.assign_people': 'Atribuir pessoas a projetos', 'projects.change_status': 'Alterar status de projetos',
+  'hours.view': 'Visualizar apontamentos', 'hours.view_own': 'Visualizar próprios apontamentos',
+  'hours.view_all': 'Visualizar todos os apontamentos', 'hours.view_sensitive_data': 'Ver dados sensíveis de apontamentos',
+  'hours.create': 'Criar apontamentos', 'hours.update_own': 'Editar próprios apontamentos',
+  'hours.update_all': 'Editar todos os apontamentos', 'hours.delete_own': 'Excluir próprios apontamentos',
+  'hours.delete_all': 'Excluir todos os apontamentos', 'hours.approve': 'Aprovar apontamentos',
+  'hours.reject': 'Rejeitar apontamentos',
+  'expenses.view': 'Visualizar despesas', 'expenses.view_own': 'Visualizar próprias despesas',
+  'expenses.view_all': 'Visualizar todas as despesas', 'expenses.view_sensitive_data': 'Ver dados sensíveis de despesas',
+  'expenses.create': 'Criar despesas', 'expenses.update_own': 'Editar próprias despesas',
+  'expenses.update_all': 'Editar todas as despesas', 'expenses.delete_own': 'Excluir próprias despesas',
+  'expenses.delete_all': 'Excluir todas as despesas', 'expenses.approve': 'Aprovar despesas',
+  'expenses.reject': 'Rejeitar despesas',
+  'reports.view': 'Visualizar relatórios', 'reports.generate': 'Gerar relatórios',
+  'reports.export': 'Exportar relatórios', 'reports.financial': 'Relatórios financeiros',
+  'dashboard.view': 'Visualizar dashboard', 'dashboard.admin': 'Dashboard administrativo',
+  'dashboard.manager': 'Dashboard gerencial', 'dashboard.consultant': 'Dashboard consultor',
+  'dashboards.view': 'Acessar dashboards', 'dashboards.bank_hours_fixed.view': 'Dashboard banco de horas fixo',
+  'dashboards.bank_hours_monthly.view': 'Dashboard banco de horas mensais',
+  'customers.view': 'Visualizar clientes', 'customers.create': 'Criar clientes',
+  'customers.update': 'Editar clientes', 'customers.delete': 'Excluir clientes',
+  'users.view': 'Visualizar usuários', 'users.view_all': 'Visualizar todos os usuários',
+  'users.create': 'Criar usuários', 'users.update': 'Editar usuários',
+  'users.update_own_profile': 'Editar próprio perfil', 'users.delete': 'Excluir usuários',
+  'users.manage_roles': 'Gerenciar perfis de usuários', 'users.reset_password': 'Redefinir senhas',
+  'consultant_groups.view': 'Visualizar grupos de consultores', 'consultant_groups.create': 'Criar grupos de consultores',
+  'consultant_groups.update': 'Editar grupos de consultores', 'consultant_groups.delete': 'Excluir grupos de consultores',
+  'system_settings.view': 'Visualizar configurações do sistema', 'system_settings.update': 'Editar configurações do sistema',
+  'expense_categories.view': 'Visualizar categorias de despesas', 'expense_categories.create': 'Criar categorias de despesas',
+  'expense_categories.update': 'Editar categorias de despesas', 'expense_categories.delete': 'Excluir categorias de despesas',
+  'expense_types.view': 'Visualizar tipos de despesas', 'expense_types.create': 'Criar tipos de despesas',
+  'expense_types.update': 'Editar tipos de despesas', 'expense_types.delete': 'Excluir tipos de despesas',
+  'payment_methods.view': 'Visualizar métodos de pagamento', 'payment_methods.create': 'Criar métodos de pagamento',
+  'payment_methods.update': 'Editar métodos de pagamento', 'payment_methods.delete': 'Excluir métodos de pagamento',
+  'service_types.view': 'Visualizar tipos de serviço', 'service_types.create': 'Criar tipos de serviço',
+  'service_types.update': 'Editar tipos de serviço', 'service_types.delete': 'Excluir tipos de serviço',
+  'contract_types.view': 'Visualizar tipos de contrato', 'contract_types.create': 'Criar tipos de contrato',
+  'contract_types.update': 'Editar tipos de contrato', 'contract_types.delete': 'Excluir tipos de contrato',
+  'project_statuses.view': 'Visualizar status de projetos', 'project_statuses.create': 'Criar status de projetos',
+  'project_statuses.update': 'Editar status de projetos', 'project_statuses.delete': 'Excluir status de projetos',
+}
+
+const GROUP_LABELS: Record<string, string> = {
+  admin: 'Administração', roles: 'Perfis de Acesso', permissions: 'Permissões',
+  projects: 'Projetos', hours: 'Apontamentos', expenses: 'Despesas',
+  reports: 'Relatórios', dashboard: 'Dashboard', dashboards: 'Dashboards',
+  customers: 'Clientes', users: 'Usuários', consultant_groups: 'Grupos de Consultores',
+  system_settings: 'Configurações do Sistema', expense_categories: 'Categorias de Despesas',
+  expense_types: 'Tipos de Despesa', payment_methods: 'Métodos de Pagamento',
+  service_types: 'Tipos de Serviço', contract_types: 'Tipos de Contrato',
+  project_statuses: 'Status de Projetos',
+}
+
 // ─── TABS ────────────────────────────────────────────────────────────────────
 
 const TABS = [
@@ -602,7 +666,7 @@ function RolesTab() {
             <div className="space-y-4">
               {allPerms.map(group => (
                 <div key={group.group}>
-                  <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide mb-2">{group.group}</p>
+                  <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide mb-2">{GROUP_LABELS[group.group] ?? group.group}</p>
                   <div className="space-y-1">
                     {(group.permissions ?? []).map(p => (
                       <label key={p.id} className="flex items-center gap-2 cursor-pointer group">
@@ -612,7 +676,7 @@ function RolesTab() {
                         >
                           {selectedPerms.includes(p.id) && <Check size={10} className="text-white" />}
                         </div>
-                        <span className="text-xs text-zinc-300 group-hover:text-white transition-colors">{p.description || p.name}</span>
+                        <span className="text-xs text-zinc-300 group-hover:text-white transition-colors">{PERMISSION_LABELS[p.name] ?? p.description ?? p.name}</span>
                       </label>
                     ))}
                   </div>
