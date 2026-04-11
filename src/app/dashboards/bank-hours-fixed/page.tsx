@@ -271,7 +271,7 @@ export default function BankHoursFixedPage() {
   // Customers
   useEffect(() => {
     if (!isAdmin) return
-    api.get<any>('/customers?pageSize=1000').then(r => setCustomers(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
+    api.get<any>('/customers?pageSize=1000&has_contract_type_name=Banco+de+Horas+Fixo').then(r => setCustomers(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
     api.get<any>('/executives?pageSize=1000').then(r => setExecutives(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
   }, [isAdmin])
 

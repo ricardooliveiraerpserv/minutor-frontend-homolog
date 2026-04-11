@@ -225,7 +225,7 @@ export default function OnDemandPage() {
 
   useEffect(() => {
     if (!isAdmin) return
-    api.get<any>('/customers?pageSize=1000')
+    api.get<any>('/customers?pageSize=1000&has_contract_type_name=On+Demand')
       .then(r => setCustomers(Array.isArray(r?.items) ? r.items : []))
       .catch(() => {})
     api.get<any>('/executives?pageSize=1000')
