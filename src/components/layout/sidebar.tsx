@@ -49,66 +49,65 @@ const NAV: NavEntry[] = [
     label: 'Dashboards',
     icon: BarChart2,
     items: [
-      { label: 'Banco de Horas Fixo',    href: '/dashboards/bank-hours-fixed',    icon: BarChart2 },
-      { label: 'Banco de Horas Mensais', href: '/dashboards/bank-hours-monthly',  icon: CalendarClock },
-      { label: 'On Demand',              href: '/dashboards/on-demand',            icon: Zap },
+      { label: 'Banco de Horas Fixo',    href: '/dashboards/bank-hours-fixed',   icon: BarChart2 },
+      { label: 'Banco de Horas Mensais', href: '/dashboards/bank-hours-monthly', icon: CalendarClock },
+      { label: 'On Demand',              href: '/dashboards/on-demand',           icon: Zap },
     ],
   },
   { type: 'item', label: 'Usuários',      href: '/users',      icon: Users },
   { type: 'item', label: 'Configurações', href: '/settings',   icon: Settings },
 ]
 
+// shared link styles
+const linkBase = 'flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-150 outline-none'
+const linkActive = { background: '#1e2a40', color: 'var(--brand-primary)' }
+const linkIdle = { color: 'var(--brand-muted)' }
+
 export function Sidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [openGroups, setOpenGroups] = useState<string[]>(['Dashboards'])
 
-  const toggleGroup = (label: string) => {
+  const toggleGroup = (label: string) =>
     setOpenGroups(prev =>
       prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
     )
-  }
 
-  const isGroupActive = (group: NavGroup) =>
-    group.items.some(i => pathname === i.href || pathname.startsWith(i.href + '/'))
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  const isGroupActive = (group: NavGroup) => group.items.some(i => isActive(i.href))
 
   return (
-    <aside className={cn(
-      'flex flex-col h-screen bg-zinc-900 border-r border-zinc-800 transition-all duration-200 shrink-0',
-      collapsed ? 'w-14' : 'w-52'
-    )}>
+    <aside
+      className={cn('flex flex-col h-screen border-r transition-all duration-200 shrink-0', collapsed ? 'w-14' : 'w-56')}
+      style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}
+    >
       {/* Logo */}
-      <div className="flex items-center h-14 px-3 border-b border-zinc-800">
-        {!collapsed && (
-          <span className="text-white font-semibold text-sm tracking-wide">Minutor</span>
-        )}
-        {collapsed && (
-          <span className="text-blue-500 font-bold text-lg mx-auto">M</span>
-        )}
+      <div className="flex items-center h-14 px-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        {!collapsed
+          ? <span className="font-bold text-base tracking-tight" style={{ color: 'var(--brand-text)' }}>
+              <span style={{ color: 'var(--brand-primary)' }}>Min</span>utor
+            </span>
+          : <span className="font-bold text-base mx-auto" style={{ color: 'var(--brand-primary)' }}>M</span>
+        }
       </div>
 
       {/* Nav */}
       <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
         {NAV.map(entry => {
           if (entry.type === 'item') {
-            const active = pathname === entry.href || pathname.startsWith(entry.href + '/')
+            const active = isActive(entry.href)
             const Icon = entry.icon
             const item = (
               <Link
                 key={entry.href}
                 href={entry.href}
-                className={cn(
-                  'flex items-center gap-2.5 px-2 py-2 rounded-md text-sm transition-colors',
-                  active
-                    ? 'bg-zinc-700 text-white'
-                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
-                )}
+                className={cn(linkBase, !active && 'hover:bg-white/5')}
+                style={active ? linkActive : linkIdle}
               >
-                <Icon size={16} className="shrink-0" />
-                {!collapsed && <span>{entry.label}</span>}
+                <Icon size={15} className="shrink-0" />
+                {!collapsed && <span className="font-medium">{entry.label}</span>}
               </Link>
             )
-
             if (collapsed) {
               return (
                 <Tooltip key={entry.href}>
@@ -128,22 +127,18 @@ export function Sidebar() {
 
           if (collapsed) {
             return (
-              <div key={group.label}>
+              <div key={group.label} className="space-y-0.5">
                 {group.items.map(sub => {
                   const SubIcon = sub.icon
-                  const subActive = pathname === sub.href || pathname.startsWith(sub.href + '/')
+                  const subActive = isActive(sub.href)
                   const subItem = (
                     <Link
                       key={sub.href}
                       href={sub.href}
-                      className={cn(
-                        'flex items-center gap-2.5 px-2 py-2 rounded-md text-sm transition-colors',
-                        subActive
-                          ? 'bg-zinc-700 text-white'
-                          : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
-                      )}
+                      className={cn(linkBase, !subActive && 'hover:bg-white/5')}
+                      style={subActive ? linkActive : linkIdle}
                     >
-                      <SubIcon size={16} className="shrink-0" />
+                      <SubIcon size={15} className="shrink-0" />
                     </Link>
                   )
                   return (
@@ -161,35 +156,24 @@ export function Sidebar() {
             <div key={group.label}>
               <button
                 onClick={() => toggleGroup(group.label)}
-                className={cn(
-                  'w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-sm transition-colors',
-                  active
-                    ? 'text-zinc-100'
-                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
-                )}
+                className={cn('w-full', linkBase, !active && 'hover:bg-white/5')}
+                style={active ? { color: 'var(--brand-text)' } : linkIdle}
               >
-                <GroupIcon size={16} className="shrink-0" />
-                <span className="flex-1 text-left">{group.label}</span>
-                <ChevronDown
-                  size={12}
-                  className={cn('transition-transform', open && 'rotate-180')}
-                />
+                <GroupIcon size={15} className="shrink-0" />
+                <span className="flex-1 text-left font-medium">{group.label}</span>
+                <ChevronDown size={12} className={cn('transition-transform duration-200', open && 'rotate-180')} />
               </button>
               {open && (
-                <div className="ml-4 mt-0.5 space-y-0.5 border-l border-zinc-800 pl-2">
+                <div className="ml-3 mt-0.5 space-y-0.5 border-l pl-2" style={{ borderColor: 'var(--brand-border)' }}>
                   {group.items.map(sub => {
                     const SubIcon = sub.icon
-                    const subActive = pathname === sub.href || pathname.startsWith(sub.href + '/')
+                    const subActive = isActive(sub.href)
                     return (
                       <Link
                         key={sub.href}
                         href={sub.href}
-                        className={cn(
-                          'flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors',
-                          subActive
-                            ? 'bg-zinc-700 text-white'
-                            : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100'
-                        )}
+                        className={cn('flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-all duration-150', !subActive && 'hover:bg-white/5')}
+                        style={subActive ? { color: 'var(--brand-primary)', background: '#1e2a40' } : { color: 'var(--brand-muted)' }}
                       >
                         <SubIcon size={13} className="shrink-0" />
                         <span>{sub.label}</span>
@@ -206,7 +190,8 @@ export function Sidebar() {
       {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed(c => !c)}
-        className="flex items-center justify-center h-10 border-t border-zinc-800 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors"
+        className="flex items-center justify-center h-10 border-t transition-colors hover:bg-white/5"
+        style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-muted)' }}
       >
         {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>

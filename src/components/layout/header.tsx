@@ -35,10 +35,10 @@ export function Header({ title, actions }: HeaderProps) {
     .toUpperCase() ?? 'U'
 
   return (
-    <header className="flex items-center justify-between h-14 px-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shrink-0">
+    <header className="flex items-center justify-between h-14 px-6 border-b shrink-0" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
       <div className="flex items-center gap-3">
         {title && (
-          <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{title}</h1>
+          <h1 className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>{title}</h1>
         )}
       </div>
 

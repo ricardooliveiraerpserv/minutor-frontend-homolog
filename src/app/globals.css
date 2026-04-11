@@ -117,14 +117,34 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ── Brand tokens ────────────────────────────────────────────── */
+:root {
+  --brand-bg:      #0A0A0B;
+  --brand-surface: #111113;
+  --brand-border:  #1E1E22;
+  --brand-primary: #2563EB;
+  --brand-text:    #E4E4E7;
+  --brand-muted:   #64748B;
+  --brand-success: #22C55E;
+  --brand-danger:  #EF4444;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--brand-bg);
+    color: var(--brand-text);
+    @apply font-sans;
   }
   html {
     @apply font-sans;
   }
 }
+
+/* ── Scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a2e; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3e; }
