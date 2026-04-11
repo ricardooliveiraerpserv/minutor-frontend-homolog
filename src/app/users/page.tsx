@@ -178,6 +178,7 @@ export default function UsersPage() {
     userName?: string
     userEmail?: string
     tempPassword?: string
+    emailSent?: boolean
     confirmed: boolean
   }>({ open: false, confirmed: false })
   const [form,     setForm]     = useState({ ...EMPTY_FORM })
@@ -294,8 +295,8 @@ export default function UsersPage() {
     if (!resetModal.userId) return
     setResetting(resetModal.userId)
     try {
-      const r = await api.post<{ temporary_password: string }>(`/users/${resetModal.userId}/reset-password`, {})
-      setResetModal(prev => ({ ...prev, tempPassword: r.temporary_password, confirmed: true }))
+      const r = await api.post<{ temporary_password: string; email_sent?: boolean }>(`/users/${resetModal.userId}/reset-password`, {})
+      setResetModal(prev => ({ ...prev, tempPassword: r.temporary_password, emailSent: r.email_sent ?? false, confirmed: true }))
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao resetar senha')
     } finally {
@@ -625,10 +626,16 @@ export default function UsersPage() {
               // ── Passo 2: senha gerada ──
               <>
                 <h3 className="text-sm font-semibold text-white mb-1">Senha gerada com sucesso</h3>
-                <p className="text-xs text-zinc-400 mb-1">Copie a senha abaixo para repassar ao usuário se necessário.</p>
-                <p className="text-xs text-zinc-500 mb-4">
-                  E-mail enviado para <span className="text-zinc-300">{resetModal.userEmail}</span>
-                </p>
+                <p className="text-xs text-zinc-400 mb-2">Copie a senha abaixo para repassar ao usuário.</p>
+                {resetModal.emailSent ? (
+                  <p className="text-xs mb-4 px-2.5 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400">
+                    E-mail enviado para <span className="font-medium">{resetModal.userEmail}</span>
+                  </p>
+                ) : (
+                  <p className="text-xs mb-4 px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+                    Falha ao enviar e-mail — repasse a senha manualmente ao usuário.
+                  </p>
+                )}
                 <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5">
                   <code className="flex-1 text-sm text-yellow-300 font-mono tracking-wider">
                     {resetModal.tempPassword}
