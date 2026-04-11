@@ -80,9 +80,10 @@ export default function UsersPage() {
       if (search) p.set('search', search)
       if (filterEnabled) p.set('enabled', filterEnabled)
       if (filterRole) p.set('role', filterRole)
-      const r = await api.get<{ data: UserItem[]; meta?: { last_page: number } }>(`/users?${p}`)
-      setUsers(Array.isArray(r?.data) ? r.data : [])
-      setHasNext(!!(r.meta && page < r.meta.last_page))
+      const r = await api.get<{ items?: UserItem[]; data?: UserItem[]; hasNext?: boolean; meta?: { last_page: number } }>(`/users?${p}`)
+      const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+      setUsers(list)
+      setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar usuários') }
     finally { setLoading(false) }
   }, [page, search, filterEnabled, filterRole])
