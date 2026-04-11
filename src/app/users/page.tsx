@@ -460,25 +460,31 @@ export default function UsersPage() {
                   </div>
                 )}
 
-                {/* ── Valor hora (Consultor / Coordenador / Parceiro) ── */}
+                {/* ── Remuneração (Consultor / Coordenador / Parceiro) ── */}
                 {hasRate && (
                   <div>
                     <Label className="text-xs text-zinc-400 mb-1 block">Remuneração</Label>
                     <div className="flex gap-2 items-center">
-                      {/* Tipo: Hora / Fixo */}
-                      <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
-                        {(['hourly', 'monthly'] as const).map(t => (
-                          <button key={t} type="button"
-                            onClick={() => setForm(f => ({ ...f, rate_type: t }))}
-                            className={`px-3 py-1.5 font-medium transition-colors ${
-                              form.rate_type === t
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-                            }`}>
-                            {t === 'hourly' ? 'Por Hora' : 'Fixo'}
-                          </button>
-                        ))}
-                      </div>
+                      {/* Consultor: tipo fixado pelo tipo de consultor; outros: toggle manual */}
+                      {isConsultor ? (
+                        <span className="px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800/60 text-xs text-zinc-400 font-medium whitespace-nowrap">
+                          {form.rate_type === 'hourly' ? 'Por Hora' : 'Fixo'}
+                        </span>
+                      ) : (
+                        <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+                          {(['hourly', 'monthly'] as const).map(t => (
+                            <button key={t} type="button"
+                              onClick={() => setForm(f => ({ ...f, rate_type: t }))}
+                              className={`px-3 py-1.5 font-medium transition-colors ${
+                                form.rate_type === t
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                              }`}>
+                              {t === 'hourly' ? 'Por Hora' : 'Fixo'}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       <Input type="number" min="0" step="0.01" value={form.hourly_rate}
                         onChange={e => setForm(f => ({ ...f, hourly_rate: e.target.value }))}
                         placeholder="0,00"
@@ -506,7 +512,12 @@ export default function UsersPage() {
                     <div className="space-y-1.5">
                       {CONSULTANT_OPTIONS.map(opt => (
                         <button key={opt.value} type="button"
-                          onClick={() => setForm(f => ({ ...f, consultant_type: opt.value }))}
+                          onClick={() => setForm(f => ({
+                            ...f,
+                            consultant_type: opt.value,
+                            // Horista → por hora | Fixo e Banco de Horas → fixo mensal
+                            rate_type: opt.value === 'horista' ? 'hourly' : 'monthly',
+                          }))}
                           className={`w-full py-2 px-3 rounded-lg text-xs font-medium border transition-all text-left ${
                             form.consultant_type === opt.value
                               ? 'bg-blue-600/20 border-blue-500 text-blue-300'
@@ -514,6 +525,9 @@ export default function UsersPage() {
                           }`}>
                           {form.consultant_type === opt.value && <span className="mr-1.5">●</span>}
                           {opt.label}
+                          <span className="ml-2 text-[10px] opacity-50">
+                            {opt.value === 'horista' ? '(por hora)' : '(fixo)'}
+                          </span>
                         </button>
                       ))}
                     </div>
