@@ -9,7 +9,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import {
   Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
-  Trash2, X, Globe, Webhook, MoreHorizontal,
+  Trash2, X, Globe, Webhook, MoreHorizontal, Eye,
 } from 'lucide-react'
 import {
   PageHeader, Table, Thead, Th, Tbody, Tr, Td,
@@ -96,6 +96,14 @@ function RowActions({ id, onDeleted }: { id: number; onDeleted: () => void }) {
           className="absolute left-0 top-full mt-1 z-50 w-36 rounded-xl shadow-xl py-1"
           style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
         >
+          <Link
+            href={`/timesheets/${id}`}
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5"
+            style={{ color: 'var(--brand-muted)' }}
+          >
+            <Eye size={11} /> Visualizar
+          </Link>
           <Link
             href={`/timesheets/${id}/edit`}
             onClick={() => setOpen(false)}
