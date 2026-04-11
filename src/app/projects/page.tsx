@@ -41,20 +41,27 @@ interface ProjectStatus { code: string; name: string }
 
 function ProgressBar({ pct }: { pct?: number }) {
   const val = Math.min(100, Math.max(0, pct ?? 0))
-  const color = val > 90 ? 'bg-red-500' : val > 70 ? 'bg-yellow-500' : 'bg-blue-500'
+  const color = val > 90 ? 'var(--brand-danger)' : val > 70 ? 'var(--brand-warning)' : 'var(--brand-primary)'
   return (
-    <div className="w-full bg-zinc-700 rounded-full h-1.5">
-      <div className={`${color} h-1.5 rounded-full transition-all`} style={{ width: `${val}%` }} />
+    <div className="w-full rounded-full h-1.5" style={{ background: 'var(--brand-border)' }}>
+      <div className="h-1.5 rounded-full transition-all" style={{ width: `${val}%`, background: color }} />
     </div>
   )
 }
 
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300 z-10">
-          <X size={16} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+      <div
+        className="relative w-full max-w-lg rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-7 h-7 flex items-center justify-center rounded-lg z-10 hover:bg-white/5 transition-colors"
+          style={{ color: 'var(--brand-muted)' }}
+        >
+          <X size={14} />
         </button>
         {children}
       </div>
@@ -203,97 +210,192 @@ export default function ProjectsPage() {
 
   return (
     <AppLayout title="Projetos">
-      {/* Filtros */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <div className="relative flex-1 min-w-48">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-          <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Buscar projeto..." className="pl-8 bg-zinc-800 border-zinc-700 text-white h-8 text-xs" />
+      <div className="max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 mb-8">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: 'rgba(0,245,255,0.08)' }}>
+            <FolderOpen size={16} color="var(--brand-primary)" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>Projetos</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>Gestão de projetos e contratos</p>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
+        <button
+          onClick={openCreate}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 active:scale-[0.98]"
+          style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+        >
+          <Plus size={14} /> Novo
+        </button>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex items-center gap-2 mb-6 p-4 rounded-2xl flex-wrap" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="relative flex-1 min-w-48">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+          <input
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
+            placeholder="Buscar projeto..."
+            className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-none"
+            style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+          />
+        </div>
+        <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
           {[
             { value: '', label: 'Todos' },
-            { value: 'started', label: 'Iniciados' },
-            { value: 'paused', label: 'Pausados' },
-            { value: 'finished', label: 'Encerrados' },
+            { value: 'started',   label: 'Iniciados' },
+            { value: 'paused',    label: 'Pausados' },
+            { value: 'finished',  label: 'Encerrados' },
             { value: 'cancelled', label: 'Cancelados' },
           ].map(({ value, label }) => (
-            <button key={value} onClick={() => { setStatus(value); setPage(1) }}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${status === value ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300'}`}>
+            <button
+              key={value}
+              onClick={() => { setStatus(value); setPage(1) }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={status === value
+                ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                : { color: 'var(--brand-muted)' }
+              }
+            >
               {label}
             </button>
           ))}
         </div>
-        <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5 ml-auto">
-          <Plus size={13} /> Novo
-        </Button>
       </div>
 
       {/* Tabela */}
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-zinc-800 bg-zinc-900">
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Código</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Projeto</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell w-32">Saldo</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
-              <th className="px-3 py-2.5 w-16"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && Array.from({ length: 8 }).map((_, i) => (
-              <tr key={i} className="border-b border-zinc-800">
-                {[...Array(6)].map((_, j) => <td key={j} className="px-3 py-2.5"><Skeleton className="h-3 w-full" /></td>)}
+      <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
+            <thead style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+              <tr>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Código</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Projeto</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider hidden md:table-cell" style={{ color: 'var(--brand-subtle)' }}>Cliente</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell w-36" style={{ color: 'var(--brand-subtle)' }}>Saldo</th>
+                <th className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Status</th>
+                <th className="px-5 py-3.5 w-20" />
               </tr>
-            ))}
-            {!loading && data?.items.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-12 text-center text-zinc-500">
-                <FolderOpen size={24} className="mx-auto mb-2 opacity-30" />Nenhum projeto encontrado
-              </td></tr>
-            )}
-            {!loading && data?.items.map(p => (
-              <tr key={p.id} className="border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors">
-                <td className="px-3 py-2.5 text-zinc-500 font-mono">{p.code}</td>
-                <td className="px-3 py-2.5 max-w-[200px]">
-                  <span className="text-zinc-200 truncate block">{p.name}</span>
-                </td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell truncate max-w-[160px]">{p.customer?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 hidden lg:table-cell w-32">
-                  {p.balance_percentage != null ? (
-                    <div className="space-y-1">
-                      <ProgressBar pct={p.balance_percentage} />
-                      <span className="text-[10px] text-zinc-500">{p.balance_percentage.toFixed(0)}%</span>
+            </thead>
+            <tbody>
+              {loading && Array.from({ length: 8 }).map((_, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)' }}>
+                  {[...Array(6)].map((_, j) => (
+                    <td key={j} className="px-5 py-4">
+                      <div className="h-3 rounded animate-pulse" style={{ background: 'var(--brand-border)', width: '70%' }} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              {!loading && data?.items.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(0,245,255,0.06)' }}>
+                        <FolderOpen size={20} color="var(--brand-primary)" />
+                      </div>
+                      <span className="text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto encontrado</span>
                     </div>
-                  ) : '—'}
-                </td>
-                <td className="px-3 py-2.5">
-                  <Badge variant="outline" className={`text-[10px] border ${STATUS_CLASS[p.status] ?? 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'}`}>
-                    {p.status_display ?? p.status}
-                  </Badge>
-                </td>
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => openEdit(p)} className="p-1 text-zinc-500 hover:text-zinc-200 transition-colors"><Pencil size={12} /></button>
-                    <button onClick={() => remove(p.id)} disabled={deleting === p.id} className="p-1 text-zinc-500 hover:text-red-400 transition-colors"><Trash2 size={12} /></button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                </tr>
+              )}
+              {!loading && data?.items.map((p, idx) => (
+                <tr
+                  key={p.id}
+                  className="transition-colors"
+                  style={{ borderBottom: '1px solid var(--brand-border)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td className="px-5 py-3.5">
+                    <span className="font-mono text-xs px-2 py-1 rounded-md" style={{ background: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
+                      {p.code}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3.5 max-w-[200px]">
+                    <span className="font-medium truncate block" style={{ color: 'var(--brand-text)' }}>{p.name}</span>
+                  </td>
+                  <td className="px-5 py-3.5 hidden md:table-cell truncate max-w-[160px] text-sm" style={{ color: 'var(--brand-muted)' }}>
+                    {p.customer?.name ?? '—'}
+                  </td>
+                  <td className="px-5 py-3.5 hidden lg:table-cell w-36">
+                    {p.balance_percentage != null ? (
+                      <div className="space-y-1">
+                        <ProgressBar pct={p.balance_percentage} />
+                        <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{p.balance_percentage.toFixed(0)}%</span>
+                      </div>
+                    ) : <span style={{ color: 'var(--brand-subtle)' }}>—</span>}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {(() => {
+                      const s = p.status ?? ''
+                      const variant = s === 'active' || s === 'started' ? 'started'
+                        : s === 'paused' ? 'paused'
+                        : s === 'cancelled' ? 'cancelled'
+                        : s === 'finished' ? 'finished'
+                        : 'default'
+                      return (
+                        <span
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                          style={{
+                            background: variant === 'started' ? 'rgba(0,245,255,0.10)'
+                              : variant === 'paused' ? 'rgba(245,158,11,0.12)'
+                              : variant === 'cancelled' ? 'rgba(239,68,68,0.12)'
+                              : variant === 'finished' ? 'rgba(161,161,170,0.12)'
+                              : 'rgba(161,161,170,0.12)',
+                            color: variant === 'started' ? '#00F5FF'
+                              : variant === 'paused' ? '#F59E0B'
+                              : variant === 'cancelled' ? '#EF4444'
+                              : variant === 'finished' ? '#71717A'
+                              : '#A1A1AA',
+                          }}
+                        >
+                          {p.status_display ?? p.status}
+                        </span>
+                      )
+                    })()}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-1 justify-end">
+                      <button
+                        onClick={() => openEdit(p)}
+                        className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
+                        style={{ color: 'var(--brand-subtle)' }}
+                      ><Pencil size={13} /></button>
+                      <button
+                        onClick={() => remove(p.id)}
+                        disabled={deleting === p.id}
+                        className="p-1.5 rounded-lg transition-colors hover:bg-white/5 disabled:opacity-50"
+                        style={{ color: 'var(--brand-danger)' }}
+                      ><Trash2 size={13} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Paginação */}
       {(data?.items.length ?? 0) > 0 && (
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-xs text-zinc-500">Página {page}</span>
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Página {page}</span>
           <div className="flex items-center gap-1">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-800 disabled:opacity-30 transition-colors"><ChevronLeft size={14} /></button>
-            <button onClick={() => setPage(p => p + 1)} disabled={!data?.hasNext}
-              className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-800 disabled:opacity-30 transition-colors"><ChevronRight size={14} /></button>
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-30"
+              style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
+            ><ChevronLeft size={13} /> Anterior</button>
+            <span className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>{page}</span>
+            <button
+              onClick={() => setPage(p => p + 1)} disabled={!data?.hasNext}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-30"
+              style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
+            >Próxima <ChevronRight size={13} /></button>
           </div>
         </div>
       )}
@@ -301,70 +403,76 @@ export default function ProjectsPage() {
       {/* Modal criar/editar */}
       {modal.open && (
         <ModalOverlay onClose={() => setModal({ open: false })}>
-          <div className="p-5">
-            <h3 className="text-sm font-semibold text-white mb-4">{modal.item ? 'Editar Projeto' : 'Novo Projeto'}</h3>
+          <div className="p-6">
+            <h3 className="text-base font-bold mb-5" style={{ color: 'var(--brand-text)' }}>
+              {modal.item ? 'Editar Projeto' : 'Novo Projeto'}
+            </h3>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <Label className="text-xs text-zinc-400">Nome *</Label>
-                  <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Nome *</label>
+                  <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Código *</Label>
-                  <Input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs font-mono" />
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Código *</label>
+                  <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none font-mono"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Status</Label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Status</label>
                   <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-2">
-                    {projectStatuses.length > 0
-                      ? projectStatuses.map(s => <option key={s.code} value={s.code}>{s.name}</option>)
-                      : [
-                          { code: 'started', name: 'Iniciado' },
-                          { code: 'paused', name: 'Pausado' },
-                          { code: 'cancelled', name: 'Cancelado' },
-                          { code: 'finished', name: 'Encerrado' },
-                        ].map(s => <option key={s.code} value={s.code}>{s.name}</option>)
-                    }
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none appearance-none"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
+                    {(projectStatuses.length > 0 ? projectStatuses : [
+                      { code: 'started', name: 'Iniciado' }, { code: 'paused', name: 'Pausado' },
+                      { code: 'cancelled', name: 'Cancelado' }, { code: 'finished', name: 'Encerrado' },
+                    ]).map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <Label className="text-xs text-zinc-400">Cliente *</Label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Cliente *</label>
                   <select value={form.customer_id} onChange={e => setForm(f => ({ ...f, customer_id: e.target.value }))}
-                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-2">
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none appearance-none"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
                     <option value="">Selecione...</option>
                     {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div className="col-span-2">
-                  <Label className="text-xs text-zinc-400">Tipo de Contrato *</Label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Tipo de Contrato *</label>
                   <select value={form.contract_type_id} onChange={e => setForm(f => ({ ...f, contract_type_id: e.target.value }))}
-                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-2">
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none appearance-none"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
                     <option value="">Selecione...</option>
                     {contractTypes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Data Início</Label>
-                  <Input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Data Início</label>
+                  <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Data Fim</Label>
-                  <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Data Fim</label>
+                  <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Horas Contratadas</Label>
-                  <Input type="number" min="0" value={form.consultant_hours} onChange={e => setForm(f => ({ ...f, consultant_hours: e.target.value }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Horas Contratadas</label>
+                  <input type="number" min="0" value={form.consultant_hours} onChange={e => setForm(f => ({ ...f, consultant_hours: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Projeto Pai</Label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Projeto Pai</label>
                   <select value={form.parent_project_id} onChange={e => setForm(f => ({ ...f, parent_project_id: e.target.value }))}
-                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-2">
+                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none appearance-none"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
                     <option value="">Nenhum</option>
                     {parentProjects.filter(p => !modal.item || p.id !== modal.item.id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
@@ -374,15 +482,21 @@ export default function ProjectsPage() {
               {/* Consultores */}
               {consultants.length > 0 && (
                 <div>
-                  <Label className="text-xs text-zinc-400 mb-2 block">Consultores</Label>
-                  <div className="border border-zinc-700 rounded-md p-2 max-h-32 overflow-y-auto space-y-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Consultores</label>
+                  <div className="rounded-xl p-3 max-h-32 overflow-y-auto space-y-1" style={{ border: '1px solid var(--brand-border)', background: 'var(--brand-bg)' }}>
                     {consultants.map(u => (
-                      <label key={u.id} className="flex items-center gap-2 cursor-pointer">
-                        <div onClick={() => setForm(f => ({ ...f, consultant_ids: toggleArr(f.consultant_ids, u.id) }))}
-                          className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer ${form.consultant_ids.includes(u.id) ? 'bg-blue-600 border-blue-600' : 'border-zinc-600'}`}>
-                          {form.consultant_ids.includes(u.id) && <span className="text-white text-[9px]">✓</span>}
+                      <label key={u.id} className="flex items-center gap-2 cursor-pointer py-0.5">
+                        <div
+                          onClick={() => setForm(f => ({ ...f, consultant_ids: toggleArr(f.consultant_ids, u.id) }))}
+                          className="w-4 h-4 rounded flex items-center justify-center cursor-pointer shrink-0"
+                          style={{
+                            background: form.consultant_ids.includes(u.id) ? 'var(--brand-primary)' : 'transparent',
+                            border: `1px solid ${form.consultant_ids.includes(u.id) ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
+                          }}
+                        >
+                          {form.consultant_ids.includes(u.id) && <span className="text-[9px] font-bold" style={{ color: '#0A0A0B' }}>✓</span>}
                         </div>
-                        <span className="text-xs text-zinc-300">{u.name}</span>
+                        <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>{u.name}</span>
                       </label>
                     ))}
                   </div>
@@ -392,15 +506,21 @@ export default function ProjectsPage() {
               {/* Aprovadores */}
               {consultants.length > 0 && (
                 <div>
-                  <Label className="text-xs text-zinc-400 mb-2 block">Aprovadores</Label>
-                  <div className="border border-zinc-700 rounded-md p-2 max-h-28 overflow-y-auto space-y-1">
+                  <label className="block text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Aprovadores</label>
+                  <div className="rounded-xl p-3 max-h-28 overflow-y-auto space-y-1" style={{ border: '1px solid var(--brand-border)', background: 'var(--brand-bg)' }}>
                     {consultants.map(u => (
-                      <label key={u.id} className="flex items-center gap-2 cursor-pointer">
-                        <div onClick={() => setForm(f => ({ ...f, coordinator_ids: toggleArr(f.coordinator_ids, u.id) }))}
-                          className={`w-4 h-4 rounded border flex items-center justify-center cursor-pointer ${form.coordinator_ids.includes(u.id) ? 'bg-blue-600 border-blue-600' : 'border-zinc-600'}`}>
-                          {form.coordinator_ids.includes(u.id) && <span className="text-white text-[9px]">✓</span>}
+                      <label key={u.id} className="flex items-center gap-2 cursor-pointer py-0.5">
+                        <div
+                          onClick={() => setForm(f => ({ ...f, coordinator_ids: toggleArr(f.coordinator_ids, u.id) }))}
+                          className="w-4 h-4 rounded flex items-center justify-center cursor-pointer shrink-0"
+                          style={{
+                            background: form.coordinator_ids.includes(u.id) ? 'var(--brand-primary)' : 'transparent',
+                            border: `1px solid ${form.coordinator_ids.includes(u.id) ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
+                          }}
+                        >
+                          {form.coordinator_ids.includes(u.id) && <span className="text-[9px] font-bold" style={{ color: '#0A0A0B' }}>✓</span>}
                         </div>
-                        <span className="text-xs text-zinc-300">{u.name}</span>
+                        <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>{u.name}</span>
                       </label>
                     ))}
                   </div>
@@ -408,16 +528,25 @@ export default function ProjectsPage() {
               )}
             </div>
 
-            <div className="flex gap-2 mt-5 justify-end">
-              <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
-              <Button onClick={save} disabled={saving || !form.name || !form.code || !form.customer_id}
-                className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+            <div className="flex gap-2 mt-6 justify-end">
+              <button
+                onClick={() => setModal({ open: false })}
+                className="px-4 py-2 rounded-xl text-sm font-medium transition-colors hover:bg-white/5"
+                style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}
+              >Cancelar</button>
+              <button
+                onClick={save}
+                disabled={saving || !form.name || !form.code || !form.customer_id}
+                className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-40"
+                style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+              >
                 {saving ? 'Salvando...' : 'Salvar'}
-              </Button>
+              </button>
             </div>
           </div>
         </ModalOverlay>
       )}
+      </div>
     </AppLayout>
   )
 }

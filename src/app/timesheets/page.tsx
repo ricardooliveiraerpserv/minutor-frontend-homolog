@@ -3,59 +3,28 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useApiQuery } from '@/hooks/use-query'
 import { Timesheet, PaginatedResponse } from '@/types'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Clock, ChevronLeft, ChevronRight, Globe, Webhook, RefreshCw, FileSpreadsheet, Plus, ChevronsUpDown, ChevronUp, ChevronDown, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react'
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
+import {
+  Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
+  Trash2, X, Globe, Webhook, MoreHorizontal,
+} from 'lucide-react'
+import {
+  PageHeader, Table, Thead, Th, Tbody, Tr, Td,
+  Badge, Button, Select, TextInput, Pagination,
+  EmptyState, SkeletonTable,
+} from '@/components/ds'
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 type SortField = 'date' | 'status' | 'user.name' | 'project.name' | 'customer.name' | 'effort_hours'
 type SortDir   = 'asc' | 'desc'
 
-function SortHeader({
-  label, field, current, dir, onSort, className,
-}: {
-  label: string
-  field: SortField
-  current: SortField | null
-  dir: SortDir
-  onSort: (f: SortField) => void
-  className?: string
-}) {
-  const active = current === field
-  return (
-    <th
-      className={`text-left px-3 py-2.5 text-zinc-500 font-medium cursor-pointer select-none hover:text-zinc-300 transition-colors whitespace-nowrap ${className ?? ''}`}
-      onClick={() => onSort(field)}
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        {active
-          ? dir === 'asc'
-            ? <ChevronUp size={11} className="text-blue-400" />
-            : <ChevronDown size={11} className="text-blue-400" />
-          : <ChevronsUpDown size={11} className="opacity-30" />}
-      </span>
-    </th>
-  )
-}
+interface SelectOption { id: number; name: string }
 
-const STATUS_CLASS: Record<string, string> = {
-  pending:    'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  approved:   'bg-green-500/20 text-green-400 border-green-500/30',
-  rejected:   'bg-red-500/20 text-red-400 border-red-500/30',
-  conflicted: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-}
-
-const STATUS_OPTIONS = [
-  { value: '',           label: 'Todos os status' },
-  { value: 'pending',    label: 'Pendente' },
-  { value: 'approved',   label: 'Aprovado' },
-  { value: 'rejected',   label: 'Rejeitado' },
-  { value: 'conflicted', label: 'Conflito' },
-]
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(d: string | null | undefined) {
   if (!d) return '—'
@@ -67,34 +36,38 @@ function formatMinutes(minutes: number) {
   return `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}`
 }
 
+// ─── Origin badge ─────────────────────────────────────────────────────────────
+
 function OriginBadge({ origin }: { origin?: string }) {
-  if (origin === 'webhook') {
-    return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
-        <Webhook size={9} />
-        Auto
-      </span>
-    )
-  }
+  if (origin === 'webhook') return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+      style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}
+    >
+      <Webhook size={9} /> Auto
+    </span>
+  )
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">
-      <Globe size={9} />
-      Web
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+      style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}
+    >
+      <Globe size={9} /> Web
     </span>
   )
 }
 
+// ─── Row actions ─────────────────────────────────────────────────────────────
+
 function RowActions({ id, onDeleted }: { id: number; onDeleted: () => void }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen]       = useState(false)
   const [deleting, setDeleting] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
   }, [])
 
   const handleDelete = async () => {
@@ -106,37 +79,38 @@ function RowActions({ id, onDeleted }: { id: number; onDeleted: () => void }) {
       onDeleted()
     } catch {
       toast.error('Erro ao excluir')
-    } finally {
-      setDeleting(false)
-      setOpen(false)
-    }
+    } finally { setDeleting(false); setOpen(false) }
   }
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+        className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
+        style={{ color: 'var(--brand-subtle)' }}
       >
-        <MoreHorizontal size={13} />
+        <MoreHorizontal size={14} />
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 w-36 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-lg py-1">
+        <div
+          className="absolute left-0 top-full mt-1 z-50 w-36 rounded-xl shadow-xl py-1"
+          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+        >
           <Link
             href={`/timesheets/${id}/edit`}
             onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-white/5"
+            style={{ color: 'var(--brand-muted)' }}
           >
-            <Pencil size={11} />
-            Editar
+            <Pencil size={11} /> Editar
           </Link>
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-50 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors disabled:opacity-50 hover:bg-white/5"
+            style={{ color: 'var(--brand-danger)' }}
           >
-            <Trash2 size={11} />
-            {deleting ? 'Excluindo...' : 'Excluir'}
+            <Trash2 size={11} /> {deleting ? 'Excluindo...' : 'Excluir'}
           </button>
         </div>
       )}
@@ -144,42 +118,45 @@ function RowActions({ id, onDeleted }: { id: number; onDeleted: () => void }) {
   )
 }
 
-interface SelectOption { id: number; name: string }
+// ─── STATUS OPTIONS ──────────────────────────────────────────────────────────
+
+const STATUS_OPTIONS = [
+  { value: '',           label: 'Todos os status' },
+  { value: 'pending',    label: 'Pendente' },
+  { value: 'approved',   label: 'Aprovado' },
+  { value: 'rejected',   label: 'Rejeitado' },
+  { value: 'conflicted', label: 'Conflito' },
+]
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function TimesheetsPage() {
-  const [page, setPage] = useState(1)
-  const [status, setStatus]               = useState('')
+  const [page, setPage]               = useState(1)
+  const [status, setStatus]           = useState('')
   const [serviceTypeId, setServiceTypeId] = useState('')
   const [contractTypeId, setContractTypeId] = useState('')
-  const [startDate, setStartDate]         = useState('')
-  const [endDate, setEndDate]             = useState('')
-  const [ticket, setTicket]               = useState('')
-  const [exporting, setExporting]         = useState(false)
-  const [sortField, setSortField]         = useState<SortField | null>('date')
-  const [sortDir, setSortDir]             = useState<SortDir>('desc')
+  const [startDate, setStartDate]     = useState('')
+  const [endDate, setEndDate]         = useState('')
+  const [ticket, setTicket]           = useState('')
+  const [exporting, setExporting]     = useState(false)
+  const [sortField, setSortField]     = useState<SortField | null>('date')
+  const [sortDir, setSortDir]         = useState<SortDir>('desc')
 
   const handleSort = useCallback((field: SortField) => {
     setSortField(prev => {
-      if (prev === field) {
-        setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-        return field
-      }
-      setSortDir('asc')
-      return field
+      if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return field }
+      setSortDir('asc'); return field
     })
     setPage(1)
   }, [])
 
-  const { data: serviceTypes } = useApiQuery<{ items: SelectOption[] } | SelectOption[]>('/service-types')
+  const { data: serviceTypes }  = useApiQuery<{ items: SelectOption[] } | SelectOption[]>('/service-types')
   const { data: contractTypes } = useApiQuery<{ items: SelectOption[] } | SelectOption[]>('/contract-types')
 
   const serviceTypeList: SelectOption[] = Array.isArray(serviceTypes)
-    ? serviceTypes
-    : (serviceTypes as { items?: SelectOption[] })?.items ?? []
-
+    ? serviceTypes : (serviceTypes as any)?.items ?? []
   const contractTypeList: SelectOption[] = Array.isArray(contractTypes)
-    ? contractTypes
-    : (contractTypes as { items?: SelectOption[] })?.items ?? []
+    ? contractTypes : (contractTypes as any)?.items ?? []
 
   const params = useMemo(() => {
     const p = new URLSearchParams({ page: String(page), per_page: '20' })
@@ -194,22 +171,15 @@ export default function TimesheetsPage() {
   }, [page, status, serviceTypeId, contractTypeId, startDate, endDate, ticket, sortField, sortDir])
 
   const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<Timesheet>>(
-    `/timesheets?${params}`,
-    [params]
+    `/timesheets?${params}`, [params]
   )
 
   const resetPage = useCallback(() => setPage(1), [])
-
   const hasFilters = !!(status || serviceTypeId || contractTypeId || startDate || endDate || ticket)
 
   const clearFilters = useCallback(() => {
-    setStatus('')
-    setServiceTypeId('')
-    setContractTypeId('')
-    setStartDate('')
-    setEndDate('')
-    setTicket('')
-    setPage(1)
+    setStatus(''); setServiceTypeId(''); setContractTypeId('')
+    setStartDate(''); setEndDate(''); setTicket(''); setPage(1)
   }, [])
 
   const handleExport = async () => {
@@ -222,252 +192,176 @@ export default function TimesheetsPage() {
       if (startDate)      p.set('start_date', startDate)
       if (endDate)        p.set('end_date', endDate)
       if (ticket)         p.set('ticket', ticket)
-
       const token = localStorage.getItem('minutor_token')
-      const res = await fetch(`/api/v1/timesheets/export?${p.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error('Falha no export')
+      const res = await fetch(`/api/v1/timesheets/export?${p}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error()
       const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `apontamentos_${new Date().toISOString().slice(0, 10)}.xlsx`
-      a.click()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href = url; a.download = `apontamentos_${new Date().toISOString().slice(0, 10)}.xlsx`; a.click()
       URL.revokeObjectURL(url)
-    } catch {
-      alert('Erro ao exportar. Tente novamente.')
-    } finally {
-      setExporting(false)
-    }
+    } catch { alert('Erro ao exportar. Tente novamente.') }
+    finally { setExporting(false) }
   }
 
-  const actions = (
-    <div className="flex items-center gap-2">
-      <button
-        onClick={() => refetch()}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-      >
-        <RefreshCw size={12} />
-        Atualizar
-      </button>
-      <button
-        onClick={handleExport}
-        disabled={exporting}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50 transition-colors"
-      >
-        <FileSpreadsheet size={12} />
-        {exporting ? 'Exportando...' : 'Exportar Excel'}
-      </button>
-      <Link
-        href="/timesheets/new"
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-      >
-        <Plus size={12} />
-        Novo Apontamento
-      </Link>
-    </div>
-  )
-
   return (
-    <AppLayout title="Apontamentos" actions={actions}>
-      {/* Filters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-        <select
-          value={serviceTypeId}
-          onChange={e => { setServiceTypeId(e.target.value); resetPage() }}
-          className="px-3 py-2 rounded-md text-xs border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="">Selecione um tipo...</option>
-          {serviceTypeList.map(s => (
-            <option key={s.id} value={String(s.id)}>{s.name}</option>
-          ))}
-        </select>
-
-        <select
-          value={contractTypeId}
-          onChange={e => { setContractTypeId(e.target.value); resetPage() }}
-          className="px-3 py-2 rounded-md text-xs border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          <option value="">Selecione um tipo de contrato...</option>
-          {contractTypeList.map(c => (
-            <option key={c.id} value={String(c.id)}>{c.name}</option>
-          ))}
-        </select>
-
-        <select
-          value={status}
-          onChange={e => { setStatus(e.target.value); resetPage() }}
-          className="px-3 py-2 rounded-md text-xs border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        >
-          {STATUS_OPTIONS.map(s => (
-            <option key={s.value} value={s.value}>{s.label}</option>
-          ))}
-        </select>
-
-        <div className="flex items-center gap-1">
-          <input
-            type="date"
-            value={startDate}
-            onChange={e => { setStartDate(e.target.value); resetPage() }}
-            className="flex-1 min-w-0 px-2 py-2 rounded-md text-xs border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          <span className="text-zinc-400 text-xs">-</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={e => { setEndDate(e.target.value); resetPage() }}
-            className="flex-1 min-w-0 px-2 py-2 rounded-md text-xs border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      <div className="flex items-end gap-3 mb-4">
-        <div>
-        <label className="block text-xs font-medium text-zinc-500 mb-1">Ticket</label>
-        <input
-          type="text"
-          value={ticket}
-          onChange={e => { setTicket(e.target.value); resetPage() }}
-          placeholder="Digite o número do ticket..."
-          className="w-56 px-3 py-2 rounded-md text-xs border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+    <AppLayout title="Apontamentos">
+      <div className="max-w-7xl mx-auto">
+        <PageHeader
+          icon={Clock}
+          title="Apontamentos"
+          subtitle="Registro de horas por projeto e colaborador"
+          actions={
+            <>
+              <Button variant="ghost" size="sm" icon={RefreshCw} onClick={() => refetch()}>Atualizar</Button>
+              <Button variant="secondary" size="sm" icon={FileSpreadsheet} onClick={handleExport} loading={exporting}>
+                {exporting ? 'Exportando...' : 'Excel'}
+              </Button>
+              <Link href="/timesheets/new">
+                <Button variant="primary" size="sm" icon={Plus}>Novo</Button>
+              </Link>
+            </>
+          }
         />
-        </div>
 
-        {hasFilters && (
-          <button
-            onClick={clearFilters}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium text-zinc-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 border border-zinc-200 dark:border-zinc-700 transition-colors"
-          >
-            <X size={11} />
-            Limpar filtros
-          </button>
-        )}
-      </div>
+        {/* Filters */}
+        <div
+          className="grid grid-cols-2 md:grid-cols-4 gap-3 p-5 rounded-2xl mb-6"
+          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+        >
+          <Select value={serviceTypeId} onChange={e => { setServiceTypeId(e.target.value); resetPage() }}>
+            <option value="">Tipo de serviço</option>
+            {serviceTypeList.map(s => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
+          </Select>
 
-      {data && (
-        <p className="text-xs text-zinc-500 mb-3">
-          Total de horas: <strong className="text-zinc-300">{data.totalEffortHours ?? '—'}</strong>
-        </p>
-      )}
+          <Select value={contractTypeId} onChange={e => { setContractTypeId(e.target.value); resetPage() }}>
+            <option value="">Tipo de contrato</option>
+            {contractTypeList.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+          </Select>
 
-      {/* Table */}
-      <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
-              <th className="w-8 px-2 py-2.5" />
-              <SortHeader label="Data"         field="date"          current={sortField} dir={sortDir} onSort={handleSort} />
-              <SortHeader label="Status"       field="status"        current={sortField} dir={sortDir} onSort={handleSort} />
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Origem</th>
-              <SortHeader label="Colaborador"  field="user.name"     current={sortField} dir={sortDir} onSort={handleSort} className="hidden md:table-cell" />
-              <SortHeader label="Projeto"      field="project.name"  current={sortField} dir={sortDir} onSort={handleSort} />
-              <SortHeader label="Cliente"      field="customer.name" current={sortField} dir={sortDir} onSort={handleSort} className="hidden lg:table-cell" />
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Tipo Contrato</th>
-              <SortHeader label="Tempo"        field="effort_hours"  current={sortField} dir={sortDir} onSort={handleSort} className="text-right" />
-            </tr>
-          </thead>
-          <tbody>
-            {loading && Array.from({ length: 8 }).map((_, i) => (
-              <tr key={i} className="border-b border-zinc-100 dark:border-zinc-800/60">
-                <td className="px-2 py-2.5 w-8" />
-                <td className="px-3 py-2.5"><Skeleton className="h-3 w-20" /></td>
-                <td className="px-3 py-2.5"><Skeleton className="h-4 w-16 rounded-full" /></td>
-                <td className="px-3 py-2.5 hidden sm:table-cell"><Skeleton className="h-4 w-12 rounded" /></td>
-                <td className="px-3 py-2.5 hidden md:table-cell"><Skeleton className="h-3 w-24" /></td>
-                <td className="px-3 py-2.5"><Skeleton className="h-3 w-32" /></td>
-                <td className="px-3 py-2.5 hidden lg:table-cell"><Skeleton className="h-3 w-24" /></td>
-                <td className="px-3 py-2.5 hidden xl:table-cell"><Skeleton className="h-3 w-28" /></td>
-                <td className="px-3 py-2.5"><Skeleton className="h-3 w-12 ml-auto" /></td>
-              </tr>
-            ))}
+          <Select value={status} onChange={e => { setStatus(e.target.value); resetPage() }}>
+            {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </Select>
 
-            {!loading && error && (
-              <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-red-500">
-                  {error}
-                </td>
-              </tr>
-            )}
+          <TextInput
+            placeholder="Nº ticket..."
+            value={ticket}
+            onChange={e => { setTicket(e.target.value); resetPage() }}
+          />
 
-            {!loading && !error && data?.items.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-3 py-12 text-center text-zinc-500">
-                  <Clock size={24} className="mx-auto mb-2 opacity-30" />
-                  Nenhum apontamento encontrado
-                </td>
-              </tr>
-            )}
-
-            {!loading && !error && data?.items.map(ts => (
-              <tr
-                key={ts.id}
-                className="border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors group"
+          <div className="flex items-center gap-2 col-span-2">
+            <TextInput
+              type="date"
+              label="De"
+              value={startDate}
+              onChange={e => { setStartDate(e.target.value); resetPage() }}
+              className="flex-1"
+            />
+            <TextInput
+              type="date"
+              label="Até"
+              value={endDate}
+              onChange={e => { setEndDate(e.target.value); resetPage() }}
+              className="flex-1"
+            />
+            {hasFilters && (
+              <button
+                onClick={clearFilters}
+                className="mt-6 flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs transition-all hover:bg-white/5"
+                style={{ color: 'var(--brand-danger)', border: '1px solid rgba(239,68,68,0.2)' }}
               >
-                <td className="px-2 py-2.5 w-8">
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                    <RowActions id={ts.id} onDeleted={refetch} />
-                  </div>
-                </td>
-                <td className="px-3 py-2.5 text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
-                  {formatDate(ts.date)}
-                </td>
-                <td className="px-3 py-2.5">
-                  <Badge variant="outline" className={`text-[10px] whitespace-nowrap border ${STATUS_CLASS[ts.status] ?? 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'}`}>
-                    {ts.status_display ?? ts.status}
-                  </Badge>
-                </td>
-                <td className="px-3 py-2.5 hidden sm:table-cell">
-                  <OriginBadge origin={ts.origin} />
-                </td>
-                <td className="px-3 py-2.5 text-zinc-700 dark:text-zinc-300 hidden md:table-cell">
-                  {ts.user?.name ?? '—'}
-                </td>
-                <td className="px-3 py-2.5 max-w-[160px]">
-                  <Link
-                    href={`/timesheets/${ts.id}`}
-                    className="text-zinc-800 dark:text-zinc-200 hover:text-blue-500 dark:hover:text-blue-400 truncate block"
-                  >
-                    {ts.project?.name ?? `Projeto #${ts.project_id}`}
-                  </Link>
-                </td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden lg:table-cell truncate max-w-[140px]">
-                  {ts.customer?.name ?? ts.project?.customer?.name ?? '—'}
-                </td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[140px]">
-                  {ts.project?.contract_type_display ?? '—'}
-                </td>
-                <td className="px-3 py-2.5 text-right text-zinc-700 dark:text-zinc-300 whitespace-nowrap font-mono">
-                  {formatMinutes(ts.effort_minutes)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Pagination */}
-      {(data?.items.length ?? 0) > 0 && (
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-xs text-zinc-500">Página {page}</span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <button
-              onClick={() => setPage(p => p + 1)}
-              disabled={!data?.hasNext}
-              className="p-1.5 rounded-md text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight size={14} />
-            </button>
+                <X size={11} /> Limpar
+              </button>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Total horas */}
+        {data && data.totalEffortHours && (
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Total de horas:</span>
+            <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{data.totalEffortHours}</span>
+          </div>
+        )}
+
+        {/* Table */}
+        {loading ? (
+          <SkeletonTable rows={8} cols={8} />
+        ) : error ? (
+          <div className="py-10 text-center text-sm" style={{ color: 'var(--brand-danger)' }}>{error}</div>
+        ) : (
+          <Table>
+            <Thead>
+              <tr>
+                <Th className="w-10" />
+                <Th sortable active={sortField === 'date'}          dir={sortDir} onClick={() => handleSort('date')}>Data</Th>
+                <Th>Status</Th>
+                <Th className="hidden sm:table-cell">Origem</Th>
+                <Th sortable active={sortField === 'user.name'}     dir={sortDir} onClick={() => handleSort('user.name')} className="hidden md:table-cell">Colaborador</Th>
+                <Th sortable active={sortField === 'project.name'}  dir={sortDir} onClick={() => handleSort('project.name')}>Projeto</Th>
+                <Th sortable active={sortField === 'customer.name'} dir={sortDir} onClick={() => handleSort('customer.name')} className="hidden lg:table-cell">Cliente</Th>
+                <Th className="hidden xl:table-cell">Contrato</Th>
+                <Th right sortable active={sortField === 'effort_hours'} dir={sortDir} onClick={() => handleSort('effort_hours')}>Tempo</Th>
+              </tr>
+            </Thead>
+            <Tbody>
+              {data?.items.length === 0 ? (
+                <tr>
+                  <td colSpan={9}>
+                    <EmptyState icon={Clock} title="Nenhum apontamento encontrado" description="Tente ajustar os filtros ou criar um novo apontamento." />
+                  </td>
+                </tr>
+              ) : data?.items.map(ts => (
+                <Tr key={ts.id} className="group">
+                  <Td className="w-10">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <RowActions id={ts.id} onDeleted={refetch} />
+                    </div>
+                  </Td>
+                  <Td className="whitespace-nowrap font-medium">{formatDate(ts.date)}</Td>
+                  <Td>
+                    <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
+                  </Td>
+                  <Td className="hidden sm:table-cell">
+                    <OriginBadge origin={ts.origin} />
+                  </Td>
+                  <Td muted className="hidden md:table-cell">{ts.user?.name ?? '—'}</Td>
+                  <Td className="max-w-[160px]">
+                    <Link
+                      href={`/timesheets/${ts.id}`}
+                      className="truncate block transition-colors hover:underline"
+                      style={{ color: 'var(--brand-text)' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-primary)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--brand-text)')}
+                    >
+                      {ts.project?.name ?? `Projeto #${ts.project_id}`}
+                    </Link>
+                  </Td>
+                  <Td muted className="hidden lg:table-cell truncate max-w-[140px]">
+                    {ts.customer?.name ?? ts.project?.customer?.name ?? '—'}
+                  </Td>
+                  <Td muted className="hidden xl:table-cell truncate max-w-[140px]">
+                    {ts.project?.contract_type_display ?? '—'}
+                  </Td>
+                  <Td right mono className="font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                    {formatMinutes(ts.effort_minutes)}
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+
+        {/* Pagination */}
+        {!loading && (data?.items.length ?? 0) > 0 && (
+          <Pagination
+            page={page}
+            hasNext={data?.hasNext ?? false}
+            onPrev={() => setPage(p => Math.max(1, p - 1))}
+            onNext={() => setPage(p => p + 1)}
+          />
+        )}
+      </div>
     </AppLayout>
   )
 }
