@@ -114,10 +114,10 @@ export default function ProjectsPage() {
         api.get<{ data: SelectOption[] }>('/users?per_page=200&enabled=1'),
         api.get<PaginatedResponse<Project>>('/projects?per_page=200&no_parent=1'),
       ])
-      setCustomers(Array.isArray(c?.data) ? c.data : [])
-      setContractTypes(Array.isArray(ct?.data) ? ct.data : [])
-      setProjectStatuses(Array.isArray(ps?.data) ? ps.data : [])
-      setConsultants(Array.isArray(u?.data) ? u.data : [])
+      setCustomers(Array.isArray((c as any)?.items) ? (c as any).items : Array.isArray((c as any)?.data) ? (c as any).data : [])
+      setContractTypes(Array.isArray((ct as any)?.items) ? (ct as any).items : Array.isArray((ct as any)?.data) ? (ct as any).data : [])
+      setProjectStatuses(Array.isArray((ps as any)?.items) ? (ps as any).items : Array.isArray((ps as any)?.data) ? (ps as any).data : [])
+      setConsultants(Array.isArray((u as any)?.items) ? (u as any).items : Array.isArray((u as any)?.data) ? (u as any).data : [])
       setParentProjects(Array.isArray(pp?.items) ? pp.items : [])
     } catch { /* silencioso */ }
   }, [])

@@ -80,7 +80,7 @@ function GeneralTab() {
       api.get<{ data: { id: number; name: string }[] }>('/customers?per_page=200&active=1'),
     ]).then(([s, c]) => {
       setSettings(s.data ?? s as unknown as SystemSettings)
-      const cArr = Array.isArray(c?.data) ? c.data : Array.isArray(c) ? (c as unknown as { id: number; name: string }[]) : []
+      const cArr = Array.isArray((c as any)?.items) ? (c as any).items : Array.isArray((c as any)?.data) ? (c as any).data : []
       setCustomers(cArr)
     }).catch(() => toast.error('Erro ao carregar configurações'))
       .finally(() => setLoading(false))
@@ -91,7 +91,7 @@ function GeneralTab() {
     api.get<{ data: { id: number; name: string }[] }>(
       `/projects?customer_id=${settings.movidesk_default_customer_id}&per_page=200`
     ).then(r => {
-      const arr = Array.isArray(r?.data) ? r.data : Array.isArray(r) ? (r as unknown as { id: number; name: string }[]) : []
+      const arr = Array.isArray((r as any)?.items) ? (r as any).items : Array.isArray((r as any)?.data) ? (r as any).data : []
       setProjects(arr)
     }).catch(() => setProjects([]))
   }, [settings.movidesk_default_customer_id])
@@ -186,9 +186,9 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
       const p = new URLSearchParams({ page: String(page), per_page: '15' })
       if (search) p.set('search', search)
       if (filterActive) p.set('active', filterActive)
-      const r = await api.get<{ data: CrudItem[]; meta?: { last_page: number } }>(`/${endpoint}?${p}`)
-      setItems(Array.isArray(r?.data) ? r.data : [])
-      setHasNext(!!(r.meta && page < r.meta.last_page))
+      const r = await api.get<{ items?: CrudItem[]; data?: CrudItem[]; hasNext?: boolean; meta?: { last_page: number } }>(`/${endpoint}?${p}`)
+      setItems(Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : [])
+      setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error(`Erro ao carregar ${label}`) }
     finally { setLoading(false) }
   }, [endpoint, label, page, search, filterActive])
@@ -340,9 +340,9 @@ function CustomersTab() {
     try {
       const p = new URLSearchParams({ page: String(page), per_page: '15' })
       if (search) p.set('search', search)
-      const r = await api.get<{ data: CustomerFull[]; meta?: { last_page: number } }>(`/customers?${p}`)
-      setItems(Array.isArray(r?.data) ? r.data : [])
-      setHasNext(!!(r.meta && page < r.meta.last_page))
+      const r = await api.get<{ items?: CustomerFull[]; data?: CustomerFull[]; hasNext?: boolean; meta?: { last_page: number } }>(`/customers?${p}`)
+      setItems(Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : [])
+      setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar clientes') }
     finally { setLoading(false) }
   }, [page, search])
