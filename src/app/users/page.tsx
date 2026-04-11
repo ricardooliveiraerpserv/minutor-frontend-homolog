@@ -172,7 +172,14 @@ export default function UsersPage() {
   const [page,    setPage]    = useState(1)
   const [hasNext, setHasNext] = useState(false)
   const [modal,      setModal]      = useState<{ open: boolean; item?: UserItem }>({ open: false })
-  const [resetModal, setResetModal] = useState<{ open: boolean; userId?: number; tempPassword?: string }>({ open: false })
+  const [resetModal, setResetModal] = useState<{
+    open: boolean
+    userId?: number
+    userName?: string
+    userEmail?: string
+    tempPassword?: string
+    confirmed: boolean
+  }>({ open: false, confirmed: false })
   const [form,     setForm]     = useState({ ...EMPTY_FORM })
   const [saving,   setSaving]   = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
@@ -277,13 +284,23 @@ export default function UsersPage() {
     finally     { setDeleting(null) }
   }
 
-  const resetPassword = async (id: number) => {
-    setResetting(id)
+  // Abre o modal de confirmação — não chama a API ainda
+  const resetPassword = (user: UserItem) => {
+    setResetModal({ open: true, userId: user.id, userName: user.name, userEmail: user.email, confirmed: false })
+  }
+
+  // Confirmação: chama a API, gera a senha e envia e-mail
+  const confirmReset = async () => {
+    if (!resetModal.userId) return
+    setResetting(resetModal.userId)
     try {
-      const r = await api.post<{ temporary_password: string; message: string }>(`/users/${id}/reset-password`, {})
-      setResetModal({ open: true, userId: id, tempPassword: r.temporary_password })
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao resetar senha') }
-    finally     { setResetting(null) }
+      const r = await api.post<{ temporary_password: string }>(`/users/${resetModal.userId}/reset-password`, {})
+      setResetModal(prev => ({ ...prev, tempPassword: r.temporary_password, confirmed: true }))
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao resetar senha')
+    } finally {
+      setResetting(null)
+    }
   }
 
   const copyPassword = () => {
@@ -371,7 +388,7 @@ export default function UsersPage() {
                 </td>
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => resetPassword(user.id)} disabled={resetting === user.id}
+                    <button onClick={() => resetPassword(user)} disabled={resetting === user.id}
                       title="Resetar senha" className="p-1 text-zinc-500 hover:text-yellow-400 transition-colors">
                       <KeyRound size={12} />
                     </button>
@@ -575,21 +592,57 @@ export default function UsersPage() {
 
       {/* ── Modal reset senha ── */}
       {resetModal.open && (
-        <ModalOverlay onClose={() => setResetModal({ open: false })}>
+        <ModalOverlay onClose={() => setResetModal({ open: false, confirmed: false })}>
           <div className="p-5">
-            <h3 className="text-sm font-semibold text-white mb-2">Senha Temporária Gerada</h3>
-            <p className="text-xs text-zinc-400 mb-1">Copie a senha abaixo para repassar ao usuário.</p>
-            <p className="text-xs text-zinc-500 mb-4">Um e-mail também foi enviado ao usuário com a senha temporária.</p>
-            <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2">
-              <code className="flex-1 text-sm text-yellow-400 font-mono">{resetModal.tempPassword}</code>
-              <button onClick={copyPassword} className="text-zinc-500 hover:text-zinc-200 transition-colors">
-                {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-              </button>
-            </div>
-            <Button onClick={() => setResetModal({ open: false })}
-              className="mt-4 w-full h-8 text-xs bg-zinc-700 hover:bg-zinc-600 text-white">
-              Fechar
-            </Button>
+            {!resetModal.confirmed ? (
+              // ── Passo 1: confirmação ──
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-yellow-500/15 shrink-0">
+                    <KeyRound size={15} className="text-yellow-400" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-white">Resetar senha</h3>
+                </div>
+                <p className="text-xs text-zinc-400 mb-1">
+                  Uma nova senha temporária será gerada para:
+                </p>
+                <p className="text-xs font-semibold text-white mb-0.5">{resetModal.userName}</p>
+                <p className="text-xs text-zinc-500 mb-4">{resetModal.userEmail}</p>
+                <p className="text-xs text-zinc-500 mb-5 p-3 rounded-lg bg-zinc-800 border border-zinc-700">
+                  A senha será exibida na tela para você copiar <span className="text-zinc-300 font-medium">e um e-mail será enviado automaticamente</span> ao usuário com as instruções de acesso.
+                </p>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setResetModal({ open: false, confirmed: false })}
+                    className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+                  <Button onClick={confirmReset} disabled={resetting === resetModal.userId}
+                    className="h-8 text-xs bg-yellow-600/80 hover:bg-yellow-600 text-white gap-1.5">
+                    <KeyRound size={12} />
+                    {resetting === resetModal.userId ? 'Gerando...' : 'Confirmar e Enviar E-mail'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              // ── Passo 2: senha gerada ──
+              <>
+                <h3 className="text-sm font-semibold text-white mb-1">Senha gerada com sucesso</h3>
+                <p className="text-xs text-zinc-400 mb-1">Copie a senha abaixo para repassar ao usuário se necessário.</p>
+                <p className="text-xs text-zinc-500 mb-4">
+                  E-mail enviado para <span className="text-zinc-300">{resetModal.userEmail}</span>
+                </p>
+                <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5">
+                  <code className="flex-1 text-sm text-yellow-300 font-mono tracking-wider">
+                    {resetModal.tempPassword}
+                  </code>
+                  <button onClick={copyPassword} className="text-zinc-500 hover:text-zinc-200 transition-colors">
+                    {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                  </button>
+                </div>
+                <Button onClick={() => setResetModal({ open: false, confirmed: false })}
+                  className="mt-4 w-full h-8 text-xs bg-zinc-700 hover:bg-zinc-600 text-white">
+                  Fechar
+                </Button>
+              </>
+            )}
           </div>
         </ModalOverlay>
       )}
