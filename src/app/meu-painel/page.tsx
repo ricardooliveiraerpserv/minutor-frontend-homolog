@@ -504,10 +504,11 @@ export default function MeuPainelPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   // ── Banco de Horas state ───────────────────────────────────────────────────
-  const [hbCurrent,  setHbCurrent]  = useState<HourBankMonth | null>(null)
-  const [hbHistory,  setHbHistory]  = useState<HourBankMonth[]>([])
-  const [hbLoading,  setHbLoading]  = useState(false)
-  const [hbKey,      setHbKey]      = useState(0)
+  const [hbCurrent,    setHbCurrent]    = useState<HourBankMonth | null>(null)
+  const [hbHistory,    setHbHistory]    = useState<HourBankMonth[]>([])
+  const [hbLoading,    setHbLoading]    = useState(false)
+  const [hbKey,        setHbKey]        = useState(0)
+  const [hbStartDate,  setHbStartDate]  = useState<string | null>(null)
 
   // ── Support data ───────────────────────────────────────────────────────────
   const [projects,       setProjects]       = useState<ProjectOption[]>([])
@@ -595,12 +596,13 @@ export default function MeuPainelPage() {
     setHbLoading(true)
     const pad = (n: number) => String(n).padStart(2, '0')
     const yearMonth = `${year}-${pad(month + 1)}`
-    api.get<{ current: HourBankMonth; history: HourBankMonth[] }>(
+    api.get<{ current: HourBankMonth | null; history: HourBankMonth[]; bank_hours_start_date: string | null }>(
       `/consultant-hour-bank/${user.id}/range?year_month=${yearMonth}`
     )
       .then(r => {
         setHbCurrent(r.current ?? null)
         setHbHistory(r.history ?? [])
+        setHbStartDate(r.bank_hours_start_date ?? null)
       })
       .catch(() => toast.error('Erro ao carregar banco de horas'))
       .finally(() => setHbLoading(false))
@@ -1386,6 +1388,16 @@ export default function MeuPainelPage() {
             <div className="space-y-4">
               <Skeleton className="h-44 w-full rounded-2xl" />
               <Skeleton className="h-64 w-full rounded-2xl" />
+            </div>
+          ) : !hbCurrent && hbStartDate ? (
+            <div className="flex flex-col items-center justify-center py-16 rounded-2xl" style={{ border: '1px dashed var(--brand-border)' }}>
+              <CalendarDays size={28} style={{ color: 'var(--brand-subtle)' }} />
+              <p className="mt-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+                Banco de horas não iniciado neste período
+              </p>
+              <p className="mt-1 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                Inicia em {fmtYearMonth(hbStartDate.substring(0, 7))}
+              </p>
             </div>
           ) : (
             <>
