@@ -761,9 +761,14 @@ export default function ProjectsPage() {
                     </td>
                     <td className="px-4 py-3.5 hidden lg:table-cell w-32">
                       {(() => {
-                        // On Demand: saldo não se aplica
+                        // On Demand: saldo = 0h, percentual = 0% (consumido = vendido)
                         const isOnDemand = p.contract_type_display?.toLowerCase().includes('on demand')
-                        if (isOnDemand) return <span style={{ color: 'var(--brand-subtle)' }}>—</span>
+                        if (isOnDemand) return (
+                          <div className="space-y-1">
+                            <ProgressBar pct={0} />
+                            <span className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>0% · 0h</span>
+                          </div>
+                        )
 
                         const sold = p.sold_hours ?? 0
                         const balance = p.general_hours_balance
