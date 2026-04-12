@@ -14,9 +14,9 @@ export function useAuth() {
     try {
       const data = await api.get<{ user: any }>('/user')
       const raw = data.user
-      // Spatie returns roles as objects [{id, name, ...}] — normalize to string[]
+      // Backend now returns roles as string[] directly
       const roles: string[] = Array.isArray(raw.roles)
-        ? raw.roles.map((r: any) => (typeof r === 'string' ? r : r?.name)).filter(Boolean)
+        ? raw.roles.filter((r: any) => typeof r === 'string')
         : []
       setUser({ ...raw, roles })
     } catch {
@@ -35,8 +35,9 @@ export function useAuth() {
     })
     localStorage.setItem('minutor_token', data.token ?? data.access_token)
     const raw = data.user
+    // Backend returns roles as string[] directly
     const roles: string[] = Array.isArray(raw?.roles)
-      ? raw.roles.map((r: any) => (typeof r === 'string' ? r : r?.name)).filter(Boolean)
+      ? raw.roles.filter((r: any) => typeof r === 'string')
       : []
     const user: User = { ...raw, roles }
     setUser(user)
