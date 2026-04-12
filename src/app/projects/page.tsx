@@ -1508,9 +1508,13 @@ export default function ProjectsPage() {
                       const isOD = viewProject.contract_type_display?.toLowerCase().includes('on demand')
                       const sold = viewProject.sold_hours ?? 0
                       const contrib = (viewProject as any).total_contributions_hours ?? viewProject.hour_contribution ?? 0
-                      const consumed = viewProject.consumed_hours ?? ((viewProject.total_logged_minutes ?? 0) / 60)
+                      const consumed = viewProject.consumed_hours != null
+                        ? viewProject.consumed_hours
+                        : viewProject.total_logged_minutes != null
+                          ? Math.round(viewProject.total_logged_minutes / 60 * 10) / 10
+                          : null
                       const balance = viewProject.general_hours_balance
-                      const pct = isOD ? 0 : (sold + contrib > 0 ? Math.round(consumed / (sold + contrib) * 100) : null)
+                      const pct = isOD ? 0 : (consumed != null && sold + contrib > 0 ? Math.round(consumed / (sold + contrib) * 100) : null)
                       const barVal = pct != null ? Math.min(100, Math.max(0, pct)) : 0
                       const barColor = barVal >= 90 ? '#ef4444' : barVal >= 70 ? '#f59e0b' : '#2563EB'
                       const balColor = balance != null && balance < 0 ? '#ef4444' : barVal >= 90 ? '#ef4444' : barVal >= 70 ? '#f59e0b' : '#2563EB'
@@ -1518,7 +1522,7 @@ export default function ProjectsPage() {
                         <div className="rounded-xl p-4 mb-5" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
                           <div className="grid grid-cols-3 gap-4 mb-3">
                             <div><p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Hs Vendidas</p><p className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{isOD ? '—' : sold > 0 ? `${sold}h${contrib > 0 ? ` (+${contrib})` : ''}` : '—'}</p></div>
-                            <div><p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Hs Consumidas</p><p className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{consumed > 0 ? `${Math.round(consumed * 10) / 10}h` : '—'}</p></div>
+                            <div><p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Hs Consumidas</p><p className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{consumed != null ? `${consumed}h` : '—'}</p></div>
                             <div><p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="text-sm font-bold tabular-nums" style={{ color: balColor }}>{isOD ? '—' : balance != null ? `${balance}h` : '—'}</p></div>
                           </div>
                           {!isOD && pct != null && (<><div className="w-full rounded-full h-1.5 mb-1.5" style={{ background: 'var(--brand-border)' }}><div className="h-1.5 rounded-full transition-all" style={{ width: `${barVal}%`, background: barColor }} /></div><p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{pct}% utilizado{balance != null && balance < 0 ? ' · ⚠ Excedido' : ''}</p></>)}
@@ -1543,15 +1547,29 @@ export default function ProjectsPage() {
                       ))}
                     </div>
 
-                    {/* Consultores */}
-                    {((viewProject as any).consultants?.length > 0) && (
-                      <div className="mb-5">
-                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Consultores</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(viewProject as any).consultants.map((c: any) => (
-                            <span key={c.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.15)' }}>{c.name}</span>
-                          ))}
-                        </div>
+                    {/* Equipe */}
+                    {((viewProject as any).consultants?.length > 0 || (viewProject as any).coordinators?.length > 0) && (
+                      <div className="mb-5 grid grid-cols-2 gap-4">
+                        {(viewProject as any).consultants?.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Consultores</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(viewProject as any).consultants.map((c: any) => (
+                                <span key={c.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.15)' }}>{c.name}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {(viewProject as any).coordinators?.length > 0 && (
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Coordenadores</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(viewProject as any).coordinators.map((c: any) => (
+                                <span key={c.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(139,92,246,0.10)', color: '#8B5CF6', border: '1px solid rgba(139,92,246,0.2)' }}>{c.name}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
