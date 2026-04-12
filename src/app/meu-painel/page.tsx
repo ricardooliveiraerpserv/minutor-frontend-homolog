@@ -3,6 +3,7 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { formatBRL } from '@/lib/format'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -141,8 +142,6 @@ function HBPaymentSection({ data, fixedSalary }: { data: HourBankMonth; fixedSal
   const totalExtra    = extraHours * valorHoraExt
   const totalReceber  = fixedSalary + totalExtra
 
-  const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-
   return (
     <div className="rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
       <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>
@@ -153,7 +152,7 @@ function HBPaymentSection({ data, fixedSalary }: { data: HourBankMonth; fixedSal
         <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
           <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Salário Fixo</p>
           <p className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>
-            {fixedSalary > 0 ? brl(fixedSalary) : '—'}
+            {fixedSalary > 0 ? formatBRL(fixedSalary) : '—'}
           </p>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>mensal</p>
         </div>
@@ -171,7 +170,7 @@ function HBPaymentSection({ data, fixedSalary }: { data: HourBankMonth; fixedSal
         <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
           <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor / Hora Extra</p>
           <p className="text-lg font-bold" style={{ color: valorHoraExt > 0 ? 'var(--brand-text)' : 'var(--brand-muted)' }}>
-            {valorHoraExt > 0 ? brl(valorHoraExt) : '—'}
+            {valorHoraExt > 0 ? formatBRL(valorHoraExt) : '—'}
           </p>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>fixo ÷ 180</p>
         </div>
@@ -180,10 +179,10 @@ function HBPaymentSection({ data, fixedSalary }: { data: HourBankMonth; fixedSal
         <div className="rounded-xl p-3" style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.15)' }}>
           <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total a Receber</p>
           <p className="text-lg font-bold" style={{ color: 'var(--brand-primary)' }}>
-            {fixedSalary > 0 ? brl(totalReceber) : '—'}
+            {fixedSalary > 0 ? formatBRL(totalReceber) : '—'}
           </p>
           {hasExtra && (
-            <p className="text-[10px] mt-0.5 text-green-400">+{brl(totalExtra)} extras</p>
+            <p className="text-[10px] mt-0.5 text-green-400">+{formatBRL(totalExtra)} extras</p>
           )}
           {!hasExtra && (
             <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>sem horas extras</p>
@@ -276,10 +275,6 @@ function minutesToHours(minutes: number): string {
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
   return m > 0 ? `${h}h ${m}m` : `${h}h`
-}
-
-function formatBRL(value: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
 function isLocked(status: string): boolean {
@@ -857,7 +852,7 @@ export default function MeuPainelPage() {
               label="Valor Estimado"
               value={estimatedValue !== null ? formatBRL(estimatedValue) : '—'}
               sub={estimatedValue !== null
-                ? `R$ ${hourlyRate}/h × ${(tsTotalMin / 60).toFixed(1)}h`
+                ? `${formatBRL(hourlyRate)}/h × ${(tsTotalMin / 60).toFixed(1)}h`
                 : 'Taxa não configurada'}
               icon={TrendingUp}
               accent="bg-green-500/15 text-green-400"

@@ -1,5 +1,6 @@
 'use client'
 
+import { formatBRL } from '@/lib/format'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
@@ -42,7 +43,7 @@ function fmtHours(minutes: number) {
 }
 
 function fmtBRL(value: number) {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  return formatBRL(value)
 }
 
 function sumMinutes(items: { effort_minutes?: number }[]) {

@@ -735,7 +735,7 @@ export default function UsersPage() {
               ? <span className="text-green-400 text-xs font-medium">Ativo</span>
               : <span className="text-zinc-400 text-xs">Inativo</span> },
         ]
-        if (u.hourly_rate != null) rows.push({ label: 'Remuneração', value: `R$ ${Number(u.hourly_rate).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ${u.rate_type === 'monthly' ? '/ mês' : '/ hora'}` })
+        if (u.hourly_rate != null) rows.push({ label: 'Remuneração', value: `${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(u.hourly_rate))} ${u.rate_type === 'monthly' ? '/ mês' : '/ hora'}` })
         if (u.daily_hours != null) rows.push({ label: 'Horas/dia útil', value: `${u.daily_hours}h` })
         if (u.roles && u.roles.length > 0) rows.push({ label: 'Roles', value: u.roles.map(r => r.name).join(', ') })
         return (

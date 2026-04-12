@@ -1,5 +1,6 @@
 'use client'
 
+import { formatBRL } from '@/lib/format'
 import { AppLayout } from '@/components/layout/app-layout'
 import React, { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
@@ -56,7 +57,7 @@ interface ProjectItem {
 function fmtH(h: number | null | undefined) { return (h ?? 0).toFixed(1) + 'h' }
 function fmtBRL(v: number | null | undefined) {
   if (v == null) return '—'
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  return formatBRL(v ?? 0)
 }
 function fmtDate(s: string) { return new Date(s).toLocaleDateString('pt-BR') }
 

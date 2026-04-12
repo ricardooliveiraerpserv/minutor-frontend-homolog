@@ -3,6 +3,7 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { formatBRL } from '@/lib/format'
 import { Project, PaginatedResponse, ProjectChangeLog, HourContribution } from '@/types'
 import { toast } from 'sonner'
 import { FolderOpen, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Search, ChevronDown, Eye, Clock, Users, TrendingUp, Tag, History, HandCoins, Save, AlertCircle } from 'lucide-react'
@@ -1585,8 +1586,8 @@ export default function ProjectsPage() {
                         { icon: Tag, label: 'Tipo de Serviço', value: (viewProject as any).service_type?.name },
                         { icon: FolderOpen, label: 'Projeto Pai', value: (viewProject as any).parentProject?.name ? cleanName((viewProject as any).parentProject.name) : null },
                         { icon: Clock, label: 'Data de Início', value: (viewProject as any).start_date },
-                        { icon: TrendingUp, label: 'Valor do Projeto', value: (viewProject as any).project_value != null ? `R$ ${Number((viewProject as any).project_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null },
-                        { icon: Clock, label: 'Taxa/Hora', value: (viewProject as any).hourly_rate != null ? `R$ ${Number((viewProject as any).hourly_rate).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null },
+                        { icon: TrendingUp, label: 'Valor do Projeto', value: (viewProject as any).project_value != null ? `${formatBRL(Number((viewProject as any).project_value))}` : null },
+                        { icon: Clock, label: 'Taxa/Hora', value: (viewProject as any).hourly_rate != null ? `${formatBRL(Number((viewProject as any).hourly_rate))}` : null },
                       ] as const).filter(f => f.value).map(({ icon: Icon, label, value }) => (
                         <div key={label} className="flex items-start gap-2">
                           <Icon size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--brand-subtle)' }} />
@@ -1670,9 +1671,9 @@ export default function ProjectsPage() {
                       return (
                         <div className="grid grid-cols-3 gap-3 mb-4">
                           {[
-                            { label: 'Hs Base', value: `${baseHs}h`, sub: baseRate > 0 ? `R$ ${baseRate.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/h` : '' },
-                            { label: 'Hs Aportes', value: `${contribHs}h`, sub: `R$ ${contribVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` },
-                            { label: 'Total', value: `${totalHs}h`, sub: `R$ ${totalVal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} · média R$ ${avg.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/h` },
+                            { label: 'Hs Base', value: `${baseHs}h`, sub: baseRate > 0 ? `${formatBRL(baseRate)}/h` : '' },
+                            { label: 'Hs Aportes', value: `${contribHs}h`, sub: `${formatBRL(contribVal)}` },
+                            { label: 'Total', value: `${totalHs}h`, sub: `${formatBRL(totalVal)} · média ${formatBRL(avg)}/h` },
                           ].map(({ label, value, sub }) => (
                             <div key={label} className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
                               <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
@@ -1719,8 +1720,8 @@ export default function ProjectsPage() {
                               <tr key={c.id} style={{ borderBottom: '1px solid var(--brand-border)' }}>
                                 <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{new Date(c.contributed_at).toLocaleDateString('pt-BR')}</td>
                                 <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--brand-text)' }}>{c.contributed_hours}h</td>
-                                <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-muted)' }}>R$ {c.hourly_rate.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                                <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--brand-text)' }}>R$ {(c.contributed_hours * c.hourly_rate).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                                <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{formatBRL(c.hourly_rate)}</td>
+                                <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--brand-text)' }}>{formatBRL((c.contributed_hours * c.hourly_rate))}</td>
                                 <td className="px-3 py-2.5" style={{ color: 'var(--brand-muted)' }}>{c.contributed_by_user?.name ?? '—'}</td>
                                 <td className="px-3 py-2.5 max-w-[140px] truncate" style={{ color: 'var(--brand-muted)' }}>{c.description ?? '—'}</td>
                                 <td className="px-3 py-2.5">
@@ -1832,7 +1833,7 @@ export default function ProjectsPage() {
                   </div>
                   {contribForm.contributed_hours && contribForm.hourly_rate && (
                     <p className="text-xs font-semibold" style={{ color: 'var(--brand-primary)' }}>
-                      Total: R$ {(Number(contribForm.contributed_hours) * Number(contribForm.hourly_rate)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      Total: {formatBRL((Number(contribForm.contributed_hours) * Number(contribForm.hourly_rate)))}
                     </p>
                   )}
                   <div>
