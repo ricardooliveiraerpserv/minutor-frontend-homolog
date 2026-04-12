@@ -17,6 +17,7 @@ import {
   CalendarClock,
   Zap,
   Handshake,
+  LayoutDashboard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
@@ -68,11 +69,12 @@ type NavGroup = {
 type NavEntry = NavItem | NavGroup
 
 const NAV: NavEntry[] = [
-  { type: 'item', label: 'Início',        href: '/dashboard',  icon: Home },
-  { type: 'item', label: 'Apontamentos',  href: '/timesheets', icon: Clock },
-  { type: 'item', label: 'Despesas',      href: '/expenses',   icon: Receipt },
-  { type: 'item', label: 'Projetos',      href: '/projects',   icon: FolderOpen },
-  { type: 'item', label: 'Aprovações',    href: '/approvals',  icon: CheckSquare },
+  { type: 'item', label: 'Início',        href: '/dashboard',   icon: Home },
+  { type: 'item', label: 'Meu Painel',    href: '/meu-painel',  icon: LayoutDashboard },
+  { type: 'item', label: 'Apontamentos',  href: '/timesheets',  icon: Clock },
+  { type: 'item', label: 'Despesas',      href: '/expenses',    icon: Receipt },
+  { type: 'item', label: 'Projetos',      href: '/projects',    icon: FolderOpen },
+  { type: 'item', label: 'Aprovações',    href: '/approvals',   icon: CheckSquare },
   {
     type: 'group',
     label: 'Dashboards',
