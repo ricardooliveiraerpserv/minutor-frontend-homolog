@@ -183,13 +183,69 @@ function SearchSelect({ value, onChange, options, placeholder }: {
   )
 }
 
-// pct = percentual CONSUMIDO (0-100+): verde quando baixo, vermelho quando alto
+// Barra de consumo: % consumido (0-100+)
 function ProgressBar({ pct }: { pct?: number }) {
   const val = Math.min(100, Math.max(0, pct ?? 0))
-  const color = val >= 90 ? '#ef4444' : val >= 70 ? '#f59e0b' : val >= 50 ? '#22c55e' : '#00f5ff'
+  const color = val >= 90 ? '#ef4444' : val >= 70 ? '#f59e0b' : val >= 50 ? '#22c55e' : '#2563EB'
   return (
-    <div className="w-full rounded-full h-1.5" style={{ background: 'var(--brand-border)' }}>
-      <div className="h-1.5 rounded-full transition-all" style={{ width: `${val}%`, background: color }} />
+    <div className="w-full rounded-full h-1" style={{ background: 'var(--brand-border)' }}>
+      <div className="h-1 rounded-full transition-all" style={{ width: `${val}%`, background: color }} />
+    </div>
+  )
+}
+
+// Coluna Saldo: destaque nas horas, % auxiliar
+function SaldoCell({ balance, consumedPct, barPct, consumed, isOnDemand }: {
+  balance: number | null | undefined
+  consumedPct: number | null
+  barPct: number | null
+  consumed: number | null
+  isOnDemand: boolean
+}) {
+  if (isOnDemand) {
+    return (
+      <div className="space-y-1.5 min-w-[130px]">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-sm font-bold tabular-nums" style={{ color: '#71717A' }}>{consumed ?? 0}h</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--brand-subtle)' }}>consumidas</span>
+        </div>
+        <ProgressBar pct={0} />
+        <span className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>On Demand · sem saldo</span>
+      </div>
+    )
+  }
+
+  if (balance == null && consumedPct == null) {
+    return <span style={{ color: 'var(--brand-subtle)' }}>—</span>
+  }
+
+  const isNegative = balance != null && balance < 0
+  const isExceeded = consumedPct != null && consumedPct >= 100
+  const balanceColor = isNegative || isExceeded ? '#ef4444'
+    : consumedPct != null && consumedPct >= 70 ? '#f59e0b'
+    : '#2563EB'
+
+  return (
+    <div className="space-y-1.5 min-w-[130px]">
+      {/* Valor principal: horas de saldo */}
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-sm font-bold tabular-nums" style={{ color: balanceColor }}>
+          {balance != null ? `${balance}h` : '—'}
+        </span>
+        <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--brand-subtle)' }}>
+          {isNegative ? 'excedido' : 'saldo'}
+        </span>
+      </div>
+
+      {/* Barra de progresso */}
+      {barPct != null && <ProgressBar pct={barPct} />}
+
+      {/* Percentual auxiliar */}
+      {consumedPct != null && (
+        <span className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>
+          {isNegative || isExceeded ? '⚠ Excedido' : `${consumedPct}% utilizado`}
+        </span>
+      )}
     </div>
   )
 }
@@ -828,11 +884,7 @@ export default function ProjectsPage() {
                   const consumedPct = isOnDemand ? 0 : calcConsumedPct(p)
                   const barPct = consumedPct != null ? Math.min(100, Math.max(0, consumedPct)) : null
                   const balance = p.general_hours_balance
-                  const balanceColor = (balance != null && balance < 0) || (consumedPct != null && consumedPct >= 90) ? '#ef4444'
-                    : consumedPct != null && consumedPct >= 70 ? '#f59e0b'
-                    : consumedPct != null && consumedPct >= 50 ? '#22c55e'
-                    : consumedPct != null ? '#00f5ff'
-                    : 'var(--brand-subtle)'
+                  // balanceColor não mais usado inline — delegado ao SaldoCell
                   const consumed = p.consumed_hours != null ? p.consumed_hours
                     : p.total_logged_minutes != null ? Math.round(p.total_logged_minutes / 60 * 10) / 10 : null
                   const sold = p.sold_hours ?? 0
@@ -913,30 +965,14 @@ export default function ProjectsPage() {
                       </td>
 
                       {/* Saldo */}
-                      <td className="px-4 py-3 w-40">
-                        {isOnDemand ? (
-                          <div className="space-y-1.5">
-                            <ProgressBar pct={0} />
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--brand-subtle)' }}>0%</span>
-                              <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{consumed ?? 0}h consumidas</span>
-                            </div>
-                          </div>
-                        ) : (sold === 0 && balance == null) ? (
-                          <span style={{ color: 'var(--brand-subtle)' }}>—</span>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {barPct != null && <ProgressBar pct={barPct} />}
-                            <div className="flex items-center gap-1.5">
-                              {consumedPct != null && (
-                                <span className="text-xs font-bold tabular-nums" style={{ color: balanceColor }}>{consumedPct}%</span>
-                              )}
-                              {balance != null && (
-                                <span className="text-xs tabular-nums" style={{ color: balanceColor }}>{balance}h saldo</span>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                      <td className="px-4 py-3" style={{ minWidth: '150px' }}>
+                        <SaldoCell
+                          balance={balance}
+                          consumedPct={consumedPct}
+                          barPct={barPct}
+                          consumed={consumed}
+                          isOnDemand={!!isOnDemand}
+                        />
                       </td>
 
                       {/* Status */}
