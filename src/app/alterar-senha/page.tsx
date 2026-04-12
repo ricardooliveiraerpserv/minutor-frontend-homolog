@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Eye, EyeOff } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,8 @@ export default function AlterarSenhaPage() {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showCurrent, setShowCurrent] = useState(false)
+  const [showNew, setShowNew] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -63,35 +66,47 @@ export default function AlterarSenhaPage() {
 
           <div className="space-y-1.5">
             <Label htmlFor="current" className="text-zinc-300 text-xs">Senha temporária</Label>
-            <Input
-              id="current"
-              type="password"
-              value={currentPassword}
-              onChange={e => setCurrentPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 h-9"
-            />
+            <div className="relative">
+              <Input
+                id="current"
+                type={showCurrent ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={e => setCurrentPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 h-9 pr-9"
+              />
+              <button type="button" onClick={() => setShowCurrent(v => !v)} tabIndex={-1}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 transition-colors">
+                {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="new" className="text-zinc-300 text-xs">Nova senha</Label>
-            <Input
-              id="new"
-              type="password"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              placeholder="Mínimo 8 caracteres"
-              required
-              className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 h-9"
-            />
+            <div className="relative">
+              <Input
+                id="new"
+                type={showNew ? 'text' : 'password'}
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+                required
+                className="bg-zinc-800 border-zinc-700 text-white placeholder:text-zinc-500 h-9 pr-9"
+              />
+              <button type="button" onClick={() => setShowNew(v => !v)} tabIndex={-1}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-200 transition-colors">
+                {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="confirm" className="text-zinc-300 text-xs">Confirmar nova senha</Label>
             <Input
               id="confirm"
-              type="password"
+              type={showNew ? 'text' : 'password'}
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
