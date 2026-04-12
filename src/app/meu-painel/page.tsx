@@ -134,6 +134,66 @@ function HBBalancePill({ value, size = 'sm' }: { value: number; size?: 'sm' | 'l
   )
 }
 
+function HBPaymentSection({ data, fixedSalary }: { data: HourBankMonth; fixedSalary: number }) {
+  const hasExtra      = data.accumulated_balance > 0
+  const extraHours    = hasExtra ? data.accumulated_balance : 0
+  const valorHoraExt  = fixedSalary > 0 ? fixedSalary / 180 : 0
+  const totalExtra    = extraHours * valorHoraExt
+  const totalReceber  = fixedSalary + totalExtra
+
+  const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+  return (
+    <div className="rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>
+        Remuneração — {fmtYearMonth(data.year_month)}
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Salário Fixo */}
+        <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Salário Fixo</p>
+          <p className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>
+            {fixedSalary > 0 ? brl(fixedSalary) : '—'}
+          </p>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>mensal</p>
+        </div>
+
+        {/* Horas Extras */}
+        <div className="rounded-xl p-3" style={{ background: hasExtra ? 'rgba(34,197,94,0.06)' : 'var(--brand-bg)', border: `1px solid ${hasExtra ? 'rgba(34,197,94,0.2)' : 'var(--brand-border)'}` }}>
+          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Horas Extras</p>
+          <p className="text-lg font-bold" style={{ color: hasExtra ? '#22c55e' : 'var(--brand-muted)' }}>
+            {hasExtra ? fmtHours(extraHours) : '—'}
+          </p>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>saldo acumulado {'>'} 0</p>
+        </div>
+
+        {/* Valor Hora Extra */}
+        <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor / Hora Extra</p>
+          <p className="text-lg font-bold" style={{ color: hasExtra ? '#22c55e' : 'var(--brand-muted)' }}>
+            {hasExtra && valorHoraExt > 0 ? brl(valorHoraExt) : '—'}
+          </p>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>fixo ÷ 180</p>
+        </div>
+
+        {/* Total a Receber */}
+        <div className="rounded-xl p-3" style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.15)' }}>
+          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total a Receber</p>
+          <p className="text-lg font-bold" style={{ color: 'var(--brand-primary)' }}>
+            {fixedSalary > 0 ? brl(totalReceber) : '—'}
+          </p>
+          {hasExtra && (
+            <p className="text-[10px] mt-0.5 text-green-400">+{brl(totalExtra)} extras</p>
+          )}
+          {!hasExtra && (
+            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>sem horas extras</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isCurrentMonth: boolean }) {
   return (
     <div className="rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
@@ -1294,7 +1354,13 @@ export default function MeuPainelPage() {
               {hbCurrent && (() => {
                 const now = new Date()
                 const isCurrentMonth = hbCurrent.year_month === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-                return <HBCurrentMonthCard data={hbCurrent} isCurrentMonth={isCurrentMonth} />
+                const fixedSalary = (user as any)?.rate_type === 'monthly' ? ((user as any)?.hourly_rate ?? 0) : 0
+                return (
+                  <>
+                    <HBPaymentSection data={hbCurrent} fixedSalary={fixedSalary} />
+                    <HBCurrentMonthCard data={hbCurrent} isCurrentMonth={isCurrentMonth} />
+                  </>
+                )
               })()}
 
               {hbHistory.length > 0 && (
