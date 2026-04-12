@@ -138,12 +138,12 @@ export function Sidebar({ user }: { user: User }) {
     >
       {/* ── Logo ── */}
       <div
-        className="flex items-center gap-6 h-16 px-4 border-b shrink-0"
+        className="flex items-center gap-8 h-18 px-5 border-b shrink-0"
         style={{ borderColor: 'var(--brand-border)' }}
       >
-        <MinutorIcon size={26} />
+        <MinutorIcon size={34} />
         {!collapsed && (
-          <span className="font-bold text-[15px] tracking-tight" style={{ color: '#FAFAFA' }}>
+          <span className="font-bold text-[20px] tracking-tight" style={{ color: '#FAFAFA' }}>
             Minutor
           </span>
         )}
