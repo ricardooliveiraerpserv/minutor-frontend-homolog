@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
-  ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock, Unlock,
+  ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock,
   Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, TrendingDown, Minus, Eye,
   CalendarDays, RefreshCw, ChevronDown, ChevronUp,
 } from 'lucide-react'
@@ -89,8 +89,7 @@ type TabType = 'overview' | 'timesheets' | 'expenses' | 'indicators' | 'hora-ban
 
 // ─── Banco de Horas types ─────────────────────────────────────────────────────
 
-interface HourBankClosing {
-  id?: number
+interface HourBankMonth {
   user_id: number
   year_month: string
   daily_hours: number
@@ -103,9 +102,6 @@ interface HourBankClosing {
   accumulated_balance: number
   paid_hours: number
   final_balance: number
-  status: 'open' | 'closed'
-  closed_at?: string | null
-  notes?: string | null
 }
 
 function fmtHours(h: number): string {
@@ -138,49 +134,24 @@ function HBBalancePill({ value, size = 'sm' }: { value: number; size?: 'sm' | 'l
   )
 }
 
-function HBCurrentMonthCard({ data, onClose, closing }: { data: HourBankClosing; onClose: (notes: string) => void; closing: boolean }) {
-  const [notes, setNotes] = useState('')
+function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isCurrentMonth: boolean }) {
   return (
     <div className="rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <CalendarDays size={15} color="var(--brand-primary)" />
-          <span className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>
-            {fmtYearMonth(data.year_month)}
-          </span>
-          {data.status === 'open'
-            ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">Em aberto</span>
-            : <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-500/15 text-zinc-400 border border-zinc-500/20 flex items-center gap-1"><Lock size={8}/> Fechado</span>
-          }
-        </div>
-        {data.status === 'open' && (
-          <div className="flex items-center gap-2">
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Observação (opcional)"
-              rows={1}
-              className="text-xs px-3 py-1.5 rounded-xl resize-none outline-none"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)', width: '200px' }}
-            />
-            <button
-              onClick={() => onClose(notes)}
-              disabled={closing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90 disabled:opacity-40"
-              style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
-            >
-              <Lock size={11} />
-              {closing ? 'Fechando...' : 'Fechar Mês'}
-            </button>
-          </div>
+      <div className="flex items-center gap-2 mb-4">
+        <CalendarDays size={15} color="var(--brand-primary)" />
+        <span className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>
+          {fmtYearMonth(data.year_month)}
+        </span>
+        {isCurrentMonth && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">Em andamento</span>
         )}
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Horas Previstas',   value: fmtHours(data.expected_hours),  sub: `${data.working_days} dias úteis`, color: 'var(--brand-muted)' },
-          { label: 'Horas Trabalhadas', value: fmtHours(data.worked_hours),    sub: '', color: 'var(--brand-text)' },
-          { label: 'Saldo do Mês',      value: fmtHours(data.month_balance),   sub: '', color: data.month_balance >= 0 ? '#22c55e' : '#ef4444' },
-          { label: 'Saldo Anterior',    value: fmtHours(data.previous_balance),sub: '', color: data.previous_balance >= 0 ? '#22c55e' : data.previous_balance < 0 ? '#ef4444' : 'var(--brand-muted)' },
+          { label: 'Horas Previstas',   value: fmtHours(data.expected_hours),   sub: `${data.working_days} dias úteis`, color: 'var(--brand-muted)' },
+          { label: 'Horas Trabalhadas', value: fmtHours(data.worked_hours),     sub: '', color: 'var(--brand-text)' },
+          { label: 'Saldo do Mês',      value: fmtHours(data.month_balance),    sub: '', color: data.month_balance >= 0 ? '#22c55e' : '#ef4444' },
+          { label: 'Saldo Anterior',    value: fmtHours(data.previous_balance), sub: '', color: data.previous_balance > 0 ? '#22c55e' : data.previous_balance < 0 ? '#ef4444' : 'var(--brand-muted)' },
         ].map(item => (
           <div key={item.label} className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
             <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{item.label}</p>
@@ -190,26 +161,21 @@ function HBCurrentMonthCard({ data, onClose, closing }: { data: HourBankClosing;
         ))}
       </div>
       <div className="mt-3 rounded-xl px-4 py-3 flex items-center justify-between"
-        style={{ background: data.paid_hours > 0 ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)', border: `1px solid ${data.paid_hours > 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.15)'}` }}>
+        style={{ background: data.accumulated_balance >= 0 ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)', border: `1px solid ${data.accumulated_balance >= 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.15)'}` }}>
         <div>
           <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Saldo Acumulado</p>
           <HBBalancePill value={data.accumulated_balance} size="lg" />
         </div>
         <div className="text-right">
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
-            {data.paid_hours > 0 ? 'Horas a Pagar' : 'Saldo Final'}
-          </p>
-          {data.paid_hours > 0
-            ? <span className="text-lg font-bold text-green-400">{fmtHours(data.paid_hours)} a pagar</span>
-            : <HBBalancePill value={data.final_balance} size="lg" />
-          }
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Saldo Final</p>
+          <HBBalancePill value={data.final_balance} size="lg" />
         </div>
       </div>
     </div>
   )
 }
 
-function HBHistoryRow({ row, onReopen }: { row: HourBankClosing; onReopen: (ym: string) => void }) {
+function HBHistoryRow({ row }: { row: HourBankMonth }) {
   const [open, setOpen] = useState(false)
   return (
     <>
@@ -225,35 +191,16 @@ function HBHistoryRow({ row, onReopen }: { row: HourBankClosing; onReopen: (ym: 
         <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--brand-text)' }}>{fmtHours(row.worked_hours)}</td>
         <td className="px-4 py-3 text-center"><HBBalancePill value={row.month_balance} /></td>
         <td className="px-4 py-3 text-center"><HBBalancePill value={row.previous_balance} /></td>
-        <td className="px-4 py-3 text-center">
-          {row.paid_hours > 0
-            ? <span className="text-xs font-semibold text-green-400">{fmtHours(row.paid_hours)}</span>
-            : <span style={{ color: 'var(--brand-subtle)' }} className="text-xs">—</span>
-          }
-        </td>
         <td className="px-4 py-3 text-center"><HBBalancePill value={row.final_balance} /></td>
-        <td className="px-4 py-3 text-center">
-          {row.status === 'closed'
-            ? <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-zinc-400 bg-zinc-500/10"><Lock size={8}/>Fechado</span>
-            : <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">Aberto</span>
-          }
-        </td>
       </tr>
       {open && (
         <tr style={{ background: 'rgba(255,255,255,0.015)', borderBottom: `1px solid var(--brand-border)` }}>
-          <td colSpan={8} className="px-6 py-3">
-            <div className="flex items-start gap-6 text-xs" style={{ color: 'var(--brand-muted)' }}>
+          <td colSpan={6} className="px-6 py-3">
+            <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--brand-muted)' }}>
               <span><span className="text-zinc-500">Dias úteis:</span> {row.working_days}</span>
               <span><span className="text-zinc-500">Feriados:</span> {row.holidays_count}</span>
               <span><span className="text-zinc-500">H/dia:</span> {row.daily_hours}h</span>
               <span><span className="text-zinc-500">Acumulado:</span> <HBBalancePill value={row.accumulated_balance} /></span>
-              {row.notes && <span><span className="text-zinc-500">Obs:</span> {row.notes}</span>}
-              {row.status === 'closed' && (
-                <button onClick={e => { e.stopPropagation(); onReopen(row.year_month) }}
-                  className="ml-auto flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors">
-                  <Unlock size={9} /> Reabrir
-                </button>
-              )}
             </div>
           </td>
         </tr>
@@ -478,10 +425,9 @@ export default function MeuPainelPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   // ── Banco de Horas state ───────────────────────────────────────────────────
-  const [hbPreview,  setHbPreview]  = useState<HourBankClosing | null>(null)
-  const [hbHistory,  setHbHistory]  = useState<HourBankClosing[]>([])
+  const [hbCurrent,  setHbCurrent]  = useState<HourBankMonth | null>(null)
+  const [hbHistory,  setHbHistory]  = useState<HourBankMonth[]>([])
   const [hbLoading,  setHbLoading]  = useState(false)
-  const [hbClosing,  setHbClosing]  = useState(false)
   const [hbKey,      setHbKey]      = useState(0)
 
   // ── Support data ───────────────────────────────────────────────────────────
@@ -568,17 +514,18 @@ export default function MeuPainelPage() {
     if (ct !== 'bh_fixo' && ct !== 'bh_mensal') return
     if (!user?.id) return
     setHbLoading(true)
-    Promise.all([
-      api.get<HourBankClosing>(`/consultant-hour-bank/${user.id}/preview`),
-      api.get<{ items: HourBankClosing[] }>(`/consultant-hour-bank/${user.id}/history`),
-    ])
-      .then(([prev, hist]) => {
-        setHbPreview(prev)
-        setHbHistory(hist.items ?? [])
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const yearMonth = `${year}-${pad(month + 1)}`
+    api.get<{ current: HourBankMonth; history: HourBankMonth[] }>(
+      `/consultant-hour-bank/${user.id}/range?year_month=${yearMonth}`
+    )
+      .then(r => {
+        setHbCurrent(r.current ?? null)
+        setHbHistory(r.history ?? [])
       })
       .catch(() => toast.error('Erro ao carregar banco de horas'))
       .finally(() => setHbLoading(false))
-  }, [user, hbKey])
+  }, [user, year, month, hbKey])
 
   // ── Timesheet CRUD ─────────────────────────────────────────────────────────
 
@@ -1329,7 +1276,7 @@ export default function MeuPainelPage() {
             <div>
               <h2 className="text-base font-semibold" style={{ color: 'var(--brand-text)' }}>Banco de Horas</h2>
               <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
-                Acompanhamento mensal de horas previstas, trabalhadas e saldo acumulado
+                Horas previstas, trabalhadas e saldo acumulado — {MONTHS[month]} {year}
               </p>
             </div>
             <button onClick={() => setHbKey(k => k + 1)} className="p-2 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-subtle)' }}>
@@ -1344,70 +1291,41 @@ export default function MeuPainelPage() {
             </div>
           ) : (
             <>
-              {hbPreview && (
-                <HBCurrentMonthCard
-                  data={hbPreview}
-                  closing={hbClosing}
-                  onClose={async (notes) => {
-                    if (!user?.id || !hbPreview) return
-                    setHbClosing(true)
-                    try {
-                      await api.post(`/consultant-hour-bank/${user.id}/close`, {
-                        year_month: hbPreview.year_month,
-                        daily_hours: hbPreview.daily_hours,
-                        notes: notes || undefined,
-                      })
-                      toast.success(`Mês ${fmtYearMonth(hbPreview.year_month)} fechado com sucesso`)
-                      setHbKey(k => k + 1)
-                    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao fechar mês') }
-                    finally { setHbClosing(false) }
-                  }}
-                />
-              )}
+              {hbCurrent && (() => {
+                const now = new Date()
+                const isCurrentMonth = hbCurrent.year_month === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+                return <HBCurrentMonthCard data={hbCurrent} isCurrentMonth={isCurrentMonth} />
+              })()}
 
-              <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                <div className="px-4 py-3 border-b" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                  <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Histórico de Fechamentos</p>
-                </div>
-                {hbHistory.length === 0 ? (
-                  <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum fechamento registrado</p>
-                ) : (
+              {hbHistory.length > 0 && (
+                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                  <div className="px-4 py-3 border-b" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Meses Anteriores</p>
+                  </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs" style={{ background: 'var(--brand-surface)' }}>
                       <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--brand-border)' }}>
                         <tr>
-                          {['Mês', 'Previsto', 'Trabalhado', 'Saldo Mês', 'Saldo Ant.', 'Pago', 'Saldo Final', 'Status'].map(h => (
+                          {['Mês', 'Previsto', 'Trabalhado', 'Saldo Mês', 'Saldo Ant.', 'Saldo Final'].map(h => (
                             <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {hbHistory.map((row, i) => (
-                          <HBHistoryRow
-                            key={`${row.user_id}-${row.year_month}-${i}`}
-                            row={row}
-                            onReopen={async (yearMonth) => {
-                              if (!user?.id) return
-                              if (!confirm(`Reabrir o mês ${fmtYearMonth(yearMonth)}?`)) return
-                              try {
-                                await api.post(`/consultant-hour-bank/${user.id}/reopen`, { year_month: yearMonth })
-                                toast.success(`Mês ${fmtYearMonth(yearMonth)} reaberto`)
-                                setHbKey(k => k + 1)
-                              } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao reabrir') }
-                            }}
-                          />
+                          <HBHistoryRow key={`${row.user_id}-${row.year_month}-${i}`} row={row} />
                         ))}
                       </tbody>
                     </table>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--brand-subtle)' }}>
                 <span className="flex items-center gap-1"><TrendingUp size={10} className="text-green-400" /> Saldo positivo</span>
                 <span className="flex items-center gap-1"><TrendingDown size={10} className="text-red-400" /> Saldo negativo</span>
                 <span className="flex items-center gap-1"><Minus size={10} className="text-zinc-500" /> Zerado</span>
-                {hbPreview && <span className="ml-auto">HP = Dias úteis × {hbPreview.daily_hours}h/dia</span>}
+                {hbCurrent && <span className="ml-auto">HP = Dias úteis × {hbCurrent.daily_hours}h/dia</span>}
               </div>
             </>
           )}
