@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock,
-  Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp,
+  Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, Eye,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -273,10 +273,14 @@ export default function MeuPainelPage() {
   const [tsTotalMin, setTsTotalMin] = useState(0)
   const [tsSearch,   setTsSearch]   = useState('')
   const [tsProject,  setTsProject]  = useState('')
+  const [tsCustomer, setTsCustomer] = useState('')
   const [tsStatus,   setTsStatus]   = useState('')
+  const [tsDateFrom, setTsDateFrom] = useState('')
+  const [tsDateTo,   setTsDateTo]   = useState('')
   const [tsPage,     setTsPage]     = useState(1)
   const [tsHasNext,  setTsHasNext]  = useState(false)
   const [tsModal,    setTsModal]    = useState<{ open: boolean; item?: TimesheetItem }>({ open: false })
+  const [tsViewItem, setTsViewItem] = useState<TimesheetItem | null>(null)
   const [tsForm,     setTsForm]     = useState({ ...EMPTY_TS })
   const [tsSaving,   setTsSaving]   = useState(false)
 
@@ -297,6 +301,7 @@ export default function MeuPainelPage() {
 
   // ── Support data ───────────────────────────────────────────────────────────
   const [projects,       setProjects]       = useState<ProjectOption[]>([])
+  const [customers,      setCustomers]      = useState<{ id: number; name: string }[]>([])
   const [categories,     setCategories]     = useState<CategoryOption[]>([])
   const [paymentMethods, setPaymentMethods] = useState<{ value: string; label: string }[]>([])
 
@@ -304,6 +309,10 @@ export default function MeuPainelPage() {
   useEffect(() => {
     api.get<any>('/projects?pageSize=200&minimal=true').then(r =>
       setProjects(Array.isArray(r?.items) ? r.items : [])
+    ).catch(() => {})
+
+    api.get<any>('/customers?pageSize=1000').then(r =>
+      setCustomers(Array.isArray(r?.items) ? r.items : [])
     ).catch(() => {})
 
     api.get<any>('/expense-categories?per_page=200').then(r => {
@@ -327,17 +336,23 @@ export default function MeuPainelPage() {
   const loadTimesheets = useCallback(async () => {
     setTsLoading(true)
     try {
-      const p = new URLSearchParams({ page: String(tsPage), per_page: '50', start_date: startDate, end_date: endDate })
-      if (tsSearch)  p.set('search',     tsSearch)
-      if (tsProject) p.set('project_id', tsProject)
-      if (tsStatus)  p.set('status',     tsStatus)
+      const p = new URLSearchParams({
+        page: String(tsPage),
+        per_page: '50',
+        start_date: tsDateFrom || startDate,
+        end_date:   tsDateTo   || endDate,
+      })
+      if (tsSearch)   p.set('search',      tsSearch)
+      if (tsProject)  p.set('project_id',  tsProject)
+      if (tsCustomer) p.set('customer_id', tsCustomer)
+      if (tsStatus)   p.set('status',      tsStatus)
       const r = await api.get<any>(`/timesheets?${p}`)
       setTimesheets(Array.isArray(r?.items) ? r.items : [])
       setTsHasNext(!!r?.hasNext)
       setTsTotalMin(r?.totalEffortMinutes ?? 0)
     } catch { toast.error('Erro ao carregar apontamentos') }
     finally   { setTsLoading(false) }
-  }, [tsPage, startDate, endDate, tsSearch, tsProject, tsStatus])
+  }, [tsPage, startDate, endDate, tsSearch, tsProject, tsCustomer, tsStatus, tsDateFrom, tsDateTo])
 
   // ── Load expenses ──────────────────────────────────────────────────────────
   const loadExpenses = useCallback(async () => {
@@ -712,6 +727,12 @@ export default function MeuPainelPage() {
               onChange={e => { setTsSearch(e.target.value); setTsPage(1) }}
               placeholder="Buscar por projeto, observação..."
               className="flex-1 min-w-40 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+            <select value={tsCustomer}
+              onChange={e => { setTsCustomer(e.target.value); setTsPage(1) }}
+              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none">
+              <option value="">Todos os clientes</option>
+              {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
             <select value={tsProject}
               onChange={e => { setTsProject(e.target.value); setTsPage(1) }}
               className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none">
@@ -726,6 +747,16 @@ export default function MeuPainelPage() {
               <option value="approved">Aprovado</option>
               <option value="rejected">Rejeitado</option>
             </select>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-zinc-500 shrink-0">De</span>
+              <input type="date" value={tsDateFrom}
+                onChange={e => { setTsDateFrom(e.target.value); setTsPage(1) }}
+                className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none" />
+              <span className="text-xs text-zinc-500 shrink-0">até</span>
+              <input type="date" value={tsDateTo}
+                onChange={e => { setTsDateTo(e.target.value); setTsPage(1) }}
+                className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none" />
+            </div>
             <Button onClick={openCreateTs}
               className="bg-blue-600 hover:bg-blue-500 text-white h-9 px-4 text-xs gap-1.5 shrink-0">
               <Plus size={13} /> Novo
@@ -786,18 +817,24 @@ export default function MeuPainelPage() {
                         <StatusBadge status={ts.status} display={ts.status_display} />
                       </td>
                       <td className="px-4 py-3.5">
-                        {!locked && (
-                          <div className="flex items-center gap-0.5 justify-end">
-                            <button onClick={() => openEditTs(ts)}
-                              className="p-1.5 text-zinc-600 hover:text-zinc-200 transition-colors rounded">
-                              <Pencil size={12} />
-                            </button>
-                            <button onClick={() => deleteTs(ts.id)}
-                              className="p-1.5 text-zinc-600 hover:text-red-400 transition-colors rounded">
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-0.5 justify-end">
+                          <button onClick={() => setTsViewItem(ts)}
+                            className="p-1.5 text-zinc-600 hover:text-blue-400 transition-colors rounded">
+                            <Eye size={12} />
+                          </button>
+                          {!locked && (
+                            <>
+                              <button onClick={() => openEditTs(ts)}
+                                className="p-1.5 text-zinc-600 hover:text-zinc-200 transition-colors rounded">
+                                <Pencil size={12} />
+                              </button>
+                              <button onClick={() => deleteTs(ts.id)}
+                                className="p-1.5 text-zinc-600 hover:text-red-400 transition-colors rounded">
+                                <Trash2 size={12} />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -1203,6 +1240,67 @@ export default function MeuPainelPage() {
               <Button onClick={saveExp} disabled={expSaving}
                 className="h-9 text-xs bg-blue-600 hover:bg-blue-500 text-white px-6">
                 {expSaving ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {/* ── Modal: Visualizar Apontamento ── */}
+      {tsViewItem && (
+        <ModalOverlay onClose={() => setTsViewItem(null)}>
+          <div className="p-6 space-y-4">
+            <h3 className="text-base font-semibold text-white">Detalhes do Apontamento</h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Data</p>
+                <p className="text-sm text-zinc-200 font-medium">{tsViewItem.date}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Horário</p>
+                <p className="text-sm text-zinc-200 font-mono">{tsViewItem.start_time} – {tsViewItem.end_time}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Horas</p>
+                <p className="text-sm text-white font-bold font-mono">{tsViewItem.effort_hours}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Status</p>
+                <StatusBadge status={tsViewItem.status} display={tsViewItem.status_display} />
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Projeto</p>
+              <p className="text-sm text-zinc-200">{tsViewItem.project?.name ?? '—'}</p>
+            </div>
+
+            {tsViewItem.project?.customer?.name && (
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Cliente</p>
+                <p className="text-sm text-zinc-200">{tsViewItem.project.customer.name}</p>
+              </div>
+            )}
+
+            {tsViewItem.observation && (
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Observação</p>
+                <p className="text-sm text-zinc-300">{tsViewItem.observation}</p>
+              </div>
+            )}
+
+            {tsViewItem.ticket && (
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Ticket</p>
+                <p className="text-sm text-zinc-300 font-mono">{tsViewItem.ticket}</p>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-1">
+              <Button variant="outline" onClick={() => setTsViewItem(null)}
+                className="h-8 text-xs border-zinc-700 text-zinc-300">
+                Fechar
               </Button>
             </div>
           </div>
