@@ -56,6 +56,37 @@ const EMPTY_FORM: ProjectForm = {
   consultant_ids: [], coordinator_ids: [],
 }
 
+// ─── Tree ────────────────────────────────────────────────────────────────────
+
+interface TreeRow extends Project {
+  _level: number
+  _hasChildren: boolean
+  _isExpanded: boolean
+  _parentId: number | null
+  _node_state: 'ACTIVE' | 'DISABLED' | null
+}
+
+function cleanName(name: string) {
+  return (name || '').replace(/^\[.*?\]\s*/g, '').trim()
+}
+
+function toTreeRow(p: Project, level = 0, parentId: number | null = null, nodeState: 'ACTIVE' | 'DISABLED' | null = null): TreeRow {
+  return { ...p, _level: level, _hasChildren: (p.child_projects?.length ?? 0) > 0, _isExpanded: false, _parentId: parentId, _node_state: nodeState }
+}
+
+// % consumido = consumed / (sold + contributions) * 100
+function calcConsumedPct(row: TreeRow): number | null {
+  const sold = row.sold_hours ?? 0
+  const contrib = row.total_contributions_hours ?? row.hour_contribution ?? 0
+  const totalSold = sold + contrib
+  if (totalSold <= 0) return null
+  const consumed = row.consumed_hours != null
+    ? row.consumed_hours
+    : row.total_logged_minutes != null ? row.total_logged_minutes / 60 : null
+  if (consumed == null) return null
+  return Math.round((consumed / totalSold) * 100)
+}
+
 // ─── SearchSelect ────────────────────────────────────────────────────────────
 
 interface SearchSelectOption { id: number | string; name: string }
@@ -335,7 +366,7 @@ export default function ProjectsPage() {
   }, [isFechado, form.sold_hours, form.consultant_hours, form.coordinator_hours])
 
   const params = useMemo(() => {
-    const p = new URLSearchParams({ page: String(page), per_page: '20' })
+    const p = new URLSearchParams({ page: String(page), per_page: '20', parent_projects_only: 'true' })
     if (statusFilter) p.set('status', statusFilter)
     if (search) p.set('search', search)
     if (filterCustomer) p.set('customer_id', filterCustomer)
@@ -345,16 +376,48 @@ export default function ProjectsPage() {
     return p.toString()
   }, [page, statusFilter, search, filterCustomer, filterContractType, filterApprover, filterExecutive])
 
+  const [rows, setRows] = useState<TreeRow[]>([])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const r = await api.get<PaginatedResponse<Project>>(`/projects?${params}`)
       setData(r)
+      setRows((r?.items ?? []).map(p => toTreeRow(p)))
     } catch { toast.error('Erro ao carregar projetos') }
     finally { setLoading(false) }
   }, [params])
 
   useEffect(() => { load() }, [load])
+
+  const toggleExpand = useCallback((row: TreeRow) => {
+    setRows(prev => {
+      const idx = prev.findIndex(r => r.id === row.id && r._level === 0)
+      if (idx === -1) return prev
+      if (row._isExpanded) {
+        // Recolher: remove filhos e marca como fechado
+        const next = prev.filter(r => r._parentId !== row.id)
+        next[next.findIndex(r => r.id === row.id)] = { ...row, _isExpanded: false }
+        return [...next]
+      } else {
+        // Expandir: insere filhos logo após o pai
+        const children = (row.child_projects ?? []).map(child => {
+          // node_state: se há filtro de status, filhos que não batem ficam DISABLED
+          const nodeState = statusFilter && statusFilter !== 'all'
+            ? (child.status === statusFilter ? 'ACTIVE' : 'DISABLED')
+            : null
+          return toTreeRow(child, 1, row.id, nodeState)
+        })
+        const updated = { ...row, _isExpanded: true }
+        return [
+          ...prev.slice(0, idx),
+          updated,
+          ...children,
+          ...prev.slice(idx + 1),
+        ]
+      }
+    })
+  }, [statusFilter])
 
   // Carrega opções dos filtros de lista uma única vez
   useEffect(() => {
@@ -722,7 +785,7 @@ export default function ProjectsPage() {
                     ))}
                   </tr>
                 ))}
-                {!loading && data?.items.length === 0 && (
+                {!loading && rows.length === 0 && (
                   <tr>
                     <td colSpan={9} className="py-20 text-center">
                       <div className="flex flex-col items-center gap-3">
@@ -734,131 +797,149 @@ export default function ProjectsPage() {
                     </td>
                   </tr>
                 )}
-                {!loading && data?.items.map(p => (
-                  <tr
-                    key={p.id}
-                    className="transition-colors"
-                    style={{ borderBottom: '1px solid var(--brand-border)' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <td className="px-4 py-3.5">
-                      <span className="font-mono text-xs px-2 py-1 rounded-md" style={{ background: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
-                        {p.code}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 max-w-[180px]">
-                      <div className="flex items-center gap-1.5">
-                        {p.parent_project_id && (
-                          <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: 'rgba(0,245,255,0.10)', color: 'var(--brand-primary)' }}>FILHO</span>
-                        )}
-                        <span className="font-medium truncate block" style={{ color: 'var(--brand-text)' }}>{p.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5 hidden md:table-cell truncate max-w-[140px] text-sm" style={{ color: 'var(--brand-muted)' }}>
-                      {p.customer?.name ?? '—'}
-                    </td>
-                    <td className="px-4 py-3.5 hidden lg:table-cell text-xs" style={{ color: 'var(--brand-muted)' }}>
-                      {p.contract_type_display ?? '—'}
-                    </td>
-                    <td className="px-4 py-3.5 hidden xl:table-cell text-xs text-right tabular-nums" style={{ color: 'var(--brand-muted)' }}>
-                      {/* On Demand: vendido = consumido, não mostrar valor fixo */}
-                      {p.contract_type_display?.toLowerCase().includes('on demand')
-                        ? '—'
-                        : p.sold_hours != null ? `${p.sold_hours}h` : '—'}
-                    </td>
-                    <td className="px-4 py-3.5 hidden xl:table-cell text-xs text-right tabular-nums" style={{ color: 'var(--brand-muted)' }}>
-                      {p.consumed_hours != null ? `${p.consumed_hours}h` : p.total_logged_minutes != null ? `${(p.total_logged_minutes / 60).toFixed(1)}h` : '—'}
-                    </td>
-                    <td className="px-4 py-3.5 hidden lg:table-cell w-32">
-                      {(() => {
-                        // On Demand: vendido = consumido, saldo sempre 0
-                        const isOnDemand = p.contract_type_display?.toLowerCase().includes('on demand')
-                        if (isOnDemand) {
-                          const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? Math.round(p.total_logged_minutes / 60 * 10) / 10 : 0)
-                          return (
-                            <div className="space-y-1">
-                              <ProgressBar pct={0} />
-                              <span className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>0% · {consumed}h consumidas</span>
-                            </div>
-                          )
-                        }
+                {!loading && rows.map(p => {
+                  const isDisabled = p._node_state === 'DISABLED'
+                  const isOnDemand = p.contract_type_display?.toLowerCase().includes('on demand')
+                  const consumedPct = isOnDemand ? 0 : calcConsumedPct(p)
+                  const barPct = consumedPct != null ? Math.min(100, Math.max(0, consumedPct)) : null
+                  const balance = p.general_hours_balance
+                  const balanceColor = balance != null && balance < 0 ? '#ef4444'
+                    : consumedPct != null && consumedPct >= 100 ? '#ef4444'
+                    : consumedPct != null && consumedPct >= 80 ? '#f59e0b'
+                    : 'var(--brand-subtle)'
+                  const consumed = p.consumed_hours != null ? p.consumed_hours
+                    : p.total_logged_minutes != null ? Math.round(p.total_logged_minutes / 60 * 10) / 10 : null
+                  const sold = p.sold_hours ?? 0
+                  const contrib = p.total_contributions_hours ?? p.hour_contribution ?? 0
+                  const s = p.status ?? ''
+                  const statusVariant = s === 'active' || s === 'started' ? 'started'
+                    : s === 'paused' ? 'paused'
+                    : s === 'cancelled' ? 'cancelled'
+                    : s === 'finished' ? 'finished' : 'default'
 
-                        const sold = p.sold_hours ?? 0
-                        const balance = p.general_hours_balance
-                        if (sold === 0 && balance == null) return <span style={{ color: 'var(--brand-subtle)' }}>—</span>
+                  return (
+                    <tr
+                      key={`${p.id}-${p._level}-${p._parentId}`}
+                      className="transition-colors"
+                      style={{
+                        borderBottom: '1px solid var(--brand-border)',
+                        opacity: isDisabled ? 0.4 : 1,
+                        background: p._level > 0 ? 'rgba(255,255,255,0.015)' : 'transparent',
+                      }}
+                      onMouseEnter={e => !isDisabled && (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = p._level > 0 ? 'rgba(255,255,255,0.015)' : 'transparent')}
+                    >
+                      {/* Código */}
+                      <td className="px-4 py-3" style={{ paddingLeft: p._level > 0 ? `${16 + p._level * 24}px` : undefined }}>
+                        <span className="font-mono text-xs px-2 py-0.5 rounded-md" style={{ background: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
+                          {p.code}
+                        </span>
+                      </td>
 
-                        // horas consumidas = sold - balance (ou via total_logged_minutes)
-                        const consumed = p.consumed_hours != null
-                          ? p.consumed_hours
-                          : p.total_logged_minutes != null
-                            ? Math.round(p.total_logged_minutes / 60 * 10) / 10
-                            : null
-                        // % consumido = consumed / sold × 100
-                        const consumedPct = sold > 0 && consumed != null
-                          ? Math.round((consumed / sold) * 100)
-                          : null
-                        const barPct = consumedPct != null ? Math.min(100, Math.max(0, consumedPct)) : null
-                        // texto em vermelho se passou de 100%
-                        const textColor = consumedPct != null && consumedPct >= 100 ? '#ef4444'
-                          : consumedPct != null && consumedPct >= 80 ? '#f59e0b'
-                          : 'var(--brand-subtle)'
-                        return (
+                      {/* Nome com controle de árvore */}
+                      <td className="px-4 py-3 max-w-[200px]">
+                        <div className="flex items-center gap-1.5">
+                          {/* Botão expand/collapse */}
+                          {p._hasChildren && (
+                            <button
+                              onClick={() => toggleExpand(p)}
+                              className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold shrink-0 transition-colors hover:bg-white/10"
+                              style={{ background: 'var(--brand-border)', color: 'var(--brand-primary)' }}
+                            >
+                              {p._isExpanded ? '−' : '+'}
+                            </button>
+                          )}
+                          {/* Espaçador para pais sem filhos */}
+                          {!p._hasChildren && p._level === 0 && <span className="w-5 shrink-0" />}
+                          {/* Badge PAI/FILHO */}
+                          {p._level === 0 && p._hasChildren && (
+                            <span className="text-[9px] font-bold px-1 py-0.5 rounded shrink-0" style={{ background: 'rgba(0,245,255,0.12)', color: 'var(--brand-primary)' }}>PAI</span>
+                          )}
+                          {p._level > 0 && (
+                            <span className="text-[9px] font-bold px-1 py-0.5 rounded shrink-0" style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>FILHO</span>
+                          )}
+                          <span className="font-medium truncate" style={{ color: 'var(--brand-text)' }}>{cleanName(p.name)}</span>
+                        </div>
+                      </td>
+
+                      {/* Cliente */}
+                      <td className="px-4 py-3 hidden md:table-cell truncate max-w-[140px] text-xs" style={{ color: 'var(--brand-muted)' }}>
+                        {p.customer?.name ?? '—'}
+                      </td>
+
+                      {/* Tipo de contrato */}
+                      <td className="px-4 py-3 hidden lg:table-cell text-xs" style={{ color: 'var(--brand-muted)' }}>
+                        {p.contract_type_display ?? '—'}
+                      </td>
+
+                      {/* Hs Vendidas */}
+                      <td className="px-4 py-3 hidden xl:table-cell text-xs text-right tabular-nums" style={{ color: 'var(--brand-muted)' }}>
+                        {isOnDemand ? '—'
+                          : sold > 0 ? (contrib > 0 ? `${sold}h (+${contrib})` : `${sold}h`)
+                          : '—'}
+                      </td>
+
+                      {/* Hs Consumidas */}
+                      <td className="px-4 py-3 hidden xl:table-cell text-xs text-right tabular-nums" style={{ color: 'var(--brand-muted)' }}>
+                        {consumed != null ? `${consumed}h` : '—'}
+                      </td>
+
+                      {/* Saldo */}
+                      <td className="px-4 py-3 hidden lg:table-cell w-36">
+                        {isOnDemand ? (
+                          <div className="space-y-1">
+                            <ProgressBar pct={0} />
+                            <span className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>0% · {consumed ?? 0}h consumidas</span>
+                          </div>
+                        ) : (sold === 0 && balance == null) ? (
+                          <span style={{ color: 'var(--brand-subtle)' }}>—</span>
+                        ) : (
                           <div className="space-y-1">
                             {barPct != null && <ProgressBar pct={barPct} />}
-                            <span className="text-[10px] tabular-nums" style={{ color: textColor }}>
+                            <span className="text-[10px] tabular-nums" style={{ color: balanceColor }}>
                               {consumedPct != null ? `${consumedPct}% · ` : ''}{balance != null ? `${balance}h` : ''}
                             </span>
                           </div>
-                        )
-                      })()}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      {(() => {
-                        const s = p.status ?? ''
-                        const variant = s === 'active' || s === 'started' ? 'started'
-                          : s === 'paused' ? 'paused'
-                          : s === 'cancelled' ? 'cancelled'
-                          : s === 'finished' ? 'finished'
-                          : 'default'
-                        return (
-                          <span
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                            style={{
-                              background: variant === 'started' ? 'rgba(0,245,255,0.10)'
-                                : variant === 'paused' ? 'rgba(245,158,11,0.12)'
-                                : variant === 'cancelled' ? 'rgba(239,68,68,0.12)'
-                                : variant === 'finished' ? 'rgba(161,161,170,0.12)'
-                                : 'rgba(161,161,170,0.12)',
-                              color: variant === 'started' ? '#00F5FF'
-                                : variant === 'paused' ? '#F59E0B'
-                                : variant === 'cancelled' ? '#EF4444'
-                                : variant === 'finished' ? '#71717A'
-                                : '#A1A1AA',
-                            }}
-                          >
-                            {p.status_display ?? p.status}
-                          </span>
-                        )
-                      })()}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1 justify-end">
-                        <button
-                          onClick={() => openEdit(p)}
-                          className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
-                          style={{ color: 'var(--brand-subtle)' }}
-                        ><Pencil size={13} /></button>
-                        <button
-                          onClick={() => remove(p.id)}
-                          disabled={deleting === p.id}
-                          className="p-1.5 rounded-lg transition-colors hover:bg-white/5 disabled:opacity-50"
-                          style={{ color: 'var(--brand-danger)' }}
-                        ><Trash2 size={13} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-3">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
+                          style={{
+                            background: statusVariant === 'started' ? 'rgba(0,245,255,0.10)'
+                              : statusVariant === 'paused' ? 'rgba(245,158,11,0.12)'
+                              : statusVariant === 'cancelled' ? 'rgba(239,68,68,0.12)'
+                              : statusVariant === 'finished' ? 'rgba(161,161,170,0.12)'
+                              : 'rgba(161,161,170,0.12)',
+                            color: statusVariant === 'started' ? '#00F5FF'
+                              : statusVariant === 'paused' ? '#F59E0B'
+                              : statusVariant === 'cancelled' ? '#EF4444'
+                              : statusVariant === 'finished' ? '#71717A'
+                              : '#A1A1AA',
+                          }}
+                        >
+                          {p.status_display ?? p.status}
+                        </span>
+                      </td>
+
+                      {/* Ações */}
+                      <td className="px-4 py-3">
+                        {!isDisabled && (
+                          <div className="flex items-center gap-1 justify-end">
+                            <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: 'var(--brand-subtle)' }}>
+                              <Pencil size={13} />
+                            </button>
+                            <button onClick={() => remove(p.id)} disabled={deleting === p.id} className="p-1.5 rounded-lg transition-colors hover:bg-white/5 disabled:opacity-50" style={{ color: 'var(--brand-danger)' }}>
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
