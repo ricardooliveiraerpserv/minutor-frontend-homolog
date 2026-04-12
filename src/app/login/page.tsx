@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +12,8 @@ import { ApiError } from '@/lib/api'
 export default function LoginPage() {
   const { login } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const passwordChanged = searchParams.get('senha_alterada') === '1'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -21,8 +24,12 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      await login(email, password)
-      router.replace('/dashboard')
+      const { requiresPasswordChange } = await login(email, password)
+      if (requiresPasswordChange) {
+        router.replace('/alterar-senha')
+      } else {
+        router.replace('/dashboard')
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Erro ao fazer login')
     } finally {
@@ -39,6 +46,12 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
+          {passwordChanged && (
+            <p className="text-green-400 text-xs bg-green-950/30 border border-green-900 rounded-md px-3 py-2">
+              Senha alterada com sucesso! Faça login com a nova senha.
+            </p>
+          )}
+
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-zinc-300 text-xs">E-mail</Label>
             <Input
@@ -78,6 +91,15 @@ export default function LoginPage() {
           >
             {loading ? 'Entrando...' : 'Entrar'}
           </Button>
+
+          <div className="text-center">
+            <Link
+              href="/esqueci-senha"
+              className="text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              Esqueceu a senha?
+            </Link>
+          </div>
         </form>
       </div>
     </div>
