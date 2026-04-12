@@ -34,11 +34,17 @@ async function request<T>(
   const res = await fetch(`${API_URL}${path}`, { ...options, headers })
 
   if (res.status === 401) {
-    if (typeof window !== 'undefined') {
+    const body = await res.json().catch(() => ({}))
+    const message = body.message ?? 'Não autenticado'
+
+    // No endpoint de login o 401 é credencial errada — não redireciona nem limpa token
+    const isLoginEndpoint = path === '/auth/login'
+    if (!isLoginEndpoint && typeof window !== 'undefined') {
       localStorage.removeItem('minutor_token')
       window.location.href = '/login'
     }
-    throw new ApiError(401, 'Não autenticado')
+
+    throw new ApiError(401, message)
   }
 
   if (!res.ok) {
