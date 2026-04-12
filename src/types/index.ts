@@ -5,6 +5,8 @@ export interface User {
   roles?: string[]
   permissions?: string[]
   profile_photo_url?: string | null
+  consultant_type?: string | null
+  daily_hours?: number | null
 }
 
 export interface AuthResponse {

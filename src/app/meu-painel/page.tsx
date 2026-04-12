@@ -11,8 +11,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
-  ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock,
-  Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, Eye,
+  ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock, Unlock,
+  Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, TrendingDown, Minus, Eye,
+  CalendarDays, RefreshCw, ChevronDown, ChevronUp,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -84,7 +85,182 @@ const PAYMENT_FALLBACK = [
   { value: 'bank_transfer', label: 'Transferência' },
 ]
 
-type TabType = 'overview' | 'timesheets' | 'expenses' | 'indicators'
+type TabType = 'overview' | 'timesheets' | 'expenses' | 'indicators' | 'hora-banco'
+
+// ─── Banco de Horas types ─────────────────────────────────────────────────────
+
+interface HourBankClosing {
+  id?: number
+  user_id: number
+  year_month: string
+  daily_hours: number
+  working_days: number
+  holidays_count: number
+  expected_hours: number
+  worked_hours: number
+  month_balance: number
+  previous_balance: number
+  accumulated_balance: number
+  paid_hours: number
+  final_balance: number
+  status: 'open' | 'closed'
+  closed_at?: string | null
+  notes?: string | null
+}
+
+function fmtHours(h: number): string {
+  const abs = Math.abs(h)
+  const hrs = Math.floor(abs)
+  const min = Math.round((abs - hrs) * 60)
+  const sign = h < 0 ? '-' : ''
+  return min > 0 ? `${sign}${hrs}h${String(min).padStart(2, '0')}` : `${sign}${hrs}h`
+}
+
+function fmtYearMonth(ym: string): string {
+  const [y, m] = ym.split('-')
+  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  return `${months[parseInt(m) - 1]}/${y}`
+}
+
+function HBBalancePill({ value, size = 'sm' }: { value: number; size?: 'sm' | 'lg' }) {
+  const isPos  = value > 0
+  const isNeg  = value < 0
+  const color  = isPos ? '#22c55e' : isNeg ? '#ef4444' : '#71717a'
+  const bg     = isPos ? 'rgba(34,197,94,0.1)' : isNeg ? 'rgba(239,68,68,0.1)' : 'rgba(113,113,122,0.1)'
+  const Icon   = isPos ? TrendingUp : isNeg ? TrendingDown : Minus
+  const cls    = size === 'lg' ? 'text-lg font-bold' : 'text-xs font-semibold'
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${cls}`}
+      style={{ background: bg, color }}>
+      <Icon size={size === 'lg' ? 14 : 10} />
+      {fmtHours(value)}
+    </span>
+  )
+}
+
+function HBCurrentMonthCard({ data, onClose, closing }: { data: HourBankClosing; onClose: (notes: string) => void; closing: boolean }) {
+  const [notes, setNotes] = useState('')
+  return (
+    <div className="rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <CalendarDays size={15} color="var(--brand-primary)" />
+          <span className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>
+            {fmtYearMonth(data.year_month)}
+          </span>
+          {data.status === 'open'
+            ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">Em aberto</span>
+            : <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-500/15 text-zinc-400 border border-zinc-500/20 flex items-center gap-1"><Lock size={8}/> Fechado</span>
+          }
+        </div>
+        {data.status === 'open' && (
+          <div className="flex items-center gap-2">
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Observação (opcional)"
+              rows={1}
+              className="text-xs px-3 py-1.5 rounded-xl resize-none outline-none"
+              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)', width: '200px' }}
+            />
+            <button
+              onClick={() => onClose(notes)}
+              disabled={closing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90 disabled:opacity-40"
+              style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+            >
+              <Lock size={11} />
+              {closing ? 'Fechando...' : 'Fechar Mês'}
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: 'Horas Previstas',   value: fmtHours(data.expected_hours),  sub: `${data.working_days} dias úteis`, color: 'var(--brand-muted)' },
+          { label: 'Horas Trabalhadas', value: fmtHours(data.worked_hours),    sub: '', color: 'var(--brand-text)' },
+          { label: 'Saldo do Mês',      value: fmtHours(data.month_balance),   sub: '', color: data.month_balance >= 0 ? '#22c55e' : '#ef4444' },
+          { label: 'Saldo Anterior',    value: fmtHours(data.previous_balance),sub: '', color: data.previous_balance >= 0 ? '#22c55e' : data.previous_balance < 0 ? '#ef4444' : 'var(--brand-muted)' },
+        ].map(item => (
+          <div key={item.label} className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{item.label}</p>
+            <p className="text-xl font-bold" style={{ color: item.color }}>{item.value}</p>
+            {item.sub && <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{item.sub}</p>}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 rounded-xl px-4 py-3 flex items-center justify-between"
+        style={{ background: data.paid_hours > 0 ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)', border: `1px solid ${data.paid_hours > 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.15)'}` }}>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Saldo Acumulado</p>
+          <HBBalancePill value={data.accumulated_balance} size="lg" />
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+            {data.paid_hours > 0 ? 'Horas a Pagar' : 'Saldo Final'}
+          </p>
+          {data.paid_hours > 0
+            ? <span className="text-lg font-bold text-green-400">{fmtHours(data.paid_hours)} a pagar</span>
+            : <HBBalancePill value={data.final_balance} size="lg" />
+          }
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function HBHistoryRow({ row, onReopen }: { row: HourBankClosing; onReopen: (ym: string) => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <tr className="border-b cursor-pointer hover:bg-white/[0.02] transition-colors" style={{ borderColor: 'var(--brand-border)' }}
+        onClick={() => setOpen(o => !o)}>
+        <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+          <span className="flex items-center gap-1.5">
+            {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            {fmtYearMonth(row.year_month)}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--brand-muted)' }}>{fmtHours(row.expected_hours)}</td>
+        <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--brand-text)' }}>{fmtHours(row.worked_hours)}</td>
+        <td className="px-4 py-3 text-center"><HBBalancePill value={row.month_balance} /></td>
+        <td className="px-4 py-3 text-center"><HBBalancePill value={row.previous_balance} /></td>
+        <td className="px-4 py-3 text-center">
+          {row.paid_hours > 0
+            ? <span className="text-xs font-semibold text-green-400">{fmtHours(row.paid_hours)}</span>
+            : <span style={{ color: 'var(--brand-subtle)' }} className="text-xs">—</span>
+          }
+        </td>
+        <td className="px-4 py-3 text-center"><HBBalancePill value={row.final_balance} /></td>
+        <td className="px-4 py-3 text-center">
+          {row.status === 'closed'
+            ? <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-zinc-400 bg-zinc-500/10"><Lock size={8}/>Fechado</span>
+            : <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">Aberto</span>
+          }
+        </td>
+      </tr>
+      {open && (
+        <tr style={{ background: 'rgba(255,255,255,0.015)', borderBottom: `1px solid var(--brand-border)` }}>
+          <td colSpan={8} className="px-6 py-3">
+            <div className="flex items-start gap-6 text-xs" style={{ color: 'var(--brand-muted)' }}>
+              <span><span className="text-zinc-500">Dias úteis:</span> {row.working_days}</span>
+              <span><span className="text-zinc-500">Feriados:</span> {row.holidays_count}</span>
+              <span><span className="text-zinc-500">H/dia:</span> {row.daily_hours}h</span>
+              <span><span className="text-zinc-500">Acumulado:</span> <HBBalancePill value={row.accumulated_balance} /></span>
+              {row.notes && <span><span className="text-zinc-500">Obs:</span> {row.notes}</span>}
+              {row.status === 'closed' && (
+                <button onClick={e => { e.stopPropagation(); onReopen(row.year_month) }}
+                  className="ml-auto flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors">
+                  <Unlock size={9} /> Reabrir
+                </button>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -301,6 +477,13 @@ export default function MeuPainelPage() {
   const [expFile,    setExpFile]    = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  // ── Banco de Horas state ───────────────────────────────────────────────────
+  const [hbPreview,  setHbPreview]  = useState<HourBankClosing | null>(null)
+  const [hbHistory,  setHbHistory]  = useState<HourBankClosing[]>([])
+  const [hbLoading,  setHbLoading]  = useState(false)
+  const [hbClosing,  setHbClosing]  = useState(false)
+  const [hbKey,      setHbKey]      = useState(0)
+
   // ── Support data ───────────────────────────────────────────────────────────
   const [projects,       setProjects]       = useState<ProjectOption[]>([])
   const [customers,      setCustomers]      = useState<{ id: number; name: string }[]>([])
@@ -378,6 +561,24 @@ export default function MeuPainelPage() {
 
   // Reset pages when period changes
   useEffect(() => { setTsPage(1); setExpPage(1) }, [startDate, endDate])
+
+  // ── Load Banco de Horas (only for bh_fixo / bh_mensal consultants) ─────────
+  useEffect(() => {
+    const ct = (user as any)?.consultant_type
+    if (ct !== 'bh_fixo' && ct !== 'bh_mensal') return
+    if (!user?.id) return
+    setHbLoading(true)
+    Promise.all([
+      api.get<HourBankClosing>(`/consultant-hour-bank/${user.id}/preview`),
+      api.get<{ items: HourBankClosing[] }>(`/consultant-hour-bank/${user.id}/history`),
+    ])
+      .then(([prev, hist]) => {
+        setHbPreview(prev)
+        setHbHistory(hist.items ?? [])
+      })
+      .catch(() => toast.error('Erro ao carregar banco de horas'))
+      .finally(() => setHbLoading(false))
+  }, [user, hbKey])
 
   // ── Timesheet CRUD ─────────────────────────────────────────────────────────
 
@@ -536,11 +737,14 @@ export default function MeuPainelPage() {
 
   // ── Tabs config ────────────────────────────────────────────────────────────
 
+  const isHBConsultant = ['bh_fixo', 'bh_mensal'].includes((user as any)?.consultant_type ?? '')
+
   const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
     { id: 'overview',   label: 'Total Geral',  icon: LayoutDashboard },
     { id: 'timesheets', label: 'Apontamentos', icon: Clock },
     { id: 'expenses',   label: 'Despesas',     icon: Receipt },
     { id: 'indicators', label: 'Indicadores',  icon: BarChart2 },
+    ...(isHBConsultant ? [{ id: 'hora-banco' as TabType, label: 'Banco de Horas', icon: CalendarDays }] : []),
   ]
 
   const pmOptions = paymentMethods.length > 0 ? paymentMethods : PAYMENT_FALLBACK
@@ -1112,6 +1316,100 @@ export default function MeuPainelPage() {
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          Tab: Banco de Horas
+      ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'hora-banco' && (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--brand-text)' }}>Banco de Horas</h2>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+                Acompanhamento mensal de horas previstas, trabalhadas e saldo acumulado
+              </p>
+            </div>
+            <button onClick={() => setHbKey(k => k + 1)} className="p-2 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-subtle)' }}>
+              <RefreshCw size={14} />
+            </button>
+          </div>
+
+          {hbLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-44 w-full rounded-2xl" />
+              <Skeleton className="h-64 w-full rounded-2xl" />
+            </div>
+          ) : (
+            <>
+              {hbPreview && (
+                <HBCurrentMonthCard
+                  data={hbPreview}
+                  closing={hbClosing}
+                  onClose={async (notes) => {
+                    if (!user?.id || !hbPreview) return
+                    setHbClosing(true)
+                    try {
+                      await api.post(`/consultant-hour-bank/${user.id}/close`, {
+                        year_month: hbPreview.year_month,
+                        daily_hours: hbPreview.daily_hours,
+                        notes: notes || undefined,
+                      })
+                      toast.success(`Mês ${fmtYearMonth(hbPreview.year_month)} fechado com sucesso`)
+                      setHbKey(k => k + 1)
+                    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao fechar mês') }
+                    finally { setHbClosing(false) }
+                  }}
+                />
+              )}
+
+              <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                <div className="px-4 py-3 border-b" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Histórico de Fechamentos</p>
+                </div>
+                {hbHistory.length === 0 ? (
+                  <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum fechamento registrado</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs" style={{ background: 'var(--brand-surface)' }}>
+                      <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--brand-border)' }}>
+                        <tr>
+                          {['Mês', 'Previsto', 'Trabalhado', 'Saldo Mês', 'Saldo Ant.', 'Pago', 'Saldo Final', 'Status'].map(h => (
+                            <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {hbHistory.map((row, i) => (
+                          <HBHistoryRow
+                            key={`${row.user_id}-${row.year_month}-${i}`}
+                            row={row}
+                            onReopen={async (yearMonth) => {
+                              if (!user?.id) return
+                              if (!confirm(`Reabrir o mês ${fmtYearMonth(yearMonth)}?`)) return
+                              try {
+                                await api.post(`/consultant-hour-bank/${user.id}/reopen`, { year_month: yearMonth })
+                                toast.success(`Mês ${fmtYearMonth(yearMonth)} reaberto`)
+                                setHbKey(k => k + 1)
+                              } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao reabrir') }
+                            }}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--brand-subtle)' }}>
+                <span className="flex items-center gap-1"><TrendingUp size={10} className="text-green-400" /> Saldo positivo</span>
+                <span className="flex items-center gap-1"><TrendingDown size={10} className="text-red-400" /> Saldo negativo</span>
+                <span className="flex items-center gap-1"><Minus size={10} className="text-zinc-500" /> Zerado</span>
+                {hbPreview && <span className="ml-auto">HP = Dias úteis × {hbPreview.daily_hours}h/dia</span>}
+              </div>
+            </>
           )}
         </div>
       )}
