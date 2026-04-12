@@ -23,6 +23,7 @@ interface UserItem {
   hourly_rate?: number
   rate_type?: string
   daily_hours?: number
+  consultant_type?: string | null
   customer_id?: number | null
   partner_id?: number | null
   is_executive?: boolean
@@ -224,14 +225,17 @@ export function UserManagementTab() {
 
   const openEdit = (item: UserItem) => {
     const roleNames = item.roles?.map(r => r.name) ?? []
-    const { profile, consultantType } = resolveProfileFromRoles(roleNames)
+    const { profile } = resolveProfileFromRoles(roleNames)
+    // Prefer stored consultant_type; fall back to deriving from rate_type
+    const consultant_type = (item.consultant_type as ConsultantType | undefined)
+      ?? (item.rate_type === 'hourly' ? 'horista' : item.rate_type === 'monthly' ? 'bh_fixo' : '')
     setForm({
       name: item.name, email: item.email, password: '',
       enabled: item.enabled,
       hourly_rate: item.hourly_rate ? String(item.hourly_rate) : '',
       rate_type: (item.rate_type as 'hourly' | 'monthly') ?? 'hourly',
       daily_hours: item.daily_hours != null ? String(item.daily_hours) : '8',
-      profile, consultant_type: consultantType,
+      profile, consultant_type: consultant_type as ConsultantType | '',
       is_partner_adm: item.is_executive ?? false,
       customer_id: item.customer_id ?? '',
       partner_id:  item.partner_id  ?? '',
@@ -252,9 +256,11 @@ export function UserManagementTab() {
         customer_id: form.profile === 'cliente' && form.customer_id ? form.customer_id : null,
         partner_id:  form.profile === 'parceiro_adm' && form.partner_id ? form.partner_id : null,
         is_executive: form.profile === 'parceiro_adm' ? form.is_partner_adm : false,
+        rate_type: form.rate_type,
       }
-      if (form.hourly_rate) { payload.hourly_rate = parseFloat(form.hourly_rate); payload.rate_type = form.rate_type }
+      if (form.hourly_rate) payload.hourly_rate = parseFloat(form.hourly_rate)
       if (form.daily_hours) payload.daily_hours = parseFloat(form.daily_hours)
+      if (form.profile === 'consultor' && form.consultant_type) payload.consultant_type = form.consultant_type
       if (!modal.item && form.password) payload.password = form.password
       if (modal.item) await api.put(`/users/${modal.item.id}`, payload)
       else            await api.post('/users', payload)
