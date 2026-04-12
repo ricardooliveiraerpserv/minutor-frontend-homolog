@@ -144,6 +144,32 @@ function ConsultantTypeCard({ value, onChange }: { value: ConsultantType | ''; o
   )
 }
 
+function CurrencyInput({ value, onChange, placeholder, className }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; className?: string
+}) {
+  const [focused, setFocused] = useState(false)
+  const numVal = parseFloat(value)
+  const displayValue = !focused && value && !isNaN(numVal)
+    ? new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(numVal)
+    : value
+  return (
+    <Input
+      value={displayValue}
+      onFocus={() => setFocused(true)}
+      onBlur={e => {
+        setFocused(false)
+        const raw = e.target.value.replace(/\./g, '').replace(',', '.')
+        const parsed = parseFloat(raw)
+        if (!isNaN(parsed)) onChange(String(parsed))
+        else if (e.target.value === '') onChange('')
+      }}
+      onChange={e => { if (focused) onChange(e.target.value) }}
+      placeholder={placeholder}
+      className={className}
+    />
+  )
+}
+
 function TableSkeleton() {
   return (
     <>
@@ -468,32 +494,14 @@ export function UserManagementTab() {
                           ))}
                         </div>
                       )}
-                      <Input type="number" min="0" step="0.01" value={form.hourly_rate}
-                        onChange={e => setForm(f => ({ ...f, hourly_rate: e.target.value }))}
+                      <CurrencyInput value={form.hourly_rate}
+                        onChange={v => setForm(f => ({ ...f, hourly_rate: v }))}
                         placeholder="0,00" className="flex-1 bg-zinc-800 border-zinc-700 text-white h-8 text-xs" />
                       <span className="text-xs text-zinc-500">R$</span>
                     </div>
                   </div>
                 )}
-                {isConsultor && form.consultant_type === 'horista' && (
-                  <div>
-                    <Label className="text-xs text-zinc-400 mb-1 block">Horas Garantidas / mês</Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number" min="0" max="744" step="1"
-                        value={form.guaranteed_hours}
-                        onChange={e => setForm(f => ({ ...f, guaranteed_hours: e.target.value }))}
-                        placeholder="Ex: 160"
-                        className="w-28 bg-zinc-800 border-zinc-700 text-white h-8 text-xs"
-                      />
-                      <span className="text-xs text-zinc-500">h/mês (piso mínimo de cobrança)</span>
-                    </div>
-                    <p className="text-[10px] text-zinc-500 mt-1">
-                      Se fizer menos horas, paga como se tivesse feito este mínimo.
-                    </p>
-                  </div>
-                )}
-                {isConsultor && (
+                {isConsultor && form.consultant_type !== 'horista' && (
                   <div>
                     <Label className="text-xs text-zinc-400 mb-1 block">Horas por dia útil (Banco de Horas)</Label>
                     <div className="flex items-center gap-2">
@@ -526,6 +534,24 @@ export function UserManagementTab() {
                 {isConsultor && (
                   <ConsultantTypeCard value={form.consultant_type}
                     onChange={opt => setForm(f => ({ ...f, consultant_type: opt, rate_type: opt === 'horista' ? 'hourly' : 'monthly' }))} />
+                )}
+                {isConsultor && form.consultant_type === 'horista' && (
+                  <div>
+                    <Label className="text-xs text-zinc-400 mb-1 block">Horas Garantidas / mês</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number" min="0" max="744" step="1"
+                        value={form.guaranteed_hours}
+                        onChange={e => setForm(f => ({ ...f, guaranteed_hours: e.target.value }))}
+                        placeholder="Ex: 160"
+                        className="w-28 bg-zinc-800 border-zinc-700 text-white h-8 text-xs"
+                      />
+                      <span className="text-xs text-zinc-500">h/mês (piso mínimo de cobrança)</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-500 mt-1">
+                      Se fizer menos horas, paga como se tivesse feito este mínimo.
+                    </p>
+                  </div>
                 )}
                 {isParceiroAdm && (
                   <div className="space-y-3">
