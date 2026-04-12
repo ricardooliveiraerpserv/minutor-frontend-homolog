@@ -170,8 +170,8 @@ function HBPaymentSection({ data, fixedSalary }: { data: HourBankMonth; fixedSal
         {/* Valor Hora Extra */}
         <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
           <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor / Hora Extra</p>
-          <p className="text-lg font-bold" style={{ color: hasExtra ? '#22c55e' : 'var(--brand-muted)' }}>
-            {hasExtra && valorHoraExt > 0 ? brl(valorHoraExt) : '—'}
+          <p className="text-lg font-bold" style={{ color: valorHoraExt > 0 ? 'var(--brand-text)' : 'var(--brand-muted)' }}>
+            {valorHoraExt > 0 ? brl(valorHoraExt) : '—'}
           </p>
           <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>fixo ÷ 180</p>
         </div>
