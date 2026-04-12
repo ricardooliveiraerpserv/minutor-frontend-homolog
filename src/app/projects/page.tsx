@@ -754,21 +754,27 @@ export default function ProjectsPage() {
                       {p.contract_type_display ?? '—'}
                     </td>
                     <td className="px-4 py-3.5 hidden xl:table-cell text-xs text-right tabular-nums" style={{ color: 'var(--brand-muted)' }}>
-                      {p.sold_hours != null ? `${p.sold_hours}h` : '—'}
+                      {/* On Demand: vendido = consumido, não mostrar valor fixo */}
+                      {p.contract_type_display?.toLowerCase().includes('on demand')
+                        ? '—'
+                        : p.sold_hours != null ? `${p.sold_hours}h` : '—'}
                     </td>
                     <td className="px-4 py-3.5 hidden xl:table-cell text-xs text-right tabular-nums" style={{ color: 'var(--brand-muted)' }}>
                       {p.consumed_hours != null ? `${p.consumed_hours}h` : p.total_logged_minutes != null ? `${(p.total_logged_minutes / 60).toFixed(1)}h` : '—'}
                     </td>
                     <td className="px-4 py-3.5 hidden lg:table-cell w-32">
                       {(() => {
-                        // On Demand: saldo = 0h, percentual = 0% (consumido = vendido)
+                        // On Demand: vendido = consumido, saldo sempre 0
                         const isOnDemand = p.contract_type_display?.toLowerCase().includes('on demand')
-                        if (isOnDemand) return (
-                          <div className="space-y-1">
-                            <ProgressBar pct={0} />
-                            <span className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>0% · 0h</span>
-                          </div>
-                        )
+                        if (isOnDemand) {
+                          const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? Math.round(p.total_logged_minutes / 60 * 10) / 10 : 0)
+                          return (
+                            <div className="space-y-1">
+                              <ProgressBar pct={0} />
+                              <span className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>0% · {consumed}h consumidas</span>
+                            </div>
+                          )
+                        }
 
                         const sold = p.sold_hours ?? 0
                         const balance = p.general_hours_balance
