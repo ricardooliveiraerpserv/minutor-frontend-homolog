@@ -5,7 +5,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { Project, PaginatedResponse } from '@/types'
 import { toast } from 'sonner'
-import { FolderOpen, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Search } from 'lucide-react'
+import { FolderOpen, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Search, ChevronDown } from 'lucide-react'
 
 interface ProjectForm {
   name: string
@@ -54,6 +54,102 @@ const EMPTY_FORM: ProjectForm = {
   allow_manual_timesheets: true,
   allow_negative_balance: false,
   consultant_ids: [], coordinator_ids: [],
+}
+
+// ─── SearchSelect ────────────────────────────────────────────────────────────
+
+interface SearchSelectOption { id: number | string; name: string }
+
+function SearchSelect({ value, onChange, options, placeholder }: {
+  value: string
+  onChange: (v: string) => void
+  options: SearchSelectOption[]
+  placeholder: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const selected = options.find(o => String(o.id) === value)
+  const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()))
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  useEffect(() => {
+    if (open) { setQuery(''); setTimeout(() => inputRef.current?.focus(), 50) }
+  }, [open])
+
+  const select = (id: string) => { onChange(id); setOpen(false) }
+
+  return (
+    <div ref={ref} className="relative min-w-44">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm outline-none text-left"
+        style={{
+          background: 'var(--brand-bg)',
+          border: '1px solid var(--brand-border)',
+          color: selected ? 'var(--brand-text)' : 'var(--brand-subtle)',
+        }}
+      >
+        <span className="truncate">{selected ? selected.name : placeholder}</span>
+        <ChevronDown size={13} style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute top-full mt-1 left-0 z-50 w-full min-w-56 rounded-xl shadow-2xl overflow-hidden"
+          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+        >
+          <div className="p-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Buscar..."
+                className="w-full pl-7 pr-3 py-1.5 rounded-lg text-xs outline-none"
+                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+              />
+            </div>
+          </div>
+          <div className="max-h-52 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => select('')}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+              style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}
+            >
+              {placeholder}
+            </button>
+            {filtered.length === 0 ? (
+              <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
+            ) : filtered.map(o => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => select(String(o.id))}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                style={{ color: String(o.id) === value ? 'var(--brand-primary)' : 'var(--brand-text)' }}
+              >
+                {o.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ProgressBar({ pct }: { pct?: number }) {
@@ -533,43 +629,31 @@ export default function ProjectsPage() {
                 style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
               />
             </div>
-            <select
+            <SearchSelect
               value={filterCustomer}
-              onChange={e => { setFilterCustomer(e.target.value); setPage(1) }}
-              className="px-3 py-2 rounded-xl text-sm outline-none appearance-none min-w-36"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: filterCustomer ? 'var(--brand-text)' : 'var(--brand-subtle)' }}
-            >
-              <option value="">Todos os clientes</option>
-              {filterCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select
+              onChange={v => { setFilterCustomer(v); setPage(1) }}
+              options={filterCustomers}
+              placeholder="Todos os clientes"
+            />
+            <SearchSelect
               value={filterContractType}
-              onChange={e => { setFilterContractType(e.target.value); setPage(1) }}
-              className="px-3 py-2 rounded-xl text-sm outline-none appearance-none min-w-36"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: filterContractType ? 'var(--brand-text)' : 'var(--brand-subtle)' }}
-            >
-              <option value="">Todos os tipos</option>
-              {filterContractTypes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select
+              onChange={v => { setFilterContractType(v); setPage(1) }}
+              options={filterContractTypes}
+              placeholder="Todos os tipos"
+            />
+            <SearchSelect
               value={filterApprover}
-              onChange={e => { setFilterApprover(e.target.value); setPage(1) }}
-              className="px-3 py-2 rounded-xl text-sm outline-none appearance-none min-w-36"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: filterApprover ? 'var(--brand-text)' : 'var(--brand-subtle)' }}
-            >
-              <option value="">Todos os aprovadores</option>
-              {filterApprovers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
+              onChange={v => { setFilterApprover(v); setPage(1) }}
+              options={filterApprovers}
+              placeholder="Todos os aprovadores"
+            />
             {filterExecutives.length > 0 && (
-              <select
+              <SearchSelect
                 value={filterExecutive}
-                onChange={e => { setFilterExecutive(e.target.value); setPage(1) }}
-                className="px-3 py-2 rounded-xl text-sm outline-none appearance-none min-w-36"
-                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: filterExecutive ? 'var(--brand-text)' : 'var(--brand-subtle)' }}
-              >
-                <option value="">Todos os executivos</option>
-                {filterExecutives.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-              </select>
+                onChange={v => { setFilterExecutive(v); setPage(1) }}
+                options={filterExecutives}
+                placeholder="Todos os executivos"
+              />
             )}
             {(filterCustomer || filterContractType || filterApprover || filterExecutive || search) && (
               <button
