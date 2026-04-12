@@ -21,6 +21,7 @@ interface ProjectForm {
   hourly_rate: string
   additional_hourly_rate: string
   sold_hours: string
+  consultant_hours: string
   coordinator_hours: string
   initial_hours_balance: string
   initial_cost: string
@@ -46,7 +47,7 @@ const EMPTY_FORM: ProjectForm = {
   customer_id: '', service_type_id: '', contract_type_id: '',
   status: 'started', start_date: '',
   project_value: '', hourly_rate: '', additional_hourly_rate: '',
-  sold_hours: '', coordinator_hours: '', initial_hours_balance: '', initial_cost: '',
+  sold_hours: '', consultant_hours: '', coordinator_hours: '', initial_hours_balance: '', initial_cost: '',
   parent_project_id: '',
   max_expense_per_consultant: '',
   timesheet_retroactive_limit_days: '',
@@ -208,6 +209,18 @@ export default function ProjectsPage() {
   )
   const isOnDemand = selectedContractType?.name.toLowerCase().trim() === 'on demand'
   const isBankHours = selectedContractType?.name.toLowerCase().includes('banco de horas') ?? false
+  // Fechado e SaaS: não é On Demand nem Banco de Horas → mostra consultant_hours e save_erpserv
+  const isFechado = !!selectedContractType && !isOnDemand && !isBankHours
+
+  // save_erpserv = sold_hours - consultant_hours - (coordinator_hours/100 * consultant_hours)
+  const saveErpserv = useMemo(() => {
+    if (!isFechado) return null
+    const sold = Number(form.sold_hours) || 0
+    const consult = Number(form.consultant_hours) || 0
+    const coord = Number(form.coordinator_hours) || 0
+    const coordContrib = (coord * consult) / 100
+    return Math.round((sold - consult - coordContrib) * 100) / 100
+  }, [isFechado, form.sold_hours, form.consultant_hours, form.coordinator_hours])
 
   const params = useMemo(() => {
     const p = new URLSearchParams({ page: String(page), per_page: '20' })
@@ -302,6 +315,7 @@ export default function ProjectsPage() {
         hourly_rate: d.hourly_rate ? String(d.hourly_rate) : '',
         additional_hourly_rate: d.additional_hourly_rate ? String(d.additional_hourly_rate) : '',
         sold_hours: d.sold_hours ? String(d.sold_hours) : '',
+        consultant_hours: d.consultant_hours ? String(d.consultant_hours) : '',
         coordinator_hours: d.coordinator_hours ? String(d.coordinator_hours) : '',
         initial_hours_balance: d.initial_hours_balance != null ? String(d.initial_hours_balance) : '',
         initial_cost: d.initial_cost != null ? String(d.initial_cost) : '',
@@ -344,6 +358,7 @@ export default function ProjectsPage() {
       if (form.additional_hourly_rate) payload.additional_hourly_rate = Number(form.additional_hourly_rate)
       if (!isOnDemand) {
         if (form.sold_hours) payload.sold_hours = Number(form.sold_hours)
+        if (form.consultant_hours) payload.consultant_hours = Number(form.consultant_hours)
         if (form.coordinator_hours) payload.coordinator_hours = Number(form.coordinator_hours)
         if (form.initial_hours_balance !== '') payload.initial_hours_balance = Number(form.initial_hours_balance)
         if (form.initial_cost !== '') payload.initial_cost = Number(form.initial_cost)
@@ -682,6 +697,23 @@ export default function ProjectsPage() {
                         <FieldLabel>% Horas Coordenador</FieldLabel>
                         <FieldInput type="number" value={form.coordinator_hours} onChange={setF('coordinator_hours')} placeholder="0" min="0" max="100" step="1" />
                       </div>
+                      {isFechado && (
+                        <>
+                          <div>
+                            <FieldLabel>Horas Consultor</FieldLabel>
+                            <FieldInput type="number" value={form.consultant_hours} onChange={setF('consultant_hours')} placeholder="0" min="0" step="1" />
+                          </div>
+                          <div>
+                            <FieldLabel>Save ERPSERV</FieldLabel>
+                            <input
+                              readOnly
+                              value={saveErpserv ?? ''}
+                              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none cursor-not-allowed"
+                              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)', opacity: 0.7 }}
+                            />
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
