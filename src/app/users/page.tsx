@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, ChevronDown,
-  Search, KeyRound, Check, Copy
+  Search, KeyRound, Check, Copy, Eye
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -220,6 +220,7 @@ export default function UsersPage() {
   const [filterRole,    setFilterRole]    = useState('')
   const [page,    setPage]    = useState(1)
   const [hasNext, setHasNext] = useState(false)
+  const [viewUser,   setViewUser]   = useState<UserItem | null>(null)
   const [modal,      setModal]      = useState<{ open: boolean; item?: UserItem }>({ open: false })
   const [resetModal, setResetModal] = useState<{
     open: boolean
@@ -449,14 +450,19 @@ export default function UsersPage() {
                 </td>
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-1 justify-end">
+                    <button onClick={() => setViewUser(user)} title="Visualizar"
+                      className="p-1 text-zinc-500 hover:text-blue-400 transition-colors">
+                      <Eye size={12} />
+                    </button>
+                    <button onClick={() => openEdit(user)} title="Editar"
+                      className="p-1 text-zinc-500 hover:text-zinc-200 transition-colors">
+                      <Pencil size={12} />
+                    </button>
                     <button onClick={() => resetPassword(user)} disabled={resetting === user.id}
                       title="Resetar senha" className="p-1 text-zinc-500 hover:text-yellow-400 transition-colors">
                       <KeyRound size={12} />
                     </button>
-                    <button onClick={() => openEdit(user)} className="p-1 text-zinc-500 hover:text-zinc-200 transition-colors">
-                      <Pencil size={12} />
-                    </button>
-                    <button onClick={() => remove(user.id)} disabled={deleting === user.id}
+                    <button onClick={() => remove(user.id)} disabled={deleting === user.id} title="Excluir"
                       className="p-1 text-zinc-500 hover:text-red-400 transition-colors">
                       <Trash2 size={12} />
                     </button>
@@ -712,6 +718,62 @@ export default function UsersPage() {
           </div>
         </ModalOverlay>
       )}
+      {/* ── Modal de Visualização ── */}
+      {viewUser && (() => {
+        const u = viewUser
+        const roleNames = u.roles?.map(r => r.name) ?? []
+        const { profile } = resolveProfileFromRoles(roleNames)
+        const profileLabel = PROFILE_OPTIONS.find(p => p.value === profile)?.label ?? (roleNames[0] ?? '—')
+        const rows: { label: string; value: string | React.ReactNode }[] = [
+          { label: 'Nome',         value: u.name },
+          { label: 'E-mail',       value: u.email },
+          { label: 'Perfil',       value: profileLabel },
+          { label: 'Status',       value: u.enabled
+              ? <span className="text-green-400 text-xs font-medium">Ativo</span>
+              : <span className="text-zinc-400 text-xs">Inativo</span> },
+        ]
+        if (u.hourly_rate != null) rows.push({ label: 'Remuneração', value: `R$ ${Number(u.hourly_rate).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ${u.rate_type === 'monthly' ? '/ mês' : '/ hora'}` })
+        if (u.daily_hours != null) rows.push({ label: 'Horas/dia útil', value: `${u.daily_hours}h` })
+        if (u.roles && u.roles.length > 0) rows.push({ label: 'Roles', value: u.roles.map(r => r.name).join(', ') })
+        return (
+          <ModalOverlay onClose={() => setViewUser(null)}>
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
+                  style={{ background: 'rgba(0,245,255,0.12)', color: 'var(--brand-primary)' }}>
+                  {u.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">{u.name}</p>
+                  <p className="text-xs text-zinc-500">{u.email}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                {rows.map(row => (
+                  <div key={row.label} className="flex items-center justify-between py-2 border-b border-zinc-800 last:border-0">
+                    <span className="text-xs text-zinc-500">{row.label}</span>
+                    <span className="text-xs text-zinc-200 text-right">{row.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2 mt-5 justify-end">
+                <button onClick={() => { setViewUser(null); openEdit(u) }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/5"
+                  style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
+                  <Pencil size={11} /> Editar
+                </button>
+                <button onClick={() => setViewUser(null)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </ModalOverlay>
+        )
+      })()}
     </AppLayout>
   )
 }
