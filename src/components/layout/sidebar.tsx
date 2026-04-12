@@ -266,7 +266,7 @@ export function Sidebar({ user }: { user: User }) {
                         key={sub.href}
                         href={sub.href}
                         className={cn(
-                          'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-medium transition-all duration-150',
+                          'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150',
                           !subActive && 'hover:bg-white/[0.04] hover:text-[#FAFAFA]'
                         )}
                         style={subActive
