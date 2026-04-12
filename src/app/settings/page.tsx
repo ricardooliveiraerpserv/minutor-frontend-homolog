@@ -160,7 +160,7 @@ function GeneralTab() {
   useEffect(() => {
     Promise.all([
       api.get<{ data: SystemSettings }>('/system-settings'),
-      api.get<{ data: { id: number; name: string }[] }>('/customers?per_page=200&active=1'),
+      api.get<{ data: { id: number; name: string }[] }>('/customers?pageSize=500'),
     ]).then(([s, c]) => {
       setSettings(s.data ?? s as unknown as SystemSettings)
       const cArr = Array.isArray((c as any)?.items) ? (c as any).items : Array.isArray((c as any)?.data) ? (c as any).data : []
