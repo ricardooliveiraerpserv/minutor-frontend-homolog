@@ -36,6 +36,7 @@ interface ProjectForm {
   // Equipe
   consultant_ids: number[]
   coordinator_ids: number[]
+  consultant_group_ids: number[]
 }
 
 interface SelectOption { id: number; name: string }
@@ -53,7 +54,7 @@ const EMPTY_FORM: ProjectForm = {
   timesheet_retroactive_limit_days: '',
   allow_manual_timesheets: true,
   allow_negative_balance: false,
-  consultant_ids: [], coordinator_ids: [],
+  consultant_ids: [], coordinator_ids: [], consultant_group_ids: [],
 }
 
 // ─── Tree ────────────────────────────────────────────────────────────────────
@@ -412,10 +413,12 @@ export default function ProjectsPage() {
   const [projectStatuses, setProjectStatuses] = useState<ProjectStatus[]>([])
   const [consultants, setConsultants] = useState<SelectOption[]>([])
   const [approvers, setApprovers] = useState<SelectOption[]>([])
+  const [consultantGroups, setConsultantGroups] = useState<SelectOption[]>([])
   const [parentProjects, setParentProjects] = useState<SelectOption[]>([])
   // Busca dentro das listas de equipe
   const [searchConsultant, setSearchConsultant] = useState('')
   const [searchApprover, setSearchApprover] = useState('')
+  const [searchGroup, setSearchGroup] = useState('')
 
   // Contract type helpers
   const selectedContractType = useMemo(
@@ -510,13 +513,14 @@ export default function ProjectsPage() {
 
   const loadOptions = useCallback(async () => {
     try {
-      const [c, ct, st, ps, u, appr] = await Promise.all([
+      const [c, ct, st, ps, u, appr, grps] = await Promise.all([
         api.get<any>('/customers?pageSize=1000'),
         api.get<any>('/contract-types?pageSize=200'),
         api.get<any>('/service-types?pageSize=200'),
         api.get<any>('/project-statuses'),
         api.get<any>('/users?pageSize=500&enabled=1'),
         api.get<any>('/users/approvers?pageSize=500'),
+        api.get<any>('/consultant-groups?pageSize=500&active=1'),
       ])
       const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setCustomers(items(c))
@@ -525,6 +529,7 @@ export default function ProjectsPage() {
       setProjectStatuses(items(ps))
       setConsultants(items(u))
       setApprovers(items(appr))
+      setConsultantGroups(items(grps))
     } catch { /* silencioso */ }
   }, [])
 
@@ -563,6 +568,7 @@ export default function ProjectsPage() {
     editedFinancialRef.current = []
     setSearchConsultant('')
     setSearchApprover('')
+    setSearchGroup('')
     setParentProjects([])
     loadOptions()
     setModal({ open: true })
@@ -581,6 +587,7 @@ export default function ProjectsPage() {
     editedFinancialRef.current = []
     setSearchConsultant('')
     setSearchApprover('')
+    setSearchGroup('')
     loadOptions()
     setModal({ open: true, item })
 
@@ -613,6 +620,7 @@ export default function ProjectsPage() {
         allow_negative_balance: d.allow_negative_balance ?? false,
         consultant_ids: (d.consultants ?? []).map((c: any) => c.id),
         coordinator_ids: (d.coordinators ?? d.approvers ?? []).map((c: any) => c.id),
+        consultant_group_ids: (d.consultant_groups ?? []).map((g: any) => g.id),
       }
       setForm(f)
 
@@ -746,6 +754,7 @@ export default function ProjectsPage() {
         status: form.status,
         consultant_ids: form.consultant_ids,
         coordinator_ids: form.coordinator_ids,
+        consultant_group_ids: form.consultant_group_ids,
         allow_manual_timesheets: form.allow_manual_timesheets,
       }
       if (form.start_date) payload.start_date = form.start_date
@@ -1358,10 +1367,49 @@ export default function ProjectsPage() {
                 {/* ── Equipe ── */}
                 <SectionTitle>Equipe do Projeto</SectionTitle>
 
+                {/* Grupos de Consultores */}
+                <div>
+                  <FieldLabel>Grupos de Consultores</FieldLabel>
+                  <input
+                    value={searchGroup}
+                    onChange={e => setSearchGroup(e.target.value)}
+                    placeholder="Buscar grupo..."
+                    className="w-full px-3 py-1.5 rounded-lg text-xs outline-none mb-1.5"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  />
+                  <div className="rounded-xl p-2 max-h-32 overflow-y-auto" style={{ border: '1px solid var(--brand-border)', background: 'var(--brand-bg)' }}>
+                    {consultantGroups.length === 0
+                      ? <p className="text-xs text-center py-2" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
+                      : consultantGroups
+                          .filter(g => !searchGroup || g.name.toLowerCase().includes(searchGroup.toLowerCase()))
+                          .map(g => (
+                            <label key={g.id} className="flex items-center gap-2 cursor-pointer px-1 py-1 rounded-lg hover:bg-white/5">
+                              <div
+                                onClick={() => setForm(f => ({ ...f, consultant_group_ids: toggleArr(f.consultant_group_ids, g.id) }))}
+                                className="w-4 h-4 rounded flex items-center justify-center cursor-pointer shrink-0"
+                                style={{
+                                  background: form.consultant_group_ids.includes(g.id) ? '#8B5CF6' : 'transparent',
+                                  border: `1px solid ${form.consultant_group_ids.includes(g.id) ? '#8B5CF6' : 'var(--brand-border)'}`,
+                                }}
+                              >
+                                {form.consultant_group_ids.includes(g.id) && <span className="text-[9px] font-bold text-white">✓</span>}
+                              </div>
+                              <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>{g.name}</span>
+                            </label>
+                          ))
+                    }
+                  </div>
+                  {form.consultant_group_ids.length > 0 && (
+                    <p className="text-[10px] mt-1" style={{ color: '#8B5CF6' }}>
+                      {form.consultant_group_ids.length} grupo{form.consultant_group_ids.length > 1 ? 's' : ''} vinculado{form.consultant_group_ids.length > 1 ? 's' : ''} — todos os consultores terão acesso ao projeto
+                    </p>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   {/* Consultores */}
                   <div>
-                    <FieldLabel>Consultores</FieldLabel>
+                    <FieldLabel>Consultores (individuais)</FieldLabel>
                     <input
                       value={searchConsultant}
                       onChange={e => setSearchConsultant(e.target.value)}
@@ -1546,6 +1594,21 @@ export default function ProjectsPage() {
                         </div>
                       ))}
                     </div>
+
+                    {/* Grupos de Consultores */}
+                    {(viewProject as any).consultant_groups?.length > 0 && (
+                      <div className="mb-4">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Grupos de Consultores</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(viewProject as any).consultant_groups.map((g: any) => (
+                            <span key={g.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6', border: '1px solid rgba(139,92,246,0.25)' }}>
+                              {g.name}
+                              {g.consultants?.length > 0 && <span className="ml-1 opacity-60">({g.consultants.length})</span>}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Equipe */}
                     {((viewProject as any).consultants?.length > 0 || (viewProject as any).coordinators?.length > 0) && (
