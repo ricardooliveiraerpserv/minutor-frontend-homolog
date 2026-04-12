@@ -152,10 +152,10 @@ function SearchSelect({ value, onChange, options, placeholder }: {
   )
 }
 
-// pct = percentual RESTANTE (0-100): verde quando alto, vermelho quando baixo
+// pct = percentual CONSUMIDO (0-100+): verde quando baixo, vermelho quando alto
 function ProgressBar({ pct }: { pct?: number }) {
   const val = Math.min(100, Math.max(0, pct ?? 0))
-  const color = val <= 20 ? '#ef4444' : val <= 50 ? '#f59e0b' : val <= 75 ? '#22c55e' : '#00f5ff'
+  const color = val >= 90 ? '#ef4444' : val >= 70 ? '#f59e0b' : val >= 50 ? '#22c55e' : '#00f5ff'
   return (
     <div className="w-full rounded-full h-1.5" style={{ background: 'var(--brand-border)' }}>
       <div className="h-1.5 rounded-full transition-all" style={{ width: `${val}%`, background: color }} />
@@ -761,24 +761,34 @@ export default function ProjectsPage() {
                     </td>
                     <td className="px-4 py-3.5 hidden lg:table-cell w-32">
                       {(() => {
-                        // On Demand: saldo e percentual não se aplicam
+                        // On Demand: saldo não se aplica
                         const isOnDemand = p.contract_type_display?.toLowerCase().includes('on demand')
                         if (isOnDemand) return <span style={{ color: 'var(--brand-subtle)' }}>—</span>
 
                         const sold = p.sold_hours ?? 0
                         const balance = p.general_hours_balance
-                        if (balance == null) return <span style={{ color: 'var(--brand-subtle)' }}>—</span>
+                        if (sold === 0 && balance == null) return <span style={{ color: 'var(--brand-subtle)' }}>—</span>
 
-                        // % restante = balance / sold_hours × 100 (pode passar de 100% por aportes)
-                        const remainPct = sold > 0 ? Math.round((balance / sold) * 100) : null
-                        // Barra usa valor clamped 0-100; texto mostra o real
-                        const barPct = remainPct != null ? Math.min(100, Math.max(0, remainPct)) : 0
-                        const textColor = balance < 0 ? '#ef4444' : (remainPct ?? 100) <= 20 ? '#f59e0b' : 'var(--brand-subtle)'
+                        // horas consumidas = sold - balance (ou via total_logged_minutes)
+                        const consumed = p.consumed_hours != null
+                          ? p.consumed_hours
+                          : p.total_logged_minutes != null
+                            ? Math.round(p.total_logged_minutes / 60 * 10) / 10
+                            : null
+                        // % consumido = consumed / sold × 100
+                        const consumedPct = sold > 0 && consumed != null
+                          ? Math.round((consumed / sold) * 100)
+                          : null
+                        const barPct = consumedPct != null ? Math.min(100, Math.max(0, consumedPct)) : null
+                        // texto em vermelho se passou de 100%
+                        const textColor = consumedPct != null && consumedPct >= 100 ? '#ef4444'
+                          : consumedPct != null && consumedPct >= 80 ? '#f59e0b'
+                          : 'var(--brand-subtle)'
                         return (
                           <div className="space-y-1">
-                            {sold > 0 && <ProgressBar pct={barPct} />}
+                            {barPct != null && <ProgressBar pct={barPct} />}
                             <span className="text-[10px] tabular-nums" style={{ color: textColor }}>
-                              {remainPct != null ? `${remainPct}% · ` : ''}{balance}h
+                              {consumedPct != null ? `${consumedPct}% · ` : ''}{balance != null ? `${balance}h` : ''}
                             </span>
                           </div>
                         )
