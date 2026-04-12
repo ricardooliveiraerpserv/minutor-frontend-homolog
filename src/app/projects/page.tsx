@@ -323,47 +323,63 @@ export default function ProjectsPage() {
   }
 
   const openEdit = (item: Project) => {
-    setForm(EMPTY_FORM)
-    setCodeManual(true) // Don't auto-generate when editing
+    // Pré-preenche imediatamente com o que já temos da listagem
+    setForm({
+      ...EMPTY_FORM,
+      name: item.name ?? '',
+      code: item.code ?? '',
+      customer_id: item.customer_id ? String(item.customer_id) : '',
+      status: item.status ?? 'started',
+    })
+    setCodeManual(true)
     editedFinancialRef.current = []
     loadOptions()
     setModal({ open: true, item })
+
+    // Busca detalhes completos e complementa o form
     api.get<any>(`/projects/${item.id}`).then(r => {
-      const d = r.data ?? r
+      // Backend pode retornar { data: {...} } ou o objeto direto
+      const d = (r?.data && typeof r.data === 'object' && 'id' in r.data) ? r.data : r
+
       const f: ProjectForm = {
-        name: d.name ?? '',
-        code: d.code ?? '',
+        name: d.name ?? item.name ?? '',
+        code: d.code ?? item.code ?? '',
         description: d.description ?? '',
-        customer_id: d.customer_id ? String(d.customer_id) : '',
+        customer_id: d.customer_id ? String(d.customer_id) : String(item.customer_id ?? ''),
         service_type_id: d.service_type_id ? String(d.service_type_id) : '',
         contract_type_id: d.contract_type_id ? String(d.contract_type_id) : '',
-        status: d.status ?? 'started',
+        status: d.status ?? item.status ?? 'started',
         start_date: d.start_date ?? '',
-        project_value: d.project_value ? String(d.project_value) : '',
-        hourly_rate: d.hourly_rate ? String(d.hourly_rate) : '',
-        additional_hourly_rate: d.additional_hourly_rate ? String(d.additional_hourly_rate) : '',
-        sold_hours: d.sold_hours ? String(d.sold_hours) : '',
-        consultant_hours: d.consultant_hours ? String(d.consultant_hours) : '',
-        coordinator_hours: d.coordinator_hours ? String(d.coordinator_hours) : '',
+        project_value: d.project_value != null ? String(d.project_value) : '',
+        hourly_rate: d.hourly_rate != null ? String(d.hourly_rate) : '',
+        additional_hourly_rate: d.additional_hourly_rate != null ? String(d.additional_hourly_rate) : '',
+        sold_hours: d.sold_hours != null ? String(d.sold_hours) : '',
+        consultant_hours: d.consultant_hours != null ? String(d.consultant_hours) : '',
+        coordinator_hours: d.coordinator_hours != null ? String(d.coordinator_hours) : '',
         initial_hours_balance: d.initial_hours_balance != null ? String(d.initial_hours_balance) : '',
         initial_cost: d.initial_cost != null ? String(d.initial_cost) : '',
         parent_project_id: d.parent_project_id ? String(d.parent_project_id) : '',
-        max_expense_per_consultant: d.max_expense_per_consultant ? String(d.max_expense_per_consultant) : '',
+        max_expense_per_consultant: d.max_expense_per_consultant != null ? String(d.max_expense_per_consultant) : '',
         timesheet_retroactive_limit_days: d.timesheet_retroactive_limit_days != null ? String(d.timesheet_retroactive_limit_days) : '',
         allow_manual_timesheets: d.allow_manual_timesheets ?? true,
         allow_negative_balance: d.allow_negative_balance ?? false,
-        consultant_ids: d.consultants?.map((c: any) => c.id) ?? [],
+        consultant_ids: (d.consultants ?? []).map((c: any) => c.id),
         coordinator_ids: (d.coordinators ?? d.approvers ?? []).map((c: any) => c.id),
       }
       setForm(f)
-      // Inicializa editedFields com os campos já preenchidos (para recalcular corretamente ao editar)
+
+      // Inicializa editedFields com os campos já preenchidos
       const preloaded: ('project_value' | 'hourly_rate' | 'sold_hours')[] = []
       if (f.project_value) preloaded.push('project_value')
       if (f.sold_hours)    preloaded.push('sold_hours')
       if (f.hourly_rate)   preloaded.push('hourly_rate')
       editedFinancialRef.current = preloaded.slice(0, 2)
+
       if (d.customer_id) loadParentProjects(String(d.customer_id), item.id)
-    }).catch(() => {})
+    }).catch(e => {
+      console.error('Erro ao carregar projeto:', e)
+      toast.error('Erro ao carregar detalhes do projeto')
+    })
   }
 
   const save = async () => {
