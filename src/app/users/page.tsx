@@ -25,6 +25,7 @@ interface UserItem {
   rate_type?: string
   customer_id?: number | null
   partner_id?: number | null
+  is_executive?: boolean
   roles?: { id: number; name: string }[]
   created_at: string
 }
@@ -42,7 +43,7 @@ const PROFILE_OPTIONS: { value: ProfileType; label: string }[] = [
   { value: 'cliente',      label: 'Cliente' },
   { value: 'consultor',    label: 'Consultor' },
   { value: 'coordenador',  label: 'Coordenador' },
-  { value: 'parceiro_adm', label: 'Parceiro ADM' },
+  { value: 'parceiro_adm', label: 'Parceiro' },
 ]
 
 const CONSULTANT_OPTIONS: { value: ConsultantType; label: string }[] = [
@@ -60,16 +61,15 @@ function resolveRoleName(profile: ProfileType): string {
 }
 
 // Reverse-map user roles + partner_id → profile form state
-function resolveProfileFromRoles(roleNames: string[], partnerId: number | null): {
+function resolveProfileFromRoles(roleNames: string[]): {
   profile: ProfileType | ''
   consultantType: ConsultantType | ''
-  isPartnerConsultor: boolean
 } {
-  if (roleNames.includes('Cliente'))     return { profile: 'cliente',      consultantType: '',        isPartnerConsultor: false }
-  if (roleNames.includes('Coordenador')) return { profile: 'coordenador',  consultantType: '',        isPartnerConsultor: false }
-  if (roleNames.includes('Parceiro ADM'))return { profile: 'parceiro_adm', consultantType: '',        isPartnerConsultor: false }
-  if (roleNames.includes('Consultor'))   return { profile: 'consultor',    consultantType: 'horista', isPartnerConsultor: partnerId !== null }
-  return { profile: '', consultantType: '', isPartnerConsultor: false }
+  if (roleNames.includes('Cliente'))     return { profile: 'cliente',      consultantType: '' }
+  if (roleNames.includes('Coordenador')) return { profile: 'coordenador',  consultantType: '' }
+  if (roleNames.includes('Parceiro ADM'))return { profile: 'parceiro_adm', consultantType: '' }
+  if (roleNames.includes('Consultor'))   return { profile: 'consultor',    consultantType: 'horista' }
+  return { profile: '', consultantType: '' }
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -144,6 +144,7 @@ const EMPTY_FORM = {
   profile: '' as ProfileType | '',
   consultant_type: '' as ConsultantType | '',
   is_partner_consultor: false,
+  is_partner_adm: false,
   customer_id: '' as number | '',
   partner_id: '' as number | '',
 }
@@ -213,10 +214,7 @@ export default function UsersPage() {
 
   const openEdit = (item: UserItem) => {
     const roleNames = item.roles?.map(r => r.name) ?? []
-    const { profile, consultantType, isPartnerConsultor } = resolveProfileFromRoles(
-      roleNames,
-      item.partner_id ?? null,
-    )
+    const { profile, consultantType } = resolveProfileFromRoles(roleNames)
     setForm({
       name:                item.name,
       email:               item.email,
@@ -225,10 +223,11 @@ export default function UsersPage() {
       hourly_rate:         item.hourly_rate ? String(item.hourly_rate) : '',
       rate_type:           (item.rate_type as 'hourly' | 'monthly') ?? 'hourly',
       profile,
-      consultant_type:     consultantType,
-      is_partner_consultor: isPartnerConsultor,
-      customer_id:         item.customer_id ?? '',
-      partner_id:          item.partner_id  ?? '',
+      consultant_type:      consultantType,
+      is_partner_consultor: false,
+      is_partner_adm:       item.is_executive ?? false,
+      customer_id:          item.customer_id ?? '',
+      partner_id:           item.partner_id  ?? '',
     })
     setModal({ open: true, item })
   }
@@ -242,7 +241,6 @@ export default function UsersPage() {
     if (!role) { toast.error(`Perfil "${roleName}" não encontrado. Execute o seeder de roles.`); return }
 
     const needsPartner = form.profile === 'parceiro_adm'
-      || (form.profile === 'consultor' && form.is_partner_consultor)
 
     setSaving(true)
     try {
@@ -251,8 +249,9 @@ export default function UsersPage() {
         email:       form.email,
         enabled:     form.enabled,
         roles:       [role.id],
-        customer_id: form.profile === 'cliente' && form.customer_id ? form.customer_id : null,
-        partner_id:  needsPartner && form.partner_id ? form.partner_id : null,
+        customer_id:  form.profile === 'cliente' && form.customer_id ? form.customer_id : null,
+        partner_id:   needsPartner && form.partner_id ? form.partner_id : null,
+        is_executive: form.profile === 'parceiro_adm' ? form.is_partner_adm : false,
       }
       if (form.hourly_rate) {
         payload.hourly_rate = parseFloat(form.hourly_rate)
@@ -314,7 +313,7 @@ export default function UsersPage() {
   const isCoordenador = form.profile === 'coordenador'
   const isParceiroAdm = form.profile === 'parceiro_adm'
   const hasRate       = isConsultor || isCoordenador || isParceiroAdm
-  const needsPartner  = isParceiroAdm || (isConsultor && form.is_partner_consultor)
+  const needsPartner  = isParceiroAdm
 
   const canSave = !!form.name && !!form.email && !!form.profile
     && (!isCliente     || !!form.customer_id)
@@ -441,6 +440,7 @@ export default function UsersPage() {
                       profile: opt.value,
                       consultant_type: '',
                       is_partner_consultor: false,
+                      is_partner_adm: false,
                       customer_id: '',
                       partner_id: '',
                     }))}
@@ -553,39 +553,23 @@ export default function UsersPage() {
                   </div>
                 )}
 
-                {/* ── Consultor parceiro: toggle + seleciona parceiro ── */}
-                {isConsultor && (
-                  <div className="space-y-3">
-                    <Toggle
-                      value={form.is_partner_consultor}
-                      onChange={() => setForm(f => ({
-                        ...f,
-                        is_partner_consultor: !f.is_partner_consultor,
-                        partner_id: !f.is_partner_consultor ? f.partner_id : '',
-                      }))}
-                      label="É consultor de empresa parceira"
-                    />
-                    {form.is_partner_consultor && (
-                      <FieldSelect
-                        label="Empresa parceira *"
-                        value={form.partner_id}
-                        onChange={v => setForm(f => ({ ...f, partner_id: v === '' ? '' : Number(v) }))}
-                        options={partners.map(p => ({ value: p.id, label: p.name }))}
-                        placeholder="Selecione o parceiro..."
-                      />
-                    )}
-                  </div>
-                )}
 
-                {/* ── Parceiro ADM: seleciona parceiro (obrigatório) ── */}
+                {/* ── Parceiro: seleciona empresa + define se é ADM ── */}
                 {isParceiroAdm && (
-                  <FieldSelect
-                    label="Empresa parceira *"
-                    value={form.partner_id}
-                    onChange={v => setForm(f => ({ ...f, partner_id: v === '' ? '' : Number(v) }))}
-                    options={partners.map(p => ({ value: p.id, label: p.name }))}
-                    placeholder="Selecione o parceiro..."
-                  />
+                  <div className="space-y-3">
+                    <FieldSelect
+                      label="Empresa parceira *"
+                      value={form.partner_id}
+                      onChange={v => setForm(f => ({ ...f, partner_id: v === '' ? '' : Number(v) }))}
+                      options={partners.map(p => ({ value: p.id, label: p.name }))}
+                      placeholder="Selecione o parceiro..."
+                    />
+                    <Toggle
+                      value={form.is_partner_adm}
+                      onChange={() => setForm(f => ({ ...f, is_partner_adm: !f.is_partner_adm }))}
+                      label="É administrador do parceiro"
+                    />
+                  </div>
                 )}
 
                 {/* ── Ativo ── */}
