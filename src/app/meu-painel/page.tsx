@@ -875,18 +875,24 @@ export default function MeuPainelPage() {
               accent="bg-blue-500/15 text-blue-400"
             />
             {isHBConsultant ? (() => {
-              const fixedSalary  = hourlyRate
-              const extraHours   = hbCurrent && hbCurrent.accumulated_balance > 0 ? hbCurrent.accumulated_balance : 0
-              const valorHoraExt = fixedSalary > 0 ? fixedSalary / 180 : 0
-              const totalExtra   = extraHours * valorHoraExt
-              const total        = fixedSalary + totalExtra + expTotal
+              const pad = (n: number) => String(n).padStart(2, '0')
+              const selectedYM    = `${year}-${pad(month + 1)}`
+              const startYM       = hbStartDate ? hbStartDate.substring(0, 7) : null
+              const beforeStart   = startYM !== null && selectedYM < startYM
+              const fixedSalary   = hourlyRate
+              const extraHours    = !beforeStart && hbCurrent && hbCurrent.accumulated_balance > 0 ? hbCurrent.accumulated_balance : 0
+              const valorHoraExt  = fixedSalary > 0 ? fixedSalary / 180 : 0
+              const totalExtra    = extraHours * valorHoraExt
+              const total         = fixedSalary + totalExtra + expTotal
               return (
                 <SummaryCard
                   label="Total a Receber"
-                  value={fixedSalary > 0 ? formatBRL(total) : '—'}
-                  sub={extraHours > 0 || expTotal > 0
-                    ? `Salário${extraHours > 0 ? ' + extras' : ''}${expTotal > 0 ? ' + despesas' : ''}`
-                    : 'Sem extras ou despesas'}
+                  value={beforeStart ? '—' : fixedSalary > 0 ? formatBRL(total) : '—'}
+                  sub={beforeStart
+                    ? `Inicia em ${startYM ? fmtYearMonth(startYM) : '—'}`
+                    : extraHours > 0 || expTotal > 0
+                      ? `Salário${extraHours > 0 ? ' + extras' : ''}${expTotal > 0 ? ' + despesas' : ''}`
+                      : 'Sem extras ou despesas'}
                   icon={TrendingUp}
                   accent="bg-green-500/15 text-green-400"
                 />
