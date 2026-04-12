@@ -5,7 +5,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { Project, PaginatedResponse } from '@/types'
 import { toast } from 'sonner'
-import { FolderOpen, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Search, ChevronDown } from 'lucide-react'
+import { FolderOpen, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Search, ChevronDown, Eye, Clock, Users, TrendingUp, Tag } from 'lucide-react'
 
 interface ProjectForm {
   name: string
@@ -385,6 +385,8 @@ export default function ProjectsPage() {
   const [data, setData] = useState<PaginatedResponse<Project> | null>(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; item?: Project }>({ open: false })
+  const [viewProject, setViewProject] = useState<Project | null>(null)
+  const [viewLoading, setViewLoading] = useState(false)
   const [form, setForm] = useState<ProjectForm>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
@@ -613,6 +615,20 @@ export default function ProjectsPage() {
       console.error('Erro ao carregar projeto:', e)
       toast.error('Erro ao carregar detalhes do projeto')
     })
+  }
+
+  const openView = async (item: Project) => {
+    setViewProject(item)
+    setViewLoading(true)
+    try {
+      const r = await api.get<any>(`/projects/${item.id}`)
+      const d = (r?.data && typeof r.data === 'object' && 'id' in r.data) ? r.data : r
+      setViewProject(d)
+    } catch {
+      // mantém dados parciais da listagem
+    } finally {
+      setViewLoading(false)
+    }
   }
 
   const save = async () => {
@@ -998,16 +1014,26 @@ export default function ProjectsPage() {
 
                       {/* Ações */}
                       <td className="px-4 py-3">
-                        {!isDisabled && (
-                          <div className="flex items-center gap-1 justify-end">
-                            <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: 'var(--brand-subtle)' }}>
-                              <Pencil size={13} />
-                            </button>
-                            <button onClick={() => remove(p.id)} disabled={deleting === p.id} className="p-1.5 rounded-lg transition-colors hover:bg-white/5 disabled:opacity-50" style={{ color: 'var(--brand-danger)' }}>
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1 justify-end">
+                          <button
+                            onClick={() => openView(p)}
+                            className="p-1.5 rounded-lg transition-colors hover:bg-white/5"
+                            style={{ color: 'var(--brand-primary)' }}
+                            title="Visualizar"
+                          >
+                            <Eye size={13} />
+                          </button>
+                          {!isDisabled && (
+                            <>
+                              <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg transition-colors hover:bg-white/5" style={{ color: 'var(--brand-subtle)' }} title="Editar">
+                                <Pencil size={13} />
+                              </button>
+                              <button onClick={() => remove(p.id)} disabled={deleting === p.id} className="p-1.5 rounded-lg transition-colors hover:bg-white/5 disabled:opacity-50" style={{ color: 'var(--brand-danger)' }} title="Excluir">
+                                <Trash2 size={13} />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -1319,6 +1345,164 @@ export default function ProjectsPage() {
                 >
                   {saving ? 'Salvando...' : 'Salvar'}
                 </button>
+              </div>
+            </div>
+          </ModalOverlay>
+        )}
+
+        {/* Modal de Visualização */}
+        {viewProject && (
+          <ModalOverlay onClose={() => setViewProject(null)}>
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-start gap-3 mb-6 pr-8">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(0,245,255,0.08)' }}>
+                  <FolderOpen size={16} color="var(--brand-primary)" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-xs px-2 py-0.5 rounded-md" style={{ background: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
+                      {viewProject.code}
+                    </span>
+                    {viewProject.status_display && (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{
+                        background: viewProject.status === 'started' ? 'rgba(0,245,255,0.10)' : viewProject.status === 'paused' ? 'rgba(245,158,11,0.12)' : viewProject.status === 'cancelled' ? 'rgba(239,68,68,0.12)' : 'rgba(161,161,170,0.12)',
+                        color: viewProject.status === 'started' ? '#00F5FF' : viewProject.status === 'paused' ? '#F59E0B' : viewProject.status === 'cancelled' ? '#EF4444' : '#71717A',
+                      }}>
+                        {viewProject.status_display}
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-base font-bold mt-1" style={{ color: 'var(--brand-text)' }}>{cleanName(viewProject.name)}</h2>
+                  {viewProject.customer?.name && (
+                    <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>{viewProject.customer.name}</p>
+                  )}
+                </div>
+              </div>
+
+              {viewLoading && (
+                <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Carregando detalhes...</p>
+              )}
+
+              {/* Saldo / Horas */}
+              {(() => {
+                const isOD = viewProject.contract_type_display?.toLowerCase().includes('on demand')
+                const sold = viewProject.sold_hours ?? 0
+                const contrib = (viewProject as any).total_contributions_hours ?? viewProject.hour_contribution ?? 0
+                const consumed = viewProject.consumed_hours ?? ((viewProject.total_logged_minutes ?? 0) / 60)
+                const balance = viewProject.general_hours_balance
+                const pct = isOD ? 0 : (sold + contrib > 0 ? Math.round(consumed / (sold + contrib) * 100) : null)
+                const barVal = pct != null ? Math.min(100, Math.max(0, pct)) : 0
+                const barColor = barVal >= 90 ? '#ef4444' : barVal >= 70 ? '#f59e0b' : '#2563EB'
+                const balColor = balance != null && balance < 0 ? '#ef4444' : barVal >= 90 ? '#ef4444' : barVal >= 70 ? '#f59e0b' : '#2563EB'
+                return (
+                  <div className="rounded-xl p-4 mb-5" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                    <div className="grid grid-cols-3 gap-4 mb-3">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Hs Vendidas</p>
+                        <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>
+                          {isOD ? '—' : sold > 0 ? `${sold}h${contrib > 0 ? ` (+${contrib})` : ''}` : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Hs Consumidas</p>
+                        <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{consumed > 0 ? `${Math.round(consumed * 10) / 10}h` : '—'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Saldo</p>
+                        <p className="text-sm font-bold tabular-nums" style={{ color: balColor }}>
+                          {isOD ? '—' : balance != null ? `${balance}h` : '—'}
+                        </p>
+                      </div>
+                    </div>
+                    {!isOD && pct != null && (
+                      <>
+                        <div className="w-full rounded-full h-1.5 mb-1.5" style={{ background: 'var(--brand-border)' }}>
+                          <div className="h-1.5 rounded-full transition-all" style={{ width: `${barVal}%`, background: barColor }} />
+                        </div>
+                        <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>
+                          {pct}% utilizado{balance != null && balance < 0 ? ' · ⚠ Excedido' : ''}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )
+              })()}
+
+              {/* Detalhes */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                {[
+                  { icon: Tag, label: 'Tipo de Contrato', value: viewProject.contract_type_display },
+                  { icon: Tag, label: 'Tipo de Serviço', value: (viewProject as any).service_type?.name },
+                  { icon: FolderOpen, label: 'Projeto Pai', value: (viewProject as any).parentProject?.name ? cleanName((viewProject as any).parentProject.name) : null },
+                  { icon: Clock, label: 'Data de Início', value: (viewProject as any).start_date },
+                  { icon: TrendingUp, label: 'Valor do Projeto', value: (viewProject as any).project_value != null ? `R$ ${Number((viewProject as any).project_value).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null },
+                  { icon: Clock, label: 'Taxa/Hora', value: (viewProject as any).hourly_rate != null ? `R$ ${Number((viewProject as any).hourly_rate).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : null },
+                ].filter(f => f.value).map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="flex items-start gap-2">
+                    <Icon size={13} className="mt-0.5 shrink-0" style={{ color: 'var(--brand-subtle)' }} />
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
+                      <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Consultores */}
+              {((viewProject as any).consultants?.length > 0) && (
+                <div className="mt-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users size={13} style={{ color: 'var(--brand-subtle)' }} />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Consultores</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(viewProject as any).consultants.map((c: any) => (
+                      <span key={c.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.15)' }}>
+                        {c.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Projetos filhos */}
+              {viewProject.child_projects && viewProject.child_projects.length > 0 && (
+                <div className="mt-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FolderOpen size={13} style={{ color: 'var(--brand-subtle)' }} />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Projetos Filhos</span>
+                  </div>
+                  <div className="space-y-1">
+                    {viewProject.child_projects.map(c => (
+                      <div key={c.id} className="flex items-center justify-between rounded-lg px-3 py-2" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                        <div>
+                          <span className="font-mono text-[10px] mr-2" style={{ color: 'var(--brand-subtle)' }}>{c.code}</span>
+                          <span className="text-xs" style={{ color: 'var(--brand-text)' }}>{cleanName(c.name)}</span>
+                        </div>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{
+                          background: c.status === 'started' ? 'rgba(0,245,255,0.08)' : 'rgba(161,161,170,0.08)',
+                          color: c.status === 'started' ? '#00F5FF' : '#71717A',
+                        }}>{c.status_display ?? c.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => { setViewProject(null); openEdit(viewProject) }}
+                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 mr-2"
+                  style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}
+                >
+                  <Pencil size={13} className="inline mr-1.5" />Editar
+                </button>
+                <button
+                  onClick={() => setViewProject(null)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium transition-colors hover:bg-white/5"
+                  style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}
+                >Fechar</button>
               </div>
             </div>
           </ModalOverlay>
