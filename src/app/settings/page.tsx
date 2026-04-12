@@ -163,7 +163,7 @@ function GeneralTab() {
       setSettings(s.data ?? s as unknown as SystemSettings)
       const cArr = Array.isArray((c as any)?.items) ? (c as any).items : Array.isArray((c as any)?.data) ? (c as any).data : []
       setCustomers(cArr)
-    }).catch(() => toast.error('Erro ao carregar configurações'))
+    }).catch((e) => toast.error('Erro ao carregar configurações: ' + (e instanceof ApiError ? e.message : String(e))))
       .finally(() => setLoading(false))
     loadMovideskStatus()
   }, [loadMovideskStatus])
