@@ -828,9 +828,10 @@ export default function ProjectsPage() {
                   const consumedPct = isOnDemand ? 0 : calcConsumedPct(p)
                   const barPct = consumedPct != null ? Math.min(100, Math.max(0, consumedPct)) : null
                   const balance = p.general_hours_balance
-                  const balanceColor = balance != null && balance < 0 ? '#ef4444'
-                    : consumedPct != null && consumedPct >= 100 ? '#ef4444'
-                    : consumedPct != null && consumedPct >= 80 ? '#f59e0b'
+                  const balanceColor = (balance != null && balance < 0) || (consumedPct != null && consumedPct >= 90) ? '#ef4444'
+                    : consumedPct != null && consumedPct >= 70 ? '#f59e0b'
+                    : consumedPct != null && consumedPct >= 50 ? '#22c55e'
+                    : consumedPct != null ? '#00f5ff'
                     : 'var(--brand-subtle)'
                   const consumed = p.consumed_hours != null ? p.consumed_hours
                     : p.total_logged_minutes != null ? Math.round(p.total_logged_minutes / 60 * 10) / 10 : null
@@ -862,13 +863,13 @@ export default function ProjectsPage() {
                       </td>
 
                       {/* Nome com controle de árvore */}
-                      <td className="px-4 py-3 max-w-[200px]">
-                        <div className="flex items-center gap-1.5">
+                      <td className="px-4 py-3">
+                        <div className="flex items-start gap-1.5">
                           {/* Botão expand/collapse — só no modo Multi-contratual */}
                           {multiContratual && p._hasChildren && (
                             <button
                               onClick={() => toggleExpand(p)}
-                              className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold shrink-0 transition-colors hover:bg-white/10"
+                              className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 transition-colors hover:bg-white/10"
                               style={{ background: 'var(--brand-border)', color: 'var(--brand-primary)' }}
                             >
                               {p._isExpanded ? '−' : '+'}
@@ -876,14 +877,16 @@ export default function ProjectsPage() {
                           )}
                           {/* Espaçador para pais sem filhos */}
                           {multiContratual && !p._hasChildren && p._level === 0 && <span className="w-5 shrink-0" />}
-                          {/* Badge PAI/FILHO */}
-                          {p._level === 0 && p._hasChildren && (
-                            <span className="text-[9px] font-bold px-1 py-0.5 rounded shrink-0" style={{ background: 'rgba(0,245,255,0.12)', color: 'var(--brand-primary)' }}>PAI</span>
-                          )}
-                          {p._level > 0 && (
-                            <span className="text-[9px] font-bold px-1 py-0.5 rounded shrink-0" style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>FILHO</span>
-                          )}
-                          <span className="font-medium truncate" style={{ color: 'var(--brand-text)' }}>{cleanName(p.name)}</span>
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            {/* Badge PAI/FILHO */}
+                            {p._level === 0 && p._hasChildren && (
+                              <span className="text-[9px] font-bold px-1 py-0.5 rounded w-fit" style={{ background: 'rgba(0,245,255,0.12)', color: 'var(--brand-primary)' }}>PAI</span>
+                            )}
+                            {p._level > 0 && (
+                              <span className="text-[9px] font-bold px-1 py-0.5 rounded w-fit" style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>FILHO</span>
+                            )}
+                            <span className="font-medium text-sm leading-snug" style={{ color: 'var(--brand-text)', whiteSpace: 'normal', wordBreak: 'break-word' }}>{cleanName(p.name)}</span>
+                          </div>
                         </div>
                       </td>
 
@@ -910,20 +913,28 @@ export default function ProjectsPage() {
                       </td>
 
                       {/* Saldo */}
-                      <td className="px-4 py-3 hidden lg:table-cell w-36">
+                      <td className="px-4 py-3 hidden lg:table-cell w-40">
                         {isOnDemand ? (
-                          <div className="space-y-1">
+                          <div className="space-y-1.5">
                             <ProgressBar pct={0} />
-                            <span className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>0% · {consumed ?? 0}h consumidas</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--brand-subtle)' }}>0%</span>
+                              <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{consumed ?? 0}h consumidas</span>
+                            </div>
                           </div>
                         ) : (sold === 0 && balance == null) ? (
                           <span style={{ color: 'var(--brand-subtle)' }}>—</span>
                         ) : (
-                          <div className="space-y-1">
+                          <div className="space-y-1.5">
                             {barPct != null && <ProgressBar pct={barPct} />}
-                            <span className="text-[10px] tabular-nums" style={{ color: balanceColor }}>
-                              {consumedPct != null ? `${consumedPct}% · ` : ''}{balance != null ? `${balance}h` : ''}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {consumedPct != null && (
+                                <span className="text-xs font-bold tabular-nums" style={{ color: balanceColor }}>{consumedPct}%</span>
+                              )}
+                              {balance != null && (
+                                <span className="text-xs tabular-nums" style={{ color: balanceColor }}>{balance}h saldo</span>
+                              )}
+                            </div>
                           </div>
                         )}
                       </td>
