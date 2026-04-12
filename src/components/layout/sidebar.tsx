@@ -93,7 +93,7 @@ const NAV: NavEntry[] = [
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const base = 'flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-150 outline-none select-none'
+const base = 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 outline-none select-none'
 
 function itemStyle(active: boolean): React.CSSProperties {
   return active
@@ -133,7 +133,7 @@ export function Sidebar({ user }: { user: User }) {
 
   return (
     <aside
-      className={cn('flex flex-col h-screen border-r transition-all duration-200 shrink-0', collapsed ? 'w-[52px]' : 'w-[220px]')}
+      className={cn('flex flex-col h-screen border-r transition-all duration-200 shrink-0', collapsed ? 'w-[60px]' : 'w-[248px]')}
       style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}
     >
       {/* ── Logo ── */}
@@ -141,9 +141,9 @@ export function Sidebar({ user }: { user: User }) {
         className="flex items-center gap-2.5 h-14 px-3.5 border-b shrink-0"
         style={{ borderColor: 'var(--brand-border)' }}
       >
-        <MinutorIcon size={26} />
+        <MinutorIcon size={30} />
         {!collapsed && (
-          <span className="font-bold text-[15px] tracking-tight" style={{ color: '#FAFAFA' }}>
+          <span className="font-bold text-[17px] tracking-tight" style={{ color: '#FAFAFA' }}>
             Minutor
           </span>
         )}
@@ -194,7 +194,7 @@ export function Sidebar({ user }: { user: User }) {
                 className={cn(base, !active && 'hover:bg-white/[0.04] hover:text-[#FAFAFA]')}
                 style={itemStyle(active)}
               >
-                <Icon size={15} className="shrink-0" />
+                <Icon size={17} className="shrink-0" />
                 {!collapsed && <span className="font-medium">{entry.label}</span>}
               </Link>
             )
@@ -228,7 +228,7 @@ export function Sidebar({ user }: { user: User }) {
                       className={cn(base, !subActive && 'hover:bg-white/[0.04] hover:text-[#FAFAFA]')}
                       style={itemStyle(subActive)}
                     >
-                      <SubIcon size={15} className="shrink-0" />
+                      <SubIcon size={17} className="shrink-0" />
                     </Link>
                   )
                   return (
@@ -249,7 +249,7 @@ export function Sidebar({ user }: { user: User }) {
                 className={cn('w-full', base, !active && 'hover:bg-white/[0.04] hover:text-[#FAFAFA]')}
                 style={active ? { color: '#FAFAFA' } : { color: '#A1A1AA' }}
               >
-                <GroupIcon size={15} className="shrink-0" />
+                <GroupIcon size={17} className="shrink-0" />
                 <span className="flex-1 text-left font-medium">{group.label}</span>
                 <ChevronDown
                   size={12}
@@ -266,7 +266,7 @@ export function Sidebar({ user }: { user: User }) {
                         key={sub.href}
                         href={sub.href}
                         className={cn(
-                          'flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
+                          'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs font-medium transition-all duration-150',
                           !subActive && 'hover:bg-white/[0.04] hover:text-[#FAFAFA]'
                         )}
                         style={subActive
@@ -274,7 +274,7 @@ export function Sidebar({ user }: { user: User }) {
                           : { color: '#71717A' }
                         }
                       >
-                        <SubIcon size={13} className="shrink-0" />
+                        <SubIcon size={14} className="shrink-0" />
                         <span>{sub.label}</span>
                       </Link>
                     )
