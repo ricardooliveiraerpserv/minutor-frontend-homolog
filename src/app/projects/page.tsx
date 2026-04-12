@@ -115,11 +115,11 @@ export default function ProjectsPage() {
   const loadOptions = useCallback(async () => {
     try {
       const [c, ct, ps, u, pp] = await Promise.all([
-        api.get<{ data: SelectOption[] }>('/customers?per_page=200&active=1'),
-        api.get<{ data: SelectOption[] }>('/contract-types?per_page=200&active=1'),
+        api.get<{ data: SelectOption[] }>('/customers?pageSize=1000'),
+        api.get<{ data: SelectOption[] }>('/contract-types?pageSize=200'),
         api.get<{ data: ProjectStatus[] }>('/project-statuses'),
-        api.get<{ data: SelectOption[] }>('/users?per_page=200&enabled=1'),
-        api.get<PaginatedResponse<Project>>('/projects?per_page=200&no_parent=1'),
+        api.get<{ data: SelectOption[] }>('/users?pageSize=200&enabled=1'),
+        api.get<PaginatedResponse<Project>>('/projects?pageSize=200&no_parent=1'),
       ])
       setCustomers(Array.isArray((c as any)?.items) ? (c as any).items : Array.isArray((c as any)?.data) ? (c as any).data : [])
       setContractTypes(Array.isArray((ct as any)?.items) ? (ct as any).items : Array.isArray((ct as any)?.data) ? (ct as any).data : [])
