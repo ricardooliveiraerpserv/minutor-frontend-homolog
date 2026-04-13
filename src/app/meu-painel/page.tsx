@@ -1467,12 +1467,13 @@ export default function MeuPainelPage() {
               const extraHours    = !beforeStart && hbCurrent && hbCurrent.accumulated_balance > 0 ? hbCurrent.accumulated_balance : 0
               const valorHoraExt  = fixedSalary > 0 ? fixedSalary / 180 : 0
               const totalExtra    = extraHours * valorHoraExt
-              const total         = fixedSalary + totalExtra + expTotal
+              const servicoTotal  = fixedSalary + totalExtra
+              const totalGeral    = servicoTotal + expTotal
               return (
                 <>
                   <SummaryCard
                     label="Total a Receber"
-                    value={beforeStart ? '—' : fixedSalary > 0 ? formatBRL(fixedSalary + totalExtra) : '—'}
+                    value={beforeStart ? '—' : fixedSalary > 0 ? formatBRL(servicoTotal) : '—'}
                     sub={beforeStart
                       ? `Inicia em ${startYM ? fmtYearMonth(startYM) : '—'}`
                       : extraHours > 0
@@ -1482,13 +1483,19 @@ export default function MeuPainelPage() {
                     accent="bg-green-500/15 text-green-400"
                   />
                   <SummaryCard
+                    label="Total Despesas"
+                    value={formatBRL(expTotal)}
+                    sub={`${expenses.length} lançamento${expenses.length !== 1 ? 's' : ''}`}
+                    icon={Receipt}
+                    accent="bg-orange-500/15 text-orange-400"
+                    onClick={() => setActiveTab('expenses')}
+                  />
+                  <SummaryCard
                     label="Total Geral"
-                    value={beforeStart ? '—' : fixedSalary > 0 ? formatBRL(total) : expTotal > 0 ? formatBRL(expTotal) : '—'}
-                    sub={beforeStart
-                      ? '—'
-                      : expTotal > 0
-                        ? `Serviço${extraHours > 0 ? ' + extras' : ''} + despesas`
-                        : 'Sem despesas no período'}
+                    value={beforeStart ? '—' : formatBRL(totalGeral)}
+                    sub={expTotal > 0
+                      ? `Serviço${extraHours > 0 ? ' + extras' : ''} + despesas`
+                      : 'Sem despesas no período'}
                     icon={DollarSign}
                     accent="bg-cyan-500/15 text-cyan-400"
                   />
@@ -1525,16 +1532,6 @@ export default function MeuPainelPage() {
                   accent="bg-cyan-500/15 text-cyan-400"
                 />
               </>
-            )}
-            {isHBConsultant && (
-              <SummaryCard
-                label="Total Despesas"
-                value={formatBRL(expTotal)}
-                sub={`${expenses.length} lançamento${expenses.length !== 1 ? 's' : ''}`}
-                icon={Receipt}
-                accent="bg-orange-500/15 text-orange-400"
-                onClick={() => setActiveTab('expenses')}
-              />
             )}
             <SummaryCard
               label="Apontamentos Pendentes"
