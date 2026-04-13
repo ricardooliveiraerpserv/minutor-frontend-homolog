@@ -320,6 +320,8 @@ function RolesTab() {
   const [allUsers, setAllUsers] = useState<{ id: number; name: string; email: string }[]>([])
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
   const [userSearch, setUserSearch] = useState('')
+  const [userRoleFilter, setUserRoleFilter] = useState('')
+  const [loadingUsers, setLoadingUsers] = useState(false)
   const [form, setForm] = useState({ name: '' })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
@@ -335,10 +337,22 @@ function RolesTab() {
 
   useEffect(() => { load() }, [load])
 
+  const loadUsers = useCallback(async (roleFilter: string) => {
+    setLoadingUsers(true)
+    try {
+      const params = new URLSearchParams({ pageSize: '500' })
+      if (roleFilter) params.set('role', roleFilter)
+      const r = await api.get<{ items: { id: number; name: string; email: string }[] }>(`/users?${params}`)
+      setAllUsers(Array.isArray(r?.items) ? r.items : [])
+    } catch { /* silencioso */ }
+    finally { setLoadingUsers(false) }
+  }, [])
+
   const openPerms = async (role: Role) => {
     setPermModal(role)
     setSelectedPerms(role.permissions?.map(p => p.name) ?? [])
     setUserSearch('')
+    setUserRoleFilter('')
     // Carrega permissões disponíveis (só uma vez)
     if (allPerms.length === 0) {
       try {
@@ -346,7 +360,7 @@ function RolesTab() {
         setAllPerms(Array.isArray(r?.data) ? r.data : Array.isArray(r) ? (r as unknown as { group: string; permissions: Permission[] }[]) : [])
       } catch { toast.error('Erro ao carregar permissões') }
     }
-    // Carrega usuários disponíveis e pré-seleciona os já vinculados ao role
+    // Carrega usuários e pré-seleciona os já vinculados ao role
     try {
       const [usersRes, roleUsersRes] = await Promise.all([
         api.get<{ items: { id: number; name: string; email: string }[] }>('/users?pageSize=500'),
@@ -478,15 +492,29 @@ function RolesTab() {
             {/* Seção: Consultores vinculados */}
             <div className="mt-2">
               <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide mb-2 border-b border-zinc-800 pb-1">Consultores vinculados</p>
-              <input
-                type="text"
-                value={userSearch}
-                onChange={e => setUserSearch(e.target.value)}
-                placeholder="Buscar consultor..."
-                className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-md h-8 px-2.5 outline-none mb-2 focus:border-zinc-500"
-              />
+              <div className="flex gap-2 mb-2">
+                <select
+                  value={userRoleFilter}
+                  onChange={e => { setUserRoleFilter(e.target.value); loadUsers(e.target.value) }}
+                  className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-md h-8 px-2 outline-none focus:border-zinc-500 flex-1"
+                >
+                  <option value="">Todos os perfis</option>
+                  <option value="Consultor">Consultor</option>
+                  <option value="Coordenador">Coordenador</option>
+                  <option value="Parceiro ADM">Parceiro ADM</option>
+                </select>
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)}
+                  placeholder="Buscar..."
+                  className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-md h-8 px-2.5 outline-none focus:border-zinc-500 flex-1"
+                />
+              </div>
               <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
-                {allUsers
+                {loadingUsers ? (
+                  <p className="text-xs text-zinc-500 italic">Carregando...</p>
+                ) : allUsers
                   .filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase()))
                   .map(u => {
                     const checked = selectedUserIds.includes(u.id)
@@ -504,7 +532,7 @@ function RolesTab() {
                       </label>
                     )
                   })}
-                {allUsers.length === 0 && <p className="text-xs text-zinc-500 italic">Nenhum usuário encontrado.</p>}
+                {!loadingUsers && allUsers.length === 0 && <p className="text-xs text-zinc-500 italic">Nenhum usuário encontrado.</p>}
               </div>
             </div>
 
