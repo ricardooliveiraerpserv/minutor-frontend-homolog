@@ -1007,8 +1007,9 @@ export default function MeuPainelPage() {
 
   useEffect(() => {
     if (!user?.id) return
-    const rate = (user as any)?.hourly_rate ?? 0
-    const rType = (user as any)?.rate_type ?? 'hourly'
+    const rawRate = (user as any)?.hourly_rate ?? 0
+    const rType   = (user as any)?.rate_type ?? 'hourly'
+    const rate    = rawRate > 0 ? (rType === 'monthly' ? rawRate / 180 : rawRate) : 0
 
     async function load() {
       setHistoryLoading(true)
@@ -1039,7 +1040,7 @@ export default function MeuPainelPage() {
 
           const totalMin = monthTs.reduce((a, t) => a + (t.effort_minutes ?? 0), 0)
           const hours    = totalMin / 60
-          const revenue  = rate > 0 && rType === 'hourly' ? hours * rate : 0
+          const revenue  = rate > 0 ? hours * rate : 0
           const expenses = monthExp.reduce((a, e) => a + (parseFloat(String(e.amount)) || 0), 0)
 
           points.push({ ym, label: MONTH_SHORT[d.getMonth()], hours, revenue, expenses, isCurrent })
@@ -1247,17 +1248,20 @@ export default function MeuPainelPage() {
   const maxProjectMin  = tsByProject[0]?.minutes  ?? 1
   const maxCustomerMin = tsByCustomer[0]?.minutes ?? 1
 
-  // Estimated value (if user has hourly_rate)
-  const hourlyRate       = (user as any)?.hourly_rate ?? 0
-  const rateType         = (user as any)?.rate_type ?? 'hourly'
-  const guaranteedHours  = (user as any)?.guaranteed_hours ?? null
-  const workedHours      = tsTotalMin / 60
+  // Taxa efetiva: horistas usam o valor direto; mensalistas dividem por 180
+  const hourlyRate      = (user as any)?.hourly_rate ?? 0
+  const rateType        = (user as any)?.rate_type ?? 'hourly'
+  const guaranteedHours = (user as any)?.guaranteed_hours ?? null
+  const effectiveRate   = hourlyRate > 0
+    ? (rateType === 'monthly' ? hourlyRate / 180 : hourlyRate)
+    : 0
+  const workedHours     = tsTotalMin / 60
   // Para horistas com horas garantidas: piso mínimo de cobrança
-  const billableHours    = guaranteedHours !== null
+  const billableHours   = guaranteedHours !== null
     ? Math.max(workedHours, Number(guaranteedHours))
     : workedHours
-  const estimatedValue   = hourlyRate > 0 && rateType === 'hourly'
-    ? billableHours * hourlyRate
+  const estimatedValue  = effectiveRate > 0
+    ? billableHours * effectiveRate
     : null
 
   const approvedTs  = timesheets.filter(t => t.status === 'approved').length
@@ -1287,10 +1291,17 @@ export default function MeuPainelPage() {
     return wd
   }, [year, month])
 
-  const daysWorked = useMemo(() => {
-    const days = new Set(timesheets.map(ts => ts.date))
-    return days.size
-  }, [timesheets])
+  // daysWorked: busca todos os apontamentos do mês (sem paginação) para calcular dias únicos
+  const [daysWorked, setDaysWorked] = useState(0)
+  useEffect(() => {
+    if (!startDate || !endDate) return
+    api.get<any>(`/timesheets?start_date=${startDate}&end_date=${endDate}&per_page=1000`)
+      .then(r => {
+        const all: TimesheetItem[] = Array.isArray(r?.items) ? r.items : []
+        setDaysWorked(new Set(all.map((t: TimesheetItem) => t.date)).size)
+      })
+      .catch(() => {})
+  }, [startDate, endDate])
 
   const occupancyPct = workingDaysInMonth > 0
     ? Math.min(100, Math.round((daysWorked / workingDaysInMonth) * 100))
@@ -1317,7 +1328,7 @@ export default function MeuPainelPage() {
   const projectedHours = elapsedWD > 0 && isCurrentMonth
     ? (workedHours / elapsedWD) * workingDaysInMonth
     : workedHours
-  const projectedValue = hourlyRate > 0 && rateType === 'hourly' ? projectedHours * hourlyRate : null
+  const projectedValue = effectiveRate > 0 ? projectedHours * effectiveRate : null
   const projectedPct   = workingDaysInMonth > 0
     ? Math.min(100, Math.round((elapsedWD / workingDaysInMonth) * 100))
     : 100
@@ -1477,8 +1488,8 @@ export default function MeuPainelPage() {
                   value={estimatedValue !== null ? formatBRL(estimatedValue) : '—'}
                   sub={estimatedValue !== null
                     ? guaranteedHours !== null && workedHours < Number(guaranteedHours)
-                      ? `${formatBRL(hourlyRate)}/h × ${Number(guaranteedHours)}h (garantido)`
-                      : `${formatBRL(hourlyRate)}/h × ${workedHours.toFixed(1)}h`
+                      ? `${formatBRL(effectiveRate)}/h × ${Number(guaranteedHours)}h (garantido)`
+                      : `${formatBRL(effectiveRate)}/h × ${workedHours.toFixed(1)}h`
                     : 'Taxa não configurada'}
                   icon={TrendingUp}
                   accent="bg-green-500/15 text-green-400"
@@ -1930,9 +1941,9 @@ export default function MeuPainelPage() {
               <div className="text-[11px] text-zinc-500 mt-1.5">
                 {estimatedValue !== null
                   ? guaranteedHours !== null && workedHours < Number(guaranteedHours)
-                    ? `${formatBRL(hourlyRate)}/h × ${Number(guaranteedHours)}h garantidas`
-                    : `${formatBRL(hourlyRate)}/h × ${workedHours.toFixed(1)}h`
-                  : 'Taxa horária não configurada'}
+                    ? `${formatBRL(effectiveRate)}/h × ${Number(guaranteedHours)}h garantidas`
+                    : `${formatBRL(effectiveRate)}/h × ${workedHours.toFixed(1)}h`
+                  : 'Taxa não configurada no perfil'}
               </div>
             </div>
 
@@ -2050,7 +2061,7 @@ export default function MeuPainelPage() {
                     {estimatedValue !== null && (
                       <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
                         <span className="text-[11px] text-zinc-500">Valor pelo mês completo</span>
-                        <span className="text-sm font-bold text-cyan-400">{formatBRL(billableHours * hourlyRate)}</span>
+                        <span className="text-sm font-bold text-cyan-400">{formatBRL(billableHours * effectiveRate)}</span>
                       </div>
                     )}
                   </>
@@ -2060,7 +2071,7 @@ export default function MeuPainelPage() {
                       Se mantiver o ritmo de {avgHPerDay.toFixed(1)}h/dia nos {remainingWD} dias restantes
                     </span>
                     <span className="text-sm font-bold text-cyan-400">
-                      {formatBRL((workedHours + avgHPerDay * remainingWD) * hourlyRate)}
+                      {formatBRL((workedHours + avgHPerDay * remainingWD) * effectiveRate)}
                     </span>
                   </div>
                 ) : null}
@@ -2172,7 +2183,7 @@ export default function MeuPainelPage() {
 
           {/* ── Histórico: últimos 12 meses ───────────────────────────────────── */}
           {(() => {
-            const hasRate     = hourlyRate > 0 && rateType === 'hourly'
+            const hasRate     = effectiveRate > 0
             const hasExpHist  = history.some(p => p.expenses > 0)
             const hasMonetary = hasRate || hasExpHist
 
