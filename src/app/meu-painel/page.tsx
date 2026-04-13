@@ -451,9 +451,9 @@ const EMPTY_TS = {
   customer_id: '',
   project_id:  '',
   date:        todayISO(),
-  start_time:  '09:00',
-  end_time:    '18:00',
-  total_hours: '',   // decimal string e.g. "3" or "3.5"
+  start_time:  '',
+  end_time:    '',
+  total_hours: '',
   observation: '',
   ticket:      '',
 }
@@ -1574,7 +1574,7 @@ export default function MeuPainelPage() {
                       return { ...f, total_hours: val, end_time: end }
                     })
                   }}
-                  placeholder="0"
+                  placeholder="–"
                   className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
               </div>
             </div>
