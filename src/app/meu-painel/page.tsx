@@ -354,16 +354,20 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 }
 
 function SummaryCard({
-  label, value, sub, icon: Icon, accent,
+  label, value, sub, icon: Icon, accent, onClick,
 }: {
   label: string
   value: string
   sub?: string
   icon: React.ElementType
   accent: string
+  onClick?: () => void
 }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+    <div
+      onClick={onClick}
+      className={`rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-colors ${onClick ? 'cursor-pointer hover:border-zinc-600 hover:bg-zinc-800/60' : ''}`}
+    >
       <div className="flex items-start justify-between mb-3">
         <span className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider">{label}</span>
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${accent}`}>
@@ -959,6 +963,7 @@ export default function MeuPainelPage() {
               sub={`${(tsTotalMin / 60).toFixed(1)}h apontadas`}
               icon={Clock}
               accent="bg-blue-500/15 text-blue-400"
+              onClick={() => setActiveTab('timesheets')}
             />
             {isHBConsultant ? (() => {
               const pad = (n: number) => String(n).padStart(2, '0')
@@ -1002,6 +1007,7 @@ export default function MeuPainelPage() {
                   sub={`${expenses.length} lançamento${expenses.length !== 1 ? 's' : ''}`}
                   icon={Receipt}
                   accent="bg-orange-500/15 text-orange-400"
+                  onClick={() => setActiveTab('expenses')}
                 />
                 <SummaryCard
                   label="Total Geral"
@@ -1021,6 +1027,7 @@ export default function MeuPainelPage() {
                 sub={`${expenses.length} lançamento${expenses.length !== 1 ? 's' : ''}`}
                 icon={Receipt}
                 accent="bg-orange-500/15 text-orange-400"
+                onClick={() => setActiveTab('expenses')}
               />
             )}
             <SummaryCard
@@ -1029,6 +1036,7 @@ export default function MeuPainelPage() {
               sub={`${approvedTs} aprov. · ${rejectedTs} reprov. de ${timesheets.length}`}
               icon={BarChart2}
               accent="bg-purple-500/15 text-purple-400"
+              onClick={() => setActiveTab('timesheets')}
             />
             <SummaryCard
               label="Despesas Pendentes"
@@ -1036,6 +1044,7 @@ export default function MeuPainelPage() {
               sub={`${approvedExp} aprov. · ${rejectedExp} reprov. de ${expenses.length}`}
               icon={Receipt}
               accent="bg-yellow-500/15 text-yellow-400"
+              onClick={() => setActiveTab('expenses')}
             />
           </div>
 

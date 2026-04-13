@@ -15,6 +15,7 @@ interface Widget {
   value: string
   icon: React.ReactNode
   description?: string
+  href?: string
 }
 
 function getWeekRange() {
@@ -54,9 +55,9 @@ function sumAmount(items: { amount?: number | string }[]) {
   return items.reduce((acc, e) => acc + (parseFloat(String(e.amount)) || 0), 0)
 }
 
-function WidgetCard({ label, value, icon, loading }: { label: string; value: string; icon: React.ReactNode; loading: boolean }) {
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+function WidgetCard({ label, value, icon, loading, href }: { label: string; value: string; icon: React.ReactNode; loading: boolean; href?: string }) {
+  const inner = (
+    <div className={`bg-zinc-900 border border-zinc-800 rounded-xl p-4 transition-colors ${href ? 'cursor-pointer hover:border-zinc-600 hover:bg-zinc-800/60' : ''}`}>
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs text-zinc-400">{label}</span>
         <span className="text-zinc-500">{icon}</span>
@@ -68,6 +69,8 @@ function WidgetCard({ label, value, icon, loading }: { label: string; value: str
       )}
     </div>
   )
+  if (href) return <Link href={href}>{inner}</Link>
+  return inner
 }
 
 function QuickAction({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
@@ -117,11 +120,11 @@ export default function DashboardPage() {
         const totalExpenses = (approvals as any)?.data?.summary?.total_expenses ?? (approvals as any)?.total_expenses ?? 0
 
         setWidgets([
-          { label: 'Horas Hoje (todos)', value: fmtHours(sumMinutes((todayTs as any)?.items ?? [])), icon: <Clock size={16} /> },
-          { label: 'Horas da Semana (todos)', value: fmtHours(sumMinutes((weekTs as any)?.items ?? [])), icon: <Clock size={16} /> },
-          { label: 'Projetos Ativos', value: String((projs as any)?.items?.length ?? 0), icon: <FolderOpen size={16} /> },
-          { label: 'Apontamentos pendentes de aprovação', value: String(totalTimesheets), icon: <CheckSquare size={16} /> },
-          { label: 'Despesas pendentes de aprovação', value: String(totalExpenses), icon: <Receipt size={16} /> },
+          { label: 'Horas Hoje (todos)',                   value: fmtHours(sumMinutes((todayTs as any)?.items ?? [])), icon: <Clock size={16} />,       href: '/meu-painel' },
+          { label: 'Horas da Semana (todos)',               value: fmtHours(sumMinutes((weekTs as any)?.items ?? [])),  icon: <Clock size={16} />,       href: '/meu-painel' },
+          { label: 'Projetos Ativos',                      value: String((projs as any)?.items?.length ?? 0),          icon: <FolderOpen size={16} />,  href: '/projects' },
+          { label: 'Apontamentos pendentes de aprovação',  value: String(totalTimesheets),                             icon: <CheckSquare size={16} />, href: '/approvals' },
+          { label: 'Despesas pendentes de aprovação',      value: String(totalExpenses),                               icon: <Receipt size={16} />,     href: '/approvals' },
         ])
       }).catch(() => {}).finally(() => setLoading(false))
     } else {
@@ -137,14 +140,14 @@ export default function DashboardPage() {
         api.get<{ items: { status: string }[] }>(`/expenses?status=pending&pageSize=1000&user_id=${uid}`),
       ]).then(([todayTs, weekTs, monthTs, pending, todayExp, weekExp, monthExp, pendingExp]) => {
         setWidgets([
-          { label: 'Minhas Horas Hoje', value: fmtHours(sumMinutes((todayTs as any)?.items ?? [])), icon: <Clock size={16} /> },
-          { label: 'Minhas Horas da Semana', value: fmtHours(sumMinutes((weekTs as any)?.items ?? [])), icon: <Clock size={16} /> },
-          { label: 'Minhas Horas do Mês', value: fmtHours(sumMinutes((monthTs as any)?.items ?? [])), icon: <Clock size={16} /> },
-          { label: 'Apontamentos Pendentes', value: String((pending as any)?.items?.length ?? 0), icon: <CheckSquare size={16} /> },
-          { label: 'Minhas Despesas Hoje', value: fmtBRL(sumAmount((todayExp as any)?.items ?? [])), icon: <Receipt size={16} /> },
-          { label: 'Minhas Despesas da Semana', value: fmtBRL(sumAmount((weekExp as any)?.items ?? [])), icon: <Receipt size={16} /> },
-          { label: 'Minhas Despesas do Mês', value: fmtBRL(sumAmount((monthExp as any)?.items ?? [])), icon: <Receipt size={16} /> },
-          { label: 'Despesas Pendentes de Aprovação', value: String((pendingExp as any)?.items?.length ?? 0), icon: <Receipt size={16} /> },
+          { label: 'Minhas Horas Hoje',             value: fmtHours(sumMinutes((todayTs as any)?.items ?? [])),  icon: <Clock size={16} />,       href: '/meu-painel' },
+          { label: 'Minhas Horas da Semana',        value: fmtHours(sumMinutes((weekTs as any)?.items ?? [])),   icon: <Clock size={16} />,       href: '/meu-painel' },
+          { label: 'Minhas Horas do Mês',           value: fmtHours(sumMinutes((monthTs as any)?.items ?? [])),  icon: <Clock size={16} />,       href: '/meu-painel' },
+          { label: 'Apontamentos Pendentes',        value: String((pending as any)?.items?.length ?? 0),         icon: <CheckSquare size={16} />, href: '/meu-painel' },
+          { label: 'Minhas Despesas Hoje',          value: fmtBRL(sumAmount((todayExp as any)?.items ?? [])),    icon: <Receipt size={16} />,     href: '/meu-painel' },
+          { label: 'Minhas Despesas da Semana',     value: fmtBRL(sumAmount((weekExp as any)?.items ?? [])),     icon: <Receipt size={16} />,     href: '/meu-painel' },
+          { label: 'Minhas Despesas do Mês',        value: fmtBRL(sumAmount((monthExp as any)?.items ?? [])),    icon: <Receipt size={16} />,     href: '/meu-painel' },
+          { label: 'Despesas Pendentes de Aprovação', value: String((pendingExp as any)?.items?.length ?? 0),   icon: <Receipt size={16} />,     href: '/approvals' },
         ])
       }).catch(() => {}).finally(() => setLoading(false))
     }
@@ -174,7 +177,7 @@ export default function DashboardPage() {
                 </div>
               ))
             : widgets.map((w, i) => (
-                <WidgetCard key={i} label={w.label} value={w.value} icon={w.icon} loading={false} />
+                <WidgetCard key={i} label={w.label} value={w.value} icon={w.icon} loading={false} href={w.href} />
               ))
           }
         </div>
