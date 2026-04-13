@@ -102,6 +102,33 @@ function TsViewModal({ item, onClose }: { item: TSItem; onClose: () => void }) {
   )
 }
 
+// ─── ReceiptLink: abre comprovante autenticado ────────────────────────────────
+
+function ReceiptLink({ url }: { url: string }) {
+  const [loading, setLoading] = useState(false)
+
+  const open = async () => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('minutor_token')
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) { toast.error('Comprovante não encontrado no servidor'); return }
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      window.open(blobUrl, '_blank')
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+    } catch { toast.error('Erro ao abrir comprovante') }
+    finally { setLoading(false) }
+  }
+
+  return (
+    <button onClick={open} disabled={loading}
+      className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 underline text-xs disabled:opacity-50">
+      {loading ? 'Carregando...' : 'Ver comprovante'}
+    </button>
+  )
+}
+
 // ─── Modal: visualizar / aprovar despesa ─────────────────────────────────────
 
 function ExpApproveModal({
@@ -142,10 +169,7 @@ function ExpApproveModal({
             <p className="text-zinc-200 bg-zinc-800 rounded-lg p-3 leading-relaxed">{item.description || '—'}</p>
           </div>
           {item.receipt_url && (
-            <a href={item.receipt_url} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 underline">
-              Ver comprovante
-            </a>
+            <ReceiptLink url={item.receipt_url} />
           )}
 
           {/* Campo obrigatório: cobrar do cliente */}
