@@ -162,6 +162,46 @@ function SearchableSelect({
   )
 }
 
+// ─── StatusPills ──────────────────────────────────────────────────────────────
+
+const TS_STATUS_OPTS = [
+  { value: '',                     label: 'Todos' },
+  { value: 'pending',              label: 'Pendente' },
+  { value: 'approved',             label: 'Aprovado' },
+  { value: 'rejected',             label: 'Rejeitado' },
+  { value: 'adjustment_requested', label: 'Ajuste' },
+  { value: 'conflicted',           label: 'Conflito' },
+]
+
+const EXP_STATUS_OPTS = [
+  { value: '',                     label: 'Todos' },
+  { value: 'pending',              label: 'Pendente' },
+  { value: 'approved',             label: 'Aprovado' },
+  { value: 'rejected',             label: 'Rejeitado' },
+  { value: 'adjustment_requested', label: 'Ajuste' },
+]
+
+function StatusPills({ value, onChange, options }: {
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+}) {
+  return (
+    <div className="flex items-center gap-0.5 bg-zinc-800/70 border border-zinc-700/50 rounded-full p-1 flex-wrap">
+      {options.map(opt => (
+        <button key={opt.value} type="button" onClick={() => onChange(opt.value)}
+          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+            value === opt.value
+              ? 'bg-cyan-400 text-zinc-900 shadow-sm'
+              : 'text-zinc-400 hover:text-zinc-200'
+          }`}>
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── Modal: visualizar apontamento ───────────────────────────────────────────
 
 function TsViewModal({ item, onClose }: { item: TSItem; onClose: () => void }) {
@@ -374,6 +414,8 @@ export default function ApprovalsPage() {
   const [executiveId,   setExecutiveId]   = useState('')
   const [projectId,     setProjectId]     = useState('')
   const [customerId,    setCustomerId]    = useState('')
+  const [tsStatus,      setTsStatus]      = useState('')
+  const [expStatus,     setExpStatus]     = useState('')
   const [showFilters,   setShowFilters]   = useState(true)
 
   // Support data
@@ -448,24 +490,26 @@ export default function ApprovalsPage() {
     try {
       const p = new URLSearchParams(filterParams)
       p.set('page', String(tsPage)); p.set('per_page', '30')
+      if (tsStatus) p.set('status', tsStatus)
       const r = await api.get<any>(`/approvals/timesheets?${p}`)
       setTsItems(Array.isArray(r?.data) ? r.data : [])
       setTsPag(r?.pagination ?? null)
     } catch { toast.error('Erro ao carregar apontamentos') }
     finally { setTsLoading(false) }
-  }, [tsPage, filterParams])
+  }, [tsPage, filterParams, tsStatus])
 
   const loadExp = useCallback(async () => {
     setExpLoading(true)
     try {
       const p = new URLSearchParams(filterParams)
       p.set('page', String(expPage)); p.set('per_page', '30')
+      if (expStatus) p.set('status', expStatus)
       const r = await api.get<any>(`/approvals/expenses?${p}`)
       setExpItems(Array.isArray(r?.data) ? r.data : [])
       setExpPag(r?.pagination ?? null)
     } catch { toast.error('Erro ao carregar despesas') }
     finally { setExpLoading(false) }
-  }, [expPage, filterParams])
+  }, [expPage, filterParams, expStatus])
 
   useEffect(() => { loadTs() },  [loadTs])
   useEffect(() => { loadExp() }, [loadExp])
@@ -474,8 +518,10 @@ export default function ApprovalsPage() {
   const clearFilters = () => {
     setDateFrom(''); setDateTo(''); setUserId(''); setCoordinatorId('')
     setExecutiveId(''); setProjectId(''); setCustomerId('')
+    setTsStatus(''); setExpStatus('')
   }
-  const hasFilters = !!(dateFrom || dateTo || userId || coordinatorId || executiveId || projectId || customerId)
+  const activeStatus = tab === 'timesheets' ? tsStatus : expStatus
+  const hasFilters = !!(dateFrom || dateTo || userId || coordinatorId || executiveId || projectId || customerId || activeStatus)
 
   // Timesheets: bulk allowed
   const currentItems   = tab === 'timesheets' ? tsItems   : expItems
@@ -581,7 +627,10 @@ export default function ApprovalsPage() {
     finally { setApproving(false) }
   }
 
-  const handleTabChange = (t: 'timesheets' | 'expenses') => { setTab(t); setSelected([]) }
+  const handleTabChange = (t: 'timesheets' | 'expenses') => {
+    setTab(t); setSelected([])
+    setTsStatus(''); setExpStatus('')
+  }
 
   return (
     <AppLayout title="Aprovações">
@@ -610,6 +659,14 @@ export default function ApprovalsPage() {
             </button>
           )
         })}
+      </div>
+
+      {/* ── Status pills ── */}
+      <div className="mb-4">
+        {tab === 'timesheets'
+          ? <StatusPills value={tsStatus} onChange={v => { setTsStatus(v); setTsPage(1); setSelected([]) }} options={TS_STATUS_OPTS} />
+          : <StatusPills value={expStatus} onChange={v => { setExpStatus(v); setExpPage(1) }} options={EXP_STATUS_OPTS} />
+        }
       </div>
 
       {/* ── Filters ── */}
