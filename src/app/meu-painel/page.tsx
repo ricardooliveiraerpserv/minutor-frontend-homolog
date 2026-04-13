@@ -843,8 +843,9 @@ export default function MeuPainelPage() {
     : null
 
   const approvedTs  = timesheets.filter(t => t.status === 'approved').length
-  const pendingTs   = timesheets.filter(t => t.status === 'pending').length
-  const pendingExp  = expenses.filter(e => e.status === 'pending').length
+  const notApprTs   = timesheets.length - approvedTs
+  const approvedExp = expenses.filter(e => e.status === 'approved').length
+  const notApprExp  = expenses.length - approvedExp
 
   // ── Tabs config ────────────────────────────────────────────────────────────
 
@@ -1022,15 +1023,15 @@ export default function MeuPainelPage() {
             )}
             <SummaryCard
               label="Apontamentos Pendentes"
-              value={String(pendingTs)}
+              value={String(notApprTs)}
               sub={`${approvedTs} aprovado${approvedTs !== 1 ? 's' : ''} de ${timesheets.length}`}
               icon={BarChart2}
               accent="bg-purple-500/15 text-purple-400"
             />
             <SummaryCard
               label="Despesas Pendentes"
-              value={String(pendingExp)}
-              sub={pendingExp > 0 ? 'aguardando aprovação' : 'sem pendências'}
+              value={String(notApprExp)}
+              sub={`${approvedExp} aprovada${approvedExp !== 1 ? 's' : ''} de ${expenses.length}`}
               icon={Receipt}
               accent="bg-yellow-500/15 text-yellow-400"
             />
@@ -1168,7 +1169,7 @@ export default function MeuPainelPage() {
             <div className="flex items-center gap-4 mb-3 text-xs text-zinc-500">
               <span>Total: <span className="text-white font-semibold">{minutesToHours(tsTotalMin)}</span></span>
               <span>Aprovados: <span className="text-green-400 font-medium">{approvedTs}</span></span>
-              <span>Pendentes: <span className="text-yellow-400 font-medium">{pendingTs}</span></span>
+              <span>Pendentes: <span className="text-yellow-400 font-medium">{notApprTs}</span></span>
             </div>
           )}
 
