@@ -339,6 +339,196 @@ function ReceiptLinkInline({ url }: { url: string }) {
   )
 }
 
+// ─── StatusPills ──────────────────────────────────────────────────────────────
+
+const TS_STATUS_OPTS  = [
+  { value: '', label: 'Todos' },
+  { value: 'pending',    label: 'Pendente' },
+  { value: 'approved',   label: 'Aprovado' },
+  { value: 'rejected',   label: 'Rejeitado' },
+  { value: 'conflicted', label: 'Conflito' },
+]
+const EXP_STATUS_OPTS = [
+  { value: '', label: 'Todos' },
+  { value: 'pending',              label: 'Pendente' },
+  { value: 'approved',             label: 'Aprovado' },
+  { value: 'rejected',             label: 'Rejeitado' },
+  { value: 'adjustment_requested', label: 'Ajuste' },
+]
+
+function StatusPills({ value, onChange, options }: {
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+}) {
+  return (
+    <div className="flex items-center gap-0.5 bg-zinc-800/70 border border-zinc-700/50 rounded-full p-1">
+      {options.map(opt => (
+        <button key={opt.value} type="button" onClick={() => onChange(opt.value)}
+          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+            value === opt.value
+              ? 'bg-cyan-400 text-zinc-900 shadow-sm'
+              : 'text-zinc-400 hover:text-zinc-200'
+          }`}>
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ─── DateRangePicker ──────────────────────────────────────────────────────────
+
+const MONTH_NAMES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+const MONTH_SHORT_PT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']
+const DAY_NAMES_PT   = ['dom','seg','ter','qua','qui','sex','sáb']
+
+function dateISO(y: number, m: number, d: number) {
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+function DateRangePicker({ from, to, onChange }: {
+  from: string; to: string
+  onChange: (from: string, to: string) => void
+}) {
+  const [open,      setOpen]      = useState(false)
+  const [selecting, setSelecting] = useState<string | null>(null)
+  const [hover,     setHover]     = useState<string | null>(null)
+  const [leftYM,    setLeftYM]    = useState(() => {
+    const d = from ? new Date(from + 'T00:00:00') : new Date()
+    return { y: d.getFullYear(), m: d.getMonth() }
+  })
+  const ref = useRef<HTMLDivElement>(null)
+
+  const rightYM = leftYM.m === 11
+    ? { y: leftYM.y + 1, m: 0 }
+    : { y: leftYM.y, m: leftYM.m + 1 }
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false); setSelecting(null); setHover(null)
+      }
+    }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  const prevMonth = () => setLeftYM(p => p.m === 0 ? { y: p.y - 1, m: 11 } : { y: p.y, m: p.m - 1 })
+  const nextMonth = () => setLeftYM(p => p.m === 11 ? { y: p.y + 1, m: 0 } : { y: p.y, m: p.m + 1 })
+
+  const isStart  = (d: string) => d === (selecting ?? from)
+  const isEnd    = (d: string) => selecting ? d === hover : d === to
+  const inRange  = (d: string) => {
+    const s = selecting ?? from
+    const e = selecting ? (hover ?? '') : to
+    if (!s || !e) return false
+    const [a, b] = s <= e ? [s, e] : [e, s]
+    return d > a && d < b
+  }
+
+  const handleDay = (d: string) => {
+    if (!selecting) { setSelecting(d) }
+    else {
+      const [s, e] = selecting <= d ? [selecting, d] : [d, selecting]
+      onChange(s, e); setSelecting(null); setHover(null); setOpen(false)
+    }
+  }
+
+  const renderMonth = (y: number, m: number) => {
+    const days     = new Date(y, m + 1, 0).getDate()
+    const firstDay = new Date(y, m, 1).getDay()
+    const todayISO = new Date().toISOString().split('T')[0]
+    const cells: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)]
+    while (cells.length % 7 !== 0) cells.push(null)
+    return (
+      <div className="w-[196px]">
+        <div className="text-center text-sm font-semibold text-cyan-400 mb-3">
+          {MONTH_NAMES_PT[m]} {y}
+        </div>
+        <div className="grid grid-cols-7 mb-1">
+          {DAY_NAMES_PT.map(d => (
+            <div key={d} className="text-center text-[10px] text-zinc-600 py-1">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7">
+          {cells.map((day, i) => {
+            if (!day) return <div key={i} className="h-7" />
+            const d  = dateISO(y, m, day)
+            const s  = isStart(d)
+            const e  = isEnd(d)
+            const ir = inRange(d)
+            const td = d === todayISO
+            return (
+              <button key={i} type="button"
+                onMouseEnter={() => selecting && setHover(d)}
+                onMouseLeave={() => setHover(null)}
+                onClick={() => handleDay(d)}
+                className={`h-7 w-full text-xs transition-colors rounded ${
+                  s || e ? 'bg-cyan-400 text-zinc-900 font-bold'
+                  : ir    ? 'bg-cyan-400/20 text-cyan-300'
+                  : td    ? 'text-cyan-400 font-semibold hover:bg-zinc-700'
+                  :         'text-zinc-300 hover:bg-zinc-700'
+                }`}>
+                {day}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  const fmtDisplay = (iso: string) => {
+    const [, mm, dd] = iso.split('-')
+    return `${parseInt(dd)} ${MONTH_SHORT_PT[parseInt(mm) - 1]}`
+  }
+  const displayText = from && to ? `${fmtDisplay(from)} – ${fmtDisplay(to)}`
+    : from ? `${fmtDisplay(from)} – ...`
+    : 'Período'
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => { setOpen(o => !o); setSelecting(null) }}
+        className="flex items-center gap-2 h-9 px-3 bg-zinc-800 border border-zinc-700 text-xs text-zinc-300 rounded-lg hover:border-zinc-500 transition-colors whitespace-nowrap">
+        <CalendarDays size={13} className="text-zinc-500 shrink-0" />
+        <span className={from || to ? 'text-zinc-200' : 'text-zinc-500'}>{displayText}</span>
+        {(from || to) && (
+          <span onClick={e => { e.stopPropagation(); onChange('', '') }}
+            className="ml-1 text-zinc-600 hover:text-zinc-400 cursor-pointer">
+            <X size={10} />
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-4 left-0">
+          <div className="flex items-center gap-4">
+            <button type="button" onClick={prevMonth}
+              className="text-zinc-500 hover:text-zinc-200 p-1 shrink-0">
+              <ChevronLeft size={14} />
+            </button>
+            <div className="flex gap-4">
+              {renderMonth(leftYM.y, leftYM.m)}
+              <div className="w-px bg-zinc-800" />
+              {renderMonth(rightYM.y, rightYM.m)}
+            </div>
+            <button type="button" onClick={nextMonth}
+              className="text-zinc-500 hover:text-zinc-200 p-1 shrink-0">
+              <ChevronRight size={14} />
+            </button>
+          </div>
+          {selecting && (
+            <p className="text-[11px] text-zinc-500 text-center mt-3">Clique para selecionar a data final</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -544,18 +734,21 @@ export default function MeuPainelPage() {
   const [tsSaving,   setTsSaving]   = useState(false)
 
   // ── Expense state ──────────────────────────────────────────────────────────
-  const [expenses,   setExpenses]  = useState<ExpenseItem[]>([])
-  const [expLoading, setExpLoading] = useState(true)
-  const [expTotal,   setExpTotal]   = useState(0)
-  const [expSearch,  setExpSearch]  = useState('')
-  const [expProject, setExpProject] = useState('')
-  const [expStatus,  setExpStatus]  = useState('')
-  const [expPage,    setExpPage]    = useState(1)
-  const [expHasNext, setExpHasNext] = useState(false)
-  const [expModal,   setExpModal]   = useState<{ open: boolean; item?: ExpenseItem }>({ open: false })
-  const [expForm,    setExpForm]    = useState({ ...EMPTY_EXP })
-  const [expSaving,  setExpSaving]  = useState(false)
-  const [expFile,    setExpFile]    = useState<File | null>(null)
+  const [expenses,    setExpenses]   = useState<ExpenseItem[]>([])
+  const [expLoading,  setExpLoading] = useState(true)
+  const [expTotal,    setExpTotal]   = useState(0)
+  const [expSearch,   setExpSearch]  = useState('')
+  const [expCustomer, setExpCustomer] = useState('')
+  const [expProject,  setExpProject] = useState('')
+  const [expStatus,   setExpStatus]  = useState('')
+  const [expDateFrom, setExpDateFrom] = useState('')
+  const [expDateTo,   setExpDateTo]   = useState('')
+  const [expPage,     setExpPage]    = useState(1)
+  const [expHasNext,  setExpHasNext] = useState(false)
+  const [expModal,    setExpModal]   = useState<{ open: boolean; item?: ExpenseItem }>({ open: false })
+  const [expForm,     setExpForm]    = useState({ ...EMPTY_EXP })
+  const [expSaving,   setExpSaving]  = useState(false)
+  const [expFile,     setExpFile]    = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   // ── Banco de Horas state ───────────────────────────────────────────────────
@@ -619,10 +812,15 @@ export default function MeuPainelPage() {
   const loadExpenses = useCallback(async () => {
     setExpLoading(true)
     try {
-      const p = new URLSearchParams({ page: String(expPage), pageSize: '50', start_date: startDate, end_date: endDate })
-      if (expSearch)  p.set('search',     expSearch)
-      if (expProject) p.set('project_id', expProject)
-      if (expStatus)  p.set('status',     expStatus)
+      const p = new URLSearchParams({
+        page: String(expPage), pageSize: '50',
+        start_date: expDateFrom || startDate,
+        end_date:   expDateTo   || endDate,
+      })
+      if (expSearch)   p.set('search',      expSearch)
+      if (expCustomer) p.set('customer_id', expCustomer)
+      if (expProject)  p.set('project_id',  expProject)
+      if (expStatus)   p.set('status',      expStatus)
       const r = await api.get<any>(`/expenses?${p}`)
       const list: ExpenseItem[] = Array.isArray(r?.items) ? r.items : []
       setExpenses(list)
@@ -630,7 +828,7 @@ export default function MeuPainelPage() {
       setExpTotal(list.reduce((acc, e) => acc + (parseFloat(String(e.amount)) || 0), 0))
     } catch { toast.error('Erro ao carregar despesas') }
     finally   { setExpLoading(false) }
-  }, [expPage, startDate, endDate, expSearch, expProject, expStatus])
+  }, [expPage, startDate, endDate, expSearch, expCustomer, expProject, expStatus, expDateFrom, expDateTo])
 
   useEffect(() => { loadTimesheets() }, [loadTimesheets])
   useEffect(() => { loadExpenses() },  [loadExpenses])
@@ -1133,6 +1331,11 @@ export default function MeuPainelPage() {
       ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'timesheets' && (
         <div>
+          {/* Status pills */}
+          <div className="mb-3">
+            <StatusPills value={tsStatus} onChange={v => { setTsStatus(v); setTsPage(1) }} options={TS_STATUS_OPTS} />
+          </div>
+
           {/* Filters bar */}
           <div className="flex gap-2 mb-4 flex-wrap">
             <Input value={tsSearch}
@@ -1151,24 +1354,10 @@ export default function MeuPainelPage() {
               <option value="">Todos os projetos</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <select value={tsStatus}
-              onChange={e => { setTsStatus(e.target.value); setTsPage(1) }}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none">
-              <option value="">Todos os status</option>
-              <option value="pending">Pendente</option>
-              <option value="approved">Aprovado</option>
-              <option value="rejected">Rejeitado</option>
-            </select>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-zinc-500 shrink-0">De</span>
-              <input type="date" value={tsDateFrom}
-                onChange={e => { setTsDateFrom(e.target.value); setTsPage(1) }}
-                className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none" />
-              <span className="text-xs text-zinc-500 shrink-0">até</span>
-              <input type="date" value={tsDateTo}
-                onChange={e => { setTsDateTo(e.target.value); setTsPage(1) }}
-                className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none" />
-            </div>
+            <DateRangePicker
+              from={tsDateFrom} to={tsDateTo}
+              onChange={(f, t) => { setTsDateFrom(f); setTsDateTo(t); setTsPage(1) }}
+            />
             <Button onClick={openCreateTs}
               className="bg-blue-600 hover:bg-blue-500 text-white h-9 px-4 text-xs gap-1.5 shrink-0">
               <Plus size={13} /> Novo
@@ -1277,26 +1466,33 @@ export default function MeuPainelPage() {
       ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'expenses' && (
         <div>
+          {/* Status pills */}
+          <div className="mb-3">
+            <StatusPills value={expStatus} onChange={v => { setExpStatus(v); setExpPage(1) }} options={EXP_STATUS_OPTS} />
+          </div>
+
           {/* Filters */}
           <div className="flex gap-2 mb-4 flex-wrap">
             <Input value={expSearch}
               onChange={e => { setExpSearch(e.target.value); setExpPage(1) }}
               placeholder="Buscar por descrição..."
               className="flex-1 min-w-40 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+            <select value={expCustomer}
+              onChange={e => { setExpCustomer(e.target.value); setExpPage(1) }}
+              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none">
+              <option value="">Todos os clientes</option>
+              {consultantCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
             <select value={expProject}
               onChange={e => { setExpProject(e.target.value); setExpPage(1) }}
               className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none">
               <option value="">Todos os projetos</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <select value={expStatus}
-              onChange={e => { setExpStatus(e.target.value); setExpPage(1) }}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none">
-              <option value="">Todos os status</option>
-              <option value="pending">Pendente</option>
-              <option value="approved">Aprovado</option>
-              <option value="rejected">Rejeitado</option>
-            </select>
+            <DateRangePicker
+              from={expDateFrom} to={expDateTo}
+              onChange={(f, t) => { setExpDateFrom(f); setExpDateTo(t); setExpPage(1) }}
+            />
             <Button onClick={openCreateExp}
               className="bg-blue-600 hover:bg-blue-500 text-white h-9 px-4 text-xs gap-1.5 shrink-0">
               <Plus size={13} /> Nova
