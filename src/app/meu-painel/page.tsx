@@ -1271,8 +1271,15 @@ export default function MeuPainelPage() {
   const rejectedExp = expenses.filter(e => e.status === 'rejected').length
   const notApprExp  = expenses.length - approvedExp
 
-  // ── HB total geral (calculado fora da IIFE para garantir closure correta) ───
-  const hbTotalGeral = hourlyRate + expTotal
+  // ── HB totals (computed at component level — no IIFE closure issues) ────────
+  const hbSelectedYM  = `${year}-${String(month + 1).padStart(2, '0')}`
+  const hbStartYM     = hbStartDate ? hbStartDate.substring(0, 7) : null
+  const hbBeforeStart = hbStartYM !== null && hbSelectedYM < hbStartYM
+  const hbExtraHours  = !hbBeforeStart && hbCurrent && hbCurrent.accumulated_balance > 0
+    ? hbCurrent.accumulated_balance : 0
+  const hbExtraValue  = hourlyRate > 0 ? hbExtraHours * (hourlyRate / 180) : 0
+  const hbServiceVal  = hourlyRate + hbExtraValue
+  const hbTotalGeral  = hbServiceVal + expTotal
 
   // ── Indicadores computados ─────────────────────────────────────────────────
 
@@ -1461,50 +1468,38 @@ export default function MeuPainelPage() {
               accent="bg-blue-500/15 text-blue-400"
               onClick={() => setActiveTab('timesheets')}
             />
-            {isHBConsultant ? (() => {
-              const pad = (n: number) => String(n).padStart(2, '0')
-              const selectedYM    = `${year}-${pad(month + 1)}`
-              const startYM       = hbStartDate ? hbStartDate.substring(0, 7) : null
-              const beforeStart   = startYM !== null && selectedYM < startYM
-              const fixedSalary   = hourlyRate
-              const extraHours    = !beforeStart && hbCurrent && hbCurrent.accumulated_balance > 0 ? hbCurrent.accumulated_balance : 0
-              const valorHoraExt  = fixedSalary > 0 ? fixedSalary / 180 : 0
-              const totalExtra    = extraHours * valorHoraExt
-              const servicoTotal  = fixedSalary + totalExtra
-              const totalGeral    = servicoTotal + expTotal
-              return (
-                <>
-                  <SummaryCard
-                    label="Total a Receber"
-                    value={beforeStart ? '—' : fixedSalary > 0 ? formatBRL(servicoTotal) : '—'}
-                    sub={beforeStart
-                      ? `Inicia em ${startYM ? fmtYearMonth(startYM) : '—'}`
-                      : extraHours > 0
-                        ? `Salário base + ${extraHours.toFixed(1)}h extras`
-                        : 'Salário base mensal'}
-                    icon={TrendingUp}
-                    accent="bg-green-500/15 text-green-400"
-                  />
-                  <SummaryCard
-                    label="Total Despesas"
-                    value={formatBRL(expTotal)}
-                    sub={`${expenses.length} lançamento${expenses.length !== 1 ? 's' : ''}`}
-                    icon={Receipt}
-                    accent="bg-orange-500/15 text-orange-400"
-                    onClick={() => setActiveTab('expenses')}
-                  />
-                  <SummaryCard
-                    label="Total Geral"
-                    value={beforeStart ? '—' : formatBRL(hbTotalGeral + totalExtra)}
-                    sub={expTotal > 0
-                      ? `Serviço${extraHours > 0 ? ' + extras' : ''} + despesas`
-                      : 'Sem despesas no período'}
-                    icon={DollarSign}
-                    accent="bg-cyan-500/15 text-cyan-400"
-                  />
-                </>
-              )
-            })() : (
+            {isHBConsultant ? (
+              <>
+                <SummaryCard
+                  label="Total a Receber"
+                  value={hbBeforeStart ? '—' : hourlyRate > 0 ? formatBRL(hbServiceVal) : '—'}
+                  sub={hbBeforeStart
+                    ? `Inicia em ${hbStartYM ? fmtYearMonth(hbStartYM) : '—'}`
+                    : hbExtraHours > 0
+                      ? `Salário base + ${hbExtraHours.toFixed(1)}h extras`
+                      : 'Salário base mensal'}
+                  icon={TrendingUp}
+                  accent="bg-green-500/15 text-green-400"
+                />
+                <SummaryCard
+                  label="Total Despesas"
+                  value={formatBRL(expTotal)}
+                  sub={`${expenses.length} lançamento${expenses.length !== 1 ? 's' : ''}`}
+                  icon={Receipt}
+                  accent="bg-orange-500/15 text-orange-400"
+                  onClick={() => setActiveTab('expenses')}
+                />
+                <SummaryCard
+                  label="Total Geral"
+                  value={hbBeforeStart ? '—' : formatBRL(hbTotalGeral)}
+                  sub={expTotal > 0
+                    ? `Serviço${hbExtraHours > 0 ? ' + extras' : ''} + despesas`
+                    : 'Sem despesas no período'}
+                  icon={DollarSign}
+                  accent="bg-cyan-500/15 text-cyan-400"
+                />
+              </>
+            ) : (
               <>
                 <SummaryCard
                   label="Valor Total do Serviço"
