@@ -22,7 +22,8 @@ import {
 interface TimesheetItem {
   id: number
   project_id: number
-  project?: { id: number; name: string; customer?: { name: string } }
+  project?: { id: number; name: string; customer?: { id: number; name: string } }
+  customer?: { id: number; name: string }
   date: string
   start_time: string
   end_time: string
@@ -30,14 +31,15 @@ interface TimesheetItem {
   effort_minutes: number
   observation?: string
   ticket?: string
-  status: 'pending' | 'approved' | 'rejected' | 'conflicted'
+  ticket_subject?: string
+  status: 'pending' | 'approved' | 'rejected' | 'conflicted' | 'adjustment_requested'
   status_display: string
 }
 
 interface ExpenseItem {
   id: number
   project_id: number
-  project?: { id: number; name: string }
+  project?: { id: number; name: string; customer?: { id: number; name: string } }
   expense_category_id: number
   category?: { id: number; name: string }
   expense_date: string
@@ -663,6 +665,77 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
   )
 }
 
+// ─── SearchableSelect ─────────────────────────────────────────────────────────
+
+function SearchableSelect({
+  value, onChange, options, placeholder = 'Todos',
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: { id: number | string; name: string }[]
+  placeholder?: string
+}) {
+  const [open, setOpen]   = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const filtered = query
+    ? options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()))
+    : options
+  const selected = options.find(o => String(o.id) === value)
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button"
+        onClick={() => { setOpen(o => !o); setQuery('') }}
+        className={`flex items-center justify-between gap-2 h-9 px-3 min-w-[150px] bg-zinc-800 border rounded-lg text-xs transition-colors ${
+          open ? 'border-zinc-500 text-zinc-200' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'
+        }`}>
+        <span className={selected ? 'text-zinc-200' : 'text-zinc-500'}>
+          {selected ? selected.name : placeholder}
+        </span>
+        <ChevronDown size={12} className="text-zinc-500 shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 min-w-full w-max max-w-[260px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden">
+          <div className="p-2 border-b border-zinc-700">
+            <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full bg-zinc-900 border border-zinc-600 rounded-lg text-xs text-zinc-200 px-2.5 py-1.5 outline-none focus:border-zinc-400 placeholder:text-zinc-600" />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1">
+            <button type="button" onClick={() => { onChange(''); setOpen(false) }}
+              className={`w-full text-left px-3 py-2 text-xs transition-colors ${!value ? 'text-cyan-400' : 'text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'}`}>
+              {placeholder}
+            </button>
+            {filtered.map(o => (
+              <button key={o.id} type="button"
+                onClick={() => { onChange(String(o.id)); setOpen(false) }}
+                className={`w-full text-left px-3 py-2 text-xs transition-colors ${
+                  String(o.id) === value ? 'text-cyan-400 bg-zinc-700/50' : 'text-zinc-300 hover:bg-zinc-700 hover:text-zinc-200'
+                }`}>
+                {o.name}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-2 text-xs text-zinc-600">Nenhum resultado</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SelectField({ label, value, onChange, children, required }: {
   label: string
   value: string
@@ -789,9 +862,11 @@ export default function MeuPainelPage() {
   const [expStatus,   setExpStatus]  = useState('')
   const [expDateFrom, setExpDateFrom] = useState('')
   const [expDateTo,   setExpDateTo]   = useState('')
+  const [expCategory, setExpCategory] = useState('')
   const [expPage,     setExpPage]    = useState(1)
   const [expHasNext,  setExpHasNext] = useState(false)
   const [expModal,    setExpModal]   = useState<{ open: boolean; item?: ExpenseItem }>({ open: false })
+  const [expViewItem, setExpViewItem] = useState<ExpenseItem | null>(null)
   const [expForm,     setExpForm]    = useState({ ...EMPTY_EXP })
   const [expSaving,   setExpSaving]  = useState(false)
   const [expFile,     setExpFile]    = useState<File | null>(null)
@@ -864,9 +939,10 @@ export default function MeuPainelPage() {
         end_date:   expDateTo   || endDate,
       })
       if (expSearch)   p.set('search',      expSearch)
-      if (expCustomer) p.set('customer_id', expCustomer)
-      if (expProject)  p.set('project_id',  expProject)
-      if (expStatus)   p.set('status',      expStatus)
+      if (expCustomer)  p.set('customer_id',  expCustomer)
+      if (expProject)   p.set('project_id',   expProject)
+      if (expStatus)    p.set('status',        expStatus)
+      if (expCategory)  p.set('category_id',  expCategory)
       const r = await api.get<any>(`/expenses?${p}`)
       const list: ExpenseItem[] = Array.isArray(r?.items) ? r.items : []
       setExpenses(list)
@@ -874,16 +950,16 @@ export default function MeuPainelPage() {
       setExpTotal(list.reduce((acc, e) => acc + (parseFloat(String(e.amount)) || 0), 0))
     } catch { toast.error('Erro ao carregar despesas') }
     finally   { setExpLoading(false) }
-  }, [expPage, startDate, endDate, expSearch, expCustomer, expProject, expStatus, expDateFrom, expDateTo])
+  }, [expPage, startDate, endDate, expSearch, expCustomer, expProject, expStatus, expCategory, expDateFrom, expDateTo])
 
   const hasTsFilters = !!(tsSearch || tsCustomer || tsProject || tsStatus || tsDateFrom || tsDateTo)
-  const hasExpFilters = !!(expSearch || expCustomer || expProject || expStatus || expDateFrom || expDateTo)
+  const hasExpFilters = !!(expSearch || expCustomer || expProject || expStatus || expCategory || expDateFrom || expDateTo)
 
   function clearTsFilters() {
     setTsSearch(''); setTsCustomer(''); setTsProject(''); setTsStatus(''); setTsDateFrom(''); setTsDateTo(''); setTsPage(1)
   }
   function clearExpFilters() {
-    setExpSearch(''); setExpCustomer(''); setExpProject(''); setExpStatus(''); setExpDateFrom(''); setExpDateTo(''); setExpPage(1)
+    setExpSearch(''); setExpCustomer(''); setExpProject(''); setExpStatus(''); setExpCategory(''); setExpDateFrom(''); setExpDateTo(''); setExpPage(1)
   }
 
   useEffect(() => { loadTimesheets() }, [loadTimesheets])
@@ -1396,20 +1472,20 @@ export default function MeuPainelPage() {
           <div className="flex gap-2 mb-4 flex-wrap">
             <Input value={tsSearch}
               onChange={e => { setTsSearch(e.target.value); setTsPage(1) }}
-              placeholder="Buscar por projeto, observação..."
+              placeholder="Buscar por projeto, observação, ticket..."
               className="flex-1 min-w-40 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
-            <select value={tsCustomer}
-              onChange={e => { setTsCustomer(e.target.value); setTsPage(1) }}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none">
-              <option value="">Todos os clientes</option>
-              {consultantCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select value={tsProject}
-              onChange={e => { setTsProject(e.target.value); setTsPage(1) }}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none">
-              <option value="">Todos os projetos</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <SearchableSelect
+              value={tsCustomer}
+              onChange={v => { setTsCustomer(v); setTsPage(1) }}
+              options={consultantCustomers}
+              placeholder="Todos os clientes"
+            />
+            <SearchableSelect
+              value={tsProject}
+              onChange={v => { setTsProject(v); setTsPage(1) }}
+              options={projects}
+              placeholder="Todos os projetos"
+            />
             <DateRangePicker
               from={tsDateFrom} to={tsDateTo}
               onChange={(f, t) => { setTsDateFrom(f); setTsDateTo(t); setTsPage(1) }}
@@ -1441,39 +1517,53 @@ export default function MeuPainelPage() {
               <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-900/60">
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Data</th>
+                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Projeto</th>
+                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden lg:table-cell">Ticket #</th>
+                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden xl:table-cell">Título</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Horário</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Horas</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden lg:table-cell">Observação</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Status</th>
-                  <th className="px-4 py-3 w-20"></th>
+                  <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
               <tbody>
                 {tsLoading ? (
-                  <TableSkeleton cols={7} />
+                  <TableSkeleton cols={10} />
                 ) : timesheets.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-14 text-center text-zinc-600">
+                    <td colSpan={10} className="px-4 py-14 text-center text-zinc-600">
                       Nenhum apontamento no período
                     </td>
                   </tr>
                 ) : timesheets.map(ts => {
                   const locked = isLocked(ts.status)
+                  const clientName = ts.customer?.name ?? ts.project?.customer?.name
                   return (
                     <tr key={ts.id}
                       className={`border-b border-zinc-800 transition-colors last:border-0 ${
                         locked ? 'bg-zinc-900/40' : 'hover:bg-zinc-800/25'
                       }`}>
-                      <td className="px-4 py-3.5 text-zinc-300 font-medium tabular-nums">{ts.date}</td>
-                      <td className="px-4 py-3.5 text-zinc-200 max-w-[160px] truncate">
+                      <td className="px-4 py-3.5 text-zinc-300 font-medium tabular-nums whitespace-nowrap">{ts.date}</td>
+                      <td className="px-4 py-3.5 text-zinc-400 hidden md:table-cell max-w-[120px] truncate">
+                        {clientName ?? <span className="text-zinc-700">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5 text-zinc-200 max-w-[140px] truncate">
                         {ts.project?.name ?? '—'}
                       </td>
-                      <td className="px-4 py-3.5 text-zinc-500 font-mono hidden md:table-cell">
+                      <td className="px-4 py-3.5 text-zinc-400 font-mono hidden lg:table-cell">
+                        {ts.ticket ?? <span className="text-zinc-700">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5 text-zinc-400 hidden xl:table-cell max-w-[160px] truncate" title={ts.ticket_subject}>
+                        {ts.ticket_subject ?? <span className="text-zinc-700">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5 text-zinc-500 font-mono hidden md:table-cell whitespace-nowrap">
                         {ts.start_time} – {ts.end_time}
                       </td>
-                      <td className="px-4 py-3.5 text-white font-mono font-bold">{ts.effort_hours}</td>
-                      <td className="px-4 py-3.5 text-zinc-500 hidden lg:table-cell max-w-[200px] truncate">
+                      <td className="px-4 py-3.5 text-white font-mono font-bold whitespace-nowrap">{ts.effort_hours}</td>
+                      <td className="px-4 py-3.5 text-zinc-500 hidden lg:table-cell max-w-[180px] truncate"
+                        title={ts.observation}>
                         {ts.observation ?? <span className="text-zinc-700">—</span>}
                       </td>
                       <td className="px-4 py-3.5">
@@ -1528,18 +1618,24 @@ export default function MeuPainelPage() {
               onChange={e => { setExpSearch(e.target.value); setExpPage(1) }}
               placeholder="Buscar por descrição..."
               className="flex-1 min-w-40 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
-            <select value={expCustomer}
-              onChange={e => { setExpCustomer(e.target.value); setExpPage(1) }}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none">
-              <option value="">Todos os clientes</option>
-              {consultantCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select value={expProject}
-              onChange={e => { setExpProject(e.target.value); setExpPage(1) }}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-lg h-9 px-2.5 outline-none">
-              <option value="">Todos os projetos</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <SearchableSelect
+              value={expCustomer}
+              onChange={v => { setExpCustomer(v); setExpPage(1) }}
+              options={consultantCustomers}
+              placeholder="Todos os clientes"
+            />
+            <SearchableSelect
+              value={expProject}
+              onChange={v => { setExpProject(v); setExpPage(1) }}
+              options={projects}
+              placeholder="Todos os projetos"
+            />
+            <SearchableSelect
+              value={expCategory}
+              onChange={v => { setExpCategory(v); setExpPage(1) }}
+              options={categories}
+              placeholder="Todas as categorias"
+            />
             <DateRangePicker
               from={expDateFrom} to={expDateTo}
               onChange={(f, t) => { setExpDateFrom(f); setExpDateTo(t); setExpPage(1) }}
@@ -1574,20 +1670,21 @@ export default function MeuPainelPage() {
               <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-900/60">
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Data</th>
+                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Descrição</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Projeto</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden lg:table-cell">Categoria</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Valor</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Status</th>
-                  <th className="px-4 py-3 w-20"></th>
+                  <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
               <tbody>
                 {expLoading ? (
-                  <TableSkeleton cols={7} />
+                  <TableSkeleton cols={8} />
                 ) : expenses.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-14 text-center text-zinc-600">
+                    <td colSpan={8} className="px-4 py-14 text-center text-zinc-600">
                       Nenhuma despesa no período
                     </td>
                   </tr>
@@ -1598,16 +1695,20 @@ export default function MeuPainelPage() {
                       className={`border-b border-zinc-800 transition-colors last:border-0 ${
                         locked ? 'bg-zinc-900/40' : 'hover:bg-zinc-800/25'
                       }`}>
-                      <td className="px-4 py-3.5 text-zinc-300 font-medium tabular-nums">{exp.expense_date}</td>
-                      <td className="px-4 py-3.5 text-zinc-200 max-w-[180px] truncate">{exp.description}</td>
-                      <td className="px-4 py-3.5 text-zinc-400 hidden md:table-cell">{exp.project?.name ?? '—'}</td>
+                      <td className="px-4 py-3.5 text-zinc-300 font-medium tabular-nums whitespace-nowrap">{exp.expense_date}</td>
+                      <td className="px-4 py-3.5 text-zinc-400 hidden md:table-cell max-w-[120px] truncate">
+                        {exp.project?.customer?.name ?? <span className="text-zinc-700">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5 text-zinc-200 max-w-[160px] truncate" title={exp.description}>{exp.description}</td>
+                      <td className="px-4 py-3.5 text-zinc-400 hidden md:table-cell max-w-[140px] truncate">{exp.project?.name ?? '—'}</td>
                       <td className="px-4 py-3.5 text-zinc-400 hidden lg:table-cell">{exp.category?.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-white font-bold">{exp.formatted_amount}</td>
+                      <td className="px-4 py-3.5 text-white font-bold whitespace-nowrap">{exp.formatted_amount}</td>
                       <td className="px-4 py-3.5">
                         <StatusBadge status={exp.status} display={exp.status_display} />
                       </td>
                       <td className="px-4 py-3.5 w-10">
                         <RowMenu items={[
+                          { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setExpViewItem(exp) },
                           ...(!locked ? [
                             { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEditExp(exp) },
                             { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteExp(exp.id), danger: true },
@@ -2077,6 +2178,62 @@ export default function MeuPainelPage() {
               <Button onClick={saveExp} disabled={expSaving}
                 className="h-9 text-xs bg-blue-600 hover:bg-blue-500 text-white px-6">
                 {expSaving ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {/* ── Modal: Visualizar Despesa ── */}
+      {expViewItem && (
+        <ModalOverlay onClose={() => setExpViewItem(null)}>
+          <div className="p-6 space-y-4">
+            <h2 className="text-sm font-semibold text-white">Detalhes da Despesa</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Data</p>
+                <p className="text-sm text-zinc-200 font-medium">{expViewItem.expense_date}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Valor</p>
+                <p className="text-sm text-white font-bold">{expViewItem.formatted_amount}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Status</p>
+                <StatusBadge status={expViewItem.status} display={expViewItem.status_display} />
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Categoria</p>
+                <p className="text-sm text-zinc-200">{expViewItem.category?.name ?? '—'}</p>
+              </div>
+            </div>
+            {expViewItem.project?.customer?.name && (
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Cliente</p>
+                <p className="text-sm text-zinc-200">{expViewItem.project.customer.name}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Projeto</p>
+              <p className="text-sm text-zinc-200">{expViewItem.project?.name ?? '—'}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Descrição</p>
+              <p className="text-sm text-zinc-300">{expViewItem.description}</p>
+            </div>
+            {expViewItem.receipt_url && (
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Comprovante</p>
+                <a href={expViewItem.receipt_url} target="_blank" rel="noreferrer"
+                  className="text-xs text-blue-400 hover:text-blue-300 underline">
+                  Ver comprovante
+                </a>
+              </div>
+            )}
+            <div className="flex justify-end pt-1">
+              <Button variant="outline" onClick={() => setExpViewItem(null)}
+                className="h-8 text-xs border-zinc-700 text-zinc-300">
+                Fechar
               </Button>
             </div>
           </div>
