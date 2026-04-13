@@ -15,6 +15,7 @@ import {
   ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock,
   Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, TrendingDown, Minus, Eye,
   CalendarDays, RefreshCw, ChevronDown, ChevronUp, MoreVertical,
+  AlertTriangle, Zap, Users, DollarSign, Target, Activity,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1201,6 +1202,74 @@ export default function MeuPainelPage() {
   const rejectedExp = expenses.filter(e => e.status === 'rejected').length
   const notApprExp  = expenses.length - approvedExp
 
+  // ── Indicadores computados ─────────────────────────────────────────────────
+
+  // Horas faturáveis: projetos que têm cliente (cobram); internas: sem cliente
+  const billableMin  = useMemo(() =>
+    timesheets.reduce((acc, ts) => acc + (ts.project?.customer ? ts.effort_minutes : 0), 0),
+  [timesheets])
+  const internalMin  = tsTotalMin - billableMin
+  const billablePct  = tsTotalMin > 0 ? Math.round((billableMin / tsTotalMin) * 100) : 0
+
+  // Ocupação: dias úteis no mês vs dias com apontamento
+  const workingDaysInMonth = useMemo(() => {
+    const d = new Date(year, month + 1, 0).getDate()
+    let wd = 0
+    for (let i = 1; i <= d; i++) {
+      const dow = new Date(year, month, i).getDay()
+      if (dow !== 0 && dow !== 6) wd++
+    }
+    return wd
+  }, [year, month])
+
+  const daysWorked = useMemo(() => {
+    const days = new Set(timesheets.map(ts => ts.date))
+    return days.size
+  }, [timesheets])
+
+  const occupancyPct = workingDaysInMonth > 0
+    ? Math.min(100, Math.round((daysWorked / workingDaysInMonth) * 100))
+    : 0
+
+  // Ticket médio R$/h
+  const avgTicket = workedHours > 0 && estimatedValue !== null
+    ? estimatedValue / workedHours
+    : null
+
+  // Projeção: baseado nos dias já trabalhados no mês vs dias úteis restantes
+  const today         = new Date()
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month
+  const dayOfMonth    = isCurrentMonth ? today.getDate() : new Date(year, month + 1, 0).getDate()
+  const elapsedWD     = useMemo(() => {
+    let wd = 0
+    for (let i = 1; i <= dayOfMonth; i++) {
+      const dow = new Date(year, month, i).getDay()
+      if (dow !== 0 && dow !== 6) wd++
+    }
+    return wd
+  }, [year, month, dayOfMonth])
+
+  const projectedHours = elapsedWD > 0 && isCurrentMonth
+    ? (workedHours / elapsedWD) * workingDaysInMonth
+    : workedHours
+  const projectedValue = hourlyRate > 0 && rateType === 'hourly' ? projectedHours * hourlyRate : null
+  const projectedPct   = workingDaysInMonth > 0
+    ? Math.min(100, Math.round((elapsedWD / workingDaysInMonth) * 100))
+    : 100
+
+  // Alertas
+  const indAlerts: { level: 'warn' | 'danger'; msg: string }[] = []
+  if (occupancyPct < 60 && isCurrentMonth && elapsedWD > 5)
+    indAlerts.push({ level: 'warn', msg: `Ocupação baixa: apenas ${occupancyPct}% dos dias úteis com apontamento` })
+  if (billablePct < 50 && tsTotalMin > 0)
+    indAlerts.push({ level: 'warn', msg: `Apenas ${billablePct}% das horas são faturáveis` })
+  if (rejectedTs > 0)
+    indAlerts.push({ level: 'danger', msg: `${rejectedTs} apontamento${rejectedTs > 1 ? 's' : ''} rejeitado${rejectedTs > 1 ? 's' : ''} — requer atenção` })
+  if (rejectedExp > 0)
+    indAlerts.push({ level: 'warn', msg: `${rejectedExp} despesa${rejectedExp > 1 ? 's' : ''} rejeitada${rejectedExp > 1 ? 's' : ''}` })
+  if (notApprTs > 0 && !isCurrentMonth)
+    indAlerts.push({ level: 'warn', msg: `${notApprTs} apontamento${notApprTs > 1 ? 's' : ''} sem aprovação no período encerrado` })
+
   // ── Tabs config ────────────────────────────────────────────────────────────
 
   const isHBConsultant = ['bh_fixo', 'bh_mensal'].includes((user as any)?.consultant_type ?? '')
@@ -1761,105 +1830,256 @@ export default function MeuPainelPage() {
           Tab: Indicadores
       ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === 'indicators' && (
-        <div className="space-y-4">
+        <div className="space-y-5">
 
-          {/* Top summary */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 text-center">
-              <div className="text-3xl font-bold text-white">{minutesToHours(tsTotalMin)}</div>
-              <div className="text-xs text-zinc-500 mt-2">Total de Horas</div>
+          {/* ── Alertas ──────────────────────────────────────────────────────── */}
+          {indAlerts.length > 0 && (
+            <div className="space-y-2">
+              {indAlerts.map((a, i) => (
+                <div key={i} className={`flex items-start gap-3 px-4 py-3 rounded-xl text-xs border ${
+                  a.level === 'danger'
+                    ? 'bg-red-500/8 border-red-500/20 text-red-300'
+                    : 'bg-yellow-500/8 border-yellow-500/20 text-yellow-300'
+                }`}>
+                  <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                  {a.msg}
+                </div>
+              ))}
             </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 text-center">
-              <div className="text-3xl font-bold text-white">{tsByProject.length}</div>
-              <div className="text-xs text-zinc-500 mt-2">Projetos com Horas</div>
+          )}
+
+          {/* ── Hero KPIs ────────────────────────────────────────────────────── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+
+            {/* Valor Gerado */}
+            <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 p-5 col-span-2 lg:col-span-1">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 rounded-lg bg-cyan-500/20">
+                  <DollarSign size={13} className="text-cyan-400" />
+                </div>
+                <span className="text-[11px] text-zinc-400 font-medium">Valor Gerado</span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {estimatedValue !== null ? formatBRL(estimatedValue) : '—'}
+              </div>
+              <div className="text-[11px] text-zinc-500 mt-1.5">
+                {estimatedValue !== null
+                  ? guaranteedHours !== null && workedHours < Number(guaranteedHours)
+                    ? `${formatBRL(hourlyRate)}/h × ${Number(guaranteedHours)}h garantidas`
+                    : `${formatBRL(hourlyRate)}/h × ${workedHours.toFixed(1)}h`
+                  : 'Taxa horária não configurada'}
+              </div>
             </div>
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 text-center">
-              <div className="text-3xl font-bold text-white">{formatBRL(expTotal)}</div>
-              <div className="text-xs text-zinc-500 mt-2">Total Despesas</div>
+
+            {/* Ticket Médio */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 rounded-lg bg-violet-500/20">
+                  <Zap size={13} className="text-violet-400" />
+                </div>
+                <span className="text-[11px] text-zinc-400 font-medium">Ticket Médio</span>
+              </div>
+              <div className="text-2xl font-bold text-white">
+                {avgTicket !== null ? formatBRL(avgTicket) : '—'}
+              </div>
+              <div className="text-[11px] text-zinc-500 mt-1.5">por hora trabalhada</div>
+            </div>
+
+            {/* Ocupação */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 rounded-lg bg-orange-500/20">
+                  <Target size={13} className="text-orange-400" />
+                </div>
+                <span className="text-[11px] text-zinc-400 font-medium">Ocupação</span>
+              </div>
+              <div className={`text-2xl font-bold ${occupancyPct >= 80 ? 'text-green-400' : occupancyPct >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+                {occupancyPct}%
+              </div>
+              <div className="text-[11px] text-zinc-500 mt-1.5">
+                {daysWorked} de {workingDaysInMonth} dias úteis
+              </div>
+            </div>
+
+            {/* Total de Horas */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 rounded-lg bg-blue-500/20">
+                  <Activity size={13} className="text-blue-400" />
+                </div>
+                <span className="text-[11px] text-zinc-400 font-medium">Horas Totais</span>
+              </div>
+              <div className="text-2xl font-bold text-white">{minutesToHours(tsTotalMin)}</div>
+              <div className="text-[11px] text-zinc-500 mt-1.5">{tsByProject.length} projeto{tsByProject.length !== 1 ? 's' : ''}</div>
             </div>
           </div>
 
+          {/* ── Horas Faturáveis vs Internas + Projeção ──────────────────────── */}
+          <div className="grid md:grid-cols-2 gap-4">
+
+            {/* Faturáveis vs Internas */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <h3 className="text-xs font-semibold text-zinc-300 mb-4 uppercase tracking-wider">
+                Horas Faturáveis vs Internas
+              </h3>
+              <div className="flex items-end gap-3 mb-4">
+                <div>
+                  <div className="text-2xl font-bold text-cyan-400">{minutesToHours(billableMin)}</div>
+                  <div className="text-[11px] text-zinc-500 mt-0.5">Faturáveis ({billablePct}%)</div>
+                </div>
+                <div className="text-zinc-700 text-lg font-light mb-1">vs</div>
+                <div>
+                  <div className="text-2xl font-bold text-zinc-400">{minutesToHours(internalMin)}</div>
+                  <div className="text-[11px] text-zinc-500 mt-0.5">Internas ({100 - billablePct}%)</div>
+                </div>
+              </div>
+              {/* Barra de proporção */}
+              <div className="h-2.5 rounded-full bg-zinc-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all duration-500"
+                  style={{ width: `${billablePct}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[10px] text-zinc-600 mt-1.5">
+                <span>Faturável</span><span>Interno</span>
+              </div>
+            </div>
+
+            {/* Projeção do mês */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <h3 className="text-xs font-semibold text-zinc-300 mb-4 uppercase tracking-wider">
+                Projeção do Mês
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-zinc-500">Horas projetadas</span>
+                  <span className="text-sm font-bold text-white font-mono">{minutesToHours(Math.round(projectedHours * 60))}</span>
+                </div>
+                {projectedValue !== null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-500">Valor projetado</span>
+                    <span className="text-sm font-bold text-cyan-400">{formatBRL(projectedValue)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-zinc-500">Progresso do mês</span>
+                  <span className="text-xs text-zinc-400">{projectedPct}% dos dias úteis</span>
+                </div>
+                <div className="h-2 rounded-full bg-zinc-800 overflow-hidden mt-1">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all duration-500"
+                    style={{ width: `${projectedPct}%` }}
+                  />
+                </div>
+                {!isCurrentMonth && (
+                  <p className="text-[10px] text-zinc-600 mt-1">Mês encerrado — valores finais</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Distribuição por Cliente ──────────────────────────────────────── */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <div className="flex items-center gap-2 mb-5">
+              <Users size={13} className="text-zinc-400" />
+              <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Distribuição por Cliente</h3>
+            </div>
+            {tsByCustomer.length === 0 ? (
+              <div className="py-8 text-center text-sm text-zinc-600">Nenhum dado no período</div>
+            ) : (
+              <div className="space-y-3">
+                {tsByCustomer.map((c, i) => {
+                  const pct = tsTotalMin > 0 ? (c.minutes / tsTotalMin) * 100 : 0
+                  const colors = ['#00F5FF', '#a78bfa', '#fb923c', '#34d399', '#f472b6', '#60a5fa']
+                  const color  = colors[i % colors.length]
+                  return (
+                    <div key={c.name}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs text-zinc-300 truncate max-w-[60%]">{c.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-zinc-500">{pct.toFixed(1)}%</span>
+                          <span className="text-xs font-mono font-semibold text-zinc-200 w-14 text-right">{minutesToHours(c.minutes)}</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%`, backgroundColor: color }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Horas por Projeto + Tabela ────────────────────────────────────── */}
           <div className="grid md:grid-cols-2 gap-4">
 
             {/* Horas por Projeto */}
             <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-              <h3 className="text-sm font-semibold text-white mb-5">Horas por Projeto</h3>
+              <h3 className="text-xs font-semibold text-zinc-300 mb-5 uppercase tracking-wider">Horas por Projeto</h3>
               {tsByProject.length === 0 ? (
                 <div className="py-8 text-center text-sm text-zinc-600">Nenhum dado no período</div>
               ) : (
                 <div className="space-y-3.5">
                   {tsByProject.map(p => (
-                    <BarChartRow
-                      key={p.name}
-                      label={p.name}
-                      minutes={p.minutes}
-                      maxMinutes={maxProjectMin}
-                      color="#00F5FF"
-                    />
+                    <BarChartRow key={p.name} label={p.name} minutes={p.minutes} maxMinutes={maxProjectMin} color="#00F5FF" />
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Horas por Cliente */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-              <h3 className="text-sm font-semibold text-white mb-5">Horas por Cliente</h3>
-              {tsByCustomer.length === 0 ? (
-                <div className="py-8 text-center text-sm text-zinc-600">Nenhum dado no período</div>
-              ) : (
-                <div className="space-y-3.5">
-                  {tsByCustomer.map(c => (
-                    <BarChartRow
-                      key={c.name}
-                      label={c.name}
-                      minutes={c.minutes}
-                      maxMinutes={maxCustomerMin}
-                      color="#a78bfa"
-                    />
-                  ))}
+            {/* Tabela Detalhamento */}
+            {tsByProject.length > 0 ? (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+                <div className="px-5 py-4 border-b border-zinc-800">
+                  <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Detalhamento</h3>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Breakdown table */}
-          {tsByProject.length > 0 && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
-              <div className="px-5 py-4 border-b border-zinc-800">
-                <h3 className="text-sm font-semibold text-white">Detalhamento por Projeto</h3>
-              </div>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-zinc-800">
-                    <th className="text-left px-5 py-3 text-zinc-500 font-medium">Projeto</th>
-                    <th className="text-right px-5 py-3 text-zinc-500 font-medium">Horas</th>
-                    <th className="text-right px-5 py-3 text-zinc-500 font-medium">% do total</th>
-                    {estimatedValue !== null && (
-                      <th className="text-right px-5 py-3 text-zinc-500 font-medium">Valor Est.</th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tsByProject.map(p => (
-                    <tr key={p.name} className="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20">
-                      <td className="px-5 py-3 text-zinc-200">{p.name}</td>
-                      <td className="px-5 py-3 text-right text-zinc-300 font-mono font-semibold">
-                        {minutesToHours(p.minutes)}
-                      </td>
-                      <td className="px-5 py-3 text-right text-zinc-500">
-                        {tsTotalMin > 0 ? ((p.minutes / tsTotalMin) * 100).toFixed(1) + '%' : '—'}
-                      </td>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-800">
+                      <th className="text-left px-5 py-3 text-zinc-500 font-medium">Projeto</th>
+                      <th className="text-right px-5 py-3 text-zinc-500 font-medium">Horas</th>
+                      <th className="text-right px-5 py-3 text-zinc-500 font-medium">%</th>
                       {estimatedValue !== null && (
-                        <td className="px-5 py-3 text-right text-zinc-300">
-                          {formatBRL((p.minutes / 60) * hourlyRate)}
-                        </td>
+                        <th className="text-right px-5 py-3 text-zinc-500 font-medium">Valor</th>
                       )}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {tsByProject.map(p => (
+                      <tr key={p.name} className="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20">
+                        <td className="px-5 py-3 text-zinc-200 max-w-[120px] truncate">{p.name}</td>
+                        <td className="px-5 py-3 text-right text-zinc-300 font-mono font-semibold">{minutesToHours(p.minutes)}</td>
+                        <td className="px-5 py-3 text-right text-zinc-500">
+                          {tsTotalMin > 0 ? ((p.minutes / tsTotalMin) * 100).toFixed(1) + '%' : '—'}
+                        </td>
+                        {estimatedValue !== null && (
+                          <td className="px-5 py-3 text-right text-cyan-400 font-medium">
+                            {formatBRL((p.minutes / 60) * hourlyRate)}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                    {/* Totals row */}
+                    <tr className="bg-zinc-800/30 border-t border-zinc-700">
+                      <td className="px-5 py-3 text-zinc-300 font-semibold">Total</td>
+                      <td className="px-5 py-3 text-right text-white font-mono font-bold">{minutesToHours(tsTotalMin)}</td>
+                      <td className="px-5 py-3 text-right text-zinc-400">100%</td>
+                      {estimatedValue !== null && (
+                        <td className="px-5 py-3 text-right text-cyan-300 font-bold">{formatBRL(estimatedValue)}</td>
+                      )}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 flex items-center justify-center py-16">
+                <p className="text-sm text-zinc-600">Nenhum projeto no período</p>
+              </div>
+            )}
+          </div>
+
         </div>
       )}
 
