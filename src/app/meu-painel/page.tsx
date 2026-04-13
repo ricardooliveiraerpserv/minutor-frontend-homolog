@@ -316,6 +316,29 @@ function periodBounds(year: number, month: number): { startDate: string; endDate
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+function ReceiptLinkInline({ url }: { url: string }) {
+  const [loading, setLoading] = useState(false)
+  const open = async () => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('minutor_token')
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      if (!res.ok) { alert('Comprovante não encontrado no servidor'); return }
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      window.open(blobUrl, '_blank')
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+    } catch { alert('Erro ao abrir comprovante') }
+    finally { setLoading(false) }
+  }
+  return (
+    <button type="button" onClick={open} disabled={loading}
+      className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50">
+      {loading ? 'Abrindo...' : 'Visualizar'}
+    </button>
+  )
+}
+
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -472,6 +495,7 @@ const EMPTY_EXP = {
   expense_type:        'reimbursement',
   payment_method:      '',
   charge_client:       false,
+  receipt_url:         '' as string,
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -726,6 +750,7 @@ export default function MeuPainelPage() {
       expense_type:        item.expense_type,
       payment_method:      item.payment_method,
       charge_client:       item.charge_client,
+      receipt_url:         item.receipt_url ?? '',
     })
     setExpFile(null)
     setExpModal({ open: true, item })
@@ -1747,17 +1772,34 @@ export default function MeuPainelPage() {
             {/* Receipt upload */}
             <div>
               <Label className="text-xs text-zinc-400">Comprovante</Label>
-              <div
-                onClick={() => fileRef.current?.click()}
-                className="mt-1.5 border border-dashed border-zinc-700 rounded-lg p-4 cursor-pointer hover:border-zinc-500 transition-colors text-center">
-                <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden"
-                  onChange={e => setExpFile(e.target.files?.[0] ?? null)} />
-                <span className="text-xs text-zinc-500">
-                  {expFile
-                    ? <span className="text-blue-400">{expFile.name}</span>
-                    : 'Clique para anexar comprovante (opcional)'}
-                </span>
-              </div>
+
+              {/* Comprovante existente (modo edição) */}
+              {expForm.receipt_url && !expFile && (
+                <div className="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700">
+                  <span className="text-xs text-green-400 flex-1">Comprovante anexado</span>
+                  <ReceiptLinkInline url={expForm.receipt_url} />
+                  <button type="button" onClick={() => fileRef.current?.click()}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors">
+                    Substituir
+                  </button>
+                </div>
+              )}
+
+              {/* Upload area */}
+              {(!expForm.receipt_url || expFile) && (
+                <div
+                  onClick={() => fileRef.current?.click()}
+                  className="mt-1.5 border border-dashed border-zinc-700 rounded-lg p-4 cursor-pointer hover:border-zinc-500 transition-colors text-center">
+                  <span className="text-xs text-zinc-500">
+                    {expFile
+                      ? <span className="text-blue-400">{expFile.name}</span>
+                      : 'Clique para anexar comprovante (opcional)'}
+                  </span>
+                </div>
+              )}
+
+              <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden"
+                onChange={e => setExpFile(e.target.files?.[0] ?? null)} />
             </div>
 
             <div className="flex gap-2 justify-end pt-2">
