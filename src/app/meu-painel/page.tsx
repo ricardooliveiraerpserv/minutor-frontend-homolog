@@ -842,8 +842,9 @@ export default function MeuPainelPage() {
     ? billableHours * hourlyRate
     : null
 
-  const approvedTs = timesheets.filter(t => t.status === 'approved').length
-  const pendingTs  = timesheets.filter(t => t.status === 'pending').length
+  const approvedTs  = timesheets.filter(t => t.status === 'approved').length
+  const pendingTs   = timesheets.filter(t => t.status === 'pending').length
+  const pendingExp  = expenses.filter(e => e.status === 'pending').length
 
   // ── Tabs config ────────────────────────────────────────────────────────────
 
@@ -948,7 +949,7 @@ export default function MeuPainelPage() {
         <div className="space-y-5">
 
           {/* Summary cards */}
-          <div className={`grid gap-3 ${isHBConsultant ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 lg:grid-cols-5'}`}>
+          <div className={`grid gap-3 ${isHBConsultant ? 'grid-cols-2 lg:grid-cols-5' : 'grid-cols-2 lg:grid-cols-6'}`}>
             <SummaryCard
               label="Horas no Período"
               value={minutesToHours(tsTotalMin)}
@@ -1025,6 +1026,13 @@ export default function MeuPainelPage() {
               sub={`${pendingTs} pendente${pendingTs !== 1 ? 's' : ''}`}
               icon={BarChart2}
               accent="bg-purple-500/15 text-purple-400"
+            />
+            <SummaryCard
+              label="Despesas Pendentes"
+              value={String(pendingExp)}
+              sub={pendingExp > 0 ? 'aguardando aprovação' : 'sem pendências'}
+              icon={Receipt}
+              accent="bg-yellow-500/15 text-yellow-400"
             />
           </div>
 

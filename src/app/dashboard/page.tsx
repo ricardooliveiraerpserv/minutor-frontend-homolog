@@ -50,8 +50,8 @@ function sumMinutes(items: { effort_minutes?: number }[]) {
   return items.reduce((acc, ts) => acc + (ts.effort_minutes ?? 0), 0)
 }
 
-function sumAmount(items: { amount?: number }[]) {
-  return items.reduce((acc, e) => acc + (e.amount ?? 0), 0)
+function sumAmount(items: { amount?: number | string }[]) {
+  return items.reduce((acc, e) => acc + (parseFloat(String(e.amount)) || 0), 0)
 }
 
 function WidgetCard({ label, value, icon, loading }: { label: string; value: string; icon: React.ReactNode; loading: boolean }) {
@@ -134,7 +134,8 @@ export default function DashboardPage() {
         api.get<{ items: { amount: number }[] }>(`/expenses?start_date=${today}&end_date=${today}&pageSize=1000&user_id=${uid}`),
         api.get<{ items: { amount: number }[] }>(`/expenses?start_date=${week.start}&end_date=${week.end}&pageSize=1000&user_id=${uid}`),
         api.get<{ items: { amount: number }[] }>(`/expenses?start_date=${month.start}&end_date=${month.end}&pageSize=1000&user_id=${uid}`),
-      ]).then(([todayTs, weekTs, monthTs, pending, todayExp, weekExp, monthExp]) => {
+        api.get<{ items: { status: string }[] }>(`/expenses?status=pending&pageSize=1000&user_id=${uid}`),
+      ]).then(([todayTs, weekTs, monthTs, pending, todayExp, weekExp, monthExp, pendingExp]) => {
         setWidgets([
           { label: 'Minhas Horas Hoje', value: fmtHours(sumMinutes((todayTs as any)?.items ?? [])), icon: <Clock size={16} /> },
           { label: 'Minhas Horas da Semana', value: fmtHours(sumMinutes((weekTs as any)?.items ?? [])), icon: <Clock size={16} /> },
@@ -143,6 +144,7 @@ export default function DashboardPage() {
           { label: 'Minhas Despesas Hoje', value: fmtBRL(sumAmount((todayExp as any)?.items ?? [])), icon: <Receipt size={16} /> },
           { label: 'Minhas Despesas da Semana', value: fmtBRL(sumAmount((weekExp as any)?.items ?? [])), icon: <Receipt size={16} /> },
           { label: 'Minhas Despesas do Mês', value: fmtBRL(sumAmount((monthExp as any)?.items ?? [])), icon: <Receipt size={16} /> },
+          { label: 'Despesas Pendentes de Aprovação', value: String((pendingExp as any)?.items?.length ?? 0), icon: <Receipt size={16} /> },
         ])
       }).catch(() => {}).finally(() => setLoading(false))
     }
@@ -165,7 +167,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {loading || authLoading
-            ? Array.from({ length: isAdmin ? 5 : 7 }).map((_, i) => (
+            ? Array.from({ length: isAdmin ? 5 : 8 }).map((_, i) => (
                 <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
                   <Skeleton className="h-3 w-32 mb-3" />
                   <Skeleton className="h-8 w-20" />
