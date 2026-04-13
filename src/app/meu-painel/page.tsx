@@ -625,12 +625,18 @@ function StatusBadge({ status, display }: { status: string; display?: string }) 
 interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }
 
 function RowMenu({ items }: { items: RowMenuItem[] }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  if (items.length === 0) return null
+  const [open, setOpen]       = useState(false)
+  const [openUp, setOpenUp]   = useState(false)
+  const ref    = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
+    // Decide se abre para cima ou para baixo
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setOpenUp(rect.bottom + 130 > window.innerHeight)
+    }
     function handler(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
@@ -638,16 +644,20 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  if (items.length === 0) return null
+
   return (
     <div ref={ref} className="relative flex justify-end">
-      <button
+      <button ref={btnRef}
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
         className={`p-1.5 rounded transition-colors ${open ? 'text-zinc-200 bg-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
       >
         <MoreVertical size={14} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl py-1 overflow-hidden">
+        <div className={`absolute right-0 z-50 min-w-[140px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl py-1 overflow-hidden ${
+          openUp ? 'bottom-full mb-1' : 'top-full mt-1'
+        }`}>
           {items.map((item, i) => (
             <button key={i} onClick={() => { item.onClick(); setOpen(false) }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors text-left ${
