@@ -1914,69 +1914,94 @@ export default function MeuPainelPage() {
             </div>
           </div>
 
-          {/* ── Horas Faturáveis vs Internas + Projeção ──────────────────────── */}
-          <div className="grid md:grid-cols-2 gap-4">
-
-            {/* Faturáveis vs Internas */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-              <h3 className="text-xs font-semibold text-zinc-300 mb-4 uppercase tracking-wider">
-                Horas Faturáveis vs Internas
-              </h3>
-              <div className="flex items-end gap-3 mb-4">
-                <div>
-                  <div className="text-2xl font-bold text-cyan-400">{minutesToHours(billableMin)}</div>
-                  <div className="text-[11px] text-zinc-500 mt-0.5">Faturáveis ({billablePct}%)</div>
+          {/* ── Ritmo & Progresso ────────────────────────────────────────────── */}
+          {(() => {
+            const avgHPerDay    = daysWorked > 0 ? workedHours / daysWorked : 0
+            const remainingWD   = isCurrentMonth ? Math.max(0, workingDaysInMonth - elapsedWD) : 0
+            const targetMin     = guaranteedHours !== null ? Number(guaranteedHours) * 60 : null
+            const targetPct     = targetMin !== null && targetMin > 0
+              ? Math.min(100, Math.round((tsTotalMin / targetMin) * 100))
+              : null
+            const remainingToTarget = targetMin !== null ? Math.max(0, targetMin - tsTotalMin) : null
+            return (
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Ritmo & Progresso</h3>
+                  {!isCurrentMonth && (
+                    <span className="text-[10px] text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-full">Mês encerrado</span>
+                  )}
                 </div>
-                <div className="text-zinc-700 text-lg font-light mb-1">vs</div>
-                <div>
-                  <div className="text-2xl font-bold text-zinc-400">{minutesToHours(internalMin)}</div>
-                  <div className="text-[11px] text-zinc-500 mt-0.5">Internas ({100 - billablePct}%)</div>
-                </div>
-              </div>
-              {/* Barra de proporção */}
-              <div className="h-2.5 rounded-full bg-zinc-800 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all duration-500"
-                  style={{ width: `${billablePct}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-[10px] text-zinc-600 mt-1.5">
-                <span>Faturável</span><span>Interno</span>
-              </div>
-            </div>
-
-            {/* Projeção do mês */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-              <h3 className="text-xs font-semibold text-zinc-300 mb-4 uppercase tracking-wider">
-                Projeção do Mês
-              </h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">Horas projetadas</span>
-                  <span className="text-sm font-bold text-white font-mono">{minutesToHours(Math.round(projectedHours * 60))}</span>
-                </div>
-                {projectedValue !== null && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500">Valor projetado</span>
-                    <span className="text-sm font-bold text-cyan-400">{formatBRL(projectedValue)}</span>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
+                  <div>
+                    <div className="text-[11px] text-zinc-500 mb-1">Dias úteis decorridos</div>
+                    <div className="text-lg font-bold text-white">{elapsedWD} <span className="text-xs font-normal text-zinc-500">de {workingDaysInMonth}</span></div>
                   </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">Progresso do mês</span>
-                  <span className="text-xs text-zinc-400">{projectedPct}% dos dias úteis</span>
+                  <div>
+                    <div className="text-[11px] text-zinc-500 mb-1">Dias com apontamento</div>
+                    <div className="text-lg font-bold text-white">{daysWorked} <span className="text-xs font-normal text-zinc-500">dias</span></div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-zinc-500 mb-1">Média por dia</div>
+                    <div className="text-lg font-bold text-white font-mono">{avgHPerDay.toFixed(1)}<span className="text-xs font-normal text-zinc-500">h/dia</span></div>
+                  </div>
+                  {isCurrentMonth && remainingWD > 0 ? (
+                    <div>
+                      <div className="text-[11px] text-zinc-500 mb-1">Dias úteis restantes</div>
+                      <div className="text-lg font-bold text-yellow-400">{remainingWD} <span className="text-xs font-normal text-zinc-500">dias</span></div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-[11px] text-zinc-500 mb-1">Total apontado</div>
+                      <div className="text-lg font-bold text-white font-mono">{minutesToHours(tsTotalMin)}</div>
+                    </div>
+                  )}
                 </div>
-                <div className="h-2 rounded-full bg-zinc-800 overflow-hidden mt-1">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all duration-500"
-                    style={{ width: `${projectedPct}%` }}
-                  />
+
+                {/* Barra de progresso do mês */}
+                <div className="mb-1.5 flex items-center justify-between text-[11px] text-zinc-500">
+                  <span>Progresso do mês</span>
+                  <span>{projectedPct}% dos dias úteis</span>
                 </div>
-                {!isCurrentMonth && (
-                  <p className="text-[10px] text-zinc-600 mt-1">Mês encerrado — valores finais</p>
-                )}
+                <div className="h-2 rounded-full bg-zinc-800 overflow-hidden mb-4">
+                  <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all duration-500"
+                    style={{ width: `${projectedPct}%` }} />
+                </div>
+
+                {/* Meta de horas (se configurada) */}
+                {targetMin !== null && targetPct !== null ? (
+                  <>
+                    <div className="mb-1.5 flex items-center justify-between text-[11px] text-zinc-500">
+                      <span>Meta de horas ({minutesToHours(targetMin)})</span>
+                      <span className={targetPct >= 100 ? 'text-green-400 font-semibold' : 'text-zinc-400'}>
+                        {targetPct}% concluído
+                        {remainingToTarget !== null && remainingToTarget > 0 && ` · faltam ${minutesToHours(remainingToTarget)}`}
+                        {targetPct >= 100 && ' ✓ atingida'}
+                      </span>
+                    </div>
+                    <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-500 ${targetPct >= 100 ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gradient-to-r from-cyan-500 to-cyan-400'}`}
+                        style={{ width: `${targetPct}%` }} />
+                    </div>
+                    {estimatedValue !== null && (
+                      <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
+                        <span className="text-[11px] text-zinc-500">Valor pelo mês completo</span>
+                        <span className="text-sm font-bold text-cyan-400">{formatBRL(billableHours * hourlyRate)}</span>
+                      </div>
+                    )}
+                  </>
+                ) : estimatedValue !== null && isCurrentMonth && remainingWD > 0 ? (
+                  <div className="pt-3 border-t border-zinc-800 flex items-center justify-between">
+                    <span className="text-[11px] text-zinc-500">
+                      Se mantiver o ritmo de {avgHPerDay.toFixed(1)}h/dia nos {remainingWD} dias restantes
+                    </span>
+                    <span className="text-sm font-bold text-cyan-400">
+                      {formatBRL((workedHours + avgHPerDay * remainingWD) * hourlyRate)}
+                    </span>
+                  </div>
+                ) : null}
               </div>
-            </div>
-          </div>
+            )
+          })()}
 
           {/* ── Distribuição por Cliente ──────────────────────────────────────── */}
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
