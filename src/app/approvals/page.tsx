@@ -9,7 +9,7 @@ import {
   CheckSquare, Clock, Receipt, ChevronLeft, ChevronRight,
   Check, XCircle, X, Filter, ChevronDown, Eye, Pencil,
 } from 'lucide-react'
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 
@@ -68,6 +68,98 @@ function fmtMin(minutes: number) {
 
 function fmtBRL(val: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
+}
+
+// ─── SearchableSelect ─────────────────────────────────────────────────────────
+
+interface SelectOption { id: number | string; name: string }
+
+function SearchableSelect({
+  value, onChange, options, placeholder = 'Todos', label,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: SelectOption[]
+  placeholder?: string
+  label: string
+}) {
+  const [open,    setOpen]    = useState(false)
+  const [search,  setSearch]  = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  const filtered = useMemo(() =>
+    options.filter(o => o.name.toLowerCase().includes(search.toLowerCase())),
+    [options, search]
+  )
+
+  const selected = options.find(o => String(o.id) === value)
+
+  // Fecha ao clicar fora
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false); setSearch('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const select = (id: string) => {
+    onChange(id); setOpen(false); setSearch('')
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <Label className="text-[11px] text-zinc-500 mb-1 block">{label}</Label>
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setSearch('') }}
+        className="w-full h-8 flex items-center justify-between gap-1 px-2 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-md outline-none hover:border-zinc-500 transition-colors">
+        <span className={`truncate ${!selected ? 'text-zinc-500' : ''}`}>
+          {selected ? selected.name : placeholder}
+        </span>
+        <ChevronDown size={11} className={`shrink-0 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full min-w-[180px] bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl overflow-hidden">
+          {/* Campo de busca */}
+          <div className="p-1.5 border-b border-zinc-800">
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full h-7 px-2 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded outline-none placeholder:text-zinc-600 focus:border-zinc-500"
+            />
+          </div>
+          {/* Opções */}
+          <div className="max-h-48 overflow-y-auto py-0.5">
+            <button type="button" onClick={() => select('')}
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${
+                !value ? 'bg-blue-600/20 text-blue-300' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+              }`}>
+              {!value && <Check size={10} className="shrink-0" />}
+              <span className={!value ? '' : 'ml-[14px]'}>{placeholder}</span>
+            </button>
+            {filtered.length === 0 && (
+              <p className="px-3 py-2 text-[11px] text-zinc-600 italic">Nenhum resultado</p>
+            )}
+            {filtered.map(o => (
+              <button key={o.id} type="button" onClick={() => select(String(o.id))}
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${
+                  String(o.id) === value ? 'bg-blue-600/20 text-blue-300' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                }`}>
+                {String(o.id) === value && <Check size={10} className="shrink-0" />}
+                <span className={String(o.id) === value ? '' : 'ml-[14px]'}>{o.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── Modal: visualizar apontamento ───────────────────────────────────────────
@@ -476,46 +568,36 @@ export default function ApprovalsPage() {
                 <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
                   className="h-8 text-xs bg-zinc-800 border-zinc-700 text-zinc-200" />
               </div>
-              <div>
-                <Label className="text-[11px] text-zinc-500 mb-1 block">Colaborador</Label>
-                <select value={userId} onChange={e => setUserId(e.target.value)}
-                  className="w-full h-8 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-md px-2 outline-none">
-                  <option value="">Todos</option>
-                  {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <Label className="text-[11px] text-zinc-500 mb-1 block">Coordenador</Label>
-                <select value={coordinatorId} onChange={e => setCoordinatorId(e.target.value)}
-                  className="w-full h-8 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-md px-2 outline-none">
-                  <option value="">Todos</option>
-                  {coordinators.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <Label className="text-[11px] text-zinc-500 mb-1 block">Executivo</Label>
-                <select value={executiveId} onChange={e => setExecutiveId(e.target.value)}
-                  className="w-full h-8 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-md px-2 outline-none">
-                  <option value="">Todos</option>
-                  {executives.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <Label className="text-[11px] text-zinc-500 mb-1 block">Cliente</Label>
-                <select value={customerId} onChange={e => { setCustomerId(e.target.value); setProjectId('') }}
-                  className="w-full h-8 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-md px-2 outline-none">
-                  <option value="">Todos</option>
-                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <Label className="text-[11px] text-zinc-500 mb-1 block">Projeto</Label>
-                <select value={projectId} onChange={e => setProjectId(e.target.value)}
-                  className="w-full h-8 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-md px-2 outline-none">
-                  <option value="">Todos</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
+              <SearchableSelect
+                label="Colaborador"
+                value={userId}
+                onChange={setUserId}
+                options={users}
+              />
+              <SearchableSelect
+                label="Coordenador"
+                value={coordinatorId}
+                onChange={setCoordinatorId}
+                options={coordinators}
+              />
+              <SearchableSelect
+                label="Executivo"
+                value={executiveId}
+                onChange={setExecutiveId}
+                options={executives}
+              />
+              <SearchableSelect
+                label="Cliente"
+                value={customerId}
+                onChange={v => { setCustomerId(v); setProjectId('') }}
+                options={customers}
+              />
+              <SearchableSelect
+                label="Projeto"
+                value={projectId}
+                onChange={setProjectId}
+                options={projects}
+              />
             </div>
             {hasFilters && (
               <button onClick={clearFilters}
