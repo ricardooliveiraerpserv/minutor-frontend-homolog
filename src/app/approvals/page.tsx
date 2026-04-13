@@ -399,7 +399,7 @@ export default function ApprovalsPage() {
   const [actioning,    setActioning]    = useState<number | null>(null)
   const [rejectModal,  setRejectModal]  = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] })
   const [rejectReason, setRejectReason] = useState('')
-  const [adjModal,     setAdjModal]     = useState<{ open: boolean; id: number | null }>({ open: false, id: null })
+  const [adjModal,     setAdjModal]     = useState<{ open: boolean; id: number | null; type: 'timesheet' | 'expense' }>({ open: false, id: null, type: 'expense' })
   const [adjReason,    setAdjReason]    = useState('')
   const [adjLoading,   setAdjLoading]   = useState(false)
 
@@ -527,15 +527,18 @@ export default function ApprovalsPage() {
     finally { setApproving(false) }
   }
 
-  // Request adjustment on expense (from row button)
+  // Request adjustment (from row button) — works for both timesheets and expenses
   const handleAdjustment = async () => {
     if (!adjModal.id || !adjReason.trim()) return
     setAdjLoading(true)
     try {
-      await api.post(`/expenses/${adjModal.id}/request-adjustment`, { reason: adjReason.trim() })
+      const endpoint = adjModal.type === 'timesheet'
+        ? `/timesheets/${adjModal.id}/request-adjustment`
+        : `/expenses/${adjModal.id}/request-adjustment`
+      await api.post(endpoint, { reason: adjReason.trim() })
       toast.success('Ajuste solicitado ao colaborador')
-      setAdjModal({ open: false, id: null }); setAdjReason('')
-      loadExp()
+      setAdjModal({ open: false, id: null, type: 'expense' }); setAdjReason('')
+      if (adjModal.type === 'timesheet') loadTs(); else loadExp()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao solicitar ajuste') }
     finally { setAdjLoading(false) }
   }
@@ -773,6 +776,10 @@ export default function ApprovalsPage() {
                       className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-green-400 hover:bg-green-400/10 transition-colors">
                       <Check size={13} />
                     </button>
+                    <button onClick={() => { setAdjModal({ open: true, id: ts.id, type: 'timesheet' }); setAdjReason('') }} title="Solicitar ajuste"
+                      className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-blue-400 hover:bg-blue-400/10 transition-colors">
+                      <RotateCcw size={12} />
+                    </button>
                     <button onClick={() => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }} title="Rejeitar"
                       className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors">
                       <XCircle size={13} />
@@ -802,7 +809,7 @@ export default function ApprovalsPage() {
                       className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-green-400 hover:bg-green-400/10 transition-colors">
                       <Check size={13} />
                     </button>
-                    <button onClick={() => { setAdjModal({ open: true, id: exp.id }); setAdjReason('') }} title="Solicitar ajuste"
+                    <button onClick={() => { setAdjModal({ open: true, id: exp.id, type: 'expense' }); setAdjReason('') }} title="Solicitar ajuste"
                       className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-blue-400 hover:bg-blue-400/10 transition-colors">
                       <RotateCcw size={12} />
                     </button>
@@ -881,7 +888,7 @@ export default function ApprovalsPage() {
               className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-zinc-600"
             />
             <div className="flex gap-2 mt-4 justify-end">
-              <Button variant="outline" onClick={() => { setAdjModal({ open: false, id: null }); setAdjReason('') }}
+              <Button variant="outline" onClick={() => { setAdjModal({ open: false, id: null, type: 'expense' }); setAdjReason('') }}
                 className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
               <Button onClick={handleAdjustment} disabled={adjLoading || !adjReason.trim()}
                 className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">

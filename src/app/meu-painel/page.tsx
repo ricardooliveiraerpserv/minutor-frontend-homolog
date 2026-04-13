@@ -75,7 +75,7 @@ const STATUS_LABELS: Record<string, string> = {
   approved:             'Aprovado',
   rejected:             'Rejeitado',
   conflicted:           'Conflito',
-  adjustment_requested: 'Ajuste',
+  adjustment_requested: 'Ajuste Solicitado',
 }
 
 const PAYMENT_FALLBACK = [
@@ -343,10 +343,11 @@ function ReceiptLinkInline({ url }: { url: string }) {
 
 const TS_STATUS_OPTS  = [
   { value: '', label: 'Todos' },
-  { value: 'pending',    label: 'Pendente' },
-  { value: 'approved',   label: 'Aprovado' },
-  { value: 'rejected',   label: 'Rejeitado' },
-  { value: 'conflicted', label: 'Conflito' },
+  { value: 'pending',              label: 'Pendente' },
+  { value: 'approved',             label: 'Aprovado' },
+  { value: 'rejected',             label: 'Rejeitado' },
+  { value: 'conflicted',           label: 'Conflito' },
+  { value: 'adjustment_requested', label: 'Ajuste' },
 ]
 const EXP_STATUS_OPTS = [
   { value: '', label: 'Todos' },
