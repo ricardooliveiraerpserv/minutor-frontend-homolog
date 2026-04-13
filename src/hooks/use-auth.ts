@@ -19,8 +19,12 @@ export function useAuth() {
         ? raw.roles.filter((r: any) => typeof r === 'string')
         : []
       setUser({ ...raw, roles })
-    } catch {
-      localStorage.removeItem('minutor_token')
+    } catch (e) {
+      // Só remove o token se for 401 (não autorizado de verdade)
+      // Erros de rede/timeout no cold start do Render não devem deslogar o usuário
+      if (e instanceof ApiError && e.status === 401) {
+        localStorage.removeItem('minutor_token')
+      }
     } finally {
       setLoading(false)
     }
