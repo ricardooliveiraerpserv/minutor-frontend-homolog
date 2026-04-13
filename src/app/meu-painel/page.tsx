@@ -1021,9 +1021,9 @@ export default function MeuPainelPage() {
               />
             )}
             <SummaryCard
-              label="Aprovações"
-              value={`${approvedTs} / ${timesheets.length}`}
-              sub={`${pendingTs} pendente${pendingTs !== 1 ? 's' : ''}`}
+              label="Apontamentos Pendentes"
+              value={String(pendingTs)}
+              sub={`${approvedTs} aprovado${approvedTs !== 1 ? 's' : ''} de ${timesheets.length}`}
               icon={BarChart2}
               accent="bg-purple-500/15 text-purple-400"
             />
