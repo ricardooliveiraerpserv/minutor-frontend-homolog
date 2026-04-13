@@ -337,7 +337,7 @@ function RolesTab() {
 
   const openPerms = async (role: Role) => {
     setPermModal(role)
-    setSelectedPerms(role.permissions?.map(p => p.id) ?? [])
+    setSelectedPerms(role.permissions?.map(p => p.name) ?? [])
     setUserSearch('')
     // Carrega permissões disponíveis (só uma vez)
     if (allPerms.length === 0) {
@@ -463,10 +463,10 @@ function RolesTab() {
                     {(group.permissions ?? []).map(p => (
                       <label key={p.id} className="flex items-center gap-2 cursor-pointer group">
                         <div
-                          onClick={() => setSelectedPerms(s => s.includes(p.id) ? s.filter(x => x !== p.id) : [...s, p.id])}
-                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${selectedPerms.includes(p.id) ? 'bg-blue-600 border-blue-600' : 'border-zinc-600 hover:border-zinc-400'}`}
+                          onClick={() => setSelectedPerms(s => s.includes(p.name) ? s.filter(x => x !== p.name) : [...s, p.name])}
+                          className={`w-4 h-4 rounded border flex items-center justify-center transition-colors cursor-pointer ${selectedPerms.includes(p.name) ? 'bg-blue-600 border-blue-600' : 'border-zinc-600 hover:border-zinc-400'}`}
                         >
-                          {selectedPerms.includes(p.id) && <Check size={10} className="text-white" />}
+                          {selectedPerms.includes(p.name) && <Check size={10} className="text-white" />}
                         </div>
                         <span className="text-xs text-zinc-300 group-hover:text-white transition-colors">{PERMISSION_LABELS[p.name] ?? p.description ?? p.name}</span>
                       </label>
