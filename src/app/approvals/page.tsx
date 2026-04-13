@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import {
   CheckSquare, Clock, Receipt, ChevronLeft, ChevronRight,
-  Check, XCircle, X, Search, Filter, ChevronDown,
+  Check, XCircle, X, Filter, ChevronDown,
 } from 'lucide-react'
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { api, ApiError } from '@/lib/api'
@@ -41,6 +41,8 @@ interface Pagination {
   last_page: number
   total: number
   per_page: number
+  from?: number
+  to?: number
 }
 
 interface UserOption    { id: number; name: string }
