@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import {
   CheckSquare, Clock, Receipt, ChevronLeft, ChevronRight,
-  Check, XCircle, X, Filter, ChevronDown,
+  Check, XCircle, X, Filter, ChevronDown, Eye, Pencil,
 } from 'lucide-react'
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { api, ApiError } from '@/lib/api'
@@ -22,6 +22,7 @@ interface TSItem {
   project?: { id: number; name: string; customer?: { id: number; name: string } }
   effort_minutes: number
   observation?: string
+  ticket?: string
   status: string
 }
 
@@ -33,6 +34,10 @@ interface ExpItem {
   category?: { id: number; name: string }
   amount: number
   description: string
+  expense_type?: string
+  payment_method?: string
+  charge_client: boolean
+  receipt_url?: string
   status: string
 }
 
@@ -65,22 +70,158 @@ function fmtBRL(val: number) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val)
 }
 
+// ─── Modal: visualizar apontamento ───────────────────────────────────────────
+
+function TsViewModal({ item, onClose }: { item: TSItem; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+          <h3 className="text-sm font-semibold text-white">Apontamento</h3>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300"><X size={15} /></button>
+        </div>
+        <div className="px-5 py-4 space-y-3 text-xs">
+          <Row label="Colaborador"  value={item.user?.name} />
+          <Row label="Data"         value={fmt(item.date)} />
+          <Row label="Cliente"      value={item.project?.customer?.name} />
+          <Row label="Projeto"      value={item.project?.name} />
+          <Row label="Tempo"        value={fmtMin(item.effort_minutes)} />
+          {item.ticket && <Row label="Ticket" value={`#${item.ticket}`} />}
+          {item.observation && (
+            <div>
+              <span className="text-zinc-500 block mb-1">Descrição</span>
+              <p className="text-zinc-200 bg-zinc-800 rounded-lg p-3 leading-relaxed">{item.observation}</p>
+            </div>
+          )}
+        </div>
+        <div className="px-5 py-3 border-t border-zinc-800 flex justify-end">
+          <Button variant="outline" onClick={onClose} className="h-8 text-xs border-zinc-700 text-zinc-300">Fechar</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal: visualizar / aprovar despesa ─────────────────────────────────────
+
+function ExpApproveModal({
+  item, onClose, onApprove, onReject, approving,
+}: {
+  item: ExpItem
+  onClose: () => void
+  onApprove: (chargeClient: boolean) => void
+  onReject: () => void
+  approving: boolean
+}) {
+  const [chargeClient, setChargeClient] = useState<boolean | null>(null)
+  const [submitted, setSubmitted] = useState(false)
+
+  const handleApprove = () => {
+    setSubmitted(true)
+    if (chargeClient === null) return
+    onApprove(chargeClient)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+          <h3 className="text-sm font-semibold text-white">Aprovação de Despesa</h3>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300"><X size={15} /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-3 text-xs">
+          <Row label="Colaborador"  value={item.user?.name} />
+          <Row label="Data"         value={fmt(item.expense_date)} />
+          <Row label="Cliente"      value={item.project?.customer?.name} />
+          <Row label="Projeto"      value={item.project?.name} />
+          <Row label="Categoria"    value={item.category?.name} />
+          <Row label="Valor"        value={fmtBRL(parseFloat(String(item.amount)) || 0)} highlight />
+          <div>
+            <span className="text-zinc-500 block mb-1">Descrição</span>
+            <p className="text-zinc-200 bg-zinc-800 rounded-lg p-3 leading-relaxed">{item.description || '—'}</p>
+          </div>
+          {item.receipt_url && (
+            <a href={item.receipt_url} target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 underline">
+              Ver comprovante
+            </a>
+          )}
+
+          {/* Campo obrigatório: cobrar do cliente */}
+          <div className="pt-2 border-t border-zinc-800">
+            <Label className={`text-xs mb-2 block font-semibold ${submitted && chargeClient === null ? 'text-red-400' : 'text-zinc-300'}`}>
+              Cobrar do cliente? *
+            </Label>
+            <div className="flex gap-3">
+              <button type="button"
+                onClick={() => setChargeClient(true)}
+                className={`flex-1 py-2.5 rounded-lg border text-xs font-medium transition-all ${
+                  chargeClient === true
+                    ? 'bg-green-600/20 border-green-500 text-green-300'
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                }`}>
+                Sim — cobrar do cliente
+              </button>
+              <button type="button"
+                onClick={() => setChargeClient(false)}
+                className={`flex-1 py-2.5 rounded-lg border text-xs font-medium transition-all ${
+                  chargeClient === false
+                    ? 'bg-orange-600/20 border-orange-500 text-orange-300'
+                    : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                }`}>
+                Não — absorver internamente
+              </button>
+            </div>
+            {submitted && chargeClient === null && (
+              <p className="text-red-400 text-[11px] mt-1.5">Selecione uma opção antes de aprovar</p>
+            )}
+          </div>
+        </div>
+
+        <div className="px-5 py-3 border-t border-zinc-800 flex gap-2 justify-end">
+          <Button variant="outline" onClick={onReject}
+            className="h-8 text-xs border-red-700/50 text-red-400 hover:bg-red-400/10">
+            <XCircle size={12} className="mr-1" /> Rejeitar
+          </Button>
+          <Button variant="outline" onClick={onClose}
+            className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+          <Button onClick={handleApprove} disabled={approving}
+            className="h-8 text-xs bg-green-600 hover:bg-green-500 text-white">
+            <Check size={12} className="mr-1" />
+            {approving ? 'Aprovando...' : 'Aprovar'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Row({ label, value, highlight }: { label: string; value?: string | null; highlight?: boolean }) {
+  return (
+    <div className="flex justify-between gap-2">
+      <span className="text-zinc-500 shrink-0">{label}</span>
+      <span className={`text-right font-medium ${highlight ? 'text-cyan-400' : 'text-zinc-200'}`}>{value || '—'}</span>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ApprovalsPage() {
   const [tab, setTab] = useState<'timesheets' | 'expenses'>('timesheets')
 
   // Filters
-  const [dateFrom,       setDateFrom]       = useState('')
-  const [dateTo,         setDateTo]         = useState('')
-  const [userId,         setUserId]         = useState('')
-  const [coordinatorId,  setCoordinatorId]  = useState('')
-  const [executiveId,    setExecutiveId]    = useState('')
-  const [projectId,      setProjectId]      = useState('')
-  const [customerId,     setCustomerId]     = useState('')
-  const [showFilters,    setShowFilters]    = useState(true)
+  const [dateFrom,      setDateFrom]      = useState('')
+  const [dateTo,        setDateTo]        = useState('')
+  const [userId,        setUserId]        = useState('')
+  const [coordinatorId, setCoordinatorId] = useState('')
+  const [executiveId,   setExecutiveId]   = useState('')
+  const [projectId,     setProjectId]     = useState('')
+  const [customerId,    setCustomerId]    = useState('')
+  const [showFilters,   setShowFilters]   = useState(true)
 
-  // Support data for filters
+  // Support data
   const [users,        setUsers]        = useState<UserOption[]>([])
   const [coordinators, setCoordinators] = useState<UserOption[]>([])
   const [executives,   setExecutives]   = useState<UserOption[]>([])
@@ -88,50 +229,50 @@ export default function ApprovalsPage() {
   const [customers,    setCustomers]    = useState<CustomerOption[]>([])
 
   // List state
-  const [tsItems,   setTsItems]   = useState<TSItem[]>([])
-  const [expItems,  setExpItems]  = useState<ExpItem[]>([])
-  const [tsPag,     setTsPag]     = useState<Pagination | null>(null)
-  const [expPag,    setExpPag]    = useState<Pagination | null>(null)
-  const [tsLoading, setTsLoading] = useState(true)
-  const [expLoading,setExpLoading]= useState(true)
-  const [tsPage,    setTsPage]    = useState(1)
-  const [expPage,   setExpPage]   = useState(1)
+  const [tsItems,    setTsItems]    = useState<TSItem[]>([])
+  const [expItems,   setExpItems]   = useState<ExpItem[]>([])
+  const [tsPag,      setTsPag]      = useState<Pagination | null>(null)
+  const [expPag,     setExpPag]     = useState<Pagination | null>(null)
+  const [tsLoading,  setTsLoading]  = useState(true)
+  const [expLoading, setExpLoading] = useState(true)
+  const [tsPage,     setTsPage]     = useState(1)
+  const [expPage,    setExpPage]    = useState(1)
 
-  // Selection & actions
+  // Selection & actions (only timesheets use bulk)
   const [selected,     setSelected]     = useState<number[]>([])
   const [approving,    setApproving]    = useState(false)
   const [actioning,    setActioning]    = useState<number | null>(null)
   const [rejectModal,  setRejectModal]  = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] })
   const [rejectReason, setRejectReason] = useState('')
 
+  // View / approve-expense modals
+  const [tsView,       setTsView]       = useState<TSItem | null>(null)
+  const [expApprove,   setExpApprove]   = useState<ExpItem | null>(null)
+
   // Load support data
   useEffect(() => {
-    // Todos os usuários (colaboradores)
     api.get<any>('/users?pageSize=500').then(r => {
-      const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-      setUsers(list.map((u: any) => ({ id: u.id, name: u.name })))
+      const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+      setUsers(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
-    // Coordenadores
     api.get<any>('/users?pageSize=500&role=Coordenador').then(r => {
-      const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-      setCoordinators(list.map((u: any) => ({ id: u.id, name: u.name })))
+      const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+      setCoordinators(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
-    // Executivos (is_executive = true)
     api.get<any>('/users?pageSize=500&is_executive=true').then(r => {
-      const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-      setExecutives(list.map((u: any) => ({ id: u.id, name: u.name })))
+      const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+      setExecutives(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
     api.get<any>('/projects?pageSize=500').then(r => {
-      const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-      setProjects(list.map((p: any) => ({ id: p.id, name: p.name })))
+      const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+      setProjects(l.map((p: any) => ({ id: p.id, name: p.name })))
     }).catch(() => {})
     api.get<any>('/customers?pageSize=500').then(r => {
-      const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-      setCustomers(list.map((c: any) => ({ id: c.id, name: c.name })))
+      const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+      setCustomers(l.map((c: any) => ({ id: c.id, name: c.name })))
     }).catch(() => {})
   }, [])
 
-  // Build filter params
   const filterParams = useMemo(() => {
     const p = new URLSearchParams()
     if (dateFrom)      p.set('date_from',      dateFrom)
@@ -144,13 +285,11 @@ export default function ApprovalsPage() {
     return p.toString()
   }, [dateFrom, dateTo, userId, coordinatorId, executiveId, projectId, customerId])
 
-  // Load timesheets
   const loadTs = useCallback(async () => {
     setTsLoading(true)
     try {
       const p = new URLSearchParams(filterParams)
-      p.set('page',     String(tsPage))
-      p.set('per_page', '30')
+      p.set('page', String(tsPage)); p.set('per_page', '30')
       const r = await api.get<any>(`/approvals/timesheets?${p}`)
       setTsItems(Array.isArray(r?.data) ? r.data : [])
       setTsPag(r?.pagination ?? null)
@@ -158,13 +297,11 @@ export default function ApprovalsPage() {
     finally { setTsLoading(false) }
   }, [tsPage, filterParams])
 
-  // Load expenses
   const loadExp = useCallback(async () => {
     setExpLoading(true)
     try {
       const p = new URLSearchParams(filterParams)
-      p.set('page',     String(expPage))
-      p.set('per_page', '30')
+      p.set('page', String(expPage)); p.set('per_page', '30')
       const r = await api.get<any>(`/approvals/expenses?${p}`)
       setExpItems(Array.isArray(r?.data) ? r.data : [])
       setExpPag(r?.pagination ?? null)
@@ -174,8 +311,6 @@ export default function ApprovalsPage() {
 
   useEffect(() => { loadTs() },  [loadTs])
   useEffect(() => { loadExp() }, [loadExp])
-
-  // Reset pages when filters change
   useEffect(() => { setTsPage(1); setExpPage(1); setSelected([]) }, [filterParams])
 
   const clearFilters = () => {
@@ -184,52 +319,52 @@ export default function ApprovalsPage() {
   }
   const hasFilters = !!(dateFrom || dateTo || userId || coordinatorId || executiveId || projectId || customerId)
 
-  // Current tab data
+  // Timesheets: bulk allowed
   const currentItems   = tab === 'timesheets' ? tsItems   : expItems
   const currentLoading = tab === 'timesheets' ? tsLoading : expLoading
   const currentPag     = tab === 'timesheets' ? tsPag     : expPag
 
   const allSelected = currentItems.length > 0 && currentItems.every(i => selected.includes(i.id))
-
-  const toggleAll = () => {
+  const toggleAll   = () => {
     if (allSelected) setSelected(s => s.filter(id => !currentItems.find(i => i.id === id)))
     else setSelected(s => [...new Set([...s, ...currentItems.map(i => i.id)])])
   }
   const toggleOne = (id: number) =>
     setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
 
-  // Approve one
-  const approveOne = async (id: number) => {
+  // Approve timesheet (direct)
+  const approveTs = async (id: number) => {
     setActioning(id)
     try {
-      if (tab === 'timesheets') {
-        await api.post(`/timesheets/${id}/approve`, {})
-        toast.success('Apontamento aprovado')
-        loadTs()
-      } else {
-        await api.post(`/expenses/${id}/approve`, { charge_client: false })
-        toast.success('Despesa aprovada')
-        loadExp()
-      }
+      await api.post(`/timesheets/${id}/approve`, {})
+      toast.success('Apontamento aprovado')
+      loadTs()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao aprovar') }
     finally { setActioning(null) }
   }
 
-  // Bulk approve
-  const bulkApprove = async () => {
+  // Approve expense (via modal with charge_client)
+  const approveExp = async (chargeClient: boolean) => {
+    if (!expApprove) return
+    setApproving(true)
+    try {
+      await api.post(`/expenses/${expApprove.id}/approve`, { charge_client: chargeClient })
+      toast.success('Despesa aprovada')
+      setExpApprove(null)
+      loadExp()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao aprovar') }
+    finally { setApproving(false) }
+  }
+
+  // Bulk approve timesheets only
+  const bulkApproveTs = async () => {
     if (!selected.length) return
     setApproving(true)
     try {
-      if (tab === 'timesheets') {
-        await api.post('/approvals/timesheets/bulk-approve', { timesheet_ids: selected })
-        toast.success(`${selected.length} apontamento(s) aprovado(s)`)
-        loadTs()
-      } else {
-        await api.post('/approvals/expenses/bulk-approve', { expense_ids: selected })
-        toast.success(`${selected.length} despesa(s) aprovada(s)`)
-        loadExp()
-      }
+      await api.post('/approvals/timesheets/bulk-approve', { timesheet_ids: selected })
+      toast.success(`${selected.length} apontamento(s) aprovado(s)`)
       setSelected([])
+      loadTs()
     } catch { toast.error('Erro ao aprovar em lote') }
     finally { setApproving(false) }
   }
@@ -247,11 +382,9 @@ export default function ApprovalsPage() {
         toast.success(`${rejectModal.ids.length} apontamento(s) rejeitado(s)`)
         loadTs()
       } else {
-        if (rejectModal.ids.length === 1)
-          await api.post(`/expenses/${rejectModal.ids[0]}/reject`, { reason: rejectReason })
-        else
-          await api.post('/approvals/expenses/bulk-reject', { expense_ids: rejectModal.ids, reason: rejectReason })
-        toast.success(`${rejectModal.ids.length} despesa(s) rejeitada(s)`)
+        await api.post(`/expenses/${rejectModal.ids[0]}/reject`, { reason: rejectReason })
+        toast.success('Despesa rejeitada')
+        setExpApprove(null)
         loadExp()
       }
       setSelected([])
@@ -261,9 +394,7 @@ export default function ApprovalsPage() {
     finally { setApproving(false) }
   }
 
-  const handleTabChange = (t: 'timesheets' | 'expenses') => {
-    setTab(t); setSelected([])
-  }
+  const handleTabChange = (t: 'timesheets' | 'expenses') => { setTab(t); setSelected([]) }
 
   return (
     <AppLayout title="Aprovações">
@@ -271,7 +402,7 @@ export default function ApprovalsPage() {
       {/* ── Tabs ── */}
       <div className="flex items-center gap-2 mb-5">
         {([
-          { id: 'timesheets' as const, icon: Clock,   label: 'Apontamentos', count: tsPag?.total ?? 0 },
+          { id: 'timesheets' as const, icon: Clock,   label: 'Apontamentos', count: tsPag?.total  ?? 0 },
           { id: 'expenses'   as const, icon: Receipt, label: 'Despesas',     count: expPag?.total ?? 0 },
         ]).map(({ id, icon: Icon, label, count }) => {
           const active = tab === id
@@ -287,9 +418,7 @@ export default function ApprovalsPage() {
               {count > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold ${
                   active ? 'bg-zinc-900/30 text-zinc-900' : 'bg-cyan-400/20 text-cyan-300'
-                }`}>
-                  {count}
-                </span>
+                }`}>{count}</span>
               )}
             </button>
           )
@@ -298,17 +427,13 @@ export default function ApprovalsPage() {
 
       {/* ── Filters ── */}
       <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900">
-        {/* Filter header */}
-        <button
-          onClick={() => setShowFilters(v => !v)}
+        <button onClick={() => setShowFilters(v => !v)}
           className="w-full flex items-center justify-between px-4 py-3 text-xs text-zinc-400 hover:text-zinc-200 transition-colors">
           <div className="flex items-center gap-2">
             <Filter size={13} />
             <span className="font-medium">Filtros</span>
             {hasFilters && (
-              <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full px-2 py-0.5 text-[10px]">
-                ativos
-              </span>
+              <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full px-2 py-0.5 text-[10px]">ativos</span>
             )}
           </div>
           <ChevronDown size={13} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
@@ -317,22 +442,16 @@ export default function ApprovalsPage() {
         {showFilters && (
           <div className="border-t border-zinc-800 px-4 py-3">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-
-              {/* Data de */}
               <div>
                 <Label className="text-[11px] text-zinc-500 mb-1 block">Data de</Label>
                 <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
                   className="h-8 text-xs bg-zinc-800 border-zinc-700 text-zinc-200" />
               </div>
-
-              {/* Data até */}
               <div>
                 <Label className="text-[11px] text-zinc-500 mb-1 block">Data até</Label>
                 <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
                   className="h-8 text-xs bg-zinc-800 border-zinc-700 text-zinc-200" />
               </div>
-
-              {/* Colaborador */}
               <div>
                 <Label className="text-[11px] text-zinc-500 mb-1 block">Colaborador</Label>
                 <select value={userId} onChange={e => setUserId(e.target.value)}
@@ -341,8 +460,6 @@ export default function ApprovalsPage() {
                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </div>
-
-              {/* Coordenador */}
               <div>
                 <Label className="text-[11px] text-zinc-500 mb-1 block">Coordenador</Label>
                 <select value={coordinatorId} onChange={e => setCoordinatorId(e.target.value)}
@@ -351,8 +468,6 @@ export default function ApprovalsPage() {
                   {coordinators.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </div>
-
-              {/* Executivo */}
               <div>
                 <Label className="text-[11px] text-zinc-500 mb-1 block">Executivo</Label>
                 <select value={executiveId} onChange={e => setExecutiveId(e.target.value)}
@@ -361,8 +476,6 @@ export default function ApprovalsPage() {
                   {executives.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               </div>
-
-              {/* Cliente */}
               <div>
                 <Label className="text-[11px] text-zinc-500 mb-1 block">Cliente</Label>
                 <select value={customerId} onChange={e => { setCustomerId(e.target.value); setProjectId('') }}
@@ -371,8 +484,6 @@ export default function ApprovalsPage() {
                   {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
-
-              {/* Projeto */}
               <div>
                 <Label className="text-[11px] text-zinc-500 mb-1 block">Projeto</Label>
                 <select value={projectId} onChange={e => setProjectId(e.target.value)}
@@ -382,7 +493,6 @@ export default function ApprovalsPage() {
                 </select>
               </div>
             </div>
-
             {hasFilters && (
               <button onClick={clearFilters}
                 className="mt-3 text-[11px] text-zinc-500 hover:text-red-400 transition-colors flex items-center gap-1">
@@ -393,13 +503,11 @@ export default function ApprovalsPage() {
         )}
       </div>
 
-      {/* ── Bulk action bar ── */}
-      {selected.length > 0 && (
+      {/* ── Bulk action bar (apontamentos only) ── */}
+      {tab === 'timesheets' && selected.length > 0 && (
         <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600/10 border border-blue-500/20">
-          <span className="text-xs text-blue-300 flex-1">
-            {selected.length} item(ns) selecionado(s)
-          </span>
-          <button onClick={bulkApprove} disabled={approving}
+          <span className="text-xs text-blue-300 flex-1">{selected.length} apontamento(s) selecionado(s)</span>
+          <button onClick={bulkApproveTs} disabled={approving}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-600 hover:bg-green-500 text-white disabled:opacity-50 transition-colors">
             <Check size={12} />{approving ? 'Aprovando...' : 'Aprovar todos'}
           </button>
@@ -418,10 +526,12 @@ export default function ApprovalsPage() {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-zinc-800 bg-zinc-900">
-              <th className="px-3 py-2.5 w-8">
-                <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                  className="rounded border-zinc-600 bg-zinc-800 accent-blue-500" />
-              </th>
+              {tab === 'timesheets' && (
+                <th className="px-3 py-2.5 w-8">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                    className="rounded border-zinc-600 bg-zinc-800 accent-blue-500" />
+                </th>
+              )}
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Data</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Colaborador</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Cliente</th>
@@ -432,20 +542,20 @@ export default function ApprovalsPage() {
               <th className="text-right px-3 py-2.5 text-zinc-500 font-medium">
                 {tab === 'timesheets' ? 'Tempo' : 'Valor'}
               </th>
-              <th className="px-3 py-2.5 w-16 text-right text-zinc-500 font-medium">Ações</th>
+              <th className="px-3 py-2.5 text-right text-zinc-500 font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {/* Loading skeleton */}
+            {/* Loading */}
             {currentLoading && Array.from({ length: 8 }).map((_, i) => (
               <tr key={i} className="border-b border-zinc-800/60">
-                <td className="px-3 py-2.5"><Skeleton className="h-3 w-3" /></td>
+                {tab === 'timesheets' && <td className="px-3 py-2.5"><Skeleton className="h-3 w-3" /></td>}
                 <td className="px-3 py-2.5"><Skeleton className="h-3 w-20" /></td>
                 <td className="px-3 py-2.5"><Skeleton className="h-3 w-28" /></td>
                 <td className="px-3 py-2.5 hidden sm:table-cell"><Skeleton className="h-3 w-24" /></td>
                 <td className="px-3 py-2.5 hidden md:table-cell"><Skeleton className="h-3 w-32" /></td>
                 <td className="px-3 py-2.5"><Skeleton className="h-3 w-14 ml-auto" /></td>
-                <td className="px-3 py-2.5"><Skeleton className="h-3 w-10 ml-auto" /></td>
+                <td className="px-3 py-2.5"><Skeleton className="h-3 w-16 ml-auto" /></td>
               </tr>
             ))}
 
@@ -464,13 +574,11 @@ export default function ApprovalsPage() {
               </tr>
             )}
 
-            {/* Timesheets */}
+            {/* Timesheets rows */}
             {!currentLoading && tab === 'timesheets' && tsItems.map(ts => (
               <tr key={ts.id} onClick={() => toggleOne(ts.id)}
                 className={`border-b border-zinc-800/60 cursor-pointer transition-colors ${
-                  selected.includes(ts.id)
-                    ? 'bg-blue-950/30 border-l-2 border-l-blue-500'
-                    : 'hover:bg-zinc-800/40'
+                  selected.includes(ts.id) ? 'bg-blue-950/30' : 'hover:bg-zinc-800/40'
                 }`}>
                 <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                   <input type="checkbox" checked={selected.includes(ts.id)} onChange={() => toggleOne(ts.id)}
@@ -478,24 +586,20 @@ export default function ApprovalsPage() {
                 </td>
                 <td className="px-3 py-2.5 text-zinc-300 whitespace-nowrap">{fmt(ts.date)}</td>
                 <td className="px-3 py-2.5 text-zinc-200 font-medium">{ts.user?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden sm:table-cell">
-                  {ts.project?.customer?.name ?? '—'}
-                </td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell truncate max-w-[200px]">
-                  {ts.project?.name ?? '—'}
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono text-zinc-300">
-                  {fmtMin(ts.effort_minutes)}
-                </td>
+                <td className="px-3 py-2.5 text-zinc-500 hidden sm:table-cell">{ts.project?.customer?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell truncate max-w-[200px]">{ts.project?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-right font-mono text-zinc-300">{fmtMin(ts.effort_minutes)}</td>
                 <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
-                  <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => approveOne(ts.id)} disabled={actioning === ts.id}
-                      title="Aprovar"
+                  <div className="flex items-center gap-0.5 justify-end">
+                    <button onClick={() => setTsView(ts)} title="Visualizar"
+                      className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-blue-400 hover:bg-blue-400/10 transition-colors">
+                      <Eye size={12} />
+                    </button>
+                    <button onClick={() => approveTs(ts.id)} disabled={actioning === ts.id} title="Aprovar"
                       className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-green-400 hover:bg-green-400/10 transition-colors">
                       <Check size={13} />
                     </button>
-                    <button onClick={() => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }}
-                      title="Rejeitar"
+                    <button onClick={() => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }} title="Rejeitar"
                       className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors">
                       <XCircle size={13} />
                     </button>
@@ -504,41 +608,27 @@ export default function ApprovalsPage() {
               </tr>
             ))}
 
-            {/* Expenses */}
+            {/* Expenses rows */}
             {!currentLoading && tab === 'expenses' && expItems.map(exp => (
-              <tr key={exp.id} onClick={() => toggleOne(exp.id)}
-                className={`border-b border-zinc-800/60 cursor-pointer transition-colors ${
-                  selected.includes(exp.id)
-                    ? 'bg-blue-950/30 border-l-2 border-l-blue-500'
-                    : 'hover:bg-zinc-800/40'
-                }`}>
-                <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
-                  <input type="checkbox" checked={selected.includes(exp.id)} onChange={() => toggleOne(exp.id)}
-                    className="rounded border-zinc-600 bg-zinc-800 accent-blue-500" />
-                </td>
+              <tr key={exp.id}
+                className="border-b border-zinc-800/60 hover:bg-zinc-800/40 transition-colors">
                 <td className="px-3 py-2.5 text-zinc-300 whitespace-nowrap">{fmt(exp.expense_date)}</td>
                 <td className="px-3 py-2.5 text-zinc-200 font-medium">{exp.user?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden sm:table-cell">
-                  {exp.project?.customer?.name ?? '—'}
-                </td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell truncate max-w-[160px]">
-                  {exp.project?.name ?? '—'}
-                </td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden lg:table-cell truncate max-w-[140px]">
-                  {exp.description}
-                </td>
-                <td className="px-3 py-2.5 text-right font-mono text-zinc-300">
-                  {fmtBRL(parseFloat(String(exp.amount)) || 0)}
-                </td>
-                <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
-                  <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => approveOne(exp.id)} disabled={actioning === exp.id}
-                      title="Aprovar"
+                <td className="px-3 py-2.5 text-zinc-500 hidden sm:table-cell">{exp.project?.customer?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell truncate max-w-[160px]">{exp.project?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-400 hidden lg:table-cell truncate max-w-[140px]">{exp.description}</td>
+                <td className="px-3 py-2.5 text-right font-mono text-zinc-300">{fmtBRL(parseFloat(String(exp.amount)) || 0)}</td>
+                <td className="px-3 py-2.5">
+                  <div className="flex items-center gap-0.5 justify-end">
+                    <button onClick={() => setExpApprove(exp)} title="Ver e aprovar"
+                      className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-blue-400 hover:bg-blue-400/10 transition-colors">
+                      <Eye size={12} />
+                    </button>
+                    <button onClick={() => setExpApprove(exp)} title="Aprovar"
                       className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-green-400 hover:bg-green-400/10 transition-colors">
                       <Check size={13} />
                     </button>
-                    <button onClick={() => { setRejectModal({ open: true, ids: [exp.id] }); setRejectReason('') }}
-                      title="Rejeitar"
+                    <button onClick={() => { setRejectModal({ open: true, ids: [exp.id] }); setRejectReason('') }} title="Rejeitar"
                       className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-red-400 hover:bg-red-400/10 transition-colors">
                       <XCircle size={13} />
                     </button>
@@ -578,7 +668,25 @@ export default function ApprovalsPage() {
         </div>
       )}
 
-      {/* ── Modal rejeição ── */}
+      {/* ── Modal: visualizar apontamento ── */}
+      {tsView && <TsViewModal item={tsView} onClose={() => setTsView(null)} />}
+
+      {/* ── Modal: aprovar despesa ── */}
+      {expApprove && (
+        <ExpApproveModal
+          item={expApprove}
+          approving={approving}
+          onClose={() => setExpApprove(null)}
+          onApprove={approveExp}
+          onReject={() => {
+            setRejectModal({ open: true, ids: [expApprove.id] })
+            setRejectReason('')
+            setExpApprove(null)
+          }}
+        />
+      )}
+
+      {/* ── Modal: rejeição ── */}
       {rejectModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-sm p-5 shadow-xl">
