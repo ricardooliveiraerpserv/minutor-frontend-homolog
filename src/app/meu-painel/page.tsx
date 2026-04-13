@@ -1249,9 +1249,9 @@ export default function MeuPainelPage() {
   const maxCustomerMin = tsByCustomer[0]?.minutes ?? 1
 
   // Taxa efetiva: horistas usam o valor direto; mensalistas dividem por 180
-  const hourlyRate      = (user as any)?.hourly_rate ?? 0
+  const hourlyRate      = Number((user as any)?.hourly_rate ?? 0)
   const rateType        = (user as any)?.rate_type ?? 'hourly'
-  const guaranteedHours = (user as any)?.guaranteed_hours ?? null
+  const guaranteedHours = (user as any)?.guaranteed_hours != null ? Number((user as any).guaranteed_hours) : null
   const effectiveRate   = hourlyRate > 0
     ? (rateType === 'monthly' ? hourlyRate / 180 : hourlyRate)
     : 0
@@ -1492,7 +1492,9 @@ export default function MeuPainelPage() {
                 <SummaryCard
                   label="Total Geral"
                   value={hbBeforeStart ? '—' : formatBRL(hbTotalGeral)}
-                  sub={`DEBUG sal=${hbServiceVal} exp=${expTotal} tot=${hbTotalGeral}`}
+                  sub={expTotal > 0
+                    ? `Serviço${hbExtraHours > 0 ? ' + extras' : ''} + despesas`
+                    : 'Sem despesas no período'}
                   icon={DollarSign}
                   accent="bg-cyan-500/15 text-cyan-400"
                 />
@@ -2468,7 +2470,7 @@ export default function MeuPainelPage() {
               {hbCurrent && (() => {
                 const now = new Date()
                 const isCurrentMonth = hbCurrent.year_month === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-                const fixedSalary = (user as any)?.rate_type === 'monthly' ? ((user as any)?.hourly_rate ?? 0) : 0
+                const fixedSalary = (user as any)?.rate_type === 'monthly' ? Number((user as any)?.hourly_rate ?? 0) : 0
                 return (
                   <>
                     <HBPaymentSection data={hbCurrent} fixedSalary={fixedSalary} expTotal={expTotal} />
