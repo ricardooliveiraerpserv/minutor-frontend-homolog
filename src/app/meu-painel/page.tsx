@@ -1123,10 +1123,8 @@ export default function MeuPainelPage() {
         ticket:      tsForm.ticket      || undefined,
       }
       if (hasTotal && !hasStart) {
-        // Total informado sem início/fim — envia total_hours diretamente
+        // Total informado sem início/fim — omite start/end para não falhar validação 'sometimes'
         payload.total_hours = hoursToHHMM(totalVal)
-        payload.start_time  = null
-        payload.end_time    = null
       } else {
         payload.start_time = tsForm.start_time
         payload.end_time   = tsForm.end_time
