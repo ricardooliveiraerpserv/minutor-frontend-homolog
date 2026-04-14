@@ -32,10 +32,43 @@ interface UserItem {
   partner_id?: number | null
   is_executive?: boolean
   type?: string | null
+  extra_permissions?: string[] | null
 }
 
 interface CustomerOption { id: number; name: string }
 interface PartnerOption  { id: number; name: string }
+
+// Permissões que podem ser concedidas como extras (excluindo as triviais de perfil)
+const EXTRA_PERMISSION_OPTIONS: { value: string; label: string; group: string }[] = [
+  { value: 'dashboards.view',                    label: 'Visualizar dashboards',          group: 'Dashboards' },
+  { value: 'dashboards.bank_hours_fixed.view',   label: 'Dashboard BH Fixo',              group: 'Dashboards' },
+  { value: 'dashboards.bank_hours_monthly.view', label: 'Dashboard BH Mensal',            group: 'Dashboards' },
+  { value: 'hours.view_all',                     label: 'Ver horas de todos',             group: 'Horas' },
+  { value: 'hours.update_all',                   label: 'Editar horas de todos',          group: 'Horas' },
+  { value: 'hours.delete_all',                   label: 'Excluir horas de todos',         group: 'Horas' },
+  { value: 'timesheets.approve',                 label: 'Aprovar timesheets',             group: 'Timesheets' },
+  { value: 'timesheets.view_project_full',       label: 'Ver timesheets do projeto',      group: 'Timesheets' },
+  { value: 'expenses.view_all',                  label: 'Ver despesas de todos',          group: 'Despesas' },
+  { value: 'expenses.approve',                   label: 'Aprovar despesas',               group: 'Despesas' },
+  { value: 'users.view_all',                     label: 'Ver todos os usuários',          group: 'Usuários' },
+  { value: 'users.create',                       label: 'Criar usuários',                 group: 'Usuários' },
+  { value: 'users.update',                       label: 'Editar usuários',                group: 'Usuários' },
+  { value: 'users.reset_password',               label: 'Resetar senhas',                 group: 'Usuários' },
+  { value: 'projects.update',                    label: 'Editar projetos',                group: 'Projetos' },
+  { value: 'projects.view_financial',            label: 'Ver financeiro do projeto',      group: 'Projetos' },
+  { value: 'reports.view',                       label: 'Ver relatórios',                 group: 'Relatórios' },
+  { value: 'reports.export',                     label: 'Exportar relatórios',            group: 'Relatórios' },
+  { value: 'financial.view_project_cost',        label: 'Ver custo do projeto',           group: 'Financeiro' },
+]
+
+// Permissões base de cada tipo (para filtrar as que já estão incluídas)
+const BASE_PERMISSIONS_BY_TYPE: Record<string, string[]> = {
+  admin:          ['*'],
+  coordenador:    ['dashboards.view','dashboards.bank_hours_fixed.view','dashboards.bank_hours_monthly.view','hours.view_all','hours.update_all','hours.delete_all','timesheets.approve','timesheets.view_project_full','expenses.view_all','expenses.approve','users.view_all','users.reset_password','projects.update','projects.view_financial','reports.view','reports.export','financial.view_project_cost'],
+  consultor:      [],
+  cliente:        ['reports.view'],
+  parceiro_admin: ['dashboards.view','timesheets.approve','timesheets.view_project_full','users.create','users.update','users.reset_password','reports.view'],
+}
 
 type ProfileType    = 'cliente' | 'consultor' | 'coordenador' | 'parceiro_adm' | 'administrator'
 type ConsultantType = 'horista' | 'bh_fixo' | 'bh_mensal' | 'fixo'
@@ -201,6 +234,7 @@ const EMPTY_FORM = {
   is_partner_adm: false,
   customer_id: '' as number | '',
   partner_id:  '' as number | '',
+  extra_permissions: [] as string[],
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -309,6 +343,7 @@ export function UserManagementTab() {
       is_partner_adm: item.is_executive ?? false,
       customer_id: item.customer_id ?? '',
       partner_id:  item.partner_id  ?? '',
+      extra_permissions: item.extra_permissions ?? [],
     })
     setModal({ open: true, item })
   }
@@ -320,6 +355,7 @@ export function UserManagementTab() {
       const payload: Record<string, unknown> = {
         name: form.name, email: form.email, enabled: form.enabled,
         type: resolveTypeForBackend(form.profiles[0]),
+        extra_permissions: form.extra_permissions.length > 0 ? form.extra_permissions : null,
         customer_id: form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
         partner_id:  form.profiles.includes('parceiro_adm') && form.partner_id ? form.partner_id : null,
         is_executive: form.profiles.includes('parceiro_adm') ? form.is_partner_adm : false,
@@ -692,6 +728,48 @@ export function UserManagementTab() {
                       label="É administrador do parceiro" />
                   </div>
                 )}
+                {/* Permissões adicionais — só para perfis não-admin */}
+                {form.profiles.length > 0 && !form.profiles.includes('administrator') && (() => {
+                  const backendType = resolveTypeForBackend(form.profiles[0])
+                  const base = BASE_PERMISSIONS_BY_TYPE[backendType] ?? []
+                  const available = EXTRA_PERMISSION_OPTIONS.filter(p => !base.includes(p.value))
+                  if (available.length === 0) return null
+                  const groups = [...new Set(available.map(p => p.group))]
+                  return (
+                    <div>
+                      <Label className="text-xs text-zinc-400 mb-1 block">Permissões adicionais</Label>
+                      <p className="text-[10px] text-zinc-500 mb-2">Acesso extra além do padrão do perfil selecionado.</p>
+                      <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 divide-y divide-zinc-700/50">
+                        {groups.map(group => (
+                          <div key={group} className="px-3 py-2">
+                            <p className="text-[10px] font-medium text-zinc-500 mb-1.5 uppercase tracking-wide">{group}</p>
+                            <div className="space-y-1">
+                              {available.filter(p => p.group === group).map(p => {
+                                const checked = form.extra_permissions.includes(p.value)
+                                return (
+                                  <label key={p.value} className="flex items-center gap-2 cursor-pointer group">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => setForm(f => ({
+                                        ...f,
+                                        extra_permissions: checked
+                                          ? f.extra_permissions.filter(x => x !== p.value)
+                                          : [...f.extra_permissions, p.value],
+                                      }))}
+                                      className="rounded border-zinc-600 bg-zinc-800 accent-blue-500 cursor-pointer"
+                                    />
+                                    <span className="text-xs text-zinc-400 group-hover:text-zinc-200 transition-colors">{p.label}</span>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
                 <Toggle value={form.enabled} onChange={() => setForm(f => ({ ...f, enabled: !f.enabled }))} label="Ativo" />
               </>
             )}
