@@ -5,6 +5,7 @@ export interface User {
   roles?: string[]
   permissions?: string[]
   profile_photo_url?: string | null
+  type?: string | null
   consultant_type?: string | null
   daily_hours?: number | null
   bank_hours_start_date?: string | null

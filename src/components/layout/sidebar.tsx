@@ -139,13 +139,18 @@ function SidebarInner({ user }: { user: User }) {
   const [collapsed,   setCollapsed]   = useState(false)
   const [openGroups,  setOpenGroups]  = useState<string[]>(['Dashboards', 'Cadastros'])
 
-  const isConsultor = user?.roles?.includes('Consultor') &&
-    !user.roles.includes('Administrator') &&
-    !user.roles.includes('Coordenador') &&
-    !user.roles.includes('Parceiro ADM')
+  // Preferência: user.type (determinístico, não depende de seed).
+  // Fallback: user.roles para compatibilidade com sessões antigas sem type.
+  const isConsultor = user?.type
+    ? user.type === 'consultor'
+    : (user?.roles?.includes('Consultor') &&
+       !user.roles.includes('Administrator') &&
+       !user.roles.includes('Coordenador') &&
+       !user.roles.includes('Parceiro ADM'))
 
-  const isCoordenador = user?.roles?.includes('Coordenador') &&
-    !user.roles.includes('Administrator')
+  const isCoordenador = user?.type
+    ? user.type === 'coordenador'
+    : (user?.roles?.includes('Coordenador') && !user.roles.includes('Administrator'))
 
   const visibleNav = useMemo(() => {
     if (isCoordenador) return NAV_COORDINATOR
