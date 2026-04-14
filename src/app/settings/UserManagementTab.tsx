@@ -732,34 +732,39 @@ export function UserManagementTab() {
                 {form.profiles.length > 0 && !form.profiles.includes('administrator') && (() => {
                   const backendType = resolveTypeForBackend(form.profiles[0])
                   const base = BASE_PERMISSIONS_BY_TYPE[backendType] ?? []
-                  const available = EXTRA_PERMISSION_OPTIONS.filter(p => !base.includes(p.value))
-                  if (available.length === 0) return null
-                  const groups = [...new Set(available.map(p => p.group))]
+                  const groups = [...new Set(EXTRA_PERMISSION_OPTIONS.map(p => p.group))]
                   return (
                     <div>
                       <Label className="text-xs text-zinc-400 mb-1 block">Permissões adicionais</Label>
-                      <p className="text-[10px] text-zinc-500 mb-2">Acesso extra além do padrão do perfil selecionado.</p>
+                      <p className="text-[10px] text-zinc-500 mb-2">
+                        Permissões marcadas em cinza já fazem parte do perfil. As desmarcadas podem ser habilitadas individualmente.
+                      </p>
                       <div className="rounded-lg border border-zinc-700 bg-zinc-800/40 divide-y divide-zinc-700/50">
                         {groups.map(group => (
                           <div key={group} className="px-3 py-2">
                             <p className="text-[10px] font-medium text-zinc-500 mb-1.5 uppercase tracking-wide">{group}</p>
                             <div className="space-y-1">
-                              {available.filter(p => p.group === group).map(p => {
-                                const checked = form.extra_permissions.includes(p.value)
+                              {EXTRA_PERMISSION_OPTIONS.filter(p => p.group === group).map(p => {
+                                const isBase  = base.includes(p.value)
+                                const checked = isBase || form.extra_permissions.includes(p.value)
                                 return (
-                                  <label key={p.value} className="flex items-center gap-2 cursor-pointer group">
+                                  <label key={p.value} className={`flex items-center gap-2 ${isBase ? 'cursor-default' : 'cursor-pointer group'}`}>
                                     <input
                                       type="checkbox"
                                       checked={checked}
-                                      onChange={() => setForm(f => ({
+                                      disabled={isBase}
+                                      onChange={() => !isBase && setForm(f => ({
                                         ...f,
-                                        extra_permissions: checked
+                                        extra_permissions: f.extra_permissions.includes(p.value)
                                           ? f.extra_permissions.filter(x => x !== p.value)
                                           : [...f.extra_permissions, p.value],
                                       }))}
-                                      className="rounded border-zinc-600 bg-zinc-800 accent-blue-500 cursor-pointer"
+                                      className="rounded border-zinc-600 bg-zinc-800 accent-blue-500 cursor-pointer disabled:cursor-default disabled:opacity-50"
                                     />
-                                    <span className="text-xs text-zinc-400 group-hover:text-zinc-200 transition-colors">{p.label}</span>
+                                    <span className={`text-xs transition-colors ${isBase ? 'text-zinc-500' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+                                      {p.label}
+                                      {isBase && <span className="ml-1.5 text-[10px] text-zinc-600">(padrão do perfil)</span>}
+                                    </span>
                                   </label>
                                 )
                               })}
