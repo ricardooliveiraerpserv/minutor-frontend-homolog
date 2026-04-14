@@ -67,17 +67,15 @@ function resolveRoleName(profile: ProfileType): string {
   return 'Consultor'
 }
 
-// Reverse-map user roles + partner_id → profile form state
-function resolveProfileFromRoles(roleNames: string[]): {
-  profile: ProfileType | ''
-  consultantType: ConsultantType | ''
-} {
-  if (roleNames.includes('Administrator')) return { profile: 'administrator', consultantType: '' }
-  if (roleNames.includes('Cliente'))       return { profile: 'cliente',       consultantType: '' }
-  if (roleNames.includes('Coordenador'))   return { profile: 'coordenador',   consultantType: '' }
-  if (roleNames.includes('Parceiro ADM'))  return { profile: 'parceiro_adm',  consultantType: '' }
-  if (roleNames.includes('Consultor'))     return { profile: 'consultor',     consultantType: 'horista' }
-  return { profile: '', consultantType: '' }
+// Reverse-map all user roles → array of ProfileType (additive)
+function resolveProfilesFromRoles(roleNames: string[]): ProfileType[] {
+  const result: ProfileType[] = []
+  if (roleNames.includes('Administrator')) result.push('administrator')
+  if (roleNames.includes('Cliente'))       result.push('cliente')
+  if (roleNames.includes('Coordenador'))   result.push('coordenador')
+  if (roleNames.includes('Parceiro ADM'))  result.push('parceiro_adm')
+  if (roleNames.includes('Consultor'))     result.push('consultor')
+  return result
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -206,7 +204,7 @@ const EMPTY_FORM = {
   hourly_rate: '',
   rate_type: 'hourly' as 'hourly' | 'monthly',
   daily_hours: '8',
-  profile: '' as ProfileType | '',
+  profiles: [] as ProfileType[],
   consultant_type: '' as ConsultantType | '',
   is_partner_consultor: false,
   is_partner_adm: false,
@@ -281,7 +279,7 @@ export default function UsersPage() {
 
   const openEdit = (item: UserItem) => {
     const roleNames = item.roles?.map(r => r.name) ?? []
-    const { profile } = resolveProfileFromRoles(roleNames)
+    const profiles  = resolveProfilesFromRoles(roleNames)
     // Prefer stored consultant_type; fall back only for horista (hourly)
     const consultant_type = (item.consultant_type as ConsultantType | undefined)
       ?? (item.rate_type === 'hourly' ? 'horista' : '')
@@ -293,7 +291,7 @@ export default function UsersPage() {
       hourly_rate:         item.hourly_rate ? String(item.hourly_rate) : '',
       rate_type:           (item.rate_type as 'hourly' | 'monthly') ?? 'hourly',
       daily_hours:         item.daily_hours != null ? String(item.daily_hours) : '8',
-      profile,
+      profiles,
       consultant_type:      consultant_type as ConsultantType | '',
       is_partner_consultor: false,
       is_partner_adm:       item.is_executive ?? false,
@@ -304,14 +302,18 @@ export default function UsersPage() {
   }
 
   const save = async () => {
-    if (!form.profile) { toast.error('Selecione um perfil de acesso'); return }
+    if (form.profiles.length === 0) { toast.error('Selecione ao menos um perfil de acesso'); return }
 
-    // Resolve role ID from profile selection
-    const roleName = resolveRoleName(form.profile)
-    const role = roles.find(r => r.name === roleName)
-    if (!role) { toast.error(`Perfil "${roleName}" não encontrado. Execute o seeder de roles.`); return }
+    // Resolve role IDs — busca case-insensitive para robustez
+    const roleIds: number[] = []
+    for (const profile of form.profiles) {
+      const roleName = resolveRoleName(profile)
+      const role = roles.find(r => r.name.toLowerCase() === roleName.toLowerCase())
+      if (!role) { toast.error(`Perfil "${roleName}" não encontrado. Execute o seeder de roles no servidor.`); return }
+      roleIds.push(role.id)
+    }
 
-    const needsPartner = form.profile === 'parceiro_adm'
+    const needsPartner = form.profiles.includes('parceiro_adm')
 
     setSaving(true)
     try {
@@ -319,15 +321,15 @@ export default function UsersPage() {
         name:        form.name,
         email:       form.email,
         enabled:     form.enabled,
-        roles:       [role.id],
-        customer_id:  form.profile === 'cliente' && form.customer_id ? form.customer_id : null,
+        roles:       roleIds,
+        customer_id:  form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
         partner_id:   needsPartner && form.partner_id ? form.partner_id : null,
-        is_executive: form.profile === 'parceiro_adm' ? form.is_partner_adm : false,
+        is_executive: form.profiles.includes('parceiro_adm') ? form.is_partner_adm : false,
         rate_type:    form.rate_type,
       }
       if (form.hourly_rate) payload.hourly_rate = parseFloat(form.hourly_rate)
       if (form.daily_hours) payload.daily_hours = parseFloat(form.daily_hours)
-      if (form.profile === 'consultor' && form.consultant_type) payload.consultant_type = form.consultant_type
+      if (form.profiles.includes('consultor') && form.consultant_type) payload.consultant_type = form.consultant_type
       if (!modal.item && form.password) payload.password = form.password
 
       if (modal.item) await api.put(`/users/${modal.item.id}`, payload)
@@ -382,17 +384,32 @@ export default function UsersPage() {
   }
 
   // ── Derived booleans for conditional form fields
-  const isCliente     = form.profile === 'cliente'
-  const isConsultor   = form.profile === 'consultor'
-  const isCoordenador = form.profile === 'coordenador'
-  const isParceiroAdm = form.profile === 'parceiro_adm'
+  const isCliente     = form.profiles.includes('cliente')
+  const isConsultor   = form.profiles.includes('consultor')
+  const isCoordenador = form.profiles.includes('coordenador')
+  const isParceiroAdm = form.profiles.includes('parceiro_adm')
   const hasRate       = isConsultor || isCoordenador || isParceiroAdm
   const needsPartner  = isParceiroAdm
 
-  const canSave = !!form.name && !!form.email && !!form.profile
+  const canSave = !!form.name && !!form.email && form.profiles.length > 0
     && (!isCliente     || !!form.customer_id)
     && (!isConsultor   || !!form.consultant_type)
     && (!needsPartner  || !!form.partner_id)
+
+  // Toggle de perfil — adiciona se não tem, remove se já tem
+  const toggleProfile = (p: ProfileType) => {
+    setForm(f => {
+      const has      = f.profiles.includes(p)
+      const profiles = has ? f.profiles.filter(x => x !== p) : [...f.profiles, p]
+      return {
+        ...f,
+        profiles,
+        consultant_type: profiles.includes('consultor') ? f.consultant_type : '',
+        customer_id:     profiles.includes('cliente')      ? f.customer_id : '',
+        partner_id:      profiles.includes('parceiro_adm') ? f.partner_id  : '',
+      }
+    })
+  }
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -499,38 +516,36 @@ export default function UsersPage() {
               {modal.item ? 'Editar Usuário' : 'Novo Usuário'}
             </h3>
 
-            {/* ── Perfil de acesso (seleção única) ── */}
+            {/* ── Perfil de acesso (multi-seleção aditiva) ── */}
             <div>
-              <Label className="text-xs text-zinc-400 mb-2 block">Perfil de acesso *</Label>
+              <Label className="text-xs text-zinc-400 mb-1 block">Perfil de acesso *</Label>
+              <p className="text-[10px] text-zinc-500 mb-2">Selecione um ou mais perfis — os acessos se somam.</p>
               <div className="grid grid-cols-3 gap-2">
-                {PROFILE_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setForm(f => ({
-                      ...f,
-                      profile: opt.value,
-                      consultant_type: '',
-                      is_partner_consultor: false,
-                      is_partner_adm: false,
-                      customer_id: '',
-                      partner_id: '',
-                    }))}
-                    className={`py-2 px-3 rounded-lg text-xs font-medium border transition-all text-left ${
-                      form.profile === opt.value
-                        ? 'bg-blue-600/20 border-blue-500 text-blue-300'
-                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
-                    }`}
-                  >
-                    {form.profile === opt.value && <span className="mr-1.5">●</span>}
-                    {opt.label}
-                  </button>
-                ))}
+                {PROFILE_OPTIONS.map(opt => {
+                  const active = form.profiles.includes(opt.value)
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => toggleProfile(opt.value)}
+                      className={`py-2 px-3 rounded-lg text-xs font-medium border transition-all text-left ${
+                        active
+                          ? 'bg-blue-600/20 border-blue-500 text-blue-300'
+                          : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                      }`}
+                    >
+                      <span className={`mr-1.5 inline-block w-3 h-3 rounded border text-center leading-[10px] ${
+                        active ? 'border-blue-400 bg-blue-500 text-white' : 'border-zinc-600'
+                      }`}>{active ? '✓' : ''}</span>
+                      {opt.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
             {/* ── Campos comuns ── */}
-            {form.profile && (
+            {form.profiles.length > 0 && (
               <>
                 <div>
                   <Label className="text-xs text-zinc-400">Nome *</Label>
@@ -728,8 +743,10 @@ export default function UsersPage() {
       {viewUser && (() => {
         const u = viewUser
         const roleNames = u.roles?.map(r => r.name) ?? []
-        const { profile } = resolveProfileFromRoles(roleNames)
-        const profileLabel = PROFILE_OPTIONS.find(p => p.value === profile)?.label ?? (roleNames[0] ?? '—')
+        const profiles  = resolveProfilesFromRoles(roleNames)
+        const profileLabel = profiles.length > 0
+          ? profiles.map(p => PROFILE_OPTIONS.find(o => o.value === p)?.label ?? p).join(', ')
+          : (roleNames[0] ?? '—')
         const rows: { label: string; value: string | React.ReactNode }[] = [
           { label: 'Nome',         value: u.name },
           { label: 'E-mail',       value: u.email },
