@@ -11,6 +11,7 @@ import {
   Paperclip,
 } from 'lucide-react'
 import { RowMenu } from '@/components/ui/row-menu'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
@@ -709,14 +710,12 @@ export default function ApprovalsPage() {
           <div className="border-t border-zinc-800 px-4 py-3">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
               <div>
-                <Label className="text-[11px] text-zinc-500 mb-1 block">Data de</Label>
-                <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                  className="h-8 text-xs bg-zinc-800 border-zinc-700 text-zinc-200" />
-              </div>
-              <div>
-                <Label className="text-[11px] text-zinc-500 mb-1 block">Data até</Label>
-                <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                  className="h-8 text-xs bg-zinc-800 border-zinc-700 text-zinc-200" />
+                <Label className="text-[11px] text-zinc-500 mb-1 block">Período</Label>
+                <DateRangePicker
+                  from={dateFrom}
+                  to={dateTo}
+                  onChange={(f, t) => { setDateFrom(f); setDateTo(t) }}
+                />
               </div>
               <SearchableSelect
                 label="Colaborador"
