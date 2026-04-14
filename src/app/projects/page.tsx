@@ -1263,6 +1263,13 @@ export default function ProjectsPage() {
                     <FieldInput value={form.name} onChange={setF('name')} />
                   </div>
                   <div className="col-span-2">
+                    <FieldLabel required>Cliente</FieldLabel>
+                    <FieldSelect value={form.customer_id} onChange={setF('customer_id')}>
+                      <option value="">Selecione...</option>
+                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </FieldSelect>
+                  </div>
+                  <div className="col-span-2">
                     <FieldLabel>Código</FieldLabel>
                     {form.parent_project_id ? (
                       <div className="px-3 py-2.5 rounded-xl text-sm font-mono text-zinc-500 italic" style={inputStyle}>
@@ -1324,13 +1331,6 @@ export default function ProjectsPage() {
                         { code: 'cancelled', name: 'Cancelado' },
                         { code: 'finished', name: 'Encerrado' },
                       ]).map(s => <option key={s.code} value={s.code}>{s.name}</option>)}
-                    </FieldSelect>
-                  </div>
-                  <div className="col-span-2">
-                    <FieldLabel required>Cliente</FieldLabel>
-                    <FieldSelect value={form.customer_id} onChange={setF('customer_id')}>
-                      <option value="">Selecione...</option>
-                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </FieldSelect>
                   </div>
                   <div>
