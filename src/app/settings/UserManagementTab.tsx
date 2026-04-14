@@ -440,10 +440,15 @@ export function UserManagementTab() {
                 <td className="px-3 py-2.5 text-zinc-200 font-medium">{user.name}</td>
                 <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell">{user.email}</td>
                 <td className="px-3 py-2.5 hidden sm:table-cell">
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1 items-center">
                     {user.roles?.map(r => (
                       <Badge key={r.id} variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/20">{r.name}</Badge>
                     ))}
+                    {user.consultant_type && (
+                      <span className="text-[10px] text-zinc-500">
+                        {CONSULTANT_OPTIONS.find(o => o.value === user.consultant_type)?.label ?? user.consultant_type}
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-3 py-2.5">
