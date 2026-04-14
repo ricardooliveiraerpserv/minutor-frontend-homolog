@@ -263,6 +263,45 @@ export function UserManagementTab() {
   const [resetting, setResetting] = useState<number | null>(null)
   const [copied,    setCopied]    = useState(false)
 
+  // ── Seleção em massa
+  const [selectedIds,   setSelectedIds]   = useState<Set<number>>(new Set())
+  const [bulkField,     setBulkField]     = useState<'consultant_type' | 'profile' | 'hourly_rate'>('consultant_type')
+  const [bulkValue,     setBulkValue]     = useState('')
+  const [bulkApplying,  setBulkApplying]  = useState(false)
+
+  const toggleSelect = (id: number) =>
+    setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+
+  const toggleSelectAll = () =>
+    setSelectedIds(prev => prev.size === users.length ? new Set() : new Set(users.map(u => u.id)))
+
+  const clearSelection = () => { setSelectedIds(new Set()); setBulkValue('') }
+
+  const applyBulk = async () => {
+    if (!bulkValue || selectedIds.size === 0) return
+    setBulkApplying(true)
+    try {
+      const ids = Array.from(selectedIds)
+      if (bulkField === 'consultant_type') {
+        await Promise.all(ids.map(id => api.put(`/users/${id}`, { consultant_type: bulkValue })))
+      } else if (bulkField === 'hourly_rate') {
+        await Promise.all(ids.map(id => api.put(`/users/${id}`, { hourly_rate: parseFloat(bulkValue) })))
+      } else if (bulkField === 'profile') {
+        const roleName = resolveRoleName(bulkValue as ProfileType)
+        const role = roles.find(r => r.name === roleName)
+        if (!role) { toast.error(`Perfil "${roleName}" não encontrado`); return }
+        await Promise.all(ids.map(id => api.put(`/users/${id}`, { roles: [role.id] })))
+      }
+      toast.success(`${ids.length} usuário(s) atualizado(s)`)
+      clearSelection()
+      load()
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar em massa')
+    } finally {
+      setBulkApplying(false)
+    }
+  }
+
   useEffect(() => {
     api.get<any>('/roles?pageSize=100').then(r =>
       setRoles(Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : [])
@@ -420,11 +459,60 @@ export function UserManagementTab() {
         </Button>
       </div>
 
+      {/* Barra de ação em massa */}
+      {selectedIds.size > 0 && (
+        <div className="mb-3 flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-lg bg-blue-600/10 border border-blue-500/20 text-xs">
+          <span className="text-blue-300 font-medium shrink-0">{selectedIds.size} selecionado(s)</span>
+          <span className="text-zinc-600">|</span>
+          <select value={bulkField} onChange={e => { setBulkField(e.target.value as any); setBulkValue('') }}
+            className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-md h-7 px-2">
+            <option value="consultant_type">Tipo de Consultor</option>
+            <option value="profile">Perfil</option>
+            <option value="hourly_rate">Valor (R$)</option>
+          </select>
+
+          {bulkField === 'consultant_type' && (
+            <select value={bulkValue} onChange={e => setBulkValue(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-md h-7 px-2">
+              <option value="">Selecione...</option>
+              {CONSULTANT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          )}
+          {bulkField === 'profile' && (
+            <select value={bulkValue} onChange={e => setBulkValue(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-md h-7 px-2">
+              <option value="">Selecione...</option>
+              {PROFILE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          )}
+          {bulkField === 'hourly_rate' && (
+            <Input type="number" min="0" step="0.01" value={bulkValue}
+              onChange={e => setBulkValue(e.target.value)}
+              placeholder="0,00"
+              className="w-28 bg-zinc-800 border-zinc-700 text-white h-7 text-xs" />
+          )}
+
+          <Button onClick={applyBulk} disabled={!bulkValue || bulkApplying}
+            className="h-7 text-xs bg-blue-600 hover:bg-blue-500 text-white px-3">
+            {bulkApplying ? 'Aplicando...' : 'Aplicar'}
+          </Button>
+          <button onClick={clearSelection} className="text-zinc-500 hover:text-zinc-300 ml-auto">
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       {/* Tabela */}
       <div className="rounded-lg border border-zinc-800 overflow-hidden">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-zinc-800 bg-zinc-900">
+              <th className="px-3 py-2.5 w-8">
+                <input type="checkbox"
+                  checked={users.length > 0 && selectedIds.size === users.length}
+                  onChange={toggleSelectAll}
+                  className="rounded border-zinc-600 bg-zinc-800 accent-blue-500 cursor-pointer" />
+              </th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">E-mail</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Perfil</th>
@@ -434,9 +522,13 @@ export function UserManagementTab() {
           </thead>
           <tbody>
             {loading ? <TableSkeleton /> : users.length === 0 ? (
-              <tr><td colSpan={5} className="px-3 py-8 text-center text-zinc-500">Nenhum usuário encontrado</td></tr>
+              <tr><td colSpan={6} className="px-3 py-8 text-center text-zinc-500">Nenhum usuário encontrado</td></tr>
             ) : users.map(user => (
-              <tr key={user.id} className="border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors">
+              <tr key={user.id} className={`border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors ${selectedIds.has(user.id) ? 'bg-blue-600/5' : ''}`}>
+                <td className="px-3 py-2.5 w-8">
+                  <input type="checkbox" checked={selectedIds.has(user.id)} onChange={() => toggleSelect(user.id)}
+                    className="rounded border-zinc-600 bg-zinc-800 accent-blue-500 cursor-pointer" />
+                </td>
                 <td className="px-3 py-2.5 text-zinc-200 font-medium">{user.name}</td>
                 <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell">{user.email}</td>
                 <td className="px-3 py-2.5 hidden sm:table-cell">
