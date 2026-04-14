@@ -13,6 +13,7 @@ import {
   Paperclip, Calendar, Building2, FolderOpen, Ticket, Hash,
   FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight,
 } from 'lucide-react'
+import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import {
   PageHeader, Table, Thead, Th, Tbody, Tr, Td,
   Badge, Button, Select, TextInput, Pagination,
@@ -431,9 +432,10 @@ interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => voi
 
 function RowActions({ id, onView, onDeleted }: { id: number; onView: () => void; onDeleted: () => void }) {
   const [deleting, setDeleting] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
 
-  const handleDelete = async () => {
-    if (!confirm('Excluir este apontamento?')) return
+  const confirmDelete = async () => {
+    setDeleteConfirm(false)
     setDeleting(true)
     try {
       await api.delete(`/timesheets/${id}`)
@@ -447,10 +449,20 @@ function RowActions({ id, onView, onDeleted }: { id: number; onView: () => void;
   const items: RowMenuItem[] = [
     { label: 'Visualizar', icon: <Eye size={12} />, onClick: onView },
     { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } },
-    { label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: handleDelete, danger: true },
+    { label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true },
   ]
 
-  return <RowMenu items={items} />
+  return (
+    <>
+      <RowMenu items={items} />
+      <ConfirmDeleteModal
+        open={deleteConfirm}
+        message="Deseja excluir este apontamento? Esta ação não pode ser desfeita."
+        onClose={() => setDeleteConfirm(false)}
+        onConfirm={confirmDelete}
+      />
+    </>
+  )
 }
 
 function RowMenu({ items }: { items: RowMenuItem[] }) {

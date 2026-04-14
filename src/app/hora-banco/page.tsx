@@ -9,6 +9,7 @@ import {
   Clock, ChevronDown, ChevronUp, Lock, Unlock, RefreshCw,
   TrendingUp, TrendingDown, Minus, CalendarDays, User,
 } from 'lucide-react'
+import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -234,6 +235,7 @@ export default function HoraBancoPage() {
   const [loadingData, setLoadingData] = useState(false)
   const [closing, setClosing] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [reopenConfirm, setReopenConfirm] = useState<{ open: boolean; yearMonth?: string }>({ open: false })
 
   // ── Carregar lista de consultores ──
   useEffect(() => {
@@ -275,9 +277,15 @@ export default function HoraBancoPage() {
     finally { setClosing(false) }
   }
 
-  const handleReopen = async (yearMonth: string) => {
+  const handleReopen = (yearMonth: string) => {
     if (!selected) return
-    if (!confirm(`Reabrir o mês ${fmtMonth(yearMonth)}? Esta ação é controlada e deve ser usada com cautela.`)) return
+    setReopenConfirm({ open: true, yearMonth })
+  }
+
+  const confirmReopen = async () => {
+    if (!selected || !reopenConfirm.yearMonth) return
+    const yearMonth = reopenConfirm.yearMonth
+    setReopenConfirm({ open: false })
     try {
       await api.post(`/consultant-hour-bank/${selected.id}/reopen`, { year_month: yearMonth })
       toast.success(`Mês ${fmtMonth(yearMonth)} reaberto`)
@@ -394,6 +402,15 @@ export default function HoraBancoPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDeleteModal
+        open={reopenConfirm.open}
+        title="Confirmar reabertura"
+        message={`Reabrir o mês ${reopenConfirm.yearMonth ? fmtMonth(reopenConfirm.yearMonth) : ''}? Esta ação é controlada e deve ser usada com cautela.`}
+        confirmLabel="Reabrir"
+        onClose={() => setReopenConfirm({ open: false })}
+        onConfirm={confirmReopen}
+      />
     </AppLayout>
   )
 }

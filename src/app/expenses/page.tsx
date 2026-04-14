@@ -17,6 +17,7 @@ import {
   X, Paperclip, Eye, Building2, FolderOpen, Tag,
   CreditCard, FileText, Calendar, MoreVertical, CalendarDays, RefreshCw,
 } from 'lucide-react'
+import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 
 function ReceiptLink({ url, label = 'Visualizar Comprovante' }: { url: string; label?: string }) {
   const [loading, setLoading] = useState(false)
@@ -412,6 +413,7 @@ export default function ExpensesPage() {
   const [projects, setProjects] = useState<SelectOption[]>([])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
   const [viewItem,       setViewItem]       = useState<Expense | null>(null)
   const [dateFrom,       setDateFrom]       = useState('')
   const [dateTo,         setDateTo]         = useState('')
@@ -531,11 +533,14 @@ export default function ExpensesPage() {
   }
 
 
-  const remove = async (id: number) => {
-    if (!confirm('Confirmar exclusão?')) return
-    setDeleting(id)
+  const remove = (id: number) => setDeleteConfirm({ open: true, id })
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.id) return
+    setDeleting(deleteConfirm.id)
+    setDeleteConfirm({ open: false })
     try {
-      await api.delete(`/expenses/${id}`)
+      await api.delete(`/expenses/${deleteConfirm.id}`)
       toast.success('Despesa excluída')
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
@@ -864,6 +869,13 @@ export default function ExpensesPage() {
           </ModalOverlay>
         )
       })()}
+
+      <ConfirmDeleteModal
+        open={deleteConfirm.open}
+        message="Deseja excluir esta despesa? Esta ação não pode ser desfeita."
+        onClose={() => setDeleteConfirm({ open: false })}
+        onConfirm={confirmDelete}
+      />
     </AppLayout>
   )
 }

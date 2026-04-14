@@ -13,6 +13,7 @@ import {
   Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, ChevronDown,
   Search, KeyRound, Check, Copy, Eye
 } from 'lucide-react'
+import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -241,6 +242,7 @@ export default function UsersPage() {
   const [deleting, setDeleting] = useState<number | null>(null)
   const [resetting,setResetting]= useState<number | null>(null)
   const [copied,   setCopied]   = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   useEffect(() => {
     api.get<any>('/roles?pageSize=100').then(r =>
@@ -337,11 +339,14 @@ export default function UsersPage() {
     finally     { setSaving(false) }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Confirmar exclusão do usuário?')) return
-    setDeleting(id)
+  const remove = (id: number) => setDeleteConfirm({ open: true, id })
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.id) return
+    setDeleting(deleteConfirm.id)
+    setDeleteConfirm({ open: false })
     try {
-      await api.delete(`/users/${id}`)
+      await api.delete(`/users/${deleteConfirm.id}`)
       toast.success('Usuário excluído')
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
@@ -786,6 +791,13 @@ export default function UsersPage() {
           </ModalOverlay>
         )
       })()}
+
+      <ConfirmDeleteModal
+        open={deleteConfirm.open}
+        message="Deseja excluir este usuário? Esta ação não pode ser desfeita."
+        onClose={() => setDeleteConfirm({ open: false })}
+        onConfirm={confirmDelete}
+      />
     </AppLayout>
   )
 }

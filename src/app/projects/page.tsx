@@ -7,6 +7,7 @@ import { formatBRL } from '@/lib/format'
 import { Project, PaginatedResponse, ProjectChangeLog, HourContribution } from '@/types'
 import { toast } from 'sonner'
 import { FolderOpen, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Search, ChevronDown, Eye, Clock, Users, TrendingUp, Tag, History, HandCoins, Save, AlertCircle } from 'lucide-react'
+import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 
 interface ProjectForm {
   name: string
@@ -371,7 +372,8 @@ function generateProjectCode(customerName: string, projectName: string, seq: num
 export default function ProjectsPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
-  const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')  // valor exibido no input
+  const [search, setSearch] = useState('')             // valor debounced enviado à API
   const [multiContratual, setMultiContratual] = useState(false)
   // Filtros de lista
   const [filterCustomer, setFilterCustomer] = useState('')
@@ -386,6 +388,9 @@ export default function ProjectsPage() {
 
   const [data, setData] = useState<PaginatedResponse<Project> | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isFetching, setIsFetching] = useState(false)
+  const loadIdRef = useRef(0)
+  const hasLoadedRef = useRef(false)
   const [modal, setModal] = useState<{ open: boolean; item?: Project }>({ open: false })
   const [viewProject, setViewProject] = useState<Project | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
@@ -406,6 +411,14 @@ export default function ProjectsPage() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
   const [codeManual, setCodeManual] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean
+    type?: 'project' | 'contrib' | 'log'
+    id?: number
+    contribItem?: HourContribution
+    logItem?: ProjectChangeLog
+    message?: string
+  }>({ open: false })
 
   // Opções dos selects do modal
   const [customers, setCustomers] = useState<SelectOption[]>([])
@@ -456,16 +469,40 @@ export default function ProjectsPage() {
   const [rows, setRows] = useState<TreeRow[]>([])
 
   const load = useCallback(async () => {
-    setLoading(true)
+    const id = ++loadIdRef.current
+    // Primeira carga: mostra skeleton. Recargas: mantém dados visíveis (isFetching)
+    if (!hasLoadedRef.current) {
+      setLoading(true)
+    } else {
+      setIsFetching(true)
+    }
     try {
       const r = await api.get<PaginatedResponse<Project>>(`/projects?${params}`)
+      if (id !== loadIdRef.current) return // resposta stale — ignora
+      hasLoadedRef.current = true
       setData(r)
       setRows((r?.items ?? []).map(p => toTreeRow(p)))
-    } catch { toast.error('Erro ao carregar projetos') }
-    finally { setLoading(false) }
+    } catch {
+      if (id !== loadIdRef.current) return
+      toast.error('Erro ao carregar projetos')
+    } finally {
+      if (id === loadIdRef.current) {
+        setLoading(false)
+        setIsFetching(false)
+      }
+    }
   }, [params])
 
   useEffect(() => { load() }, [load])
+
+  // Debounce: aguarda 400ms após o usuário parar de digitar para disparar a busca
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput)
+      setPage(1)
+    }, 400)
+    return () => clearTimeout(t)
+  }, [searchInput])
 
   const toggleExpand = useCallback((row: TreeRow) => {
     setRows(prev => {
@@ -499,29 +536,29 @@ export default function ProjectsPage() {
   // Carrega opções dos filtros de lista uma única vez
   useEffect(() => {
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-    Promise.all([
-      api.get<any>('/customers?pageSize=1000'),
-      api.get<any>('/contract-types?pageSize=200'),
-      api.get<any>('/users?pageSize=200&enabled=1'),
-      api.get<any>('/executives?pageSize=1000'),
+    Promise.allSettled([
+      api.get<any>('/customers?pageSize=100'),
+      api.get<any>('/contract-types?pageSize=50'),
+      api.get<any>('/users?pageSize=50&enabled=1'),
+      api.get<any>('/executives?pageSize=100'),
     ]).then(([c, ct, u, ex]) => {
-      setFilterCustomers(items(c))
-      setFilterContractTypes(items(ct))
-      setFilterApprovers(items(u))
-      setFilterExecutives(items(ex))
-    }).catch(() => {})
+      if (c.status === 'fulfilled') setFilterCustomers(items(c.value))
+      if (ct.status === 'fulfilled') setFilterContractTypes(items(ct.value))
+      if (u.status === 'fulfilled') setFilterApprovers(items(u.value))
+      if (ex.status === 'fulfilled') setFilterExecutives(items(ex.value))
+    })
   }, [])
 
   const loadOptions = useCallback(async () => {
     try {
       const [c, ct, st, ps, u, appr, grps] = await Promise.all([
-        api.get<any>('/customers?pageSize=1000'),
-        api.get<any>('/contract-types?pageSize=200'),
-        api.get<any>('/service-types?pageSize=200'),
+        api.get<any>('/customers?pageSize=100'),
+        api.get<any>('/contract-types?pageSize=50'),
+        api.get<any>('/service-types?pageSize=50'),
         api.get<any>('/project-statuses'),
-        api.get<any>('/users?pageSize=500&enabled=1'),
-        api.get<any>('/users/approvers?pageSize=500'),
-        api.get<any>('/consultant-groups?pageSize=500&active=1'),
+        api.get<any>('/users?pageSize=100&enabled=1'),
+        api.get<any>('/users/approvers?pageSize=100'),
+        api.get<any>('/consultant-groups?pageSize=100&active=1'),
       ])
       const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setCustomers(items(c))
@@ -692,8 +729,13 @@ export default function ProjectsPage() {
     finally { setContribSaving(false) }
   }
 
-  const deleteContrib = async (c: HourContribution) => {
-    if (!viewProject || !confirm(`Excluir aporte de ${c.contributed_hours}h?`)) return
+  const deleteContrib = (c: HourContribution) => {
+    if (!viewProject) return
+    setDeleteConfirm({ open: true, type: 'contrib', contribItem: c, message: `Deseja excluir o aporte de ${c.contributed_hours}h?` })
+  }
+
+  const doDeleteContrib = async (c: HourContribution) => {
+    if (!viewProject) return
     try {
       await api.delete(`/projects/${viewProject.id}/hour-contributions/${c.id}`)
       toast.success('Aporte excluído')
@@ -722,8 +764,13 @@ export default function ProjectsPage() {
     } catch { toast.error('Erro ao atualizar registro') }
   }
 
-  const deleteLog = async (log: ProjectChangeLog) => {
-    if (!viewProject || !confirm('Excluir este registro do histórico?')) return
+  const deleteLog = (log: ProjectChangeLog) => {
+    if (!viewProject) return
+    setDeleteConfirm({ open: true, type: 'log', logItem: log, message: 'Deseja excluir este registro do histórico?' })
+  }
+
+  const doDeleteLog = async (log: ProjectChangeLog) => {
+    if (!viewProject) return
     try {
       await api.delete(`/projects/${viewProject.id}/change-history/${log.id}`)
       toast.success('Registro removido')
@@ -784,8 +831,9 @@ export default function ProjectsPage() {
     finally { setSaving(false) }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Confirmar exclusão do projeto?')) return
+  const remove = (id: number) => setDeleteConfirm({ open: true, type: 'project', id, message: 'Deseja excluir este projeto? Esta ação não pode ser desfeita.' })
+
+  const doRemoveProject = async (id: number) => {
     setDeleting(id)
     try {
       await api.delete(`/projects/${id}`)
@@ -793,6 +841,14 @@ export default function ProjectsPage() {
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
     finally { setDeleting(null) }
+  }
+
+  const confirmDelete = async () => {
+    const { type, id, contribItem, logItem } = deleteConfirm
+    setDeleteConfirm({ open: false })
+    if (type === 'project' && id) await doRemoveProject(id)
+    else if (type === 'contrib' && contribItem) await doDeleteContrib(contribItem)
+    else if (type === 'log' && logItem) await doDeleteLog(logItem)
   }
 
   const setF = (key: keyof ProjectForm) => (v: string | boolean | number[]) =>
@@ -868,8 +924,8 @@ export default function ProjectsPage() {
             <div className="relative flex-1 min-w-48">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
               <input
-                value={search}
-                onChange={e => { setSearch(e.target.value); setPage(1) }}
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
                 placeholder="Buscar projeto..."
                 className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-none"
                 style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
@@ -906,9 +962,9 @@ export default function ProjectsPage() {
               ]}
               placeholder="Todos os status"
             />
-            {(filterCustomer || filterContractType || filterApprover || filterExecutive || statusFilter || search) && (
+            {(filterCustomer || filterContractType || filterApprover || filterExecutive || statusFilter || searchInput) && (
               <button
-                onClick={() => { setFilterCustomer(''); setFilterContractType(''); setFilterApprover(''); setFilterExecutive(''); setStatusFilter(''); setSearch(''); setPage(1) }}
+                onClick={() => { setFilterCustomer(''); setFilterContractType(''); setFilterApprover(''); setFilterExecutive(''); setStatusFilter(''); setSearchInput(''); setSearch(''); setPage(1) }}
                 className="px-3 py-2 rounded-xl text-xs font-medium transition-colors hover:bg-white/5"
                 style={{ color: 'var(--brand-danger)', border: '1px solid var(--brand-border)' }}
               >Limpar</button>
@@ -965,7 +1021,16 @@ export default function ProjectsPage() {
 
         {/* Tabela */}
         <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-          <div className="overflow-x-auto">
+          {/* Barra de loading sutil para recargas (keep-previous-data) */}
+          <div style={{ height: 2, background: 'var(--brand-border)' }}>
+            {isFetching && (
+              <div
+                className="h-full animate-pulse"
+                style={{ background: 'var(--brand-primary)', width: '60%', borderRadius: 1 }}
+              />
+            )}
+          </div>
+          <div className="overflow-x-auto" style={{ opacity: isFetching ? 0.55 : 1, transition: 'opacity 150ms' }}>
             <table className="text-sm" style={{ background: 'var(--brand-surface)', minWidth: '900px', width: '100%' }}>
               <thead style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
                 <tr>
@@ -981,7 +1046,8 @@ export default function ProjectsPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading && Array.from({ length: 8 }).map((_, i) => (
+                {/* Skeleton apenas na primeira carga (sem dados ainda) */}
+                {loading && rows.length === 0 && Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)' }}>
                     {[...Array(9)].map((_, j) => (
                       <td key={j} className="px-4 py-4">
@@ -990,7 +1056,8 @@ export default function ProjectsPage() {
                     ))}
                   </tr>
                 ))}
-                {!loading && rows.length === 0 && (
+                {/* Estado vazio: só mostra quando não está carregando e não tem dados */}
+                {!loading && !isFetching && rows.length === 0 && (
                   <tr>
                     <td colSpan={9} className="py-20 text-center">
                       <div className="flex flex-col items-center gap-3">
@@ -1002,7 +1069,8 @@ export default function ProjectsPage() {
                     </td>
                   </tr>
                 )}
-                {!loading && rows.map(p => {
+                {/* Dados — visíveis mesmo durante isFetching (keep-previous-data) */}
+                {rows.length > 0 && rows.map(p => {
                   const isDisabled = p._node_state === 'DISABLED'
                   const isOnDemand = p.contract_type_display?.toLowerCase().includes('on demand')
                   const consumedPct = isOnDemand ? 0 : calcConsumedPct(p)
@@ -1878,6 +1946,13 @@ export default function ProjectsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDeleteModal
+        open={deleteConfirm.open}
+        message={deleteConfirm.message}
+        onClose={() => setDeleteConfirm({ open: false })}
+        onConfirm={confirmDelete}
+      />
     </AppLayout>
   )
 }

@@ -12,6 +12,7 @@ import {
   Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, ChevronDown,
   Search, KeyRound, Check, Copy, Eye,
 } from 'lucide-react'
+import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -268,6 +269,7 @@ export function UserManagementTab() {
   const [bulkField,     setBulkField]     = useState<'consultant_type' | 'profile' | 'hourly_rate'>('consultant_type')
   const [bulkValue,     setBulkValue]     = useState('')
   const [bulkApplying,  setBulkApplying]  = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   const toggleSelect = (id: number) =>
     setSelectedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
@@ -392,10 +394,13 @@ export function UserManagementTab() {
     finally { setSaving(false) }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Confirmar exclusão do usuário?')) return
-    setDeleting(id)
-    try { await api.delete(`/users/${id}`); toast.success('Usuário excluído'); load() }
+  const remove = (id: number) => setDeleteConfirm({ open: true, id })
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.id) return
+    setDeleting(deleteConfirm.id)
+    setDeleteConfirm({ open: false })
+    try { await api.delete(`/users/${deleteConfirm.id}`); toast.success('Usuário excluído'); load() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
     finally { setDeleting(null) }
   }
@@ -840,6 +845,13 @@ export function UserManagementTab() {
           </ModalOverlay>
         )
       })()}
+
+      <ConfirmDeleteModal
+        open={deleteConfirm.open}
+        message="Deseja excluir este usuário? Esta ação não pode ser desfeita."
+        onClose={() => setDeleteConfirm({ open: false })}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Handshake } from 'lucide-react'
+import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 
 interface PartnerItem {
   id: number
@@ -60,6 +61,7 @@ export default function PartnersPage() {
   const [form, setForm]       = useState({ ...EMPTY_FORM })
   const [saving, setSaving]   = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -117,11 +119,14 @@ export default function PartnersPage() {
     }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Confirmar exclusão do parceiro?')) return
-    setDeleting(id)
+  const remove = (id: number) => setDeleteConfirm({ open: true, id })
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.id) return
+    setDeleting(deleteConfirm.id)
+    setDeleteConfirm({ open: false })
     try {
-      await api.delete(`/partners/${id}`)
+      await api.delete(`/partners/${deleteConfirm.id}`)
       toast.success('Parceiro excluído')
       load()
     } catch (e) {
@@ -277,6 +282,13 @@ export default function PartnersPage() {
           </div>
         </ModalOverlay>
       )}
+
+      <ConfirmDeleteModal
+        open={deleteConfirm.open}
+        message="Deseja excluir este parceiro? Esta ação não pode ser desfeita."
+        onClose={() => setDeleteConfirm({ open: false })}
+        onConfirm={confirmDelete}
+      />
     </AppLayout>
   )
 }

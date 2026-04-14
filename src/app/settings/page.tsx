@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import type { Role, Permission, SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
+import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -158,7 +159,7 @@ function GeneralTab() {
   useEffect(() => {
     Promise.all([
       api.get<{ data: SystemSettings }>('/system-settings'),
-      api.get<{ data: { id: number; name: string }[] }>('/customers?pageSize=500'),
+      api.get<{ data: { id: number; name: string }[] }>('/customers?pageSize=100'),
     ]).then(([s, c]) => {
       setSettings(s.data ?? s as unknown as SystemSettings)
       const cArr = Array.isArray((c as any)?.items) ? (c as any).items : Array.isArray((c as any)?.data) ? (c as any).data : []
@@ -325,6 +326,7 @@ function RolesTab() {
   const [form, setForm] = useState({ name: '' })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -363,7 +365,7 @@ function RolesTab() {
     // Carrega usuários e pré-seleciona os já vinculados ao role
     try {
       const [usersRes, roleUsersRes] = await Promise.all([
-        api.get<{ items: { id: number; name: string; email: string }[] }>('/users?pageSize=500'),
+        api.get<{ items: { id: number; name: string; email: string }[] }>('/users?pageSize=100'),
         api.get<{ items: { id: number; name: string; email: string }[] }>(`/roles/${role.id}/users`),
       ])
       setAllUsers(Array.isArray(usersRes?.items) ? usersRes.items : [])
@@ -398,11 +400,14 @@ function RolesTab() {
     finally { setSaving(false) }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Confirmar exclusão?')) return
-    setDeleting(id)
+  const remove = (id: number) => setDeleteConfirm({ open: true, id })
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.id) return
+    setDeleting(deleteConfirm.id)
+    setDeleteConfirm({ open: false })
     try {
-      await api.delete(`/roles/${id}`)
+      await api.delete(`/roles/${deleteConfirm.id}`)
       toast.success('Perfil excluído')
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
@@ -545,6 +550,13 @@ function RolesTab() {
           </div>
         </ModalOverlay>
       )}
+
+      <ConfirmDeleteModal
+        open={deleteConfirm.open}
+        message="Deseja excluir este perfil? Esta ação não pode ser desfeita."
+        onClose={() => setDeleteConfirm({ open: false })}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }

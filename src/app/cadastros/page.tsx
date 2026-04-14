@@ -1,7 +1,8 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { api, ApiError } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { FileType, Wrench, Users, Star, UserCheck, CalendarDays, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Check } from 'lucide-react'
+import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import type { CustomerFull, Executive, ConsultantGroup } from '@/types'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -71,6 +73,7 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
   const [form, setForm] = useState({ name: '', code: '', description: '', active: true })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -102,11 +105,14 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
     finally { setSaving(false) }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Confirmar exclusão?')) return
-    setDeleting(id)
+  const remove = (id: number) => setDeleteConfirm({ open: true, id })
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.id) return
+    setDeleting(deleteConfirm.id)
+    setDeleteConfirm({ open: false })
     try {
-      await api.delete(`/${endpoint}/${id}`)
+      await api.delete(`/${endpoint}/${deleteConfirm.id}`)
       toast.success(`${label} excluído`)
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
@@ -205,6 +211,13 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
           </div>
         </ModalOverlay>
       )}
+
+      <ConfirmDeleteModal
+        open={deleteConfirm.open}
+        message={`Deseja excluir este ${label.toLowerCase()}? Esta ação não pode ser desfeita.`}
+        onClose={() => setDeleteConfirm({ open: false })}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }
@@ -223,9 +236,10 @@ function CustomersTab() {
   const [form, setForm] = useState({ name: '', company_name: '', cgc: '', active: true, executive_id: '' })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   useEffect(() => {
-    api.get<any>('/executives?pageSize=1000').then(r => {
+    api.get<any>('/executives?pageSize=100').then(r => {
       const arr = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setExecutives(arr)
     }).catch(() => {})
@@ -265,11 +279,14 @@ function CustomersTab() {
     finally { setSaving(false) }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Confirmar exclusão?')) return
-    setDeleting(id)
+  const remove = (id: number) => setDeleteConfirm({ open: true, id })
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.id) return
+    setDeleting(deleteConfirm.id)
+    setDeleteConfirm({ open: false })
     try {
-      await api.delete(`/customers/${id}`)
+      await api.delete(`/customers/${deleteConfirm.id}`)
       toast.success('Cliente excluído')
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
@@ -378,6 +395,13 @@ function CustomersTab() {
           </div>
         </ModalOverlay>
       )}
+
+      <ConfirmDeleteModal
+        open={deleteConfirm.open}
+        message="Deseja excluir este cliente? Esta ação não pode ser desfeita."
+        onClose={() => setDeleteConfirm({ open: false })}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }
@@ -398,7 +422,7 @@ function ExecutivesTab() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await api.get<{ items?: ExecutiveUser[] }>('/executives?pageSize=500')
+      const r = await api.get<{ items?: ExecutiveUser[] }>('/executives?pageSize=100')
       setExecutives(Array.isArray(r?.items) ? r.items : [])
     } catch { toast.error('Erro ao carregar executivos') }
     finally { setLoading(false) }
@@ -515,6 +539,7 @@ function ConsultantGroupsTab() {
   const [form, setForm] = useState({ name: '', description: '', active: true, consultant_ids: [] as number[] })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
   const [detailModal, setDetailModal] = useState<ConsultantGroup | null>(null)
 
   const load = useCallback(async () => {
@@ -534,7 +559,7 @@ function ConsultantGroupsTab() {
   const loadConsultants = async () => {
     setLoadingConsultants(true)
     try {
-      const r = await api.get<{ items?: { id: number; name: string; email: string }[] }>('/users?pageSize=500&enabled=1')
+      const r = await api.get<{ items?: { id: number; name: string; email: string }[] }>('/users?pageSize=100&enabled=1')
       const list = Array.isArray(r?.items) ? r.items : Array.isArray((r as any)?.data) ? (r as any).data : []
       setAvailConsultants(list)
     } catch { setAvailConsultants([]) }
@@ -567,11 +592,14 @@ function ConsultantGroupsTab() {
     finally { setSaving(false) }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Confirmar exclusão?')) return
-    setDeleting(id)
+  const remove = (id: number) => setDeleteConfirm({ open: true, id })
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.id) return
+    setDeleting(deleteConfirm.id)
+    setDeleteConfirm({ open: false })
     try {
-      await api.delete(`/consultant-groups/${id}`)
+      await api.delete(`/consultant-groups/${deleteConfirm.id}`)
       toast.success('Grupo excluído')
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
@@ -750,6 +778,13 @@ function ConsultantGroupsTab() {
           </div>
         </ModalOverlay>
       )}
+
+      <ConfirmDeleteModal
+        open={deleteConfirm.open}
+        message="Deseja excluir este grupo? Esta ação não pode ser desfeita."
+        onClose={() => setDeleteConfirm({ open: false })}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }
@@ -773,6 +808,7 @@ function HolidaysTab() {
   const [form, setForm] = useState({ date: '', name: '', type: 'national', state: '', active: true })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -808,11 +844,14 @@ function HolidaysTab() {
     finally { setSaving(false) }
   }
 
-  const remove = async (id: number) => {
-    if (!confirm('Excluir feriado?')) return
-    setDeleting(id)
+  const remove = (id: number) => setDeleteConfirm({ open: true, id })
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.id) return
+    setDeleting(deleteConfirm.id)
+    setDeleteConfirm({ open: false })
     try {
-      await api.delete(`/holidays/${id}`)
+      await api.delete(`/holidays/${deleteConfirm.id}`)
       toast.success('Feriado excluído')
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
@@ -917,15 +956,32 @@ function HolidaysTab() {
           </div>
         </ModalOverlay>
       )}
+
+      <ConfirmDeleteModal
+        open={deleteConfirm.open}
+        message="Deseja excluir este feriado? Esta ação não pode ser desfeita."
+        onClose={() => setDeleteConfirm({ open: false })}
+        onConfirm={confirmDelete}
+      />
     </div>
   )
 }
 
 // ─── PAGE ────────────────────────────────────────────────────────────────────
 
-export default function CadastrosPage() {
-  const [activeTab, setActiveTab] = useState('contracts')
+function CadastrosContent() {
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab') ?? 'contracts'
+  const validTab = TABS.find(t => t.id === tabParam) ? tabParam : 'contracts'
+  const [activeTab, setActiveTab] = useState(validTab)
   const active = TABS.find(t => t.id === activeTab)!
+
+  // Sincroniza quando o parâmetro muda (navegação via sidebar)
+  useEffect(() => {
+    const t = searchParams.get('tab') ?? 'contracts'
+    const valid = TABS.find(t2 => t2.id === t) ? t : 'contracts'
+    setActiveTab(valid)
+  }, [searchParams])
 
   return (
     <AppLayout>
@@ -968,5 +1024,13 @@ export default function CadastrosPage() {
         </div>
       </div>
     </AppLayout>
+  )
+}
+
+export default function CadastrosPage() {
+  return (
+    <Suspense>
+      <CadastrosContent />
+    </Suspense>
   )
 }
