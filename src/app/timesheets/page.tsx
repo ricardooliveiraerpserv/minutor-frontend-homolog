@@ -522,11 +522,12 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
 // ─── STATUS OPTIONS ──────────────────────────────────────────────────────────
 
 const STATUS_PILLS = [
-  { value: '',           label: 'Todos' },
-  { value: 'pending',    label: 'Pendente' },
-  { value: 'approved',   label: 'Aprovado' },
-  { value: 'rejected',   label: 'Rejeitado' },
-  { value: 'conflicted', label: 'Conflito' },
+  { value: '',                     label: 'Todos' },
+  { value: 'pending',              label: 'Pendente' },
+  { value: 'approved',             label: 'Aprovado' },
+  { value: 'rejected',             label: 'Rejeitado' },
+  { value: 'adjustment_requested', label: 'Ajuste' },
+  { value: 'conflicted',           label: 'Conflito' },
 ]
 
 const ORIGIN_OPTIONS = [
