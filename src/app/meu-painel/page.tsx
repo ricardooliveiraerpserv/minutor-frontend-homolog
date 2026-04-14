@@ -846,11 +846,16 @@ export default function MeuPainelPage() {
 
   const { startDate, endDate } = periodBounds(year, month)
 
+  const nowForNav  = new Date()
+  const isAtCurrentMonth = year > nowForNav.getFullYear() ||
+    (year === nowForNav.getFullYear() && month >= nowForNav.getMonth())
+
   const prevMonth = () => {
     if (month === 0) { setMonth(11); setYear(y => y - 1) }
     else setMonth(m => m - 1)
   }
   const nextMonth = () => {
+    if (isAtCurrentMonth) return
     if (month === 11) { setMonth(0); setYear(y => y + 1) }
     else setMonth(m => m + 1)
   }
@@ -1423,8 +1428,8 @@ export default function MeuPainelPage() {
           <span className="text-sm font-semibold text-white min-w-[148px] text-center select-none">
             {MONTHS[month]} {year}
           </span>
-          <button onClick={nextMonth}
-            className="p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
+          <button onClick={nextMonth} disabled={isAtCurrentMonth}
+            className={`p-1.5 rounded transition-colors ${isAtCurrentMonth ? 'text-zinc-700 cursor-not-allowed' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'}`}>
             <ChevronRight size={14} />
           </button>
         </div>
@@ -2591,7 +2596,7 @@ export default function MeuPainelPage() {
 
             <div>
               <Label className="text-xs text-zinc-400">Data *</Label>
-              <Input type="date" value={tsForm.date}
+              <Input type="date" value={tsForm.date} max={todayISO()}
                 onChange={e => setTsForm(f => ({ ...f, date: e.target.value }))}
                 className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
             </div>
@@ -2721,7 +2726,7 @@ export default function MeuPainelPage() {
 
             <div>
               <Label className="text-xs text-zinc-400">Data *</Label>
-              <Input type="date" value={expForm.expense_date}
+              <Input type="date" value={expForm.expense_date} max={todayISO()}
                 onChange={e => setExpForm(f => ({ ...f, expense_date: e.target.value }))}
                 className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
             </div>
