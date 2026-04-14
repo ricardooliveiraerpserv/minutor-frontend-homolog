@@ -25,6 +25,7 @@ import {
   Star,
   UserCheck,
   CalendarDays,
+  Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useMemo, Suspense } from 'react'
@@ -75,6 +76,15 @@ type NavGroup = {
   items: { label: string; href: string; icon: LucideIcon }[]
 }
 type NavEntry = NavItem | NavGroup
+
+const NAV_COORDINATOR: NavEntry[] = [
+  { type: 'item', label: 'Início',              href: '/dashboard',        icon: Home },
+  { type: 'item', label: 'Meu Painel',          href: '/meu-painel',       icon: LayoutDashboard },
+  { type: 'item', label: 'Apontamentos',        href: '/timesheets',       icon: Clock },
+  { type: 'item', label: 'Despesas',            href: '/expenses',         icon: Receipt },
+  { type: 'item', label: 'Gestão de Projetos',  href: '/gestao-projetos',  icon: Layers },
+  { type: 'item', label: 'Aprovações',          href: '/approvals',        icon: CheckSquare },
+]
 
 const NAV: NavEntry[] = [
   { type: 'item', label: 'Início',        href: '/dashboard',   icon: Home },
@@ -134,12 +144,16 @@ function SidebarInner({ user }: { user: User }) {
     !user.roles.includes('Coordenador') &&
     !user.roles.includes('Parceiro ADM')
 
+  const isCoordenador = user?.roles?.includes('Coordenador') &&
+    !user.roles.includes('Administrator')
+
   const visibleNav = useMemo(() => {
+    if (isCoordenador) return NAV_COORDINATOR
     if (isConsultor) {
       return NAV.filter(e => e.type === 'item' && (e.href === '/dashboard' || e.href === '/meu-painel'))
     }
     return NAV
-  }, [isConsultor])
+  }, [isCoordenador, isConsultor])
 
   // First two letters of name for avatar
   const initials = user?.name
