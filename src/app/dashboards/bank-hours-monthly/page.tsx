@@ -6,6 +6,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import DashboardIndicators from '@/components/dashboard/DashboardIndicators'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -165,16 +166,16 @@ export default function BankHoursMonthlyPage() {
     user?.permissions?.includes('admin.full_access') || false
 
   const now = new Date()
+  const isoFirstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  const isoLastDay  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}`
   const [customers,   setCustomers]   = useState<Customer[]>([])
   const [executives,  setExecutives]  = useState<Executive[]>([])
   const [projects,    setProjects]    = useState<Project[]>([])
   const [selectedCustomer,  setSelectedCustomer]  = useState<number | ''>('')
   const [selectedExecutive, setSelectedExecutive] = useState<number | ''>('')
   const [selectedProject,   setSelectedProject]   = useState<number | ''>('')
-  const [startMonth, setStartMonth] = useState<number>(now.getMonth() + 1)
-  const [startYear,  setStartYear]  = useState<number>(now.getFullYear())
-  const [month,      setMonth]      = useState<number>(now.getMonth() + 1)
-  const [year,       setYear]       = useState<number>(now.getFullYear())
+  const [dateFrom, setDateFrom] = useState(isoFirstDay)
+  const [dateTo,   setDateTo]   = useState(isoLastDay)
 
   const [summary,      setSummary]      = useState<SummaryData | null>(null)
   const [projectsList, setProjectsList] = useState<ProjectItem[]>([])
@@ -187,8 +188,8 @@ export default function BankHoursMonthlyPage() {
 
   useEffect(() => {
     if (!isAdmin) return
-    api.get<any>('/customers?pageSize=1000&has_contract_type_name=Banco+de+Horas+Mensal').then(r => setCustomers(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
-    api.get<any>('/executives?pageSize=1000').then(r => setExecutives(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
+    api.get<any>('/customers?pageSize=100&has_contract_type_name=Banco+de+Horas+Mensal').then(r => setCustomers(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
+    api.get<any>('/executives?pageSize=100').then(r => setExecutives(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
   }, [isAdmin])
 
   useEffect(() => {
@@ -201,7 +202,8 @@ export default function BankHoursMonthlyPage() {
 
   const fetchSummary = useCallback(() => {
     if (!selectedProject && isAdmin) return
-    const params = new URLSearchParams({ month: String(month), year: String(year) })
+    const [toY, toM] = dateTo.split('-').map(Number)
+    const params = new URLSearchParams({ month: String(toM), year: String(toY) })
     if (selectedCustomer)  params.set('customer_id',  String(selectedCustomer))
     if (selectedExecutive) params.set('executive_id', String(selectedExecutive))
     if (selectedProject)   params.set('project_id',   String(selectedProject))
@@ -210,19 +212,21 @@ export default function BankHoursMonthlyPage() {
       .then(r => setSummary(r?.data ?? r ?? null))
       .catch(() => setSummary(null))
       .finally(() => setLoadingSummary(false))
-  }, [selectedCustomer, selectedExecutive, selectedProject, month, year, isAdmin])
+  }, [selectedCustomer, selectedExecutive, selectedProject, dateFrom, dateTo, isAdmin])
 
   const buildParams = useCallback(() => {
-    const p = new URLSearchParams({ month: String(month), year: String(year) })
-    if (startMonth !== month || startYear !== year) {
-      p.set('start_month', String(startMonth))
-      p.set('start_year',  String(startYear))
+    const [toY,   toM]   = dateTo.split('-').map(Number)
+    const [fromY, fromM] = dateFrom.split('-').map(Number)
+    const p = new URLSearchParams({ month: String(toM), year: String(toY) })
+    if (fromM !== toM || fromY !== toY) {
+      p.set('start_month', String(fromM))
+      p.set('start_year',  String(fromY))
     }
     if (selectedCustomer)  p.set('customer_id',  String(selectedCustomer))
     if (selectedExecutive) p.set('executive_id', String(selectedExecutive))
     if (selectedProject)   p.set('project_id',   String(selectedProject))
     return p
-  }, [selectedCustomer, selectedExecutive, selectedProject, startMonth, startYear, month, year])
+  }, [selectedCustomer, selectedExecutive, selectedProject, dateFrom, dateTo])
 
   const fetchProjectsList = useCallback(() => {
     if (!selectedProject && isAdmin) return
@@ -251,12 +255,6 @@ export default function BankHoursMonthlyPage() {
   useEffect(() => { setIndicatorParams(buildParams()) }, [buildParams])
 
   const hasFilters = !isAdmin || !!selectedProject
-
-  const months = [
-    'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
-  ]
-  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i)
 
   return (
     <AppLayout title="Dashboard — Banco de Horas Mensais">
@@ -296,29 +294,11 @@ export default function BankHoursMonthlyPage() {
           {/* Período range */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Período</label>
-            <div className="flex items-center gap-2">
-              <select value={startMonth} onChange={e => setStartMonth(Number(e.target.value))}
-                className="rounded-xl px-3 py-2.5 text-sm appearance-none outline-none cursor-pointer"
-                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
-                {months.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-              </select>
-              <select value={startYear} onChange={e => setStartYear(Number(e.target.value))}
-                className="rounded-xl px-3 py-2.5 text-sm appearance-none outline-none cursor-pointer"
-                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-              <span className="text-xs px-1" style={{ color: 'var(--brand-subtle)' }}>até</span>
-              <select value={month} onChange={e => setMonth(Number(e.target.value))}
-                className="rounded-xl px-3 py-2.5 text-sm appearance-none outline-none cursor-pointer"
-                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
-                {months.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-              </select>
-              <select value={year} onChange={e => setYear(Number(e.target.value))}
-                className="rounded-xl px-3 py-2.5 text-sm appearance-none outline-none cursor-pointer"
-                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
+            <DateRangePicker
+              from={dateFrom}
+              to={dateTo}
+              onChange={(f, t) => { setDateFrom(f); setDateTo(t) }}
+            />
           </div>
         </div>
 
