@@ -2849,10 +2849,7 @@ export default function MeuPainelPage() {
             {expViewItem.receipt_url && (
               <div>
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Comprovante</p>
-                <a href={expViewItem.receipt_url} target="_blank" rel="noreferrer"
-                  className="text-xs text-blue-400 hover:text-blue-300 underline">
-                  Ver comprovante
-                </a>
+                <ReceiptLinkInline url={expViewItem.receipt_url} />
               </div>
             )}
             <div className="flex justify-end pt-1">
