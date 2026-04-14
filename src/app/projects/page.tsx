@@ -1264,10 +1264,12 @@ export default function ProjectsPage() {
                   </div>
                   <div className="col-span-2">
                     <FieldLabel required>Cliente</FieldLabel>
-                    <FieldSelect value={form.customer_id} onChange={setF('customer_id')}>
-                      <option value="">Selecione...</option>
-                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </FieldSelect>
+                    <SearchSelect
+                      value={form.customer_id}
+                      onChange={setF('customer_id')}
+                      options={customers}
+                      placeholder="Selecione um cliente..."
+                    />
                   </div>
                   <div className="col-span-2">
                     <FieldLabel>Código</FieldLabel>
