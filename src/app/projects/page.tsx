@@ -468,17 +468,16 @@ export default function ProjectsPage() {
 
   const [rows, setRows] = useState<TreeRow[]>([])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (currentParams: string) => {
     const id = ++loadIdRef.current
-    // Primeira carga: mostra skeleton. Recargas: mantém dados visíveis (isFetching)
     if (!hasLoadedRef.current) {
       setLoading(true)
     } else {
       setIsFetching(true)
     }
     try {
-      const r = await api.get<PaginatedResponse<Project>>(`/projects?${params}`)
-      if (id !== loadIdRef.current) return // resposta stale — ignora
+      const r = await api.get<PaginatedResponse<Project>>(`/projects?${currentParams}`)
+      if (id !== loadIdRef.current) return
       hasLoadedRef.current = true
       setData(r)
       setRows((r?.items ?? []).map(p => toTreeRow(p)))
@@ -491,9 +490,13 @@ export default function ProjectsPage() {
         setIsFetching(false)
       }
     }
-  }, [params])
+  }, [])
 
-  useEffect(() => { load() }, [load])
+  // Debounce de 150ms: cancela chamadas redundantes quando múltiplos filtros mudam em sequência
+  useEffect(() => {
+    const t = setTimeout(() => { load(params) }, 150)
+    return () => clearTimeout(t)
+  }, [params, load])
 
   // Debounce: aguarda 400ms após o usuário parar de digitar para disparar a busca
   useEffect(() => {
@@ -533,8 +536,8 @@ export default function ProjectsPage() {
     })
   }, [statusFilter])
 
-  // Carrega opções dos filtros de lista — recarrega ao montar e ao ganhar foco de janela
-  const loadFilterOptions = useCallback(() => {
+  // Carrega opções dos filtros — uma vez por montagem (Next.js App Router remonta ao navegar)
+  useEffect(() => {
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
     Promise.allSettled([
       api.get<any>('/customers?pageSize=200'),
@@ -548,13 +551,6 @@ export default function ProjectsPage() {
       if (ex.status === 'fulfilled') setFilterExecutives(items(ex.value))
     })
   }, [])
-
-  useEffect(() => {
-    loadFilterOptions()
-    const onFocus = () => loadFilterOptions()
-    window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
-  }, [loadFilterOptions])
 
   const loadOptions = useCallback(async () => {
     try {
@@ -833,7 +829,7 @@ export default function ProjectsPage() {
 
       toast.success(modal.item ? 'Projeto atualizado' : 'Projeto criado')
       setModal({ open: false })
-      load()
+      load(params)
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
     finally { setSaving(false) }
   }
@@ -852,7 +848,7 @@ export default function ProjectsPage() {
     try {
       await api.delete(`/projects/${id}`)
       toast.success('Projeto excluído')
-      load()
+      load(params)
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
     finally { setDeleting(null) }
   }
