@@ -769,11 +769,13 @@ export default function UsersPage() {
               </div>
 
               <div className="flex gap-2 mt-5 justify-end">
+                {canEdit && (
                 <button onClick={() => { setViewUser(null); openEdit(u) }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/5"
                   style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
                   <Pencil size={11} /> Editar
                 </button>
+                )}
                 <button onClick={() => setViewUser(null)}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium"
                   style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
