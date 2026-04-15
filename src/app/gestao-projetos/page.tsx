@@ -2,17 +2,27 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { Project, PaginatedResponse } from '@/types'
+import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle } from 'lucide-react'
+import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck } from 'lucide-react'
 import { PageHeader } from '@/components/ds'
+import { RowMenu } from '@/components/ui/row-menu'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 interface ProjectWithTeam extends Project {
   consultants?: { id: number; name: string; email: string }[]
   coordinators?: { id: number; name: string; email: string }[]
+}
+
+interface CostSummary {
+  project_info: { project_value?: number | null; initial_cost?: number | null; total_available_hours?: number; weighted_hourly_rate?: number }
+  hours_summary: { total_logged_hours: number; approved_hours: number; pending_hours: number; remaining_hours: number; general_balance?: number; total_available_hours?: number; hours_percentage: number }
+  cost_calculation: { total_cost: number; approved_cost: number; pending_cost: number; margin: number; margin_percentage: number }
+  consultant_breakdown: { consultant_name: string; total_hours: number; approved_hours: number; pending_hours: number; cost: number; consultant_hourly_rate?: number; consultant_rate_type?: string }[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -181,9 +191,10 @@ interface ProjectRowProps {
   project: ProjectWithTeam
   expanded: boolean
   onToggle: () => void
+  onMenuAction: (action: 'costs' | 'timesheets' | 'expenses' | 'team', project: ProjectWithTeam) => void
 }
 
-function ProjectRow({ project, expanded, onToggle }: ProjectRowProps) {
+function ProjectRow({ project, expanded, onToggle, onMenuAction }: ProjectRowProps) {
   const consumedHours = project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0)
   const pct   = project.sold_hours ? (consumedHours / project.sold_hours) * 100 : 0
   const color = healthColor(pct)
@@ -210,6 +221,16 @@ function ProjectRow({ project, expanded, onToggle }: ProjectRowProps) {
         style={{ borderColor: 'var(--brand-border)' }}
         onClick={onToggle}
       >
+        {/* Menu de ações */}
+        <td className="py-2 pl-2 pr-1 w-8" onClick={e => e.stopPropagation()}>
+          <RowMenu items={[
+            { label: 'Custo',                  icon: <DollarSign size={12} />, onClick: () => onMenuAction('costs',      project) },
+            { label: 'Apontamentos',           icon: <Clock      size={12} />, onClick: () => onMenuAction('timesheets', project) },
+            { label: 'Despesas',               icon: <BarChart2  size={12} />, onClick: () => onMenuAction('expenses',   project) },
+            { label: 'Selecionar Equipe',      icon: <Users      size={12} />, onClick: () => onMenuAction('team',       project) },
+          ]} />
+        </td>
+
         {/* Indicador de saúde (borda esquerda) */}
         <td className="pl-0 pr-3 py-3 w-1">
           <div className="w-1 h-10 rounded-full ml-0" style={{ background: hs.bar }} />
@@ -285,7 +306,7 @@ function ProjectRow({ project, expanded, onToggle }: ProjectRowProps) {
       {/* Expansão: equipe */}
       {expanded && teamCount > 0 && (
         <tr style={{ background: 'rgba(0,0,0,0.2)' }}>
-          <td />
+          <td /><td />
           <td colSpan={7} className="py-3 px-4">
             <div className="flex flex-wrap gap-4">
               {(project.coordinators ?? []).length > 0 && (
@@ -329,6 +350,7 @@ function ProjectRow({ project, expanded, onToggle }: ProjectRowProps) {
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function GestaoProjetosPage() {
+  const router = useRouter()
   const [projects, setProjects]   = useState<ProjectWithTeam[]>([])
   const [loading, setLoading]     = useState(true)
   const [search, setSearch]       = useState('')
@@ -336,6 +358,18 @@ export default function GestaoProjetosPage() {
   const [clienteFilter, setCliente] = useState('')
   const [saudeFilter, setSaude]   = useState('')
   const [expanded, setExpanded]   = useState<Set<number>>(new Set())
+
+  // Modal de custos
+  const [costProject, setCostProject]   = useState<ProjectWithTeam | null>(null)
+  const [costSummary, setCostSummary]   = useState<CostSummary | null>(null)
+  const [costLoading, setCostLoading]   = useState(false)
+
+  // Modal de equipe
+  const [teamProject, setTeamProject]     = useState<ProjectWithTeam | null>(null)
+  const [allConsultants, setAllConsultants] = useState<{ id: number; name: string }[]>([])
+  const [selectedIds, setSelectedIds]     = useState<Set<number>>(new Set())
+  const [teamSaving, setTeamSaving]       = useState(false)
+  const [teamSearch, setTeamSearch]       = useState('')
 
   useEffect(() => {
     setLoading(true)
@@ -393,6 +427,48 @@ export default function GestaoProjetosPage() {
     const criticos  = filtered.filter(p => (p.balance_percentage ?? 0) >= 90).length
     return { ativos, vendidas, consumidas, saldo, avgPct, criticos }
   }, [filtered])
+
+  const handleMenuAction = async (action: 'costs' | 'timesheets' | 'expenses' | 'team', project: ProjectWithTeam) => {
+    if (action === 'timesheets') { router.push(`/timesheets?project_id=${project.id}`); return }
+    if (action === 'expenses')   { router.push(`/expenses?project_id=${project.id}`);   return }
+    if (action === 'costs') {
+      setCostProject(project)
+      setCostSummary(null)
+      setCostLoading(true)
+      try {
+        const r = await api.get<CostSummary>(`/projects/${project.id}/cost-summary`)
+        setCostSummary(r)
+      } catch { toast.error('Erro ao carregar custos') }
+      finally { setCostLoading(false) }
+    }
+    if (action === 'team') {
+      setTeamProject(project)
+      setTeamSearch('')
+      setSelectedIds(new Set((project.consultants ?? []).map(c => c.id)))
+      if (allConsultants.length === 0) {
+        try {
+          const r = await api.get<{ items: { id: number; name: string }[] }>('/users?type=consultor&pageSize=200')
+          setAllConsultants(r.items ?? [])
+        } catch { toast.error('Erro ao carregar consultores') }
+      }
+    }
+  }
+
+  const saveTeam = async () => {
+    if (!teamProject) return
+    setTeamSaving(true)
+    try {
+      await api.put(`/projects/${teamProject.id}`, { consultant_ids: [...selectedIds] })
+      toast.success('Equipe atualizada')
+      setTeamProject(null)
+      // Atualiza localmente
+      setProjects(prev => prev.map(p => p.id === teamProject.id
+        ? { ...p, consultants: allConsultants.filter(c => selectedIds.has(c.id)).map(c => ({ ...c, email: '' })) }
+        : p
+      ))
+    } catch { toast.error('Erro ao salvar equipe') }
+    finally { setTeamSaving(false) }
+  }
 
   const toggleExpand = (id: number) =>
     setExpanded(prev => {
@@ -506,7 +582,8 @@ export default function GestaoProjetosPage() {
             <table className="w-full text-left">
               <thead>
                 <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
-                  <th className="w-1 pl-2" />
+                  <th className="w-8 pl-2" />
+                  <th className="w-1" />
                   <th className="py-3 pr-4 pl-2 text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Projeto</th>
                   <th className="py-3 pr-4 text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Cliente</th>
                   <th className="py-3 pr-4 text-xs font-semibold text-right" style={{ color: 'var(--brand-muted)' }}>HS Vendidas</th>
@@ -523,6 +600,7 @@ export default function GestaoProjetosPage() {
                     project={project}
                     expanded={expanded.has(project.id)}
                     onToggle={() => toggleExpand(project.id)}
+                    onMenuAction={handleMenuAction}
                   />
                 ))}
               </tbody>
@@ -545,6 +623,123 @@ export default function GestaoProjetosPage() {
           </div>
         )}
       </div>
+      {/* ── Modal de Custos ── */}
+      {costProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[90vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{costProject.code}</p>
+                <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{costProject.name}</h2>
+              </div>
+              <button onClick={() => setCostProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {costLoading && <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Calculando custos...</p>}
+              {!costLoading && !costSummary && <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum dado disponível.</p>}
+              {!costLoading && costSummary && (() => {
+                const { project_info: pi, hours_summary: hs, cost_calculation: cc, consultant_breakdown: cb } = costSummary
+                const marginColor = cc.margin_percentage >= 30 ? '#22c55e' : cc.margin_percentage >= 10 ? '#f59e0b' : '#ef4444'
+                const hoursUsedPct = Math.min(100, Math.max(0, hs.hours_percentage ?? 0))
+                const hoursBarColor = hoursUsedPct >= 90 ? '#ef4444' : hoursUsedPct >= 70 ? '#f59e0b' : '#22c55e'
+                return (
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { label: 'Valor do Projeto', value: formatBRL(pi.project_value ?? 0),      icon: DollarSign, color: '#00F5FF' },
+                        { label: 'Custo Total',       value: formatBRL(cc.total_cost),              icon: TrendingUp,  color: '#f59e0b' },
+                        { label: 'Margem',            value: formatBRL(cc.margin),                  icon: BarChart2,   color: marginColor },
+                        { label: 'Margem %',          value: `${cc.margin_percentage.toFixed(1)}%`, icon: BarChart2,   color: marginColor },
+                      ].map(c => (
+                        <div key={c.label} className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                          <div className="flex items-center gap-2 mb-1"><c.icon size={12} style={{ color: c.color }} /><p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p></div>
+                          <p className="text-sm font-bold tabular-nums" style={{ color: c.color }}>{c.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Monitoramento de Horas</p>
+                      <div className="grid grid-cols-3 gap-4 text-xs mb-3">
+                        <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Disponíveis</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{(hs.total_available_hours ?? pi.total_available_hours ?? 0).toFixed(1)}h</p></div>
+                        <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Apontadas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{hs.total_logged_hours.toFixed(1)}h</p></div>
+                        <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (hs.general_balance ?? hs.remaining_hours) < 0 ? '#ef4444' : 'var(--brand-text)' }}>{(hs.general_balance ?? hs.remaining_hours).toFixed(1)}h</p></div>
+                        <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Aprovadas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: '#22c55e' }}>{hs.approved_hours.toFixed(1)}h</p></div>
+                        <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Pendentes</p><p className="font-bold tabular-nums mt-0.5" style={{ color: '#f59e0b' }}>{hs.pending_hours.toFixed(1)}h</p></div>
+                      </div>
+                      <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--brand-border)' }}><div className="h-1.5 rounded-full transition-all" style={{ width: `${hoursUsedPct}%`, background: hoursBarColor }} /></div>
+                      <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{hoursUsedPct.toFixed(1)}% das horas utilizadas</p>
+                    </div>
+                    {cb.length > 0 && (
+                      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                        <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}><p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}><UserCheck size={11} />Custo por Consultor</p></div>
+                        <table className="w-full text-xs">
+                          <thead><tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>{['Consultor','Hs Total','Aprovadas','Pendentes','Taxa/h','Custo'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}</tr></thead>
+                          <tbody>
+                            {cb.map((c, i) => (
+                              <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)' }}>
+                                <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--brand-text)' }}>{c.consultant_name}</td>
+                                <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-text)' }}>{c.total_hours.toFixed(1)}h</td>
+                                <td className="px-3 py-2.5 tabular-nums" style={{ color: '#22c55e' }}>{c.approved_hours.toFixed(1)}h</td>
+                                <td className="px-3 py-2.5 tabular-nums" style={{ color: '#f59e0b' }}>{c.pending_hours.toFixed(1)}h</td>
+                                <td className="px-3 py-2.5 tabular-nums text-[11px]" style={{ color: 'var(--brand-muted)' }}>{c.consultant_hourly_rate != null ? formatBRL(c.consultant_hourly_rate) : '—'}{c.consultant_rate_type === 'monthly' && <span className="ml-1 opacity-60">÷180</span>}</td>
+                                <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--brand-text)' }}>{formatBRL(c.cost)}</td>
+                              </tr>
+                            ))}
+                            <tr style={{ background: 'rgba(0,245,255,0.04)', borderTop: '1px solid var(--brand-border)' }}>
+                              <td className="px-3 py-2.5 font-bold text-[11px] uppercase" style={{ color: 'var(--brand-subtle)' }} colSpan={5}>Total</td>
+                              <td className="px-3 py-2.5 font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>{formatBRL(cc.total_cost)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+            <div className="flex justify-end px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
+              <button onClick={() => setCostProject(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Equipe ── */}
+      {teamProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="flex flex-col rounded-2xl w-full max-w-md max-h-[80vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Equipe</p>
+                <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{teamProject.name}</h2>
+              </div>
+              <button onClick={() => setTeamProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            </div>
+            <div className="px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+                <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder="Buscar consultor..." className="w-full pl-8 pr-3 py-2 rounded-lg text-xs outline-none" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase())).map(c => (
+                <label key={c.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                  <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => setSelectedIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })} className="w-4 h-4 rounded accent-cyan-400" />
+                  <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between items-center px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
+              <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{selectedIds.size} selecionado(s)</span>
+              <div className="flex gap-2">
+                <button onClick={() => setTeamProject(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+                <button onClick={saveTeam} disabled={teamSaving} className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}>{teamSaving ? 'Salvando...' : 'Salvar'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </AppLayout>
   )
 }
