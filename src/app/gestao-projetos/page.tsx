@@ -237,14 +237,18 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, treeRow, onTree
   const isInactive = isChild && project.node_state === 'DISABLED'
   const isActive   = isChild && project.node_state !== 'DISABLED'
 
-  // Fundo: filho ativo → cyan sutil, filho inativo → roxo apagado, pai → transparente
+  // Pai sem alocação direta — aparece como container da hierarquia mas esmaecido
+  const isParentIndirect = !isChild && treeRow?._hasChildren && (project as any).coordinator_is_direct === false
+
+  // Fundo: filho ativo → cyan sutil, filho inativo → roxo apagado, pai indireto → levemente opaco, pai direto → transparente
   const rowBg = isChild
     ? (isActive ? 'rgba(0,245,255,0.04)' : 'rgba(139,92,246,0.05)')
-    : undefined
-  // Borda esquerda colorida para filhos
+    : isParentIndirect ? 'rgba(255,255,255,0.01)' : undefined
+
+  // Borda esquerda
   const rowBorderLeft = isChild
     ? (isActive ? '3px solid rgba(0,245,255,0.5)' : '3px solid rgba(139,92,246,0.3)')
-    : undefined
+    : isParentIndirect ? '3px solid rgba(255,255,255,0.08)' : undefined
 
   return (
     <>
@@ -254,13 +258,13 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, treeRow, onTree
           borderColor: 'var(--brand-border)',
           background: rowBg,
           borderLeft: rowBorderLeft,
-          opacity: isInactive ? 0.45 : 1,
+          opacity: isInactive ? 0.45 : isParentIndirect ? 0.65 : 1,
         }}
         onClick={treeRow ? (treeRow._hasChildren ? onTreeToggle : undefined) : onToggle}
       >
-        {/* Menu de ações — oculto para filhos inativos */}
+        {/* Menu de ações — oculto para filhos inativos e pais indiretos */}
         <td className="py-2 pl-2 pr-1 w-8" onClick={e => e.stopPropagation()}>
-          {!isInactive && (
+          {!isInactive && !isParentIndirect && (
             <RowMenu items={[
               ...(canEdit ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => onEdit?.(project) }] : []),
               { label: 'Custo',                  icon: <DollarSign  size={12} />, onClick: () => onMenuAction('costs',      project) },
@@ -313,6 +317,9 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, treeRow, onTree
                 </p>
                 {treeRow && treeRow._level === 0 && treeRow._hasChildren && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>PAI</span>
+                )}
+                {isParentIndirect && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>via filho</span>
                 )}
                 {isActive && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>ATIVO</span>
