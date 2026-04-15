@@ -4,7 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
-import { Project, PaginatedResponse, HourContribution } from '@/types'
+import { Project, PaginatedResponse, HourContribution, ContractType } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
 import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus } from 'lucide-react'
@@ -397,6 +397,8 @@ export default function GestaoProjetosPage() {
   const [expanded, setExpanded]   = useState<Set<number>>(new Set())
   const [multiContratual, setMultiContratual] = useState(false)
   const [rows, setRows]           = useState<TreeRow[]>([])
+  const [filterContractType, setFilterContractType] = useState('')
+  const [filterContractTypes, setFilterContractTypes] = useState<ContractType[]>([])
 
   // Modal de custos
   const [costProject, setCostProject]   = useState<ProjectWithTeam | null>(null)
@@ -422,10 +424,21 @@ export default function GestaoProjetosPage() {
   const [contribSaving, setContribSaving]     = useState(false)
   const [contribDeleteConfirm, setContribDeleteConfirm] = useState<HourContribution | null>(null)
 
+  // Carrega tipos de contrato para as pills
+  useEffect(() => {
+    api.get<any>('/contract-types?pageSize=200&active=1')
+      .then(res => {
+        const items = Array.isArray(res?.items) ? res.items : Array.isArray(res?.data) ? res.data : []
+        setFilterContractTypes(items)
+      })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     setLoading(true)
     const qs = new URLSearchParams({ pageSize: '200', gestao: 'true' })
     if (multiContratual) qs.set('parent_projects_only', 'true')
+    if (!multiContratual && filterContractType) qs.set('contract_type_id', filterContractType)
     api.get<PaginatedResponse<ProjectWithTeam>>(`/projects?${qs}`)
       .then(res => {
         const items = res.items ?? []
@@ -434,7 +447,7 @@ export default function GestaoProjetosPage() {
       })
       .catch(() => toast.error('Erro ao carregar projetos'))
       .finally(() => setLoading(false))
-  }, [multiContratual])
+  }, [multiContratual, filterContractType])
 
   const clientes = useMemo(() => {
     const seen = new Set<string>()
@@ -720,18 +733,6 @@ export default function GestaoProjetosPage() {
               { id: 'cancelled',     name: 'Cancelado' },
             ]}
           />
-          {/* Toggle Multi-contratual */}
-          <button
-            onClick={() => setMultiContratual(v => !v)}
-            className="px-3 h-8 rounded-lg text-xs font-bold transition-all whitespace-nowrap"
-            style={multiContratual
-              ? { background: 'var(--brand-primary)', color: '#0A0A0B', boxShadow: '0 0 12px rgba(0,245,255,0.35)' }
-              : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.25)' }
-            }
-          >
-            ⬡ Multi-contratual
-          </button>
-
           {/* Filtro de Saúde — button group colorido */}
           <div className="flex items-center gap-0.5 bg-zinc-800/70 border border-zinc-700/50 rounded-full p-1">
             {([
@@ -744,6 +745,49 @@ export default function GestaoProjetosPage() {
                 onClick={() => setSaude(opt.id)}
                 className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${saudeFilter === opt.id ? opt.active : opt.inactive}`}>
                 {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Linha 2: Multi-contratual + pills de tipo de contrato */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Botão Multi-contratual */}
+          <button
+            onClick={() => { setMultiContratual(v => !v); setFilterContractType('') }}
+            className="px-4 py-1.5 rounded-xl text-xs font-bold transition-all"
+            style={multiContratual
+              ? { background: 'var(--brand-primary)', color: '#0A0A0B', boxShadow: '0 0 12px rgba(0,245,255,0.35)' }
+              : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.25)' }
+            }
+          >
+            ⬡ Multi-contratual
+          </button>
+
+          {/* Pills de tipo de contrato */}
+          <div
+            className="flex items-center gap-1 p-1 rounded-xl w-fit flex-wrap"
+            style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}
+          >
+            <button
+              onClick={() => { setFilterContractType(''); setMultiContratual(false) }}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={!filterContractType && !multiContratual
+                ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                : { color: 'var(--brand-muted)' }}
+            >
+              Todos
+            </button>
+            {filterContractTypes.map(ct => (
+              <button
+                key={ct.id}
+                onClick={() => { setFilterContractType(String(ct.id)); setMultiContratual(false) }}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={filterContractType === String(ct.id)
+                  ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                  : { color: 'var(--brand-muted)' }}
+              >
+                {ct.name}
               </button>
             ))}
           </div>
