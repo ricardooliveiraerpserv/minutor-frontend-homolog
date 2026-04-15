@@ -3,6 +3,7 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 import { formatBRL } from '@/lib/format'
 import { Project, PaginatedResponse, ProjectChangeLog, HourContribution } from '@/types'
 import { toast } from 'sonner'
@@ -374,6 +375,13 @@ function generateProjectCode(customerName: string, projectName: string, seq: num
 }
 
 export default function ProjectsPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.type === 'admin'
+  const ep = user?.extra_permissions ?? []
+  const canCreate = isAdmin || ep.includes('projects.create')
+  const canEdit   = isAdmin || ep.includes('projects.update')
+  const canDelete = isAdmin || ep.includes('projects.delete')
+
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const [searchInput, setSearchInput] = useState('')  // valor exibido no input
@@ -947,6 +955,7 @@ export default function ProjectsPage() {
               <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>Gestão de projetos e contratos</p>
             </div>
           </div>
+          {canCreate && (
           <button
             onClick={openCreate}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 active:scale-[0.98]"
@@ -954,6 +963,7 @@ export default function ProjectsPage() {
           >
             <Plus size={14} /> Novo
           </button>
+          )}
         </div>
 
         {/* Filtros */}
@@ -1137,8 +1147,10 @@ export default function ProjectsPage() {
                       <td className="px-2 py-3 w-10">
                         <RowMenu items={[
                           { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openView(p) },
-                          ...(!isDisabled ? [
+                          ...(!isDisabled && canEdit ? [
                             { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(p) },
+                          ] : []),
+                          ...(!isDisabled && canDelete ? [
                             { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(p), danger: true, disabled: deleting === p.id },
                           ] : []),
                         ]} />
@@ -1831,6 +1843,7 @@ export default function ProjectsPage() {
                     })()}
 
                     {/* Botão adicionar */}
+                    {canEdit && (
                     <div className="flex justify-end mb-3">
                       <button
                         onClick={() => {
@@ -1842,6 +1855,7 @@ export default function ProjectsPage() {
                         style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
                       ><Plus size={12} />Novo Aporte</button>
                     </div>
+                    )}
 
                     {contribLoading && <p className="text-xs text-center py-6" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>}
 
@@ -1869,12 +1883,14 @@ export default function ProjectsPage() {
                                 <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--brand-text)' }}>{formatBRL((c.contributed_hours * c.hourly_rate))}</td>
                                 <td className="px-3 py-2.5" style={{ color: 'var(--brand-muted)' }}>{c.contributed_by_user?.name ?? '—'}</td>
                                 <td className="px-3 py-2.5 max-w-[140px] truncate" style={{ color: 'var(--brand-muted)' }}>{c.description ?? '—'}</td>
+                                {canEdit && (
                                 <td className="px-2 py-2.5 w-10">
                                   <RowMenu items={[
                                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => { setContribForm({ contributed_hours: String(c.contributed_hours), hourly_rate: String(c.hourly_rate), contributed_at: c.contributed_at.split('T')[0], description: c.description ?? '' }); setContribModal({ open: true, item: c }) } },
                                     { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteContrib(c), danger: true },
                                   ]} />
                                 </td>
+                                )}
                               </tr>
                             ))}
                           </tbody>
@@ -1931,12 +1947,14 @@ export default function ProjectsPage() {
                                   <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--brand-text)' }}>{log.new_value_formatted ?? String(log.new_value ?? '—')}</td>
                                   <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{log.effective_from ? new Date(log.effective_from + '-01').toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }) : '—'}</td>
                                   <td className="px-3 py-2.5 max-w-[120px] truncate" style={{ color: 'var(--brand-muted)' }} title={log.reason ?? ''}>{log.reason ?? '—'}</td>
+                                  {canEdit && (
                                   <td className="px-2 py-2.5 w-10">
                                     <RowMenu items={[
                                       { label: 'Editar', icon: <Pencil size={12} />, onClick: () => { setEditingLog(log); setEditLogReason(log.reason ?? '') } },
                                       { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteLog(log), danger: true },
                                     ]} />
                                   </td>
+                                  )}
                                 </tr>
                               ))}
                             </tbody>
@@ -1950,9 +1968,11 @@ export default function ProjectsPage() {
 
               {/* Footer */}
               <div className="flex justify-end gap-2 px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
+                {canEdit && (
                 <button onClick={() => { setViewProject(null); openEdit(viewProject) }} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}>
                   <Pencil size={13} />Editar
                 </button>
+                )}
                 <button onClick={() => setViewProject(null)} className="px-4 py-2 rounded-xl text-sm font-medium transition-colors hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
               </div>
             </div>
