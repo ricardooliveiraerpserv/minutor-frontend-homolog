@@ -152,7 +152,8 @@ function SidebarInner({ user }: { user: User }) {
       // Insere antes de "Aprovações" (último item do NAV_COORDINATOR)
       const optionalBefore: NavEntry[] = []
       if (has('projects.view')) optionalBefore.push({ type: 'item', label: 'Projetos', href: '/projects', icon: FolderOpen })
-      if (has('users.view_all')) optionalBefore.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
+      const hasAnyUserPerm = ['users.view_all','users.create','users.update','users.reset_password'].some(p => ep.includes(p))
+      if (hasAnyUserPerm) optionalBefore.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
       if (optionalBefore.length > 0) nav.splice(nav.length - 1, 0, ...optionalBefore)
 
       // Dashboards — aparece se tiver ao menos um dashboard extra
