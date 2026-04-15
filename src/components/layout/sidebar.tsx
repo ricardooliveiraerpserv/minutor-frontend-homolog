@@ -91,7 +91,6 @@ const NAV: NavEntry[] = [
   { type: 'item', label: 'Meu Painel',    href: '/meu-painel',  icon: LayoutDashboard },
   { type: 'item', label: 'Apontamentos',  href: '/timesheets',  icon: Clock },
   { type: 'item', label: 'Despesas',      href: '/expenses',    icon: Receipt },
-  { type: 'item', label: 'Projetos',           href: '/projects',         icon: FolderOpen },
   { type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos',  icon: Layers },
   { type: 'item', label: 'Aprovações',         href: '/approvals',        icon: CheckSquare },
   {
@@ -110,6 +109,7 @@ const NAV: NavEntry[] = [
     label: 'Cadastros',
     icon: Database,
     items: [
+      { label: 'Projetos',            href: '/projects',                 icon: FolderOpen },
       { label: 'Tipos de Contrato',   href: '/cadastros?tab=contracts',  icon: FileType },
       { label: 'Tipos de Serviço',    href: '/cadastros?tab=services',   icon: Wrench },
       { label: 'Clientes',            href: '/cadastros?tab=customers',  icon: Users },
