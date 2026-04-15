@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { formatBRL } from '@/lib/format'
 import { Project, PaginatedResponse, ProjectChangeLog, HourContribution } from '@/types'
 import { toast } from 'sonner'
-import { FolderOpen, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Search, ChevronDown, Eye, Clock, Users, TrendingUp, Tag, History, HandCoins, Save, AlertCircle } from 'lucide-react'
+import { FolderOpen, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Search, ChevronDown, Eye, Clock, Users, TrendingUp, Tag, History, HandCoins, Save, AlertCircle, DollarSign, BarChart2, UserCheck } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
 
@@ -47,6 +47,44 @@ interface ProjectForm {
 interface SelectOption { id: number; name: string; code_prefix?: string | null }
 interface ContractType { id: number; name: string }
 interface ProjectStatus { code: string; name: string }
+
+interface CostSummary {
+  project_info: {
+    project_value?: number | null
+    hourly_rate?: number | null
+    sold_hours?: number | null
+    initial_cost?: number | null
+    total_available_hours?: number
+    total_project_value?: number
+    weighted_hourly_rate?: number
+    total_contributions_hours?: number
+  }
+  hours_summary: {
+    total_logged_hours: number
+    approved_hours: number
+    pending_hours: number
+    remaining_hours: number
+    general_balance?: number
+    total_available_hours?: number
+    hours_percentage: number
+  }
+  cost_calculation: {
+    total_cost: number
+    approved_cost: number
+    pending_cost: number
+    margin: number
+    margin_percentage: number
+  }
+  consultant_breakdown: {
+    consultant_name: string
+    total_hours: number
+    approved_hours: number
+    pending_hours: number
+    cost: number
+    consultant_hourly_rate?: number
+    consultant_rate_type?: string
+  }[]
+}
 
 const CURRENT_YEAR_2D = new Date().getFullYear().toString().slice(-2)
 
@@ -378,9 +416,10 @@ export default function ProjectsPage() {
   const { user } = useAuth()
   const isAdmin = user?.type === 'admin'
   const ep = user?.extra_permissions ?? []
-  const canCreate = isAdmin || ep.includes('projects.create')
-  const canEdit   = isAdmin || ep.includes('projects.update')
-  const canDelete = isAdmin || ep.includes('projects.delete')
+  const canCreate      = isAdmin || ep.includes('projects.create')
+  const canEdit        = isAdmin || ep.includes('projects.update')
+  const canDelete      = isAdmin || ep.includes('projects.delete')
+  const canViewFinance = isAdmin || ep.includes('projects.view_financial')
 
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
@@ -406,7 +445,9 @@ export default function ProjectsPage() {
   const [modal, setModal] = useState<{ open: boolean; item?: Project }>({ open: false })
   const [viewProject, setViewProject] = useState<Project | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
-  const [viewTab, setViewTab] = useState<'overview' | 'contributions' | 'history'>('overview')
+  const [viewTab, setViewTab] = useState<'overview' | 'contributions' | 'history' | 'costs'>('overview')
+  const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
+  const [costLoading, setCostLoading] = useState(false)
   // Aportes
   const [contributions, setContributions] = useState<HourContribution[]>([])
   const [contribLoading, setContribLoading] = useState(false)
@@ -696,11 +737,22 @@ export default function ProjectsPage() {
     })
   }
 
+  const loadCosts = async (projectId: number) => {
+    setCostLoading(true)
+    setCostSummary(null)
+    try {
+      const r = await api.get<{ data: CostSummary }>(`/projects/${projectId}/cost-summary`)
+      setCostSummary(r.data)
+    } catch { toast.error('Erro ao carregar custos') }
+    finally { setCostLoading(false) }
+  }
+
   const openView = async (item: Project) => {
     setViewProject(item)
     setViewTab('overview')
     setContributions([])
     setHistory([])
+    setCostSummary(null)
     setViewLoading(true)
     try {
       const r = await api.get<any>(`/projects/${item.id}`)
@@ -798,11 +850,12 @@ export default function ProjectsPage() {
     } catch { toast.error('Erro ao excluir registro') }
   }
 
-  const handleViewTab = (tab: 'overview' | 'contributions' | 'history') => {
+  const handleViewTab = (tab: 'overview' | 'contributions' | 'history' | 'costs') => {
     setViewTab(tab)
     if (!viewProject) return
     if (tab === 'contributions' && contributions.length === 0) loadContributions(viewProject.id)
     if (tab === 'history' && history.length === 0) loadHistory(viewProject.id, historyFieldFilter)
+    if (tab === 'costs' && !costSummary) loadCosts(viewProject.id)
   }
 
   const savePrefix = async () => {
@@ -1682,13 +1735,14 @@ export default function ProjectsPage() {
                 {/* Abas */}
                 <div className="flex gap-1 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                   {([
-                    { id: 'overview', label: 'Visão Geral', icon: Eye },
-                    { id: 'contributions', label: 'Aportes', icon: HandCoins },
-                    { id: 'history', label: 'Histórico', icon: History },
+                    { id: 'overview',      label: 'Visão Geral', icon: Eye },
+                    { id: 'contributions', label: 'Aportes',     icon: HandCoins },
+                    { id: 'history',       label: 'Histórico',   icon: History },
+                    ...(canViewFinance ? [{ id: 'costs', label: 'Custos', icon: DollarSign }] : []),
                   ] as const).map(({ id, label, icon: Icon }) => (
                     <button
                       key={id}
-                      onClick={() => handleViewTab(id)}
+                      onClick={() => handleViewTab(id as any)}
                       className="flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold border-b-2 transition-colors -mb-px"
                       style={{
                         borderColor: viewTab === id ? 'var(--brand-primary)' : 'transparent',
@@ -1964,6 +2018,114 @@ export default function ProjectsPage() {
                     )}
                   </div>
                 )}
+
+                {/* ── ABA: CUSTOS ── */}
+                {viewTab === 'costs' && (
+                  <div>
+                    {costLoading && <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Calculando custos...</p>}
+                    {!costLoading && !costSummary && <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum dado disponível.</p>}
+                    {!costLoading && costSummary && (() => {
+                      const { project_info: pi, hours_summary: hs, cost_calculation: cc, consultant_breakdown: cb } = costSummary
+                      const marginColor = cc.margin_percentage >= 30 ? '#22c55e' : cc.margin_percentage >= 10 ? '#f59e0b' : '#ef4444'
+                      const hoursUsedPct = Math.min(100, Math.max(0, hs.hours_percentage ?? 0))
+                      const hoursBarColor = hoursUsedPct >= 90 ? '#ef4444' : hoursUsedPct >= 70 ? '#f59e0b' : '#22c55e'
+                      return (
+                        <div className="space-y-5">
+
+                          {/* Cards principais */}
+                          <div className="grid grid-cols-2 gap-3">
+                            {[
+                              { label: 'Valor do Projeto',  value: formatBRL(pi.project_value ?? 0),       icon: DollarSign, color: '#00F5FF' },
+                              { label: 'Custo Total',       value: formatBRL(cc.total_cost),               icon: TrendingUp,  color: '#f59e0b' },
+                              { label: 'Margem',            value: formatBRL(cc.margin),                   icon: BarChart2,   color: marginColor },
+                              { label: 'Margem %',          value: `${cc.margin_percentage.toFixed(1)}%`,  icon: BarChart2,   color: marginColor },
+                            ].map(c => (
+                              <div key={c.label} className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <c.icon size={12} style={{ color: c.color }} />
+                                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p>
+                                </div>
+                                <p className="text-sm font-bold tabular-nums" style={{ color: c.color }}>{c.value}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Detalhes de custo */}
+                          <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Detalhamento de Custo</p>
+                            <div className="grid grid-cols-3 gap-4 text-xs">
+                              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Custo Aprovado</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{formatBRL(cc.approved_cost)}</p></div>
+                              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Custo Pendente</p><p className="font-bold tabular-nums mt-0.5" style={{ color: '#f59e0b' }}>{formatBRL(cc.pending_cost)}</p></div>
+                              {pi.initial_cost != null && pi.initial_cost > 0 && (
+                                <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Custo Inicial</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{formatBRL(pi.initial_cost)}</p></div>
+                              )}
+                              {pi.weighted_hourly_rate != null && (
+                                <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Valor/Hora Médio</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{formatBRL(pi.weighted_hourly_rate)}</p></div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Monitoramento de horas */}
+                          <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Monitoramento de Horas</p>
+                            <div className="grid grid-cols-3 gap-4 text-xs mb-3">
+                              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Disponíveis</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{(hs.total_available_hours ?? pi.total_available_hours ?? 0).toFixed(1)}h</p></div>
+                              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Apontadas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{hs.total_logged_hours.toFixed(1)}h</p></div>
+                              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (hs.general_balance ?? hs.remaining_hours) < 0 ? '#ef4444' : 'var(--brand-text)' }}>{(hs.general_balance ?? hs.remaining_hours).toFixed(1)}h</p></div>
+                              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Aprovadas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: '#22c55e' }}>{hs.approved_hours.toFixed(1)}h</p></div>
+                              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Pendentes</p><p className="font-bold tabular-nums mt-0.5" style={{ color: '#f59e0b' }}>{hs.pending_hours.toFixed(1)}h</p></div>
+                            </div>
+                            <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--brand-border)' }}>
+                              <div className="h-1.5 rounded-full transition-all" style={{ width: `${hoursUsedPct}%`, background: hoursBarColor }} />
+                            </div>
+                            <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{hoursUsedPct.toFixed(1)}% das horas utilizadas</p>
+                          </div>
+
+                          {/* Breakdown por consultor */}
+                          {cb.length > 0 && (
+                            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                              <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}>
+                                  <UserCheck size={11} />Custo por Consultor
+                                </p>
+                              </div>
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>
+                                    {['Consultor', 'Hs Total', 'Aprovadas', 'Pendentes', 'Taxa/h', 'Custo'].map(h => (
+                                      <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {cb.map((c, i) => (
+                                    <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)' }}>
+                                      <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--brand-text)' }}>{c.consultant_name}</td>
+                                      <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-text)' }}>{c.total_hours.toFixed(1)}h</td>
+                                      <td className="px-3 py-2.5 tabular-nums" style={{ color: '#22c55e' }}>{c.approved_hours.toFixed(1)}h</td>
+                                      <td className="px-3 py-2.5 tabular-nums" style={{ color: '#f59e0b' }}>{c.pending_hours.toFixed(1)}h</td>
+                                      <td className="px-3 py-2.5 tabular-nums text-[11px]" style={{ color: 'var(--brand-muted)' }}>
+                                        {c.consultant_hourly_rate != null ? formatBRL(c.consultant_hourly_rate) : '—'}
+                                        {c.consultant_rate_type === 'monthly' && <span className="ml-1 opacity-60">÷180</span>}
+                                      </td>
+                                      <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--brand-text)' }}>{formatBRL(c.cost)}</td>
+                                    </tr>
+                                  ))}
+                                  <tr style={{ background: 'rgba(0,245,255,0.04)', borderTop: '1px solid var(--brand-border)' }}>
+                                    <td className="px-3 py-2.5 font-bold text-[11px] uppercase" style={{ color: 'var(--brand-subtle)' }} colSpan={5}>Total</td>
+                                    <td className="px-3 py-2.5 font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>{formatBRL(cc.total_cost)}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+
               </div>
 
               {/* Footer */}
