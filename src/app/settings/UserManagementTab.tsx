@@ -86,7 +86,7 @@ const EXTRA_PERMISSION_OPTIONS: { value: string; label: string; group: string }[
 // Permissões base de cada tipo — o que já está incluído por padrão no perfil
 const BASE_PERMISSIONS_BY_TYPE: Record<string, string[]> = {
   admin:          ['*'],
-  coordenador:    ['projects.view','hours.view_all','hours.update_all','hours.delete_all','timesheets.approve','timesheets.view_project_full','expenses.view_all','expenses.approve','users.view_all','reports.view','reports.export','financial.view_project_cost'],
+  coordenador:    ['hours.view_all','hours.update_all','hours.delete_all','timesheets.approve','timesheets.view_project_full','expenses.view_all','expenses.approve','reports.view','reports.export','financial.view_project_cost'],
   consultor:      [],
   cliente:        ['reports.view'],
   parceiro_admin: ['timesheets.approve','timesheets.view_project_full','users.create','users.update','users.reset_password','reports.view'],

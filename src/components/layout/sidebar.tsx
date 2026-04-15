@@ -148,13 +148,12 @@ function SidebarInner({ user }: { user: User }) {
       const has = (p: string) => ep.includes(p)
       const nav: NavEntry[] = [...NAV_COORDINATOR]
 
-      // Projetos — sempre visível (projects.view é base do coordenador)
-      // Usuários — sempre visível (users.view_all e users.reset_password são base do coordenador)
-      // Insere ambos antes de "Aprovações" (último item do NAV_COORDINATOR)
-      nav.splice(nav.length - 1, 0,
-        { type: 'item', label: 'Projetos',  href: '/projects', icon: FolderOpen },
-        { type: 'item', label: 'Usuários',  href: '/users',    icon: Users },
-      )
+      // Projetos e Usuários — opcionais via extra_permissions
+      // Insere antes de "Aprovações" (último item do NAV_COORDINATOR)
+      const optionalBefore: NavEntry[] = []
+      if (has('projects.view')) optionalBefore.push({ type: 'item', label: 'Projetos', href: '/projects', icon: FolderOpen })
+      if (has('users.view_all')) optionalBefore.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
+      if (optionalBefore.length > 0) nav.splice(nav.length - 1, 0, ...optionalBefore)
 
       // Dashboards — aparece se tiver ao menos um dashboard extra
       const dashItems: { label: string; href: string; icon: typeof BarChart2 }[] = []
