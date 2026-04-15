@@ -44,6 +44,7 @@ export interface Project {
   balance_percentage?: number
   general_hours_balance?: number
   sold_hours?: number
+  accumulated_sold_hours?: number
   consumed_hours?: number
   total_logged_minutes?: number
   total_contributions_hours?: number

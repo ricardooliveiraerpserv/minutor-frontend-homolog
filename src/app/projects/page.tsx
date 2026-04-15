@@ -1176,7 +1176,15 @@ export default function ProjectsPage() {
                   // balanceColor não mais usado inline — delegado ao SaldoCell
                   const consumed = p.consumed_hours != null ? p.consumed_hours
                     : p.total_logged_minutes != null ? Math.round(p.total_logged_minutes / 60 * 10) / 10 : null
-                  const sold = p.sold_hours ?? 0
+                  const isBankHoursMonthly = p.contract_type_display?.toLowerCase().includes('mensal') ?? false
+                  const soldBase = p.sold_hours ?? 0
+                  const soldDisplay = isBankHoursMonthly && (p.accumulated_sold_hours ?? 0) > 0
+                    ? p.accumulated_sold_hours!
+                    : soldBase
+                  const months = isBankHoursMonthly && soldBase > 0
+                    ? Math.round((p.accumulated_sold_hours ?? 0) / soldBase)
+                    : null
+                  const sold = soldDisplay
                   const contrib = p.total_contributions_hours ?? p.hour_contribution ?? 0
                   const s = p.status ?? ''
                   const statusVariant = s === 'active' || s === 'started' ? 'started'
@@ -1255,9 +1263,14 @@ export default function ProjectsPage() {
 
                       {/* Hs Vendidas */}
                       <td className="px-4 py-3 text-xs text-right tabular-nums whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>
-                        {isOnDemand ? '—'
-                          : sold > 0 ? (contrib > 0 ? `${sold}h (+${contrib})` : `${sold}h`)
-                          : '—'}
+                        {isOnDemand ? '—' : sold > 0 ? (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span>{contrib > 0 ? `${sold}h (+${contrib})` : `${sold}h`}</span>
+                            {months != null && months > 0 && (
+                              <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{months} {months === 1 ? 'mês' : 'meses'}</span>
+                            )}
+                          </div>
+                        ) : '—'}
                       </td>
 
                       {/* Hs Consumidas */}
