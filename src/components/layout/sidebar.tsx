@@ -84,32 +84,6 @@ const NAV_COORDINATOR: NavEntry[] = [
   { type: 'item', label: 'Despesas',            href: '/expenses',         icon: Receipt },
   { type: 'item', label: 'Gestão de Projetos',  href: '/gestao-projetos',  icon: Layers },
   { type: 'item', label: 'Aprovações',          href: '/approvals',        icon: CheckSquare },
-  {
-    type: 'group',
-    label: 'Dashboards',
-    icon: BarChart2,
-    items: [
-      { label: 'Banco de Horas Fixo',    href: '/dashboards/bank-hours-fixed',    icon: BarChart2 },
-      { label: 'Banco de Horas Mensais', href: '/dashboards/bank-hours-monthly',  icon: CalendarClock },
-      { label: 'On Demand',              href: '/dashboards/on-demand',            icon: Zap },
-    ],
-  },
-  { type: 'item', label: 'Banco de Horas', href: '/hora-banco', icon: Landmark },
-  {
-    type: 'group',
-    label: 'Cadastros',
-    icon: Database,
-    items: [
-      { label: 'Tipos de Contrato',   href: '/cadastros?tab=contracts',  icon: FileType },
-      { label: 'Tipos de Serviço',    href: '/cadastros?tab=services',   icon: Wrench },
-      { label: 'Clientes',            href: '/cadastros?tab=customers',  icon: Users },
-      { label: 'Executivos',          href: '/cadastros?tab=executives', icon: Star },
-      { label: 'Grupos de Consultor', href: '/cadastros?tab=groups',     icon: UserCheck },
-      { label: 'Feriados',            href: '/cadastros?tab=holidays',   icon: CalendarDays },
-      { label: 'Parceiros',           href: '/partners',                 icon: Handshake },
-    ],
-  },
-  { type: 'item', label: 'Configurações', href: '/settings', icon: Settings },
 ]
 
 const NAV: NavEntry[] = [
