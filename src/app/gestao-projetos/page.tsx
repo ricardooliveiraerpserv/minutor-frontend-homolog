@@ -28,7 +28,9 @@ interface TreeRow extends ProjectWithTeam {
 }
 
 function toTreeRow(p: ProjectWithTeam, level = 0, parentId: number | null = null): TreeRow {
-  return { ...p, _level: level, _hasChildren: (p.child_projects?.length ?? 0) > 0, _isExpanded: false, _parentId: parentId }
+  // Auto-expande o pai se algum filho estiver ativo (node_state !== 'DISABLED')
+  const hasActiveChild = level === 0 && (p.child_projects ?? []).some(c => c.node_state !== 'DISABLED')
+  return { ...p, _level: level, _hasChildren: (p.child_projects?.length ?? 0) > 0, _isExpanded: hasActiveChild, _parentId: parentId }
 }
 
 interface CostSummary {
@@ -231,26 +233,43 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, treeRow, onTree
 
   const teamCount = (project.consultants?.length ?? 0) + (project.coordinators?.length ?? 0)
 
-  const isChild = treeRow ? treeRow._level > 0 : false
-  const rowBg   = isChild ? 'rgba(139,92,246,0.07)' : undefined
+  const isChild    = treeRow ? treeRow._level > 0 : false
+  const isInactive = isChild && project.node_state === 'DISABLED'
+  const isActive   = isChild && project.node_state !== 'DISABLED'
+
+  // Fundo: filho ativo → cyan sutil, filho inativo → roxo apagado, pai → transparente
+  const rowBg = isChild
+    ? (isActive ? 'rgba(0,245,255,0.04)' : 'rgba(139,92,246,0.05)')
+    : undefined
+  // Borda esquerda colorida para filhos
+  const rowBorderLeft = isChild
+    ? (isActive ? '3px solid rgba(0,245,255,0.5)' : '3px solid rgba(139,92,246,0.3)')
+    : undefined
 
   return (
     <>
       <tr
-        className="border-b transition-colors hover:bg-white/[0.02] cursor-pointer"
-        style={{ borderColor: 'var(--brand-border)', background: rowBg }}
+        className="border-b transition-all cursor-pointer"
+        style={{
+          borderColor: 'var(--brand-border)',
+          background: rowBg,
+          borderLeft: rowBorderLeft,
+          opacity: isInactive ? 0.45 : 1,
+        }}
         onClick={treeRow ? (treeRow._hasChildren ? onTreeToggle : undefined) : onToggle}
       >
-        {/* Menu de ações */}
+        {/* Menu de ações — oculto para filhos inativos */}
         <td className="py-2 pl-2 pr-1 w-8" onClick={e => e.stopPropagation()}>
-          <RowMenu items={[
-            ...(canEdit ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => onEdit?.(project) }] : []),
-            { label: 'Custo',                  icon: <DollarSign  size={12} />, onClick: () => onMenuAction('costs',      project) },
-            { label: 'Apontamentos',           icon: <Clock       size={12} />, onClick: () => onMenuAction('timesheets', project) },
-            { label: 'Despesas',               icon: <BarChart2   size={12} />, onClick: () => onMenuAction('expenses',   project) },
-            { label: 'Aportes',                icon: <TrendingUp  size={12} />, onClick: () => onMenuAction('aportes',    project) },
-            { label: 'Selecionar Equipe',      icon: <Users       size={12} />, onClick: () => onMenuAction('team',       project) },
-          ]} />
+          {!isInactive && (
+            <RowMenu items={[
+              ...(canEdit ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => onEdit?.(project) }] : []),
+              { label: 'Custo',                  icon: <DollarSign  size={12} />, onClick: () => onMenuAction('costs',      project) },
+              { label: 'Apontamentos',           icon: <Clock       size={12} />, onClick: () => onMenuAction('timesheets', project) },
+              { label: 'Despesas',               icon: <BarChart2   size={12} />, onClick: () => onMenuAction('expenses',   project) },
+              { label: 'Aportes',                icon: <TrendingUp  size={12} />, onClick: () => onMenuAction('aportes',    project) },
+              { label: 'Selecionar Equipe',      icon: <Users       size={12} />, onClick: () => onMenuAction('team',       project) },
+            ]} />
+          )}
         </td>
 
         {/* Indicador de saúde (borda esquerda) */}
@@ -259,31 +278,46 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, treeRow, onTree
         </td>
 
         {/* Projeto */}
-        <td className="py-3 pr-4" style={treeRow ? { paddingLeft: 8 + treeRow._level * 24 } : undefined}>
+        <td className="py-3 pr-4" style={{ paddingLeft: treeRow ? 8 + treeRow._level * 24 : 8 }}>
           <div className="flex items-center gap-2">
             {treeRow ? (
               treeRow._hasChildren ? (
-                <button onClick={e => { e.stopPropagation(); onTreeToggle?.() }}
-                  className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold shrink-0 transition-colors hover:bg-white/10"
-                  style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
-                  {treeRow._isExpanded ? '−' : '+'}
+                // Pai com filhos: chevron ▶/▼
+                <button
+                  onClick={e => { e.stopPropagation(); onTreeToggle?.() }}
+                  className="w-5 h-5 flex items-center justify-center shrink-0 transition-colors rounded hover:bg-white/10"
+                  style={{ color: 'var(--brand-muted)' }}
+                >
+                  {treeRow._isExpanded
+                    ? <ChevronDown size={14} />
+                    : <ChevronRight size={14} />
+                  }
                 </button>
+              ) : isChild ? (
+                // Filho: conector └─
+                <span className="shrink-0 flex items-center" style={{ width: 20, color: 'rgba(255,255,255,0.15)', fontSize: 14, lineHeight: 1 }}>└─</span>
               ) : (
                 <span className="w-5 shrink-0" />
               )
             ) : (
               teamCount > 0
-                ? (expanded ? <ChevronDown size={14} style={{ color: 'var(--brand-subtle)' }} />
-                             : <ChevronRight size={14} style={{ color: 'var(--brand-subtle)' }} />)
+                ? (expanded
+                    ? <ChevronDown size={14} style={{ color: 'var(--brand-subtle)' }} />
+                    : <ChevronRight size={14} style={{ color: 'var(--brand-subtle)' }} />)
                 : <span className="w-3.5" />
             )}
             <div>
               <div className="flex items-center gap-1.5">
-                <p className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>{project.name}</p>
+                <p className="text-sm font-semibold" style={{ color: isInactive ? 'var(--brand-muted)' : 'var(--brand-text)' }}>
+                  {project.name}
+                </p>
                 {treeRow && treeRow._level === 0 && treeRow._hasChildren && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>PAI</span>
                 )}
-                {treeRow && treeRow._level > 0 && (
+                {isActive && (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>ATIVO</span>
+                )}
+                {isInactive && (
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>FILHO</span>
                 )}
               </div>
@@ -452,7 +486,18 @@ export default function GestaoProjetosPage() {
       .then(res => {
         const items = res.items ?? []
         setProjects(items)
-        if (multiContratual) setRows(items.map(p => toTreeRow(p)))
+        if (multiContratual) {
+          // Constrói a lista já com filhos expandidos para pais que auto-expandem
+          const built: TreeRow[] = []
+          for (const p of items) {
+            const parent = toTreeRow(p)
+            built.push(parent)
+            if (parent._isExpanded && parent._hasChildren) {
+              built.push(...(p.child_projects ?? []).map(c => toTreeRow(c, 1, p.id)))
+            }
+          }
+          setRows(built)
+        }
       })
       .catch(() => toast.error('Erro ao carregar projetos'))
       .finally(() => setLoading(false))
