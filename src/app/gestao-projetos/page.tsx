@@ -86,8 +86,9 @@ interface ProjectRowProps {
 }
 
 function ProjectRow({ project, expanded, onToggle }: ProjectRowProps) {
-  const pct   = project.balance_percentage ?? 0
-  const color = healthColor(project.balance_percentage)
+  const consumedHours = project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0)
+  const pct   = project.sold_hours ? (consumedHours / project.sold_hours) * 100 : 0
+  const color = healthColor(pct)
   const hs    = healthStyles[color]
 
   const saldo = project.general_hours_balance
@@ -234,6 +235,8 @@ export default function GestaoProjetosPage() {
   const [loading, setLoading]     = useState(true)
   const [search, setSearch]       = useState('')
   const [statusFilter, setStatus] = useState('')
+  const [clienteFilter, setCliente] = useState('')
+  const [saudeFilter, setSaude]   = useState('')
   const [expanded, setExpanded]   = useState<Set<number>>(new Set())
 
   useEffect(() => {
@@ -244,9 +247,25 @@ export default function GestaoProjetosPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  const clientes = useMemo(() => {
+    const seen = new Set<string>()
+    return projects
+      .filter(p => p.customer?.name)
+      .map(p => ({ id: String(p.customer_id), name: p.customer!.name }))
+      .filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true })
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [projects])
+
   const filtered = useMemo(() => {
     return projects.filter(p => {
       if (statusFilter && p.status !== statusFilter) return false
+      if (clienteFilter && String(p.customer_id) !== clienteFilter) return false
+      if (saudeFilter) {
+        const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
+        const pct = p.sold_hours ? (consumed / p.sold_hours) * 100 : 0
+        const color = healthColor(pct)
+        if (color !== saudeFilter) return false
+      }
       if (search) {
         const q = search.toLowerCase()
         return (
@@ -257,7 +276,7 @@ export default function GestaoProjetosPage() {
       }
       return true
     })
-  }, [projects, search, statusFilter])
+  }, [projects, search, statusFilter, clienteFilter, saudeFilter])
 
   // ── Métricas dos cards ──
   const stats = useMemo(() => {
@@ -328,8 +347,8 @@ export default function GestaoProjetosPage() {
         </div>
 
         {/* ── Filtros ── */}
-        <div className="flex items-center gap-3 mb-5">
-          <div className="relative flex-1 max-w-xs">
+        <div className="flex flex-wrap items-center gap-3 mb-5">
+          <div className="relative flex-1 min-w-48 max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
             <input
               type="text"
@@ -340,6 +359,15 @@ export default function GestaoProjetosPage() {
               style={{ ...inputStyle }}
             />
           </div>
+          <select
+            value={clienteFilter}
+            onChange={e => setCliente(e.target.value)}
+            className="h-9 px-3 rounded-xl text-xs outline-none"
+            style={{ ...inputStyle }}
+          >
+            <option value="">Todos os clientes</option>
+            {clientes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
           <select
             value={statusFilter}
             onChange={e => setStatus(e.target.value)}
@@ -353,6 +381,17 @@ export default function GestaoProjetosPage() {
             <option value="paused">Pausado</option>
             <option value="finished">Finalizado</option>
             <option value="cancelled">Cancelado</option>
+          </select>
+          <select
+            value={saudeFilter}
+            onChange={e => setSaude(e.target.value)}
+            className="h-9 px-3 rounded-xl text-xs outline-none"
+            style={{ ...inputStyle }}
+          >
+            <option value="">Todas as saúdes</option>
+            <option value="green">Saudável (&lt;70%)</option>
+            <option value="yellow">Atenção (70–90%)</option>
+            <option value="red">Crítico (&gt;90%)</option>
           </select>
         </div>
 
