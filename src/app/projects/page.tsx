@@ -1223,17 +1223,29 @@ function ProjectsPageInner() {
                     : s === 'cancelled' ? 'cancelled'
                     : s === 'finished' ? 'finished' : 'default'
 
+                  const isChildRow  = p._level > 0
+                  const isActiveRow = isChildRow && !isDisabled
+                  const isParentRow = p._level === 0 && p._hasChildren
+
+                  const treeBg         = isActiveRow ? 'rgba(0,245,255,0.06)' : 'transparent'
+                  const treeBorder     = isActiveRow ? '3px solid #00F5FF'
+                    : isParentRow      ? '2px solid rgba(255,255,255,0.07)'
+                    : isChildRow       ? '2px solid rgba(255,255,255,0.04)' : undefined
+                  const treeBoxShadow  = isActiveRow ? 'inset 0 0 0 1px rgba(0,245,255,0.08)' : undefined
+
                   return (
                     <tr
                       key={`${p.id}-${p._level}-${p._parentId}`}
-                      className="transition-colors"
+                      className="transition-all"
                       style={{
                         borderBottom: '1px solid var(--brand-border)',
                         opacity: isDisabled ? 0.4 : 1,
-                        background: p._level > 0 ? 'rgba(139,92,246,0.07)' : 'transparent',
+                        background: treeBg,
+                        borderLeft: treeBorder,
+                        boxShadow: treeBoxShadow,
                       }}
-                      onMouseEnter={e => !isDisabled && (e.currentTarget.style.background = p._level > 0 ? 'rgba(139,92,246,0.12)' : 'rgba(0,245,255,0.03)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = p._level > 0 ? 'rgba(139,92,246,0.07)' : 'transparent')}
+                      onMouseEnter={e => !isDisabled && (e.currentTarget.style.background = isActiveRow ? 'rgba(0,245,255,0.09)' : 'rgba(255,255,255,0.02)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = treeBg)}
                     >
                       {/* RowMenu */}
                       <td className="px-2 py-3 w-10">
@@ -1257,28 +1269,42 @@ function ProjectsPageInner() {
 
                       {/* Nome com controle de árvore */}
                       <td className="px-4 py-3">
-                        <div className="flex items-start gap-1.5">
-                          {/* Botão expand/collapse — só no modo Multi-contratual */}
+                        <div className="flex items-center gap-1.5">
+                          {/* Chevron ▶/▼ — pais com filhos */}
                           {multiContratual && p._hasChildren && (
                             <button
                               onClick={() => toggleExpand(p)}
-                              className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 transition-colors hover:bg-white/10"
-                              style={{ background: 'var(--brand-border)', color: 'var(--brand-primary)' }}
+                              className="w-5 h-5 flex items-center justify-center shrink-0 transition-colors rounded hover:bg-white/10"
+                              style={{ color: 'var(--brand-muted)' }}
                             >
-                              {p._isExpanded ? '−' : '+'}
+                              {p._isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                             </button>
+                          )}
+                          {/* Conector └─ nos filhos */}
+                          {multiContratual && isChildRow && (
+                            <span className="shrink-0" style={{ color: isActiveRow ? 'rgba(0,245,255,0.4)' : 'rgba(255,255,255,0.1)', fontSize: 14 }}>└─</span>
                           )}
                           {/* Espaçador para pais sem filhos */}
                           {multiContratual && !p._hasChildren && p._level === 0 && <span className="w-5 shrink-0" />}
+
                           <div className="flex flex-col gap-0.5 min-w-0">
-                            {/* Badge PAI/FILHO */}
-                            {p._level === 0 && p._hasChildren && (
-                              <span className="text-[9px] font-bold px-1 py-0.5 rounded w-fit" style={{ background: 'rgba(0,245,255,0.12)', color: 'var(--brand-primary)' }}>PAI</span>
-                            )}
-                            {p._level > 0 && (
-                              <span className="text-[9px] font-bold px-1 py-0.5 rounded w-fit" style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>FILHO</span>
-                            )}
-                            <span className="font-medium text-sm leading-snug" style={{ color: 'var(--brand-text)', whiteSpace: 'normal', wordBreak: 'break-word' }}>{cleanName(p.name)}</span>
+                            <div className="flex items-center gap-1">
+                              {/* Badge PAI — discreto */}
+                              {isParentRow && (
+                                <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.06)', color: '#71717A' }}>PAI</span>
+                              )}
+                              {/* Badge ATIVO — protagonista */}
+                              {isActiveRow && (
+                                <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: 'rgba(0,245,255,0.15)', color: '#00F5FF' }}>ATIVO</span>
+                              )}
+                            </div>
+                            <span
+                              className="font-medium text-sm leading-snug"
+                              style={{
+                                color: isActiveRow ? '#FFFFFF' : isParentRow ? '#A1A1AA' : 'var(--brand-text)',
+                                whiteSpace: 'normal', wordBreak: 'break-word',
+                              }}
+                            >{cleanName(p.name)}</span>
                           </div>
                         </div>
                       </td>
