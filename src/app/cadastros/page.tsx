@@ -1,8 +1,8 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useEffect, useCallback, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useCallback, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { api, ApiError } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -999,6 +999,7 @@ const TAB_PERMISSION: Record<string, string> = {
 
 function CadastrosContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const { user } = useAuth()
 
   const isAdmin = user?.type === 'admin'
@@ -1011,16 +1012,11 @@ function CadastrosContent() {
 
   const tabParam = searchParams.get('tab') ?? ''
   const firstTab = visibleTabs[0]?.id ?? 'contracts'
-  const validTab = visibleTabs.find(t => t.id === tabParam) ? tabParam : firstTab
-  const [activeTab, setActiveTab] = useState(validTab)
+  // Deriva activeTab diretamente — sem useState para evitar dessincronização quando user carrega
+  const activeTab = visibleTabs.find(t => t.id === tabParam) ? tabParam : firstTab
   const active = TABS.find(t => t.id === activeTab) ?? TABS[0]
 
-  // Sincroniza quando o parâmetro muda (navegação via sidebar)
-  useEffect(() => {
-    const t = searchParams.get('tab') ?? ''
-    const valid = visibleTabs.find(t2 => t2.id === t) ? t : firstTab
-    setActiveTab(valid)
-  }, [searchParams]) // eslint-disable-line react-hooks/exhaustive-deps
+  const navigateTab = (id: string) => router.push(`/cadastros?tab=${id}`)
 
   return (
     <AppLayout>
@@ -1035,7 +1031,7 @@ function CadastrosContent() {
               return (
                 <li key={tab.id}>
                   <button
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => navigateTab(tab.id)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-colors text-left ${
                       activeTab === tab.id ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300'
                     }`}
