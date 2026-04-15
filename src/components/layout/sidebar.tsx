@@ -148,11 +148,9 @@ function SidebarInner({ user }: { user: User }) {
       const has = (p: string) => ep.includes(p)
       const nav: NavEntry[] = [...NAV_COORDINATOR]
 
-      // Projetos — aparece quando tem permissão extra além do view base
-      if (has('projects.create') || has('projects.update') || has('projects.view_financial')) {
-        // Insere antes de "Aprovações" (último item do NAV_COORDINATOR)
-        nav.splice(nav.length - 1, 0, { type: 'item', label: 'Projetos', href: '/projects', icon: FolderOpen })
-      }
+      // Projetos — sempre visível (projects.view é base do coordenador, backend escopeia automaticamente)
+      // Insere antes de "Aprovações" (último item do NAV_COORDINATOR)
+      nav.splice(nav.length - 1, 0, { type: 'item', label: 'Projetos', href: '/projects', icon: FolderOpen })
 
       // Dashboards — aparece se tiver ao menos um dashboard extra
       const dashItems: { label: string; href: string; icon: typeof BarChart2 }[] = []
