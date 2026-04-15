@@ -1190,7 +1190,11 @@ export default function ProjectsPage() {
                     ? Math.round((totalAvailableForCalc - p.general_hours_balance) * 10) / 10
                     : null
                   const consumed = consumedFromBalance ?? consumedDirect
-                  const consumedPct = isOnDemand ? 0 : calcConsumedPct(p)
+                  // Para PAI mensal: pct usando acumulado real (evita falso "Excedido")
+                  const consumedPct = isOnDemand ? 0
+                    : (isBankHoursMonthly && isParent && totalAvailableForCalc > 0 && consumed != null)
+                      ? Math.round((consumed / totalAvailableForCalc) * 100)
+                      : calcConsumedPct(p)
                   const barPct = consumedPct != null ? Math.min(100, Math.max(0, consumedPct)) : null
                   const balance = p.general_hours_balance
                   const s = p.status ?? ''
