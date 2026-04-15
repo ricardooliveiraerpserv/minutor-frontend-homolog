@@ -27,6 +27,13 @@ export function useAuth() {
 
   useEffect(() => { loadUser() }, [loadUser])
 
+  // Atualiza dados do usuário quando a janela volta ao foco (ex: admin alterou permissões em outra aba)
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') loadUser() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [loadUser])
+
   const login = async (email: string, password: string) => {
     const data = await api.post<any>('/auth/login', {
       email: email.toLowerCase().trim(),
