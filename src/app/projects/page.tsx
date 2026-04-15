@@ -741,8 +741,8 @@ export default function ProjectsPage() {
     setCostLoading(true)
     setCostSummary(null)
     try {
-      const r = await api.get<{ data: CostSummary }>(`/projects/${projectId}/cost-summary`)
-      setCostSummary(r.data)
+      const r = await api.get<CostSummary>(`/projects/${projectId}/cost-summary`)
+      setCostSummary(r)
     } catch { toast.error('Erro ao carregar custos') }
     finally { setCostLoading(false) }
   }
