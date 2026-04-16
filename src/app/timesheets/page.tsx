@@ -934,6 +934,15 @@ function TimesheetsPageContent() {
           }
         />
 
+        {/* Aviso para cliente */}
+        {isCliente && (
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl mb-4 text-xs"
+            style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid rgba(0,245,255,0.18)', color: 'var(--brand-muted)' }}>
+            <span style={{ color: 'var(--brand-primary)', marginTop: 1 }}>ℹ</span>
+            <span>O status de aprovação indica apenas uma validação interna da equipe, sem impacto para o cliente.</span>
+          </div>
+        )}
+
         {/* Filters */}
         <div
           className="p-4 rounded-2xl mb-4 space-y-3"
