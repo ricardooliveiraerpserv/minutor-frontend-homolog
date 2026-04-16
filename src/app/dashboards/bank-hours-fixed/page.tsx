@@ -267,6 +267,9 @@ export default function BankHoursFixedPage() {
     api.get<any>(`/projects?${params}`).then(r => setProjects(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
   }, [user, selectedCustomer, isCliente])
 
+  // Admins precisam selecionar projeto ou cliente; não-admins veem sempre
+  const hasFilters = !isAdmin || !!selectedProject || !!selectedCustomer
+
   // Build base params
   const baseParams = useCallback(() => {
     const p = new URLSearchParams()
@@ -286,7 +289,7 @@ export default function BankHoursFixedPage() {
 
   // Summary (Total Geral)
   const fetchSummary = useCallback(() => {
-    if (!selectedProject && isAdmin) return
+    if (!hasFilters) return
     const p = baseParams()
     const [toM, toY] = resolveMonthYear()
     p.set('month', String(toM)); p.set('year', String(toY))
@@ -295,11 +298,11 @@ export default function BankHoursFixedPage() {
       .then(r => setSummary(r?.data ?? r ?? null))
       .catch(() => setSummary(null))
       .finally(() => setLoadingSummary(false))
-  }, [baseParams, resolveMonthYear, isAdmin])
+  }, [baseParams, resolveMonthYear, hasFilters])
 
   // Projects tab data
   const fetchProjects = useCallback(() => {
-    if (!selectedProject && isAdmin) return
+    if (!hasFilters) return
     const p = baseParams()
     const [toM, toY] = resolveMonthYear()
     p.set('month', String(toM)); p.set('year', String(toY))
@@ -309,11 +312,11 @@ export default function BankHoursFixedPage() {
       .then(r => setProjectsList(Array.isArray(r?.data) ? r.data : []))
       .catch(() => setProjectsList([]))
       .finally(() => setLoadingProjects(false))
-  }, [baseParams, resolveMonthYear, isAdmin])
+  }, [baseParams, resolveMonthYear, hasFilters])
 
   // Maintenance tab data
   const fetchMaintenance = useCallback(() => {
-    if (!selectedProject && isAdmin) return
+    if (!hasFilters) return
     const p = baseParams()
     const [toM, toY] = resolveMonthYear()
     p.set('month', String(toM)); p.set('year', String(toY))
@@ -323,13 +326,11 @@ export default function BankHoursFixedPage() {
       .then(r => setMaintList(Array.isArray(r?.data) ? r.data : []))
       .catch(() => setMaintList([]))
       .finally(() => setLoadingMaint(false))
-  }, [baseParams, resolveMonthYear, isAdmin])
+  }, [baseParams, resolveMonthYear, hasFilters])
 
   useEffect(() => { fetchSummary() }, [fetchSummary])
   useEffect(() => { if (activeTab === 'projects')    fetchProjects()    }, [fetchProjects, activeTab])
   useEffect(() => { if (activeTab === 'maintenance') fetchMaintenance() }, [fetchMaintenance, activeTab])
-
-  const hasFilters = !isAdmin || !!selectedProject
 
   // Projects table (shared between Projetos and Sustentação)
   const ProjectsTable = ({ items, loading }: { items: ProjectItem[]; loading: boolean }) => (
