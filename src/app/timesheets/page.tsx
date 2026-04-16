@@ -683,22 +683,31 @@ function TimesheetsPageContent() {
 
   // ── New timesheet modal ──────────────────────────────────────────────────
   const [newModalOpen, setNewModalOpen] = useState(false)
+  const [newUseTotal, setNewUseTotal] = useState(false)
   const [newForm, setNewForm] = useState({
     user_id: '', modal_customer_id: '', project_id: '',
     date: new Date().toISOString().split('T')[0],
-    start_time: '', total_hours: '', end_time: '',
+    start_time: '', end_time: '', total_hours: '',
     ticket: '', observation: '',
   })
   const [modalProjects, setModalProjects] = useState<SelectOption[]>([])
   const [newSaving, setNewSaving] = useState(false)
 
-  // Auto-calc end_time
+  // Auto-calc: Horário mode → total from start+end; Total mode → end from start+total
   useEffect(() => {
-    const mins = parseHHMM(newForm.total_hours)
-    if (newForm.start_time && mins !== null) {
-      setNewForm(f => ({ ...f, end_time: addMinutes(newForm.start_time, mins) }))
+    if (newUseTotal) {
+      const mins = parseHHMM(newForm.total_hours)
+      if (newForm.start_time && mins !== null)
+        setNewForm(f => ({ ...f, end_time: addMinutes(f.start_time, mins) }))
+    } else {
+      const s = parseHHMM(newForm.start_time), e = parseHHMM(newForm.end_time)
+      if (s !== null && e !== null && e > s) {
+        const diff = e - s
+        setNewForm(f => ({ ...f, total_hours: `${Math.floor(diff / 60)}:${String(diff % 60).padStart(2, '0')}` }))
+      }
     }
-  }, [newForm.start_time, newForm.total_hours])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newUseTotal, newForm.start_time, newForm.end_time, newForm.total_hours])
 
   // Load modal projects when customer changes
   useEffect(() => {
@@ -712,10 +721,11 @@ function TimesheetsPageContent() {
   }, [newForm.modal_customer_id])
 
   const openNewModal = () => {
+    setNewUseTotal(false)
     setNewForm({
       user_id: '', modal_customer_id: '', project_id: '',
       date: new Date().toISOString().split('T')[0],
-      start_time: '', total_hours: '', end_time: '',
+      start_time: '', end_time: '', total_hours: '',
       ticket: '', observation: '',
     })
     setModalProjects([])
@@ -723,18 +733,19 @@ function TimesheetsPageContent() {
   }
 
   const saveNew = async () => {
-    if (!newForm.project_id) { toast.error('Selecione um projeto'); return }
+    if (!newForm.project_id)  { toast.error('Selecione um projeto'); return }
     if (!newForm.start_time)  { toast.error('Informe o horário de início'); return }
-    if (!newForm.total_hours) { toast.error('Informe o total de horas'); return }
+    if (newUseTotal && !newForm.total_hours) { toast.error('Informe o total de horas'); return }
+    if (!newUseTotal && !newForm.end_time)   { toast.error('Informe o horário de fim'); return }
     setNewSaving(true)
     try {
       const body: Record<string, any> = {
-        project_id: Number(newForm.project_id),
-        date: newForm.date,
-        start_time: newForm.start_time,
-        end_time: newForm.end_time || undefined,
+        project_id:  Number(newForm.project_id),
+        date:        newForm.date,
+        start_time:  newForm.start_time,
+        end_time:    newForm.end_time || undefined,
         total_hours: newForm.total_hours || undefined,
-        ticket: newForm.ticket || null,
+        ticket:      newForm.ticket || null,
         observation: newForm.observation || null,
       }
       if (isAdmin && newForm.user_id) body.user_id = Number(newForm.user_id)
@@ -1132,8 +1143,23 @@ function TimesheetsPageContent() {
                   className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
               </div>
 
-              {/* Início + Total de Horas */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Toggle Horário / Total de Horas */}
+              <div className="flex items-center gap-2">
+                {(['Horário', 'Total de Horas'] as const).map((label, i) => {
+                  const active = i === 0 ? !newUseTotal : newUseTotal
+                  return (
+                    <button key={label} type="button" onClick={() => setNewUseTotal(i === 1)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                      style={active
+                        ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                        : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }
+                      }>{label}</button>
+                  )
+                })}
+              </div>
+
+              {/* Campos de tempo */}
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <Label className="text-xs text-zinc-400">Início *</Label>
                   <input type="time" value={newForm.start_time}
@@ -1141,19 +1167,28 @@ function TimesheetsPageContent() {
                     className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Total de Horas *</Label>
-                  <input type="text" value={newForm.total_hours} placeholder="ex: 2:30"
-                    onChange={e => setNewForm(f => ({ ...f, total_hours: e.target.value }))}
+                  <Label className="text-xs text-zinc-400">
+                    {newUseTotal ? 'Total *' : 'Fim *'}
+                  </Label>
+                  <input
+                    type={newUseTotal ? 'text' : 'time'}
+                    placeholder={newUseTotal ? 'ex: 2:30' : undefined}
+                    value={newUseTotal ? newForm.total_hours : newForm.end_time}
+                    onChange={e => setNewForm(f => newUseTotal
+                      ? { ...f, total_hours: e.target.value }
+                      : { ...f, end_time: e.target.value }
+                    )}
                     className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600" />
                 </div>
+                <div>
+                  <Label className="text-xs text-zinc-400" style={{ color: 'var(--brand-subtle)' }}>
+                    {newUseTotal ? 'Fim' : 'Total'}
+                  </Label>
+                  <div className="mt-1 px-3 py-2 rounded-xl text-sm bg-zinc-900 border border-zinc-800 text-zinc-400">
+                    {newUseTotal ? (newForm.end_time || '—') : (newForm.total_hours || '—')}
+                  </div>
+                </div>
               </div>
-
-              {/* Fim (calculado) */}
-              {newForm.end_time && (
-                <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                  Fim calculado: <span style={{ color: 'var(--brand-primary)' }}>{newForm.end_time}</span>
-                </p>
-              )}
 
               {/* Ticket */}
               <div>
