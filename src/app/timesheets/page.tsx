@@ -667,7 +667,8 @@ function toHHMM(mins: number): string {
 
 function TimesheetsPageContent() {
   const { user } = useAuth()
-  const isAdmin = user?.type === 'admin' || user?.type === 'parceiro_admin'
+  const isAdmin   = user?.type === 'admin' || user?.type === 'parceiro_admin'
+  const isCliente = user?.type === 'cliente'
   const searchParams = useSearchParams()
   const [projectId, setProjectId]     = useState(() => searchParams.get('project_id') ?? '')
   const [page, setPage]               = useState(1)
@@ -811,19 +812,29 @@ function TimesheetsPageContent() {
   const contractTypeList: SelectOption[] = Array.isArray(contractTypes)
     ? contractTypes : (contractTypes as any)?.items ?? []
 
+  const [clienteProjects, setClienteProjects] = useState<SelectOption[]>([])
+
   // Carrega clientes e executivos
   useEffect(() => {
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-    Promise.all([
-      api.get<any>('/customers?pageSize=100'),
-      api.get<any>('/executives?pageSize=100'),
-      api.get<any>('/users?pageSize=200'),
-    ]).then(([c, ex, us]) => {
-      setCustomers(items(c))
-      setExecutives(items(ex))
-      setConsultants(items(us))
-    }).catch(() => {})
-  }, [])
+    if (isCliente) {
+      // Para cliente: carrega apenas os projetos do seu customer_id
+      if (user?.customer_id) {
+        api.get<any>(`/projects?pageSize=200&customer_id=${user.customer_id}`)
+          .then(r => setClienteProjects(items(r))).catch(() => {})
+      }
+    } else {
+      Promise.all([
+        api.get<any>('/customers?pageSize=100'),
+        api.get<any>('/executives?pageSize=100'),
+        api.get<any>('/users?pageSize=200'),
+      ]).then(([c, ex, us]) => {
+        setCustomers(items(c))
+        setExecutives(items(ex))
+        setConsultants(items(us))
+      }).catch(() => {})
+    }
+  }, [isCliente, user?.customer_id])
 
   const params = useMemo(() => {
     const p = new URLSearchParams({ page: String(page), per_page: '20' })
@@ -831,7 +842,9 @@ function TimesheetsPageContent() {
     if (origin)         p.set('origin', origin)
     if (serviceTypeId)  p.set('service_type_id', serviceTypeId)
     if (contractTypeId) p.set('contract_type_id', contractTypeId)
-    if (customerId)     p.set('customer_id', customerId)
+    // Cliente: auto-aplica o customer_id do próprio usuário
+    if (isCliente && user?.customer_id) p.set('customer_id', String(user.customer_id))
+    else if (customerId) p.set('customer_id', customerId)
     if (executiveId)    p.set('executive_id', executiveId)
     if (userId)         p.set('user_id', userId)
     if (startDate)      p.set('start_date', startDate)
@@ -840,7 +853,7 @@ function TimesheetsPageContent() {
     if (projectId)      p.set('project_id', projectId)
     if (sortField)      p.set('order', sortDir === 'desc' ? `-${sortField}` : sortField)
     return p.toString()
-  }, [page, status, origin, serviceTypeId, contractTypeId, customerId, executiveId, userId, projectId, startDate, endDate, ticket, sortField, sortDir])
+  }, [page, status, origin, serviceTypeId, contractTypeId, customerId, executiveId, userId, projectId, startDate, endDate, ticket, sortField, sortDir, isCliente, user?.customer_id])
 
   const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<Timesheet>>(
     `/timesheets?${params}`, [params]
@@ -888,10 +901,14 @@ function TimesheetsPageContent() {
           actions={
             <>
               <Button variant="ghost" size="sm" icon={RefreshCw} onClick={() => refetch()}>Atualizar</Button>
-              <Button variant="secondary" size="sm" icon={FileSpreadsheet} onClick={handleExport} loading={exporting}>
-                {exporting ? 'Exportando...' : 'Excel'}
-              </Button>
-              <Button variant="primary" size="sm" icon={Plus} onClick={openNewModal}>Novo</Button>
+              {!isCliente && (
+                <Button variant="secondary" size="sm" icon={FileSpreadsheet} onClick={handleExport} loading={exporting}>
+                  {exporting ? 'Exportando...' : 'Excel'}
+                </Button>
+              )}
+              {!isCliente && (
+                <Button variant="primary" size="sm" icon={Plus} onClick={openNewModal}>Novo</Button>
+              )}
             </>
           }
         />
@@ -903,46 +920,72 @@ function TimesheetsPageContent() {
         >
           {/* Linha 1: selects */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-            <SearchSelect
-              value={userId}
-              onChange={v => { setUserId(v); resetPage() }}
-              options={consultants}
-              placeholder="Todos os colaboradores"
-            />
-            <SearchSelect
-              value={customerId}
-              onChange={v => { setCustomerId(v); resetPage() }}
-              options={customers}
-              placeholder="Todos os clientes"
-            />
-            {executives.length > 0 && (
-              <SearchSelect
-                value={executiveId}
-                onChange={v => { setExecutiveId(v); resetPage() }}
-                options={executives}
-                placeholder="Todos os executivos"
-              />
+            {isCliente ? (
+              // Filtros para cliente: apenas Projeto, Tipo de contrato, Ticket
+              <>
+                <SearchSelect
+                  value={projectId}
+                  onChange={v => { setProjectId(v); resetPage() }}
+                  options={clienteProjects}
+                  placeholder="Todos os projetos"
+                />
+                <SearchSelect
+                  value={contractTypeId}
+                  onChange={v => { setContractTypeId(v); resetPage() }}
+                  options={contractTypeList}
+                  placeholder="Tipo de contrato"
+                />
+                <TextInput
+                  placeholder="Nº ticket..."
+                  value={ticket}
+                  onChange={e => { setTicket(e.target.value); resetPage() }}
+                />
+              </>
+            ) : (
+              // Filtros completos para admin/coordenador/consultor
+              <>
+                <SearchSelect
+                  value={userId}
+                  onChange={v => { setUserId(v); resetPage() }}
+                  options={consultants}
+                  placeholder="Todos os colaboradores"
+                />
+                <SearchSelect
+                  value={customerId}
+                  onChange={v => { setCustomerId(v); resetPage() }}
+                  options={customers}
+                  placeholder="Todos os clientes"
+                />
+                {executives.length > 0 && (
+                  <SearchSelect
+                    value={executiveId}
+                    onChange={v => { setExecutiveId(v); resetPage() }}
+                    options={executives}
+                    placeholder="Todos os executivos"
+                  />
+                )}
+                <SearchSelect
+                  value={serviceTypeId}
+                  onChange={v => { setServiceTypeId(v); resetPage() }}
+                  options={serviceTypeList}
+                  placeholder="Tipo de serviço"
+                />
+                <SearchSelect
+                  value={contractTypeId}
+                  onChange={v => { setContractTypeId(v); resetPage() }}
+                  options={contractTypeList}
+                  placeholder="Tipo de contrato"
+                />
+                <Select value={origin} onChange={e => { setOrigin(e.target.value); resetPage() }}>
+                  {ORIGIN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </Select>
+                <TextInput
+                  placeholder="Nº ticket..."
+                  value={ticket}
+                  onChange={e => { setTicket(e.target.value); resetPage() }}
+                />
+              </>
             )}
-            <SearchSelect
-              value={serviceTypeId}
-              onChange={v => { setServiceTypeId(v); resetPage() }}
-              options={serviceTypeList}
-              placeholder="Tipo de serviço"
-            />
-            <SearchSelect
-              value={contractTypeId}
-              onChange={v => { setContractTypeId(v); resetPage() }}
-              options={contractTypeList}
-              placeholder="Tipo de contrato"
-            />
-            <Select value={origin} onChange={e => { setOrigin(e.target.value); resetPage() }}>
-              {ORIGIN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </Select>
-            <TextInput
-              placeholder="Nº ticket..."
-              value={ticket}
-              onChange={e => { setTicket(e.target.value); resetPage() }}
-            />
           </div>
 
           {/* Linha 2: datas + limpar */}
@@ -987,14 +1030,15 @@ function TimesheetsPageContent() {
           </div>
         </div>
 
-        {/* Status pills */}
-        <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        {/* Status pills — oculto para clientes */}
+        {!isCliente && <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           {STATUS_PILLS.map(s => (
             <button
               key={s.value}
               onClick={() => { setStatus(s.value); setPage(1) }}
               className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={status === s.value
+
                 ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
                 : { color: 'var(--brand-muted)', background: 'transparent' }
               }
@@ -1002,7 +1046,7 @@ function TimesheetsPageContent() {
               {s.label}
             </button>
           ))}
-        </div>
+        </div>}
 
         {/* Total horas */}
         {data && data.totalEffortHours && (
