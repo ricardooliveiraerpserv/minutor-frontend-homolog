@@ -82,7 +82,8 @@ function SkeletonCard() {
 
 export default function OnDemandPage() {
   const { user } = useAuth()
-  const isAdmin = user?.type === 'admin'
+  const isAdmin   = user?.type === 'admin'
+  const isCliente = user?.type === 'cliente'
 
   const now = new Date()
   const isoFirstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
@@ -114,11 +115,13 @@ export default function OnDemandPage() {
 
   // Load projects filtered by customer + contract type
   useEffect(() => {
-    const params = new URLSearchParams({ pageSize: '1000', contract_type_name: 'On Demand' })
+    if (!user) return  // aguarda autenticação antes de buscar projetos
+    const params = new URLSearchParams({ pageSize: '1000', contract_type_code: 'on_demand' })
     if (selectedCustomer) params.set('customer_id', String(selectedCustomer))
+    else if (isCliente && user.customer_id) params.set('customer_id', String(user.customer_id))
     api.get<any>(`/projects?${params}`)
       .then(r => setProjects(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
-  }, [selectedCustomer])
+  }, [user, selectedCustomer, isCliente])
 
   const buildParams = useCallback(() => {
     const now = new Date()
@@ -132,11 +135,12 @@ export default function OnDemandPage() {
         p.set('start_year',  String(fromY))
       }
     }
-    if (selectedCustomer)  p.set('customer_id',  String(selectedCustomer))
+    if (selectedCustomer)                    p.set('customer_id',  String(selectedCustomer))
+    else if (isCliente && user?.customer_id) p.set('customer_id',  String(user.customer_id))
     if (selectedExecutive) p.set('executive_id', String(selectedExecutive))
     if (selectedProject)   p.set('project_id',   String(selectedProject))
     return p
-  }, [selectedCustomer, selectedExecutive, selectedProject, dateFrom, dateTo, refMonth, refYear])
+  }, [selectedCustomer, selectedExecutive, selectedProject, dateFrom, dateTo, refMonth, refYear, isCliente, user?.customer_id])
 
   const fetchSummary = useCallback(() => {
     if (!selectedProject && isAdmin) return
@@ -203,15 +207,6 @@ export default function OnDemandPage() {
             placeholder="Selecione um projeto"
             wide
           />
-          {/* Período range */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Período</label>
-            <DateRangePicker
-              from={dateFrom}
-              to={dateTo}
-              onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null) }}
-            />
-          </div>
           {/* Mês/Ano de referência */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Mês/Ano</label>

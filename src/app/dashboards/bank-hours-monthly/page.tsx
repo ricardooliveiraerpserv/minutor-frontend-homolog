@@ -13,7 +13,7 @@ import { SearchSelect } from '@/components/ui/search-select'
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface Customer  { id: number; name: string }
-interface Project   { id: number; name: string; code: string }
+interface Project   { id: number; name: string; code: string; start_date?: string | null }
 interface Executive { id: number; name: string }
 
 interface SummaryData {
@@ -22,13 +22,17 @@ interface SummaryData {
   contributed_hours?: number
   consumed_hours: number
   projects_consumed_hours?: number
+  projects_month_consumed_hours?: number
   maintenance_consumed_hours?: number
+  maintenance_month_consumed_hours?: number
+  has_support?: boolean
   month_consumed_hours: number
   hours_balance: number
   exceeded_hours?: number
   amount_to_pay?: number | null
   hourly_rate?: number | null
   contributed_hours_history?: ContributionItem[]
+  start_date?: string | null
 }
 
 interface ContributionItem {
@@ -38,6 +42,7 @@ interface ContributionItem {
   contributed_hours?: number
   hourly_rate?: number
   total_value?: number
+  description?: string | null
   changed_by: { name: string } | null
   created_at: string
 }
@@ -70,7 +75,7 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
   return (
     <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
       <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</span>
-      <span className="text-4xl font-extrabold tracking-tight" style={{ color, lineHeight: 1 }}>{value}</span>
+      <span className="text-3xl font-extrabold tracking-tight" style={{ color, lineHeight: 1 }}>{value}</span>
     </div>
   )
 }
@@ -147,7 +152,8 @@ function ProjectsTable({ items, loading }: { items: ProjectItem[]; loading: bool
 
 export default function BankHoursMonthlyPage() {
   const { user } = useAuth()
-  const isAdmin = user?.type === 'admin'
+  const isAdmin   = user?.type === 'admin'
+  const isCliente = user?.type === 'cliente'
 
   const now = new Date()
   const isoFirstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
@@ -179,12 +185,14 @@ export default function BankHoursMonthlyPage() {
   }, [isAdmin])
 
   useEffect(() => {
-    const params = new URLSearchParams({ pageSize: '1000', contract_type_name: 'Banco de Horas Mensal' })
+    if (!user) return  // aguarda autenticação antes de buscar projetos
+    const params = new URLSearchParams({ pageSize: '1000', contract_type_code: 'monthly_hours' })
     if (selectedCustomer) params.set('customer_id', String(selectedCustomer))
+    else if (isCliente && user.customer_id) params.set('customer_id', String(user.customer_id))
     api.get<any>(`/projects?${params}`).then(r => {
       setProjects(Array.isArray(r?.items) ? r.items : [])
     }).catch(() => {})
-  }, [selectedCustomer])
+  }, [user, selectedCustomer, isCliente])
 
   const fetchSummary = useCallback(() => {
     if (!selectedProject && isAdmin) return
@@ -192,7 +200,8 @@ export default function BankHoursMonthlyPage() {
     const toM = refMonth ?? (dateTo ? Number(dateTo.split('-')[1]) : now.getMonth() + 1)
     const toY = refYear  ?? (dateTo ? Number(dateTo.split('-')[0]) : now.getFullYear())
     const params = new URLSearchParams({ month: String(toM), year: String(toY) })
-    if (selectedCustomer)  params.set('customer_id',  String(selectedCustomer))
+    if (selectedCustomer)                          params.set('customer_id',  String(selectedCustomer))
+    else if (isCliente && user?.customer_id)       params.set('customer_id',  String(user.customer_id))
     if (selectedExecutive) params.set('executive_id', String(selectedExecutive))
     if (selectedProject)   params.set('project_id',   String(selectedProject))
     setLoadingSummary(true)
@@ -200,7 +209,7 @@ export default function BankHoursMonthlyPage() {
       .then(r => setSummary(r?.data ?? r ?? null))
       .catch(() => setSummary(null))
       .finally(() => setLoadingSummary(false))
-  }, [selectedCustomer, selectedExecutive, selectedProject, dateFrom, dateTo, refMonth, refYear, isAdmin])
+  }, [selectedCustomer, selectedExecutive, selectedProject, dateFrom, dateTo, refMonth, refYear, isAdmin, isCliente, user?.customer_id])
 
   const buildParams = useCallback(() => {
     const now = new Date()
@@ -214,15 +223,17 @@ export default function BankHoursMonthlyPage() {
         p.set('start_year',  String(fromY))
       }
     }
-    if (selectedCustomer)  p.set('customer_id',  String(selectedCustomer))
+    if (selectedCustomer)                    p.set('customer_id',  String(selectedCustomer))
+    else if (isCliente && user?.customer_id) p.set('customer_id',  String(user.customer_id))
     if (selectedExecutive) p.set('executive_id', String(selectedExecutive))
     if (selectedProject)   p.set('project_id',   String(selectedProject))
     return p
-  }, [selectedCustomer, selectedExecutive, selectedProject, dateFrom, dateTo, refMonth, refYear])
+  }, [selectedCustomer, selectedExecutive, selectedProject, dateFrom, dateTo, refMonth, refYear, isCliente, user?.customer_id])
 
   const fetchProjectsList = useCallback(() => {
     if (!selectedProject && isAdmin) return
     const params = buildParams()
+    params.set('service_type_name', 'Projeto')
     setLoadingProjects(true)
     api.get<any>(`/dashboards/bank-hours-monthly/projects?${params}`)
       .then(r => setProjectsList(Array.isArray(r?.data) ? r.data : []))
@@ -295,15 +306,6 @@ export default function BankHoursMonthlyPage() {
             placeholder="Selecione um projeto"
             wide
           />
-          {/* Período range */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Período</label>
-            <DateRangePicker
-              from={dateFrom}
-              to={dateTo}
-              onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null) }}
-            />
-          </div>
           {/* Mês/Ano de referência */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Mês/Ano</label>
@@ -340,7 +342,9 @@ export default function BankHoursMonthlyPage() {
             <div className="flex gap-1 p-1 rounded-2xl w-fit" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
               <Tab label="Total Geral"  active={activeTab === 'total'}       onClick={() => setActiveTab('total')} />
               <Tab label="Projetos"     active={activeTab === 'projects'}    onClick={() => setActiveTab('projects')} />
-              <Tab label="Sustentação"  active={activeTab === 'maintenance'} onClick={() => setActiveTab('maintenance')} />
+              {(summary?.has_support ?? true) && (
+                <Tab label="Sustentação" active={activeTab === 'maintenance'} onClick={() => setActiveTab('maintenance')} />
+              )}
               <Tab label="Indicadores"  active={activeTab === 'indicators'}  onClick={() => setActiveTab('indicators')} />
             </div>
 
@@ -358,15 +362,50 @@ export default function BankHoursMonthlyPage() {
                   </div>
                 ) : summary ? (
                   <>
-                    {/* Row 1 — 5 cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                      <StatCard label="Horas Contratadas" value={fmtH(summary.contracted_hours)} />
-                      <StatCard label="Aporte de Horas"   value={fmtH(summary.contributed_hours ?? 0)} />
+                    {/* Row 1 — 4 cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {/* Total Disponível = Acumulado + Aporte, com breakdown mensal */}
+                      {(() => {
+                        const hrsPerMonth   = summary.contracted_hours ?? 0
+                        const accumulated   = summary.accumulated_contracted_hours ?? hrsPerMonth
+                        const aporte        = summary.contributed_hours ?? 0
+                        const totalDisp     = accumulated + aporte
+                        const months        = hrsPerMonth > 0 ? Math.round(accumulated / hrsPerMonth) : 0
+                        const startDate     = summary.start_date
+                          ? new Date(summary.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
+                          : '—'
+                        return (
+                          <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total Contratado</span>
+                            <span className="text-3xl font-extrabold tracking-tight" style={{ color: 'var(--brand-text)', lineHeight: 1 }}>
+                              {fmtH(totalDisp)}
+                            </span>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-1 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>H/mês</p>
+                                <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmtH(hrsPerMonth)}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Meses</p>
+                                <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{months}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Início</p>
+                                <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{startDate}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Aporte</p>
+                                <p className="text-sm font-bold" style={{ color: '#a78bfa' }}>{fmtH(aporte)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })()}
                       {/* Consumo Acumulado with breakdown */}
                       <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Consumo Acumulado</span>
                         <div className="flex items-end gap-1.5">
-                          <span className="text-4xl font-extrabold tracking-tight" style={{ color: '#00F5FF', lineHeight: 1 }}>{fmtH(summary.consumed_hours)}</span>
+                          <span className="text-3xl font-extrabold tracking-tight" style={{ color: '#00F5FF', lineHeight: 1 }}>{fmtH(summary.consumed_hours)}</span>
                         </div>
                         {(summary.projects_consumed_hours !== undefined || summary.maintenance_consumed_hours !== undefined) && (
                           <div className="flex gap-3 pt-1 border-t" style={{ borderColor: 'var(--brand-border)' }}>
@@ -403,6 +442,42 @@ export default function BankHoursMonthlyPage() {
                         accent={(summary.amount_to_pay ?? 0) > 0 ? 'danger' : undefined}
                       />
                     </div>
+
+                    {/* Histórico de Aporte */}
+                    {(summary.contributed_hours_history?.length ?? 0) > 0 && (
+                      <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                          <h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Histórico de Aporte de Horas</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+                              <tr>
+                                {['Projeto','Horas','Valor/h','Total','Descrição','Data','Por'].map(col => (
+                                  <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {summary.contributed_hours_history!.map(item => (
+                                <tr key={item.id} style={{ borderBottom: '1px solid var(--brand-border)' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                >
+                                  <td className="px-5 py-3" style={{ color: 'var(--brand-text)' }}>{item.project?.code} — {item.project?.name}</td>
+                                  <td className="px-5 py-3 font-bold" style={{ color: '#00F5FF' }}>{(item.contributed_hours ?? item.difference ?? 0).toFixed(0)}h</td>
+                                  <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.hourly_rate ?? null)}</td>
+                                  <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.total_value ?? null)}</td>
+                                  <td className="px-5 py-3 max-w-48 truncate" style={{ color: 'var(--brand-muted)' }}>{item.description || '—'}</td>
+                                  <td className="px-5 py-3 text-sm" style={{ color: 'var(--brand-muted)' }}>{fmtDate(item.created_at)}</td>
+                                  <td className="px-5 py-3 text-sm" style={{ color: 'var(--brand-muted)' }}>{item.changed_by?.name ?? '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum dado disponível.</p>
@@ -412,12 +487,28 @@ export default function BankHoursMonthlyPage() {
 
             {/* Projects Tab */}
             {activeTab === 'projects' && (
-              <ProjectsTable items={projectsList} loading={loadingProjects} />
+              <div className="space-y-4">
+                {summary && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <StatCard label="Consumo Acumulado" value={fmtH(summary.projects_consumed_hours ?? 0)} accent="primary" />
+                    <StatCard label="Consumo do Mês"    value={fmtH(summary.projects_month_consumed_hours ?? 0)} />
+                  </div>
+                )}
+                <ProjectsTable items={projectsList} loading={loadingProjects} />
+              </div>
             )}
 
             {/* ── SUSTENTAÇÃO ── */}
             {activeTab === 'maintenance' && (
-              <ProjectsTable items={maintList} loading={loadingMaint} />
+              <div className="space-y-4">
+                {summary && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <StatCard label="Consumo Acumulado" value={fmtH(summary.maintenance_consumed_hours ?? 0)} accent="primary" />
+                    <StatCard label="Consumo do Mês"    value={fmtH(summary.maintenance_month_consumed_hours ?? 0)} />
+                  </div>
+                )}
+                <ProjectsTable items={maintList} loading={loadingMaint} />
+              </div>
             )}
 
             {/* ── INDICADORES ── */}
