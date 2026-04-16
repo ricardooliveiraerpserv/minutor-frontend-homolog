@@ -403,6 +403,7 @@ export default function ExpensesPage() {
   const { user } = useAuth()
   const isCoordenador = user?.type === 'coordenador'
   const isAdmin = user?.type === 'admin' || user?.type === 'parceiro_admin'
+  const isCliente = user?.type === 'cliente'
 
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState('')
@@ -431,25 +432,33 @@ export default function ExpensesPage() {
   const [userId,         setUserId]         = useState('')
   const [coordinatorId,  setCoordinatorId]  = useState('')
   const [executiveId,    setExecutiveId]    = useState('')
-  const [customers,      setCustomers]      = useState<SelectOption[]>([])
-  const [allProjects,    setAllProjects]    = useState<SelectOption[]>([])
-  const [consultants,    setConsultants]    = useState<SelectOption[]>([])
-  const [coordinators,   setCoordinators]   = useState<SelectOption[]>([])
-  const [executives,     setExecutives]     = useState<SelectOption[]>([])
+  const [customers,        setCustomers]        = useState<SelectOption[]>([])
+  const [allProjects,      setAllProjects]      = useState<SelectOption[]>([])
+  const [consultants,      setConsultants]      = useState<SelectOption[]>([])
+  const [coordinators,     setCoordinators]     = useState<SelectOption[]>([])
+  const [executives,       setExecutives]       = useState<SelectOption[]>([])
+  const [clienteProjects,  setClienteProjects]  = useState<SelectOption[]>([])
+  const [contractTypeId,   setContractTypeId]   = useState('')
+  const [contractTypes,    setContractTypes]    = useState<SelectOption[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
 
   const params = useMemo(() => {
     const p = new URLSearchParams({ page: String(page), per_page: '20' })
-    if (status)        p.set('status',         status)
-    if (dateFrom)      p.set('start_date',     dateFrom)
-    if (dateTo)        p.set('end_date',        dateTo)
-    if (customerId)    p.set('customer_id',    customerId)
-    if (projectId)     p.set('project_id',     projectId)
-    if (userId)        p.set('user_id',        userId)
-    if (coordinatorId) p.set('coordinator_id', coordinatorId)
-    if (executiveId)   p.set('executive_id',   executiveId)
+    if (status)          p.set('status',           status)
+    if (dateFrom)        p.set('start_date',        dateFrom)
+    if (dateTo)          p.set('end_date',          dateTo)
+    if (contractTypeId)  p.set('contract_type_id',  contractTypeId)
+    if (isCliente && user?.customer_id) {
+      p.set('customer_id', String(user.customer_id))
+    } else {
+      if (customerId)    p.set('customer_id',       customerId)
+    }
+    if (projectId)       p.set('project_id',        projectId)
+    if (userId)          p.set('user_id',            userId)
+    if (coordinatorId)   p.set('coordinator_id',     coordinatorId)
+    if (executiveId)     p.set('executive_id',       executiveId)
     return p.toString()
-  }, [page, status, dateFrom, dateTo, customerId, projectId, userId, coordinatorId, executiveId])
+  }, [page, status, dateFrom, dateTo, customerId, projectId, userId, coordinatorId, executiveId, contractTypeId, isCliente, user?.customer_id])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -468,18 +477,29 @@ export default function ExpensesPage() {
       r.status === 'fulfilled'
         ? (Array.isArray(r.value?.items) ? r.value.items : Array.isArray(r.value?.data) ? r.value.data : [])
         : []
-    Promise.allSettled([
-      api.get<any>('/customers?pageSize=100'),
-      api.get<any>('/users?pageSize=100&role=Consultor'),
-      api.get<any>('/users?pageSize=100&role=Coordenador'),
-      api.get<any>('/executives?pageSize=100'),
-    ]).then(([cu, co, cr, ex]) => {
-      setCustomers(items(cu))
-      setConsultants(items(co))
-      setCoordinators(items(cr))
-      setExecutives(items(ex))
-    })
-  }, [])
+
+    if (isCliente && user?.customer_id) {
+      Promise.allSettled([
+        api.get<any>(`/projects?pageSize=200&customer_id=${user.customer_id}`),
+        api.get<any>('/contract-types?pageSize=100'),
+      ]).then(([proj, ct]) => {
+        setClienteProjects(items(proj))
+        setContractTypes(items(ct))
+      })
+    } else {
+      Promise.allSettled([
+        api.get<any>('/customers?pageSize=100'),
+        api.get<any>('/users?pageSize=100&role=Consultor'),
+        api.get<any>('/users?pageSize=100&role=Coordenador'),
+        api.get<any>('/executives?pageSize=100'),
+      ]).then(([cu, co, cr, ex]) => {
+        setCustomers(items(cu))
+        setConsultants(items(co))
+        setCoordinators(items(cr))
+        setExecutives(items(ex))
+      })
+    }
+  }, [isCliente, user?.customer_id])
 
   const loadOptions = useCallback(async () => {
     try {
@@ -585,7 +605,7 @@ export default function ExpensesPage() {
           actions={
             <>
               <Button variant="ghost" size="sm" icon={RefreshCw} onClick={load}>Atualizar</Button>
-              <Button variant="primary" size="sm" icon={Plus} onClick={openCreate}>Nova</Button>
+              {!isCliente && <Button variant="primary" size="sm" icon={Plus} onClick={openCreate}>Nova</Button>}
             </>
           }
         />
@@ -593,13 +613,20 @@ export default function ExpensesPage() {
         {/* Filter card */}
         <div className="p-4 rounded-2xl mb-4 space-y-3"
           style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-            <SearchSelect value={customerId}    onChange={v => { setCustomerId(v);    setPage(1) }} options={customers}    placeholder="Todos os clientes"     />
-            <SearchSelect value={projectId}     onChange={v => { setProjectId(v);     setPage(1) }} options={allProjects}  placeholder="Todos os projetos"     />
-            <SearchSelect value={userId}        onChange={v => { setUserId(v);        setPage(1) }} options={consultants}  placeholder="Todos os consultores"  />
-            {!isCoordenador && <SearchSelect value={coordinatorId} onChange={v => { setCoordinatorId(v); setPage(1) }} options={coordinators} placeholder="Todos os coordenadores" />}
-            <SearchSelect value={executiveId}   onChange={v => { setExecutiveId(v);   setPage(1) }} options={executives}   placeholder="Todos os executivos"   />
-          </div>
+          {isCliente ? (
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-2">
+              <SearchSelect value={projectId}       onChange={v => { setProjectId(v);      setPage(1) }} options={clienteProjects} placeholder="Todos os projetos" />
+              <SearchSelect value={contractTypeId}  onChange={v => { setContractTypeId(v); setPage(1) }} options={contractTypes}   placeholder="Tipo de contrato"  />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+              <SearchSelect value={customerId}    onChange={v => { setCustomerId(v);    setPage(1) }} options={customers}    placeholder="Todos os clientes"     />
+              <SearchSelect value={projectId}     onChange={v => { setProjectId(v);     setPage(1) }} options={allProjects}  placeholder="Todos os projetos"     />
+              <SearchSelect value={userId}        onChange={v => { setUserId(v);        setPage(1) }} options={consultants}  placeholder="Todos os consultores"  />
+              {!isCoordenador && <SearchSelect value={coordinatorId} onChange={v => { setCoordinatorId(v); setPage(1) }} options={coordinators} placeholder="Todos os coordenadores" />}
+              <SearchSelect value={executiveId}   onChange={v => { setExecutiveId(v);   setPage(1) }} options={executives}   placeholder="Todos os executivos"   />
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <MonthYearPicker
               month={refMonth}
@@ -619,8 +646,8 @@ export default function ExpensesPage() {
               from={dateFrom} to={dateTo}
               onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null); setPage(1) }}
             />
-            {(customerId || projectId || userId || coordinatorId || executiveId || dateFrom || dateTo) && (
-              <button onClick={() => { setCustomerId(''); setProjectId(''); setUserId(''); setCoordinatorId(''); setExecutiveId(''); setDateFrom(''); setDateTo(''); setRefMonth(null); setRefYear(null); setPage(1) }}
+            {(customerId || projectId || userId || coordinatorId || executiveId || contractTypeId || dateFrom || dateTo) && (
+              <button onClick={() => { setCustomerId(''); setProjectId(''); setUserId(''); setCoordinatorId(''); setExecutiveId(''); setContractTypeId(''); setDateFrom(''); setDateTo(''); setRefMonth(null); setRefYear(null); setPage(1) }}
                 className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs transition-all hover:bg-white/5"
                 style={{ color: 'var(--brand-danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 <X size={11} /> Limpar
@@ -629,26 +656,28 @@ export default function ExpensesPage() {
           </div>
         </div>
 
-        {/* Status pills */}
-        <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-6"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-          {[
-            { value: '', label: 'Todos' },
-            { value: 'pending', label: 'Pendente' },
-            { value: 'approved', label: 'Aprovado' },
-            { value: 'rejected', label: 'Rejeitado' },
-            { value: 'adjustment_requested', label: 'Ajuste' },
-          ].map(s => (
-            <button key={s.value} onClick={() => { setStatus(s.value); setPage(1) }}
-              className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              style={status === s.value
-                ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
-                : { color: 'var(--brand-muted)', background: 'transparent' }
-              }>
-              {s.label}
-            </button>
-          ))}
-        </div>
+        {/* Status pills — oculto para cliente */}
+        {!isCliente && (
+          <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-6"
+            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            {[
+              { value: '', label: 'Todos' },
+              { value: 'pending', label: 'Pendente' },
+              { value: 'approved', label: 'Aprovado' },
+              { value: 'rejected', label: 'Rejeitado' },
+              { value: 'adjustment_requested', label: 'Ajuste' },
+            ].map(s => (
+              <button key={s.value} onClick={() => { setStatus(s.value); setPage(1) }}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={status === s.value
+                  ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                  : { color: 'var(--brand-muted)', background: 'transparent' }
+                }>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Tabela */}
         {loading ? (
@@ -657,13 +686,13 @@ export default function ExpensesPage() {
           <Table>
             <Thead>
               <tr>
-                <Th className="w-10" />
+                {!isCliente && <Th className="w-10" />}
                 <Th>Data</Th>
-                <Th>Descrição</Th>
                 <Th>Colaborador</Th>
-                <Th className="hidden sm:table-cell">Cliente</Th>
                 <Th className="hidden md:table-cell">Projeto</Th>
-                <Th className="hidden lg:table-cell">Categoria</Th>
+                {!isCliente && <Th className="hidden sm:table-cell">Cliente</Th>}
+                {!isCliente && <Th>Descrição</Th>}
+                {!isCliente && <Th className="hidden lg:table-cell">Categoria</Th>}
                 <Th right>Valor</Th>
                 <Th>Status</Th>
               </tr>
@@ -671,35 +700,39 @@ export default function ExpensesPage() {
             <Tbody>
               {data?.items.length === 0 ? (
                 <tr>
-                  <td colSpan={9}>
+                  <td colSpan={isCliente ? 5 : 9}>
                     <EmptyState icon={Receipt} title="Nenhuma despesa encontrada" description="Tente ajustar os filtros ou criar uma nova despesa." />
                   </td>
                 </tr>
               ) : data?.items.map(exp => (
                 <Tr key={exp.id}>
-                  <Td className="w-10">
-                    <RowMenu items={[
-                      { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) },
-                      ...(canEdit(exp) ? [
-                        { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) },
-                        { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true },
-                      ] : []),
-                      ...(exp.receipt_url ? [
-                        { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
-                      ] : []),
-                    ]} />
-                  </Td>
+                  {!isCliente && (
+                    <Td className="w-10">
+                      <RowMenu items={[
+                        { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) },
+                        ...(canEdit(exp) ? [
+                          { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) },
+                          { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true },
+                        ] : []),
+                        ...(exp.receipt_url ? [
+                          { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
+                        ] : []),
+                      ]} />
+                    </Td>
+                  )}
                   <Td className="whitespace-nowrap font-medium">{formatDate(exp.expense_date)}</Td>
-                  <Td className="max-w-[200px]">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate block" style={{ color: 'var(--brand-text)' }}>{exp.description}</span>
-                      {exp.receipt_url && <Paperclip size={10} aria-label="Tem comprovante" style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />}
-                    </div>
-                  </Td>
                   <Td muted className="truncate max-w-[140px]">{exp.user?.name ?? '—'}</Td>
-                  <Td muted className="hidden sm:table-cell truncate max-w-[120px]">{exp.project?.customer?.name ?? '—'}</Td>
                   <Td muted className="hidden md:table-cell truncate max-w-[140px]">{exp.project?.name ?? '—'}</Td>
-                  <Td muted className="hidden lg:table-cell">{exp.category?.name ?? '—'}</Td>
+                  {!isCliente && <Td muted className="hidden sm:table-cell truncate max-w-[120px]">{exp.project?.customer?.name ?? '—'}</Td>}
+                  {!isCliente && (
+                    <Td className="max-w-[200px]">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate block" style={{ color: 'var(--brand-text)' }}>{exp.description}</span>
+                        {exp.receipt_url && <Paperclip size={10} aria-label="Tem comprovante" style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />}
+                      </div>
+                    </Td>
+                  )}
+                  {!isCliente && <Td muted className="hidden lg:table-cell">{exp.category?.name ?? '—'}</Td>}
                   <Td right mono className="font-semibold" style={{ color: 'var(--brand-primary)' }}>{formatCurrency(exp.amount)}</Td>
                   <Td>
                     <Badge variant={exp.status as any}>{STATUS_LABEL[exp.status] ?? exp.status}</Badge>
