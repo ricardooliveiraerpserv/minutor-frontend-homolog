@@ -118,7 +118,8 @@ function NoTrackingNotice() {
     <div className="flex items-start gap-3 px-5 py-4 rounded-2xl" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.20)' }}>
       <Info size={16} color="#8B5CF6" className="shrink-0 mt-0.5" />
       <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
-        Projetos com contrato <strong style={{ color: 'var(--brand-text)' }}>Fechado</strong> não possuem acompanhamento de apontamentos de horas nem saldo de horas. O controle é feito pelo total contratado (horas base + aportes).
+        Projetos com contrato <strong style={{ color: 'var(--brand-text)' }}>Fechado</strong> não possuem controle de saldo ou consumo de horas.<br />
+        O acompanhamento é feito apenas pelo valor total contratado e seus aportes.
       </p>
     </div>
   )
