@@ -693,21 +693,19 @@ function TimesheetsPageContent() {
   const [modalProjects, setModalProjects] = useState<SelectOption[]>([])
   const [newSaving, setNewSaving] = useState(false)
 
-  // Auto-calc: Horário mode → total from start+end; Total mode → end from start+total
+  // Horário mode: auto-calc total from start+end
   useEffect(() => {
-    if (newUseTotal) {
-      const mins = parseHHMM(newForm.total_hours)
-      if (newForm.start_time && mins !== null)
-        setNewForm(f => ({ ...f, end_time: addMinutes(f.start_time, mins) }))
+    if (newUseTotal) return
+    const s = parseHHMM(newForm.start_time), e = parseHHMM(newForm.end_time)
+    if (s !== null && e !== null && e > s) {
+      const diff = e - s
+      const computed = `${Math.floor(diff / 60)}:${String(diff % 60).padStart(2, '0')}`
+      setNewForm(f => f.total_hours === computed ? f : { ...f, total_hours: computed })
     } else {
-      const s = parseHHMM(newForm.start_time), e = parseHHMM(newForm.end_time)
-      if (s !== null && e !== null && e > s) {
-        const diff = e - s
-        setNewForm(f => ({ ...f, total_hours: `${Math.floor(diff / 60)}:${String(diff % 60).padStart(2, '0')}` }))
-      }
+      setNewForm(f => f.total_hours ? { ...f, total_hours: '' } : f)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newUseTotal, newForm.start_time, newForm.end_time, newForm.total_hours])
+  }, [newForm.start_time, newForm.end_time, newUseTotal])
 
   // Load modal projects when customer changes
   useEffect(() => {
@@ -733,10 +731,13 @@ function TimesheetsPageContent() {
   }
 
   const saveNew = async () => {
-    if (!newForm.project_id)  { toast.error('Selecione um projeto'); return }
-    if (!newForm.start_time)  { toast.error('Informe o horário de início'); return }
-    if (newUseTotal && !newForm.total_hours) { toast.error('Informe o total de horas'); return }
-    if (!newUseTotal && !newForm.end_time)   { toast.error('Informe o horário de fim'); return }
+    if (!newForm.project_id) { toast.error('Selecione um projeto'); return }
+    if (newUseTotal) {
+      if (!newForm.total_hours) { toast.error('Informe o total de horas'); return }
+    } else {
+      if (!newForm.start_time) { toast.error('Informe o horário de início'); return }
+      if (!newForm.end_time)   { toast.error('Informe o horário de fim'); return }
+    }
     setNewSaving(true)
     try {
       const body: Record<string, any> = {
@@ -1158,37 +1159,40 @@ function TimesheetsPageContent() {
                 })}
               </div>
 
-              {/* Campos de tempo */}
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <Label className="text-xs text-zinc-400">Início *</Label>
-                  <input type="time" value={newForm.start_time}
-                    onChange={e => setNewForm(f => ({ ...f, start_time: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
-                </div>
-                <div>
-                  <Label className="text-xs text-zinc-400">
-                    {newUseTotal ? 'Total *' : 'Fim *'}
-                  </Label>
-                  <input
-                    type={newUseTotal ? 'text' : 'time'}
-                    placeholder={newUseTotal ? 'ex: 2:30' : undefined}
-                    value={newUseTotal ? newForm.total_hours : newForm.end_time}
-                    onChange={e => setNewForm(f => newUseTotal
-                      ? { ...f, total_hours: e.target.value }
-                      : { ...f, end_time: e.target.value }
-                    )}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600" />
-                </div>
-                <div>
-                  <Label className="text-xs text-zinc-400" style={{ color: 'var(--brand-subtle)' }}>
-                    {newUseTotal ? 'Fim' : 'Total'}
-                  </Label>
-                  <div className="mt-1 px-3 py-2 rounded-xl text-sm bg-zinc-900 border border-zinc-800 text-zinc-400">
-                    {newUseTotal ? (newForm.end_time || '—') : (newForm.total_hours || '—')}
+              {/* Modo Horário: Início + Fim (manual) + Total (auto) */}
+              {!newUseTotal && (
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label className="text-xs text-zinc-400">Início *</Label>
+                    <input type="time" value={newForm.start_time}
+                      onChange={e => setNewForm(f => ({ ...f, start_time: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-zinc-400">Fim *</Label>
+                    <input type="time" value={newForm.end_time}
+                      onChange={e => setNewForm(f => ({ ...f, end_time: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-zinc-500">Total</Label>
+                    <div className="mt-1 px-3 py-2 rounded-xl text-sm bg-zinc-900 border border-zinc-800"
+                      style={{ color: newForm.total_hours ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>
+                      {newForm.total_hours || '—'}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* Modo Total de Horas: apenas Total */}
+              {newUseTotal && (
+                <div>
+                  <Label className="text-xs text-zinc-400">Total de Horas *</Label>
+                  <input type="text" value={newForm.total_hours} placeholder="ex: 2:30"
+                    onChange={e => setNewForm(f => ({ ...f, total_hours: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600" />
+                </div>
+              )}
 
               {/* Ticket */}
               <div>
