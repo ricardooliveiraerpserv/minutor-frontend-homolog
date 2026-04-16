@@ -647,9 +647,20 @@ function addMinutes(time: string, mins: number): string {
 }
 
 function parseHHMM(s: string): number | null {
-  const parts = s.split(':').map(Number)
-  if (parts.length !== 2 || parts.some(isNaN)) return null
-  return parts[0] * 60 + parts[1]
+  if (!s) return null
+  if (s.includes(':')) {
+    const parts = s.split(':').map(Number)
+    if (parts.length !== 2 || parts.some(isNaN)) return null
+    return parts[0] * 60 + parts[1]
+  }
+  // suporta formato decimal: "3.5" ou "3,5" → 210 min
+  const dec = parseFloat(s.replace(',', '.'))
+  if (isNaN(dec) || dec < 0) return null
+  return Math.round(dec * 60)
+}
+
+function toHHMM(mins: number): string {
+  return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`
 }
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -758,7 +769,7 @@ function TimesheetsPageContent() {
         date:        newForm.date,
         start_time:  newForm.start_time,
         end_time:    newForm.end_time || undefined,
-        total_hours: newForm.total_hours || undefined,
+        total_hours: newForm.total_hours ? (() => { const m = parseHHMM(newForm.total_hours); return m !== null ? toHHMM(m) : newForm.total_hours })() : undefined,
         ticket:      newForm.ticket || null,
         observation: newForm.observation || null,
       }
