@@ -1207,7 +1207,13 @@ function TimesheetsPageContent() {
                 </div>
               )}
 
-              {/* Modo Total de Horas: apenas Total */}
+              {/* Modo Total de Horas: alerta + campo */}
+              {newUseTotal && (
+                <div className="rounded-lg px-3 py-2.5 text-xs leading-relaxed"
+                  style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#F59E0B' }}>
+                  <span className="font-semibold">Atenção:</span> O lançamento por "Total de Horas" deve ser realizado em comum acordo com o coordenador responsável. Apontamentos fora desse alinhamento poderão não ser aprovados.
+                </div>
+              )}
               {newUseTotal && (
                 <div>
                   <Label className="text-xs text-zinc-400">Total de Horas *</Label>
