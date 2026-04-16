@@ -402,6 +402,7 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
 export default function ExpensesPage() {
   const { user } = useAuth()
   const isCoordenador = user?.type === 'coordenador'
+  const isAdmin = user?.type === 'admin'
 
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState('')
@@ -411,8 +412,9 @@ export default function ExpensesPage() {
   const [form, setForm] = useState({
     customer_id: '', project_id: '', expense_category_id: '', expense_date: '',
     description: '', amount: '', expense_type: 'reimbursement',
-    payment_method: 'pix', charge_client: false,
+    payment_method: 'pix', charge_client: false, user_id: '',
   })
+  const [modalUsers, setModalUsers] = useState<SelectOption[]>([])
   const [receipt, setReceipt] = useState<File | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [projects, setProjects] = useState<SelectOption[]>([])
@@ -481,23 +483,29 @@ export default function ExpensesPage() {
 
   const loadOptions = useCallback(async () => {
     try {
-      const c = await api.get<{ data: Category[] }>('/expense-categories?per_page=50')
-      setCategories(Array.isArray(c?.data) ? c.data : [])
+      const [c, u] = await Promise.all([
+        api.get<{ items?: Category[]; data?: Category[] }>('/expense-categories?pageSize=100'),
+        isAdmin ? api.get<any>('/users?pageSize=200') : Promise.resolve(null),
+      ])
+      setCategories(Array.isArray(c?.items) ? c.items : Array.isArray(c?.data) ? c.data : [])
+      if (u) setModalUsers(Array.isArray(u?.items) ? u.items : [])
     } catch { /* silencioso */ }
-  }, [])
+  }, [isAdmin])
 
-  // Reload modal projects when customer changes
+  // Reload modal projects when customer changes — só carrega se houver cliente selecionado
   useEffect(() => {
     if (!modal.open) return
-    const qs = new URLSearchParams({ pageSize: '200', status: 'started' })
-    if (form.customer_id) qs.set('customer_id', form.customer_id)
+    if (!form.customer_id) { setProjects([]); return }
+    let cancelled = false
+    const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id })
     api.get<PaginatedResponse<SelectOption>>(`/projects?${qs}`)
-      .then(p => setProjects(Array.isArray(p?.items) ? p.items : []))
+      .then(p => { if (!cancelled) setProjects(Array.isArray(p?.items) ? p.items : []) })
       .catch(() => {})
+    return () => { cancelled = true }
   }, [modal.open, form.customer_id])
 
   const openCreate = () => {
-    setForm({ customer_id: '', project_id: '', expense_category_id: '', expense_date: new Date().toISOString().split('T')[0], description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix', charge_client: false })
+    setForm({ customer_id: '', project_id: '', expense_category_id: '', expense_date: new Date().toISOString().split('T')[0], description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix', charge_client: false, user_id: '' })
     setReceipt(null)
     loadOptions()
     setModal({ open: true })
@@ -515,6 +523,7 @@ export default function ExpensesPage() {
       expense_type: item.expense_type,
       payment_method: item.payment_method,
       charge_client: item.charge_client,
+      user_id: String(item.user_id ?? ''),
     })
     setReceipt(null)
     loadOptions()
@@ -533,6 +542,7 @@ export default function ExpensesPage() {
       fd.append('expense_type', form.expense_type)
       fd.append('payment_method', form.payment_method)
       fd.append('charge_client', form.charge_client ? '1' : '0')
+      if (isAdmin && form.user_id) fd.append('user_id', form.user_id)
       if (receipt) fd.append('receipt', receipt)
       if (modal.item) fd.append('_method', 'PUT')
 
@@ -717,6 +727,19 @@ export default function ExpensesPage() {
           <div className="p-5">
             <h3 className="text-sm font-semibold text-white mb-4">{modal.item ? 'Editar Despesa' : 'Nova Despesa'}</h3>
             <div className="space-y-3">
+              {isAdmin && (
+                <div>
+                  <Label className="text-xs text-zinc-400">Usuário</Label>
+                  <div className="mt-1">
+                    <SearchSelect
+                      value={form.user_id}
+                      onChange={v => setForm(f => ({ ...f, user_id: v }))}
+                      options={modalUsers}
+                      placeholder="Selecione o usuário..."
+                    />
+                  </div>
+                </div>
+              )}
               <div>
                 <Label className="text-xs text-zinc-400">Cliente</Label>
                 <div className="mt-1">
@@ -797,13 +820,15 @@ export default function ExpensesPage() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setForm(f => ({ ...f, charge_client: !f.charge_client }))}
-                  className={`w-8 h-4 rounded-full transition-colors relative ${form.charge_client ? 'bg-blue-600' : 'bg-zinc-700'}`}>
-                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.charge_client ? 'left-4' : 'left-0.5'}`} />
-                </button>
-                <Label className="text-xs text-zinc-400">Cobrar do cliente</Label>
-              </div>
+              {modal.item && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setForm(f => ({ ...f, charge_client: !f.charge_client }))}
+                    className={`w-8 h-4 rounded-full transition-colors relative ${form.charge_client ? 'bg-blue-600' : 'bg-zinc-700'}`}>
+                    <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.charge_client ? 'left-4' : 'left-0.5'}`} />
+                  </button>
+                  <Label className="text-xs text-zinc-400">Cobrar do cliente</Label>
+                </div>
+              )}
               <div>
                 <Label className="text-xs text-zinc-400">Comprovante</Label>
                 <div className="mt-1 flex items-center gap-2">
