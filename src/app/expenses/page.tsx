@@ -409,7 +409,7 @@ export default function ExpensesPage() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; item?: Expense }>({ open: false })
   const [form, setForm] = useState({
-    project_id: '', expense_category_id: '', expense_date: '',
+    customer_id: '', project_id: '', expense_category_id: '', expense_date: '',
     description: '', amount: '', expense_type: 'reimbursement',
     payment_method: 'pix', charge_client: false,
   })
@@ -484,20 +484,29 @@ export default function ExpensesPage() {
       const c = await api.get<{ data: Category[] }>('/expense-categories?per_page=50')
       setCategories(Array.isArray(c?.data) ? c.data : [])
     } catch { /* silencioso */ }
-    api.get<PaginatedResponse<SelectOption>>('/projects?pageSize=30&status=started')
-      .then(p => setProjects(Array.isArray(p?.items) ? p.items : []))
-      .catch(() => {})
   }, [])
 
+  // Reload modal projects when customer changes
+  useEffect(() => {
+    if (!modal.open) return
+    const qs = new URLSearchParams({ pageSize: '200', status: 'started' })
+    if (form.customer_id) qs.set('customer_id', form.customer_id)
+    api.get<PaginatedResponse<SelectOption>>(`/projects?${qs}`)
+      .then(p => setProjects(Array.isArray(p?.items) ? p.items : []))
+      .catch(() => {})
+  }, [modal.open, form.customer_id])
+
   const openCreate = () => {
-    setForm({ project_id: '', expense_category_id: '', expense_date: new Date().toISOString().split('T')[0], description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix', charge_client: false })
+    setForm({ customer_id: '', project_id: '', expense_category_id: '', expense_date: new Date().toISOString().split('T')[0], description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix', charge_client: false })
     setReceipt(null)
     loadOptions()
     setModal({ open: true })
   }
 
   const openEdit = (item: Expense) => {
+    const custId = item.project?.customer_id ? String(item.project.customer_id) : ''
     setForm({
+      customer_id: custId,
       project_id: String(item.project_id),
       expense_category_id: String(item.expense_category_id),
       expense_date: item.expense_date,
@@ -709,20 +718,37 @@ export default function ExpensesPage() {
             <h3 className="text-sm font-semibold text-white mb-4">{modal.item ? 'Editar Despesa' : 'Nova Despesa'}</h3>
             <div className="space-y-3">
               <div>
+                <Label className="text-xs text-zinc-400">Cliente</Label>
+                <div className="mt-1">
+                  <SearchSelect
+                    value={form.customer_id}
+                    onChange={v => setForm(f => ({ ...f, customer_id: v, project_id: '' }))}
+                    options={customers}
+                    placeholder="Todos os clientes"
+                  />
+                </div>
+              </div>
+              <div>
                 <Label className="text-xs text-zinc-400">Projeto *</Label>
-                <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
-                  className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-2">
-                  <option value="">Selecione...</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <div className="mt-1">
+                  <SearchSelect
+                    value={form.project_id}
+                    onChange={v => setForm(f => ({ ...f, project_id: v }))}
+                    options={projects}
+                    placeholder="Selecione o projeto..."
+                  />
+                </div>
               </div>
               <div>
                 <Label className="text-xs text-zinc-400">Categoria *</Label>
-                <select value={form.expense_category_id} onChange={e => setForm(f => ({ ...f, expense_category_id: e.target.value }))}
-                  className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-2">
-                  <option value="">Selecione...</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.parent_id ? `  └ ${c.name}` : c.name}</option>)}
-                </select>
+                <div className="mt-1">
+                  <SearchSelect
+                    value={form.expense_category_id}
+                    onChange={v => setForm(f => ({ ...f, expense_category_id: v }))}
+                    options={categories.map(c => ({ id: c.id, name: c.parent_id ? `└ ${c.name}` : c.name }))}
+                    placeholder="Selecione a categoria..."
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -744,22 +770,31 @@ export default function ExpensesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs text-zinc-400">Tipo</Label>
-                  <select value={form.expense_type} onChange={e => setForm(f => ({ ...f, expense_type: e.target.value }))}
-                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-2">
-                    <option value="reimbursement">Reembolso</option>
-                    <option value="advance">Adiantamento</option>
-                  </select>
+                  <div className="mt-1">
+                    <SearchSelect
+                      value={form.expense_type}
+                      onChange={v => setForm(f => ({ ...f, expense_type: v || 'reimbursement' }))}
+                      options={[{ id: 'reimbursement', name: 'Reembolso' }, { id: 'advance', name: 'Adiantamento' }]}
+                      placeholder="Tipo..."
+                    />
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs text-zinc-400">Pagamento</Label>
-                  <select value={form.payment_method} onChange={e => setForm(f => ({ ...f, payment_method: e.target.value }))}
-                    className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-2">
-                    <option value="pix">PIX</option>
-                    <option value="credit_card">Cartão Crédito</option>
-                    <option value="debit_card">Cartão Débito</option>
-                    <option value="cash">Dinheiro</option>
-                    <option value="bank_transfer">Transferência</option>
-                  </select>
+                  <div className="mt-1">
+                    <SearchSelect
+                      value={form.payment_method}
+                      onChange={v => setForm(f => ({ ...f, payment_method: v || 'pix' }))}
+                      options={[
+                        { id: 'pix', name: 'PIX' },
+                        { id: 'credit_card', name: 'Cartão Crédito' },
+                        { id: 'debit_card', name: 'Cartão Débito' },
+                        { id: 'cash', name: 'Dinheiro' },
+                        { id: 'bank_transfer', name: 'Transferência' },
+                      ]}
+                      placeholder="Pagamento..."
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">

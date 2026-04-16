@@ -992,6 +992,62 @@ function SelectField({ label, value, onChange, children, required }: {
   )
 }
 
+function SearchSelectField({ label, value, onChange, options, placeholder, required }: {
+  label: string; value: string; onChange: (v: string) => void
+  options: { id: number | string; name: string }[]; placeholder: string; required?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const selected = options.find(o => String(o.id) === value)
+  const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()))
+
+  useEffect(() => {
+    if (!open) return
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+  useEffect(() => { if (open) { setQuery(''); setTimeout(() => inputRef.current?.focus(), 50) } }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <Label className="text-xs text-zinc-400">{label}{required && ' *'}</Label>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className="mt-1.5 w-full flex items-center justify-between gap-2 px-2.5 rounded-lg text-xs outline-none text-left h-9"
+        style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: selected ? 'var(--brand-text)' : 'var(--brand-subtle)' }}>
+        <span className="truncate">{selected ? selected.name : placeholder}</span>
+        <ChevronRight size={12} className="rotate-90 shrink-0" style={{ color: 'var(--brand-subtle)' }} />
+      </button>
+      {open && (
+        <div className="absolute top-full mt-1 left-0 z-50 w-full rounded-xl shadow-2xl overflow-hidden"
+          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div className="p-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+            <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar..."
+              className="w-full px-3 py-1.5 rounded-lg text-xs outline-none"
+              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            <button type="button" onClick={() => { onChange(''); setOpen(false) }}
+              className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+              style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>{placeholder}</button>
+            {filtered.length === 0
+              ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
+              : filtered.map(o => (
+                <button key={o.id} type="button" onClick={() => { onChange(String(o.id)); setOpen(false) }}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                  style={{ color: String(o.id) === value ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
+                  {o.name}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Initial form states ──────────────────────────────────────────────────────
 
 const todayISO = () => new Date().toISOString().split('T')[0]
@@ -3211,24 +3267,25 @@ export default function MeuPainelPage() {
               {expModal.item ? 'Editar Despesa' : 'Nova Despesa'}
             </h3>
 
-            <SelectField label="Cliente" value={expForm.customer_id}
-              onChange={v => setExpForm(f => ({ ...f, customer_id: v, project_id: '' }))}>
-              <option value="">Selecione o cliente...</option>
-              {consultantCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </SelectField>
+            <SearchSelectField label="Cliente" value={expForm.customer_id}
+              onChange={v => setExpForm(f => ({ ...f, customer_id: v, project_id: '' }))}
+              options={consultantCustomers}
+              placeholder="Selecione o cliente..."
+            />
 
-            <SelectField label="Projeto" value={expForm.project_id}
-              onChange={v => setExpForm(f => ({ ...f, project_id: v }))} required>
-              <option value="">Selecione o projeto...</option>
-              {expProjectOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </SelectField>
+            <SearchSelectField label="Projeto" value={expForm.project_id}
+              onChange={v => setExpForm(f => ({ ...f, project_id: v }))}
+              options={expProjectOptions}
+              placeholder="Selecione o projeto..."
+              required
+            />
 
             {categories.length > 0 && (
-              <SelectField label="Categoria" value={expForm.expense_category_id}
-                onChange={v => setExpForm(f => ({ ...f, expense_category_id: v }))}>
-                <option value="">Selecione a categoria...</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </SelectField>
+              <SearchSelectField label="Categoria" value={expForm.expense_category_id}
+                onChange={v => setExpForm(f => ({ ...f, expense_category_id: v }))}
+                options={categories}
+                placeholder="Selecione a categoria..."
+              />
             )}
 
             <div>
@@ -3255,18 +3312,21 @@ export default function MeuPainelPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <SelectField label="Tipo" value={expForm.expense_type}
-                onChange={v => setExpForm(f => ({ ...f, expense_type: v }))}>
-                <option value="reimbursement">Reembolso</option>
-                <option value="advance">Adiantamento</option>
-                <option value="corporate_card">Cartão Corporativo</option>
-              </SelectField>
+              <SearchSelectField label="Tipo" value={expForm.expense_type}
+                onChange={v => setExpForm(f => ({ ...f, expense_type: v || 'reimbursement' }))}
+                options={[
+                  { id: 'reimbursement', name: 'Reembolso' },
+                  { id: 'advance', name: 'Adiantamento' },
+                  { id: 'corporate_card', name: 'Cartão Corporativo' },
+                ]}
+                placeholder="Tipo..."
+              />
 
-              <SelectField label="Forma de Pagamento" value={expForm.payment_method}
-                onChange={v => setExpForm(f => ({ ...f, payment_method: v }))}>
-                <option value="">Selecione...</option>
-                {pmOptions.map(pm => <option key={pm.value} value={pm.value}>{pm.label}</option>)}
-              </SelectField>
+              <SearchSelectField label="Forma de Pagamento" value={expForm.payment_method}
+                onChange={v => setExpForm(f => ({ ...f, payment_method: v }))}
+                options={pmOptions.map(pm => ({ id: pm.value, name: pm.label }))}
+                placeholder="Selecione..."
+              />
             </div>
 
             {/* Receipt upload */}
