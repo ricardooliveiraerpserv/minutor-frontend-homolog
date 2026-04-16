@@ -115,7 +115,7 @@ export default function FechadoPage() {
   // Load project list for dropdown
   useEffect(() => {
     if (!user) return
-    const params = new URLSearchParams({ pageSize: '1000', contract_type_name: 'Fechado', parent_projects_only: 'true' })
+    const params = new URLSearchParams({ pageSize: '1000', contract_type_name: 'Fechado' })
     if (selectedCustomer) params.set('customer_id', String(selectedCustomer))
     else if (isCliente && user.customer_id) params.set('customer_id', String(user.customer_id))
     api.get<any>(`/projects?${params}`)
