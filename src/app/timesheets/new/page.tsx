@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { ArrowLeft, Save, Clock } from 'lucide-react'
+import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
@@ -12,13 +12,25 @@ import { SearchSelect } from '@/components/ui/search-select'
 import { Label } from '@/components/ui/label'
 
 interface SelectOption { id: number; name: string }
-interface PaginatedResponse<T> { items: T[]; hasNext?: boolean }
+interface PaginatedResponse<T> { items: T[] }
 
 const inputCls = `w-full px-3 py-2 rounded-xl text-sm outline-none`
 const inputStyle = {
   background: 'var(--brand-bg)',
   border: '1px solid var(--brand-border)',
   color: 'var(--brand-text)',
+}
+
+function addMinutes(time: string, mins: number): string {
+  const [h, m] = time.split(':').map(Number)
+  const total = h * 60 + m + mins
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+function parseHHMM(s: string): number | null {
+  const parts = s.split(':').map(Number)
+  if (parts.length !== 2 || parts.some(isNaN)) return null
+  return parts[0] * 60 + parts[1]
 }
 
 export default function NewTimesheetPage() {
@@ -32,18 +44,16 @@ export default function NewTimesheetPage() {
     project_id: '',
     date: new Date().toISOString().split('T')[0],
     start_time: '',
-    end_time: '',
     total_hours: '',
+    end_time: '',
     ticket: '',
     observation: '',
   })
-  const [useTotal, setUseTotal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [users,     setUsers]     = useState<SelectOption[]>([])
   const [customers, setCustomers] = useState<SelectOption[]>([])
   const [projects,  setProjects]  = useState<SelectOption[]>([])
 
-  // Carrega usuários e clientes
   useEffect(() => {
     const items = (r: any) => Array.isArray(r?.items) ? r.items : []
     Promise.all([
@@ -55,7 +65,6 @@ export default function NewTimesheetPage() {
     }).catch(() => {})
   }, [isAdmin])
 
-  // Carrega projetos quando cliente muda
   useEffect(() => {
     if (!form.customer_id) { setProjects([]); return }
     let cancelled = false
@@ -66,33 +75,36 @@ export default function NewTimesheetPage() {
     return () => { cancelled = true }
   }, [form.customer_id])
 
+  // Auto-calc end_time from start_time + total_hours
+  useEffect(() => {
+    const mins = parseHHMM(form.total_hours)
+    if (form.start_time && mins !== null) {
+      setForm(f => ({ ...f, end_time: addMinutes(form.start_time, mins) }))
+    } else {
+      setForm(f => ({ ...f, end_time: '' }))
+    }
+  }, [form.start_time, form.total_hours])
+
   const set = useCallback(<K extends keyof typeof form>(k: K, v: string) =>
     setForm(f => ({ ...f, [k]: v })), [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.project_id) { toast.error('Selecione um projeto'); return }
-    if (!useTotal && (!form.start_time || !form.end_time)) {
-      toast.error('Informe o horário de início e fim'); return
-    }
-    if (useTotal && !form.total_hours) {
-      toast.error('Informe o total de horas'); return
-    }
+    if (!form.project_id)  { toast.error('Selecione um projeto'); return }
+    if (!form.start_time)  { toast.error('Informe o horário de início'); return }
+    if (!form.total_hours) { toast.error('Informe o total de horas'); return }
     setSaving(true)
     try {
       const body: Record<string, any> = {
-        project_id: Number(form.project_id),
-        date: form.date,
-        ticket: form.ticket || null,
+        project_id:  Number(form.project_id),
+        date:        form.date,
+        start_time:  form.start_time,
+        end_time:    form.end_time || undefined,
+        total_hours: form.total_hours,
+        ticket:      form.ticket || null,
         observation: form.observation || null,
       }
       if (isAdmin && form.user_id) body.user_id = Number(form.user_id)
-      if (useTotal) {
-        body.total_hours = form.total_hours
-      } else {
-        body.start_time = form.start_time
-        body.end_time   = form.end_time
-      }
       await api.post('/timesheets', body)
       toast.success('Apontamento criado com sucesso')
       router.push('/timesheets')
@@ -124,12 +136,8 @@ export default function NewTimesheetPage() {
           {isAdmin && (
             <div>
               <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Usuário</Label>
-              <SearchSelect
-                value={form.user_id}
-                onChange={v => set('user_id', v)}
-                options={users}
-                placeholder="Selecione o usuário..."
-              />
+              <SearchSelect value={form.user_id} onChange={v => set('user_id', v)}
+                options={users} placeholder="Selecione o usuário..." />
             </div>
           )}
 
@@ -139,146 +147,74 @@ export default function NewTimesheetPage() {
             <SearchSelect
               value={form.customer_id}
               onChange={v => setForm(f => ({ ...f, customer_id: v, project_id: '' }))}
-              options={customers}
-              placeholder="Todos os clientes"
-            />
+              options={customers} placeholder="Todos os clientes" />
           </div>
 
           {/* Projeto */}
           <div>
             <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Projeto *</Label>
-            <SearchSelect
-              value={form.project_id}
-              onChange={v => set('project_id', v)}
+            <SearchSelect value={form.project_id} onChange={v => set('project_id', v)}
               options={projects}
-              placeholder={form.customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'}
-            />
+              placeholder={form.customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'} />
           </div>
 
           {/* Data */}
           <div>
             <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Data *</Label>
-            <input
-              type="date"
-              required
-              value={form.date}
-              onChange={e => set('date', e.target.value)}
-              className={inputCls}
-              style={inputStyle}
-            />
+            <input type="date" value={form.date} onChange={e => set('date', e.target.value)}
+              className={inputCls} style={inputStyle} />
           </div>
 
-          {/* Toggle horário / total */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setUseTotal(false)}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              style={!useTotal
-                ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
-                : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }
-              }
-            >
-              Horário
-            </button>
-            <button
-              type="button"
-              onClick={() => setUseTotal(true)}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              style={useTotal
-                ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
-                : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }
-              }
-            >
-              Total de Horas
-            </button>
-          </div>
-
-          {/* Horários */}
-          {!useTotal && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Início *</Label>
-                <input
-                  type="time"
-                  value={form.start_time}
-                  onChange={e => set('start_time', e.target.value)}
-                  className={inputCls}
-                  style={inputStyle}
-                />
-              </div>
-              <div>
-                <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Fim *</Label>
-                <input
-                  type="time"
-                  value={form.end_time}
-                  onChange={e => set('end_time', e.target.value)}
-                  className={inputCls}
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Total de horas */}
-          {useTotal && (
+          {/* Início + Total de Horas */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>
-                Total de Horas * <span style={{ color: 'var(--brand-subtle)' }}>(formato H:MM, ex: 2:30)</span>
-              </Label>
-              <input
-                type="text"
-                value={form.total_hours}
-                onChange={e => set('total_hours', e.target.value)}
-                placeholder="ex: 2:30"
-                className={inputCls}
-                style={inputStyle}
-              />
+              <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Início *</Label>
+              <input type="time" value={form.start_time} onChange={e => set('start_time', e.target.value)}
+                className={inputCls} style={inputStyle} />
             </div>
+            <div>
+              <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Total de Horas *</Label>
+              <input type="text" value={form.total_hours} placeholder="ex: 2:30"
+                onChange={e => set('total_hours', e.target.value)}
+                className={inputCls} style={{ ...inputStyle, color: form.total_hours ? 'var(--brand-text)' : undefined }} />
+            </div>
+          </div>
+
+          {/* Fim calculado */}
+          {form.end_time && (
+            <p className="text-xs -mt-2" style={{ color: 'var(--brand-muted)' }}>
+              Fim calculado: <span style={{ color: 'var(--brand-primary)' }}>{form.end_time}</span>
+            </p>
           )}
 
           {/* Ticket */}
           <div>
             <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Ticket</Label>
-            <input
-              type="text"
-              value={form.ticket}
+            <input type="text" value={form.ticket} placeholder="Ex: 12345"
               onChange={e => set('ticket', e.target.value)}
-              placeholder="Ex: 12345"
-              className={inputCls}
-              style={inputStyle}
-            />
+              className={inputCls} style={inputStyle} />
           </div>
 
           {/* Observação */}
           <div>
             <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Observação</Label>
-            <textarea
-              value={form.observation}
-              onChange={e => set('observation', e.target.value)}
-              rows={4}
+            <textarea value={form.observation} rows={4}
               placeholder="Descreva as atividades realizadas..."
-              className={inputCls + ' resize-none'}
-              style={inputStyle}
-            />
+              onChange={e => set('observation', e.target.value)}
+              className={inputCls + ' resize-none'} style={inputStyle} />
           </div>
 
           {/* Ações */}
           <div className="flex gap-2 pt-2">
-            <button
-              type="submit"
-              disabled={saving || !form.project_id}
+            <button type="submit" disabled={saving || !form.project_id}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-40"
-              style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
-            >
+              style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
               <Save size={12} />
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
-            <Link
-              href="/timesheets"
+            <Link href="/timesheets"
               className="flex items-center px-4 py-2 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}
-            >
+              style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
               Cancelar
             </Link>
           </div>
