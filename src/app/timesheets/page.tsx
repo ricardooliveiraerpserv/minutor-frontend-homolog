@@ -1069,7 +1069,7 @@ function TimesheetsPageContent() {
               <tr>
                 <Th className="w-10" />
                 <Th sortable active={sortField === 'date'}          dir={sortDir} onClick={() => handleSort('date')}>Data</Th>
-                <Th>Status</Th>
+                <Th right sortable active={sortField === 'effort_hours'} dir={sortDir} onClick={() => handleSort('effort_hours')}>Tempo</Th>
                 <Th className="hidden sm:table-cell">Origem</Th>
                 <Th sortable active={sortField === 'user.name'}     dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
                 <Th sortable active={sortField === 'project.name'}  dir={sortDir} onClick={() => handleSort('project.name')}>Projeto</Th>
@@ -1077,7 +1077,7 @@ function TimesheetsPageContent() {
                 <Th className="hidden xl:table-cell">Contrato</Th>
                 <Th className="hidden lg:table-cell">Ticket #</Th>
                 <Th className="hidden xl:table-cell">Título</Th>
-                <Th right sortable active={sortField === 'effort_hours'} dir={sortDir} onClick={() => handleSort('effort_hours')}>Tempo</Th>
+                <Th>Status</Th>
               </tr>
             </Thead>
             <Tbody>
@@ -1093,8 +1093,8 @@ function TimesheetsPageContent() {
                     <RowActions id={ts.id} onView={() => openView(ts)} onDeleted={refetch} viewOnly={isCliente} />
                   </Td>
                   <Td className="whitespace-nowrap font-medium">{formatDate(ts.date)}</Td>
-                  <Td>
-                    <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
+                  <Td right mono className="font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                    {formatMinutes(ts.effort_minutes)}
                   </Td>
                   <Td className="hidden sm:table-cell">
                     <OriginBadge origin={ts.origin} />
@@ -1123,8 +1123,8 @@ function TimesheetsPageContent() {
                   <Td muted className="hidden xl:table-cell truncate max-w-[160px]">
                     {ts.ticket_subject ?? '—'}
                   </Td>
-                  <Td right mono className="font-semibold" style={{ color: 'var(--brand-primary)' }}>
-                    {formatMinutes(ts.effort_minutes)}
+                  <Td>
+                    <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
                   </Td>
                 </Tr>
               ))}
