@@ -369,13 +369,16 @@ function TimesheetViewModal({ ts, onClose, onEdit }: { ts: Timesheet; onClose: (
             {ts.ticket && (
               <InfoRowModal icon={Ticket} label="Ticket">
                 <p className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>
-                  <a
-                    href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:underline"
-                    style={{ color: 'var(--brand-primary)' }}
-                  >#{ts.ticket}</a>
+                  {ts.ticket.length >= 5
+                    ? <a
+                        href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline"
+                        style={{ color: 'var(--brand-primary)' }}
+                      >#{ts.ticket}</a>
+                    : <span style={{ color: 'var(--brand-primary)' }}>#{ts.ticket}</span>
+                  }
                   {ts.ticket_subject && (
                     <span className="ml-2" style={{ color: 'var(--brand-muted)' }}>— {ts.ticket_subject}</span>
                   )}
@@ -1125,14 +1128,16 @@ function TimesheetsPageContent() {
                   </Td>
                   <Td muted className="hidden lg:table-cell font-mono">
                     {ts.ticket
-                      ? <a
-                          href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          className="hover:underline cursor-pointer"
-                          style={{ color: 'var(--brand-primary)', pointerEvents: 'auto' }}
-                        >#{ts.ticket}</a>
+                      ? ts.ticket.length >= 5
+                        ? <a
+                            href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            className="hover:underline cursor-pointer"
+                            style={{ color: 'var(--brand-primary)', pointerEvents: 'auto' }}
+                          >#{ts.ticket}</a>
+                        : `#${ts.ticket}`
                       : '—'}
                   </Td>
                   <Td muted className="hidden xl:table-cell truncate max-w-[160px]">
