@@ -55,6 +55,7 @@ interface ProjectItem {
   sold_hours: number | null
   total_contributions_hours: number
   hour_contribution: number | null
+  consumed_hours: number
   hours_balance: number
   start_date: string | null
 }
@@ -344,16 +345,17 @@ export default function BankHoursFixedPage() {
           <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
             <thead style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
               <tr>
-                {['Código','Projeto','Status','Tipo','Horas Vendidas','Saldo','Início'].map(col => (
-                  <th key={col} className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${col === 'Saldo' || col === 'Horas Vendidas' ? 'text-right' : 'text-left'}`} style={{ color: 'var(--brand-subtle)' }}>{col}</th>
+                {['Código','Projeto','Status','Tipo','Horas Vendidas','Consumo','Saldo','Início'].map(col => (
+                  <th key={col} className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${['Saldo','Horas Vendidas','Consumo'].includes(col) ? 'text-right' : 'text-left'}`} style={{ color: 'var(--brand-subtle)' }}>{col}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={7} className="py-12 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto encontrado.</td></tr>
+                <tr><td colSpan={8} className="py-12 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto encontrado.</td></tr>
               ) : items.map((p, idx) => {
                 const balance = p.hours_balance ?? 0
+                const consumed = p.consumed_hours ?? 0
                 const contributions = p.total_contributions_hours || p.hour_contribution || 0
                 return (
                   <tr
@@ -373,6 +375,9 @@ export default function BankHoursFixedPage() {
                     <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--brand-muted)' }}>{p.contract_type_display}</td>
                     <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--brand-text)' }}>
                       {p.sold_hours !== null ? (contributions > 0 ? `${p.sold_hours} (+${contributions})` : String(p.sold_hours)) : '—'}
+                    </td>
+                    <td className="px-5 py-3.5 text-right font-bold" style={{ color: '#00F5FF' }}>
+                      {fmtH(consumed)}h
                     </td>
                     <td className="px-5 py-3.5 text-right font-bold" style={{ color: balance >= 0 ? '#10B981' : '#EF4444' }}>
                       {fmtH(balance)}h
