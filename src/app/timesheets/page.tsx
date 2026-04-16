@@ -16,6 +16,9 @@ import {
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import { Label } from '@/components/ui/label'
+import { useAuth } from '@/hooks/use-auth'
+import { ApiError } from '@/lib/api'
 import {
   PageHeader, Table, Thead, Th, Tbody, Tr, Td,
   Badge, Button, Select, TextInput, Pagination,
@@ -624,9 +627,36 @@ function SearchSelect({ value, onChange, options, placeholder }: {
   )
 }
 
+// ─── Modal Overlay ────────────────────────────────────────────────────────────
+
+function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300 z-10"><X size={16} /></button>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function addMinutes(time: string, mins: number): string {
+  const [h, m] = time.split(':').map(Number)
+  const total = h * 60 + m + mins
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
+function parseHHMM(s: string): number | null {
+  const parts = s.split(':').map(Number)
+  if (parts.length !== 2 || parts.some(isNaN)) return null
+  return parts[0] * 60 + parts[1]
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 function TimesheetsPageContent() {
+  const { user } = useAuth()
+  const isAdmin = user?.type === 'admin' || user?.type === 'parceiro_admin'
   const searchParams = useSearchParams()
   const [projectId, setProjectId]     = useState(() => searchParams.get('project_id') ?? '')
   const [page, setPage]               = useState(1)
@@ -650,6 +680,73 @@ function TimesheetsPageContent() {
   const [consultants, setConsultants] = useState<SelectOption[]>([])
   const [viewItem, setViewItem]       = useState<Timesheet | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
+
+  // ── New timesheet modal ──────────────────────────────────────────────────
+  const [newModalOpen, setNewModalOpen] = useState(false)
+  const [newForm, setNewForm] = useState({
+    user_id: '', modal_customer_id: '', project_id: '',
+    date: new Date().toISOString().split('T')[0],
+    start_time: '', total_hours: '', end_time: '',
+    ticket: '', observation: '',
+  })
+  const [modalProjects, setModalProjects] = useState<SelectOption[]>([])
+  const [newSaving, setNewSaving] = useState(false)
+
+  // Auto-calc end_time
+  useEffect(() => {
+    const mins = parseHHMM(newForm.total_hours)
+    if (newForm.start_time && mins !== null) {
+      setNewForm(f => ({ ...f, end_time: addMinutes(newForm.start_time, mins) }))
+    }
+  }, [newForm.start_time, newForm.total_hours])
+
+  // Load modal projects when customer changes
+  useEffect(() => {
+    if (!newForm.modal_customer_id) { setModalProjects([]); return }
+    let cancelled = false
+    const qs = new URLSearchParams({ pageSize: '200', customer_id: newForm.modal_customer_id })
+    api.get<{ items: SelectOption[] }>(`/projects?${qs}`)
+      .then(r => { if (!cancelled) setModalProjects(Array.isArray(r?.items) ? r.items : []) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [newForm.modal_customer_id])
+
+  const openNewModal = () => {
+    setNewForm({
+      user_id: '', modal_customer_id: '', project_id: '',
+      date: new Date().toISOString().split('T')[0],
+      start_time: '', total_hours: '', end_time: '',
+      ticket: '', observation: '',
+    })
+    setModalProjects([])
+    setNewModalOpen(true)
+  }
+
+  const saveNew = async () => {
+    if (!newForm.project_id) { toast.error('Selecione um projeto'); return }
+    if (!newForm.start_time)  { toast.error('Informe o horário de início'); return }
+    if (!newForm.total_hours) { toast.error('Informe o total de horas'); return }
+    setNewSaving(true)
+    try {
+      const body: Record<string, any> = {
+        project_id: Number(newForm.project_id),
+        date: newForm.date,
+        start_time: newForm.start_time,
+        end_time: newForm.end_time || undefined,
+        total_hours: newForm.total_hours || undefined,
+        ticket: newForm.ticket || null,
+        observation: newForm.observation || null,
+      }
+      if (isAdmin && newForm.user_id) body.user_id = Number(newForm.user_id)
+      await api.post('/timesheets', body)
+      toast.success('Apontamento criado com sucesso')
+      setNewModalOpen(false)
+      refetch()
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : 'Erro ao salvar'
+      toast.error(msg)
+    } finally { setNewSaving(false) }
+  }
 
   const openView = useCallback(async (ts: Timesheet) => {
     setViewItem(ts)
@@ -758,9 +855,7 @@ function TimesheetsPageContent() {
               <Button variant="secondary" size="sm" icon={FileSpreadsheet} onClick={handleExport} loading={exporting}>
                 {exporting ? 'Exportando...' : 'Excel'}
               </Button>
-              <Link href="/timesheets/new">
-                <Button variant="primary" size="sm" icon={Plus}>Novo</Button>
-              </Link>
+              <Button variant="primary" size="sm" icon={Plus} onClick={openNewModal}>Novo</Button>
             </>
           }
         />
@@ -979,6 +1074,118 @@ function TimesheetsPageContent() {
           style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
           <Clock size={12} className="animate-spin" /> Carregando detalhes...
         </div>
+      )}
+
+      {/* Modal: Novo Apontamento */}
+      {newModalOpen && (
+        <ModalOverlay onClose={() => setNewModalOpen(false)}>
+          <div className="p-5">
+            <h3 className="text-sm font-semibold text-white mb-4">Novo Apontamento</h3>
+            <div className="space-y-3">
+
+              {/* Usuário (admin only) */}
+              {isAdmin && (
+                <div>
+                  <Label className="text-xs text-zinc-400">Usuário</Label>
+                  <div className="mt-1">
+                    <SearchSelect
+                      value={newForm.user_id}
+                      onChange={v => setNewForm(f => ({ ...f, user_id: v }))}
+                      options={consultants}
+                      placeholder="Selecione o usuário..."
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Cliente */}
+              <div>
+                <Label className="text-xs text-zinc-400">Cliente</Label>
+                <div className="mt-1">
+                  <SearchSelect
+                    value={newForm.modal_customer_id}
+                    onChange={v => setNewForm(f => ({ ...f, modal_customer_id: v, project_id: '' }))}
+                    options={customers}
+                    placeholder="Todos os clientes"
+                  />
+                </div>
+              </div>
+
+              {/* Projeto */}
+              <div>
+                <Label className="text-xs text-zinc-400">Projeto *</Label>
+                <div className="mt-1">
+                  <SearchSelect
+                    value={newForm.project_id}
+                    onChange={v => setNewForm(f => ({ ...f, project_id: v }))}
+                    options={modalProjects}
+                    placeholder={newForm.modal_customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'}
+                  />
+                </div>
+              </div>
+
+              {/* Data */}
+              <div>
+                <Label className="text-xs text-zinc-400">Data *</Label>
+                <input type="date" value={newForm.date}
+                  onChange={e => setNewForm(f => ({ ...f, date: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
+              </div>
+
+              {/* Início + Total de Horas */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-zinc-400">Início *</Label>
+                  <input type="time" value={newForm.start_time}
+                    onChange={e => setNewForm(f => ({ ...f, start_time: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
+                </div>
+                <div>
+                  <Label className="text-xs text-zinc-400">Total de Horas *</Label>
+                  <input type="text" value={newForm.total_hours} placeholder="ex: 2:30"
+                    onChange={e => setNewForm(f => ({ ...f, total_hours: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600" />
+                </div>
+              </div>
+
+              {/* Fim (calculado) */}
+              {newForm.end_time && (
+                <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                  Fim calculado: <span style={{ color: 'var(--brand-primary)' }}>{newForm.end_time}</span>
+                </p>
+              )}
+
+              {/* Ticket */}
+              <div>
+                <Label className="text-xs text-zinc-400">Ticket</Label>
+                <input type="text" value={newForm.ticket} placeholder="Ex: 12345"
+                  onChange={e => setNewForm(f => ({ ...f, ticket: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600" />
+              </div>
+
+              {/* Observação */}
+              <div>
+                <Label className="text-xs text-zinc-400">Observação</Label>
+                <textarea value={newForm.observation} rows={3}
+                  placeholder="Descreva as atividades realizadas..."
+                  onChange={e => setNewForm(f => ({ ...f, observation: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 resize-none" />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-5 justify-end">
+              <button onClick={() => setNewModalOpen(false)}
+                className="h-8 px-3 text-xs rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={saveNew} disabled={newSaving || !newForm.project_id}
+                className="h-8 px-4 text-xs rounded-lg font-semibold disabled:opacity-40 transition-all"
+                style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+                {newSaving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </ModalOverlay>
       )}
     </AppLayout>
   )
