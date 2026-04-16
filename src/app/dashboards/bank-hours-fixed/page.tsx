@@ -22,13 +22,16 @@ interface SummaryData {
   contributed_hours: number
   consumed_hours: number
   projects_consumed_hours?: number
+  projects_month_consumed_hours?: number
   maintenance_consumed_hours?: number
+  maintenance_month_consumed_hours?: number
   month_consumed_hours: number
   hours_balance: number
   exceeded_hours: number
   amount_to_pay: number | null
   hourly_rate: number | null
   contributed_hours_history?: ContributionItem[]
+  has_support?: boolean
 }
 
 interface ContributionItem {
@@ -219,7 +222,8 @@ function SkeletonCard() {
 
 export default function BankHoursFixedPage() {
   const { user } = useAuth()
-  const isAdmin = user?.type === 'admin'
+  const isAdmin   = user?.type === 'admin'
+  const isCliente = user?.type === 'cliente'
 
   const now = new Date()
   const isoFirstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
@@ -255,19 +259,22 @@ export default function BankHoursFixedPage() {
 
   // Projects list
   useEffect(() => {
+    if (!user) return  // aguarda autenticação antes de buscar projetos
     const params = new URLSearchParams({ pageSize: '1000', contract_type_name: 'Banco de Horas Fixo' })
     if (selectedCustomer) params.set('customer_id', String(selectedCustomer))
+    else if (isCliente && user.customer_id) params.set('customer_id', String(user.customer_id))
     api.get<any>(`/projects?${params}`).then(r => setProjects(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
-  }, [selectedCustomer])
+  }, [user, selectedCustomer, isCliente])
 
   // Build base params
   const baseParams = useCallback(() => {
     const p = new URLSearchParams()
-    if (selectedCustomer)  p.set('customer_id',  String(selectedCustomer))
+    if (selectedCustomer)                    p.set('customer_id',  String(selectedCustomer))
+    else if (isCliente && user?.customer_id) p.set('customer_id',  String(user.customer_id))
     if (selectedExecutive) p.set('executive_id', String(selectedExecutive))
     if (selectedProject)   p.set('project_id',   String(selectedProject))
     return p
-  }, [selectedCustomer, selectedExecutive, selectedProject])
+  }, [selectedCustomer, selectedExecutive, selectedProject, isCliente, user?.customer_id])
 
   const resolveMonthYear = useCallback(() => {
     const now = new Date()
@@ -426,14 +433,6 @@ export default function BankHoursFixedPage() {
             placeholder="Selecione um projeto"
             wide
           />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Período</label>
-            <DateRangePicker
-              from={dateFrom}
-              to={dateTo}
-              onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null) }}
-            />
-          </div>
           {/* Mês/Ano de referência */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Mês/Ano</label>
@@ -467,7 +466,9 @@ export default function BankHoursFixedPage() {
             <div className="flex gap-1 p-1 rounded-2xl w-fit" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
               <Tab label="Total Geral"  active={activeTab === 'total'}       onClick={() => setActiveTab('total')} />
               <Tab label="Projetos"     active={activeTab === 'projects'}    onClick={() => setActiveTab('projects')} />
-              <Tab label="Sustentação"  active={activeTab === 'maintenance'} onClick={() => setActiveTab('maintenance')} />
+              {(summary?.has_support ?? true) && (
+                <Tab label="Sustentação" active={activeTab === 'maintenance'} onClick={() => setActiveTab('maintenance')} />
+              )}
             </div>
 
             {/* ── TOTAL GERAL ── */}
@@ -568,13 +569,13 @@ export default function BankHoursFixedPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <MetricCard
                     label="Consumo Acumulado"
-                    value={fmtH(summary?.projects_consumed_hours ?? 0)}
+                    value={fmtH(summary?.projects_consumed_hours ?? summary?.consumed_hours ?? 0)}
                     icon={Clock}
                     accent="primary"
                   />
                   <MetricCard
                     label="Consumo do Mês"
-                    value={fmtH(summary?.month_consumed_hours ?? 0)}
+                    value={fmtH(summary?.projects_month_consumed_hours ?? summary?.month_consumed_hours ?? 0)}
                     icon={Clock}
                   />
                 </div>
@@ -594,7 +595,7 @@ export default function BankHoursFixedPage() {
                   />
                   <MetricCard
                     label="Consumo do Mês"
-                    value={fmtH(summary?.month_consumed_hours ?? 0)}
+                    value={fmtH(summary?.maintenance_month_consumed_hours ?? summary?.month_consumed_hours ?? 0)}
                     icon={Clock}
                   />
                 </div>
