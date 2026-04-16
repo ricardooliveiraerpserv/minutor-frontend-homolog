@@ -1118,7 +1118,12 @@ function TimesheetsPageContent() {
                     {ts.project?.contract_type_display ?? '—'}
                   </Td>
                   <Td muted className="hidden lg:table-cell font-mono">
-                    {ts.ticket ? `#${ts.ticket}` : '—'}
+                    {ts.ticket
+                      ? ts.origin === 'webhook'
+                        ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer"
+                            className="hover:underline" style={{ color: 'var(--brand-primary)' }}>#{ts.ticket}</a>
+                        : `#${ts.ticket}`
+                      : '—'}
                   </Td>
                   <Td muted className="hidden xl:table-cell truncate max-w-[160px]">
                     {ts.ticket_subject ?? '—'}
