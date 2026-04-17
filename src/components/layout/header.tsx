@@ -25,13 +25,14 @@ export function Header({ title, actions }: HeaderProps) {
   const [unread, setUnread] = useState(0)
 
   useEffect(() => {
+    if (!user) return
     const fetch = () => {
       api.get<{ count: number }>('/messages/unread-count').then(r => setUnread(r.count ?? 0)).catch(() => {})
     }
     fetch()
     const id = setInterval(fetch, 60_000)
     return () => clearInterval(id)
-  }, [])
+  }, [user])
 
   const handleLogout = async () => {
     await logout()

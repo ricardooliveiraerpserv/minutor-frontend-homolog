@@ -212,9 +212,10 @@ interface ProjectRowProps {
   onChangeStatus?: (project: ProjectWithTeam) => void
   treeRow?: TreeRow
   onTreeToggle?: () => void
+  hasUnread?: boolean
 }
 
-function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, onEdit, onChangeStatus, treeRow, onTreeToggle }: ProjectRowProps) {
+function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, onEdit, onChangeStatus, treeRow, onTreeToggle, hasUnread }: ProjectRowProps) {
   const consumedHours = project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0)
   const pct   = project.sold_hours ? (consumedHours / project.sold_hours) * 100 : 0
   const color = healthColor(pct)
@@ -310,6 +311,9 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                   style={{ color: isActive ? '#00F5FF' : isParent ? 'var(--brand-subtle)' : 'var(--brand-muted)' }}
                 >
                   {project.name}
+                  {hasUnread && (
+                    <span className="inline-block w-2 h-2 rounded-full ml-1.5 shrink-0" style={{ background: '#00F5FF', boxShadow: '0 0 6px rgba(0,245,255,0.6)' }} />
+                  )}
                 </p>
                 {treeRow && isParent && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>PAI</span>
@@ -474,6 +478,15 @@ export default function GestaoProjetosPage() {
   // Modal de alteração de status
   const [statusModal, setStatusModal] = useState<{ open: boolean; project: ProjectWithTeam | null; newStatus: string }>({ open: false, project: null, newStatus: '' })
   const [statusSaving, setStatusSaving] = useState(false)
+
+  // Projetos com mensagens não lidas
+  const [unreadProjectIds, setUnreadProjectIds] = useState<Set<number>>(new Set())
+  useEffect(() => {
+    if (!user || (user.type !== 'admin' && user.type !== 'coordenador')) return
+    api.get<{ project_ids: number[] }>('/messages/unread-projects')
+      .then(r => setUnreadProjectIds(new Set(r.project_ids ?? [])))
+      .catch(() => {})
+  }, [user])
 
   const PROJECT_STATUSES = [
     { value: 'awaiting_start', label: 'Aguardando Início' },
@@ -916,6 +929,7 @@ export default function GestaoProjetosPage() {
                       canChangeStatus={canChangeStatus}
                       onEdit={p => router.push(`/projects?editId=${p.id}`)}
                       onChangeStatus={p => setStatusModal({ open: true, project: p, newStatus: p.status ?? '' })}
+                      hasUnread={unreadProjectIds.has(project.id)}
                       treeRow={tr}
                       onTreeToggle={tr ? () => toggleTree(tr) : undefined}
                     />
@@ -1308,13 +1322,7 @@ export default function GestaoProjetosPage() {
               <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <ProjectMessages
-                projectId={messagesProject.id}
-                projectUsers={[
-                  ...(messagesProject.consultants ?? []),
-                  ...(messagesProject.coordinators ?? []),
-                ]}
-              />
+              <ProjectMessages projectId={messagesProject.id} />
             </div>
           </div>
         </div>

@@ -454,6 +454,13 @@ function ProjectsPageInner() {
   const [viewProject, setViewProject] = useState<Project | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
   const [viewTab, setViewTab] = useState<'overview' | 'contributions' | 'history' | 'costs' | 'messages'>('overview')
+  const [unreadProjectIds, setUnreadProjectIds] = useState<Set<number>>(new Set())
+  useEffect(() => {
+    if (!user || (user.type !== 'admin' && user.type !== 'coordenador')) return
+    api.get<{ project_ids: number[] }>('/messages/unread-projects')
+      .then(r => setUnreadProjectIds(new Set(r.project_ids ?? [])))
+      .catch(() => {})
+  }, [user])
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
   const [costLoading, setCostLoading] = useState(false)
   // Aportes
@@ -1317,7 +1324,9 @@ function ProjectsPageInner() {
                             <span
                               className="font-medium text-sm leading-snug"
                               style={{ color: isActiveRow ? '#00F5FF' : isParentRow ? 'var(--brand-subtle)' : 'var(--brand-text)', whiteSpace: 'normal', wordBreak: 'break-word' }}
-                            >{cleanName(p.name)}</span>
+                            >{cleanName(p.name)}{unreadProjectIds.has(p.id) && (
+                              <span className="inline-block w-2 h-2 rounded-full ml-1.5 align-middle shrink-0" style={{ background: '#00F5FF', boxShadow: '0 0 6px rgba(0,245,255,0.6)' }} />
+                            )}</span>
                             {multiContratual && isParentRow && (
                               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded w-fit" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>PAI</span>
                             )}
@@ -2218,13 +2227,7 @@ function ProjectsPageInner() {
 
                 {/* ── ABA: MENSAGENS ── */}
                 {viewTab === 'messages' && viewProject && (
-                  <ProjectMessages
-                    projectId={viewProject.id}
-                    projectUsers={[
-                      ...((viewProject as any).consultants ?? []),
-                      ...((viewProject as any).coordinators ?? []),
-                    ]}
-                  />
+                  <ProjectMessages projectId={viewProject.id} />
                 )}
 
               </div>
