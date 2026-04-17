@@ -1394,9 +1394,9 @@ function TimesheetsPageContent() {
               {/* Ticket */}
               <div>
                 <Label className="text-xs text-zinc-400">Ticket</Label>
-                <input type="text" value={newForm.ticket} placeholder="Ex: 12345"
-                  onChange={e => setNewForm(f => ({ ...f, ticket: e.target.value }))}
-                  className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600" />
+                <input type="number" value={newForm.ticket} placeholder="Ex: 12345"
+                  onChange={e => setNewForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
+                  className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
               </div>
 
               {/* Observação */}

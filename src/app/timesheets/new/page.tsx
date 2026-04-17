@@ -190,9 +190,9 @@ export default function NewTimesheetPage() {
           {/* Ticket */}
           <div>
             <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Ticket</Label>
-            <input type="text" value={form.ticket} placeholder="Ex: 12345"
-              onChange={e => set('ticket', e.target.value)}
-              className={inputCls} style={inputStyle} />
+            <input type="number" value={form.ticket} placeholder="Ex: 12345"
+              onChange={e => set('ticket', e.target.value.replace(/\D/g, ''))}
+              className={`${inputCls} [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`} style={inputStyle} />
           </div>
 
           {/* Observação */}

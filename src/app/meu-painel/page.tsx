@@ -3227,11 +3227,10 @@ export default function MeuPainelPage() {
               return (
                 <div>
                   <Label className="text-xs text-zinc-400">Ticket / Chamado *</Label>
-                  <Input value={tsForm.ticket}
+                  <Input type="number" value={tsForm.ticket}
                     onChange={e => setTsForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
                     placeholder="Ex: 123456"
-                    inputMode="numeric"
-                    className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                    className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
                 </div>
               )
             })()}
