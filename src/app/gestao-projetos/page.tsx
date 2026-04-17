@@ -699,6 +699,16 @@ export default function GestaoProjetosPage() {
 
   const [messagesProject, setMessagesProject] = useState<ProjectWithTeam | null>(null)
 
+  // Auto-open messages modal when ?messages=PROJECT_ID is in URL
+  useEffect(() => {
+    if (projects.length === 0) return
+    const pid = new URLSearchParams(window.location.search).get('messages')
+    if (!pid) return
+    const found = projects.find(p => String(p.id) === pid)
+    if (found) setMessagesProject(found)
+    window.history.replaceState({}, '', window.location.pathname)
+  }, [projects])
+
   const handleMenuAction = async (action: 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages', project: ProjectWithTeam) => {
     if (action === 'messages') { setMessagesProject(project); return }
     if (action === 'timesheets') { router.push(`/timesheets?project_id=${project.id}`); return }

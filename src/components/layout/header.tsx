@@ -144,7 +144,7 @@ export function Header({ title, actions }: HeaderProps) {
                           key={n.id}
                           onClick={() => {
                             setBellOpen(false)
-                            router.push('/gestao-projetos')
+                            window.location.href = `/gestao-projetos?messages=${n.project_id}`
                           }}
                           className="w-full flex flex-col px-4 py-3 hover:bg-white/5 transition-colors border-b text-left gap-0.5"
                           style={{ borderColor: 'var(--brand-border)' }}
@@ -160,7 +160,7 @@ export function Header({ title, actions }: HeaderProps) {
                         </button>
                       ))}
                       <button
-                        onClick={() => { setBellOpen(false); router.push('/gestao-projetos') }}
+                        onClick={() => { setBellOpen(false); window.location.href = '/gestao-projetos' }}
                         className="w-full py-2 text-center text-[10px] font-semibold hover:bg-white/5 transition-colors"
                         style={{ color: '#00F5FF' }}
                       >
