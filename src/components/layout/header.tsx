@@ -140,14 +140,12 @@ export function Header({ title, actions }: HeaderProps) {
                   ) : (
                     <>
                       {notifications.map(n => (
-                        <button
+                        <a
                           key={n.id}
-                          onClick={() => {
-                            setBellOpen(false)
-                            window.location.href = `/gestao-projetos?messages=${n.project_id}`
-                          }}
-                          className="w-full flex flex-col px-4 py-3 hover:bg-white/5 transition-colors border-b text-left gap-0.5"
-                          style={{ borderColor: 'var(--brand-border)' }}
+                          href={`/gestao-projetos?messages=${n.project_id}`}
+                          onClick={() => setBellOpen(false)}
+                          className="flex flex-col px-4 py-3 hover:bg-white/5 transition-colors border-b gap-0.5"
+                          style={{ borderColor: 'var(--brand-border)', textDecoration: 'none' }}
                         >
                           <div className="flex items-center justify-between w-full">
                             <span className="text-[10px] font-mono" style={{ color: '#00F5FF' }}>{n.project_code}</span>
@@ -157,15 +155,16 @@ export function Header({ title, actions }: HeaderProps) {
                           </div>
                           <p className="text-[10px] font-semibold truncate" style={{ color: '#71717A' }}>{n.author_name} · {n.project_name}</p>
                           <p className="text-xs truncate" style={{ color: '#FAFAFA' }}>{n.preview}</p>
-                        </button>
+                        </a>
                       ))}
-                      <button
-                        onClick={() => { setBellOpen(false); window.location.href = '/gestao-projetos' }}
-                        className="w-full py-2 text-center text-[10px] font-semibold hover:bg-white/5 transition-colors"
-                        style={{ color: '#00F5FF' }}
+                      <a
+                        href="/gestao-projetos"
+                        onClick={() => setBellOpen(false)}
+                        className="block w-full py-2 text-center text-[10px] font-semibold hover:bg-white/5 transition-colors"
+                        style={{ color: '#00F5FF', textDecoration: 'none' }}
                       >
                         Ver todas as mensagens →
-                      </button>
+                      </a>
                     </>
                   )}
                 </div>
