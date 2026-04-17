@@ -26,6 +26,7 @@ interface UserItem {
   rate_type?: string
   daily_hours?: number
   consultant_type?: string | null
+  coordinator_type?: 'projetos' | 'sustentacao' | null
   bank_hours_start_date?: string | null
   guaranteed_hours?: number | null
   customer_id?: number | null

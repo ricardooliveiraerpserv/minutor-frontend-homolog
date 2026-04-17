@@ -28,6 +28,7 @@ interface UserItem {
   rate_type?: string
   daily_hours?: number
   consultant_type?: string | null
+  coordinator_type?: 'projetos' | 'sustentacao' | null
   customer_id?: number | null
   partner_id?: number | null
   is_executive?: boolean
