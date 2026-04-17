@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  Headphones,
   BarChart2,
   CalendarClock,
   Zap,
@@ -108,8 +109,9 @@ const NAV_CLIENTE: NavEntry[] = [
 ]
 
 const NAV: NavEntry[] = [
-  { type: 'item', label: 'Início',             href: '/dashboard',       icon: Home },
-  { type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers },
+  { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
+  { type: 'item', label: 'Gestão de Projetos',    href: '/gestao-projetos', icon: Layers },
+  { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',     icon: Headphones },
   { type: 'item', label: 'Visão Executiva',    href: '/portal-cliente',  icon: Building2 },
   { type: 'item', label: 'Apontamentos',       href: '/timesheets',      icon: Clock },
   { type: 'item', label: 'Despesas',           href: '/expenses',        icon: Receipt },
@@ -204,6 +206,11 @@ function SidebarInner({ user }: { user: User }) {
       // Gestão de Projetos — somente para coordenadores do tipo "projetos"
       if (user?.coordinator_type === 'projetos') {
         nav.splice(1, 0, { type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers })
+      }
+
+      // Portal de Sustentação — somente para coordenadores do tipo "sustentacao"
+      if (user?.coordinator_type === 'sustentacao') {
+        nav.splice(1, 0, { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao', icon: Headphones })
       }
 
       // Projetos e Usuários — opcionais via extra_permissions
