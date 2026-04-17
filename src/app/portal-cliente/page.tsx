@@ -354,9 +354,7 @@ export default function PortalClientePage() {
   const [indTeamProjects, setIndTeamProjects] = useState<any[]>(() => indCacheGet<any[]>('ind_team') ?? [])
   const [indPendingTs, setIndPendingTs] = useState(0)
   const [indPendingExp, setIndPendingExp] = useState(0)
-  const [indMonthlyData, setIndMonthlyData] = useState<any[] | null>(() => indCacheGet<any[]>('ind_chart'))
   const [indLoading, setIndLoading] = useState(false)
-  const [indChartLoading, setIndChartLoading] = useState(false)
   const [indTeamLoading, setIndTeamLoading] = useState(false)
   const indLoadedRef = useRef(false)
   const [indCFilter, setIndCFilter] = useState('')
@@ -499,17 +497,11 @@ export default function PortalClientePage() {
     if (activeTab !== 'indicadores' || indLoadedRef.current) return
     indLoadedRef.current = true  // marca antes de qualquer setState para não re-disparar
 
-    setIndLoading(true); setIndChartLoading(true); setIndTeamLoading(true)
+    setIndLoading(true); setIndTeamLoading(true)
 
-    const CHART_URLS = [
-      '/dashboards/bank-hours-fixed/indicators/monthly-consumption',
-      '/dashboards/bank-hours-monthly/indicators/monthly-consumption',
-      '/dashboards/on-demand/indicators/monthly-consumption',
-    ]
-    const projPromise   = api.get<any>('/projects?pageSize=300&gestao=true&with_team=false')
-    const tsPromise     = api.get<any>('/approvals/timesheets?per_page=1&status=pending')
-    const expPromise    = api.get<any>('/approvals/expenses?per_page=1&status=pending')
-    const chartPromises = CHART_URLS.map(url => api.get<any>(url))
+    const projPromise = api.get<any>('/projects?pageSize=300&gestao=true&with_team=false')
+    const tsPromise   = api.get<any>('/approvals/timesheets?per_page=1&status=pending')
+    const expPromise  = api.get<any>('/approvals/expenses?per_page=1&status=pending')
 
     Promise.allSettled([projPromise, tsPromise, expPromise]).then(([projRes, tsRes, expRes]) => {
       if (projRes.status === 'fulfilled') {
@@ -537,25 +529,6 @@ export default function PortalClientePage() {
         })
         .catch(() => {})
         .finally(() => setIndTeamLoading(false))
-    })
-
-    Promise.allSettled(chartPromises).then(results => {
-      const map = new Map<string, number>()
-      for (const r of results) {
-        if (r.status !== 'fulfilled') continue
-        const arr: any[] = Array.isArray(r.value) ? r.value : r.value?.data ?? []
-        for (const dv of arr) {
-          const month = dv.month ?? ''
-          const h = Number(dv.consumed_hours ?? dv.hours ?? 0)
-          map.set(month, (map.get(month) ?? 0) + h)
-        }
-      }
-      if (map.size > 0) {
-        const sorted = [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
-          .map(([month, hours]) => ({ month, hours: Math.round(hours * 10) / 10 }))
-        setIndMonthlyData(sorted); indCacheSet('ind_chart', sorted)
-      } else { setIndMonthlyData(null) }
-      setIndChartLoading(false)
     })
   }, [activeTab])
 
@@ -640,20 +613,6 @@ export default function PortalClientePage() {
     }
     return Array.from(map.values()).sort((a, b) => b.projects - a.projects)
   }, [indTeamProjects, indCFilter, indPFilter, indStatusFilter, indExecFilter])
-
-  const indChartKpis = useMemo(() => {
-    if (!indMonthlyData?.length) return null
-    const hours = indMonthlyData.map(d => d.hours ?? 0)
-    const mediaHoras = hours.reduce((a, b) => a + b, 0) / hours.length
-    const mesesComDados = hours.filter(h => h > 0).length
-    let tendencia = '—'
-    if (hours.length >= 6) {
-      const last3 = hours.slice(-3).reduce((a, b) => a + b, 0) / 3
-      const prev3 = hours.slice(-6, -3).reduce((a, b) => a + b, 0) / 3
-      if (prev3 > 0) { const diff = ((last3 - prev3) / prev3) * 100; tendencia = (diff >= 0 ? '+' : '') + fmt(diff) + '%' }
-    }
-    return { mediaHoras, mesesComDados, tendencia }
-  }, [indMonthlyData])
 
   const indHasFilter = indCFilter !== '' || indPFilter !== '' || indStatusFilter !== '' || indExecFilter !== ''
 
@@ -1383,45 +1342,6 @@ export default function PortalClientePage() {
                         </button>
                       )
                     })}
-                  </div>
-                )}
-              </div>
-
-              {/* Evolução Mensal */}
-              <div className="rounded-2xl border p-5" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--brand-text)' }}>Evolução Mensal</h2>
-                {indChartLoading ? <Skeleton className="h-60" /> : !indMonthlyData || indMonthlyData.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2">
-                    <TrendingUp size={32} style={{ color: 'var(--brand-subtle)' }} />
-                    <p className="text-sm font-medium" style={{ color: 'var(--brand-muted)' }}>Dados históricos em breve</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col lg:flex-row gap-6">
-                    <div className="flex-1 min-w-0">
-                      <ResponsiveContainer width="100%" height={240}>
-                        <LineChart data={indMonthlyData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                          <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#71717A' }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fontSize: 11, fill: '#71717A' }} axisLine={false} tickLine={false} />
-                          <Tooltip content={<IndChartTooltip />} cursor={{ fill: 'transparent' }} />
-                          <Line type="monotone" dataKey="hours" name="Horas" stroke="#00F5FF" strokeWidth={2} dot={false} activeDot={{ r: 4, fill: '#00F5FF' }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    {indChartKpis && (
-                      <div className="flex lg:flex-col gap-3 lg:w-40 shrink-0">
-                        {[
-                          { label: 'Média mensal', value: `${fmt(indChartKpis.mediaHoras)}h`, color: '#00F5FF' },
-                          { label: 'Meses c/ dados', value: String(indChartKpis.mesesComDados), color: 'var(--brand-text)' },
-                          { label: 'Tendência', value: indChartKpis.tendencia, color: indChartKpis.tendencia.startsWith('+') ? '#22c55e' : indChartKpis.tendencia.startsWith('-') ? '#ef4444' : 'var(--brand-muted)' },
-                        ].map(kpi => (
-                          <div key={kpi.label} className="flex-1 lg:flex-none rounded-xl p-3 border" style={{ borderColor: 'var(--brand-border)', background: 'rgba(255,255,255,0.03)' }}>
-                            <p className="text-[10px] uppercase tracking-wider font-medium mb-1" style={{ color: 'var(--brand-subtle)' }}>{kpi.label}</p>
-                            <p className="text-lg font-bold tabular-nums" style={{ color: kpi.color }}>{kpi.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
