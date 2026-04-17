@@ -83,12 +83,12 @@ type NavGroup = {
 type NavEntry = NavItem | NavGroup
 
 const NAV_COORDINATOR: NavEntry[] = [
-  { type: 'item', label: 'Início',                   href: '/dashboard',        icon: Home },
-  { type: 'item', label: 'Apontamentos',             href: '/timesheets',       icon: Clock },
-  { type: 'item', label: 'Despesas',                 href: '/expenses',         icon: Receipt },
-  { type: 'item', label: 'Aprovações',               href: '/approvals',        icon: CheckSquare },
-  { type: 'item', label: 'Gestão de Projetos',       href: '/gestao-projetos',  icon: Layers },
-  { type: 'item', label: 'Visão Executiva',          href: '/portal-cliente',   icon: Building2 },
+  { type: 'item', label: 'Início',             href: '/dashboard',       icon: Home },
+  { type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers },
+  { type: 'item', label: 'Visão Executiva',    href: '/portal-cliente',  icon: Building2 },
+  { type: 'item', label: 'Apontamentos',       href: '/timesheets',      icon: Clock },
+  { type: 'item', label: 'Despesas',           href: '/expenses',        icon: Receipt },
+  { type: 'item', label: 'Aprovações',         href: '/approvals',       icon: CheckSquare },
 ]
 
 const NAV_CLIENTE: NavEntry[] = [
@@ -109,12 +109,12 @@ const NAV_CLIENTE: NavEntry[] = [
 ]
 
 const NAV: NavEntry[] = [
-  { type: 'item', label: 'Início',                   href: '/dashboard',        icon: Home },
-  { type: 'item', label: 'Apontamentos',             href: '/timesheets',       icon: Clock },
-  { type: 'item', label: 'Despesas',                 href: '/expenses',         icon: Receipt },
-  { type: 'item', label: 'Gestão de Projetos',       href: '/gestao-projetos',  icon: Layers },
-  { type: 'item', label: 'Visão Executiva',        href: '/portal-cliente',   icon: Building2 },
-  { type: 'item', label: 'Aprovações',               href: '/approvals',        icon: CheckSquare },
+  { type: 'item', label: 'Início',             href: '/dashboard',       icon: Home },
+  { type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers },
+  { type: 'item', label: 'Visão Executiva',    href: '/portal-cliente',  icon: Building2 },
+  { type: 'item', label: 'Apontamentos',       href: '/timesheets',      icon: Clock },
+  { type: 'item', label: 'Despesas',           href: '/expenses',        icon: Receipt },
+  { type: 'item', label: 'Aprovações',         href: '/approvals',       icon: CheckSquare },
   {
     type: 'group',
     label: 'Dashboards',
@@ -126,26 +126,27 @@ const NAV: NavEntry[] = [
       { label: 'Fechado',                href: '/dashboards/fechado',             icon: CheckSquare },
     ],
   },
-  { type: 'item', label: 'Banco de Horas', href: '/hora-banco',  icon: Landmark },
+  { type: 'item', label: 'Banco de Horas', href: '/hora-banco', icon: Landmark },
   {
     type: 'group',
     label: 'Cadastros',
     icon: Database,
     items: [
-      { label: 'Projetos',            href: '/projects',                 icon: FolderOpen },
-      { label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',          icon: FileType },
-      { label: 'Tipos de Serviço',      href: '/cadastros?tab=services',           icon: Wrench },
-      { label: 'Clientes',              href: '/cadastros?tab=customers',          icon: Users },
-      { label: 'Executivos',            href: '/cadastros?tab=executives',         icon: Star },
-      { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',             icon: UserCheck },
-      { label: 'Feriados',              href: '/cadastros?tab=holidays',           icon: CalendarDays },
+      { label: 'Projetos',              href: '/projects',                        icon: FolderOpen },
+      { label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',         icon: FileType },
+      { label: 'Tipos de Serviço',      href: '/cadastros?tab=services',          icon: Wrench },
+      { label: 'Clientes',              href: '/cadastros?tab=customers',         icon: Users },
+      { label: 'Executivos',            href: '/cadastros?tab=executives',        icon: Star },
+      { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
+      { label: 'Feriados',              href: '/cadastros?tab=holidays',          icon: CalendarDays },
       { label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag },
-      { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',      icon: Receipt },
-      { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',    icon: CreditCard },
-      { label: 'Parceiros',           href: '/partners',                 icon: Handshake },
+      { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',     icon: Receipt },
+      { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',   icon: CreditCard },
+      { label: 'Parceiros',             href: '/partners',                        icon: Handshake },
     ],
   },
-  { type: 'item', label: 'Configurações',  href: '/settings',    icon: Settings },
+  { type: 'item', label: 'Usuários',      href: '/users',    icon: Users },
+  { type: 'item', label: 'Configurações', href: '/settings', icon: Settings },
 ]
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -202,13 +203,8 @@ function SidebarInner({ user }: { user: User }) {
       const nav: NavEntry[] = [...NAV_COORDINATOR]
 
       // Projetos e Usuários — opcionais via extra_permissions
-      // Insere antes de "Aprovações" (último item do NAV_COORDINATOR)
-      const optionalBefore: NavEntry[] = []
       const hasProjectsAction = ['projects.create','projects.update','projects.delete','projects.view_financial'].some(p => ep.includes(p))
-      if (hasProjectsAction) optionalBefore.push({ type: 'item', label: 'Projetos', href: '/projects', icon: FolderOpen })
       const hasAnyUserPerm = ['users.view_all','users.create','users.update','users.reset_password'].some(p => ep.includes(p))
-      if (hasAnyUserPerm) optionalBefore.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
-      if (optionalBefore.length > 0) nav.splice(nav.length - 1, 0, ...optionalBefore)
 
       // Dashboards — aparece se tiver ao menos um dashboard extra
       const dashItems: { label: string; href: string; icon: typeof BarChart2 }[] = []
@@ -232,7 +228,11 @@ function SidebarInner({ user }: { user: User }) {
       if (has('expense_types.manage'))      cadastrosItems.push({ label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',      icon: Receipt })
       if (has('payment_methods.manage'))    cadastrosItems.push({ label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',    icon: CreditCard })
       if (has('partners.manage'))   cadastrosItems.push({ label: 'Parceiros',           href: '/partners',                 icon: Handshake })
+      if (hasProjectsAction) cadastrosItems.unshift({ label: 'Projetos', href: '/projects', icon: FolderOpen })
       if (cadastrosItems.length > 0) nav.push({ type: 'group', label: 'Cadastros', icon: Database, items: cadastrosItems })
+
+      // Usuários — após Cadastros
+      if (hasAnyUserPerm) nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
 
       // Configurações
       if (has('settings.view')) nav.push({ type: 'item', label: 'Configurações', href: '/settings', icon: Settings })
