@@ -358,11 +358,11 @@ export default function PortalClientePage() {
   const [indLoading, setIndLoading] = useState(false)
   const [indChartLoading, setIndChartLoading] = useState(false)
   const [indTeamLoading, setIndTeamLoading] = useState(false)
-  const indLoadedRef = useRef(indCacheGet('ind_projects') !== null)
+  const indLoadedRef = useRef(false)
   const [indCFilter, setIndCFilter] = useState('')
   const [indPFilter, setIndPFilter] = useState('')
   const [indContractFilter, setIndContractFilter] = useState('')
-  const [indStatusFilter, setIndStatusFilter] = useState('active')
+  const [indStatusFilter, setIndStatusFilter] = useState('')
   const [indHealthFilter, setIndHealthFilter] = useState<'all' | 'green' | 'yellow' | 'red'>('all')
   const [indViewMode, setIndViewMode] = useState<'list' | 'card'>('list')
   const [indExecFilter, setIndExecFilter] = useState('')
@@ -628,8 +628,8 @@ export default function PortalClientePage() {
     return list
   }, [indFiltered, indPendingTs, indPendingExp])
 
-  const indCritical = useMemo(() =>
-    [...indFiltered].sort((a, b) => (a.general_hours_balance ?? 0) - (b.general_hours_balance ?? 0)).slice(0, 20),
+  const indSorted = useMemo(() =>
+    [...indFiltered].sort((a, b) => (a.general_hours_balance ?? 0) - (b.general_hours_balance ?? 0)),
     [indFiltered]
   )
 
@@ -666,7 +666,7 @@ export default function PortalClientePage() {
     return { mediaHoras, mesesComDados, tendencia }
   }, [indMonthlyData])
 
-  const indHasFilter = indCFilter !== '' || indPFilter !== '' || indContractFilter !== '' || indStatusFilter !== 'active' || indExecFilter !== '' || indHealthFilter !== 'all'
+  const indHasFilter = indCFilter !== '' || indPFilter !== '' || indContractFilter !== '' || indStatusFilter !== '' || indExecFilter !== '' || indHealthFilter !== 'all'
 
   return (
     <AppLayout>
@@ -719,48 +719,6 @@ export default function PortalClientePage() {
                 </div>
               )}
 
-              {/* Health pills + view toggle — apenas multi-mode */}
-              {isMultiMode && (<>
-                <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
-                  {([
-                    { key: 'all',      label: 'Todos',    color: '#00F5FF' },
-                    { key: 'ok',       label: 'Saudável', color: '#22c55e' },
-                    { key: 'warning',  label: 'Atenção',  color: '#f59e0b' },
-                    { key: 'critical', label: 'Crítico',  color: '#ef4444' },
-                  ] as const).map(btn => {
-                    const active = healthFilter === btn.key
-                    return (
-                      <button key={btn.key} type="button" onClick={() => setHealthFilter(btn.key)}
-                        className="px-3 py-1.5 rounded-full text-sm font-semibold transition-all"
-                        style={active
-                          ? { background: btn.color, color: btn.key === 'all' ? '#0A0A0B' : '#fff' }
-                          : { color: btn.color, background: 'transparent' }
-                        }>
-                        {btn.label}
-                      </button>
-                    )
-                  })}
-                </div>
-                {/* View toggle */}
-                <div className="flex items-center rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                  <button type="button" onClick={() => setViewMode('card')}
-                    className="p-2.5 transition-all"
-                    style={viewMode === 'card'
-                      ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
-                      : { background: 'rgba(255,255,255,0.04)', color: 'var(--brand-subtle)' }
-                    }>
-                    <LayoutGrid size={15} />
-                  </button>
-                  <button type="button" onClick={() => setViewMode('linear')}
-                    className="p-2.5 transition-all"
-                    style={viewMode === 'linear'
-                      ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
-                      : { background: 'rgba(255,255,255,0.04)', color: 'var(--brand-subtle)' }
-                    }>
-                    <List size={15} />
-                  </button>
-                </div>
-              </>)}
             </div>
           </div>
 
@@ -785,6 +743,42 @@ export default function PortalClientePage() {
 
           {/* ── Portal tab content ── */}
           {(activeTab === 'portal' || isCliente) && <>
+
+          {/* Health pills + view toggle — só em multi-mode dentro da aba portal */}
+          {isMultiMode && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1 p-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
+                {([
+                  { key: 'all',      label: 'Todos',    color: '#00F5FF' },
+                  { key: 'ok',       label: 'Saudável', color: '#22c55e' },
+                  { key: 'warning',  label: 'Atenção',  color: '#f59e0b' },
+                  { key: 'critical', label: 'Crítico',  color: '#ef4444' },
+                ] as const).map(btn => {
+                  const active = healthFilter === btn.key
+                  return (
+                    <button key={btn.key} type="button" onClick={() => setHealthFilter(btn.key)}
+                      className="px-3 py-1.5 rounded-full text-sm font-semibold transition-all"
+                      style={active
+                        ? { background: btn.color, color: btn.key === 'all' ? '#0A0A0B' : '#fff' }
+                        : { color: btn.color, background: 'transparent' }
+                      }>
+                      {btn.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="flex items-center rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                <button type="button" onClick={() => setViewMode('card')} className="p-2.5 transition-all"
+                  style={viewMode === 'card' ? { background: 'var(--brand-primary)', color: '#0A0A0B' } : { background: 'rgba(255,255,255,0.04)', color: 'var(--brand-subtle)' }}>
+                  <LayoutGrid size={15} />
+                </button>
+                <button type="button" onClick={() => setViewMode('linear')} className="p-2.5 transition-all"
+                  style={viewMode === 'linear' ? { background: 'var(--brand-primary)', color: '#0A0A0B' } : { background: 'rgba(255,255,255,0.04)', color: 'var(--brand-subtle)' }}>
+                  <List size={15} />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Multi-customer grid ── */}
           {isMultiMode && (
@@ -1338,11 +1332,11 @@ export default function PortalClientePage() {
                 {/* Status */}
                 <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                   {([
+                    { key: '',               label: 'Todos' },
                     { key: 'active',         label: 'Ativo' },
                     { key: 'awaiting_start', label: 'Aguardando' },
                     { key: 'paused',         label: 'Pausado' },
                     { key: 'finished',       label: 'Finalizado' },
-                    { key: '',               label: 'Todos' },
                   ] as const).map(btn => {
                     const active = indStatusFilter === btn.key
                     return (
@@ -1387,7 +1381,7 @@ export default function PortalClientePage() {
                   <IndSearchSelect key={placeholder} value={value} onChange={onChange} placeholder={placeholder} options={options} />
                 ))}
                 {indHasFilter && (
-                  <button onClick={() => { setIndCFilter(''); setIndPFilter(''); setIndContractFilter(''); setIndStatusFilter('active'); setIndExecFilter(''); setIndHealthFilter('all') }}
+                  <button onClick={() => { setIndCFilter(''); setIndPFilter(''); setIndContractFilter(''); setIndStatusFilter(''); setIndExecFilter(''); setIndHealthFilter('all') }}
                     className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-white/[0.06]"
                     style={{ color: 'var(--brand-muted)' }}>
                     <X size={13} /> Limpar
@@ -1502,12 +1496,17 @@ export default function PortalClientePage() {
               {/* Projetos */}
               <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
                 <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                  <h2 className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Projetos</h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Projetos</h2>
+                    {!indLoading && indSorted.length > 0 && (
+                      <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{indSorted.length} projeto(s)</span>
+                    )}
+                  </div>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>Ordenados por menor saldo</p>
                 </div>
                 {indLoading ? (
                   <div className="p-5 space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
-                ) : indCritical.length === 0 ? (
+                ) : indSorted.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-12">
                     <FolderOpen size={28} style={{ color: 'var(--brand-subtle)' }} />
                     <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto encontrado</p>
@@ -1523,7 +1522,7 @@ export default function PortalClientePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {indCritical.map((p: any, i: number) => {
+                        {indSorted.map((p: any, i: number) => {
                           const pct = p.balance_percentage ?? 0
                           const bal = p.general_hours_balance ?? 0
                           const isCritical = pct >= 90 || bal < 0
@@ -1531,7 +1530,7 @@ export default function PortalClientePage() {
                           const hc = healthColorInd(pct)
                           return (
                             <tr key={p.id ?? i} style={{
-                              borderBottom: i < indCritical.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                              borderBottom: i < indSorted.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
                               borderLeft: isCritical ? '3px solid #ef4444' : isWarning ? '3px solid #f59e0b' : '3px solid transparent',
                               background: isCritical ? 'rgba(239,68,68,0.03)' : isWarning ? 'rgba(245,158,11,0.03)' : 'transparent',
                             }}>
@@ -1559,7 +1558,7 @@ export default function PortalClientePage() {
                   </div>
                 ) : (
                   <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {indCritical.map((p: any) => {
+                    {indSorted.map((p: any) => {
                       const pct = p.balance_percentage ?? 0
                       const bal = p.general_hours_balance ?? 0
                       const hc = healthColorInd(pct)
