@@ -356,6 +356,8 @@ export default function PortalClientePage() {
   const [indPendingExp, setIndPendingExp] = useState(0)
   const [indLoading, setIndLoading] = useState(false)
   const [indTeamLoading, setIndTeamLoading] = useState(false)
+  const [indHoursData, setIndHoursData] = useState<{ id: number; name: string; total_hours: number }[]>([])
+  const [indHoursLoading, setIndHoursLoading] = useState(false)
   const indLoadedRef = useRef(false)
   const [indCFilter, setIndCFilter] = useState('')
   const [indPFilter, setIndPFilter] = useState('')
@@ -497,11 +499,17 @@ export default function PortalClientePage() {
     if (activeTab !== 'indicadores' || indLoadedRef.current) return
     indLoadedRef.current = true  // marca antes de qualquer setState para não re-disparar
 
-    setIndLoading(true); setIndTeamLoading(true)
+    setIndLoading(true); setIndTeamLoading(true); setIndHoursLoading(true)
 
-    const projPromise = api.get<any>('/projects?pageSize=300&gestao=true&with_team=false')
-    const tsPromise   = api.get<any>('/approvals/timesheets?per_page=1&status=pending')
-    const expPromise  = api.get<any>('/approvals/expenses?per_page=1&status=pending')
+    const projPromise  = api.get<any>('/projects?pageSize=300&gestao=true&with_team=false')
+    const tsPromise    = api.get<any>('/approvals/timesheets?per_page=1&status=pending')
+    const expPromise   = api.get<any>('/approvals/expenses?per_page=1&status=pending')
+    const hoursPromise = api.get<any>('/projects/hours-per-consultant')
+
+    hoursPromise
+      .then((res: any) => setIndHoursData(Array.isArray(res) ? res : []))
+      .catch(() => {})
+      .finally(() => setIndHoursLoading(false))
 
     Promise.allSettled([projPromise, tsPromise, expPromise]).then(([projRes, tsRes, expRes]) => {
       if (projRes.status === 'fulfilled') {
@@ -1484,6 +1492,65 @@ export default function PortalClientePage() {
                         <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#a78bfa' }} /> Consultor
                       </span>
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Consumo de Horas por Consultor */}
+              <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+                <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                  <h2 className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Consumo de Horas por Consultor</h2>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>Horas apontadas (aprovadas + pendentes)</p>
+                </div>
+                {indHoursLoading ? (
+                  <div className="p-5 space-y-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8" />)}</div>
+                ) : indHoursData.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 py-10">
+                    <TrendingUp size={28} style={{ color: 'var(--brand-subtle)' }} />
+                    <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum dado disponível</p>
+                  </div>
+                ) : (
+                  <div className="p-5">
+                    <ResponsiveContainer width="100%" height={Math.max(indHoursData.length * 36, 120)}>
+                      <BarChart
+                        layout="vertical"
+                        data={indHoursData}
+                        margin={{ top: 0, right: 64, left: 0, bottom: 0 }}
+                        barCategoryGap="30%"
+                      >
+                        <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#71717A' }} axisLine={false} tickLine={false} unit="h" />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={160}
+                          tick={({ x, y, payload }: any) => (
+                            <text x={x - 4} y={y} textAnchor="end" dominantBaseline="middle" fontSize={12} fill="#A1A1AA">
+                              {payload.value.length > 20 ? payload.value.slice(0, 19) + '…' : payload.value}
+                            </text>
+                          )}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                          content={({ active, payload }: any) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0].payload
+                            return (
+                              <div className="rounded-xl px-3 py-2 text-sm shadow-lg" style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.10)' }}>
+                                <p className="font-semibold mb-1" style={{ color: '#E4E4E7' }}>{d.name}</p>
+                                <p className="font-bold tabular-nums" style={{ color: '#00F5FF' }}>{fmt(d.total_hours)}h apontadas</p>
+                              </div>
+                            )
+                          }}
+                        />
+                        <Bar dataKey="total_hours" radius={[0, 4, 4, 0]} maxBarSize={20} fill="#00F5FF" fillOpacity={0.8}>
+                          {indHoursData.map((_: any, i: number) => (
+                            <Cell key={i} fill="#00F5FF" fillOpacity={0.7 + (i === 0 ? 0.3 : 0)} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 )}
               </div>
