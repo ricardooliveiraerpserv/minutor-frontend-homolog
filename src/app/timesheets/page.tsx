@@ -1149,7 +1149,7 @@ function TimesheetsPageContent() {
 
         {/* Table */}
         {loading ? (
-          <SkeletonTable rows={8} cols={10} />
+          <SkeletonTable rows={8} cols={12} />
         ) : error ? (
           <div className="py-10 text-center text-sm" style={{ color: 'var(--brand-danger)' }}>{error}</div>
         ) : (
@@ -1158,6 +1158,8 @@ function TimesheetsPageContent() {
               <tr>
                 <Th className="w-10" />
                 <Th sortable active={sortField === 'date'}          dir={sortDir} onClick={() => handleSort('date')}>Data</Th>
+                <Th className="hidden md:table-cell">Início</Th>
+                <Th className="hidden md:table-cell">Fim</Th>
                 <Th className="hidden lg:table-cell">Ticket #</Th>
                 <Th right sortable active={sortField === 'effort_hours'} dir={sortDir} onClick={() => handleSort('effort_hours')}>Tempo</Th>
                 <Th className="hidden sm:table-cell">Origem</Th>
@@ -1173,7 +1175,7 @@ function TimesheetsPageContent() {
             <Tbody>
               {data?.items.length === 0 ? (
                 <tr>
-                  <td colSpan={12}>
+                  <td colSpan={14}>
                     <EmptyState icon={Clock} title="Nenhum apontamento encontrado" description="Tente ajustar os filtros ou criar um novo apontamento." />
                   </td>
                 </tr>
@@ -1183,6 +1185,8 @@ function TimesheetsPageContent() {
                     <RowActions id={ts.id} onView={() => openView(ts)} onDeleted={refetch} viewOnly={isCliente} />
                   </Td>
                   <Td className="whitespace-nowrap font-medium">{formatDate(ts.date)}</Td>
+                  <Td muted className="hidden md:table-cell font-mono tabular-nums">{ts.start_time ?? '—'}</Td>
+                  <Td muted className="hidden md:table-cell font-mono tabular-nums">{ts.end_time ?? '—'}</Td>
                   <Td muted className="hidden lg:table-cell font-mono">
                     {ts.ticket
                       ? ts.ticket.length >= 5
