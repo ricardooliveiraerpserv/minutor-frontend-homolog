@@ -14,7 +14,7 @@ import {
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
-  LineChart, Line,
+  LineChart, Line, Cell,
 } from 'recharts'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1421,38 +1421,69 @@ export default function PortalClientePage() {
                   </div>
                 </div>
                 {indTeamLoading ? (
-                  <div className="p-5 space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-10" />)}</div>
+                  <div className="p-5 space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8" />)}</div>
                 ) : indConsultants.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 py-10">
                     <Users size={28} style={{ color: 'var(--brand-subtle)' }} />
                     <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum consultor encontrado</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                          {['Membro', 'Papel', 'Projetos', 'Status'].map(col => (
-                            <th key={col} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
+                  <div className="p-5">
+                    <ResponsiveContainer width="100%" height={Math.max(indConsultants.length * 36, 120)}>
+                      <BarChart
+                        layout="vertical"
+                        data={indConsultants}
+                        margin={{ top: 0, right: 48, left: 0, bottom: 0 }}
+                        barCategoryGap="30%"
+                      >
+                        <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: '#71717A' }} axisLine={false} tickLine={false} />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={160}
+                          tick={({ x, y, payload }: any) => (
+                            <text x={x - 4} y={y} textAnchor="end" dominantBaseline="middle" fontSize={12} fill="#A1A1AA">
+                              {payload.value.length > 20 ? payload.value.slice(0, 19) + '…' : payload.value}
+                            </text>
+                          )}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <Tooltip
+                          cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                          content={({ active, payload }: any) => {
+                            if (!active || !payload?.length) return null
+                            const d = payload[0].payload
+                            return (
+                              <div className="rounded-xl px-3 py-2 text-sm shadow-lg" style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.10)' }}>
+                                <p className="font-semibold mb-0.5" style={{ color: '#E4E4E7' }}>{d.name}</p>
+                                <p style={{ color: '#71717A' }}>{d.role}</p>
+                                <p className="font-bold mt-1" style={{ color: d.role === 'Coordenador' ? '#00F5FF' : '#a78bfa' }}>
+                                  {d.projects} projeto(s)
+                                </p>
+                              </div>
+                            )
+                          }}
+                        />
+                        <Bar dataKey="projects" radius={[0, 4, 4, 0]} maxBarSize={20}>
+                          {indConsultants.map((c: any) => (
+                            <Cell
+                              key={c.id}
+                              fill={c.role === 'Coordenador' ? '#00F5FF' : '#a78bfa'}
+                              fillOpacity={0.85}
+                            />
                           ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {indConsultants.map((c: any, i: number) => (
-                          <tr key={c.id} style={{ borderBottom: i < indConsultants.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                            <td className="px-4 py-3 font-medium" style={{ color: 'var(--brand-text)' }}>{c.name}</td>
-                            <td className="px-4 py-3"><span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{c.role}</span></td>
-                            <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{c.projects}</td>
-                            <td className="px-4 py-3">
-                              {c.projects > 0
-                                ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'rgba(34,197,94,0.12)', color: '#86efac' }}>Ativo</span>
-                                : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>Sem projetos</span>
-                              }
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className="flex items-center gap-4 mt-3 justify-end">
+                      <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                        <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#00F5FF' }} /> Coordenador
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                        <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#a78bfa' }} /> Consultor
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
