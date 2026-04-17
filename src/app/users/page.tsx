@@ -424,15 +424,19 @@ export default function UsersPage() {
           <option value="1">Ativos</option>
           <option value="0">Inativos</option>
         </select>
-        <select value={filterRole} onChange={e => { setFilterRole(e.target.value); setPage(1) }}
-          className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-md h-8 px-2">
-          <option value="">Todos os perfis</option>
-          <option value="cliente">Cliente</option>
-          <option value="consultor">Consultor</option>
-          <option value="coordenador">Coordenador</option>
-          <option value="parceiro_admin">Parceiro ADM</option>
-          <option value="admin">Administrador</option>
-        </select>
+        <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+          {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin']] as const).map(([val, label]) => (
+            <button key={val} type="button"
+              onClick={() => { setFilterRole(val); setPage(1) }}
+              className={`px-3 py-1.5 font-medium transition-colors whitespace-nowrap ${
+                filterRole === val
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+              }`}>
+              {label}
+            </button>
+          ))}
+        </div>
         {canCreate && (
         <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5">
           <Plus size={13} /> Novo
