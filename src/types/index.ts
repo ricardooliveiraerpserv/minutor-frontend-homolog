@@ -5,6 +5,8 @@ export interface User {
   profile_photo_url?: string | null
   type?: string | null
   customer_id?: number | null
+  partner_id?: number | null
+  is_executive?: boolean | null
   extra_permissions?: string[] | null
   consultant_type?: string | null
   daily_hours?: number | null

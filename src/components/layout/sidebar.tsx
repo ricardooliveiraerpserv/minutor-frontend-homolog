@@ -179,9 +179,11 @@ function SidebarInner({ user }: { user: User }) {
     return active
   })
 
-  const isConsultor   = user?.type === 'consultor'
-  const isCoordenador = user?.type === 'coordenador'
-  const isCliente     = user?.type === 'cliente'
+  const isConsultor      = user?.type === 'consultor'
+  const isCoordenador    = user?.type === 'coordenador'
+  const isCliente        = user?.type === 'cliente'
+  const isParceiroAdmin  = user?.type === 'parceiro_admin'
+  const isParceiroGestor = isParceiroAdmin && !!user?.is_executive
   const ep = user?.extra_permissions ?? []
 
   // Para clientes: carrega os códigos de tipo de contrato dos seus projetos
@@ -267,8 +269,22 @@ function SidebarInner({ user }: { user: User }) {
       if (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update')) allowed.add('/gestao-projetos')
       return NAV.filter(e => e.type === 'item' && allowed.has(e.href))
     }
+    if (isParceiroAdmin) {
+      const base: NavEntry[] = [
+        { type: 'item', label: 'Meu Painel',   href: '/meu-painel', icon: LayoutDashboard },
+        { type: 'item', label: 'Apontamentos', href: '/timesheets',  icon: Clock },
+        { type: 'item', label: 'Despesas',     href: '/expenses',    icon: Receipt },
+      ]
+      if (isParceiroGestor) {
+        return [
+          { type: 'item', label: 'Painel do Parceiro', href: '/partner-dashboard', icon: Handshake },
+          ...base,
+        ] as NavEntry[]
+      }
+      return base
+    }
     return NAV
-  }, [isCoordenador, isConsultor, isCliente, clienteContractCodes, ep])
+  }, [isCoordenador, isConsultor, isCliente, isParceiroAdmin, isParceiroGestor, clienteContractCodes, ep])
 
   // First two letters of name for avatar
   const initials = user?.name
@@ -309,8 +325,8 @@ function SidebarInner({ user }: { user: User }) {
         )}
       </div>
 
-      {/* ── User name (consultor) ── */}
-      {isConsultor && user && (
+      {/* ── User name (consultor / parceiro) ── */}
+      {(isConsultor || isParceiroAdmin) && user && (
         <div
           className="flex items-center gap-2.5 px-3.5 py-3 border-b shrink-0"
           style={{ borderColor: 'var(--brand-border)' }}
@@ -325,7 +341,9 @@ function SidebarInner({ user }: { user: User }) {
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold text-white truncate leading-tight">{user.name}</p>
-                <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--brand-subtle)' }}>Consultor</p>
+                <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+                  {isParceiroGestor ? 'Parceiro Gestor' : isParceiroAdmin ? 'Parceiro' : 'Consultor'}
+                </p>
               </div>
             </>
           )}

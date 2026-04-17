@@ -1678,9 +1678,10 @@ export default function MeuPainelPage() {
 
   // ── Tabs config ────────────────────────────────────────────────────────────
 
-  const isHBConsultant = ['bh_fixo', 'bh_mensal'].includes((user as any)?.consultant_type ?? '')
-  const isHorista      = (user as any)?.consultant_type === 'horista'
-  const isFixo         = (user as any)?.consultant_type === 'fixo'
+  const isHBConsultant    = ['bh_fixo', 'bh_mensal'].includes((user as any)?.consultant_type ?? '')
+  const isHorista         = (user as any)?.consultant_type === 'horista'
+  const isFixo            = (user as any)?.consultant_type === 'fixo'
+  const isParceiroSimples = user?.type === 'parceiro_admin' && !user?.is_executive
 
   const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
     { id: 'overview',   label: 'Total Geral',  icon: LayoutDashboard },
@@ -1793,7 +1794,7 @@ export default function MeuPainelPage() {
               accent="bg-blue-500/15 text-blue-400"
               onClick={() => setActiveTab('timesheets')}
             />
-            {isFixo ? (
+            {!isParceiroSimples && (isFixo ? (
               <>
                 <SummaryCard
                   label="Horas Trabalhadas"
@@ -1905,7 +1906,7 @@ export default function MeuPainelPage() {
                   accent="bg-cyan-500/15 text-cyan-400"
                 />
               </>
-            )}
+            ))}
             <SummaryCard
               label="Apontamentos Pendentes"
               value={String(notApprTs)}
@@ -1925,7 +1926,7 @@ export default function MeuPainelPage() {
           </div>
 
           {/* Fixo: seção de remuneração direto no Total Geral */}
-          {isFixo && (
+          {isFixo && !isParceiroSimples && (
             <FixoPaymentSection
               yearMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
               workedHours={workedHours}
@@ -2868,12 +2869,14 @@ export default function MeuPainelPage() {
               </div>
             ) : (
               <>
-                <FixoPaymentSection
-                  yearMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
-                  workedHours={workedHours}
-                  fixedMonthly={hourlyRate}
-                  expTotal={expTotal}
-                />
+                {!isParceiroSimples && (
+                  <FixoPaymentSection
+                    yearMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
+                    workedHours={workedHours}
+                    fixedMonthly={hourlyRate}
+                    expTotal={expTotal}
+                  />
+                )}
 
                 {/* Apontamentos do período */}
                 <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
@@ -2945,14 +2948,16 @@ export default function MeuPainelPage() {
               </div>
             ) : (
               <>
-                <HoristaPaymentSection
-                  yearMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
-                  workedHours={workedHours}
-                  billableHours={billableHours}
-                  guaranteedHours={guaranteedHours}
-                  hourlyRate={hourlyRate}
-                  expTotal={expTotal}
-                />
+                {!isParceiroSimples && (
+                  <HoristaPaymentSection
+                    yearMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
+                    workedHours={workedHours}
+                    billableHours={billableHours}
+                    guaranteedHours={guaranteedHours}
+                    hourlyRate={hourlyRate}
+                    expTotal={expTotal}
+                  />
+                )}
 
                 {/* Apontamentos do período */}
                 <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>

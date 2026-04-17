@@ -1,0 +1,1 @@
+Leia o arquivo "/Users/ricardodeoliveirasilva/Documents/Obsidian Vault/MINUTOR.md" e carregue todo o contexto do projeto Minutor na sessão. Confirme que leu com um resumo de 3 linhas do que está no cofre.
