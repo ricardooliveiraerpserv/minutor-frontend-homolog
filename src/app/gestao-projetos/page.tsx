@@ -278,7 +278,6 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
             { label: 'Despesas',               icon: <BarChart2   size={12} />, onClick: () => onMenuAction('expenses',   project) },
             { label: 'Aportes',                icon: <TrendingUp  size={12} />, onClick: () => onMenuAction('aportes',    project) },
             { label: 'Selecionar Equipe',      icon: <Users          size={12} />, onClick: () => onMenuAction('team',     project) },
-            { label: 'Mensagens',              icon: <MessageCircle  size={12} />, onClick: () => onMenuAction('messages', project) },
           ]} />
         </td>
 
@@ -311,9 +310,6 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                   style={{ color: isActive ? '#00F5FF' : isParent ? 'var(--brand-subtle)' : 'var(--brand-muted)' }}
                 >
                   {project.name}
-                  {hasUnread && (
-                    <span className="inline-block w-2 h-2 rounded-full ml-1.5 shrink-0" style={{ background: '#00F5FF', boxShadow: '0 0 6px rgba(0,245,255,0.6)' }} />
-                  )}
                 </p>
                 {treeRow && isParent && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>PAI</span>
@@ -392,13 +388,30 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
             {project.status_display ?? statusLabel[project.status] ?? project.status}
           </span>
         </td>
+
+        {/* Mensagens */}
+        <td className="py-3 pr-2 w-8" onClick={e => e.stopPropagation()}>
+          <button
+            onClick={() => onMenuAction('messages', project)}
+            className="relative flex items-center justify-center w-7 h-7 rounded-lg transition-all"
+            style={hasUnread
+              ? { color: '#00F5FF', background: 'rgba(0,245,255,0.12)' }
+              : { color: 'var(--brand-muted)' }}
+            title="Mensagens"
+          >
+            <MessageCircle size={14} />
+            {hasUnread && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: '#00F5FF', boxShadow: '0 0 6px rgba(0,245,255,0.8)' }} />
+            )}
+          </button>
+        </td>
       </tr>
 
       {/* Expansão: equipe */}
       {expanded && teamCount > 0 && (
         <tr style={{ background: 'rgba(0,0,0,0.2)' }}>
           <td /><td />
-          <td colSpan={7} className="py-3 px-4">
+          <td colSpan={8} className="py-3 px-4">
             <div className="flex flex-wrap gap-4">
               {(project.coordinators ?? []).length > 0 && (
                 <div>
@@ -913,6 +926,7 @@ export default function GestaoProjetosPage() {
                   <th className="py-3 px-4 text-xs font-semibold text-center" style={{ color: 'var(--brand-muted)' }}>Saldo</th>
                   <th className="py-3 px-4 text-xs font-semibold text-center" style={{ color: 'var(--brand-muted)', minWidth: 140 }}>% Uso</th>
                   <th className="py-3 text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Status</th>
+                  <th className="w-8" />
                 </tr>
               </thead>
               <tbody style={{ background: 'var(--brand-bg)' }}>
