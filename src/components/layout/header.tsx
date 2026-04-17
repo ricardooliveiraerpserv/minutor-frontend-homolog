@@ -11,7 +11,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
-import { secureUrl } from '@/lib/api'
+import { secureUrl, api } from '@/lib/api'
+import { useState, useEffect } from 'react'
 
 interface HeaderProps {
   title?: string
@@ -21,6 +22,16 @@ interface HeaderProps {
 export function Header({ title, actions }: HeaderProps) {
   const { user, logout } = useAuth()
   const router = useRouter()
+  const [unread, setUnread] = useState(0)
+
+  useEffect(() => {
+    const fetch = () => {
+      api.get<{ count: number }>('/messages/unread-count').then(r => setUnread(r.count ?? 0)).catch(() => {})
+    }
+    fetch()
+    const id = setInterval(fetch, 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   const handleLogout = async () => {
     await logout()
@@ -45,8 +56,16 @@ export function Header({ title, actions }: HeaderProps) {
       <div className="flex items-center gap-2">
         {actions}
 
-        <button className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+        <button className="relative p-1.5 rounded-md text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
           <Bell size={16} />
+          {unread > 0 && (
+            <span
+              className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center pointer-events-none"
+              style={{ background: '#00F5FF', color: '#0A0A0B' }}
+            >
+              {unread > 9 ? '9+' : unread}
+            </span>
+          )}
         </button>
 
         <DropdownMenu>

@@ -8,7 +8,8 @@ import { useAuth } from '@/hooks/use-auth'
 import { Project, PaginatedResponse, HourContribution } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2 } from 'lucide-react'
+import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle } from 'lucide-react'
+import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { PageHeader } from '@/components/ds'
 import { RowMenu } from '@/components/ui/row-menu'
 
@@ -204,7 +205,7 @@ interface ProjectRowProps {
   project: ProjectWithTeam
   expanded: boolean
   onToggle: () => void
-  onMenuAction: (action: 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes', project: ProjectWithTeam) => void
+  onMenuAction: (action: 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages', project: ProjectWithTeam) => void
   canEdit?: boolean
   canChangeStatus?: boolean
   onEdit?: (project: ProjectWithTeam) => void
@@ -275,7 +276,8 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
             { label: 'Apontamentos',           icon: <Clock       size={12} />, onClick: () => onMenuAction('timesheets', project) },
             { label: 'Despesas',               icon: <BarChart2   size={12} />, onClick: () => onMenuAction('expenses',   project) },
             { label: 'Aportes',                icon: <TrendingUp  size={12} />, onClick: () => onMenuAction('aportes',    project) },
-            { label: 'Selecionar Equipe',      icon: <Users       size={12} />, onClick: () => onMenuAction('team',       project) },
+            { label: 'Selecionar Equipe',      icon: <Users          size={12} />, onClick: () => onMenuAction('team',     project) },
+            { label: 'Mensagens',              icon: <MessageCircle  size={12} />, onClick: () => onMenuAction('messages', project) },
           ]} />
         </td>
 
@@ -671,7 +673,10 @@ export default function GestaoProjetosPage() {
     } catch { toast.error('Erro ao excluir aporte') }
   }
 
-  const handleMenuAction = async (action: 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes', project: ProjectWithTeam) => {
+  const [messagesProject, setMessagesProject] = useState<ProjectWithTeam | null>(null)
+
+  const handleMenuAction = async (action: 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages', project: ProjectWithTeam) => {
+    if (action === 'messages') { setMessagesProject(project); return }
     if (action === 'timesheets') { router.push(`/timesheets?project_id=${project.id}`); return }
     if (action === 'expenses')   { router.push(`/expenses?project_id=${project.id}`);   return }
     if (action === 'costs') {
@@ -1286,6 +1291,30 @@ export default function GestaoProjetosPage() {
                 style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
                 {statusSaving ? 'Salvando...' : 'Confirmar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Mensagens ── */}
+      {messagesProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+          <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[85vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex items-center justify-between px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Mensagens</p>
+                <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{messagesProject.name}</p>
+              </div>
+              <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ProjectMessages
+                projectId={messagesProject.id}
+                projectUsers={[
+                  ...(messagesProject.consultants ?? []),
+                  ...(messagesProject.coordinators ?? []),
+                ]}
+              />
             </div>
           </div>
         </div>

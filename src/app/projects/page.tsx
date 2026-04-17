@@ -8,7 +8,8 @@ import { useAuth } from '@/hooks/use-auth'
 import { formatBRL } from '@/lib/format'
 import { Project, PaginatedResponse, ProjectChangeLog, HourContribution } from '@/types'
 import { toast } from 'sonner'
-import { FolderOpen, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Search, ChevronDown, Eye, Clock, Users, TrendingUp, Tag, History, HandCoins, Save, AlertCircle, DollarSign, BarChart2, UserCheck, Layers } from 'lucide-react'
+import { FolderOpen, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Search, ChevronDown, Eye, Clock, Users, TrendingUp, Tag, History, HandCoins, Save, AlertCircle, DollarSign, BarChart2, UserCheck, Layers, MessageCircle } from 'lucide-react'
+import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
 
@@ -452,7 +453,7 @@ function ProjectsPageInner() {
   const [modal, setModal] = useState<{ open: boolean; item?: Project }>({ open: false })
   const [viewProject, setViewProject] = useState<Project | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
-  const [viewTab, setViewTab] = useState<'overview' | 'contributions' | 'history' | 'costs'>('overview')
+  const [viewTab, setViewTab] = useState<'overview' | 'contributions' | 'history' | 'costs' | 'messages'>('overview')
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
   const [costLoading, setCostLoading] = useState(false)
   // Aportes
@@ -894,7 +895,7 @@ function ProjectsPageInner() {
     } catch { toast.error('Erro ao excluir registro') }
   }
 
-  const handleViewTab = (tab: 'overview' | 'contributions' | 'history' | 'costs') => {
+  const handleViewTab = (tab: 'overview' | 'contributions' | 'history' | 'costs' | 'messages') => {
     setViewTab(tab)
     if (!viewProject) return
     if (tab === 'contributions' && contributions.length === 0) loadContributions(viewProject.id)
@@ -1827,6 +1828,7 @@ function ProjectsPageInner() {
                     { id: 'contributions', label: 'Aportes',     icon: HandCoins },
                     { id: 'history',       label: 'Histórico',   icon: History },
                     ...(canViewFinance ? [{ id: 'costs', label: 'Custos', icon: DollarSign }] : []),
+                    { id: 'messages', label: 'Mensagens', icon: MessageCircle },
                   ] as const).map(({ id, label, icon: Icon }) => (
                     <button
                       key={id}
@@ -2212,6 +2214,17 @@ function ProjectsPageInner() {
                       )
                     })()}
                   </div>
+                )}
+
+                {/* ── ABA: MENSAGENS ── */}
+                {viewTab === 'messages' && viewProject && (
+                  <ProjectMessages
+                    projectId={viewProject.id}
+                    projectUsers={[
+                      ...((viewProject as any).consultants ?? []),
+                      ...((viewProject as any).coordinators ?? []),
+                    ]}
+                  />
                 )}
 
               </div>

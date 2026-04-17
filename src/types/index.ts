@@ -203,3 +203,15 @@ export interface Expense {
   reviewedBy?: User
   created_at: string
 }
+
+export interface ProjectMessage {
+  id: number
+  project_id: number
+  user_id: number
+  message: string
+  priority: 'normal' | 'high'
+  created_at: string
+  author: { id: number; name: string; profile_photo: string | null }
+  reads: { user_id: number }[]
+  is_mentioned: boolean
+}
