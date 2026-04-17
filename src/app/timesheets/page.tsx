@@ -688,7 +688,7 @@ function toHHMM(mins: number): string {
 
 function TimesheetsPageContent() {
   const { user } = useAuth()
-  const isAdmin        = user?.type === 'admin' || user?.type === 'parceiro_admin'
+  const isAdmin        = user?.type === 'admin'
   const isCoordenador  = user?.type === 'coordenador'
   const canActAsUser   = isAdmin || isCoordenador
   const isCliente      = user?.type === 'cliente'

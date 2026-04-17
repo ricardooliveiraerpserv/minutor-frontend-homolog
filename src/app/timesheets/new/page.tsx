@@ -36,7 +36,7 @@ function parseHHMM(s: string): number | null {
 export default function NewTimesheetPage() {
   const { user } = useAuth()
   const router = useRouter()
-  const isAdmin = user?.type === 'admin' || user?.type === 'parceiro_admin'
+  const isAdmin = user?.type === 'admin'
 
   const [form, setForm] = useState({
     user_id: '',

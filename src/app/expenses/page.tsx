@@ -402,7 +402,7 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
 export default function ExpensesPage() {
   const { user } = useAuth()
   const isCoordenador  = user?.type === 'coordenador'
-  const isAdmin        = user?.type === 'admin' || user?.type === 'parceiro_admin'
+  const isAdmin        = user?.type === 'admin'
   const canActAsUser   = isAdmin || isCoordenador
   const isCliente      = user?.type === 'cliente'
 
