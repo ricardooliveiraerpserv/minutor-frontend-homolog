@@ -20,10 +20,13 @@ interface HeaderProps {
 }
 
 interface Notification {
+  id: number
   project_id: number
   project_name: string
   project_code: string
-  unread_count: number
+  author_name: string
+  preview: string
+  created_at: string
 }
 
 export function Header({ title, actions }: HeaderProps) {
@@ -40,7 +43,7 @@ export function Header({ title, actions }: HeaderProps) {
       .then(r => {
         const list = Array.isArray(r) ? r : []
         setNotifications(list)
-        setUnread(list.reduce((s, n) => s + n.unread_count, 0))
+        setUnread(list.length)
       })
       .catch(() => {})
   }
@@ -115,10 +118,10 @@ export function Header({ title, actions }: HeaderProps) {
                 <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                   <div className="flex items-center gap-2">
                     <MessageCircle size={14} style={{ color: '#00F5FF' }} />
-                    <span className="text-xs font-bold" style={{ color: '#FAFAFA' }}>Mensagens</span>
+                    <span className="text-xs font-bold" style={{ color: '#FAFAFA' }}>Mensagens não lidas</span>
                     {unread > 0 && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>
-                        {unread} não {unread === 1 ? 'lida' : 'lidas'}
+                        {unread}
                       </span>
                     )}
                   </div>
@@ -128,35 +131,42 @@ export function Header({ title, actions }: HeaderProps) {
                 </div>
 
                 {/* List */}
-                <div className="max-h-72 overflow-y-auto">
+                <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-1">
                       <Bell size={20} style={{ color: 'var(--brand-muted)' }} />
                       <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Sem mensagens não lidas</p>
                     </div>
                   ) : (
-                    notifications.map(n => (
-                      <button
-                        key={n.project_id}
-                        onClick={() => {
-                          setBellOpen(false)
-                          router.push('/gestao-projetos')
-                        }}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors border-b text-left"
-                        style={{ borderColor: 'var(--brand-border)' }}
-                      >
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold truncate" style={{ color: '#FAFAFA' }}>{n.project_name}</p>
-                          <p className="text-[10px] font-mono" style={{ color: 'var(--brand-muted)' }}>{n.project_code}</p>
-                        </div>
-                        <span
-                          className="ml-3 shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                          style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}
+                    <>
+                      {notifications.map(n => (
+                        <button
+                          key={n.id}
+                          onClick={() => {
+                            setBellOpen(false)
+                            router.push('/gestao-projetos')
+                          }}
+                          className="w-full flex flex-col px-4 py-3 hover:bg-white/5 transition-colors border-b text-left gap-0.5"
+                          style={{ borderColor: 'var(--brand-border)' }}
                         >
-                          {n.unread_count}
-                        </span>
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-[10px] font-mono" style={{ color: '#00F5FF' }}>{n.project_code}</span>
+                            <span className="text-[9px]" style={{ color: 'var(--brand-muted)' }}>
+                              {new Date(n.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-[10px] font-semibold truncate" style={{ color: '#71717A' }}>{n.author_name} · {n.project_name}</p>
+                          <p className="text-xs truncate" style={{ color: '#FAFAFA' }}>{n.preview}</p>
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => { setBellOpen(false); router.push('/gestao-projetos') }}
+                        className="w-full py-2 text-center text-[10px] font-semibold hover:bg-white/5 transition-colors"
+                        style={{ color: '#00F5FF' }}
+                      >
+                        Ver todas as mensagens →
                       </button>
-                    ))
+                    </>
                   )}
                 </div>
               </div>
