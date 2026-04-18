@@ -571,28 +571,14 @@ export default function ContratosPage() {
 
               {/* Tab 1: Classificação */}
               {activeTab === 1 && (
-                <div className="space-y-4">
-                  <div>
-                    <label className={labelCls}>Categoria *</label>
-                    <div className="flex gap-3">
-                      {(['projeto', 'sustentacao'] as const).map(v => (
-                        <label key={v} className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="categoria" value={v} checked={form.categoria === v}
-                            onChange={() => setForm(f => ({ ...f, categoria: v }))} />
-                          <span className="text-sm text-zinc-300">{CATEGORIA_LABEL[v]}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className={labelCls}>Tipo de Serviço</label>
-                    <SearchSelect
-                      value={form.service_type_id}
-                      onChange={v => setForm(f => ({ ...f, service_type_id: v }))}
-                      options={serviceTypes}
-                      placeholder="Selecionar tipo de serviço..."
-                    />
-                  </div>
+                <div>
+                  <label className={labelCls}>Tipo de Serviço</label>
+                  <SearchSelect
+                    value={form.service_type_id}
+                    onChange={v => setForm(f => ({ ...f, service_type_id: v }))}
+                    options={serviceTypes}
+                    placeholder="Selecionar tipo de serviço..."
+                  />
                 </div>
               )}
 
