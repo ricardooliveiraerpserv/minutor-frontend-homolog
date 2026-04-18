@@ -322,9 +322,16 @@ function DebugClientesTab({ rows, onSync }: { rows: DebugClienteRow[]; onSync: (
 
 // ─── Debug Responsáveis Tab ───────────────────────────────────────────────────
 
-function DebugResponsaveisTab({ rows }: { rows: DebugResponsavelRow[] }) {
-  const [search, setSearch]         = useState('')
+function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; onSync: () => Promise<void> }) {
+  const [search, setSearch]           = useState('')
   const [matchFilter, setMatchFilter] = useState<'all' | 'encontrado' | 'nao'>('all')
+  const [syncing, setSyncing]         = useState(false)
+  const hasStatus = rows.some(r => r.is_active !== null)
+
+  const handleSync = async () => {
+    setSyncing(true)
+    try { await onSync() } finally { setSyncing(false) }
+  }
 
   const filtered = rows.filter(row => {
     if (matchFilter !== 'all' && row.match !== matchFilter) return false
@@ -346,7 +353,15 @@ function DebugResponsaveisTab({ rows }: { rows: DebugResponsavelRow[] }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-zinc-300">Responsáveis por Ticket: Movidesk × Minutor</h2>
-        <span className="text-xs text-zinc-600">{filtered.length} de {rows.length} responsáveis</span>
+        <div className="flex items-center gap-3">
+          {!hasStatus && <span className="text-xs text-yellow-500">Status indisponível — clique em Integrar para buscar</span>}
+          <span className="text-xs text-zinc-600">{filtered.length} de {rows.length} responsáveis</span>
+          <button onClick={handleSync} disabled={syncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+            style={{ background: 'rgba(0,245,255,0.10)', border: '1px solid rgba(0,245,255,0.25)', color: '#00F5FF' }}>
+            {syncing ? '⏳ Integrando...' : '⚡ Integrar agora'}
+          </button>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -953,7 +968,11 @@ export default function SustentacaoPage() {
           </div>
         )}
         {tab === 'debug-resp' && !loading && debugResponsaveis && (
-          <DebugResponsaveisTab rows={debugResponsaveis.rows} />
+          <DebugResponsaveisTab rows={debugResponsaveis.rows} onSync={async () => {
+            await api.post('/sustentacao/sync-orgs', {})
+            const r = await api.get<{ rows: DebugResponsavelRow[] }>('/sustentacao/debug-responsaveis')
+            setDebugResponsaveis(r)
+          }} />
         )}
       </div>
     </div>
