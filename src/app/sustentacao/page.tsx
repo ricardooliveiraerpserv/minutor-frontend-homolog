@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { api } from '@/lib/api'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -159,13 +161,26 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SustentacaoPage() {
-  const [tab, setTab]       = useState('kpis')
+  const [tab, setTab]         = useState('kpis')
   const [loading, setLoading] = useState(false)
-  const [from, setFrom]     = useState(() => {
+  const [filterMode, setFilterMode] = useState<'month' | 'period'>('month')
+
+  const now = new Date()
+  const [refMonth, setRefMonth] = useState<number | null>(now.getMonth() + 1)
+  const [refYear,  setRefYear]  = useState<number | null>(now.getFullYear())
+  const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 30)
     return d.toISOString().split('T')[0]
   })
-  const [to, setTo]         = useState(() => new Date().toISOString().split('T')[0])
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0])
+
+  // Computa from/to a partir do modo ativo
+  const from = filterMode === 'month' && refMonth && refYear
+    ? `${refYear}-${String(refMonth).padStart(2, '0')}-01`
+    : dateFrom
+  const to = filterMode === 'month' && refMonth && refYear
+    ? new Date(refYear, refMonth, 0).toISOString().split('T')[0]
+    : dateTo
 
   const [kpis, setKpis]               = useState<KPIs | null>(null)
   const [queue, setQueue]             = useState<{ data: QueueTicket[]; total: number } | null>(null)
@@ -215,16 +230,15 @@ export default function SustentacaoPage() {
 
   useEffect(() => { load(tab) }, [tab])
 
+  const invalidateAll = () => {
+    setKpis(null); setSlaData(null); setProductivity(null)
+    setFinancial(null); setClients(null); setDistribution(null)
+  }
+
   const refresh = () => {
     setKpis(null); setQueue(null); setSlaData(null)
     setProductivity(null); setFinancial(null); setClients(null)
     setDistribution(null); setEvolution(null)
-    setTimeout(() => load(tab), 50)
-  }
-
-  const handleDateApply = () => {
-    setKpis(null); setSlaData(null); setProductivity(null)
-    setFinancial(null); setClients(null); setDistribution(null)
     setTimeout(() => load(tab), 50)
   }
 
@@ -238,19 +252,34 @@ export default function SustentacaoPage() {
           <p className="text-xs text-zinc-500">Central operacional de suporte — Movidesk + Minutor</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-xs text-zinc-400">
-            <span>De</span>
-            <input type="date" value={from} onChange={e => setFrom(e.target.value)}
-              className="rounded border px-2 py-1 text-xs bg-zinc-800 border-zinc-700 text-white" />
-            <span>até</span>
-            <input type="date" value={to} onChange={e => setTo(e.target.value)}
-              className="rounded border px-2 py-1 text-xs bg-zinc-800 border-zinc-700 text-white" />
-            <button onClick={handleDateApply}
-              className="px-3 py-1 rounded text-xs font-medium"
-              style={{ background: 'rgba(0,245,255,0.12)', color: CYAN }}>
-              Aplicar
-            </button>
+          {/* Toggle Mês/Ano ↔ Período */}
+          <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+            {(['month', 'period'] as const).map((mode) => (
+              <button key={mode} onClick={() => setFilterMode(mode)}
+                className="px-3 py-1.5 font-medium transition-colors flex items-center gap-1.5"
+                style={{ background: filterMode === mode ? 'rgba(0,245,255,0.12)' : 'transparent', color: filterMode === mode ? CYAN : '#71717a' }}>
+                {mode === 'month' ? 'Mês/Ano' : 'Período'}
+              </button>
+            ))}
           </div>
+
+          {filterMode === 'month' ? (
+            <MonthYearPicker
+              month={refMonth}
+              year={refYear}
+              onChange={(m, y) => {
+                if (m === 0) { setRefMonth(null); setRefYear(null) }
+                else { setRefMonth(m); setRefYear(y); invalidateAll() }
+              }}
+            />
+          ) : (
+            <DateRangePicker
+              from={dateFrom}
+              to={dateTo}
+              onChange={(f, t) => { setDateFrom(f); setDateTo(t); invalidateAll() }}
+            />
+          )}
+
           <button onClick={refresh} className="p-1.5 rounded hover:bg-zinc-800 transition-colors">
             <RefreshCw size={14} className={`text-zinc-400 ${loading ? 'animate-spin' : ''}`} />
           </button>
