@@ -164,7 +164,7 @@ function DebugClientesTab({ rows }: { rows: DebugClienteRow[] }) {
   const [search, setSearch]           = useState('')
   const [matchFilter, setMatchFilter] = useState<'all' | 'cnpj' | 'nome' | 'nao'>('all')
   const [cnpjFilter, setCnpjFilter]   = useState<'all' | 'com' | 'sem'>('all')
-  const [hideDept, setHideDept]       = useState(false)
+  const [hideDept, setHideDept]       = useState(true)
 
   // "provável departamento" = sem CNPJ no Movidesk E sem match no Minutor
   const isDept = (row: DebugClienteRow) => !row.cnpj_movidesk && row.match === 'nao'
