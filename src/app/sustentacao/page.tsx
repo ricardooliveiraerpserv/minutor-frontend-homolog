@@ -593,11 +593,7 @@ export default function SustentacaoPage() {
         const r = await api.get<KPIs>(`/sustentacao/kpis?${params}`)
         setKpis(r)
       } else if (t === 'queue') {
-        const qp = new URLSearchParams({ per_page: '100' })
-        if (queueFilterResp)    qp.set('responsavel', queueFilterResp)
-        if (queueFilterCliente) qp.set('cliente', queueFilterCliente)
-        const r = await api.get<any>(`/sustentacao/queue?${qp}`)
-        setQueue({ data: r.data ?? [], total: r.total ?? 0 })
+        await fetchQueue(queueFilterResp, queueFilterCliente)
       } else if (t === 'sla' && !slaData) {
         const r = await api.get<SlaData>(`/sustentacao/sla?${params}`)
         setSlaData(r)
@@ -634,11 +630,24 @@ export default function SustentacaoPage() {
     }
   }, [params, kpis, slaData, productivity, financial, clients, distribution, evolution, debugClientes, debugResponsaveis])
 
+  const fetchQueue = useCallback(async (resp: string, cliente: string) => {
+    setLoading(true)
+    try {
+      const qp = new URLSearchParams({ per_page: '100' })
+      if (resp)    qp.set('responsavel', resp)
+      if (cliente) qp.set('cliente', cliente)
+      const r = await api.get<any>(`/sustentacao/queue?${qp}`)
+      setQueue({ data: r.data ?? [], total: r.total ?? 0 })
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   useEffect(() => { load(tab) }, [tab])
 
-  // Recarrega a fila quando os filtros mudam
+  // Recarrega a fila quando os filtros mudam (passa valores atuais diretamente)
   useEffect(() => {
-    if (tab === 'queue') load('queue')
+    if (tab === 'queue') fetchQueue(queueFilterResp, queueFilterCliente)
   }, [queueFilterResp, queueFilterCliente])
 
   const invalidateAll = () => {
