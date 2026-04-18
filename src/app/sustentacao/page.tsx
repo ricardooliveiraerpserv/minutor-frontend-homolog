@@ -42,6 +42,7 @@ interface QueueTicket {
   customer: { id: number; name: string } | null
   solicitante: { organization?: string; name?: string; email?: string; [k: string]: unknown } | null
   responsavel: { name?: string; [k: string]: unknown } | null
+  org_name: string | null
 }
 
 interface SlaData {
@@ -141,7 +142,7 @@ function fmt(min: number | null | undefined): string {
 }
 
 function clienteMovidesk(t: QueueTicket): string {
-  return t.solicitante?.organization ?? t.customer?.name ?? '—'
+  return t.org_name ?? t.customer?.name ?? '—'
 }
 
 function fmtDate(dt: string | null | undefined): string {
