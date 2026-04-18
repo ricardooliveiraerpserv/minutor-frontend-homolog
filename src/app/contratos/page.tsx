@@ -1010,12 +1010,14 @@ export default function ContratosPage() {
                           <div>
                             <label className={labelCls}>Email</label>
                             <input type="email" value={ct.email} onChange={e => updateContact(i, 'email', e.target.value)}
-                              className={inputCls} style={inputStyle} placeholder="email@empresa.com" />
+                              className={inputCls} style={inputStyle} placeholder="email@empresa.com"
+                              pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}" />
                           </div>
                           <div>
                             <label className={labelCls}>Telefone</label>
-                            <input value={ct.phone} onChange={e => updateContact(i, 'phone', e.target.value)}
-                              className={inputCls} style={inputStyle} placeholder="(11) 99999-9999" />
+                            <input type="tel" value={ct.phone}
+                              onChange={e => updateContact(i, 'phone', e.target.value.replace(/\D/g, ''))}
+                              className={inputCls} style={inputStyle} placeholder="11999999999" maxLength={15} />
                           </div>
                         </div>
                       </div>

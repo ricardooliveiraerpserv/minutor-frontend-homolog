@@ -1320,13 +1320,15 @@ function CustomerContactsTab() {
                 </div>
                 <div>
                   <label className={labelCls}>Telefone</label>
-                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                    className={inputCls} style={inputStyle} placeholder="(11) 99999-9999" />
+                  <input type="tel" value={form.phone}
+                    onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, '') }))}
+                    className={inputCls} style={inputStyle} placeholder="11999999999" maxLength={15} />
                 </div>
                 <div className="col-span-2">
                   <label className={labelCls}>E-mail</label>
                   <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    className={inputCls} style={inputStyle} placeholder="email@empresa.com" />
+                    className={inputCls} style={inputStyle} placeholder="email@empresa.com"
+                    pattern="[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}" />
                 </div>
               </div>
             </div>
