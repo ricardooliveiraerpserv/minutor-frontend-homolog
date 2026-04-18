@@ -40,7 +40,7 @@ interface ContextStats {
   over_4h: number
   hours_worked_min: number | null
   productivity: number | null
-  by_consultant: { name: string; total_open: number; in_attendance: number; sla_breached: number; sla_ok_pct: number }[]
+  by_consultant: { name: string; email: string; total_open: number; in_attendance: number; sla_breached: number; sla_ok_pct: number }[]
   by_client: { name: string; total_open: number; in_attendance: number; sla_breached: number }[]
   filter: { responsavel: string[]; cliente: string[] }
 }
@@ -686,6 +686,9 @@ export default function SustentacaoPage() {
   const [indicadores, setIndicadores]     = useState<ContextStats | null>(null)
   const [indicadorOpen, setIndicadorOpen] = useState<string | null>(null)
   const [queueStatusOptions, setQueueStatusOptions] = useState<{ value: string; label: string; base_status: string }[]>([])
+  const [drillDown, setDrillDown]       = useState<{ type: 'consultor' | 'cliente'; key: string; label: string } | null>(null)
+  const [drillTickets, setDrillTickets] = useState<QueueTicket[] | null>(null)
+  const [drillLoading, setDrillLoading] = useState(false)
 
   const params = `from=${from}&to=${to}`
 
@@ -767,6 +770,23 @@ export default function SustentacaoPage() {
       setContextStats(r)
     } catch { setContextStats(null) }
   }, [])
+
+  const fetchDrillDown = useCallback(async (type: 'consultor' | 'cliente', key: string, label: string) => {
+    if (drillDown?.key === key && drillDown?.type === type) {
+      setDrillDown(null); setDrillTickets(null); return
+    }
+    setDrillDown({ type, key, label })
+    setDrillTickets(null)
+    setDrillLoading(true)
+    try {
+      const qp = new URLSearchParams({ per_page: '200' })
+      if (type === 'consultor') qp.set('responsavel', key)
+      else qp.set('cliente', key)
+      const r = await api.get<any>(`/sustentacao/queue?${qp}`)
+      setDrillTickets(r.data ?? [])
+    } catch { setDrillTickets([]) }
+    finally { setDrillLoading(false) }
+  }, [drillDown])
 
   useEffect(() => { load(tab) }, [tab])
 
@@ -933,7 +953,9 @@ export default function SustentacaoPage() {
                         </tr></thead>
                         <tbody>
                           {indicadores.by_consultant.map(c => (
-                            <tr key={c.name} className="border-b hover:bg-zinc-800/40" style={{ borderColor: 'var(--brand-border)' }}>
+                            <tr key={c.name} className="border-b hover:bg-zinc-800/40 cursor-pointer transition-colors"
+                              style={{ borderColor: 'var(--brand-border)', background: drillDown?.key === c.email && drillDown?.type === 'consultor' ? 'rgba(0,245,255,0.06)' : undefined }}
+                              onClick={() => fetchDrillDown('consultor', c.email, c.name)}>
                               <td className="py-2 text-white font-medium">{c.name}</td>
                               <td className="py-2 text-center text-zinc-300">{c.total_open}</td>
                               <td className="py-2 text-center" style={{ color: CYAN }}>{c.in_attendance}</td>
@@ -957,7 +979,9 @@ export default function SustentacaoPage() {
                         </tr></thead>
                         <tbody>
                           {indicadores.by_client.map(c => (
-                            <tr key={c.name} className="border-b hover:bg-zinc-800/40" style={{ borderColor: 'var(--brand-border)' }}>
+                            <tr key={c.name} className="border-b hover:bg-zinc-800/40 cursor-pointer transition-colors"
+                              style={{ borderColor: 'var(--brand-border)', background: drillDown?.key === c.name && drillDown?.type === 'cliente' ? 'rgba(0,245,255,0.06)' : undefined }}
+                              onClick={() => fetchDrillDown('cliente', c.name, c.name)}>
                               <td className="py-2 text-white font-medium">{c.name}</td>
                               <td className="py-2 text-center text-zinc-300">{c.total_open}</td>
                               <td className="py-2 text-center" style={{ color: CYAN }}>{c.in_attendance}</td>
@@ -970,6 +994,71 @@ export default function SustentacaoPage() {
                   )}
                   {(indicadorOpen === 'risco' || indicadorOpen === 'over4h' || indicadorOpen === 'resolvidos') && (
                     <p className="text-xs text-zinc-400">Para ver os tickets detalhados, use a aba <strong>Fila Operacional</strong> com os filtros aplicados.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Painel de tickets do drill-down */}
+              {drillDown && (
+                <div className="rounded-xl border" style={{ borderColor: 'rgba(0,245,255,0.2)', background: 'var(--brand-surface)' }}>
+                  <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                    <p className="text-xs font-semibold text-cyan-400">
+                      Tickets de {drillDown.label}
+                      {drillTickets && !drillLoading && <span className="ml-2 text-zinc-500 font-normal">({drillTickets.length} abertos)</span>}
+                    </p>
+                    <button onClick={() => { setDrillDown(null); setDrillTickets(null) }}
+                      className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 rounded">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                    </button>
+                  </div>
+                  {drillLoading && <p className="text-xs text-zinc-500 px-4 py-3">Carregando...</p>}
+                  {!drillLoading && drillTickets && drillTickets.length === 0 && (
+                    <p className="text-xs text-zinc-500 px-4 py-3">Nenhum ticket aberto encontrado.</p>
+                  )}
+                  {!drillLoading && drillTickets && drillTickets.length > 0 && (
+                    <div className="overflow-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+                            {['#', 'Título', 'Urgência', 'Status', 'Cliente', 'Responsável', 'SLA Solução'].map(h => (
+                              <th key={h} className="px-3 py-2 text-left font-medium text-zinc-500">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {drillTickets.map((t, i) => (
+                            <tr key={t.id} className="border-b hover:bg-zinc-800/40 transition-colors"
+                              style={{ borderColor: 'var(--brand-border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                              <td className="px-3 py-2 font-mono">
+                                <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+                                  className="text-cyan-400 hover:text-cyan-300 hover:underline">{t.ticket_id}</a>
+                              </td>
+                              <td className="px-3 py-2 text-white max-w-[220px] truncate">
+                                <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+                                  className="hover:text-cyan-300 hover:underline">{t.titulo ?? '—'}</a>
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold"
+                                  style={{ background: `${urgencyColor(t.urgencia)}22`, color: urgencyColor(t.urgencia) }}>
+                                  {t.urgencia ?? '—'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex flex-col gap-0.5">
+                                  <span className="text-zinc-300">{t.status ?? STATUS_LABEL[t.base_status] ?? t.base_status}</span>
+                                  {t.status && <span className="text-[10px] text-zinc-500">{STATUS_LABEL[t.base_status] ?? t.base_status}</span>}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 text-zinc-300 max-w-[140px] truncate">{clienteMovidesk(t)}</td>
+                              <td className="px-3 py-2 text-zinc-300">{t.responsavel?.name ?? t.user?.name ?? '—'}</td>
+                              <td className="px-3 py-2">
+                                <span style={{ color: isOverdue(t.sla_solution_date) ? RED : '#fafafa' }}>{fmtDate(t.sla_solution_date)}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
               )}
