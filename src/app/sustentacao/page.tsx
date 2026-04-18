@@ -749,11 +749,11 @@ export default function SustentacaoPage() {
                   <tr key={t.id} className="border-b hover:bg-zinc-800/40 transition-colors"
                     style={{ borderColor: 'var(--brand-border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                     <td className="px-3 py-2 font-mono">
-                      <a href={`https://app.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+                      <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                         className="text-cyan-400 hover:text-cyan-300 hover:underline">{t.ticket_id}</a>
                     </td>
                     <td className="px-3 py-2 text-white max-w-[200px] truncate">
-                      <a href={`https://app.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+                      <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                         className="hover:text-cyan-300 hover:underline">{t.titulo ?? '—'}</a>
                     </td>
                     <td className="px-3 py-2">
@@ -795,9 +795,9 @@ export default function SustentacaoPage() {
                   {slaData.breaching_now.slice(0, 10).map(t => (
                     <div key={t.id} className="flex items-center justify-between text-xs py-1.5 border-b border-red-500/10">
                       <div className="flex gap-3">
-                        <a href={`https://app.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+                        <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                           className="font-mono text-cyan-400 hover:text-cyan-300 hover:underline">#{t.ticket_id}</a>
-                        <a href={`https://app.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
+                        <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                           className="text-white hover:text-cyan-300 hover:underline">{t.titulo ?? '—'}</a>
                         <span className="text-zinc-400">{clienteMovidesk(t)}</span>
                       </div>
