@@ -43,6 +43,7 @@ interface Contract {
   condicao_pagamento: string | null
   descontar_banco_horas: boolean
   cobrar_a_parte: boolean
+  limite_despesa: number | null
   executivo_conta_id: number | null
   executivo_conta?: { id: number; name: string }
   vendedor_id: number | null
@@ -107,6 +108,7 @@ type FormState = {
   condicao_pagamento: string
   descontar_banco_horas: boolean
   cobrar_a_parte: boolean
+  limite_despesa: string
   executivo_conta_id: string
   vendedor_id: string
   observacoes: string
@@ -126,6 +128,7 @@ const EMPTY_FORM: FormState = {
   condicao_pagamento: '',
   descontar_banco_horas: false,
   cobrar_a_parte: false,
+  limite_despesa: '',
   executivo_conta_id: '',
   vendedor_id: '',
   observacoes: '',
@@ -228,6 +231,7 @@ export default function ContratosPage() {
       condicao_pagamento:     full.condicao_pagamento ?? '',
       descontar_banco_horas:  full.descontar_banco_horas,
       cobrar_a_parte:         full.cobrar_a_parte,
+      limite_despesa:         full.limite_despesa != null ? String(full.limite_despesa) : '',
       executivo_conta_id:     full.executivo_conta_id ? String(full.executivo_conta_id) : '',
       vendedor_id:            full.vendedor_id ? String(full.vendedor_id) : '',
       observacoes:            full.observacoes ?? '',
@@ -258,6 +262,7 @@ export default function ContratosPage() {
         executivo_conta_id:  form.executivo_conta_id ? Number(form.executivo_conta_id) : null,
         vendedor_id:         form.vendedor_id ? Number(form.vendedor_id) : null,
         horas_contratadas:   Number(form.horas_contratadas),
+        limite_despesa:      form.limite_despesa ? Number(form.limite_despesa) : null,
         contacts,
       }
 
@@ -582,18 +587,28 @@ export default function ContratosPage() {
                     <span className="text-sm text-zinc-300">Cobrar despesas do cliente</span>
                   </label>
                   {form.cobra_despesa_cliente && (
-                    <div>
-                      <label className={labelCls}>Quem pode lançar despesas</label>
-                      <div className="flex gap-4">
-                        {(['executivo', 'coordenador', 'consultor'] as const).map(p => (
-                          <label key={p} className="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" checked={form.permissoes_despesa.includes(p)}
-                              onChange={() => togglePerm(p)} />
-                            <span className="text-sm text-zinc-300 capitalize">{p}</span>
-                          </label>
-                        ))}
+                    <>
+                      <div>
+                        <label className={labelCls}>Quem pode lançar despesas</label>
+                        <div className="flex gap-4">
+                          {(['executivo', 'coordenador', 'consultor'] as const).map(p => (
+                            <label key={p} className="flex items-center gap-2 cursor-pointer">
+                              <input type="checkbox" checked={form.permissoes_despesa.includes(p)}
+                                onChange={() => togglePerm(p)} />
+                              <span className="text-sm text-zinc-300 capitalize">{p}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                      <div>
+                        <label className={labelCls}>Limite de despesas (R$)</label>
+                        <input type="number" min="0" step="0.01" placeholder="Ex: 5000.00"
+                          value={form.limite_despesa}
+                          onChange={e => setForm(f => ({ ...f, limite_despesa: e.target.value }))}
+                          className={inputCls} style={inputStyle} />
+                        <p className="text-xs text-zinc-500 mt-1">Deixe em branco para sem limite.</p>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
