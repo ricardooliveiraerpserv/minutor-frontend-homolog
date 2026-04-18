@@ -122,6 +122,23 @@ interface DebugResponsavelRow {
   minutor_id: number | null
 }
 
+interface ExecutiveData {
+  pct_critical: number
+  pct_stopped: number
+  sla_breach_pct: number | null
+  avg_resolution_hours: number | null
+  lead_time_avg_hours: number | null
+  aging: { d0_3: number; d4_7: number; d8_15: number; d15_plus: number }
+  pct_hours_consumed: number | null
+  total_sold_h: number
+  total_used_h: number
+  hours_per_ticket: number | null
+  top_clients: { name: string; used_h: number; sold_h: number; pct: number | null }[]
+  by_category: { label: string; count: number }[]
+  by_urgency: { label: string; count: number }[]
+  period: { from: string; to: string }
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CYAN   = '#00F5FF'
@@ -729,8 +746,7 @@ export default function SustentacaoPage() {
   const [debugResponsaveis, setDebugResponsaveis] = useState<{ rows: DebugResponsavelRow[] } | null>(null)
   const [loadError, setLoadError]         = useState<string | null>(null)
   const [contextStats, setContextStats]   = useState<ContextStats | null>(null)
-  const [indicadores, setIndicadores]     = useState<ContextStats | null>(null)
-  const [indicadorOpen, setIndicadorOpen] = useState<string | null>(null)
+  const [indicadores, setIndicadores]     = useState<ExecutiveData | null>(null)
   const [queueStatusOptions, setQueueStatusOptions] = useState<{ value: string; label: string; base_status: string }[]>([])
   const [drillDown, setDrillDown]       = useState<{ type: 'consultor' | 'cliente'; key: string; label: string } | null>(null)
   const [drillTickets, setDrillTickets] = useState<QueueTicket[] | null>(null)
@@ -767,7 +783,7 @@ export default function SustentacaoPage() {
         const r = await api.get<EvolutionData>(`/sustentacao/evolution`)
         setEvolution(r)
       } else if (t === 'indicadores' && !indicadores) {
-        const r = await api.get<ContextStats>(`/sustentacao/context-stats?${params}`)
+        const r = await api.get<ExecutiveData>(`/sustentacao/executive?${params}`)
         setIndicadores(r)
       } else if (t === 'debug') {
         if (!debugClientes) {
@@ -954,181 +970,155 @@ export default function SustentacaoPage() {
           </div>
         )}
 
-        {/* INDICADORES */}
+        {/* INDICADORES — Dashboard Executivo */}
         {tab === 'indicadores' && indicadores && (() => {
-          const cards = [
-            { id: 'consultores', label: 'Tickets por Consultor', value: indicadores.by_consultant.length, sub: `${indicadores.tickets_open} abertos`, color: CYAN, icon: '👤' },
-            { id: 'clientes',    label: 'Tickets por Cliente',   value: indicadores.by_client.length,     sub: `${indicadores.tickets_open} abertos`, color: BLUE, icon: '🏢' },
-            { id: 'sla',         label: 'SLA Violado',           value: indicadores.sla_breached,         sub: `${indicadores.sla_rate ?? '—'}% no prazo`, color: indicadores.sla_breached > 0 ? RED : GREEN, icon: '🛡️' },
-            { id: 'risco',       label: 'Em Risco (4h)',         value: indicadores.sla_at_risk,          sub: 'prazo nas próximas 4h', color: indicadores.sla_at_risk > 0 ? ORANGE : GREEN, icon: '⚠️' },
-            { id: 'over4h',      label: 'Abertos +4h',          value: indicadores.over_4h,              sub: 'sem resolução', color: indicadores.over_4h > 0 ? ORANGE : GREEN, icon: '⏱️' },
-            { id: 'resolvidos',  label: 'Resolvidos no Período', value: indicadores.tickets_resolved,     sub: `tempo médio ${fmt(indicadores.avg_solution_min ?? null)}`, color: GREEN, icon: '✅' },
+          const { pct_critical, pct_stopped, sla_breach_pct, avg_resolution_hours, lead_time_avg_hours, aging, pct_hours_consumed, total_sold_h, total_used_h, hours_per_ticket, top_clients, by_category, by_urgency } = indicadores
+
+          const kpiColor = (v: number | null, thresholds: [number, number]): string => {
+            if (v == null) return '#71717a'
+            if (v < thresholds[0]) return GREEN
+            if (v < thresholds[1]) return YELLOW
+            return RED
+          }
+
+          const agingBuckets = [
+            { label: '0–3 dias',  value: aging.d0_3,    color: GREEN },
+            { label: '4–7 dias',  value: aging.d4_7,    color: YELLOW },
+            { label: '8–15 dias', value: aging.d8_15,   color: ORANGE },
+            { label: '+15 dias',  value: aging.d15_plus, color: RED },
           ]
+          const agingMax = Math.max(...agingBuckets.map(b => b.value), 1)
+
           return (
-            <div className="space-y-6">
-              {/* Cards clicáveis */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {cards.map(c => (
-                  <button key={c.id} onClick={() => setIndicadorOpen(indicadorOpen === c.id ? null : c.id)}
-                    className="rounded-xl border p-4 text-left transition-all hover:border-cyan-500/40"
-                    style={{ borderColor: indicadorOpen === c.id ? c.color : 'var(--brand-border)', background: indicadorOpen === c.id ? `${c.color}11` : 'var(--brand-surface)' }}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-lg">{c.icon}</span>
-                      {indicadorOpen === c.id && <Check size={12} style={{ color: c.color }} />}
-                    </div>
-                    <p className="text-2xl font-bold mb-1" style={{ color: c.color }}>{c.value}</p>
-                    <p className="text-[11px] text-zinc-300 font-medium leading-tight">{c.label}</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">{c.sub}</p>
-                  </button>
+            <div className="space-y-5">
+              {/* ROW 1 — 4 KPI Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { label: '% Críticos (Alta/Urgente)', value: `${pct_critical}%`, sub: 'do total do período', color: kpiColor(pct_critical, [40, 60]) },
+                  { label: '% Parados',                 value: `${pct_stopped}%`,  sub: 'de todos os ativos', color: kpiColor(pct_stopped, [20, 35]) },
+                  { label: 'SLA Violado',               value: sla_breach_pct != null ? `${sla_breach_pct}%` : '—', sub: 'resolvidos fora do prazo', color: kpiColor(sla_breach_pct, [20, 40]) },
+                  { label: 'Tempo Médio Resolução',     value: avg_resolution_hours != null ? `${avg_resolution_hours}h` : '—', sub: 'baseado em sla_solution_time', color: kpiColor(avg_resolution_hours, [8, 24]) },
+                ].map(c => (
+                  <div key={c.label} className="rounded-xl border p-4 flex flex-col gap-1" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+                    <span className="text-[11px] text-zinc-400">{c.label}</span>
+                    <span className="text-3xl font-bold" style={{ color: c.color }}>{c.value}</span>
+                    <span className="text-[10px] text-zinc-600">{c.sub}</span>
+                  </div>
                 ))}
               </div>
 
-              {/* Gráficos sempre visíveis: Consultor + Cliente (tickets abertos) */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
-                  <p className="text-xs font-semibold text-zinc-300 mb-3">Tickets Abertos por Consultor</p>
-                  <ResponsiveContainer width="100%" height={Math.max(180, indicadores.by_consultant.length * 28)}>
+              {/* ROW 2 — Aging + Lead Time/Horas por Ticket */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2 rounded-xl border p-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+                  <p className="text-xs font-semibold text-zinc-300 mb-4">Aging — Tickets Abertos</p>
+                  <div className="space-y-3">
+                    {agingBuckets.map(b => (
+                      <div key={b.label} className="flex items-center gap-3">
+                        <span className="text-[11px] text-zinc-400 w-20 shrink-0">{b.label}</span>
+                        <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)', height: 10 }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${(b.value / agingMax) * 100}%`, background: b.color }} />
+                        </div>
+                        <span className="text-[11px] font-semibold w-8 text-right" style={{ color: b.color }}>{b.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <div className="rounded-xl border p-4 flex flex-col gap-1" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+                    <span className="text-[11px] text-zinc-400">Lead Time Médio</span>
+                    <span className="text-3xl font-bold" style={{ color: kpiColor(lead_time_avg_hours, [8, 24]) }}>
+                      {lead_time_avg_hours != null ? `${lead_time_avg_hours}h` : '—'}
+                    </span>
+                    <span className="text-[10px] text-zinc-600">abertura → fechamento</span>
+                  </div>
+                  <div className="rounded-xl border p-4 flex flex-col gap-1" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+                    <span className="text-[11px] text-zinc-400">Horas / Ticket</span>
+                    <span className="text-3xl font-bold" style={{ color: CYAN }}>
+                      {hours_per_ticket != null ? `${hours_per_ticket}h` : '—'}
+                    </span>
+                    <span className="text-[10px] text-zinc-600">horas apontadas por ticket resolvido</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ROW 3 — Consumo de Horas */}
+              <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <p className="text-xs font-semibold text-zinc-300">Consumo de Horas por Cliente</p>
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-end">
+                      <span className="text-xs text-zinc-500">Consumido / Vendido</span>
+                      <span className="text-sm font-bold" style={{ color: kpiColor(pct_hours_consumed, [70, 90]) }}>
+                        {total_used_h}h / {total_sold_h}h
+                        {pct_hours_consumed != null && <span className="ml-1 text-[11px]">({pct_hours_consumed}%)</span>}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {top_clients.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={Math.max(200, top_clients.length * 32)}>
                     <BarChart layout="vertical"
-                      data={[...indicadores.by_consultant].sort((a, b) => b.total_open - a.total_open).map(c => ({
-                        name: c.name.split(' ')[0], fullName: c.name, email: c.email,
-                        'Pendente Erpserv': c.total_open,
+                      data={top_clients.map(c => ({
+                        name: c.name.length > 22 ? c.name.slice(0, 20) + '…' : c.name, fullName: c.name,
+                        'Usado (h)': c.used_h,
+                        'Vendido (h)': c.sold_h,
+                        pct: c.pct,
                       }))}
-                      margin={{ left: 0, right: 40, top: 0, bottom: 0 }}
-                      onClick={(d: any) => { const p = d?.activePayload?.[0]?.payload; if (p) fetchDrillDown('consultor', p.email, p.fullName) }}>
+                      margin={{ left: 0, right: 55, top: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                       <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" width={72} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={130} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
-                        labelFormatter={(_: any, pl: any) => pl?.[0]?.payload?.fullName ?? ''} />
-                      <Bar dataKey="Pendente Erpserv" fill={CYAN} radius={[0,3,3,0]} cursor="pointer" label={{ position: 'right', fill: '#71717a', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }} />
+                        labelFormatter={(_: any, pl: any) => pl?.[0]?.payload?.fullName ?? ''}
+                        formatter={(v: any, name: any) => [`${v}h`, name]} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar dataKey="Vendido (h)" fill="#3f3f46" radius={[0,3,3,0]} />
+                      <Bar dataKey="Usado (h)" fill={CYAN} radius={[0,3,3,0]}
+                        label={{ position: 'right', fill: '#71717a', fontSize: 10, formatter: (v: any) => v > 0 ? `${v}h` : '' }} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-xs text-zinc-500 py-4 text-center">Nenhum dado de timesheet no período.</p>
+                )}
+              </div>
+
+              {/* ROW 4 — Distribuição Categoria + Urgência */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+                  <p className="text-xs font-semibold text-zinc-300 mb-3">Distribuição por Categoria</p>
+                  <ResponsiveContainer width="100%" height={Math.max(160, by_category.length * 30)}>
+                    <BarChart layout="vertical" data={by_category.map(b => ({ name: b.label, count: b.count }))}
+                      margin={{ left: 0, right: 40, top: 0, bottom: 0 }}>
+                      <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={100} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="count" name="Tickets" fill={BLUE} radius={[0,3,3,0]}
+                        label={{ position: 'right', fill: '#71717a', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="rounded-xl border p-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
-                  <p className="text-xs font-semibold text-zinc-300 mb-3">Tickets Abertos por Cliente</p>
-                  <ResponsiveContainer width="100%" height={Math.max(180, indicadores.by_client.length * 28)}>
-                    <BarChart layout="vertical"
-                      data={[...indicadores.by_client].sort((a, b) => b.total_open - a.total_open).map(c => ({
-                        name: c.name.length > 18 ? c.name.slice(0, 16) + '…' : c.name, fullName: c.name,
-                        'Pendente Erpserv': c.total_open,
-                      }))}
-                      margin={{ left: 0, right: 40, top: 0, bottom: 0 }}
-                      onClick={(d: any) => { const p = d?.activePayload?.[0]?.payload; if (p) fetchDrillDown('cliente', p.fullName, p.fullName) }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                  <p className="text-xs font-semibold text-zinc-300 mb-3">Distribuição por Urgência</p>
+                  <ResponsiveContainer width="100%" height={Math.max(160, by_urgency.length * 30)}>
+                    <BarChart layout="vertical" data={by_urgency.map(b => ({
+                      name: b.label,
+                      count: b.count,
+                      fill: b.label === 'Urgente' ? RED : b.label === 'Alta' ? ORANGE : b.label === 'Normal' ? CYAN : '#71717a',
+                    }))}
+                      margin={{ left: 0, right: 40, top: 0, bottom: 0 }}>
                       <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" width={110} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
-                        labelFormatter={(_: any, pl: any) => pl?.[0]?.payload?.fullName ?? ''} />
-                      <Bar dataKey="Pendente Erpserv" fill={CYAN} radius={[0,3,3,0]} cursor="pointer" label={{ position: 'right', fill: '#71717a', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }} />
+                      <YAxis type="category" dataKey="name" width={70} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="count" name="Tickets" radius={[0,3,3,0]}
+                        label={{ position: 'right', fill: '#71717a', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }}>
+                        {by_urgency.map((b, i) => (
+                          <Cell key={i} fill={b.label === 'Urgente' ? RED : b.label === 'Alta' ? ORANGE : b.label === 'Normal' ? CYAN : '#71717a'} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
-
-              {/* Drill-down ao clicar no gráfico (quando nenhum card está aberto) */}
-              {drillDown && !indicadorOpen && (
-                <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'rgba(0,245,255,0.2)', background: 'var(--brand-surface)' }}>
-                  <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                    <p className="text-xs font-semibold text-cyan-400">
-                      Tickets de {drillDown.label}
-                      {drillTickets && !drillLoading && <span className="ml-2 text-zinc-500 font-normal">({drillTickets.length} abertos)</span>}
-                    </p>
-                    <button onClick={() => { setDrillDown(null); setDrillTickets(null) }} className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 rounded">
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                    </button>
-                  </div>
-                  {drillLoading && <p className="text-xs text-zinc-500 px-4 py-3">Carregando...</p>}
-                  {!drillLoading && drillTickets?.length === 0 && <p className="text-xs text-zinc-500 px-4 py-3">Nenhum ticket aberto.</p>}
-                  {!drillLoading && drillTickets && drillTickets.length > 0 && <DrillTicketTable tickets={drillTickets} />}
-                </div>
-              )}
-
-              {/* Painel de detalhes expansível */}
-              {indicadorOpen && (
-                <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
-                  {(indicadorOpen === 'consultores' || indicadorOpen === 'sla') && (
-                    <table className="w-full text-xs">
-                      <thead><tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
-                        <th className="text-left px-4 py-2.5 text-zinc-500 font-medium">Consultor</th>
-                        <th className="text-center px-4 py-2.5 text-zinc-500 font-medium">Abertos</th>
-                        <th className="text-center px-4 py-2.5 text-zinc-500 font-medium">Em Atend.</th>
-                        <th className="text-center px-4 py-2.5 text-zinc-500 font-medium">SLA Viol.</th>
-                        <th className="text-center px-4 py-2.5 text-zinc-500 font-medium">SLA %</th>
-                      </tr></thead>
-                      <tbody>
-                        {indicadores.by_consultant.map(c => (
-                          <React.Fragment key={c.email}>
-                            <tr className="border-b hover:bg-zinc-800/40 cursor-pointer transition-colors"
-                              style={{ borderColor: 'var(--brand-border)', background: drillDown?.key === c.email && drillDown?.type === 'consultor' ? 'rgba(0,245,255,0.06)' : undefined }}
-                              onClick={() => fetchDrillDown('consultor', c.email, c.name)}>
-                              <td className="px-4 py-2.5 text-white font-medium flex items-center gap-2">
-                                <span style={{ color: drillDown?.key === c.email ? CYAN : undefined }}>{drillDown?.key === c.email ? '▾' : '▸'}</span>
-                                {c.name}
-                              </td>
-                              <td className="px-4 py-2.5 text-center text-zinc-300">{c.total_open}</td>
-                              <td className="px-4 py-2.5 text-center" style={{ color: CYAN }}>{c.in_attendance}</td>
-                              <td className="px-4 py-2.5 text-center" style={{ color: c.sla_breached > 0 ? RED : '#71717a' }}>{c.sla_breached}</td>
-                              <td className="px-4 py-2.5 text-center font-bold" style={{ color: c.sla_ok_pct >= 90 ? GREEN : c.sla_ok_pct >= 70 ? YELLOW : RED }}>{c.sla_ok_pct}%</td>
-                            </tr>
-                            {drillDown?.key === c.email && drillDown?.type === 'consultor' && (
-                              <tr style={{ borderBottom: `1px solid var(--brand-border)` }}>
-                                <td colSpan={5} style={{ padding: 0, background: 'rgba(0,245,255,0.02)' }}>
-                                  {drillLoading
-                                    ? <p className="text-xs text-zinc-500 px-6 py-3">Carregando...</p>
-                                    : !drillTickets || drillTickets.length === 0
-                                    ? <p className="text-xs text-zinc-500 px-6 py-3">Nenhum ticket aberto.</p>
-                                    : <DrillTicketTable tickets={drillTickets} />}
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {(indicadorOpen === 'clientes') && (
-                    <table className="w-full text-xs">
-                      <thead><tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
-                        <th className="text-left px-4 py-2.5 text-zinc-500 font-medium">Cliente</th>
-                        <th className="text-center px-4 py-2.5 text-zinc-500 font-medium">Abertos</th>
-                        <th className="text-center px-4 py-2.5 text-zinc-500 font-medium">Em Atend.</th>
-                        <th className="text-center px-4 py-2.5 text-zinc-500 font-medium">SLA Viol.</th>
-                      </tr></thead>
-                      <tbody>
-                        {indicadores.by_client.map(c => (
-                          <React.Fragment key={c.name}>
-                            <tr className="border-b hover:bg-zinc-800/40 cursor-pointer transition-colors"
-                              style={{ borderColor: 'var(--brand-border)', background: drillDown?.key === c.name && drillDown?.type === 'cliente' ? 'rgba(0,245,255,0.06)' : undefined }}
-                              onClick={() => fetchDrillDown('cliente', c.name, c.name)}>
-                              <td className="px-4 py-2.5 text-white font-medium flex items-center gap-2">
-                                <span style={{ color: drillDown?.key === c.name ? CYAN : undefined }}>{drillDown?.key === c.name ? '▾' : '▸'}</span>
-                                {c.name}
-                              </td>
-                              <td className="px-4 py-2.5 text-center text-zinc-300">{c.total_open}</td>
-                              <td className="px-4 py-2.5 text-center" style={{ color: CYAN }}>{c.in_attendance}</td>
-                              <td className="px-4 py-2.5 text-center" style={{ color: c.sla_breached > 0 ? RED : '#71717a' }}>{c.sla_breached}</td>
-                            </tr>
-                            {drillDown?.key === c.name && drillDown?.type === 'cliente' && (
-                              <tr style={{ borderBottom: `1px solid var(--brand-border)` }}>
-                                <td colSpan={4} style={{ padding: 0, background: 'rgba(0,245,255,0.02)' }}>
-                                  {drillLoading
-                                    ? <p className="text-xs text-zinc-500 px-6 py-3">Carregando...</p>
-                                    : !drillTickets || drillTickets.length === 0
-                                    ? <p className="text-xs text-zinc-500 px-6 py-3">Nenhum ticket aberto.</p>
-                                    : <DrillTicketTable tickets={drillTickets} />}
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                  {(indicadorOpen === 'risco' || indicadorOpen === 'over4h' || indicadorOpen === 'resolvidos') && (
-                    <p className="text-xs text-zinc-400 px-4 py-3">Para ver os tickets detalhados, use a aba <strong>Fila Operacional</strong> com os filtros aplicados.</p>
-                  )}
-                </div>
-              )}
             </div>
           )
         })()}
