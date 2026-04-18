@@ -2266,7 +2266,7 @@ function ProjectsPageInner() {
                       {projectAttachments.map(att => (
                         <div key={att.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
                           style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-                          <FileText size={14} style={{ color: 'var(--brand-subtle)', shrink: 0 }} />
+                          <FileText size={14} className="shrink-0" style={{ color: 'var(--brand-subtle)' }} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm truncate" style={{ color: 'var(--brand-text)' }}>{att.original_name}</p>
                             <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>
