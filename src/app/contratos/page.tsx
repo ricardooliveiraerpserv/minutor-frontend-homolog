@@ -1,11 +1,12 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, X, Trash2, FileText, Download, Rocket, Eye, Pencil, CheckCircle, Clock, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, X, Trash2, FileText, Download, Rocket, Eye, Pencil, CheckCircle, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
+import { SearchSelect } from '@/components/ui/search-select'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,18 +32,22 @@ interface Contract {
   customer?: { id: number; name: string }
   status: 'rascunho' | 'aprovado' | 'inicio_autorizado' | 'ativo'
   categoria: 'projeto' | 'sustentacao'
-  tipo_contrato: 'aberto' | 'fechado'
-  tipo_faturamento: 'on_demand' | 'banco_horas_mensal' | 'banco_horas_fixo' | 'por_servico' | 'saas'
+  service_type_id: number | null
+  service_type?: { id: number; name: string }
+  contract_type_id: number | null
+  contract_type?: { id: number; name: string }
   cobra_despesa_cliente: boolean
-  permissoes_despesa: string[]
   architect_id: number | null
   architect?: { id: number; name: string }
   tipo_alocacao: 'remoto' | 'presencial' | 'ambos' | null
   horas_contratadas: number
+  valor_projeto: number | null
+  valor_hora: number | null
+  hora_adicional: number | null
+  pct_horas_coordenador: number | null
+  horas_consultor: number | null
   expectativa_inicio: string | null
   condicao_pagamento: string | null
-  descontar_banco_horas: boolean
-  cobrar_a_parte: boolean
   limite_despesa: number | null
   executivo_conta_id: number | null
   executivo_conta?: { id: number; name: string }
@@ -80,14 +85,6 @@ const CATEGORIA_LABEL: Record<string, string> = {
   sustentacao: 'Sustentação',
 }
 
-const FATURAMENTO_LABEL: Record<string, string> = {
-  on_demand: 'On Demand',
-  banco_horas_mensal: 'Banco de Horas Mensal',
-  banco_horas_fixo: 'Banco de Horas Fixo',
-  por_servico: 'Por Serviço',
-  saas: 'SaaS',
-}
-
 const ATTACHMENT_TYPE_LABEL: Record<string, string> = {
   proposta: 'Proposta',
   contrato: 'Contrato',
@@ -97,18 +94,20 @@ const ATTACHMENT_TYPE_LABEL: Record<string, string> = {
 type FormState = {
   customer_id: string
   categoria: 'projeto' | 'sustentacao'
-  tipo_contrato: 'aberto' | 'fechado'
-  tipo_faturamento: 'on_demand' | 'banco_horas_mensal' | 'banco_horas_fixo' | 'por_servico' | 'saas'
+  service_type_id: string
+  contract_type_id: string
   cobra_despesa_cliente: boolean
-  permissoes_despesa: string[]
+  limite_despesa: string
   architect_id: string
   tipo_alocacao: 'remoto' | 'presencial' | 'ambos'
   horas_contratadas: string
+  valor_projeto: string
+  valor_hora: string
+  hora_adicional: string
+  pct_horas_coordenador: string
+  horas_consultor: string
   expectativa_inicio: string
   condicao_pagamento: string
-  descontar_banco_horas: boolean
-  cobrar_a_parte: boolean
-  limite_despesa: string
   executivo_conta_id: string
   vendedor_id: string
   observacoes: string
@@ -117,18 +116,20 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   customer_id: '',
   categoria: 'projeto',
-  tipo_contrato: 'aberto',
-  tipo_faturamento: 'banco_horas_fixo',
+  service_type_id: '',
+  contract_type_id: '',
   cobra_despesa_cliente: false,
-  permissoes_despesa: [],
+  limite_despesa: '',
   architect_id: '',
   tipo_alocacao: 'remoto',
   horas_contratadas: '',
+  valor_projeto: '',
+  valor_hora: '',
+  hora_adicional: '',
+  pct_horas_coordenador: '',
+  horas_consultor: '',
   expectativa_inicio: '',
   condicao_pagamento: '',
-  descontar_banco_horas: false,
-  cobrar_a_parte: false,
-  limite_despesa: '',
   executivo_conta_id: '',
   vendedor_id: '',
   observacoes: '',
@@ -163,8 +164,11 @@ export default function ContratosPage() {
   const [search, setSearch]       = useState('')
 
   // Master data
-  const [customers, setCustomers] = useState<SelectOption[]>([])
-  const [users, setUsers]         = useState<SelectOption[]>([])
+  const [customers, setCustomers]         = useState<SelectOption[]>([])
+  const [users, setUsers]                 = useState<SelectOption[]>([])
+  const [executives, setExecutives]       = useState<SelectOption[]>([])
+  const [serviceTypes, setServiceTypes]   = useState<SelectOption[]>([])
+  const [contractTypes, setContractTypes] = useState<SelectOption[]>([])
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -181,10 +185,31 @@ export default function ContratosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedAttachType, setSelectedAttachType] = useState<'proposta' | 'contrato' | 'logo'>('proposta')
 
+  // Derived: selected contract type for conditional fields
+  const selectedContractType = useMemo(
+    () => contractTypes.find(t => String(t.id) === String(form.contract_type_id)),
+    [contractTypes, form.contract_type_id]
+  )
+  const isOnDemand  = selectedContractType?.name.toLowerCase().trim() === 'on demand'
+  const isBankHours = selectedContractType?.name.toLowerCase().includes('banco de horas') ?? false
+  const isFechado   = !!selectedContractType && !isOnDemand && !isBankHours
+
+  // saveErpserv (read-only calc for Fechado)
+  const saveErpserv = useMemo(() => {
+    if (!isFechado) return null
+    const sold    = Number(form.horas_contratadas) || 0
+    const consult = Number(form.horas_consultor) || 0
+    const coord   = Number(form.pct_horas_coordenador) || 0
+    return sold - consult - Math.round((coord / 100) * consult)
+  }, [isFechado, form.horas_contratadas, form.horas_consultor, form.pct_horas_coordenador])
+
   // Load master data
   useEffect(() => {
     api.get<any>('/customers?pageSize=500').then(r => setCustomers(r?.items ?? r ?? [])).catch(() => {})
     api.get<any>('/users?pageSize=500').then(r => setUsers(r?.items ?? r ?? [])).catch(() => {})
+    api.get<any>('/executives/all').then(r => setExecutives(r?.items ?? r ?? [])).catch(() => {})
+    api.get<any>('/service-types?pageSize=100').then(r => setServiceTypes(r?.items ?? r?.data ?? r ?? [])).catch(() => {})
+    api.get<any>('/contract-types?pageSize=100').then(r => setContractTypes(r?.items ?? r?.data ?? r ?? [])).catch(() => {})
   }, [])
 
   const loadContracts = useCallback(async () => {
@@ -218,23 +243,25 @@ export default function ContratosPage() {
     const full = await api.get<Contract>(`/contracts/${c.id}`)
     setEditContract(full)
     setForm({
-      customer_id:            String(full.customer_id),
-      categoria:              full.categoria,
-      tipo_contrato:          full.tipo_contrato,
-      tipo_faturamento:       full.tipo_faturamento,
-      cobra_despesa_cliente:  full.cobra_despesa_cliente,
-      permissoes_despesa:     full.permissoes_despesa ?? [],
-      architect_id:           full.architect_id ? String(full.architect_id) : '',
-      tipo_alocacao:          full.tipo_alocacao ?? 'remoto',
-      horas_contratadas:      String(full.horas_contratadas),
-      expectativa_inicio:     full.expectativa_inicio ?? '',
-      condicao_pagamento:     full.condicao_pagamento ?? '',
-      descontar_banco_horas:  full.descontar_banco_horas,
-      cobrar_a_parte:         full.cobrar_a_parte,
-      limite_despesa:         full.limite_despesa != null ? String(full.limite_despesa) : '',
-      executivo_conta_id:     full.executivo_conta_id ? String(full.executivo_conta_id) : '',
-      vendedor_id:            full.vendedor_id ? String(full.vendedor_id) : '',
-      observacoes:            full.observacoes ?? '',
+      customer_id:          String(full.customer_id),
+      categoria:            full.categoria,
+      service_type_id:      full.service_type_id ? String(full.service_type_id) : '',
+      contract_type_id:     full.contract_type_id ? String(full.contract_type_id) : '',
+      cobra_despesa_cliente: full.cobra_despesa_cliente,
+      limite_despesa:       full.limite_despesa != null ? String(full.limite_despesa) : '',
+      architect_id:         full.architect_id ? String(full.architect_id) : '',
+      tipo_alocacao:        full.tipo_alocacao ?? 'remoto',
+      horas_contratadas:    String(full.horas_contratadas),
+      valor_projeto:        full.valor_projeto != null ? String(full.valor_projeto) : '',
+      valor_hora:           full.valor_hora != null ? String(full.valor_hora) : '',
+      hora_adicional:       full.hora_adicional != null ? String(full.hora_adicional) : '',
+      pct_horas_coordenador: full.pct_horas_coordenador != null ? String(full.pct_horas_coordenador) : '',
+      horas_consultor:      full.horas_consultor != null ? String(full.horas_consultor) : '',
+      expectativa_inicio:   full.expectativa_inicio ?? '',
+      condicao_pagamento:   full.condicao_pagamento ?? '',
+      executivo_conta_id:   full.executivo_conta_id ? String(full.executivo_conta_id) : '',
+      vendedor_id:          full.vendedor_id ? String(full.vendedor_id) : '',
+      observacoes:          full.observacoes ?? '',
     })
     setContacts(full.contacts ?? [])
     setPendingFiles([])
@@ -250,19 +277,31 @@ export default function ContratosPage() {
   // ─── Save ─────────────────────────────────────────────────────────────────
 
   const save = async () => {
-    if (!form.customer_id) { toast.error('Selecione o cliente'); setActiveTab(0); return }
+    if (!form.customer_id)       { toast.error('Selecione o cliente'); setActiveTab(0); return }
     if (!form.horas_contratadas) { toast.error('Informe as horas contratadas'); setActiveTab(4); return }
 
     setSaving(true)
     try {
-      const payload = {
-        ...form,
-        customer_id:         Number(form.customer_id),
-        architect_id:        form.architect_id ? Number(form.architect_id) : null,
-        executivo_conta_id:  form.executivo_conta_id ? Number(form.executivo_conta_id) : null,
-        vendedor_id:         form.vendedor_id ? Number(form.vendedor_id) : null,
-        horas_contratadas:   Number(form.horas_contratadas),
-        limite_despesa:      form.limite_despesa ? Number(form.limite_despesa) : null,
+      const payload: Record<string, any> = {
+        customer_id:          Number(form.customer_id),
+        categoria:            form.categoria,
+        service_type_id:      form.service_type_id ? Number(form.service_type_id) : null,
+        contract_type_id:     form.contract_type_id ? Number(form.contract_type_id) : null,
+        cobra_despesa_cliente: form.cobra_despesa_cliente,
+        limite_despesa:       form.limite_despesa ? Number(form.limite_despesa) : null,
+        architect_id:         form.architect_id ? Number(form.architect_id) : null,
+        tipo_alocacao:        form.tipo_alocacao,
+        horas_contratadas:    Number(form.horas_contratadas),
+        valor_projeto:        form.valor_projeto ? Number(form.valor_projeto) : null,
+        valor_hora:           form.valor_hora ? Number(form.valor_hora) : null,
+        hora_adicional:       form.hora_adicional ? Number(form.hora_adicional) : null,
+        pct_horas_coordenador: form.pct_horas_coordenador ? Number(form.pct_horas_coordenador) : null,
+        horas_consultor:      form.horas_consultor ? Number(form.horas_consultor) : null,
+        expectativa_inicio:   form.expectativa_inicio || null,
+        condicao_pagamento:   form.condicao_pagamento || null,
+        executivo_conta_id:   form.executivo_conta_id ? Number(form.executivo_conta_id) : null,
+        vendedor_id:          form.vendedor_id ? Number(form.vendedor_id) : null,
+        observacoes:          form.observacoes || null,
         contacts,
       }
 
@@ -275,7 +314,6 @@ export default function ContratosPage() {
         toast.success('Contrato criado')
       }
 
-      // Upload pending files
       if (pendingFiles.length > 0) {
         setUploading(true)
         for (const { file, type } of pendingFiles) {
@@ -326,7 +364,7 @@ export default function ContratosPage() {
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao gerar projeto') }
   }
 
-  // ─── Attachment download ──────────────────────────────────────────────────
+  // ─── Attachment helpers ───────────────────────────────────────────────────
 
   const downloadAttachment = async (contractId: number, att: ContractAttachment) => {
     const token = localStorage.getItem('token')
@@ -359,21 +397,12 @@ export default function ContratosPage() {
     setContacts(c => c.map((ct, idx) => idx === i ? { ...ct, [field]: value } : ct))
   const removeContact = (i: number) => setContacts(c => c.filter((_, idx) => idx !== i))
 
-  // ─── Permissions helper ───────────────────────────────────────────────────
-
-  const togglePerm = (p: string) => setForm(f => ({
-    ...f,
-    permissoes_despesa: f.permissoes_despesa.includes(p)
-      ? f.permissoes_despesa.filter(x => x !== p)
-      : [...f.permissoes_despesa, p],
-  }))
-
   // ─── Render ───────────────────────────────────────────────────────────────
 
   const TABS = ['Cliente', 'Classificação', 'Faturamento', 'Despesas', 'Operacional', 'Contatos', 'Financeiro', 'Comercial', 'Observações', 'Anexos']
   const totalPages = Math.ceil(total / 20)
 
-  const inputCls = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-cyan-500/40'
+  const inputCls  = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-cyan-500/40'
   const inputStyle = { border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }
   const labelCls  = 'block text-xs text-zinc-400 mb-1'
 
@@ -418,7 +447,7 @@ export default function ContratosPage() {
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Categoria</th>
-              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Faturamento</th>
+              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Tipo de Contrato</th>
               <th className="text-center px-4 py-3 text-zinc-400 font-medium">Horas</th>
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Expectativa</th>
               <th className="text-center px-4 py-3 text-zinc-400 font-medium">Status</th>
@@ -437,7 +466,7 @@ export default function ContratosPage() {
               <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                 <td className="px-4 py-3 text-white font-medium">{c.customer?.name ?? '—'}</td>
                 <td className="px-4 py-3 text-zinc-300">{CATEGORIA_LABEL[c.categoria]}</td>
-                <td className="px-4 py-3 text-zinc-400 text-xs">{FATURAMENTO_LABEL[c.tipo_faturamento]}</td>
+                <td className="px-4 py-3 text-zinc-400 text-xs">{c.contract_type?.name ?? '—'}</td>
                 <td className="px-4 py-3 text-center text-zinc-300">{c.horas_contratadas}h</td>
                 <td className="px-4 py-3 text-zinc-400 text-xs">{fmtDate(c.expectativa_inicio)}</td>
                 <td className="px-4 py-3 text-center">
@@ -520,15 +549,23 @@ export default function ContratosPage() {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+
               {/* Tab 0: Cliente */}
               {activeTab === 0 && (
                 <div>
-                  <label className={labelCls}>Cliente *</label>
-                  <select value={form.customer_id} onChange={e => setForm(f => ({ ...f, customer_id: e.target.value }))}
-                    className={inputCls} style={inputStyle}>
-                    <option value="">Selecione o cliente</option>
-                    {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={labelCls} style={{ marginBottom: 0 }}>Cliente *</label>
+                    <a href="/cadastros?tab=customers" target="_blank" rel="noreferrer"
+                      className="flex items-center gap-1 text-[10px] text-cyan-500 hover:text-cyan-400 transition-colors">
+                      <Plus size={10} /> Novo cliente <ExternalLink size={9} />
+                    </a>
+                  </div>
+                  <SearchSelect
+                    value={form.customer_id}
+                    onChange={v => setForm(f => ({ ...f, customer_id: v }))}
+                    options={customers}
+                    placeholder="Buscar cliente..."
+                  />
                 </div>
               )}
 
@@ -548,16 +585,13 @@ export default function ContratosPage() {
                     </div>
                   </div>
                   <div>
-                    <label className={labelCls}>Tipo de Contrato *</label>
-                    <div className="flex gap-3">
-                      {(['aberto', 'fechado'] as const).map(v => (
-                        <label key={v} className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="tipo_contrato" value={v} checked={form.tipo_contrato === v}
-                            onChange={() => setForm(f => ({ ...f, tipo_contrato: v }))} />
-                          <span className="text-sm text-zinc-300">{v === 'aberto' ? 'Aberto' : 'Fechado'}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <label className={labelCls}>Tipo de Serviço</label>
+                    <SearchSelect
+                      value={form.service_type_id}
+                      onChange={v => setForm(f => ({ ...f, service_type_id: v }))}
+                      options={serviceTypes}
+                      placeholder="Selecionar tipo de serviço..."
+                    />
                   </div>
                 </div>
               )}
@@ -565,15 +599,19 @@ export default function ContratosPage() {
               {/* Tab 2: Faturamento */}
               {activeTab === 2 && (
                 <div>
-                  <label className={labelCls}>Tipo de Faturamento *</label>
+                  <label className={labelCls}>Tipo de Contrato *</label>
                   <div className="space-y-2">
-                    {(['on_demand', 'banco_horas_mensal', 'banco_horas_fixo', 'por_servico', 'saas'] as const).map(v => (
-                      <label key={v} className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="tipo_faturamento" value={v} checked={form.tipo_faturamento === v}
-                          onChange={() => setForm(f => ({ ...f, tipo_faturamento: v }))} />
-                        <span className="text-sm text-zinc-300">{FATURAMENTO_LABEL[v]}</span>
+                    {contractTypes.map(ct => (
+                      <label key={ct.id} className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="contract_type_id" value={ct.id}
+                          checked={String(form.contract_type_id) === String(ct.id)}
+                          onChange={() => setForm(f => ({ ...f, contract_type_id: String(ct.id) }))} />
+                        <span className="text-sm text-zinc-300">{ct.name}</span>
                       </label>
                     ))}
+                    {contractTypes.length === 0 && (
+                      <p className="text-xs text-zinc-500">Carregando tipos de contrato...</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -587,28 +625,14 @@ export default function ContratosPage() {
                     <span className="text-sm text-zinc-300">Cobrar despesas do cliente</span>
                   </label>
                   {form.cobra_despesa_cliente && (
-                    <>
-                      <div>
-                        <label className={labelCls}>Quem pode lançar despesas</label>
-                        <div className="flex gap-4">
-                          {(['executivo', 'coordenador', 'consultor'] as const).map(p => (
-                            <label key={p} className="flex items-center gap-2 cursor-pointer">
-                              <input type="checkbox" checked={form.permissoes_despesa.includes(p)}
-                                onChange={() => togglePerm(p)} />
-                              <span className="text-sm text-zinc-300 capitalize">{p}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <label className={labelCls}>Limite de despesas (R$)</label>
-                        <input type="number" min="0" step="0.01" placeholder="Ex: 5000.00"
-                          value={form.limite_despesa}
-                          onChange={e => setForm(f => ({ ...f, limite_despesa: e.target.value }))}
-                          className={inputCls} style={inputStyle} />
-                        <p className="text-xs text-zinc-500 mt-1">Deixe em branco para sem limite.</p>
-                      </div>
-                    </>
+                    <div>
+                      <label className={labelCls}>Limite de despesas (R$)</label>
+                      <input type="number" min="0" step="0.01" placeholder="Ex: 5000.00"
+                        value={form.limite_despesa}
+                        onChange={e => setForm(f => ({ ...f, limite_despesa: e.target.value }))}
+                        className={inputCls} style={inputStyle} />
+                      <p className="text-xs text-zinc-500 mt-1">Deixe em branco para sem limite.</p>
+                    </div>
                   )}
                 </div>
               )}
@@ -618,11 +642,12 @@ export default function ContratosPage() {
                 <div className="space-y-4">
                   <div>
                     <label className={labelCls}>Arquiteto</label>
-                    <select value={form.architect_id} onChange={e => setForm(f => ({ ...f, architect_id: e.target.value }))}
-                      className={inputCls} style={inputStyle}>
-                      <option value="">Sem arquiteto</option>
-                      {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
+                    <SearchSelect
+                      value={form.architect_id}
+                      onChange={v => setForm(f => ({ ...f, architect_id: v }))}
+                      options={[{ id: '', name: 'Sem arquiteto' }, ...users]}
+                      placeholder="Buscar arquiteto..."
+                    />
                   </div>
                   <div>
                     <label className={labelCls}>Tipo de Alocação</label>
@@ -636,6 +661,8 @@ export default function ContratosPage() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Horas e datas */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={labelCls}>Horas Contratadas *</label>
@@ -648,6 +675,63 @@ export default function ContratosPage() {
                       <input type="date" value={form.expectativa_inicio}
                         onChange={e => setForm(f => ({ ...f, expectativa_inicio: e.target.value }))}
                         className={inputCls} style={inputStyle} />
+                    </div>
+                  </div>
+
+                  {/* Valores e Horas — mesmas regras do projeto */}
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Valores e Horas</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {!isOnDemand && (
+                        <div>
+                          <label className={labelCls}>Valor do Projeto (R$)</label>
+                          <input type="number" min="0" step="0.01" placeholder="0,00"
+                            value={form.valor_projeto}
+                            onChange={e => setForm(f => ({ ...f, valor_projeto: e.target.value }))}
+                            className={inputCls} style={inputStyle} />
+                        </div>
+                      )}
+                      <div>
+                        <label className={labelCls}>Valor da Hora (R$)</label>
+                        <input type="number" min="0" step="0.01" placeholder="0,00"
+                          value={form.valor_hora}
+                          onChange={e => setForm(f => ({ ...f, valor_hora: e.target.value }))}
+                          className={inputCls} style={inputStyle} />
+                      </div>
+                      {!isOnDemand && (
+                        <div>
+                          <label className={labelCls}>Hora Adicional (R$)</label>
+                          <input type="number" min="0" step="0.01" placeholder="0,00"
+                            value={form.hora_adicional}
+                            onChange={e => setForm(f => ({ ...f, hora_adicional: e.target.value }))}
+                            className={inputCls} style={inputStyle} />
+                        </div>
+                      )}
+                      {!isOnDemand && (
+                        <div>
+                          <label className={labelCls}>% Horas Coordenador</label>
+                          <input type="number" min="0" max="100" step="1" placeholder="0"
+                            value={form.pct_horas_coordenador}
+                            onChange={e => setForm(f => ({ ...f, pct_horas_coordenador: e.target.value }))}
+                            className={inputCls} style={inputStyle} />
+                        </div>
+                      )}
+                      {isFechado && (
+                        <>
+                          <div>
+                            <label className={labelCls}>Horas Consultor</label>
+                            <input type="number" min="0" step="1" placeholder="0"
+                              value={form.horas_consultor}
+                              onChange={e => setForm(f => ({ ...f, horas_consultor: e.target.value }))}
+                              className={inputCls} style={inputStyle} />
+                          </div>
+                          <div>
+                            <label className={labelCls}>Save ERPSERV</label>
+                            <input readOnly value={saveErpserv ?? ''}
+                              className={inputCls} style={{ ...inputStyle, opacity: 0.5, cursor: 'not-allowed' }} />
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -700,26 +784,12 @@ export default function ContratosPage() {
 
               {/* Tab 6: Financeiro */}
               {activeTab === 6 && (
-                <div className="space-y-4">
-                  <div>
-                    <label className={labelCls}>Condição de Pagamento</label>
-                    <textarea value={form.condicao_pagamento}
-                      onChange={e => setForm(f => ({ ...f, condicao_pagamento: e.target.value }))}
-                      rows={3} placeholder="Ex: 30 dias após entrega da NF..."
-                      className={inputCls} style={{ ...inputStyle, resize: 'vertical' }} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={form.descontar_banco_horas}
-                        onChange={e => setForm(f => ({ ...f, descontar_banco_horas: e.target.checked }))} />
-                      <span className="text-sm text-zinc-300">Descontar banco de horas</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={form.cobrar_a_parte}
-                        onChange={e => setForm(f => ({ ...f, cobrar_a_parte: e.target.checked }))} />
-                      <span className="text-sm text-zinc-300">Cobrar à parte</span>
-                    </label>
-                  </div>
+                <div>
+                  <label className={labelCls}>Condição de Pagamento</label>
+                  <textarea value={form.condicao_pagamento}
+                    onChange={e => setForm(f => ({ ...f, condicao_pagamento: e.target.value }))}
+                    rows={5} placeholder="Ex: 30 dias após entrega da NF..."
+                    className={inputCls} style={{ ...inputStyle, resize: 'vertical' }} />
                 </div>
               )}
 
@@ -728,19 +798,21 @@ export default function ContratosPage() {
                 <div className="space-y-4">
                   <div>
                     <label className={labelCls}>Executivo de Contas</label>
-                    <select value={form.executivo_conta_id} onChange={e => setForm(f => ({ ...f, executivo_conta_id: e.target.value }))}
-                      className={inputCls} style={inputStyle}>
-                      <option value="">Selecione</option>
-                      {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
+                    <SearchSelect
+                      value={form.executivo_conta_id}
+                      onChange={v => setForm(f => ({ ...f, executivo_conta_id: v }))}
+                      options={executives}
+                      placeholder="Buscar executivo..."
+                    />
                   </div>
                   <div>
                     <label className={labelCls}>Vendedor</label>
-                    <select value={form.vendedor_id} onChange={e => setForm(f => ({ ...f, vendedor_id: e.target.value }))}
-                      className={inputCls} style={inputStyle}>
-                      <option value="">Selecione</option>
-                      {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                    </select>
+                    <SearchSelect
+                      value={form.vendedor_id}
+                      onChange={v => setForm(f => ({ ...f, vendedor_id: v }))}
+                      options={users}
+                      placeholder="Buscar vendedor..."
+                    />
                   </div>
                 </div>
               )}
@@ -763,7 +835,6 @@ export default function ContratosPage() {
               {/* Tab 9: Anexos */}
               {activeTab === 9 && (
                 <div className="space-y-4">
-                  {/* Existing attachments (edit mode) */}
                   {editContract && editContract.attachments.length > 0 && (
                     <div>
                       <p className="text-xs text-zinc-400 mb-2">Arquivos já enviados</p>
@@ -787,7 +858,6 @@ export default function ContratosPage() {
                     </div>
                   )}
 
-                  {/* Upload new */}
                   <div>
                     <p className="text-xs text-zinc-400 mb-2">Adicionar arquivo</p>
                     <div className="flex items-center gap-2 mb-3">
@@ -811,7 +881,6 @@ export default function ContratosPage() {
                     </button>
                   </div>
 
-                  {/* Pending files */}
                   {pendingFiles.length > 0 && (
                     <div className="space-y-1">
                       <p className="text-xs text-zinc-400">Aguardando upload ({pendingFiles.length})</p>
@@ -880,13 +949,16 @@ export default function ContratosPage() {
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 text-sm">
               <div className="grid grid-cols-2 gap-4">
                 <div><p className="text-[10px] text-zinc-500 mb-0.5">Categoria</p><p className="text-zinc-300">{CATEGORIA_LABEL[viewContract.categoria]}</p></div>
-                <div><p className="text-[10px] text-zinc-500 mb-0.5">Tipo de Contrato</p><p className="text-zinc-300">{viewContract.tipo_contrato === 'aberto' ? 'Aberto' : 'Fechado'}</p></div>
-                <div><p className="text-[10px] text-zinc-500 mb-0.5">Faturamento</p><p className="text-zinc-300">{FATURAMENTO_LABEL[viewContract.tipo_faturamento]}</p></div>
+                <div><p className="text-[10px] text-zinc-500 mb-0.5">Tipo de Serviço</p><p className="text-zinc-300">{viewContract.service_type?.name ?? '—'}</p></div>
+                <div><p className="text-[10px] text-zinc-500 mb-0.5">Tipo de Contrato</p><p className="text-zinc-300">{viewContract.contract_type?.name ?? '—'}</p></div>
                 <div><p className="text-[10px] text-zinc-500 mb-0.5">Horas Contratadas</p><p className="text-zinc-300 font-semibold">{viewContract.horas_contratadas}h</p></div>
                 <div><p className="text-[10px] text-zinc-500 mb-0.5">Alocação</p><p className="text-zinc-300 capitalize">{viewContract.tipo_alocacao ?? '—'}</p></div>
                 <div><p className="text-[10px] text-zinc-500 mb-0.5">Expectativa de Início</p><p className="text-zinc-300">{fmtDate(viewContract.expectativa_inicio)}</p></div>
                 {viewContract.architect && <div><p className="text-[10px] text-zinc-500 mb-0.5">Arquiteto</p><p className="text-zinc-300">{viewContract.architect.name}</p></div>}
                 {viewContract.executivo_conta && <div><p className="text-[10px] text-zinc-500 mb-0.5">Executivo</p><p className="text-zinc-300">{viewContract.executivo_conta.name}</p></div>}
+                {viewContract.cobra_despesa_cliente && viewContract.limite_despesa != null && (
+                  <div><p className="text-[10px] text-zinc-500 mb-0.5">Limite de Despesas</p><p className="text-zinc-300">R$ {Number(viewContract.limite_despesa).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p></div>
+                )}
               </div>
 
               {viewContract.condicao_pagamento && (
