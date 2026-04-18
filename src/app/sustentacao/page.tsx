@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
@@ -12,6 +12,7 @@ import {
 import {
   AlertTriangle, CheckCircle, Clock, TrendingUp, Users, DollarSign,
   Activity, BarChart2, List, Shield, Globe, Zap, RefreshCw, Wrench,
+  ChevronDown, Check,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -544,6 +545,84 @@ function DiagnosticoTab({
   )
 }
 
+// ─── MultiSelect ──────────────────────────────────────────────────────────────
+
+function MultiSelect({ label, options, selected, onChange, placeholder = 'Buscar...' }: {
+  label: string
+  options: { value: string; label: string }[]
+  selected: string[]
+  onChange: (v: string[]) => void
+  placeholder?: string
+}) {
+  const [open, setOpen]     = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSearch('') }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+
+  const toggle = (value: string) =>
+    onChange(selected.includes(value) ? selected.filter(v => v !== value) : [...selected, value])
+
+  const triggerLabel = selected.length === 0
+    ? 'Todos'
+    : selected.length === 1
+      ? (options.find(o => o.value === selected[0])?.label ?? selected[0])
+      : `${selected.length} selecionados`
+
+  return (
+    <div className="flex flex-col gap-1 relative" ref={ref}>
+      <label className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide">{label}</label>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className="text-xs rounded-lg px-2.5 py-1.5 border outline-none flex items-center justify-between gap-2"
+        style={{ background: 'var(--brand-surface)', borderColor: selected.length > 0 ? '#00F5FF' : 'var(--brand-border)', color: '#e4e4e7', minWidth: 160 }}>
+        <span style={{ color: selected.length > 0 ? '#00F5FF' : '#e4e4e7' }}>{triggerLabel}</span>
+        <ChevronDown size={12} className="text-zinc-500 shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 z-50 mt-1 rounded-lg border shadow-xl flex flex-col"
+          style={{ background: '#18181b', borderColor: 'var(--brand-border)', minWidth: 220, maxHeight: 320 }}>
+          <div className="p-2 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+            <input autoFocus type="text" placeholder={placeholder}
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full text-xs px-2 py-1.5 rounded outline-none"
+              style={{ background: '#27272a', color: '#e4e4e7', border: 'none' }} />
+          </div>
+          <div className="overflow-y-auto">
+            <button type="button" onClick={() => onChange([])}
+              className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-zinc-800"
+              style={{ color: selected.length === 0 ? '#00F5FF' : '#a1a1aa' }}>
+              {selected.length === 0 ? <Check size={12} /> : <span className="w-3 shrink-0" />}
+              Todos
+            </button>
+            {filtered.map(opt => {
+              const checked = selected.includes(opt.value)
+              return (
+                <button type="button" key={opt.value} onClick={() => toggle(opt.value)}
+                  className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-zinc-800"
+                  style={{ color: checked ? '#00F5FF' : '#e4e4e7' }}>
+                  {checked ? <Check size={12} className="shrink-0" /> : <span className="w-3 shrink-0" />}
+                  {opt.label}
+                </button>
+              )
+            })}
+            {filtered.length === 0 && (
+              <p className="px-3 py-4 text-xs text-zinc-500 text-center">Nenhum resultado</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SustentacaoPage() {
@@ -568,10 +647,10 @@ export default function SustentacaoPage() {
     ? new Date(refYear, refMonth, 0).toISOString().split('T')[0]
     : dateTo
 
-  const [queueFilterResp,      setQueueFilterResp]      = useState('')
-  const [queueFilterCliente,   setQueueFilterCliente]   = useState('')
-  const [queueFilterUrgencia,  setQueueFilterUrgencia]  = useState('')
-  const [queueFilterStatus,    setQueueFilterStatus]    = useState('')
+  const [queueFilterResp,      setQueueFilterResp]      = useState<string[]>([])
+  const [queueFilterCliente,   setQueueFilterCliente]   = useState<string[]>([])
+  const [queueFilterUrgencia,  setQueueFilterUrgencia]  = useState<string[]>([])
+  const [queueFilterStatus,    setQueueFilterStatus]    = useState<string[]>([])
   const [queueSearch,          setQueueSearch]          = useState('')
 
   const [kpis, setKpis]               = useState<KPIs | null>(null)
@@ -597,6 +676,7 @@ export default function SustentacaoPage() {
         setKpis(r)
       } else if (t === 'queue') {
         await fetchQueue(queueFilterResp, queueFilterCliente, queueFilterUrgencia, queueFilterStatus, queueSearch)
+
       } else if (t === 'sla' && !slaData) {
         const r = await api.get<SlaData>(`/sustentacao/sla?${params}`)
         setSlaData(r)
@@ -634,16 +714,16 @@ export default function SustentacaoPage() {
   }, [params, kpis, slaData, productivity, financial, clients, distribution, evolution, debugClientes, debugResponsaveis])
 
   const fetchQueue = useCallback(async (
-    resp: string, cliente: string, urgencia: string, status: string, search: string
+    resp: string[], cliente: string[], urgencia: string[], status: string[], search: string
   ) => {
     setLoading(true)
     try {
       const qp = new URLSearchParams({ per_page: '100' })
-      if (resp)     qp.set('responsavel', resp)
-      if (cliente)  qp.set('cliente', cliente)
-      if (urgencia) qp.set('urgencia', urgencia)
-      if (status)   qp.set('status', status)
-      if (search)   qp.set('search', search)
+      if (resp.length)     qp.set('responsavel', resp.join(','))
+      if (cliente.length)  qp.set('cliente', cliente.join(','))
+      if (urgencia.length) qp.set('urgencia', urgencia.join(','))
+      if (status.length)   qp.set('status', status.join(','))
+      if (search)          qp.set('search', search)
       const r = await api.get<any>(`/sustentacao/queue?${qp}`)
       setQueue({ data: r.data ?? [], total: r.total ?? 0 })
     } finally {
@@ -772,67 +852,30 @@ export default function SustentacaoPage() {
               <input type="text" placeholder="# ou título..." value={queueSearch}
                 onChange={e => setQueueSearch(e.target.value)}
                 className="text-xs rounded-lg px-2.5 py-1.5 border outline-none"
-                style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)', color: '#e4e4e7', width: 160 }} />
+                style={{ background: 'var(--brand-surface)', borderColor: queueSearch ? '#00F5FF' : 'var(--brand-border)', color: '#e4e4e7', width: 155 }} />
             </div>
-            {/* Urgência */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide">Urgência</label>
-              <select value={queueFilterUrgencia} onChange={e => setQueueFilterUrgencia(e.target.value)}
-                className="text-xs rounded-lg px-2.5 py-1.5 border outline-none"
-                style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)', color: '#e4e4e7', minWidth: 120 }}>
-                <option value="">Todas</option>
-                {['Urgente', 'Alta', 'Normal', 'Baixa'].map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-            {/* Status */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide">Status</label>
-              <select value={queueFilterStatus} onChange={e => setQueueFilterStatus(e.target.value)}
-                className="text-xs rounded-lg px-2.5 py-1.5 border outline-none"
-                style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)', color: '#e4e4e7', minWidth: 140 }}>
-                <option value="">Todos</option>
-                <option value="New">Novo</option>
-                <option value="InAttendance">Em Atendimento</option>
-                <option value="Stopped">Parado</option>
-              </select>
-            </div>
-            {/* Responsável */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide">Responsável</label>
-              <select value={queueFilterResp} onChange={e => setQueueFilterResp(e.target.value)}
-                className="text-xs rounded-lg px-2.5 py-1.5 border outline-none"
-                style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)', color: '#e4e4e7', minWidth: 170 }}>
-                <option value="">Todos</option>
-                {Array.from(
-                  new Map(
-                    queue.data
-                      .filter(t => t.responsavel?.name && t.owner_email)
-                      .map(t => [t.responsavel!.name as string, t.owner_email as string])
-                  ).entries()
-                ).sort(([a], [b]) => a.localeCompare(b))
-                  .map(([name, email]) => <option key={email} value={email}>{name}</option>)}
-              </select>
-            </div>
-            {/* Cliente */}
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide">Cliente</label>
-              <select value={queueFilterCliente} onChange={e => setQueueFilterCliente(e.target.value)}
-                className="text-xs rounded-lg px-2.5 py-1.5 border outline-none"
-                style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)', color: '#e4e4e7', minWidth: 170 }}>
-                <option value="">Todos</option>
-                {[...new Set(
-                  queue.data.map(t => (t.org_name ?? clienteMovidesk(t)) as string).filter(s => !!s)
-                )].sort().map(name => <option key={name} value={name}>{name}</option>)}
-              </select>
-            </div>
-            {/* Limpar / contador */}
-            {(queueSearch || queueFilterUrgencia || queueFilterStatus || queueFilterResp || queueFilterCliente) && (
-              <button onClick={() => { setQueueSearch(''); setQueueFilterUrgencia(''); setQueueFilterStatus(''); setQueueFilterResp(''); setQueueFilterCliente('') }}
+            <MultiSelect label="Urgência"
+              options={['Urgente', 'Alta', 'Normal', 'Baixa'].map(u => ({ value: u, label: u }))}
+              selected={queueFilterUrgencia} onChange={setQueueFilterUrgencia} />
+            <MultiSelect label="Status"
+              options={[{ value: 'New', label: 'Novo' }, { value: 'InAttendance', label: 'Em Atendimento' }, { value: 'Stopped', label: 'Parado' }]}
+              selected={queueFilterStatus} onChange={setQueueFilterStatus} />
+            <MultiSelect label="Responsável" placeholder="Buscar responsável..."
+              options={Array.from(
+                new Map(queue.data.filter(t => t.responsavel?.name && t.owner_email)
+                  .map(t => [t.owner_email as string, t.responsavel!.name as string])).entries()
+              ).sort(([, a], [, b]) => a.localeCompare(b)).map(([email, name]) => ({ value: email, label: name }))}
+              selected={queueFilterResp} onChange={setQueueFilterResp} />
+            <MultiSelect label="Cliente" placeholder="Buscar cliente..."
+              options={[...new Set(queue.data.map(t => (t.org_name ?? clienteMovidesk(t)) as string).filter(s => !!s))].sort().map(n => ({ value: n, label: n }))}
+              selected={queueFilterCliente} onChange={setQueueFilterCliente} />
+            {(queueSearch || queueFilterUrgencia.length || queueFilterStatus.length || queueFilterResp.length || queueFilterCliente.length) ? (
+              <button onClick={() => { setQueueSearch(''); setQueueFilterUrgencia([]); setQueueFilterStatus([]); setQueueFilterResp([]); setQueueFilterCliente([]) }}
                 className="text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-zinc-800 self-end"
                 style={{ borderColor: 'var(--brand-border)', color: '#71717a' }}>
                 Limpar
               </button>
-            )}
+            ) : null}
             <span className="text-xs text-zinc-500 ml-auto self-end pb-1.5">{queue.total} tickets</span>
           </div>
           <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--brand-border)' }}>
