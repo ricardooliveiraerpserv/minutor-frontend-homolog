@@ -161,11 +161,18 @@ function KpiCard({ label, value, sub, color, icon: Icon }: {
 // ─── Debug Clientes Tab ───────────────────────────────────────────────────────
 
 function DebugClientesTab({ rows }: { rows: DebugClienteRow[] }) {
-  const [search, setSearch]     = useState('')
+  const [search, setSearch]           = useState('')
   const [matchFilter, setMatchFilter] = useState<'all' | 'cnpj' | 'nome' | 'nao'>('all')
   const [cnpjFilter, setCnpjFilter]   = useState<'all' | 'com' | 'sem'>('all')
+  const [hideDept, setHideDept]       = useState(true)
+
+  // "provável departamento" = sem CNPJ no Movidesk E sem match no Minutor
+  const isDept = (row: DebugClienteRow) => !row.cnpj_movidesk && row.match === 'nao'
+
+  const deptCount = rows.filter(isDept).length
 
   const filtered = rows.filter(row => {
+    if (hideDept && isDept(row)) return false
     if (matchFilter !== 'all' && row.match !== matchFilter) return false
     if (cnpjFilter === 'com' && !row.cnpj_movidesk) return false
     if (cnpjFilter === 'sem' && row.cnpj_movidesk) return false
@@ -207,6 +214,12 @@ function DebugClientesTab({ rows }: { rows: DebugClienteRow[] }) {
           className="px-3 py-1.5 rounded-lg text-xs bg-transparent outline-none"
           style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-text)', width: 200 }}
         />
+
+        <button onClick={() => setHideDept(v => !v)}
+          className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+          style={{ border: '1px solid var(--brand-border)', background: hideDept ? 'rgba(0,245,255,0.08)' : 'transparent', color: hideDept ? '#00F5FF' : '#71717a' }}>
+          {hideDept ? `Departamentos ocultos (${deptCount})` : `Mostrar departamentos (${deptCount})`}
+        </button>
 
         <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
           {MATCH_OPTIONS.map(opt => (
