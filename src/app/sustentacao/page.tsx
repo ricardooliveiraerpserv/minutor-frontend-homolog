@@ -91,7 +91,8 @@ interface DebugResponsavelRow {
   owner_email: string
   owner_name: string | null
   team: string | null
-  is_active: boolean | null
+  is_active: boolean
+  last_ticket_at: string | null
   tickets: number
   vinculados: number
   match: 'encontrado' | 'nao'
@@ -354,8 +355,7 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-zinc-300">Responsáveis por Ticket: Movidesk × Minutor</h2>
         <div className="flex items-center gap-3">
-          {!hasStatus && !syncing && <span className="text-xs text-yellow-500">Status indisponível — clique em Integrar para buscar</span>}
-          {syncing && <span className="text-xs text-cyan-400">⏳ Rodando em background... recarrega automaticamente em 3 min</span>}
+          {syncing && <span className="text-xs text-cyan-400">⏳ Rodando em background...</span>}
           <span className="text-xs text-zinc-600">{filtered.length} de {rows.length} responsáveis</span>
           <button onClick={handleSync} disabled={syncing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
@@ -410,10 +410,10 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
               return (
                 <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
                   <td className="px-3 py-2 text-zinc-200">{row.owner_name ?? '—'}</td>
-                  <td className="px-3 py-2 text-center">
-                    {row.is_active === null
-                      ? <span className="text-zinc-600 text-[10px]">—</span>
-                      : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: row.is_active ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', color: row.is_active ? '#22c55e' : '#ef4444' }}>{row.is_active ? 'Ativo' : 'Inativo'}</span>}
+                  <td className="px-3 py-2 text-center" title={row.last_ticket_at ? `Último ticket: ${row.last_ticket_at}` : undefined}>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: row.is_active ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', color: row.is_active ? '#22c55e' : '#ef4444' }}>
+                      {row.is_active ? 'Ativo' : 'Inativo'}
+                    </span>
                   </td>
                   <td className="px-3 py-2 font-mono text-zinc-400">{row.owner_email}</td>
                   <td className="px-3 py-2 text-zinc-500">{row.team ?? '—'}</td>
