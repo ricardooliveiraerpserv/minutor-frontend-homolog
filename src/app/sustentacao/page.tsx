@@ -326,8 +326,8 @@ function DebugClientesTab({ rows, onSync }: { rows: DebugClienteRow[]; onSync: (
 function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; onSync: () => Promise<void> }) {
   const [search, setSearch]           = useState('')
   const [matchFilter, setMatchFilter] = useState<'all' | 'encontrado' | 'nao'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'ativo' | 'inativo'>('all')
   const [syncing, setSyncing]         = useState(false)
-  const hasStatus = rows.some(r => r.is_active !== null)
 
   const handleSync = async () => {
     setSyncing(true)
@@ -336,6 +336,8 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
 
   const filtered = rows.filter(row => {
     if (matchFilter !== 'all' && row.match !== matchFilter) return false
+    if (statusFilter === 'ativo'   && !row.is_active) return false
+    if (statusFilter === 'inativo' &&  row.is_active) return false
     if (search) {
       const q = search.toLowerCase()
       if (
@@ -349,6 +351,8 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
 
   const found    = rows.filter(r => r.match === 'encontrado').length
   const notFound = rows.filter(r => r.match === 'nao').length
+  const ativos   = rows.filter(r => r.is_active).length
+  const inativos = rows.filter(r => !r.is_active).length
 
   return (
     <div className="space-y-4">
@@ -376,13 +380,27 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
         />
         <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
           {([
-            { key: 'all',        label: `Todos (${rows.length})`,       color: '#71717a' },
-            { key: 'encontrado', label: `✓ No Minutor (${found})`,      color: '#22c55e' },
+            { key: 'all',        label: `Todos (${rows.length})`,         color: '#71717a' },
+            { key: 'encontrado', label: `✓ No Minutor (${found})`,        color: '#22c55e' },
             { key: 'nao',        label: `✗ Não encontrado (${notFound})`, color: '#ef4444' },
           ] as const).map(opt => (
             <button key={opt.key} onClick={() => setMatchFilter(opt.key)}
               className="px-3 py-1.5 font-medium transition-colors"
               style={{ background: matchFilter === opt.key ? 'rgba(255,255,255,0.06)' : 'transparent', color: matchFilter === opt.key ? opt.color : '#71717a' }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+          {([
+            { key: 'all',     label: `Todos`,              color: '#71717a' },
+            { key: 'ativo',   label: `● Ativo (${ativos})`,   color: '#22c55e' },
+            { key: 'inativo', label: `● Inativo (${inativos})`, color: '#ef4444' },
+          ] as const).map(opt => (
+            <button key={opt.key} onClick={() => setStatusFilter(opt.key)}
+              className="px-3 py-1.5 font-medium transition-colors"
+              style={{ background: statusFilter === opt.key ? 'rgba(255,255,255,0.06)' : 'transparent', color: statusFilter === opt.key ? opt.color : '#71717a' }}>
               {opt.label}
             </button>
           ))}
