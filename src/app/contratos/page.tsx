@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, X, Trash2, FileText, Download, Rocket, Eye, Pencil, CheckCircle, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
+import { Plus, X, Trash2, FileText, Download, Rocket, Eye, Pencil, CheckCircle, ChevronLeft, ChevronRight, ExternalLink, LayoutGrid } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
 
@@ -508,11 +508,18 @@ export default function ContratosPage() {
           <h1 className="text-xl font-bold text-white">Contratos</h1>
           <p className="text-xs text-zinc-500 mt-0.5">{total} contrato{total !== 1 ? 's' : ''} cadastrado{total !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={openNew}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-          style={{ background: 'rgba(0,245,255,0.12)', border: '1px solid rgba(0,245,255,0.3)', color: '#00F5FF' }}>
-          <Plus size={15} /> Novo Contrato
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => router.push('/contratos/kanban')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
+            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
+            <LayoutGrid size={14} /> Kanban
+          </button>
+          <button onClick={openNew}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+            style={{ background: 'rgba(0,245,255,0.12)', border: '1px solid rgba(0,245,255,0.3)', color: '#00F5FF' }}>
+            <Plus size={15} /> Novo Contrato
+          </button>
+        </div>
       </div>
 
       {/* ── Filters ── */}

@@ -33,6 +33,7 @@ import {
   CreditCard,
   FileText,
   Contact,
+  LayoutGrid,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -114,6 +115,7 @@ const NAV: NavEntry[] = [
   { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
   { type: 'item', label: 'Gestão de Projetos',    href: '/gestao-projetos', icon: Layers },
   { type: 'item', label: 'Contratos',             href: '/contratos',        icon: FileText },
+  { type: 'item', label: 'Pipeline (Kanban)',     href: '/contratos/kanban', icon: LayoutGrid },
   { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',     icon: Headphones },
   { type: 'item', label: 'Visão Executiva',    href: '/portal-cliente',  icon: Building2 },
   { type: 'item', label: 'Apontamentos',       href: '/timesheets',      icon: Clock },
