@@ -983,6 +983,72 @@ export default function SustentacaoPage() {
                 ))}
               </div>
 
+              {/* Gráficos sempre visíveis: Consultor + Cliente (tickets abertos) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+                  <p className="text-xs font-semibold text-zinc-300 mb-3">Tickets Abertos por Consultor</p>
+                  <ResponsiveContainer width="100%" height={Math.max(180, indicadores.by_consultant.length * 28)}>
+                    <BarChart layout="vertical"
+                      data={[...indicadores.by_consultant].sort((a, b) => b.total_open - a.total_open).map(c => ({
+                        name: c.name.split(' ')[0], fullName: c.name, email: c.email,
+                        Abertos: c.total_open, 'Em Atend.': c.in_attendance, 'SLA Viol.': c.sla_breached,
+                      }))}
+                      margin={{ left: 0, right: 24, top: 0, bottom: 0 }}
+                      onClick={(d: any) => { const p = d?.activePayload?.[0]?.payload; if (p) fetchDrillDown('consultor', p.email, p.fullName) }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={72} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
+                        labelFormatter={(_: any, pl: any) => pl?.[0]?.payload?.fullName ?? ''} />
+                      <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+                      <Bar dataKey="Abertos" fill={CYAN} radius={[0,3,3,0]} cursor="pointer" />
+                      <Bar dataKey="Em Atend." fill={BLUE} radius={[0,3,3,0]} cursor="pointer" />
+                      <Bar dataKey="SLA Viol." fill={RED} radius={[0,3,3,0]} cursor="pointer" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+                  <p className="text-xs font-semibold text-zinc-300 mb-3">Tickets Abertos por Cliente</p>
+                  <ResponsiveContainer width="100%" height={Math.max(180, indicadores.by_client.length * 28)}>
+                    <BarChart layout="vertical"
+                      data={[...indicadores.by_client].sort((a, b) => b.total_open - a.total_open).map(c => ({
+                        name: c.name.length > 18 ? c.name.slice(0, 16) + '…' : c.name, fullName: c.name,
+                        Abertos: c.total_open, 'Em Atend.': c.in_attendance, 'SLA Viol.': c.sla_breached,
+                      }))}
+                      margin={{ left: 0, right: 24, top: 0, bottom: 0 }}
+                      onClick={(d: any) => { const p = d?.activePayload?.[0]?.payload; if (p) fetchDrillDown('cliente', p.fullName, p.fullName) }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={110} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
+                        labelFormatter={(_: any, pl: any) => pl?.[0]?.payload?.fullName ?? ''} />
+                      <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+                      <Bar dataKey="Abertos" fill={CYAN} radius={[0,3,3,0]} cursor="pointer" />
+                      <Bar dataKey="Em Atend." fill={BLUE} radius={[0,3,3,0]} cursor="pointer" />
+                      <Bar dataKey="SLA Viol." fill={RED} radius={[0,3,3,0]} cursor="pointer" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Drill-down ao clicar no gráfico (quando nenhum card está aberto) */}
+              {drillDown && !indicadorOpen && (
+                <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'rgba(0,245,255,0.2)', background: 'var(--brand-surface)' }}>
+                  <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                    <p className="text-xs font-semibold text-cyan-400">
+                      Tickets de {drillDown.label}
+                      {drillTickets && !drillLoading && <span className="ml-2 text-zinc-500 font-normal">({drillTickets.length} abertos)</span>}
+                    </p>
+                    <button onClick={() => { setDrillDown(null); setDrillTickets(null) }} className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 rounded">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                    </button>
+                  </div>
+                  {drillLoading && <p className="text-xs text-zinc-500 px-4 py-3">Carregando...</p>}
+                  {!drillLoading && drillTickets?.length === 0 && <p className="text-xs text-zinc-500 px-4 py-3">Nenhum ticket aberto.</p>}
+                  {!drillLoading && drillTickets && drillTickets.length > 0 && <DrillTicketTable tickets={drillTickets} />}
+                </div>
+              )}
+
               {/* Painel de detalhes expansível */}
               {indicadorOpen && (
                 <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
