@@ -969,7 +969,7 @@ export default function SustentacaoPage() {
         )}
         {tab === 'debug-resp' && !loading && debugResponsaveis && (
           <DebugResponsaveisTab rows={debugResponsaveis.rows} onSync={async () => {
-            await api.post('/sustentacao/sync-orgs', {})
+            await api.post('/sustentacao/sync-agents', {})
             const r = await api.get<{ rows: DebugResponsavelRow[] }>('/sustentacao/debug-responsaveis')
             setDebugResponsaveis(r)
           }} />
