@@ -11,7 +11,7 @@ import {
 } from 'recharts'
 import {
   AlertTriangle, CheckCircle, Clock, TrendingUp, Users, DollarSign,
-  Activity, BarChart2, List, Shield, Globe, Zap, RefreshCw,
+  Activity, BarChart2, List, Shield, Globe, Zap, RefreshCw, Wrench,
 } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -76,6 +76,17 @@ interface EvolutionData {
   monthly: { month: string; total: number; resolved: number; sla_ok: number }[]
 }
 
+interface DebugClienteRow {
+  org: string | null
+  cnpj_raw: string | null
+  cnpj_norm: string | null
+  tickets: number
+  vinculados: number
+  match: 'cnpj' | 'nome' | 'nao'
+  minutor_name: string | null
+  minutor_cgc: string | null
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CYAN   = '#00F5FF'
@@ -102,6 +113,7 @@ const TABS = [
   { id: 'clients',      label: 'Por Cliente',       icon: Globe },
   { id: 'distribution', label: 'Distribuição',      icon: BarChart2 },
   { id: 'evolution',    label: 'Evolução',           icon: TrendingUp },
+  { id: 'debug',        label: 'Diagnóstico',        icon: Wrench },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -190,6 +202,7 @@ export default function SustentacaoPage() {
   const [clients, setClients]         = useState<ClientData | null>(null)
   const [distribution, setDistribution] = useState<DistributionData | null>(null)
   const [evolution, setEvolution]     = useState<EvolutionData | null>(null)
+  const [debugClientes, setDebugClientes] = useState<{ rows: DebugClienteRow[] } | null>(null)
 
   const params = `from=${from}&to=${to}`
 
@@ -220,13 +233,16 @@ export default function SustentacaoPage() {
       } else if (t === 'evolution' && !evolution) {
         const r = await api.get<EvolutionData>(`/sustentacao/evolution`)
         setEvolution(r)
+      } else if (t === 'debug' && !debugClientes) {
+        const r = await api.get<{ rows: DebugClienteRow[] }>(`/sustentacao/debug-clientes`)
+        setDebugClientes(r)
       }
     } catch (e) {
       console.error(e)
     } finally {
       setLoading(false)
     }
-  }, [params, kpis, slaData, productivity, financial, clients, distribution, evolution])
+  }, [params, kpis, slaData, productivity, financial, clients, distribution, evolution, debugClientes])
 
   useEffect(() => { load(tab) }, [tab])
 
@@ -238,7 +254,7 @@ export default function SustentacaoPage() {
   const refresh = () => {
     setKpis(null); setQueue(null); setSlaData(null)
     setProductivity(null); setFinancial(null); setClients(null)
-    setDistribution(null); setEvolution(null)
+    setDistribution(null); setEvolution(null); setDebugClientes(null)
     setTimeout(() => load(tab), 50)
   }
 
@@ -645,6 +661,53 @@ export default function SustentacaoPage() {
 
         {!loading && !kpis && tab === 'kpis' && (
           <p className="text-zinc-500 text-sm">Carregando dados...</p>
+        )}
+
+        {/* DIAGNÓSTICO */}
+        {tab === 'debug' && debugClientes && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-300">Comparativo Clientes: Movidesk × Minutor</h2>
+              <div className="flex items-center gap-3 text-xs text-zinc-500">
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"/>CNPJ</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500 inline-block"/>Nome</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block"/>Não vinculado</span>
+              </div>
+            </div>
+            <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)' }}>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
+                    <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Organização Movidesk</th>
+                    <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">CNPJ Movidesk</th>
+                    <th className="text-right px-3 py-2.5 text-zinc-400 font-medium">Tickets</th>
+                    <th className="text-right px-3 py-2.5 text-zinc-400 font-medium">Vinculados</th>
+                    <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Cliente no Minutor</th>
+                    <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">CNPJ Minutor</th>
+                    <th className="text-center px-3 py-2.5 text-zinc-400 font-medium">Vínculo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {debugClientes.rows.map((row, i) => {
+                    const matchColor = row.match === 'cnpj' ? '#22c55e' : row.match === 'nome' ? '#eab308' : '#ef4444'
+                    const matchLabel = row.match === 'cnpj' ? '✓ CNPJ' : row.match === 'nome' ? '~ Nome' : '✗ Não'
+                    return (
+                      <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                        <td className="px-3 py-2 text-zinc-200">{row.org ?? '—'}</td>
+                        <td className="px-3 py-2 font-mono text-zinc-400">{row.cnpj_norm ?? <span className="text-red-400 italic">vazio</span>}</td>
+                        <td className="px-3 py-2 text-right text-zinc-300">{row.tickets}</td>
+                        <td className="px-3 py-2 text-right" style={{ color: row.vinculados === row.tickets ? '#22c55e' : row.vinculados > 0 ? '#eab308' : '#ef4444' }}>{row.vinculados}</td>
+                        <td className="px-3 py-2 text-zinc-200">{row.minutor_name ?? <span className="text-zinc-600 italic">—</span>}</td>
+                        <td className="px-3 py-2 font-mono text-zinc-400">{row.minutor_cgc ?? <span className="text-zinc-600 italic">—</span>}</td>
+                        <td className="px-3 py-2 text-center font-semibold" style={{ color: matchColor }}>{matchLabel}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-zinc-600">{debugClientes.rows.length} organizações distintas encontradas no Movidesk.</p>
+          </div>
         )}
       </div>
     </div>
