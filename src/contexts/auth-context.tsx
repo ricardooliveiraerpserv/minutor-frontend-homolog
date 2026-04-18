@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = loadUser
 
   const hasPermission = (permission: string) =>
-    user?.type === 'admin' || false
+    user?.type === 'admin' || (user?.extra_permissions ?? []).includes(permission)
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, hasPermission }}>

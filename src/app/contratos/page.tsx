@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Plus, X, Trash2, FileText, Download, Rocket, Eye, Pencil, CheckCircle, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
+import { useAuth } from '@/hooks/use-auth'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,6 +160,11 @@ function fmtDate(d: string | null): string {
 
 export default function ContratosPage() {
   const router = useRouter()
+  const { user } = useAuth()
+
+  useEffect(() => {
+    if (user && user.type !== 'admin') router.replace('/dashboard')
+  }, [user, router])
 
   // List state
   const [contracts, setContracts] = useState<Contract[]>([])
@@ -238,7 +244,7 @@ export default function ContratosPage() {
   useEffect(() => {
     api.get<any>('/customers?pageSize=500').then(r => setCustomers(r?.items ?? r ?? [])).catch(() => {})
     api.get<any>('/users?pageSize=500').then(r => setUsers(r?.items ?? r ?? [])).catch(() => {})
-    api.get<any>('/executives/all').then(r => setExecutives(r?.items ?? r ?? [])).catch(() => {})
+    api.get<any>('/executives?pageSize=100').then(r => setExecutives(r?.items ?? [])).catch(() => {})
     api.get<any>('/service-types?pageSize=100').then(r => setServiceTypes(r?.items ?? r?.data ?? r ?? [])).catch(() => {})
     api.get<any>('/contract-types?pageSize=100').then(r => setContractTypes(r?.items ?? r?.data ?? r ?? [])).catch(() => {})
   }, [])
@@ -310,8 +316,8 @@ export default function ContratosPage() {
   // ─── Save ─────────────────────────────────────────────────────────────────
 
   const save = async () => {
-    if (!form.customer_id)       { toast.error('Selecione o cliente'); setActiveTab(0); return }
-    if (!form.horas_contratadas) { toast.error('Informe as horas contratadas'); setActiveTab(4); return }
+    if (!form.customer_id)                           { toast.error('Selecione o cliente'); setActiveTab(0); return }
+    if (!isOnDemand && !form.horas_contratadas)      { toast.error('Informe as horas contratadas'); setActiveTab(4); return }
 
     setSaving(true)
     try {
@@ -325,7 +331,7 @@ export default function ContratosPage() {
         limite_despesa:       form.limite_despesa ? Number(form.limite_despesa) : null,
         architect_id:         form.architect_id ? Number(form.architect_id) : null,
         tipo_alocacao:        form.tipo_alocacao,
-        horas_contratadas:    Number(form.horas_contratadas),
+        horas_contratadas:    isOnDemand ? 0 : Number(form.horas_contratadas),
         valor_projeto:        form.valor_projeto ? Number(form.valor_projeto) : null,
         valor_hora:           form.valor_hora ? Number(form.valor_hora) : null,
         hora_adicional:       form.hora_adicional ? Number(form.hora_adicional) : null,
@@ -356,7 +362,7 @@ export default function ContratosPage() {
           fd.append('type', type)
           await fetch(`/api/v1/contracts/${contract.id}/attachments`, {
             method: 'POST',
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            headers: { Authorization: `Bearer ${localStorage.getItem('minutor_token')}` },
             body: fd,
           })
         }
@@ -401,7 +407,7 @@ export default function ContratosPage() {
   // ─── Attachment helpers ───────────────────────────────────────────────────
 
   const downloadAttachment = async (contractId: number, att: ContractAttachment) => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('minutor_token')
     const res = await fetch(`/api/v1/contracts/${contractId}/attachments/${att.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -566,7 +572,16 @@ export default function ContratosPage() {
           <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-              <h2 className="text-base font-semibold text-white">{editContract ? 'Editar Contrato' : 'Novo Contrato'}</h2>
+              <div>
+                <h2 className="text-base font-semibold text-white">{editContract ? 'Editar Contrato' : 'Novo Contrato'}</h2>
+                {(selectedContractType || form.service_type_id) && (
+                  <p className="text-[11px] text-zinc-500 mt-0.5 flex items-center gap-1.5">
+                    {selectedContractType && <span style={{ color: '#00F5FF' }}>{selectedContractType.name}</span>}
+                    {selectedContractType && form.service_type_id && <span className="text-zinc-600">·</span>}
+                    {form.service_type_id && <span>{serviceTypes.find(s => String(s.id) === String(form.service_type_id))?.name}</span>}
+                  </p>
+                )}
+              </div>
               <button onClick={() => setModalOpen(false)} className="text-zinc-500 hover:text-zinc-300 transition-colors"><X size={18} /></button>
             </div>
 
@@ -740,12 +755,14 @@ export default function ContratosPage() {
 
                   {/* Horas e datas */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelCls}>Horas Contratadas *</label>
-                      <input type="number" min="0" value={form.horas_contratadas}
-                        onChange={e => setForm(f => ({ ...f, horas_contratadas: e.target.value }))}
-                        className={inputCls} style={inputStyle} />
-                    </div>
+                    {!isOnDemand && (
+                      <div>
+                        <label className={labelCls}>Horas Contratadas *</label>
+                        <input type="number" min="0" value={form.horas_contratadas}
+                          onChange={e => setForm(f => ({ ...f, horas_contratadas: e.target.value }))}
+                          className={inputCls} style={inputStyle} />
+                      </div>
+                    )}
                     <div>
                       <label className={labelCls}>Expectativa de Início</label>
                       <input type="date" value={form.expectativa_inicio}

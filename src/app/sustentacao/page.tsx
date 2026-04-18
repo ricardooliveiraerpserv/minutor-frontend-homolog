@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/use-auth'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { api } from '@/lib/api'
@@ -707,6 +709,16 @@ function DrillTicketTable({ tickets }: { tickets: QueueTicket[] }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SustentacaoPage() {
+  const router = useRouter()
+  const { user } = useAuth()
+
+  useEffect(() => {
+    if (!user) return
+    const isAdmin = user.type === 'admin'
+    const isSustentacaoCoord = user.type === 'coordenador' && user.coordinator_type === 'sustentacao'
+    if (!isAdmin && !isSustentacaoCoord) router.replace('/dashboard')
+  }, [user, router])
+
   const [tab, setTab]         = useState('kpis')
   const [loading, setLoading] = useState(false)
   const [filterMode, setFilterMode] = useState<'month' | 'period'>('month')

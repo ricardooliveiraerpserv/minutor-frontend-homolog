@@ -2,6 +2,8 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/hooks/use-auth'
 import { api, ApiError } from '@/lib/api'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
@@ -227,6 +229,14 @@ function HistoryRow({ row, onReopen }: { row: HourBankClosing; onReopen: (ym: st
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HoraBancoPage() {
+  const { user, hasPermission } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!user) return
+    if (user.type !== 'admin' && !hasPermission('hora_banco.view')) router.replace('/dashboard')
+  }, [user, router, hasPermission])
+
   const [consultants, setConsultants] = useState<ConsultantSummary[]>([])
   const [selected, setSelected] = useState<ConsultantSummary | null>(null)
   const [preview, setPreview] = useState<HourBankClosing | null>(null)

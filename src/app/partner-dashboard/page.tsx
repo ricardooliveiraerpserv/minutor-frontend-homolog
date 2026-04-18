@@ -195,6 +195,12 @@ function KpiCard({
 export default function PartnerDashboardPage() {
   const { user } = useAuth()
   const router = useRouter()
+
+  useEffect(() => {
+    if (!user) return
+    if (user.type !== 'parceiro_admin' || !user.is_executive) router.replace('/dashboard')
+  }, [user, router])
+
   const [data, setData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('consultores')
