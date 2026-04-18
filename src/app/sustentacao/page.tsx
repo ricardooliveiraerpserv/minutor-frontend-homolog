@@ -998,7 +998,7 @@ export default function SustentacaoPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                       <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="name" width={72} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
+                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
                         labelFormatter={(_: any, pl: any) => pl?.[0]?.payload?.fullName ?? ''} />
                       <Bar dataKey="Pendente Erpserv" fill={CYAN} radius={[0,3,3,0]} cursor="pointer" label={{ position: 'right', fill: '#71717a', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }} />
                     </BarChart>
@@ -1017,7 +1017,7 @@ export default function SustentacaoPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
                       <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="name" width={110} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
+                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
                         labelFormatter={(_: any, pl: any) => pl?.[0]?.payload?.fullName ?? ''} />
                       <Bar dataKey="Pendente Erpserv" fill={CYAN} radius={[0,3,3,0]} cursor="pointer" label={{ position: 'right', fill: '#71717a', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }} />
                     </BarChart>
@@ -1432,7 +1432,7 @@ export default function SustentacaoPage() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                         <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#71717a' }} />
                         <YAxis tick={{ fontSize: 10, fill: '#71717a' }} />
-                        <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
+                        <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
                         <Line dataKey="total" name="Total" stroke={BLUE} dot={false} />
                         <Line dataKey="on_time" name="No Prazo" stroke={GREEN} dot={false} />
                       </LineChart>
@@ -1478,7 +1478,7 @@ export default function SustentacaoPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                     <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#71717a' }} />
                     <YAxis tick={{ fontSize: 10, fill: '#71717a' }} />
-                    <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
+                    <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
                     <Bar dataKey="tickets" name="Tickets" fill={CYAN} radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1581,7 +1581,7 @@ export default function SustentacaoPage() {
                         <Pie data={data} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={65} label={({ name, percent }) => `${name ?? ''} ${percent != null ? (percent * 100).toFixed(0) : 0}%`} labelLine={false}>
                           {data.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
                         </Pie>
-                        <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
+                        <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
@@ -1602,7 +1602,7 @@ export default function SustentacaoPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                       <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#71717a' }} />
                       <YAxis tick={{ fontSize: 10, fill: '#71717a' }} />
-                      <Tooltip contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
+                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
                       <Bar dataKey="total"    name="Total"     fill={BLUE}  radius={[2,2,0,0]} />
                       <Bar dataKey="resolved" name="Resolvidos" fill={GREEN} radius={[2,2,0,0]} />
@@ -1622,7 +1622,7 @@ export default function SustentacaoPage() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                     <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#71717a' }} />
                     <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#71717a' }} />
-                    <Tooltip formatter={(v) => `${v}%`} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
+                    <Tooltip formatter={(v) => `${v}%`} cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
                     <Line dataKey="taxa" name="SLA OK %" stroke={CYAN} dot={{ r: 3 }} strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
