@@ -86,6 +86,17 @@ interface DebugClienteRow {
   minutor_cgc: string | null
 }
 
+interface DebugResponsavelRow {
+  owner_email: string
+  owner_name: string | null
+  team: string | null
+  tickets: number
+  vinculados: number
+  match: 'encontrado' | 'nao'
+  minutor_name: string | null
+  minutor_id: number | null
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CYAN   = '#00F5FF'
@@ -113,6 +124,7 @@ const TABS = [
   { id: 'distribution', label: 'Distribuição',      icon: BarChart2 },
   { id: 'evolution',    label: 'Evolução',           icon: TrendingUp },
   { id: 'debug',        label: 'Diagnóstico',        icon: Wrench },
+  { id: 'debug-resp',  label: 'Responsáveis',       icon: Users },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -300,6 +312,100 @@ function DebugClientesTab({ rows, onSync }: { rows: DebugClienteRow[]; onSync: (
   )
 }
 
+// ─── Debug Responsáveis Tab ───────────────────────────────────────────────────
+
+function DebugResponsaveisTab({ rows }: { rows: DebugResponsavelRow[] }) {
+  const [search, setSearch]         = useState('')
+  const [matchFilter, setMatchFilter] = useState<'all' | 'encontrado' | 'nao'>('all')
+
+  const filtered = rows.filter(row => {
+    if (matchFilter !== 'all' && row.match !== matchFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      if (
+        !row.owner_email.toLowerCase().includes(q) &&
+        !(row.owner_name ?? '').toLowerCase().includes(q) &&
+        !(row.minutor_name ?? '').toLowerCase().includes(q)
+      ) return false
+    }
+    return true
+  })
+
+  const found    = rows.filter(r => r.match === 'encontrado').length
+  const notFound = rows.filter(r => r.match === 'nao').length
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-zinc-300">Responsáveis por Ticket: Movidesk × Minutor</h2>
+        <span className="text-xs text-zinc-600">{filtered.length} de {rows.length} responsáveis</span>
+      </div>
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <input
+          type="text"
+          placeholder="Buscar por nome ou email..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="px-3 py-1.5 rounded-lg text-xs bg-transparent outline-none"
+          style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-text)', width: 220 }}
+        />
+        <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+          {([
+            { key: 'all',        label: `Todos (${rows.length})`,       color: '#71717a' },
+            { key: 'encontrado', label: `✓ No Minutor (${found})`,      color: '#22c55e' },
+            { key: 'nao',        label: `✗ Não encontrado (${notFound})`, color: '#ef4444' },
+          ] as const).map(opt => (
+            <button key={opt.key} onClick={() => setMatchFilter(opt.key)}
+              className="px-3 py-1.5 font-medium transition-colors"
+              style={{ background: matchFilter === opt.key ? 'rgba(255,255,255,0.06)' : 'transparent', color: matchFilter === opt.key ? opt.color : '#71717a' }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)' }}>
+        <table className="w-full text-xs">
+          <thead>
+            <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
+              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Nome Movidesk</th>
+              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Email Movidesk</th>
+              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Equipe</th>
+              <th className="text-right px-3 py-2.5 text-zinc-400 font-medium">Tickets</th>
+              <th className="text-right px-3 py-2.5 text-zinc-400 font-medium">Vinculados</th>
+              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Nome no Minutor</th>
+              <th className="text-center px-3 py-2.5 text-zinc-400 font-medium">Vínculo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((row, i) => {
+              const matchColor = row.match === 'encontrado' ? '#22c55e' : '#ef4444'
+              const matchLabel = row.match === 'encontrado' ? '✓ Encontrado' : '✗ Não'
+              return (
+                <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                  <td className="px-3 py-2 text-zinc-200">{row.owner_name ?? '—'}</td>
+                  <td className="px-3 py-2 font-mono text-zinc-400">{row.owner_email}</td>
+                  <td className="px-3 py-2 text-zinc-500">{row.team ?? '—'}</td>
+                  <td className="px-3 py-2 text-right text-zinc-300">{row.tickets}</td>
+                  <td className="px-3 py-2 text-right" style={{ color: row.vinculados === row.tickets ? '#22c55e' : row.vinculados > 0 ? '#eab308' : '#ef4444' }}>{row.vinculados}</td>
+                  <td className="px-3 py-2 text-zinc-300">{row.minutor_name ?? <span className="text-zinc-600 italic">—</span>}</td>
+                  <td className="px-3 py-2 text-center">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${matchColor}18`, color: matchColor }}>{matchLabel}</span>
+                  </td>
+                </tr>
+              )
+            })}
+            {filtered.length === 0 && (
+              <tr><td colSpan={7} className="px-3 py-8 text-center text-zinc-600 text-xs">Nenhum resultado para os filtros selecionados.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 // ─── Section wrapper ──────────────────────────────────────────────────────────
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -343,7 +449,8 @@ export default function SustentacaoPage() {
   const [clients, setClients]         = useState<ClientData | null>(null)
   const [distribution, setDistribution] = useState<DistributionData | null>(null)
   const [evolution, setEvolution]     = useState<EvolutionData | null>(null)
-  const [debugClientes, setDebugClientes] = useState<{ rows: DebugClienteRow[] } | null>(null)
+  const [debugClientes, setDebugClientes]         = useState<{ rows: DebugClienteRow[] } | null>(null)
+  const [debugResponsaveis, setDebugResponsaveis] = useState<{ rows: DebugResponsavelRow[] } | null>(null)
 
   const params = `from=${from}&to=${to}`
 
@@ -377,13 +484,16 @@ export default function SustentacaoPage() {
       } else if (t === 'debug' && !debugClientes) {
         const r = await api.get<{ rows: DebugClienteRow[] }>(`/sustentacao/debug-clientes`)
         setDebugClientes(r)
+      } else if (t === 'debug-resp' && !debugResponsaveis) {
+        const r = await api.get<{ rows: DebugResponsavelRow[] }>(`/sustentacao/debug-responsaveis`)
+        setDebugResponsaveis(r)
       }
     } catch (e) {
       console.error(e)
     } finally {
       setLoading(false)
     }
-  }, [params, kpis, slaData, productivity, financial, clients, distribution, evolution, debugClientes])
+  }, [params, kpis, slaData, productivity, financial, clients, distribution, evolution, debugClientes, debugResponsaveis])
 
   useEffect(() => { load(tab) }, [tab])
 
@@ -814,6 +924,14 @@ export default function SustentacaoPage() {
             const r = await api.get<{ rows: DebugClienteRow[] }>('/sustentacao/debug-clientes')
             setDebugClientes(r)
           }} />
+        )}
+
+        {/* RESPONSÁVEIS */}
+        {tab === 'debug-resp' && !debugResponsaveis && !loading && (
+          <p className="text-zinc-500 text-sm">Carregando responsáveis...</p>
+        )}
+        {tab === 'debug-resp' && debugResponsaveis && (
+          <DebugResponsaveisTab rows={debugResponsaveis.rows} />
         )}
       </div>
     </div>
