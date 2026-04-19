@@ -73,6 +73,7 @@ interface RequestCard {
   cenario_atual?: string
   cenario_desejado?: string
   status: string
+  kanban_column: string
   created_at: string
 }
 
@@ -1200,16 +1201,16 @@ function KanbanContent() {
       return
     }
 
-    // ── Moving a request card (reorder only — no backend state change) ──
+    // ── Moving a request card ──
     if (cardType === 'request') {
-      setRequestCards(prev => {
-        const items = [...prev]
-        const from  = items.findIndex(r => r.id === cardId)
-        if (from < 0) return prev
-        const [moved] = items.splice(from, 1)
-        items.splice(destination.index, 0, moved)
-        return items
-      })
+      setRequestCards(prev =>
+        prev.map(r => r.id === cardId ? { ...r, kanban_column: toCol } : r)
+      )
+      try {
+        await api.patch(`/contract-requests/${cardId}/kanban-move`, { kanban_column: toCol })
+      } catch {
+        load()
+      }
       return
     }
 
@@ -1345,7 +1346,7 @@ function KanbanContent() {
                   col={col}
                   contractCards={contractsInCol(col.id)}
                   projectCards={[]}
-                  requestCards={col.id === 'backlog' ? requestCards : []}
+                  requestCards={requestCards.filter(r => (r.kanban_column ?? 'backlog') === col.id)}
                   canDrag={colCanDrag(col.id)}
                   canDrop={colCanDrop(col.id)}
                   onContractClick={setSelectedContract}
