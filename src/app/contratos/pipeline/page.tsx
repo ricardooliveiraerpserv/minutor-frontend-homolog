@@ -7,7 +7,8 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, Clock, ChevronRight, Rocket, Layers, FolderKanban } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, Clock, ChevronRight, Rocket, Layers, FolderKanban, MessageSquare } from 'lucide-react'
+import { ProjectMessages } from '@/components/shared/ProjectMessages'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -534,7 +535,9 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
   )
 }
 
-function ProjectDetailModal({ card, onClose }: { card: ProjectCard; onClose: () => void }) {
+function ProjectDetailModal({ card, onClose, userRole }: { card: ProjectCard; onClose: () => void; userRole: string }) {
+  const [tab, setTab] = useState<'details' | 'chat'>('details')
+
   const statusColor: Record<string, string> = {
     awaiting_start: '#94a3b8', started: '#22c55e',
     liberado_para_testes: '#f59e0b', finished: '#6366f1', paused: '#ef4444',
@@ -543,8 +546,9 @@ function ProjectDetailModal({ card, onClose }: { card: ProjectCard; onClose: () 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
-      <div className="w-full max-w-lg rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(99,102,241,0.3)' }}>
-        <div className="px-6 py-5 border-b" style={{ borderColor: 'rgba(99,102,241,0.2)' }}>
+      <div className="w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(99,102,241,0.3)', maxHeight: '85vh' }}>
+        {/* Header */}
+        <div className="px-6 py-4 border-b shrink-0" style={{ borderColor: 'rgba(99,102,241,0.2)' }}>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{card.project_name}</p>
@@ -554,30 +558,57 @@ function ProjectDetailModal({ card, onClose }: { card: ProjectCard; onClose: () 
               {STATUS_LABEL[card.status] ?? card.status}
             </span>
           </div>
-        </div>
-        <div className="px-6 py-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            {([
-              ['Código', card.code],
-              ['Horas Vendidas', card.sold_hours ? `${card.sold_hours}h` : '—'],
-              ['Coordenadores', card.coordinators?.join(', ') || '—'],
-              ['Consultores', card.consultants?.join(', ') || '—'],
-            ] as [string, string][]).map(([label, value]) => (
-              <div key={label}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
-                <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
-              </div>
+          {/* Tabs */}
+          <div className="flex gap-1 mt-3">
+            {(['details', 'chat'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={tab === t
+                  ? { background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }
+                  : { color: 'var(--brand-subtle)', border: '1px solid transparent' }}
+              >
+                {t === 'details' ? <><ExternalLink size={11} /> Detalhes</> : <><MessageSquare size={11} /> Chat</>}
+              </button>
             ))}
           </div>
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'rgba(99,102,241,0.2)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Fechar</button>
-          <button onClick={() => { window.location.href = '/projects' }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: 'rgba(99,102,241,0.2)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.35)' }}>
-            <ExternalLink size={13} /> Ver Projeto
-          </button>
-        </div>
+
+        {/* Body */}
+        {tab === 'details' ? (
+          <>
+            <div className="px-6 py-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {([
+                  ['Código', card.code],
+                  ['Horas Vendidas', card.sold_hours ? `${card.sold_hours}h` : '—'],
+                  ['Coordenadores', card.coordinators?.join(', ') || '—'],
+                  ['Consultores', card.consultants?.join(', ') || '—'],
+                ] as [string, string][]).map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
+                    <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t shrink-0" style={{ borderColor: 'rgba(99,102,241,0.2)' }}>
+              <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Fechar</button>
+              {userRole !== 'cliente' && (
+                <button onClick={() => { window.location.href = '/projects' }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+                  style={{ background: 'rgba(99,102,241,0.2)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.35)' }}>
+                  <ExternalLink size={13} /> Ver Projeto
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            <ProjectMessages projectId={card.id} userRole={userRole} />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1020,7 +1051,7 @@ function KanbanContent() {
         />
       )}
       {selectedProject && (
-        <ProjectDetailModal card={selectedProject} onClose={() => setSelectedProject(null)} />
+        <ProjectDetailModal card={selectedProject} onClose={() => setSelectedProject(null)} userRole={userRole} />
       )}
       {selectedRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
