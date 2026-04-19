@@ -109,10 +109,9 @@ const DEMAND_COLS: Column[] = [
   { id: 'em_revisao',          label: 'Em Revisão',       phase: 'demand', clientCanDrop: true, clientLocked: true },
   { id: 'aprovado',            label: 'Aprovado',         phase: 'demand', clientCanDrop: true, clientLocked: true },
   { id: 'req_inicio_autorizado', label: 'Aguardando Início (Req.)', phase: 'demand' },
-  { id: 'req_autorizado',        label: 'Início Autorizado (Req.)', phase: 'demand' },
 ]
 
-const REQ_ONLY_COLS = new Set(['req_planejamento', 'req_inicio_autorizado', 'req_autorizado', 'req_em_andamento'])
+const REQ_ONLY_COLS = new Set(['req_planejamento', 'req_inicio_autorizado', 'req_em_andamento'])
 
 const TRANSITION_COL: Column = {
   id: 'inicio_autorizado', label: 'Início Autorizado', phase: 'transition',
@@ -737,8 +736,8 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone }: {
         tipo_faturamento: tipoFaturamento || undefined,
         valor_projeto: valorProjeto ? Number(valorProjeto) : undefined,
       })
-      toast.success('Contrato criado — requisição aguardando início')
-      onDone({ ...card, kanban_column: 'req_inicio_autorizado', req_decision: 'novo_projeto', linked_contract_id: res.linked_contract_id })
+      toast.success('Contrato criado — requisição em Início Autorizado')
+      onDone({ ...card, kanban_column: 'inicio_autorizado', req_decision: 'novo_projeto', linked_contract_id: res.linked_contract_id })
       onClose()
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao processar')
@@ -757,7 +756,7 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone }: {
         coordinator_id: selectedCoordinatorId ?? undefined,
       })
       toast.success('Requisição vinculada ao projeto — Início Autorizado')
-      onDone({ ...card, kanban_column: 'req_autorizado', req_decision: 'subprojeto', linked_coordinator_id: selectedCoordinatorId ?? undefined })
+      onDone({ ...card, kanban_column: 'inicio_autorizado', req_decision: 'subprojeto', linked_coordinator_id: selectedCoordinatorId ?? undefined })
       onClose()
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao processar')
@@ -1035,7 +1034,7 @@ function KanbanLogTab({ logs, loading }: { logs: KanbanLogEntry[]; loading: bool
     backlog: 'Backlog', novo_projeto: 'Novo Projeto', em_planejamento: 'Em Planejamento',
     em_validacao: 'Em Validação', em_revisao: 'Em Revisão', aprovado: 'Aprovado',
     inicio_autorizado: 'Início Autorizado', req_planejamento: 'Planejamento',
-    req_inicio_autorizado: 'Aguardando Início', req_autorizado: 'Início Autorizado', req_em_andamento: 'Em Andamento',
+    req_inicio_autorizado: 'Aguardando Início', req_em_andamento: 'Em Andamento',
     awaiting_start: 'Aguardando Início', started: 'Em Andamento', liberado_para_testes: 'Lib. p/ Testes',
     paused: 'Pausado', finished: 'Encerrado', cancelled: 'Cancelado',
   }
@@ -1505,7 +1504,7 @@ function KanbanColumn({
                   >
                     <RequestKanbanCard
                       card={card}
-                      onFinalize={(card.kanban_column === 'req_inicio_autorizado' || card.kanban_column === 'req_autorizado') && card.req_decision && onFinalizeRequest
+                      onFinalize={card.kanban_column === 'inicio_autorizado' && card.req_decision && onFinalizeRequest
                         ? (e) => { e.stopPropagation(); onFinalizeRequest(card) }
                         : undefined}
                     />
@@ -1869,6 +1868,7 @@ function KanbanContent() {
                     col={TRANSITION_COL}
                     contractCards={contractsInCol('inicio_autorizado')}
                     projectCards={[]}
+                    requestCards={requestCards.filter(r => r.kanban_column === 'inicio_autorizado')}
                     canDrag={colCanDrag('inicio_autorizado')}
                     canDrop={colCanDrop('inicio_autorizado')}
                     onContractClick={card => {
@@ -1879,6 +1879,8 @@ function KanbanContent() {
                       }
                     }}
                     onProjectClick={setSelectedProject}
+                    onRequestClick={setSelectedRequest}
+                    onFinalizeRequest={setFinalizeCard}
                   />
                   <PhaseSeparator label="Execução" icon={<ChevronRight />} />
                 </>
