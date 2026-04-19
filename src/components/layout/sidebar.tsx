@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
   Home,
@@ -474,6 +475,20 @@ function SidebarInner({ user }: { user: User }) {
           )
         })}
       </nav>
+
+      {/* ── Company logo ── */}
+      {!collapsed && (
+        <div className="flex items-center justify-center px-5 py-3 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+          <Image
+            src="/logo.png"
+            alt="ERPServ"
+            width={90}
+            height={36}
+            className="object-contain opacity-40"
+            style={{ filter: 'grayscale(1) invert(1) brightness(10)' }}
+          />
+        </div>
+      )}
 
       {/* ── Collapse toggle ── */}
       <button

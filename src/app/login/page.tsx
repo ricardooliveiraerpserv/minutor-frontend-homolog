@@ -115,10 +115,18 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-950">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <Image src="/logo.png" alt="Minutor" width={160} height={64} className="object-contain" priority />
+          <div className="flex justify-center mb-3">
+            <Image
+              src="/logo.png"
+              alt="ERPServ"
+              width={140}
+              height={56}
+              className="object-contain"
+              style={{ filter: 'grayscale(1) invert(1) brightness(10)' }}
+              priority
+            />
           </div>
-          <p className="text-zinc-400 text-sm mt-1">Gestão de horas e despesas</p>
+          <p className="text-zinc-500 text-xs tracking-widest uppercase mt-1">Minutor · Gestão de Horas</p>
         </div>
         <Suspense fallback={null}>
           <LoginForm />
