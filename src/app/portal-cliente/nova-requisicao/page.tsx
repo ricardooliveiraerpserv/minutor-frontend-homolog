@@ -18,6 +18,7 @@ const TIPOS = [
   { value: 'desenvolvimento_web_app',   label: 'Desenvolvimento Web/App' },
   { value: 'customizacao_erp_protheus', label: 'Customização ERP Protheus' },
   { value: 'integracao_erp_protheus',   label: 'Integração com ERP Protheus' },
+  { value: 'outro',                     label: 'Outro' },
 ]
 
 const URGENCIAS = [
@@ -128,20 +129,23 @@ function NovaRequisicaoContent() {
   const [saving, setSaving]       = useState(false)
 
   const [form, setForm] = useState({
-    area_requisitante: '',
-    product_owner:     '',
-    modulo_tecnologia: '',
-    tipo_necessidade:  '',
-    nivel_urgencia:    '',
-    descricao:         '',
-    cenario_atual:     '',
-    cenario_desejado:  '',
+    area_requisitante:  '',
+    product_owner:      '',
+    modulo_tecnologia:  '',
+    tipo_necessidade:   '',
+    tipo_necessidade_outro: '',
+    nivel_urgencia:     '',
+    descricao:          '',
+    cenario_atual:      '',
+    cenario_desejado:   '',
   })
 
   const set = (field: keyof typeof form) => (value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
 
-  const isValid = form.area_requisitante.trim() && form.tipo_necessidade && form.nivel_urgencia
+  const isOutro = form.tipo_necessidade === 'outro'
+  const isValid = form.area_requisitante.trim() && form.tipo_necessidade && form.nivel_urgencia &&
+    (!isOutro || form.tipo_necessidade_outro.trim())
 
   const handleSubmit = async () => {
     if (!isValid) {
@@ -160,7 +164,7 @@ function NovaRequisicaoContent() {
   }
 
   const resetForm = () => {
-    setForm({ area_requisitante: '', product_owner: '', modulo_tecnologia: '', tipo_necessidade: '', nivel_urgencia: '', descricao: '', cenario_atual: '', cenario_desejado: '' })
+    setForm({ area_requisitante: '', product_owner: '', modulo_tecnologia: '', tipo_necessidade: '', tipo_necessidade_outro: '', nivel_urgencia: '', descricao: '', cenario_atual: '', cenario_desejado: '' })
     setSubmitted(false)
   }
 
@@ -233,6 +237,16 @@ function NovaRequisicaoContent() {
                     </button>
                   ))}
                 </div>
+                {isOutro && (
+                  <div className="mt-3">
+                    <Label required>Descreva o tipo de necessidade</Label>
+                    <Input
+                      value={form.tipo_necessidade_outro}
+                      onChange={set('tipo_necessidade_outro')}
+                      placeholder="Ex: Consultoria, Auditoria, Integração customizada..."
+                    />
+                  </div>
+                )}
                 {!form.tipo_necessidade && (
                   <p className="text-[11px] mt-3 flex items-center gap-1" style={{ color: '#ef4444' }}>
                     <AlertCircle size={11} /> Selecione o tipo de necessidade
