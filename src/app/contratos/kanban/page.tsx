@@ -7,14 +7,12 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, Clock, ChevronRight, Rocket, Layers, FolderKanban } from 'lucide-react'
+import { List, Plus, ExternalLink, CheckCircle, AlertCircle, Clock, Users, Layers, PauseCircle, XCircle } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Phase = 'demand' | 'transition' | 'project'
-
 interface ContractCard {
-  card_type: 'contract'
+  card_type?: 'contract'
   id: number
   customer_name: string
   customer_id: number
@@ -48,64 +46,23 @@ interface ProjectCard {
   code: string
   status: string
   sold_hours?: number
+  coordinator_ids?: number[]
   coordinators?: string[]
-  consultants?: string[]
 }
-
-type AnyCard = ContractCard | ProjectCard
 
 interface Coordinator { id: number; name: string }
-
-interface KanbanResponse {
-  demand_cards: ContractCard[]
-  transition_cards: ContractCard[]
-  project_cards: ProjectCard[]
-  coordinators: Coordinator[]
-  user_role: string
-}
 
 interface Column {
   id: string
   label: string
-  phase: Phase
-  projectStatuses?: string[]
-  clientVisible?: boolean
+  type: 'fixed' | 'coordinator' | 'project_status'
+  coordinatorId?: number
+  emoji?: string
+  projectStatus?: string
+  color?: string
 }
 
-// ─── Column Definitions ───────────────────────────────────────────────────────
-
-const DEMAND_COLS: Column[] = [
-  { id: 'backlog',         label: 'Backlog',         phase: 'demand', clientVisible: true },
-  { id: 'novo_projeto',   label: 'Novo Projeto',    phase: 'demand', clientVisible: true },
-  { id: 'em_planejamento',label: 'Em Planejamento', phase: 'demand' },
-  { id: 'em_validacao',   label: 'Em Validação',    phase: 'demand', clientVisible: true },
-  { id: 'em_revisao',     label: 'Em Revisão',      phase: 'demand' },
-  { id: 'aprovado',       label: 'Aprovado',        phase: 'demand', clientVisible: true },
-]
-
-const TRANSITION_COL: Column = {
-  id: 'inicio_autorizado', label: 'Início Autorizado', phase: 'transition',
-}
-
-const PROJECT_COLS: Column[] = [
-  { id: 'em_andamento',        label: 'Em Andamento',        phase: 'project', projectStatuses: ['awaiting_start', 'started'] },
-  { id: 'liberado_para_testes',label: 'Liberado p/ Testes',  phase: 'project', projectStatuses: ['liberado_para_testes'] },
-  { id: 'encerrado',           label: 'Encerrado',           phase: 'project', projectStatuses: ['finished'] },
-]
-
-const PROJECT_STATUS_TO_COL: Record<string, string> = {
-  awaiting_start:       'em_andamento',
-  started:              'em_andamento',
-  liberado_para_testes: 'liberado_para_testes',
-  finished:             'encerrado',
-  paused:               'em_andamento',
-}
-
-const PROJECT_COL_TO_STATUS: Record<string, string> = {
-  em_andamento:         'started',
-  liberado_para_testes: 'liberado_para_testes',
-  encerrado:            'finished',
-}
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const TIPO_LABEL: Record<string, string> = {
   on_demand:          'On Demand',
@@ -119,35 +76,69 @@ const STATUS_LABEL: Record<string, string> = {
   awaiting_start:       'Aguardando',
   started:              'Em Andamento',
   liberado_para_testes: 'Em Testes',
-  finished:             'Encerrado',
   paused:               'Pausado',
   cancelled:            'Cancelado',
+  finished:             'Encerrado',
 }
+
+const PROJECT_STATUS_COL: Record<string, string> = {
+  paused:    'col_pausado',
+  cancelled: 'col_cancelado',
+  finished:  'col_encerrado',
+}
+
+const COL_TO_PROJECT_STATUS: Record<string, string> = {
+  col_pausado:   'paused',
+  col_cancelado: 'cancelled',
+  col_encerrado: 'finished',
+}
+
+const FIXED_COLUMNS: Column[] = [
+  { id: 'novo',   label: 'Novo Contrato',       type: 'fixed', emoji: '🆕' },
+  { id: 'pronto', label: 'Pronto para Iniciar',  type: 'fixed', emoji: '✅' },
+]
+
+const STATUS_PROJECT_COLUMNS: Column[] = [
+  { id: 'col_pausado',   label: 'Pausado',   type: 'project_status', projectStatus: 'paused',    color: '#f97316' },
+  { id: 'col_cancelado', label: 'Cancelado', type: 'project_status', projectStatus: 'cancelled', color: '#ef4444' },
+  { id: 'col_encerrado', label: 'Encerrado', type: 'project_status', projectStatus: 'finished',  color: '#6366f1' },
+]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function contractColumnId(card: ContractCard): string {
-  return card.kanban_status ?? 'backlog'
+  if (card.kanban_status === 'alocado' && card.kanban_coordinator_id) {
+    return `coordinator:${card.kanban_coordinator_id}`
+  }
+  // All non-approved demand statuses → "novo" column
+  if (['backlog', 'novo_projeto', 'em_planejamento', 'em_validacao', 'em_revisao'].includes(card.kanban_status ?? '')) {
+    return 'novo'
+  }
+  // Approved / autorizado → "pronto" column
+  if (['aprovado', 'inicio_autorizado'].includes(card.kanban_status ?? '')) {
+    return 'pronto'
+  }
+  return 'novo'
 }
 
-function projectColumnId(card: ProjectCard): string {
-  return PROJECT_STATUS_TO_COL[card.status] ?? 'em_andamento'
+function isActiveProject(p: ProjectCard): boolean {
+  return ['awaiting_start', 'started', 'liberado_para_testes'].includes(p.status)
 }
 
-function uniqueCardId(card: AnyCard): string {
-  return `${card.card_type}-${card.id}`
+function statusBadge(card: ContractCard) {
+  if (card.project_id) return { color: '#22c55e', bg: 'rgba(34,197,94,0.12)', label: '🟢 Projeto Ativo' }
+  if (card.is_complete) return { color: '#eab308', bg: 'rgba(234,179,8,0.12)',  label: '🟡 Pronto' }
+  return { color: '#ef4444', bg: 'rgba(239,68,68,0.12)', label: '🔴 Incompleto' }
 }
 
 // ─── Contract Card ────────────────────────────────────────────────────────────
 
-function ContractKanbanCard({
-  card, index, canDrag, onClick,
-}: { card: ContractCard; index: number; canDrag: boolean; onClick: () => void }) {
-  const isIncomplete = !card.is_complete
-  const isTransition = card.kanban_status === 'inicio_autorizado'
-
+function ContractKanbanCard({ card, index, onClick }: {
+  card: ContractCard; index: number; onClick: () => void
+}) {
+  const badge = statusBadge(card)
   return (
-    <Draggable draggableId={uniqueCardId(card)} index={index} isDragDisabled={!canDrag}>
+    <Draggable draggableId={`contract-${card.id}`} index={index}>
       {(prov, snap) => (
         <div
           ref={prov.innerRef}
@@ -157,8 +148,8 @@ function ContractKanbanCard({
           className="rounded-xl p-3 cursor-pointer select-none transition-all"
           style={{
             background: snap.isDragging ? 'rgba(0,245,255,0.06)' : 'var(--brand-surface)',
-            border: `1px solid ${snap.isDragging ? 'rgba(0,245,255,0.3)' : isTransition ? 'rgba(234,179,8,0.3)' : 'var(--brand-border)'}`,
-            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.45)' : 'none',
+            border: `1px solid ${snap.isDragging ? 'rgba(0,245,255,0.35)' : 'var(--brand-border)'}`,
+            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.4)' : 'none',
             ...prov.draggableProps.style,
           }}
         >
@@ -171,17 +162,9 @@ function ContractKanbanCard({
                 <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
               )}
             </div>
-            <span
-              className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
-              style={
-                card.project_id
-                  ? { background: 'rgba(34,197,94,0.12)', color: '#22c55e' }
-                  : isIncomplete
-                  ? { background: 'rgba(239,68,68,0.12)', color: '#ef4444' }
-                  : { background: 'rgba(234,179,8,0.12)', color: '#eab308' }
-              }
-            >
-              {card.project_id ? 'Projeto' : isIncomplete ? 'Incompleto' : 'Completo'}
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
+              style={{ background: badge.bg, color: badge.color }}>
+              {badge.label}
             </span>
           </div>
 
@@ -224,19 +207,23 @@ function ContractKanbanCard({
   )
 }
 
-// ─── Project Card ─────────────────────────────────────────────────────────────
+// ─── Project Card (for status columns) ───────────────────────────────────────
 
-function ProjectKanbanCard({
-  card, index, canDrag, onClick,
-}: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void }) {
+function ProjectKanbanCard({ card, index, onClick }: {
+  card: ProjectCard; index: number; onClick: () => void
+}) {
   const statusColor: Record<string, string> = {
-    awaiting_start: '#94a3b8', started: '#22c55e',
-    liberado_para_testes: '#f59e0b', finished: '#6366f1', paused: '#ef4444',
+    paused:    '#f97316',
+    cancelled: '#ef4444',
+    finished:  '#6366f1',
+    started:   '#22c55e',
+    awaiting_start: '#94a3b8',
+    liberado_para_testes: '#f59e0b',
   }
   const color = statusColor[card.status] ?? '#94a3b8'
 
   return (
-    <Draggable draggableId={uniqueCardId(card)} index={index} isDragDisabled={!canDrag}>
+    <Draggable draggableId={`project-${card.id}`} index={index}>
       {(prov, snap) => (
         <div
           ref={prov.innerRef}
@@ -245,34 +232,29 @@ function ProjectKanbanCard({
           onClick={onClick}
           className="rounded-xl p-3 cursor-pointer select-none transition-all"
           style={{
-            background: snap.isDragging ? 'rgba(99,102,241,0.08)' : 'var(--brand-surface)',
-            border: `1px solid ${snap.isDragging ? 'rgba(99,102,241,0.4)' : 'rgba(99,102,241,0.2)'}`,
-            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.45)' : 'none',
+            background: snap.isDragging ? `${color}0A` : 'var(--brand-surface)',
+            border: `1px solid ${snap.isDragging ? color : `${color}40`}`,
+            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.4)' : 'none',
             ...prov.draggableProps.style,
           }}
         >
-          <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex items-start justify-between gap-2 mb-1.5">
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
                 {card.customer_name}
               </p>
               <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
             </div>
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
-              style={{ background: `${color}20`, color }}>
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+              style={{ background: `${color}18`, color }}>
               {STATUS_LABEL[card.status] ?? card.status}
             </span>
           </div>
-
-          <div className="flex items-center justify-between mt-1 pt-2" style={{ borderTop: '1px solid rgba(99,102,241,0.15)' }}>
-            <div className="flex items-center gap-2">
-              {card.coordinators && card.coordinators.length > 0 && (
-                <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>
-                  👤 {card.coordinators[0]}
-                </span>
-              )}
-            </div>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
+          <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${color}20` }}>
+            <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>
+              {card.coordinators?.[0] ? `👤 ${card.coordinators[0]}` : ''}
+            </span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: `${color}12`, color }}>
               {card.code}
             </span>
           </div>
@@ -282,89 +264,10 @@ function ProjectKanbanCard({
   )
 }
 
-// ─── Generate Project Modal ───────────────────────────────────────────────────
+// ─── Contract Detail Modal ────────────────────────────────────────────────────
 
-function GenerateProjectModal({
-  card, coordinators, onClose, onGenerate,
-}: {
-  card: ContractCard
-  coordinators: Coordinator[]
-  onClose: () => void
-  onGenerate: (contractId: number, coordinatorId: number | null) => Promise<void>
-}) {
-  const [coordId, setCoordId] = useState<number | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  const handleConfirm = async () => {
-    setLoading(true)
-    try {
-      await onGenerate(card.id, coordId)
-      onClose()
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
-      <div className="w-full max-w-md rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-        <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.25)' }}>
-              <Rocket size={16} style={{ color: '#eab308' }} />
-            </div>
-            <div>
-              <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Gerar Projeto</p>
-              <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{card.customer_name}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-6 py-4 space-y-4">
-          <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
-            Selecione o coordenador responsável. O projeto será criado automaticamente com os dados do contrato.
-          </p>
-          <div>
-            <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--brand-subtle)' }}>COORDENADOR (OPCIONAL)</label>
-            <select
-              value={coordId ?? ''}
-              onChange={e => setCoordId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full rounded-lg px-3 py-2 text-sm"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
-            >
-              <option value="">Sem coordenador por agora</option>
-              {coordinators.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Cancelar</button>
-          <button
-            onClick={handleConfirm}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50"
-            style={{ background: '#eab308', color: '#000' }}
-          >
-            <Rocket size={13} /> {loading ? 'Gerando...' : 'Gerar Projeto'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Card Detail Modal ────────────────────────────────────────────────────────
-
-function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGenerate }: {
-  card: ContractCard
-  onClose: () => void
-  onGenerate?: () => void
-  coordinators: Coordinator[]
-  canGenerate: boolean
-}) {
+function CardDetailModal({ card, onClose }: { card: ContractCard; onClose: () => void }) {
+  const badge = statusBadge(card)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
       <div className="w-full max-w-lg rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
@@ -374,15 +277,11 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
               <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{card.customer_name}</p>
               {card.project_name && <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>{card.project_name}</p>}
             </div>
-            <span className="text-xs px-2 py-1 rounded-full shrink-0 font-semibold"
-              style={card.is_complete
-                ? { background: 'rgba(234,179,8,0.12)', color: '#eab308' }
-                : { background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
-              {card.is_complete ? 'Completo' : 'Incompleto'}
-            </span>
+            <span className="text-xs font-semibold px-2 py-1 rounded-full shrink-0"
+              style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
           </div>
         </div>
-        <div className="px-6 py-4 space-y-3 max-h-[55vh] overflow-y-auto">
+        <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-3 text-sm">
             {([
               ['Categoria', card.categoria === 'projeto' ? 'Projeto' : card.categoria === 'sustentacao' ? 'Sustentação' : '—'],
@@ -391,7 +290,7 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
               ['Horas Contratadas', card.horas_contratadas ? `${card.horas_contratadas}h` : '—'],
               ['Valor do Projeto', card.valor_projeto != null ? `R$ ${Number(card.valor_projeto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'],
               ['Coordenador', card.kanban_coordinator ?? '—'],
-              ['Status', card.status],
+              ['Status Contrato', card.status],
               ['Projeto', card.project_code ?? '—'],
             ] as [string, string][]).map(([label, value]) => (
               <div key={label}>
@@ -401,23 +300,15 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
             ))}
           </div>
           {!card.is_complete && (
-            <div className="flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
+            <div className="flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs"
+              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
               <AlertCircle size={13} className="mt-0.5 shrink-0" />
-              <span>Preencha cliente, tipo de contrato e horas contratadas para gerar o projeto.</span>
+              <span>Contrato incompleto — preencha cliente, horas, tipo de contrato e faturamento para alocar a um coordenador.</span>
             </div>
           )}
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Fechar</button>
-          {canGenerate && card.is_complete && card.kanban_status === 'inicio_autorizado' && !card.project_id && (
-            <button
-              onClick={onGenerate}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-              style={{ background: '#eab308', color: '#000' }}
-            >
-              <Rocket size={13} /> Gerar Projeto
-            </button>
-          )}
           <button onClick={() => { window.location.href = '/contratos' }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
             style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
@@ -429,283 +320,112 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
   )
 }
 
-function ProjectDetailModal({ card, onClose }: { card: ProjectCard; onClose: () => void }) {
-  const statusColor: Record<string, string> = {
-    awaiting_start: '#94a3b8', started: '#22c55e',
-    liberado_para_testes: '#f59e0b', finished: '#6366f1', paused: '#ef4444',
-  }
-  const color = statusColor[card.status] ?? '#94a3b8'
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
-      <div className="w-full max-w-lg rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(99,102,241,0.3)' }}>
-        <div className="px-6 py-5 border-b" style={{ borderColor: 'rgba(99,102,241,0.2)' }}>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{card.project_name}</p>
-              <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>{card.customer_name}</p>
-            </div>
-            <span className="text-xs px-2 py-1 rounded-full shrink-0 font-semibold" style={{ background: `${color}20`, color }}>
-              {STATUS_LABEL[card.status] ?? card.status}
-            </span>
-          </div>
-        </div>
-        <div className="px-6 py-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            {([
-              ['Código', card.code],
-              ['Horas Vendidas', card.sold_hours ? `${card.sold_hours}h` : '—'],
-              ['Coordenadores', card.coordinators?.join(', ') || '—'],
-              ['Consultores', card.consultants?.join(', ') || '—'],
-            ] as [string, string][]).map(([label, value]) => (
-              <div key={label}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
-                <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'rgba(99,102,241,0.2)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Fechar</button>
-          <button onClick={() => { window.location.href = '/projects' }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: 'rgba(99,102,241,0.2)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.35)' }}>
-            <ExternalLink size={13} /> Ver Projeto
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Column Component ─────────────────────────────────────────────────────────
-
-function KanbanColumn({
-  col, contractCards, projectCards, canDrag, canDrop, onContractClick, onProjectClick,
-}: {
-  col: Column
-  contractCards: ContractCard[]
-  projectCards: ProjectCard[]
-  canDrag: boolean
-  canDrop: boolean
-  onContractClick: (card: ContractCard) => void
-  onProjectClick: (card: ProjectCard) => void
-}) {
-  const isTransition = col.phase === 'transition'
-  const isProject    = col.phase === 'project'
-  const totalCards   = contractCards.length + projectCards.length
-
-  const borderColor = isTransition
-    ? 'rgba(234,179,8,0.25)'
-    : isProject
-    ? 'rgba(99,102,241,0.25)'
-    : 'var(--brand-border)'
-
-  const headerColor = isTransition
-    ? '#eab308'
-    : isProject
-    ? '#818cf8'
-    : 'var(--brand-text)'
-
-  const bg = isTransition
-    ? 'rgba(234,179,8,0.02)'
-    : isProject
-    ? 'rgba(99,102,241,0.02)'
-    : 'rgba(255,255,255,0.02)'
-
-  return (
-    <div
-      className="flex flex-col rounded-2xl shrink-0"
-      style={{ width: 264, background: bg, border: `1px solid ${borderColor}` }}
-    >
-      <div className="px-4 py-3 shrink-0 border-b" style={{ borderColor }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {isTransition && <Rocket size={13} style={{ color: '#eab308' }} />}
-            {isProject && <FolderKanban size={13} style={{ color: '#818cf8' }} />}
-            {!isTransition && !isProject && <Layers size={13} style={{ color: 'var(--brand-subtle)' }} />}
-            <p className="text-sm font-semibold" style={{ color: headerColor }}>{col.label}</p>
-            {col.clientVisible && !isTransition && !isProject && (
-              <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: 'rgba(0,245,255,0.1)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}>
-                C
-              </span>
-            )}
-          </div>
-          <span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
-            {totalCards}
-          </span>
-        </div>
-        {isTransition && (
-          <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>
-            Aguardando geração de projeto
-          </p>
-        )}
-      </div>
-
-      <Droppable droppableId={col.id} isDropDisabled={!canDrop}>
-        {(prov, snap) => (
-          <div
-            ref={prov.innerRef}
-            {...prov.droppableProps}
-            className="flex-1 overflow-y-auto p-3 space-y-2.5 transition-colors"
-            style={{
-              minHeight: 80,
-              background: snap.isDraggingOver
-                ? isTransition ? 'rgba(234,179,8,0.05)' : isProject ? 'rgba(99,102,241,0.05)' : 'rgba(255,255,255,0.03)'
-                : 'transparent',
-            }}
-          >
-            {contractCards.map((card, idx) => (
-              <ContractKanbanCard key={uniqueCardId(card)} card={card} index={idx} canDrag={canDrag} onClick={() => onContractClick(card)} />
-            ))}
-            {projectCards.map((card, idx) => (
-              <ProjectKanbanCard key={uniqueCardId(card)} card={card} index={contractCards.length + idx} canDrag={canDrag} onClick={() => onProjectClick(card)} />
-            ))}
-            {prov.placeholder}
-            {totalCards === 0 && !snap.isDraggingOver && (
-              <p className="text-center text-xs py-6" style={{ color: 'var(--brand-subtle)' }}>Vazio</p>
-            )}
-          </div>
-        )}
-      </Droppable>
-    </div>
-  )
-}
-
-// ─── Phase Separator ──────────────────────────────────────────────────────────
-
-function PhaseSeparator({ label, icon }: { label: string; icon: React.ReactNode }) {
-  return (
-    <div className="flex flex-col items-center justify-center shrink-0 gap-3" style={{ width: 36 }}>
-      <div style={{ writingMode: 'vertical-rl', color: 'var(--brand-subtle)', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', transform: 'rotate(180deg)' }}>
-        {label}
-      </div>
-      <ChevronRight size={14} style={{ color: 'var(--brand-subtle)', opacity: 0.5 }} />
-    </div>
-  )
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 function KanbanContent() {
   const router = useRouter()
   const { user } = useAuth()
 
-  const [demandCards,     setDemandCards]     = useState<ContractCard[]>([])
-  const [transitionCards, setTransitionCards] = useState<ContractCard[]>([])
-  const [projectCards,    setProjectCards]    = useState<ProjectCard[]>([])
-  const [coordinators,    setCoordinators]    = useState<Coordinator[]>([])
-  const [userRole,        setUserRole]        = useState<string>('admin')
-  const [loading,         setLoading]         = useState(true)
-
-  const [selectedContract, setSelectedContract] = useState<ContractCard | null>(null)
-  const [selectedProject,  setSelectedProject]  = useState<ProjectCard | null>(null)
-  const [generateTarget,   setGenerateTarget]   = useState<ContractCard | null>(null)
-
-  const isConsultor = userRole === 'consultor'
-  const isCliente   = userRole === 'cliente'
-
-  // Returns whether drag/drop is allowed for a given column id
-  const colCanInteract = (colId: string): boolean => {
-    if (isConsultor) return false
-    if (isCliente) return DEMAND_COLS.find(c => c.id === colId)?.clientVisible ?? false
-    return true
-  }
+  const [demandCards,  setDemandCards]  = useState<ContractCard[]>([])
+  const [projectCards, setProjectCards] = useState<ProjectCard[]>([])
+  const [coordinators, setCoordinators] = useState<Coordinator[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [selected,     setSelected]     = useState<ContractCard | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await api.get<KanbanResponse>('/contracts/kanban')
-      setDemandCards(r.demand_cards ?? [])
-      setTransitionCards(r.transition_cards ?? [])
+      const r = await api.get<any>('/contracts/kanban')
+      setDemandCards(r.demand_cards ?? r.contracts ?? [])
       setProjectCards(r.project_cards ?? [])
       setCoordinators(r.coordinators ?? [])
-      setUserRole(r.user_role ?? 'admin')
-    } catch {
-      toast.error('Erro ao carregar kanban')
-    } finally {
-      setLoading(false)
-    }
+    } catch { toast.error('Erro ao carregar kanban') }
+    finally   { setLoading(false) }
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  // Compute visible columns based on role
-  const visibleDemandCols = isConsultor ? [] : DEMAND_COLS
+  // Column list: fixed + coordinator + project status
+  const columns: Column[] = [
+    ...FIXED_COLUMNS,
+    ...coordinators.map(c => ({
+      id:            `coordinator:${c.id}`,
+      label:         c.name,
+      type:          'coordinator' as const,
+      coordinatorId: c.id,
+      emoji:         '👤',
+    })),
+    ...STATUS_PROJECT_COLUMNS,
+  ]
 
-  const showTransition = !isConsultor && !isCliente
-  const visibleProjectCols = PROJECT_COLS
+  // Contract cards per column
+  const contractsInCol = (colId: string): ContractCard[] =>
+    demandCards
+      .filter(c => contractColumnId(c) === colId)
+      .sort((a, b) => a.kanban_order - b.kanban_order)
 
-  // Cards by column
-  const contractsInCol = (colId: string): ContractCard[] => {
-    if (colId === 'inicio_autorizado') {
-      return transitionCards.sort((a, b) => a.kanban_order - b.kanban_order)
-    }
-    return demandCards.filter(c => contractColumnId(c) === colId).sort((a, b) => a.kanban_order - b.kanban_order)
+  // Active project cards per coordinator column
+  const activeProjectsInCoordCol = (coordId: number): ProjectCard[] =>
+    projectCards.filter(p =>
+      isActiveProject(p) &&
+      (p.coordinator_ids ?? []).includes(coordId)
+    )
+
+  // Project cards in status columns
+  const projectsInStatusCol = (colId: string): ProjectCard[] => {
+    const targetStatus = COL_TO_PROJECT_STATUS[colId]
+    return projectCards.filter(p => p.status === targetStatus)
   }
-
-  const projectsInCol = (colId: string): ProjectCard[] =>
-    projectCards.filter(p => projectColumnId(p) === colId)
 
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, draggableId } = result
     if (!destination) return
     if (source.droppableId === destination.droppableId && source.index === destination.index) return
 
-    const toCol   = destination.droppableId
-    const fromCol = source.droppableId
-
-    // Client can only move within/between [C] columns
-    if (isCliente && (!colCanInteract(fromCol) || !colCanInteract(toCol))) return
-
+    const toCol = destination.droppableId
     const [cardType, rawId] = draggableId.split('-')
     const cardId = Number(rawId)
 
     // ── Moving a contract card ──
     if (cardType === 'contract') {
-      const card = [...demandCards, ...transitionCards].find(c => c.id === cardId)
+      const card = demandCards.find(c => c.id === cardId)
       if (!card) return
 
-      if (toCol === 'inicio_autorizado') {
+      // Moving to a coordinator column → generate or assign project
+      if (toCol.startsWith('coordinator:')) {
+        const coordId = Number(toCol.split(':')[1])
         if (!card.is_complete) {
-          toast.error('Contrato incompleto — preencha todos os campos obrigatórios antes de autorizar.')
+          toast.error('Contrato incompleto — preencha todos os campos antes de alocar.')
           return
         }
+        const wasNew = !card.project_id
         // Optimistic update
-        setDemandCards(prev => prev.filter(c => c.id !== cardId))
-        setTransitionCards(prev => [...prev, { ...card, kanban_status: 'inicio_autorizado', status: 'inicio_autorizado' }])
+        setDemandCards(prev => prev.map(c =>
+          c.id === cardId ? { ...c, kanban_status: 'alocado', kanban_coordinator_id: coordId } : c
+        ))
         try {
-          await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: 'inicio_autorizado', order: destination.index })
-          toast.success('Contrato movido para Início Autorizado')
+          await api.patch(`/contracts/${cardId}/kanban-move`, {
+            to_column:      `coordinator:${coordId}`,
+            coordinator_id: coordId,
+            order:          destination.index,
+          })
+          await load()
+          if (wasNew) toast.success('🚀 Projeto gerado automaticamente!')
+          else toast.success('Coordenador atualizado')
         } catch (e: any) {
-          toast.error(e?.message ?? 'Erro ao mover contrato')
+          toast.error(e?.message ?? 'Erro ao alocar contrato')
           load()
         }
         return
       }
 
-      // Moving back from transition to a demand column
-      if (DEMAND_COLS.find(c => c.id === toCol)) {
-        const wasTransition = card.kanban_status === 'inicio_autorizado'
-        setTransitionCards(prev => prev.filter(c => c.id !== cardId))
-        setDemandCards(prev => [...prev.filter(c => c.id !== cardId), { ...card, kanban_status: toCol }])
-        try {
-          await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: toCol, order: destination.index })
-          if (wasTransition) toast.success('Contrato retornado à fase de demanda')
-          else toast.success('Card movido')
-        } catch (e: any) {
-          toast.error(e?.message ?? 'Erro ao mover card')
-          load()
-        }
-        return
-      }
-
-      // Moving between demand columns
+      // Moving between fixed columns (novo ↔ pronto)
+      const toKanbanStatus = toCol === 'pronto' ? 'aprovado' : 'backlog'
       setDemandCards(prev => prev.map(c =>
-        c.id === cardId ? { ...c, kanban_status: toCol, kanban_order: destination.index } : c
+        c.id === cardId ? { ...c, kanban_status: toKanbanStatus, kanban_order: destination.index } : c
       ))
       try {
-        await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: toCol, order: destination.index })
+        await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: toKanbanStatus, order: destination.index })
         toast.success('Card movido')
       } catch (e: any) {
         toast.error(e?.message ?? 'Erro ao mover card')
@@ -714,12 +434,9 @@ function KanbanContent() {
       return
     }
 
-    // ── Moving a project card ──
+    // ── Moving a project card to a status column ──
     if (cardType === 'project') {
-      const proj = projectCards.find(p => p.id === cardId)
-      if (!proj) return
-
-      const newStatus = PROJECT_COL_TO_STATUS[toCol]
+      const newStatus = COL_TO_PROJECT_STATUS[toCol]
       if (!newStatus) return
 
       setProjectCards(prev => prev.map(p => p.id === cardId ? { ...p, status: newStatus } : p))
@@ -733,167 +450,162 @@ function KanbanContent() {
     }
   }
 
-  const handleGenerate = async (contractId: number, coordinatorId: number | null) => {
-    try {
-      await api.patch(`/contracts/${contractId}/kanban-move`, {
-        to_column:      coordinatorId ? `coordinator:${coordinatorId}` : 'alocado',
-        coordinator_id: coordinatorId,
-        order:          0,
-      })
-      toast.success('🚀 Projeto gerado automaticamente!')
-      load()
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Erro ao gerar projeto')
-    }
-  }
-
-  const totalColumns = visibleDemandCols.length + (showTransition ? 1 : 0) + visibleProjectCols.length
-  const boardMinWidth = totalColumns * 264 + (totalColumns - 1) * 12 + (showTransition ? 60 : 0) + 64
-
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="flex-1 flex items-center justify-center h-full">
-          <p className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
-        </div>
-      </AppLayout>
-    )
-  }
-
   return (
     <AppLayout>
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div>
-            <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>Pipeline Demanda → Projeto</h1>
-            <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
-              {isConsultor ? 'Seus projetos em execução' : 'Gerencie o fluxo completo de contratos e projetos'}
-            </p>
+            <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>Kanban de Contratos</h1>
+            <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Arraste para o coordenador para gerar o projeto — depois gerencie nos status de execução</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push('/contratos')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-opacity hover:opacity-80"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
-            >
+            <button onClick={() => router.push('/contratos')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
               <List size={13} /> Lista
             </button>
-            {!isConsultor && !isCliente && (
-              <button
-                onClick={() => router.push('/contratos')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
-                style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
-              >
-                <Plus size={13} /> Novo Contrato
-              </button>
-            )}
+            <button onClick={() => router.push('/contratos/pipeline')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm"
+              style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', color: '#818cf8' }}>
+              <Layers size={13} /> Pipeline
+            </button>
+            <button onClick={() => router.push('/contratos')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold"
+              style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+              <Plus size={13} /> Novo Contrato
+            </button>
           </div>
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-6 px-6 py-2 shrink-0 border-b text-[11px]" style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
-          {!isConsultor && (
-            <>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded" style={{ background: 'var(--brand-border)' }}><Layers size={8} /></span>
-                Fase Demanda
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Rocket size={11} style={{ color: '#eab308' }} />
-                Início Autorizado
-              </span>
-            </>
-          )}
-          <span className="flex items-center gap-1.5">
-            <FolderKanban size={11} style={{ color: '#818cf8' }} />
-            Projetos em Execução
-          </span>
-          {isConsultor && <span className="ml-auto opacity-50">Visualização somente leitura</span>}
-          {isCliente && <span className="ml-auto opacity-50">Pode mover somente nas colunas marcadas [C]</span>}
-          {!isConsultor && !isCliente && <span className="ml-auto opacity-50">Arraste para mover entre colunas</span>}
+        <div className="flex items-center gap-5 px-6 py-2 shrink-0 border-b text-[11px]" style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" />Incompleto</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" />Pronto</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Projeto Ativo</span>
+          <span className="ml-auto flex items-center gap-1.5"><Users size={11} />Colunas de coordenador geram projeto automaticamente</span>
         </div>
 
         {/* Board */}
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex-1 overflow-x-auto overflow-y-hidden">
-            <div className="flex gap-3 p-4 h-full items-start" style={{ minWidth: `${boardMinWidth}px` }}>
-
-              {/* ── Demand Phase ── */}
-              {visibleDemandCols.map(col => (
-                <KanbanColumn
-                  key={col.id}
-                  col={col}
-                  contractCards={contractsInCol(col.id)}
-                  projectCards={[]}
-                  canDrag={colCanInteract(col.id)}
-                  canDrop={colCanInteract(col.id)}
-                  onContractClick={setSelectedContract}
-                  onProjectClick={setSelectedProject}
-                />
-              ))}
-
-              {/* ── Transition Phase ── */}
-              {showTransition && (
-                <>
-                  <PhaseSeparator label="Autorização" icon={<ChevronRight />} />
-                  <KanbanColumn
-                    col={TRANSITION_COL}
-                    contractCards={contractsInCol('inicio_autorizado')}
-                    projectCards={[]}
-                    canDrag={canDrag}
-                    canDrop={canDrag}
-                    onContractClick={card => {
-                      if (card.kanban_status === 'inicio_autorizado' && !card.project_id) {
-                        setGenerateTarget(card)
-                      } else {
-                        setSelectedContract(card)
-                      }
-                    }}
-                    onProjectClick={setSelectedProject}
-                  />
-                  <PhaseSeparator label="Execução" icon={<ChevronRight />} />
-                </>
-              )}
-
-              {/* ── Project Phase ── */}
-              {visibleProjectCols.map(col => (
-                <KanbanColumn
-                  key={col.id}
-                  col={col}
-                  contractCards={[]}
-                  projectCards={projectsInCol(col.id)}
-                  canDrag={canDrag}
-                  canDrop={canDrag}
-                  onContractClick={setSelectedContract}
-                  onProjectClick={setSelectedProject}
-                />
-              ))}
-            </div>
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
           </div>
-        </DragDropContext>
+        ) : (
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+              <div className="flex gap-3 p-4 h-full" style={{ minWidth: `${columns.length * 272 + 60}px` }}>
+                {columns.map((col, colIdx) => {
+                  const isCoord        = col.type === 'coordinator'
+                  const isStatusCol    = col.type === 'project_status'
+                  const contractCards  = isStatusCol ? [] : contractsInCol(col.id)
+                  const activeProjects = isCoord ? activeProjectsInCoordCol(col.coordinatorId!) : []
+                  const statusProjects = isStatusCol ? projectsInStatusCol(col.id) : []
+                  const totalCards     = contractCards.length + activeProjects.length + statusProjects.length
+
+                  // Visual separator before first status col
+                  const prevCol = columns[colIdx - 1]
+                  const showSep = isStatusCol && prevCol?.type !== 'project_status'
+
+                  const borderColor = isStatusCol
+                    ? `${col.color}30`
+                    : isCoord
+                    ? 'rgba(0,245,255,0.15)'
+                    : 'var(--brand-border)'
+
+                  const headerColor = isStatusCol
+                    ? col.color!
+                    : isCoord
+                    ? 'var(--brand-primary)'
+                    : 'var(--brand-text)'
+
+                  return (
+                    <div key={col.id} className="flex items-start gap-3">
+                      {/* Separator */}
+                      {showSep && (
+                        <div className="self-stretch w-px shrink-0 mt-1"
+                          style={{ background: 'var(--brand-border)', opacity: 0.4 }} />
+                      )}
+
+                      {/* Column */}
+                      <div className="flex flex-col rounded-2xl shrink-0" style={{
+                        width: 264,
+                        background: isStatusCol
+                          ? `${col.color}05`
+                          : isCoord
+                          ? 'rgba(0,245,255,0.02)'
+                          : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${borderColor}`,
+                      }}>
+                        {/* Header */}
+                        <div className="px-4 py-3 shrink-0 border-b" style={{ borderColor }}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {col.emoji && <span className="text-base">{col.emoji}</span>}
+                              {isStatusCol && col.id === 'col_pausado'   && <PauseCircle size={13} style={{ color: col.color }} />}
+                              {isStatusCol && col.id === 'col_cancelado' && <XCircle size={13} style={{ color: col.color }} />}
+                              {isStatusCol && col.id === 'col_encerrado' && <CheckCircle size={13} style={{ color: col.color }} />}
+                              <p className="text-sm font-semibold" style={{ color: headerColor }}>{col.label}</p>
+                            </div>
+                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full"
+                              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
+                              {totalCards}
+                            </span>
+                          </div>
+                          {isCoord && (
+                            <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>
+                              Arraste aqui → projeto criado automaticamente
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Cards */}
+                        <Droppable
+                          droppableId={col.id}
+                          isDropDisabled={isStatusCol && !['col_pausado', 'col_cancelado', 'col_encerrado'].includes(col.id)}
+                        >
+                          {(prov, snap) => (
+                            <div
+                              ref={prov.innerRef}
+                              {...prov.droppableProps}
+                              className="flex-1 overflow-y-auto p-3 space-y-2.5 transition-colors"
+                              style={{
+                                minHeight: 80,
+                                background: snap.isDraggingOver
+                                  ? isStatusCol ? `${col.color}08` : isCoord ? 'rgba(0,245,255,0.05)' : 'rgba(255,255,255,0.03)'
+                                  : 'transparent',
+                              }}
+                            >
+                              {contractCards.map((card, idx) => (
+                                <ContractKanbanCard key={`c-${card.id}`} card={card} index={idx} onClick={() => setSelected(card)} />
+                              ))}
+                              {activeProjects.map((proj, idx) => (
+                                <ProjectKanbanCard key={`p-${proj.id}`} card={proj} index={contractCards.length + idx} onClick={() => {}} />
+                              ))}
+                              {statusProjects.map((proj, idx) => (
+                                <ProjectKanbanCard key={`ps-${proj.id}`} card={proj} index={idx} onClick={() => {}} />
+                              ))}
+                              {prov.placeholder}
+                              {totalCards === 0 && !snap.isDraggingOver && (
+                                <p className="text-center text-xs py-6" style={{ color: 'var(--brand-subtle)' }}>
+                                  {isCoord ? 'Nenhum projeto alocado' : 'Vazio'}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </Droppable>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </DragDropContext>
+        )}
       </div>
 
-      {/* Modals */}
-      {selectedContract && (
-        <ContractDetailModal
-          card={selectedContract}
-          onClose={() => setSelectedContract(null)}
-          onGenerate={() => { setGenerateTarget(selectedContract); setSelectedContract(null) }}
-          coordinators={coordinators}
-          canGenerate={!isConsultor && !isCliente}
-        />
-      )}
-      {selectedProject && (
-        <ProjectDetailModal card={selectedProject} onClose={() => setSelectedProject(null)} />
-      )}
-      {generateTarget && (
-        <GenerateProjectModal
-          card={generateTarget}
-          coordinators={coordinators}
-          onClose={() => setGenerateTarget(null)}
-          onGenerate={handleGenerate}
-        />
+      {selected && (
+        <CardDetailModal card={selected} onClose={() => setSelected(null)} />
       )}
     </AppLayout>
   )
