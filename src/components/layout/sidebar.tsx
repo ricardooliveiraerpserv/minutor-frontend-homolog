@@ -271,9 +271,10 @@ function SidebarInner({ user }: { user: User }) {
         .filter(([code]) => clienteContractCodes.has(code))
         .map(([, item]) => item)
       const nav: NavEntry[] = [
-        { type: 'item', label: 'Visão Executiva', href: '/portal-cliente', icon: Building2 },
-        { type: 'item', label: 'Apontamentos', href: '/timesheets',     icon: Clock },
-        { type: 'item', label: 'Despesas',     href: '/expenses',       icon: Receipt },
+        { type: 'item', label: 'Visão Executiva', href: '/portal-cliente',   icon: Building2 },
+        { type: 'item', label: 'Pipeline',        href: '/contratos/kanban', icon: LayoutGrid },
+        { type: 'item', label: 'Apontamentos',    href: '/timesheets',       icon: Clock },
+        { type: 'item', label: 'Despesas',        href: '/expenses',         icon: Receipt },
       ]
       if (dashItems.length > 0) {
         nav.push({ type: 'group', label: 'Dashboards', icon: BarChart2, items: dashItems })
