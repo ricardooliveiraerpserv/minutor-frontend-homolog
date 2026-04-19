@@ -578,6 +578,8 @@ function ProjectsPageInner() {
   const [editLogReason, setEditLogReason] = useState('')
   const [form, setForm] = useState<ProjectForm>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const [codeExists, setCodeExists] = useState(false)
+  const [codeChecking, setCodeChecking] = useState(false)
   const [prefixModal, setPrefixModal] = useState(false)
   const [prefixInput, setPrefixInput] = useState('')
   const [prefixSaving, setPrefixSaving] = useState(false)
@@ -657,6 +659,18 @@ function ProjectsPageInner() {
     if (!codePrefix || !form.codeSeq.trim()) return ''
     return `${codePrefix}${form.codeSeq.padStart(3, '0')}-${form.codeYear}`
   }, [codePrefix, form.codeSeq, form.codeYear])
+
+  const checkCodeExists = useCallback(async () => {
+    if (!codePreview) { setCodeExists(false); return }
+    setCodeChecking(true)
+    try {
+      const editingId = modal.item?.id
+      const url = `/projects?code=${encodeURIComponent(codePreview)}${editingId ? `&exclude_id=${editingId}` : ''}`
+      const r = await api.get<any>(url)
+      setCodeExists((r?.total ?? 0) > 0)
+    } catch { setCodeExists(false) }
+    finally { setCodeChecking(false) }
+  }, [codePreview, modal.item?.id])
 
   // save_erpserv = sold_hours - consultant_hours - (coordinator_hours/100 * consultant_hours)
   const saveErpserv = useMemo(() => {
@@ -816,6 +830,7 @@ function ProjectsPageInner() {
 
   const openCreate = () => {
     setForm(EMPTY_FORM)
+    setCodeExists(false)
     editedFinancialRef.current = []
     setSearchConsultant('')
     setSearchApprover('')
@@ -826,6 +841,7 @@ function ProjectsPageInner() {
   }
 
   const openEdit = (item: Project) => {
+    setCodeExists(false)
     // Pré-preenche imediatamente com o que já temos da listagem
     setForm({
       ...EMPTY_FORM,
@@ -1583,10 +1599,11 @@ function ProjectsPageInner() {
                           type="text"
                           maxLength={3}
                           value={form.codeSeq}
-                          onChange={e => setForm(f => ({ ...f, codeSeq: e.target.value.replace(/\D/g, '').slice(0, 3) }))}
+                          onChange={e => { setForm(f => ({ ...f, codeSeq: e.target.value.replace(/\D/g, '').slice(0, 3) })); setCodeExists(false) }}
+                          onBlur={checkCodeExists}
                           placeholder="001"
                           className="px-3 py-2.5 rounded-xl text-sm font-mono text-center outline-none w-20"
-                          style={inputStyle}
+                          style={{ ...inputStyle, borderColor: codeExists ? '#ef4444' : undefined }}
                         />
                         <span className="text-zinc-500 text-sm font-mono">-</span>
                         {/* Ano */}
@@ -1594,13 +1611,18 @@ function ProjectsPageInner() {
                           type="text"
                           maxLength={2}
                           value={form.codeYear}
-                          onChange={e => setForm(f => ({ ...f, codeYear: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+                          onChange={e => { setForm(f => ({ ...f, codeYear: e.target.value.replace(/\D/g, '').slice(0, 2) })); setCodeExists(false) }}
+                          onBlur={checkCodeExists}
                           placeholder="26"
                           className="px-3 py-2.5 rounded-xl text-sm font-mono text-center outline-none w-16"
-                          style={inputStyle}
+                          style={{ ...inputStyle, borderColor: codeExists ? '#ef4444' : undefined }}
                         />
-                        {/* Preview */}
-                        {codePreview && (
+                        {/* Preview / status */}
+                        {codeChecking && <span className="text-xs text-zinc-400 italic">verificando...</span>}
+                        {!codeChecking && codeExists && (
+                          <span className="text-[11px] text-red-400 font-semibold">⚠ Código <span className="font-mono">{codePreview}</span> já existe</span>
+                        )}
+                        {!codeChecking && !codeExists && codePreview && (
                           <span className="ml-1 text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
                             {codePreview}
                           </span>
@@ -1962,7 +1984,7 @@ function ProjectsPageInner() {
                 >Cancelar</button>
                 <button
                   onClick={save}
-                  disabled={saving || !form.name || !form.customer_id || !form.contract_type_id || !form.service_type_id}
+                  disabled={saving || codeExists || !form.name || !form.customer_id || !form.contract_type_id || !form.service_type_id}
                   className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-40"
                   style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
                 >

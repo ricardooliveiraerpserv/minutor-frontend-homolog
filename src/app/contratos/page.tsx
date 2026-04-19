@@ -259,8 +259,8 @@ export default function ContratosPage() {
     if (!codePreview) { setCodeExists(false); return }
     setCodeChecking(true)
     try {
-      const r = await api.get<any>(`/projects?code=${encodeURIComponent(codePreview)}&per_page=1`)
-      setCodeExists((r?.total ?? r?.data?.length ?? 0) > 0)
+      const r = await api.get<any>(`/projects?code=${encodeURIComponent(codePreview)}`)
+      setCodeExists((r?.total ?? 0) > 0)
     } catch { setCodeExists(false) }
     finally { setCodeChecking(false) }
   }, [codePreview])
