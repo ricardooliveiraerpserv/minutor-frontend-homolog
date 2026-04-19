@@ -470,10 +470,25 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
   coordinators: Coordinator[]
   canGenerate: boolean
 }) {
+  const [tab, setTab]             = useState<'details' | 'log'>('details')
+  const [logs, setLogs]           = useState<KanbanLogEntry[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsLoaded, setLogsLoaded]   = useState(false)
+
+  useEffect(() => {
+    if (tab === 'log' && !logsLoaded) {
+      setLogsLoading(true)
+      api.get<KanbanLogEntry[]>(`/contracts/${card.id}/kanban-logs`)
+        .then(r => { setLogs(Array.isArray(r) ? r : []); setLogsLoaded(true) })
+        .catch(() => {})
+        .finally(() => setLogsLoading(false))
+    }
+  }, [tab, card.id, logsLoaded])
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
-      <div className="w-full max-w-lg rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-        <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="w-full max-w-lg rounded-2xl overflow-hidden flex flex-col" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', maxHeight: '85vh' }}>
+        <div className="px-6 py-5 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{card.customer_name}</p>
@@ -486,8 +501,25 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
               {card.is_complete ? 'Completo' : 'Incompleto'}
             </span>
           </div>
+          <div className="flex gap-1 mt-3">
+            {(['details', 'log'] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={tab === t
+                  ? { background: 'rgba(234,179,8,0.12)', color: '#eab308', border: '1px solid rgba(234,179,8,0.3)' }
+                  : { color: 'var(--brand-subtle)', border: '1px solid transparent' }}>
+                {t === 'details' ? <><ExternalLink size={11} /> Detalhes</> : <><Clock size={11} /> Histórico</>}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="px-6 py-4 space-y-3 max-h-[55vh] overflow-y-auto">
+        {tab === 'log' ? (
+          <div className="flex-1 overflow-y-auto">
+            <KanbanLogTab logs={logs} loading={logsLoading} />
+          </div>
+        ) : (
+        <>
+        <div className="px-6 py-4 space-y-3 overflow-y-auto flex-1">
           <div className="grid grid-cols-2 gap-3 text-sm">
             {([
               ['Categoria', card.categoria === 'projeto' ? 'Projeto' : card.categoria === 'sustentacao' ? 'Sustentação' : '—'],
@@ -529,13 +561,28 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
             <ExternalLink size={13} /> Ver Contrato
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   )
 }
 
 function ProjectDetailModal({ card, onClose, userRole }: { card: ProjectCard; onClose: () => void; userRole: string }) {
-  const [tab, setTab] = useState<'details' | 'chat'>('details')
+  const [tab, setTab]             = useState<'details' | 'chat' | 'log'>('details')
+  const [logs, setLogs]           = useState<KanbanLogEntry[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsLoaded, setLogsLoaded]   = useState(false)
+
+  useEffect(() => {
+    if (tab === 'log' && !logsLoaded) {
+      setLogsLoading(true)
+      api.get<KanbanLogEntry[]>(`/projects/${card.id}/kanban-logs`)
+        .then(r => { setLogs(Array.isArray(r) ? r : []); setLogsLoaded(true) })
+        .catch(() => {})
+        .finally(() => setLogsLoading(false))
+    }
+  }, [tab, card.id, logsLoaded])
 
   const statusColor: Record<string, string> = {
     awaiting_start: '#94a3b8', started: '#22c55e',
@@ -559,7 +606,7 @@ function ProjectDetailModal({ card, onClose, userRole }: { card: ProjectCard; on
           </div>
           {/* Tabs */}
           <div className="flex gap-1 mt-3">
-            {(['details', 'chat'] as const).map(t => (
+            {(['details', 'chat', 'log'] as const).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -568,14 +615,18 @@ function ProjectDetailModal({ card, onClose, userRole }: { card: ProjectCard; on
                   ? { background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }
                   : { color: 'var(--brand-subtle)', border: '1px solid transparent' }}
               >
-                {t === 'details' ? <><ExternalLink size={11} /> Detalhes</> : <><MessageSquare size={11} /> Chat</>}
+                {t === 'details' ? <><ExternalLink size={11} /> Detalhes</> : t === 'chat' ? <><MessageSquare size={11} /> Chat</> : <><Clock size={11} /> Histórico</>}
               </button>
             ))}
           </div>
         </div>
 
         {/* Body */}
-        {tab === 'details' ? (
+        {tab === 'log' ? (
+          <div className="flex-1 overflow-y-auto">
+            <KanbanLogTab logs={logs} loading={logsLoading} />
+          </div>
+        ) : tab === 'details' ? (
           <>
             <div className="px-6 py-4 space-y-3">
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -900,10 +951,54 @@ interface ReqAttachment { id: number; original_name: string; file_path: string; 
 interface ReqMsg { id: number; message: string; author?: { id: number; name: string }; created_at: string; attachments?: ReqAttachment[] }
 interface MentionUser { id: number; name: string }
 
+interface KanbanLogEntry { id: number; from_column?: string; to_column?: string; from_status?: string; to_status?: string; moved_by: string; created_at: string }
+
+function KanbanLogTab({ logs, loading }: { logs: KanbanLogEntry[]; loading: boolean }) {
+  const colLabel: Record<string, string> = {
+    backlog: 'Backlog', novo_projeto: 'Novo Projeto', em_planejamento: 'Em Planejamento',
+    em_validacao: 'Em Validação', em_revisao: 'Em Revisão', aprovado: 'Aprovado',
+    inicio_autorizado: 'Início Autorizado', req_planejamento: 'Planejamento',
+    req_inicio_autorizado: 'Início Autorizado', req_em_andamento: 'Em Andamento',
+    awaiting_start: 'Aguardando Início', started: 'Em Andamento', liberado_para_testes: 'Lib. p/ Testes',
+    paused: 'Pausado', finished: 'Encerrado', cancelled: 'Cancelado',
+  }
+  const label = (v?: string) => v ? (colLabel[v] ?? v) : '—'
+
+  if (loading) return <p className="text-center text-xs py-8" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
+  if (logs.length === 0) return (
+    <div className="flex flex-col items-center justify-center py-10 gap-1">
+      <Clock size={24} style={{ color: 'var(--brand-subtle)', opacity: 0.4 }} />
+      <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhuma movimentação registrada</p>
+    </div>
+  )
+  return (
+    <div className="space-y-2 px-6 py-4">
+      {logs.map(l => (
+        <div key={l.id} className="flex items-start gap-3 py-2 border-b last:border-0" style={{ borderColor: 'rgba(139,92,246,0.1)' }}>
+          <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: '#a78bfa' }} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm" style={{ color: 'var(--brand-text)' }}>
+              <span style={{ color: 'var(--brand-subtle)' }}>{label(l.from_column ?? l.from_status)}</span>
+              {' → '}
+              <span style={{ color: '#a78bfa' }}>{label(l.to_column ?? l.to_status)}</span>
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+              {l.moved_by} · {new Date(l.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () => void }) {
-  const [tab, setTab]               = useState<'details' | 'comments'>('details')
+  const [tab, setTab]               = useState<'details' | 'comments' | 'log'>('details')
   const [msgs, setMsgs]             = useState<ReqMsg[]>([])
   const [msgsLoaded, setMsgsLoaded] = useState(false)
+  const [logs, setLogs]             = useState<KanbanLogEntry[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsLoaded, setLogsLoaded] = useState(false)
   const [input, setInput]           = useState('')
   const [sending, setSending]       = useState(false)
   const [files, setFiles]           = useState<File[]>([])
@@ -924,7 +1019,14 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
         .then(r => setMentionUsers(Array.isArray(r) ? r : []))
         .catch(() => {})
     }
-  }, [tab, card.id, msgsLoaded])
+    if (tab === 'log' && !logsLoaded) {
+      setLogsLoading(true)
+      api.get<KanbanLogEntry[]>(`/contract-requests/${card.id}/kanban-logs`)
+        .then(r => { setLogs(Array.isArray(r) ? r : []); setLogsLoaded(true) })
+        .catch(() => {})
+        .finally(() => setLogsLoading(false))
+    }
+  }, [tab, card.id, msgsLoaded, logsLoaded])
 
   useEffect(() => {
     if (tab === 'comments') bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -1038,11 +1140,22 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
                 : { color: 'var(--brand-subtle)', border: '1px solid transparent' }}>
               <MessageSquare size={11} /> Comentários {msgs.length > 0 && `(${msgs.length})`}
             </button>
+            <button onClick={() => setTab('log')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+              style={tab === 'log'
+                ? { background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }
+                : { color: 'var(--brand-subtle)', border: '1px solid transparent' }}>
+              <Clock size={11} /> Histórico
+            </button>
           </div>
         </div>
 
         {/* Body */}
-        {tab === 'details' ? (
+        {tab === 'log' ? (
+          <div className="flex-1 overflow-y-auto">
+            <KanbanLogTab logs={logs} loading={logsLoading} />
+          </div>
+        ) : tab === 'details' ? (
           <>
             <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
               {/* Grid de campos curtos */}
