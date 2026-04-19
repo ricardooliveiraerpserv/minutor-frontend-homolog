@@ -772,7 +772,7 @@ function KanbanContent() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div>
-            <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>{isCliente ? 'Demandas e Projetos' : 'Pipeline Demanda → Projeto'}</h1>
+            <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>Demandas e Projetos</h1>
             <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
               {isConsultor ? 'Seus projetos em execução' : 'Gerencie o fluxo completo de contratos e projetos'}
             </p>
@@ -795,6 +795,15 @@ function KanbanContent() {
                   <FolderKanban size={13} /> Kanban
                 </button>
               </>
+            )}
+            {!isConsultor && (
+              <button
+                onClick={() => router.push('/portal-cliente/nova-requisicao')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.35)', color: '#a78bfa' }}
+              >
+                <Plus size={13} /> Nova Requisição
+              </button>
             )}
             {!isConsultor && !isCliente && (
               <button
