@@ -95,6 +95,7 @@ interface Column {
   phase: Phase
   projectStatuses?: string[]
   clientVisible?: boolean
+  clientLocked?: boolean  // client can DROP here but not drag FROM here
 }
 
 // ─── Column Definitions ───────────────────────────────────────────────────────
@@ -104,7 +105,7 @@ const DEMAND_COLS: Column[] = [
   { id: 'novo_projeto',        label: 'Novo Projeto',     phase: 'demand', clientVisible: true },
   { id: 'em_planejamento',     label: 'Em Planejamento',  phase: 'demand' },
   { id: 'em_validacao',        label: 'Em Validação',     phase: 'demand', clientVisible: true },
-  { id: 'em_revisao',          label: 'Em Revisão',       phase: 'demand' },
+  { id: 'em_revisao',          label: 'Em Revisão',       phase: 'demand', clientVisible: true, clientLocked: true },
   { id: 'aprovado',            label: 'Aprovado',         phase: 'demand', clientVisible: true },
   { id: 'req_inicio_autorizado', label: 'Aguardando Início (Req.)', phase: 'demand' },
 ]
@@ -1505,7 +1506,10 @@ function KanbanContent() {
   // Returns whether drag/drop is allowed for a given column id
   const colCanDrag = (colId: string): boolean => {
     if (isConsultor) return false
-    if (isCliente) return true   // clients can pick up any demand card
+    if (isCliente) {
+      const col = DEMAND_COLS.find(c => c.id === colId)
+      return !(col?.clientLocked)  // clients cannot drag FROM locked columns
+    }
     return true
   }
 
