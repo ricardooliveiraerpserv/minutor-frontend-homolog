@@ -272,7 +272,7 @@ function SidebarInner({ user }: { user: User }) {
         .map(([, item]) => item)
       const nav: NavEntry[] = [
         { type: 'item', label: 'Visão Executiva', href: '/portal-cliente',   icon: Building2 },
-        { type: 'item', label: 'Pipeline',        href: '/contratos/kanban', icon: LayoutGrid },
+        { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: LayoutGrid },
         { type: 'item', label: 'Apontamentos',    href: '/timesheets',       icon: Clock },
         { type: 'item', label: 'Despesas',        href: '/expenses',         icon: Receipt },
       ]

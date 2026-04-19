@@ -772,26 +772,30 @@ function KanbanContent() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div>
-            <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>Pipeline Demanda → Projeto</h1>
+            <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>{isCliente ? 'Demandas e Projetos' : 'Pipeline Demanda → Projeto'}</h1>
             <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
               {isConsultor ? 'Seus projetos em execução' : 'Gerencie o fluxo completo de contratos e projetos'}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => router.push('/contratos')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-opacity hover:opacity-80"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
-            >
-              <List size={13} /> Lista
-            </button>
-            <button
-              onClick={() => router.push('/contratos/kanban')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-opacity hover:opacity-80"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
-            >
-              <FolderKanban size={13} /> Kanban
-            </button>
+            {!isCliente && (
+              <>
+                <button
+                  onClick={() => router.push('/contratos')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-opacity hover:opacity-80"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
+                >
+                  <List size={13} /> Lista
+                </button>
+                <button
+                  onClick={() => router.push('/contratos/kanban')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-opacity hover:opacity-80"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
+                >
+                  <FolderKanban size={13} /> Kanban
+                </button>
+              </>
+            )}
             {!isConsultor && !isCliente && (
               <button
                 onClick={() => router.push('/contratos')}
