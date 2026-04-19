@@ -854,8 +854,8 @@ function KanbanContent() {
                     col={TRANSITION_COL}
                     contractCards={contractsInCol('inicio_autorizado')}
                     projectCards={[]}
-                    canDrag={canDrag}
-                    canDrop={canDrag}
+                    canDrag={colCanInteract('inicio_autorizado')}
+                    canDrop={colCanInteract('inicio_autorizado')}
                     onContractClick={card => {
                       if (card.kanban_status === 'inicio_autorizado' && !card.project_id) {
                         setGenerateTarget(card)
@@ -876,8 +876,8 @@ function KanbanContent() {
                   col={col}
                   contractCards={[]}
                   projectCards={projectsInCol(col.id)}
-                  canDrag={canDrag}
-                  canDrop={canDrag}
+                  canDrag={colCanInteract(col.id)}
+                  canDrop={colCanInteract(col.id)}
                   onContractClick={setSelectedContract}
                   onProjectClick={setSelectedProject}
                 />
