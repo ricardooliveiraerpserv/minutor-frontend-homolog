@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
@@ -114,7 +115,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-950">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-3xl font-bold text-white tracking-tight">Minutor</div>
+          <div className="flex justify-center mb-4">
+            <Image src="/logo.png" alt="Minutor" width={160} height={64} className="object-contain" priority />
+          </div>
           <p className="text-zinc-400 text-sm mt-1">Gestão de horas e despesas</p>
         </div>
         <Suspense fallback={null}>
