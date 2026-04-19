@@ -1348,8 +1348,8 @@ function KanbanContent() {
                   col={col}
                   contractCards={[]}
                   projectCards={projectsInCol(col.id)}
-                  canDrag={colCanInteract(col.id)}
-                  canDrop={colCanInteract(col.id)}
+                  canDrag={!isConsultor && !isCliente}
+                  canDrop={!isConsultor && !isCliente}
                   onContractClick={setSelectedContract}
                   onProjectClick={setSelectedProject}
                 />
