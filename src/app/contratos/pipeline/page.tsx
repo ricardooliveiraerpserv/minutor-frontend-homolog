@@ -94,8 +94,9 @@ interface Column {
   label: string
   phase: Phase
   projectStatuses?: string[]
-  clientVisible?: boolean
-  clientLocked?: boolean  // client can DROP here but not drag FROM here
+  clientVisible?: boolean   // shows [C] badge + client can drop
+  clientCanDrop?: boolean   // client can drop here but NO [C] badge
+  clientLocked?: boolean    // client cannot drag FROM here
 }
 
 // ─── Column Definitions ───────────────────────────────────────────────────────
@@ -105,7 +106,7 @@ const DEMAND_COLS: Column[] = [
   { id: 'novo_projeto',        label: 'Novo Projeto',     phase: 'demand', clientVisible: true },
   { id: 'em_planejamento',     label: 'Em Planejamento',  phase: 'demand' },
   { id: 'em_validacao',        label: 'Em Validação',     phase: 'demand', clientVisible: true },
-  { id: 'em_revisao',          label: 'Em Revisão',       phase: 'demand', clientVisible: true, clientLocked: true },
+  { id: 'em_revisao',          label: 'Em Revisão',       phase: 'demand', clientCanDrop: true, clientLocked: true },
   { id: 'aprovado',            label: 'Aprovado',         phase: 'demand', clientVisible: true },
   { id: 'req_inicio_autorizado', label: 'Aguardando Início (Req.)', phase: 'demand' },
 ]
@@ -1515,7 +1516,10 @@ function KanbanContent() {
 
   const colCanDrop = (colId: string): boolean => {
     if (isConsultor) return false
-    if (isCliente) return colIsClientVisible(colId)  // clients can only drop on [C] columns
+    if (isCliente) {
+      const col = DEMAND_COLS.find(c => c.id === colId)
+      return !!(col?.clientVisible || col?.clientCanDrop)
+    }
     return true
   }
 
@@ -1563,8 +1567,11 @@ function KanbanContent() {
     const toCol   = destination.droppableId
     const fromCol = source.droppableId
 
-    // Client can only DROP on [C] columns
-    if (isCliente && !colIsClientVisible(toCol)) return
+    // Client can only DROP on clientVisible or clientCanDrop columns
+    if (isCliente) {
+      const col = DEMAND_COLS.find(c => c.id === toCol)
+      if (!col?.clientVisible && !col?.clientCanDrop) return
+    }
 
     const [cardType, rawId] = draggableId.split('-')
     const cardId = Number(rawId)
