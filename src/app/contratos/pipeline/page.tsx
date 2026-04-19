@@ -723,9 +723,14 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
               <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{card.customer_name}</p>
               <p className="text-sm" style={{ color: '#a78bfa' }}>{card.area_requisitante}</p>
             </div>
-            <span className="text-xs px-2 py-1 rounded-full font-semibold shrink-0" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}>
-              Requisição
-            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}>
+                Requisição
+              </span>
+              <button onClick={onClose} className="p-1 rounded-lg transition-colors hover:bg-white/10" style={{ color: 'var(--brand-subtle)' }}>
+                <X size={16} />
+              </button>
+            </div>
           </div>
           {/* Tabs */}
           <div className="flex gap-1 mt-3">
