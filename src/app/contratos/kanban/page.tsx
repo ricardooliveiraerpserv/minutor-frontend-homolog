@@ -56,7 +56,7 @@ interface Coordinator { id: number; name: string }
 interface Column {
   id: string
   label: string
-  type: 'fixed' | 'coordinator' | 'project_status' | 'sustentacao'
+  type: 'fixed' | 'coordinator' | 'project_status' | 'sustentacao' | 'bizify'
   coordinatorId?: number
   emoji?: string
   projectStatus?: string
@@ -100,26 +100,32 @@ const FIXED_COLUMNS: Column[] = [
   { id: 'pronto', label: 'Pronto para Iniciar', type: 'fixed', emoji: '✅' },
 ]
 
-const SUST_COLOR = '#f97316'
+const SUST_COLOR   = '#f97316'
+const BIZIFY_COLOR = '#a78bfa'
 
 const SUSTENTACAO_COLS: Column[] = [
   {
-    id: 'sust_bh_fixo',   label: 'BH Fixo',        type: 'sustentacao', emoji: '🔒', color: SUST_COLOR,
+    id: 'sust_bh_fixo',   label: 'BH Fixo',   type: 'sustentacao', emoji: '🔒', color: SUST_COLOR,
     sustentacaoValidator: (c) => c.categoria === 'sustentacao' && c.tipo_faturamento === 'banco_horas_fixo',
   },
   {
-    id: 'sust_bh_mensal', label: 'BH Mensal',       type: 'sustentacao', emoji: '📅', color: SUST_COLOR,
+    id: 'sust_bh_mensal', label: 'BH Mensal', type: 'sustentacao', emoji: '📅', color: SUST_COLOR,
     sustentacaoValidator: (c) => c.categoria === 'sustentacao' && c.tipo_faturamento === 'banco_horas_mensal',
   },
   {
-    id: 'sust_cloud',     label: 'Cloud',            type: 'sustentacao', emoji: '☁️', color: '#38bdf8',
-    sustentacaoValidator: (c) => !!(c.service_type?.toLowerCase().includes('cloud')),
+    id: 'sust_on_demand', label: 'On Demand', type: 'sustentacao', emoji: '⚡', color: SUST_COLOR,
+    sustentacaoValidator: (c) => c.categoria === 'sustentacao' && c.tipo_faturamento === 'on_demand',
   },
   {
-    id: 'sust_bizify',    label: 'Bizify',           type: 'sustentacao', emoji: '⚡', color: '#a78bfa',
-    sustentacaoValidator: (c) => c.categoria === 'sustentacao',
+    id: 'sust_cloud',     label: 'Cloud',     type: 'sustentacao', emoji: '☁️', color: '#38bdf8',
+    sustentacaoValidator: (c) => !!(c.service_type?.toLowerCase().includes('cloud')),
   },
 ]
+
+const BIZIFY_COL: Column = {
+  id: 'sust_bizify', label: 'Bizify', type: 'bizify', emoji: '⚡', color: BIZIFY_COLOR,
+  sustentacaoValidator: (c) => !!(c.service_type?.toLowerCase().includes('bizify') || c.contract_type?.toLowerCase().includes('bizify')),
+}
 
 const STATUS_PROJECT_COLUMNS: Column[] = [
   { id: 'col_pausado',   label: 'Pausado',   type: 'project_status', projectStatus: 'paused',    color: '#f97316' },
@@ -355,7 +361,7 @@ function KanbanContent() {
   const [projectCards,      setProjectCards]       = useState<ProjectCard[]>([])
   const [coordinators,      setCoordinators]       = useState<Coordinator[]>([])
   const [sustGroups,        setSustGroups]         = useState<SustGroups>({
-    sust_bh_fixo: [], sust_bh_mensal: [], sust_cloud: [], sust_bizify: [],
+    sust_bh_fixo: [], sust_bh_mensal: [], sust_on_demand: [], sust_cloud: [], sust_bizify: [],
   })
   const [loading,           setLoading]            = useState(true)
   const [selected,          setSelected]           = useState<ContractCard | null>(null)
@@ -370,6 +376,7 @@ function KanbanContent() {
       setSustGroups({
         sust_bh_fixo:   r.sustentacao_groups?.sust_bh_fixo   ?? [],
         sust_bh_mensal: r.sustentacao_groups?.sust_bh_mensal ?? [],
+        sust_on_demand: r.sustentacao_groups?.sust_on_demand ?? [],
         sust_cloud:     r.sustentacao_groups?.sust_cloud     ?? [],
         sust_bizify:    r.sustentacao_groups?.sust_bizify    ?? [],
       })
@@ -382,10 +389,9 @@ function KanbanContent() {
   const isSustAdmin = user?.type === 'admin' ||
     (user?.type === 'coordenador' && (user as any).coordinator_type === 'sustentacao')
 
-  // Column list: fixed + sustentacao group + coordinator + project status
+  // Column list: fixed → coordinators → sustentação group → bizify → project status
   const columns: Column[] = [
     ...FIXED_COLUMNS,
-    ...SUSTENTACAO_COLS,
     ...coordinators.map(c => ({
       id:            `coordinator:${c.id}`,
       label:         c.name,
@@ -393,6 +399,8 @@ function KanbanContent() {
       coordinatorId: c.id,
       emoji:         '👤',
     })),
+    ...SUSTENTACAO_COLS,
+    BIZIFY_COL,
     ...STATUS_PROJECT_COLUMNS,
   ]
 
@@ -554,6 +562,7 @@ function KanbanContent() {
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" />Pronto</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Projeto Ativo</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: SUST_COLOR }} />Sustentação</span>
+          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: BIZIFY_COLOR }} />Bizify</span>
           <span className="ml-auto flex items-center gap-1.5"><Users size={11} />Colunas de coordenador geram projeto automaticamente</span>
         </div>
 
@@ -574,27 +583,24 @@ function KanbanContent() {
                   const statusProjects = isStatusCol ? projectsInStatusCol(col.id) : []
                   const totalCards     = contractCards.length + activeProjects.length + statusProjects.length
 
-                  // Visual separator before first status col
-                  const prevCol     = columns[colIdx - 1]
-                  const showSep     = (isStatusCol && prevCol?.type !== 'project_status') ||
-                                      (col.type === 'sustentacao' && prevCol?.type !== 'sustentacao') ||
-                                      (isCoord && prevCol?.type === 'sustentacao')
-                  const isSust      = col.type === 'sustentacao'
+                  const prevCol  = columns[colIdx - 1]
+                  const isSust   = col.type === 'sustentacao'
+                  const isBizify = col.type === 'bizify'
+                  const showSep  = (isStatusCol && prevCol?.type !== 'project_status') ||
+                                   (isSust && prevCol?.type !== 'sustentacao') ||
+                                   (isBizify && prevCol?.type !== 'bizify') ||
+                                   (isCoord && prevCol?.type === 'fixed')
 
-                  const borderColor = isStatusCol
-                    ? `${col.color}30`
-                    : isSust
-                    ? `${col.color}35`
-                    : isCoord
-                    ? 'rgba(0,245,255,0.15)'
+                  const borderColor = isStatusCol ? `${col.color}30`
+                    : isSust   ? `${col.color}35`
+                    : isBizify ? `${BIZIFY_COLOR}35`
+                    : isCoord  ? 'rgba(0,245,255,0.15)'
                     : 'var(--brand-border)'
 
-                  const headerColor = isStatusCol
-                    ? col.color!
-                    : isSust
-                    ? col.color!
-                    : isCoord
-                    ? 'var(--brand-primary)'
+                  const headerColor = isStatusCol ? col.color!
+                    : isSust   ? col.color!
+                    : isBizify ? BIZIFY_COLOR
+                    : isCoord  ? 'var(--brand-primary)'
                     : 'var(--brand-text)'
 
                   return (
@@ -602,18 +608,16 @@ function KanbanContent() {
                       {/* Separator */}
                       {showSep && (
                         <div className="self-stretch w-px shrink-0 mt-1"
-                          style={{ background: isSust ? SUST_COLOR : 'var(--brand-border)', opacity: isSust ? 0.5 : 0.4 }} />
+                          style={{ background: isSust ? SUST_COLOR : isBizify ? BIZIFY_COLOR : 'var(--brand-border)', opacity: (isSust || isBizify) ? 0.5 : 0.4 }} />
                       )}
 
                       {/* Column */}
                       <div className="flex flex-col rounded-2xl shrink-0" style={{
                         width: 264,
-                        background: isStatusCol
-                          ? `${col.color}05`
-                          : isSust
-                          ? `${col.color}04`
-                          : isCoord
-                          ? 'rgba(0,245,255,0.02)'
+                        background: isStatusCol ? `${col.color}05`
+                          : isSust   ? `${col.color}04`
+                          : isBizify ? `${BIZIFY_COLOR}04`
+                          : isCoord  ? 'rgba(0,245,255,0.02)'
                           : 'rgba(255,255,255,0.02)',
                         border: `1px solid ${borderColor}`,
                       }}>
@@ -638,8 +642,19 @@ function KanbanContent() {
                                 style={{ background: `${SUST_COLOR}15`, color: SUST_COLOR, letterSpacing: '0.1em' }}>
                                 SUSTENTAÇÃO
                               </span>
-                              <p className="text-[10px] mt-0.5" style={{ color: col.color, opacity: 0.65 }}>
+                              <p className="text-[10px] mt-0.5" style={{ color: SUST_COLOR, opacity: 0.65 }}>
                                 Arraste entre colunas ou para coordenador
+                              </p>
+                            </>
+                          )}
+                          {isBizify && (
+                            <>
+                              <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm"
+                                style={{ background: `${BIZIFY_COLOR}15`, color: BIZIFY_COLOR, letterSpacing: '0.1em' }}>
+                                BIZIFY
+                              </span>
+                              <p className="text-[10px] mt-0.5" style={{ color: BIZIFY_COLOR, opacity: 0.65 }}>
+                                Arraste para coordenador alocar
                               </p>
                             </>
                           )}
@@ -654,7 +669,7 @@ function KanbanContent() {
                         <Droppable
                           droppableId={col.id}
                           isDropDisabled={
-                            (isSust && !isSustAdmin) ||
+                            ((isSust || isBizify) && !isSustAdmin) ||
                             (isStatusCol && !['col_pausado', 'col_cancelado', 'col_encerrado'].includes(col.id))
                           }
                         >
@@ -666,7 +681,7 @@ function KanbanContent() {
                               style={{
                                 minHeight: 80,
                                 background: snap.isDraggingOver
-                                  ? isStatusCol ? `${col.color}08` : isSust ? `${col.color}08` : isCoord ? 'rgba(0,245,255,0.05)' : 'rgba(255,255,255,0.03)'
+                                  ? isStatusCol ? `${col.color}08` : (isSust || isBizify) ? `${col.color}08` : isCoord ? 'rgba(0,245,255,0.05)' : 'rgba(255,255,255,0.03)'
                                   : 'transparent',
                               }}
                             >
@@ -682,7 +697,7 @@ function KanbanContent() {
                               {prov.placeholder}
                               {totalCards === 0 && !snap.isDraggingOver && (
                                 <p className="text-center text-xs py-6" style={{ color: 'var(--brand-subtle)' }}>
-                                  {isCoord ? 'Nenhum projeto alocado' : isSust ? 'Sem contratos nesta categoria' : 'Vazio'}
+                                  {isCoord ? 'Nenhum projeto alocado' : (isSust || isBizify) ? 'Sem contratos nesta categoria' : 'Vazio'}
                                 </p>
                               )}
                             </div>
