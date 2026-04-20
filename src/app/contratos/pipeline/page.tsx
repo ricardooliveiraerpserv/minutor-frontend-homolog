@@ -104,7 +104,7 @@ interface Column {
 
 const DEMAND_COLS: Column[] = [
   { id: 'backlog',              label: 'Backlog',          phase: 'demand', clientVisible: true },
-  { id: 'novo_projeto',        label: 'Novo Projeto',     phase: 'demand', clientVisible: true },
+  { id: 'novo_projeto',        label: 'Novo Projeto',     phase: 'demand', clientCanDrop: true, clientLocked: true },
   { id: 'em_planejamento',     label: 'Em Planejamento',  phase: 'demand' },
   { id: 'em_validacao',        label: 'Em Validação',     phase: 'demand', clientVisible: true },
   { id: 'em_revisao',          label: 'Em Revisão',       phase: 'demand', clientCanDrop: true, clientLocked: true },
