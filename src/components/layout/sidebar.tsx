@@ -140,7 +140,6 @@ const NAV: NavEntry[] = [
     label: 'Cadastros',
     icon: Database,
     items: [
-      { label: 'Projetos',              href: '/projects',                        icon: FolderOpen },
       { label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',         icon: FileType },
       { label: 'Tipos de Serviço',      href: '/cadastros?tab=services',          icon: Wrench },
       { label: 'Clientes',              href: '/cadastros?tab=customers',          icon: Users },
@@ -248,7 +247,7 @@ function SidebarInner({ user }: { user: User }) {
       if (has('expense_types.manage'))      cadastrosItems.push({ label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',      icon: Receipt })
       if (has('payment_methods.manage'))    cadastrosItems.push({ label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',    icon: CreditCard })
       if (has('partners.manage'))   cadastrosItems.push({ label: 'Parceiros',           href: '/partners',                 icon: Handshake })
-      if (hasProjectsAction) cadastrosItems.unshift({ label: 'Projetos', href: '/projects', icon: FolderOpen })
+      // 'Projetos' foi removido — inclusão agora é feita via Kanban (pipeline)
       if (cadastrosItems.length > 0) nav.push({ type: 'group', label: 'Cadastros', icon: Database, items: cadastrosItems })
 
       // Usuários — após Cadastros

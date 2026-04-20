@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, Check, Trash2 } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
 
@@ -360,9 +360,32 @@ function RequestKanbanCard({ card }: { card: RequestCard }) {
 
 // ─── Project Card ─────────────────────────────────────────────────────────────
 
+const PROJECT_MENU_ITEMS = [
+  { action: 'view',       label: 'Visualizar',       icon: Eye },
+  { action: 'edit',       label: 'Editar',            icon: Pencil },
+  { action: 'status',     label: 'Alterar Status',    icon: Layers },
+  { action: 'cost',       label: 'Custo',             icon: DollarSign },
+  { action: 'timesheets', label: 'Apontamentos',      icon: Clock },
+  { action: 'expenses',   label: 'Despesas',          icon: BarChart2 },
+  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp },
+  { action: 'team',       label: 'Selecionar Equipe', icon: Users },
+] as const
+
 function ProjectKanbanCard({
-  card, index, canDrag, onClick,
-}: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void }) {
+  card, index, canDrag, onClick, onAction,
+}: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void; onAction: (action: string) => void }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menuOpen])
+
   const statusColor: Record<string, string> = {
     awaiting_start: '#94a3b8', started: '#22c55e',
     liberado_para_testes: '#f59e0b', finished: '#6366f1', paused: '#ef4444',
@@ -377,7 +400,7 @@ function ProjectKanbanCard({
           {...prov.draggableProps}
           {...prov.dragHandleProps}
           onClick={onClick}
-          className="rounded-xl p-3 cursor-pointer select-none transition-all"
+          className="rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
             background: snap.isDragging ? 'rgba(99,102,241,0.08)' : 'var(--brand-surface)',
             border: `1px solid ${snap.isDragging ? 'rgba(99,102,241,0.4)' : 'rgba(99,102,241,0.2)'}`,
@@ -392,10 +415,41 @@ function ProjectKanbanCard({
               </p>
               <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
             </div>
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap"
-              style={{ background: `${color}20`, color }}>
-              {STATUS_LABEL[card.status] ?? card.status}
-            </span>
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap"
+                style={{ background: `${color}20`, color }}>
+                {STATUS_LABEL[card.status] ?? card.status}
+              </span>
+              {/* Context menu */}
+              <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
+                <button
+                  onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
+                  className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
+                  style={{ color: 'var(--brand-subtle)' }}
+                >
+                  <MoreVertical size={12} />
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 top-6 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
+                    style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                    {PROJECT_MENU_ITEMS.map(item => {
+                      const Icon = item.icon
+                      return (
+                        <button
+                          key={item.action}
+                          onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
+                          style={{ color: 'var(--brand-text)' }}
+                        >
+                          <Icon size={13} style={{ color: 'var(--brand-subtle)' }} />
+                          {item.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center justify-between mt-1 pt-2" style={{ borderTop: '1px solid rgba(99,102,241,0.15)' }}>
@@ -1444,10 +1498,10 @@ interface TimesheetEntry {
   user?: { id: number; name: string }
 }
 
-function ProjectViewModal({ projectId, onClose, userRole }: { projectId: number; onClose: () => void; userRole?: string }) {
+function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projectId: number; onClose: () => void; userRole?: string; initialTab?: string }) {
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets'>('overview')
+  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets'>((initialTab as any) ?? 'overview')
   const [breakdown, setBreakdown] = useState<ConsultantBreakdown[]>([])
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
   const [tsLoading, setTsLoading] = useState(false)
@@ -2148,6 +2202,357 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   )
 }
 
+// ─── ProjectEditByIdModal ──────────────────────────────────────────────────────
+
+function ProjectEditByIdModal({ projectId, onClose, onSaved }: { projectId: number; onClose: () => void; onSaved: () => void }) {
+  const [p, setP] = useState<ProjectFull | null>(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    api.get<ProjectFull>(`/projects/${projectId}`)
+      .then(setP)
+      .catch(() => toast.error('Erro ao carregar projeto'))
+      .finally(() => setLoading(false))
+  }, [projectId])
+  if (loading) return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.7)' }}>
+      <p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
+    </div>
+  )
+  if (!p) return null
+  return <ProjectInlineEditModal project={p} onClose={onClose} onSaved={onSaved} />
+}
+
+// ─── ProjectStatusModal ────────────────────────────────────────────────────────
+
+function ProjectStatusModal({ projectId, projectName, currentStatus, onClose, onSaved }: {
+  projectId: number; projectName: string; currentStatus: string
+  onClose: () => void; onSaved: (newStatus: string) => void
+}) {
+  const [status, setStatus] = useState(currentStatus)
+  const [saving, setSaving] = useState(false)
+  const STATUS_OPTS = [
+    { value: 'awaiting_start', label: 'Aguardando Início' },
+    { value: 'started',        label: 'Em Andamento' },
+    { value: 'paused',         label: 'Pausado' },
+    { value: 'finished',       label: 'Encerrado' },
+    { value: 'cancelled',      label: 'Cancelado' },
+  ]
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await api.patch(`/projects/${projectId}/status`, { status })
+      toast.success('Status atualizado')
+      onSaved(status)
+    } catch { toast.error('Erro ao atualizar status') }
+    finally { setSaving(false) }
+  }
+  const inputStyle: React.CSSProperties = { width: '100%', background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', borderRadius: '0.625rem', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', color: 'var(--brand-text)', outline: 'none' }
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+      <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Alterar Status</p><h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={14} style={{ color: 'var(--brand-muted)' }} /></button>
+        </div>
+        <div className="p-5">
+          <label className="block text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Novo Status</label>
+          <select value={status} onChange={e => setStatus(e.target.value)} style={inputStyle}>
+            {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div className="flex justify-end gap-2 px-5 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-medium hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ background: 'rgba(0,245,255,0.1)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Salvando...' : 'Confirmar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── ProjectExpensesModal ──────────────────────────────────────────────────────
+
+interface ProjExpense { id: number; description: string; amount: number; expense_date: string; status: string; status_display?: string; category?: { name: string }; user?: { name: string } }
+
+function ProjectExpensesModal({ projectId, projectName, onClose }: { projectId: number; projectName: string; onClose: () => void }) {
+  const [items, setItems] = useState<ProjExpense[]>([])
+  const [loading, setLoading] = useState(true)
+  const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  const fmtDate = (d: string) => d.slice(0,10).split('-').reverse().join('/')
+  const statusColor: Record<string,string> = { pending: '#f59e0b', approved: '#22c55e', rejected: '#ef4444' }
+
+  useEffect(() => {
+    api.get<any>(`/expenses?project_id=${projectId}&per_page=100`)
+      .then(r => setItems(Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : Array.isArray(r) ? r : []))
+      .catch(() => toast.error('Erro ao carregar despesas'))
+      .finally(() => setLoading(false))
+  }, [projectId])
+
+  const total = items.reduce((s, e) => s + e.amount, 0)
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
+      <div className="flex flex-col w-full max-w-2xl rounded-2xl max-h-[85vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Despesas</p><h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+        </div>
+        {loading ? <div className="flex-1 flex items-center justify-center py-12"><p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p></div> : (
+          <div className="flex-1 overflow-y-auto">
+            {items.length === 0 ? (
+              <p className="text-center text-sm py-12" style={{ color: 'var(--brand-subtle)' }}>Nenhuma despesa encontrada.</p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3 p-5">
+                  <div className="rounded-xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)' }}>
+                    <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total de Despesas</p>
+                    <p className="text-lg font-bold" style={{ color: '#00F5FF' }}>{fmtBRL(total)}</p>
+                  </div>
+                  <div className="rounded-xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)' }}>
+                    <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Quantidade</p>
+                    <p className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>{items.length}</p>
+                  </div>
+                </div>
+                <div className="px-5 pb-5">
+                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                    <table className="w-full text-xs">
+                      <thead><tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--brand-border)' }}>
+                        {['Data','Descrição','Categoria','Responsável','Valor','Status'].map(h => <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}
+                      </tr></thead>
+                      <tbody>
+                        {items.map((e, i) => (
+                          <tr key={e.id} style={{ borderBottom: i < items.length - 1 ? '1px solid var(--brand-border)' : undefined }}>
+                            <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtDate(e.expense_date)}</td>
+                            <td className="px-3 py-2.5 max-w-[160px] truncate" style={{ color: 'var(--brand-text)' }}>{e.description}</td>
+                            <td className="px-3 py-2.5" style={{ color: 'var(--brand-muted)' }}>{e.category?.name ?? '—'}</td>
+                            <td className="px-3 py-2.5" style={{ color: 'var(--brand-muted)' }}>{e.user?.name ?? '—'}</td>
+                            <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: '#00F5FF' }}>{fmtBRL(e.amount)}</td>
+                            <td className="px-3 py-2.5"><span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${statusColor[e.status] ?? '#94a3b8'}18`, color: statusColor[e.status] ?? '#94a3b8' }}>{e.status_display ?? e.status}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        <div className="flex justify-end px-6 py-3 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── ProjectAportesModal ───────────────────────────────────────────────────────
+
+interface HourContrib { id: number; contributed_hours: number; hourly_rate: number; contributed_at: string; description?: string | null; contributed_by_user?: { name: string }; total_value?: number }
+
+function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: number; projectName: string; onClose: () => void }) {
+  const [items, setItems] = useState<HourContrib[]>([])
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '' })
+  const [formOpen, setFormOpen] = useState(false)
+  const [editing, setEditing] = useState<HourContrib | null>(null)
+  const [saving, setSaving] = useState(false)
+  const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  const fmtDate = (d: string) => d.slice(0,10).split('-').reverse().join('/')
+  const inputS: React.CSSProperties = { background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', borderRadius: '0.5rem', padding: '0.45rem 0.65rem', fontSize: '0.75rem', color: 'var(--brand-text)', outline: 'none', width: '100%' }
+
+  const load = () => {
+    setLoading(true)
+    api.get<any>(`/projects/${projectId}/hour-contributions`)
+      .then(r => setItems((r?.items ?? r?.data ?? r ?? []).map((c: HourContrib) => ({ ...c, total_value: c.contributed_hours * c.hourly_rate }))))
+      .catch(() => toast.error('Erro ao carregar aportes'))
+      .finally(() => setLoading(false))
+  }
+  useEffect(() => { load() }, [projectId])
+
+  const openAdd = () => { setEditing(null); setForm({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '' }); setFormOpen(true) }
+  const openEdit = (c: HourContrib) => { setEditing(c); setForm({ contributed_hours: String(c.contributed_hours), hourly_rate: String(c.hourly_rate), contributed_at: c.contributed_at.slice(0,10), description: c.description ?? '' }); setFormOpen(true) }
+
+  const handleSave = async () => {
+    if (!form.contributed_hours || !form.hourly_rate || !form.contributed_at) { toast.error('Preencha horas, valor/hora e data'); return }
+    setSaving(true)
+    try {
+      const payload = { contributed_hours: Number(form.contributed_hours), hourly_rate: Number(form.hourly_rate), contributed_at: form.contributed_at, description: form.description || null }
+      if (editing) await api.put(`/projects/${projectId}/hour-contributions/${editing.id}`, payload)
+      else await api.post(`/projects/${projectId}/hour-contributions`, payload)
+      toast.success(editing ? 'Aporte atualizado' : 'Aporte adicionado')
+      setFormOpen(false); load()
+    } catch { toast.error('Erro ao salvar aporte') }
+    finally { setSaving(false) }
+  }
+
+  const handleDelete = async (c: HourContrib) => {
+    if (!confirm('Excluir este aporte?')) return
+    try { await api.delete(`/projects/${projectId}/hour-contributions/${c.id}`); toast.success('Aporte excluído'); load() }
+    catch { toast.error('Erro ao excluir') }
+  }
+
+  const totalH = items.reduce((s, c) => s + c.contributed_hours, 0)
+  const totalV = items.reduce((s, c) => s + (c.total_value ?? 0), 0)
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
+      <div className="flex flex-col w-full max-w-2xl rounded-2xl max-h-[85vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Aportes de Horas</p><h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
+          <div className="flex items-center gap-2">
+            <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.2)' }}><Plus size={11} /> Novo Aporte</button>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          </div>
+        </div>
+
+        {formOpen && (
+          <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)', background: 'rgba(0,0,0,0.15)' }}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>{editing ? 'Editar Aporte' : 'Novo Aporte'}</p>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div><label className="block text-[10px] mb-1" style={{ color: 'var(--brand-subtle)' }}>Horas *</label><input type="number" value={form.contributed_hours} onChange={e => setForm(f => ({...f, contributed_hours: e.target.value}))} style={inputS} placeholder="0" /></div>
+              <div><label className="block text-[10px] mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor/Hora (R$) *</label><input type="number" value={form.hourly_rate} onChange={e => setForm(f => ({...f, hourly_rate: e.target.value}))} style={inputS} placeholder="0.00" step="0.01" /></div>
+              <div><label className="block text-[10px] mb-1" style={{ color: 'var(--brand-subtle)' }}>Data *</label><input type="date" value={form.contributed_at} onChange={e => setForm(f => ({...f, contributed_at: e.target.value}))} style={inputS} /></div>
+              <div><label className="block text-[10px] mb-1" style={{ color: 'var(--brand-subtle)' }}>Descrição</label><input value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} style={inputS} placeholder="Motivo do aporte..." /></div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setFormOpen(false)} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(0,245,255,0.1)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.25)', opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </div>
+        )}
+
+        {loading ? <div className="flex-1 flex items-center justify-center py-10"><p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p></div> : (
+          <div className="flex-1 overflow-y-auto">
+            {items.length === 0 ? <p className="text-center text-sm py-10" style={{ color: 'var(--brand-subtle)' }}>Nenhum aporte registrado.</p> : (
+              <>
+                <div className="grid grid-cols-2 gap-3 p-5">
+                  <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)' }}><p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total Horas</p><p className="text-lg font-bold" style={{ color: '#a78bfa' }}>{totalH.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h</p></div>
+                  <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)' }}><p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor Total</p><p className="text-lg font-bold" style={{ color: '#00F5FF' }}>{fmtBRL(totalV)}</p></div>
+                </div>
+                <div className="px-5 pb-5">
+                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                    <table className="w-full text-xs">
+                      <thead><tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--brand-border)' }}>
+                        {['Data','Horas','Valor/h','Total','Descrição',''].map(h => <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}
+                      </tr></thead>
+                      <tbody>
+                        {items.map((c, i) => (
+                          <tr key={c.id} style={{ borderBottom: i < items.length - 1 ? '1px solid var(--brand-border)' : undefined }}>
+                            <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtDate(c.contributed_at)}</td>
+                            <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: '#a78bfa' }}>{c.contributed_hours.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}h</td>
+                            <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(c.hourly_rate)}</td>
+                            <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: '#00F5FF' }}>{fmtBRL(c.total_value ?? 0)}</td>
+                            <td className="px-3 py-2.5 max-w-[160px] truncate" style={{ color: 'var(--brand-muted)' }}>{c.description ?? '—'}</td>
+                            <td className="px-3 py-2.5">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => openEdit(c)} className="p-1 rounded hover:bg-white/5" title="Editar"><Pencil size={11} style={{ color: 'var(--brand-subtle)' }} /></button>
+                                <button onClick={() => handleDelete(c)} className="p-1 rounded hover:bg-white/5" title="Excluir"><Trash2 size={11} style={{ color: '#ef4444' }} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        <div className="flex justify-end px-6 py-3 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── ProjectTeamModal ──────────────────────────────────────────────────────────
+
+function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projectId: number; projectName: string; onClose: () => void; onSaved: () => void }) {
+  const [consultants, setConsultants] = useState<{ id: number; name: string }[]>([])
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      api.get<any>(`/projects/${projectId}`),
+      api.get<any>('/users?type=consultor&pageSize=200'),
+    ]).then(([proj, usrs]) => {
+      setConsultants(usrs?.items ?? usrs?.data ?? [])
+      const ids = (proj?.consultants ?? []).map((c: { id: number }) => c.id)
+      setSelectedIds(new Set(ids))
+    }).catch(() => toast.error('Erro ao carregar equipe'))
+    .finally(() => setLoading(false))
+  }, [projectId])
+
+  const filtered = consultants.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+
+  const toggle = (id: number) => setSelectedIds(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await api.put(`/projects/${projectId}`, { consultant_ids: Array.from(selectedIds) })
+      toast.success('Equipe atualizada')
+      onSaved()
+    } catch { toast.error('Erro ao salvar equipe') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
+      <div className="flex flex-col w-full max-w-lg rounded-2xl max-h-[80vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Selecionar Equipe</p><h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+        </div>
+        <div className="px-5 pt-4 shrink-0">
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar consultor..."
+            className="w-full text-sm px-3 py-2 rounded-xl outline-none"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+          />
+          <p className="text-[10px] mt-2 mb-1" style={{ color: 'var(--brand-subtle)' }}>{selectedIds.size} consultor(es) selecionado(s)</p>
+        </div>
+        {loading ? <div className="flex-1 flex items-center justify-center py-10"><p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p></div> : (
+          <div className="flex-1 overflow-y-auto px-5 pb-4">
+            <div className="space-y-1 mt-2">
+              {filtered.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => toggle(c.id)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors hover:bg-white/5"
+                  style={{ background: selectedIds.has(c.id) ? 'rgba(139,92,246,0.08)' : 'transparent', border: `1px solid ${selectedIds.has(c.id) ? 'rgba(139,92,246,0.3)' : 'transparent'}` }}
+                >
+                  <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: selectedIds.has(c.id) ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
+                    {selectedIds.has(c.id) && <Check size={11} style={{ color: '#a78bfa' }} />}
+                  </div>
+                  <span className="text-sm" style={{ color: selectedIds.has(c.id) ? '#a78bfa' : 'var(--brand-text)' }}>{c.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="flex justify-end gap-2 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+          <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Salvando...' : 'Salvar Equipe'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () => void }) {
   const [tab, setTab]               = useState<'details' | 'comments' | 'log'>('details')
   const [msgs, setMsgs]             = useState<ReqMsg[]>([])
@@ -2510,7 +2915,7 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
 // ─── Column Component ─────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  col, contractCards, projectCards, requestCards = [], canDrag, canDrop, onContractClick, onProjectClick, onRequestClick,
+  col, contractCards, projectCards, requestCards = [], canDrag, canDrop, onContractClick, onProjectClick, onRequestClick, onProjectAction,
 }: {
   col: Column
   contractCards: ContractCard[]
@@ -2521,6 +2926,7 @@ function KanbanColumn({
   onContractClick: (card: ContractCard) => void
   onProjectClick: (card: ProjectCard) => void
   onRequestClick?: (card: RequestCard) => void
+  onProjectAction?: (card: ProjectCard, action: string) => void
 }) {
   const isTransition  = col.phase === 'transition'
   const isProject     = col.phase === 'project'
@@ -2625,7 +3031,7 @@ function KanbanColumn({
               <ContractKanbanCard key={uniqueCardId(card)} card={card} index={requestCards.length + idx} canDrag={canDrag} onClick={() => onContractClick(card)} />
             ))}
             {projectCards.map((card, idx) => (
-              <ProjectKanbanCard key={uniqueCardId(card)} card={card} index={requestCards.length + contractCards.length + idx} canDrag={canDrag} onClick={() => onProjectClick(card)} />
+              <ProjectKanbanCard key={uniqueCardId(card)} card={card} index={requestCards.length + contractCards.length + idx} canDrag={canDrag} onClick={() => onProjectClick(card)} onAction={action => onProjectAction?.(card, action)} />
             ))}
             {prov.placeholder}
             {contractCards.length === 0 && projectCards.length === 0 && requestCards.length === 0 && !snap.isDraggingOver && (
@@ -2673,6 +3079,7 @@ function KanbanContent() {
   const [selectedContract, setSelectedContract] = useState<ContractCard | null>(null)
   const [selectedProject,  setSelectedProject]  = useState<ProjectCard | null>(null)
   const [generateTarget,   setGenerateTarget]   = useState<ContractCard | null>(null)
+  const [projectAction,    setProjectAction]    = useState<{ card: ProjectCard; action: string } | null>(null)
 
   const isConsultor = userRole === 'consultor'
   const isCliente   = userRole === 'cliente'
@@ -2969,6 +3376,7 @@ function KanbanContent() {
                   canDrop={colCanDrop(col.id)}
                   onContractClick={setSelectedContract}
                   onProjectClick={setSelectedProject}
+                  onProjectAction={(card, action) => setProjectAction({ card, action })}
                   onRequestClick={card =>
                     card.kanban_column === 'req_inicio_autorizado'
                       ? setPlanDecisionCard(card)
@@ -2996,6 +3404,7 @@ function KanbanContent() {
                       }
                     }}
                     onProjectClick={setSelectedProject}
+                    onProjectAction={(card, action) => setProjectAction({ card, action })}
                     onRequestClick={setSelectedRequest}
                     />
                   <PhaseSeparator label="Execução" icon={<ChevronRight />} />
@@ -3013,6 +3422,7 @@ function KanbanContent() {
                   canDrop={!isConsultor && !isCliente}
                   onContractClick={setSelectedContract}
                   onProjectClick={setSelectedProject}
+                  onProjectAction={(card, action) => setProjectAction({ card, action })}
                 />
               ))}
             </div>
@@ -3130,6 +3540,21 @@ function KanbanContent() {
           onGenerate={handleGenerate}
         />
       )}
+
+      {/* ── Project action modals ── */}
+      {projectAction && (() => {
+        const { card, action } = projectAction
+        const close = () => setProjectAction(null)
+        if (action === 'view')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="overview" />
+        if (action === 'edit')       return <ProjectEditByIdModal projectId={card.id} onClose={close} onSaved={close} />
+        if (action === 'status')     return <ProjectStatusModal projectId={card.id} projectName={card.project_name} currentStatus={card.status} onClose={close} onSaved={st => { setProjectCards(prev => prev.map(p => p.id === card.id ? { ...p, status: st } : p)); close() }} />
+        if (action === 'cost')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="consultants" />
+        if (action === 'timesheets') return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="timesheets" />
+        if (action === 'expenses')   return <ProjectExpensesModal projectId={card.id} projectName={card.project_name} onClose={close} />
+        if (action === 'aportes')    return <ProjectAportesModal projectId={card.id} projectName={card.project_name} onClose={close} />
+        if (action === 'team')       return <ProjectTeamModal projectId={card.id} projectName={card.project_name} onClose={close} onSaved={close} />
+        return null
+      })()}
     </AppLayout>
   )
 }
