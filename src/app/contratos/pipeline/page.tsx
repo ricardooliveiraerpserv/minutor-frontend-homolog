@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { List, Plus, ExternalLink, AlertCircle, Clock, ChevronRight, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
+import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -677,11 +678,12 @@ function ProjectDetailModal({ card, onClose, userRole }: { card: ProjectCard; on
 
 // ─── Plan Decision Modal ──────────────────────────────────────────────────────
 
-function PlanDecisionModal({ card, coordinators, onClose, onDone }: {
+function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto }: {
   card: RequestCard
   coordinators: Coordinator[]
   onClose: () => void
   onDone: (updatedCard: RequestCard) => void
+  onNovoProjeto: () => void
 }) {
   const [step, setStep] = useState<'decision' | 'novo_projeto' | 'subprojeto'>('decision')
   const [loading, setLoading] = useState(false)
@@ -796,7 +798,7 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone }: {
           <div className="px-6 py-6 space-y-3">
             <p className="text-sm mb-4" style={{ color: 'var(--brand-muted)' }}>Como esta requisição será atendida?</p>
             <button
-              onClick={() => setStep('novo_projeto')}
+              onClick={onNovoProjeto}
               className="w-full text-left px-4 py-4 rounded-xl border transition-all hover:border-violet-500/50"
               style={{ background: 'rgba(139,92,246,0.05)', borderColor: 'var(--brand-border)' }}>
               <p className="font-semibold text-sm" style={{ color: 'var(--brand-text)' }}>Novo Projeto</p>
@@ -1562,9 +1564,10 @@ function KanbanContent() {
   const [coordinators,    setCoordinators]    = useState<Coordinator[]>([])
   const [userRole,        setUserRole]        = useState<string>('admin')
   const [loading,         setLoading]         = useState(true)
-  const [selectedRequest,   setSelectedRequest]   = useState<RequestCard | null>(null)
-  const [planDecisionCard,  setPlanDecisionCard]  = useState<RequestCard | null>(null)
-  const [finalizeCard,      setFinalizeCard]      = useState<RequestCard | null>(null)
+  const [selectedRequest,      setSelectedRequest]      = useState<RequestCard | null>(null)
+  const [planDecisionCard,     setPlanDecisionCard]     = useState<RequestCard | null>(null)
+  const [contractCreateForReq, setContractCreateForReq] = useState<RequestCard | null>(null)
+  const [finalizeCard,         setFinalizeCard]         = useState<RequestCard | null>(null)
 
   const [selectedContract, setSelectedContract] = useState<ContractCard | null>(null)
   const [selectedProject,  setSelectedProject]  = useState<ProjectCard | null>(null)
@@ -1936,6 +1939,38 @@ function KanbanContent() {
           onDone={updated => {
             setRequestCards(prev => prev.map(r => r.id === updated.id ? updated : r))
             setPlanDecisionCard(null)
+          }}
+          onNovoProjeto={() => {
+            const card = planDecisionCard
+            setPlanDecisionCard(null)
+            setContractCreateForReq(card)
+          }}
+        />
+      )}
+      {contractCreateForReq && (
+        <ContractCreateModal
+          initialCustomerId={contractCreateForReq.customer_id}
+          initialProjectName={contractCreateForReq.project_name}
+          customerReadOnly
+          title="Novo Projeto"
+          onClose={() => setContractCreateForReq(null)}
+          onSuccess={async (contractId) => {
+            const card = contractCreateForReq
+            setContractCreateForReq(null)
+            try {
+              const res = await api.post<{ ok: boolean; linked_contract_id: number }>(
+                `/contract-requests/${card.id}/plan-decision`,
+                { decision: 'novo_projeto', contract_id: contractId }
+              )
+              toast.success('Projeto criado — requisição em Início Autorizado')
+              setRequestCards(prev => prev.map(r =>
+                r.id === card.id
+                  ? { ...r, kanban_column: 'inicio_autorizado', req_decision: 'novo_projeto', linked_contract_id: res.linked_contract_id }
+                  : r
+              ))
+            } catch (e: any) {
+              toast.error(e?.message ?? 'Erro ao vincular requisição')
+            }
           }}
         />
       )}
