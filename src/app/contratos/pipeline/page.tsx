@@ -882,7 +882,7 @@ function ProjectDetailModal({ card, onClose, userRole }: { card: ProjectCard; on
         )}
       </div>
     </div>
-    {showProjectView && <ProjectViewModal projectId={card.id} onClose={() => setShowProjectView(false)} />}
+    {showProjectView && <ProjectViewModal projectId={card.id} onClose={() => setShowProjectView(false)} userRole={userRole} />}
     </>
   )
 }
@@ -1444,7 +1444,7 @@ interface TimesheetEntry {
   user?: { id: number; name: string }
 }
 
-function ProjectViewModal({ projectId, onClose }: { projectId: number; onClose: () => void }) {
+function ProjectViewModal({ projectId, onClose, userRole }: { projectId: number; onClose: () => void; userRole?: string }) {
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets'>('overview')
@@ -1452,8 +1452,9 @@ function ProjectViewModal({ projectId, onClose }: { projectId: number; onClose: 
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
   const [tsLoading, setTsLoading] = useState(false)
   const [tsLoaded, setTsLoaded] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
 
-  useEffect(() => {
+  const reload = () => {
     setLoading(true)
     Promise.all([
       api.get<ProjectFull>(`/projects/${projectId}`),
@@ -1463,6 +1464,11 @@ function ProjectViewModal({ projectId, onClose }: { projectId: number; onClose: 
       setBreakdown(Array.isArray(cs?.consultant_breakdown) ? cs!.consultant_breakdown! : [])
     }).catch(() => toast.error('Erro ao carregar projeto'))
     .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    reload()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
   useEffect(() => {
@@ -1561,7 +1567,18 @@ function ProjectViewModal({ projectId, onClose }: { projectId: number; onClose: 
                 </div>
               </div>
             )}
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors shrink-0 ml-4"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            <div className="flex items-center gap-2 shrink-0 ml-4">
+              {userRole === 'admin' && p && (
+                <button
+                  onClick={() => setShowEdit(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                  style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.2)' }}
+                >
+                  <ExternalLink size={11} /> Editar
+                </button>
+              )}
+              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            </div>
           </div>
 
           {/* Tabs */}
@@ -1953,6 +1970,178 @@ function ProjectViewModal({ projectId, onClose }: { projectId: number; onClose: 
 
         <div className="flex justify-end px-6 py-3 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+        </div>
+      </div>
+      {showEdit && p && (
+        <ProjectInlineEditModal
+          project={p}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => { setShowEdit(false); reload() }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Edit inline modal ────────────────────────────────────────────────────────
+
+interface ProjectEditForm {
+  name: string; description: string; status: string; start_date: string
+  sold_hours: string; project_value: string; hourly_rate: string
+  additional_hourly_rate: string; initial_hours_balance: string
+  allow_negative_balance: boolean
+}
+
+function ProjectInlineEditModal({ project, onClose, onSaved }: { project: ProjectFull; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState<ProjectEditForm>({
+    name:                    project.name ?? '',
+    description:             project.description ?? '',
+    status:                  project.status ?? 'awaiting_start',
+    start_date:              project.start_date?.slice(0, 10) ?? '',
+    sold_hours:              String(project.sold_hours ?? ''),
+    project_value:           String(project.project_value ?? ''),
+    hourly_rate:             String(project.hourly_rate ?? ''),
+    additional_hourly_rate:  String(project.additional_hourly_rate ?? ''),
+    initial_hours_balance:   String(project.initial_hours_balance ?? ''),
+    allow_negative_balance:  false,
+  })
+  const [saving, setSaving] = useState(false)
+
+  const setF = (key: keyof ProjectEditForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm(prev => ({ ...prev, [key]: e.target.value }))
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { toast.error('Nome obrigatório'); return }
+    setSaving(true)
+    try {
+      const payload: Record<string, unknown> = {
+        name:        form.name.trim(),
+        description: form.description || null,
+        status:      form.status,
+        start_date:  form.start_date || null,
+        allow_negative_balance: form.allow_negative_balance,
+      }
+      if (form.sold_hours !== '')             payload.sold_hours             = Number(form.sold_hours)
+      if (form.project_value !== '')          payload.project_value          = Number(form.project_value)
+      if (form.hourly_rate !== '')            payload.hourly_rate            = Number(form.hourly_rate)
+      if (form.additional_hourly_rate !== '') payload.additional_hourly_rate = Number(form.additional_hourly_rate)
+      if (form.initial_hours_balance !== '')  payload.initial_hours_balance  = Number(form.initial_hours_balance)
+      await api.put(`/projects/${project.id}`, payload)
+      toast.success('Projeto atualizado')
+      onSaved()
+    } catch { toast.error('Erro ao salvar projeto') }
+    finally { setSaving(false) }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: 'var(--brand-bg)', border: '1px solid var(--brand-border)',
+    borderRadius: '0.625rem', padding: '0.5rem 0.75rem', fontSize: '0.8125rem',
+    color: 'var(--brand-text)', outline: 'none',
+  }
+  const labelStyle: React.CSSProperties = { fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--brand-subtle)', marginBottom: '0.375rem', display: 'block' }
+
+  const STATUS_OPTS = [
+    { value: 'awaiting_start', label: 'Aguardando Início' },
+    { value: 'started',        label: 'Em Andamento' },
+    { value: 'paused',         label: 'Pausado' },
+    { value: 'finished',       label: 'Encerrado' },
+    { value: 'cancelled',      label: 'Cancelado' },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+      <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[90vh]" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(0,245,255,0.25)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{project.code}</p>
+            <h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>Editar Projeto</h3>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Identificação */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
+            <div className="space-y-3">
+              <div>
+                <label style={labelStyle}>Nome do Projeto *</label>
+                <input value={form.name} onChange={setF('name')} style={inputStyle} placeholder="Nome do projeto" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label style={labelStyle}>Status</label>
+                  <select value={form.status} onChange={setF('status')} style={inputStyle}>
+                    {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Data de Início</label>
+                  <input type="date" value={form.start_date} onChange={setF('start_date')} style={inputStyle} />
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Descrição</label>
+                <textarea value={form.description} onChange={setF('description')} style={{ ...inputStyle, resize: 'vertical', minHeight: '80px' }} placeholder="Descrição do projeto" />
+              </div>
+            </div>
+          </div>
+
+          {/* Financeiro */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Financeiro</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label style={labelStyle}>Valor do Projeto (R$)</label>
+                <input type="number" value={form.project_value} onChange={setF('project_value')} style={inputStyle} placeholder="0.00" step="0.01" />
+              </div>
+              <div>
+                <label style={labelStyle}>Valor da Hora (R$)</label>
+                <input type="number" value={form.hourly_rate} onChange={setF('hourly_rate')} style={inputStyle} placeholder="0.00" step="0.01" />
+              </div>
+              <div>
+                <label style={labelStyle}>Hora Adicional (R$)</label>
+                <input type="number" value={form.additional_hourly_rate} onChange={setF('additional_hourly_rate')} style={inputStyle} placeholder="0.00" step="0.01" />
+              </div>
+            </div>
+          </div>
+
+          {/* Horas */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Horas</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label style={labelStyle}>Horas Contratadas</label>
+                <input type="number" value={form.sold_hours} onChange={setF('sold_hours')} style={inputStyle} placeholder="0" step="1" />
+              </div>
+              <div>
+                <label style={labelStyle}>Saldo Inicial de Horas</label>
+                <input type="number" value={form.initial_hours_balance} onChange={setF('initial_hours_balance')} style={inputStyle} placeholder="0" step="1" />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mt-3 px-4 py-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, allow_negative_balance: !prev.allow_negative_balance }))}
+                className="relative w-10 h-5 rounded-full transition-colors shrink-0"
+                style={{ background: form.allow_negative_balance ? '#22c55e' : 'rgba(255,255,255,0.1)' }}
+              >
+                <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                  style={{ transform: form.allow_negative_balance ? 'translateX(20px)' : 'translateX(0)' }} />
+              </button>
+              <div>
+                <p className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>Permitir Saldo Negativo</p>
+                <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Permite que o projeto continue mesmo sem saldo de horas</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+          <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold transition-colors" style={{ background: saving ? 'rgba(0,245,255,0.05)' : 'rgba(0,245,255,0.1)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)', opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
         </div>
       </div>
     </div>
