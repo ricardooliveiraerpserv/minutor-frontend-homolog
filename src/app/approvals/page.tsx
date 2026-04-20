@@ -511,7 +511,10 @@ export default function ApprovalsPage() {
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setExecutives(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
-    // /projects omitido — endpoint lento; filtro de projeto não está disponível temporariamente
+    api.get<any>('/projects?minimal=true&pageSize=200&status=active').then(r => {
+      const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+      setProjects(l.map((p: any) => ({ id: p.id, name: p.name })))
+    }).catch(() => {})
     api.get<any>('/customers?pageSize=500').then(r => {
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setCustomers(l.map((c: any) => ({ id: c.id, name: c.name })))
