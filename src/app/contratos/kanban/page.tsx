@@ -671,7 +671,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     Promise.allSettled([
       api.get<any>('/service-types?pageSize=100'),
       api.get<any>('/contract-types?pageSize=100'),
-      api.get<any>('/users?type=coordenador&pageSize=200'),
+      api.get<any>('/users?type=coordenador&coordinator_type=projeto&pageSize=200'),
       api.get<any>('/users?type=consultor&pageSize=200'),
       api.get<any>('/consultant-groups?pageSize=100&active=1'),
     ]).then(([st, ct, coords, consults, grps]) => {
@@ -804,13 +804,6 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 <div><label style={lStyle}>Tipo de Alocação</label><select value={form.tipo_alocacao} onChange={setF('tipo_alocacao')} style={iStyle}><option value="">Não definido</option><option value="remoto">Remoto</option><option value="presencial">Presencial</option><option value="ambos">Ambos</option></select></div>
                 <div><label style={lStyle}>Condição de Pagamento</label><input value={form.condicao_pagamento} onChange={setF('condicao_pagamento')} style={iStyle} placeholder="Ex: 30/60/90 dias" /></div>
                 <div><label style={lStyle}>Vendedor</label><select value={form.vendedor_id} onChange={setF('vendedor_id')} style={iStyle}><option value="">Não definido</option>{optConsultants.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></div>
-              </div>
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}
-                onClick={() => setForm(p => ({ ...p, cobra_despesa_cliente: !p.cobra_despesa_cliente }))}>
-                <div className="w-4 h-4 rounded flex items-center justify-center shrink-0" style={{ background: form.cobra_despesa_cliente ? '#00F5FF' : 'transparent', border: `1px solid ${form.cobra_despesa_cliente ? '#00F5FF' : 'var(--brand-border)'}` }}>
-                  {form.cobra_despesa_cliente && <Check size={9} style={{ color: '#0A0A0B' }} />}
-                </div>
-                <span className="text-xs" style={{ color: 'var(--brand-text)' }}>Cobra despesa do cliente</span>
               </div>
               <div><label style={lStyle}>Observações do Contrato</label><textarea value={form.observacoes_contrato} onChange={setF('observacoes_contrato')} style={{ ...iStyle, resize: 'vertical', minHeight: '56px' }} /></div>
 
