@@ -748,6 +748,7 @@ export default function ExpensesPage() {
                 {!isCliente && <Th className="hidden sm:table-cell">Cliente</Th>}
                 {!isCliente && <Th>Descrição</Th>}
                 {!isCliente && <Th className="hidden lg:table-cell">Categoria</Th>}
+                <Th className="hidden xl:table-cell">Tipo de Serviço</Th>
                 <Th right>Valor</Th>
                 <Th>Status</Th>
               </tr>
@@ -788,6 +789,7 @@ export default function ExpensesPage() {
                     </Td>
                   )}
                   {!isCliente && <Td muted className="hidden lg:table-cell">{exp.category?.name ?? '—'}</Td>}
+                  <Td muted className="hidden xl:table-cell truncate max-w-[120px]">{(exp.project as any)?.service_type?.name ?? '—'}</Td>
                   <Td right mono className="font-semibold" style={{ color: 'var(--brand-primary)' }}>{formatCurrency(exp.amount)}</Td>
                   <Td>
                     <Badge variant={exp.status as any}>{STATUS_LABEL[exp.status] ?? exp.status}</Badge>

@@ -854,6 +854,7 @@ export default function ApprovalsPage() {
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Colaborador</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Projeto</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Tipo de Serviço</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Descrição</th>
               <th className="text-right px-3 py-2.5 text-zinc-500 font-medium">
                 {tab === 'timesheets' ? 'Tempo' : 'Valor'}
@@ -912,6 +913,7 @@ export default function ApprovalsPage() {
                 <td className="px-3 py-2.5 text-zinc-200 font-medium">{ts.user?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-zinc-500 hidden md:table-cell">{ts.project?.customer?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-zinc-400 hidden lg:table-cell truncate max-w-[200px]">{ts.project?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{(ts.project as any)?.service_type?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 hidden lg:table-cell max-w-[200px]">
                   {ts.observation ? (
                     <span title={ts.observation} className="block truncate text-zinc-400 cursor-default">
@@ -943,6 +945,7 @@ export default function ApprovalsPage() {
                 <td className="px-3 py-2.5 text-zinc-200 font-medium">{exp.user?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-zinc-500 hidden md:table-cell">{exp.project?.customer?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-zinc-400 hidden lg:table-cell truncate max-w-[160px]">{exp.project?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{(exp.project as any)?.service_type?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 hidden lg:table-cell max-w-[200px]">
                   {exp.description ? (
                     <span title={exp.description} className="block truncate text-zinc-400 cursor-default">

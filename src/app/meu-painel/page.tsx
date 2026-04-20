@@ -2080,6 +2080,7 @@ export default function MeuPainelPage() {
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden xl:table-cell">Título</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Horário</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Horas</th>
+                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden xl:table-cell">Tipo de Serviço</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden lg:table-cell">Observação</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Status</th>
                   <th className="px-4 py-3 w-10"></th>
@@ -2087,7 +2088,7 @@ export default function MeuPainelPage() {
               </thead>
               <tbody>
                 {tsLoading ? (
-                  <TableSkeleton cols={10} />
+                  <TableSkeleton cols={11} />
                 ) : timesheets.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="px-4 py-14 text-center text-zinc-600">
@@ -2123,6 +2124,9 @@ export default function MeuPainelPage() {
                           {ts.effort_hours}
                           {ts.attachment_url && <Paperclip size={10} className="text-zinc-500 shrink-0" aria-label="Tem anexo" />}
                         </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-zinc-500 hidden xl:table-cell max-w-[120px] truncate">
+                        {(ts as any).project?.service_type?.name ?? <span className="text-zinc-700">—</span>}
                       </td>
                       <td className="px-4 py-3.5 text-zinc-500 hidden lg:table-cell max-w-[180px] truncate"
                         title={ts.observation}>
@@ -2236,6 +2240,7 @@ export default function MeuPainelPage() {
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Descrição</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Projeto</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden lg:table-cell">Categoria</th>
+                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden xl:table-cell">Tipo de Serviço</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Valor</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Status</th>
                   <th className="px-4 py-3 w-10"></th>
@@ -2264,6 +2269,7 @@ export default function MeuPainelPage() {
                       <td className="px-4 py-3.5 text-zinc-200 max-w-[160px] truncate" title={exp.description}>{exp.description}</td>
                       <td className="px-4 py-3.5 text-zinc-400 hidden md:table-cell max-w-[140px] truncate">{exp.project?.name ?? '—'}</td>
                       <td className="px-4 py-3.5 text-zinc-400 hidden lg:table-cell">{exp.category?.name ?? '—'}</td>
+                      <td className="px-4 py-3.5 text-zinc-500 hidden xl:table-cell max-w-[120px] truncate">{(exp as any).project?.service_type?.name ?? '—'}</td>
                       <td className="px-4 py-3.5 text-white font-bold whitespace-nowrap">
                         <span className="flex items-center gap-1.5">
                           {exp.formatted_amount}

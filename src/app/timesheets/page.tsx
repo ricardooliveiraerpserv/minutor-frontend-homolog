@@ -886,6 +886,7 @@ function TimesheetsPageContent() {
                 <Th className="hidden lg:table-cell">Título</Th>
                 <Th className="hidden xl:table-cell">Descrição</Th>
                 <Th className="hidden xl:table-cell">Solicitante</Th>
+                <Th className="hidden xl:table-cell">Tipo de Serviço</Th>
                 <Th className="hidden xl:table-cell">Contrato</Th>
                 <Th>Status</Th>
               </tr>
@@ -955,6 +956,9 @@ function TimesheetsPageContent() {
                   </Td>
                   <Td muted className="hidden xl:table-cell truncate max-w-[140px]">
                     {ts.ticket_solicitante?.name ?? '—'}
+                  </Td>
+                  <Td muted className="hidden xl:table-cell truncate max-w-[140px]">
+                    {(ts.project as any)?.service_type?.name ?? '—'}
                   </Td>
                   <Td muted className="hidden xl:table-cell truncate max-w-[140px]">
                     {ts.project?.contract_type_display ?? '—'}
