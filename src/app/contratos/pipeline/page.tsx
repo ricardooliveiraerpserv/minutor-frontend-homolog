@@ -1925,26 +1925,33 @@ function KanbanColumn({
   onProjectClick: (card: ProjectCard) => void
   onRequestClick?: (card: RequestCard) => void
 }) {
-  const isTransition = col.phase === 'transition'
-  const isProject    = col.phase === 'project'
-  const totalCards   = contractCards.length + projectCards.length + requestCards.length
+  const isTransition  = col.phase === 'transition'
+  const isProject     = col.phase === 'project'
+  const isClientCol   = !!col.clientVisible
+  const totalCards    = contractCards.length + projectCards.length + requestCards.length
 
   const borderColor = isTransition
     ? 'rgba(234,179,8,0.25)'
     : isProject
     ? 'rgba(99,102,241,0.25)'
+    : isClientCol
+    ? 'rgba(20,184,166,0.35)'
     : 'var(--brand-border)'
 
   const headerColor = isTransition
     ? '#eab308'
     : isProject
     ? '#818cf8'
+    : isClientCol
+    ? '#2dd4bf'
     : 'var(--brand-text)'
 
   const bg = isTransition
     ? 'rgba(234,179,8,0.02)'
     : isProject
     ? 'rgba(99,102,241,0.02)'
+    : isClientCol
+    ? 'rgba(20,184,166,0.04)'
     : 'rgba(255,255,255,0.02)'
 
   return (
@@ -1957,10 +1964,11 @@ function KanbanColumn({
           <div className="flex items-center gap-2">
             {isTransition && <Rocket size={13} style={{ color: '#eab308' }} />}
             {isProject && <FolderKanban size={13} style={{ color: '#818cf8' }} />}
-            {!isTransition && !isProject && <Layers size={13} style={{ color: 'var(--brand-subtle)' }} />}
+            {isClientCol && !isTransition && !isProject && <Layers size={13} style={{ color: '#2dd4bf' }} />}
+            {!isTransition && !isProject && !isClientCol && <Layers size={13} style={{ color: 'var(--brand-subtle)' }} />}
             <p className="text-sm font-semibold" style={{ color: headerColor }}>{col.label}</p>
-            {col.clientVisible && !isTransition && !isProject && (
-              <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: 'rgba(0,245,255,0.1)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}>
+            {isClientCol && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(20,184,166,0.15)', color: '#2dd4bf', border: '1px solid rgba(20,184,166,0.35)' }}>
                 C
               </span>
             )}
@@ -1974,6 +1982,11 @@ function KanbanColumn({
             Aguardando geração de projeto
           </p>
         )}
+        {isClientCol && (
+          <p className="text-[10px] mt-1" style={{ color: 'rgba(45,212,191,0.6)' }}>
+            Visível e interativa para o cliente
+          </p>
+        )}
       </div>
 
       <Droppable droppableId={col.id} isDropDisabled={!canDrop}>
@@ -1985,7 +1998,7 @@ function KanbanColumn({
             style={{
               minHeight: 80,
               background: snap.isDraggingOver
-                ? isTransition ? 'rgba(234,179,8,0.05)' : isProject ? 'rgba(99,102,241,0.05)' : 'rgba(255,255,255,0.03)'
+                ? isTransition ? 'rgba(234,179,8,0.05)' : isProject ? 'rgba(99,102,241,0.05)' : isClientCol ? 'rgba(20,184,166,0.06)' : 'rgba(255,255,255,0.03)'
                 : 'transparent',
             }}
           >
