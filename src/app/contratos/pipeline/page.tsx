@@ -1376,9 +1376,23 @@ interface ProjectFull {
   approvers?: { id: number; name: string; email: string }[]
 }
 
+interface ConsultantBreakdown {
+  consultant_name: string
+  total_hours: number
+  approved_hours: number
+  pending_hours: number
+  cost: number
+  consultant_hourly_rate: number
+  consultant_rate_type?: string
+}
+
 function ProjectViewModal({ projectId, onClose }: { projectId: number; onClose: () => void }) {
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants'>('overview')
+  const [consultants, setConsultants] = useState<ConsultantBreakdown[]>([])
+  const [consultantsLoading, setConsultantsLoading] = useState(false)
+  const [consultantsLoaded, setConsultantsLoaded] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -1387,6 +1401,16 @@ function ProjectViewModal({ projectId, onClose }: { projectId: number; onClose: 
       .catch(() => toast.error('Erro ao carregar projeto'))
       .finally(() => setLoading(false))
   }, [projectId])
+
+  useEffect(() => {
+    if (tab === 'consultants' && !consultantsLoaded) {
+      setConsultantsLoading(true)
+      api.get<{ consultant_breakdown?: ConsultantBreakdown[] }>(`/projects/${projectId}/cost-summary`)
+        .then(r => setConsultants(Array.isArray(r.consultant_breakdown) ? r.consultant_breakdown : []))
+        .catch(() => {})
+        .finally(() => { setConsultantsLoading(false); setConsultantsLoaded(true) })
+    }
+  }, [tab, projectId, consultantsLoaded])
 
   const fmt = (n: number | null | undefined, dec = 0) =>
     n == null ? '—' : n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
@@ -1408,9 +1432,9 @@ function ProjectViewModal({ projectId, onClose }: { projectId: number; onClose: 
   }
 
   const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div className="flex items-start justify-between py-2 border-b last:border-0" style={{ borderColor: 'var(--brand-border)' }}>
-      <span className="text-xs shrink-0 w-40" style={{ color: 'var(--brand-subtle)' }}>{label}</span>
-      <span className="text-xs font-semibold text-right" style={{ color: 'var(--brand-text)' }}>{value ?? '—'}</span>
+    <div className="flex items-start justify-between py-2.5 border-b last:border-0" style={{ borderColor: 'var(--brand-border)' }}>
+      <span className="text-xs shrink-0 w-44" style={{ color: 'var(--brand-subtle)' }}>{label}</span>
+      <span className="text-xs font-semibold text-right ml-2" style={{ color: 'var(--brand-text)' }}>{value ?? '—'}</span>
     </div>
   )
 
@@ -1420,147 +1444,288 @@ function ProjectViewModal({ projectId, onClose }: { projectId: number; onClose: 
   const bar = healthColor(pct)
   const sc = p ? (statusColors[p.status] ?? statusColors.awaiting_start) : statusColors.awaiting_start
 
+  const tabs = [
+    { id: 'overview' as const, label: 'Visão Geral' },
+    { id: 'financial' as const, label: 'Financeiro' },
+    { id: 'consultants' as const, label: 'Consultores' },
+  ]
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }}>
-      <div className="flex flex-col rounded-2xl w-full max-w-3xl max-h-[92vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      <div className="flex flex-col rounded-2xl w-full max-w-4xl max-h-[92vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          {loading || !p ? (
-            <p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando projeto...</p>
-          ) : (
-            <div className="flex items-center gap-3">
-              <div className="w-1.5 h-12 rounded-full" style={{ background: bar }} />
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{p.code}</p>
-                <h2 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>{p.name}</h2>
-                {p.customer?.name && <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>{p.customer.name}</p>}
+        <div className="px-6 pt-5 pb-0 shrink-0">
+          <div className="flex items-start justify-between mb-4">
+            {loading || !p ? (
+              <p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando projeto...</p>
+            ) : (
+              <div className="flex items-center gap-4">
+                <div className="w-1 h-14 rounded-full shrink-0" style={{ background: bar }} />
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>{p.code}</span>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full" style={sc}>{p.status_display ?? statusLabel[p.status] ?? p.status}</span>
+                    {(p.contract_type_display ?? p.contract_type?.name) && (
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-subtle)' }}>{p.contract_type_display ?? p.contract_type?.name}</span>
+                    )}
+                    {p.service_type?.name && (
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-subtle)' }}>{p.service_type.name}</span>
+                    )}
+                  </div>
+                  <h2 className="text-xl font-bold leading-tight" style={{ color: 'var(--brand-text)' }}>{p.name}</h2>
+                  {p.customer?.name && <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>{p.customer.name}</p>}
+                </div>
               </div>
-            </div>
-          )}
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            )}
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors shrink-0 ml-4"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-1 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+            {tabs.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className="px-4 py-2.5 text-xs font-semibold transition-colors relative"
+                style={{
+                  color: tab === t.id ? '#00F5FF' : 'var(--brand-subtle)',
+                  borderBottom: tab === t.id ? '2px solid #00F5FF' : '2px solid transparent',
+                  marginBottom: '-1px',
+                }}
+              >{t.label}</button>
+            ))}
+          </div>
         </div>
 
-        {/* Status strip */}
-        {p && (
-          <div className="flex items-center gap-3 px-6 py-2.5 border-b shrink-0 flex-wrap" style={{ borderColor: 'var(--brand-border)', background: 'rgba(0,0,0,0.2)' }}>
-            <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={sc}>{p.status_display ?? statusLabel[p.status] ?? p.status}</span>
-            {(p.contract_type_display ?? p.contract_type?.name) && <span className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}>{p.contract_type_display ?? p.contract_type?.name}</span>}
-            {p.service_type?.name && <span className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}>{p.service_type.name}</span>}
-          </div>
-        )}
-
         {/* Body */}
-        {!loading && p ? (
-          <div className="flex-1 overflow-y-auto">
-            <div className="grid grid-cols-2 divide-x" style={{ borderColor: 'var(--brand-border)' }}>
-              {/* Coluna esquerda */}
-              <div className="p-5 space-y-5">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
-                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                    <div className="divide-y" style={{ borderColor: 'var(--brand-border)' }}>
-                      <Row label="Código" value={<span className="font-mono">{p.code}</span>} />
-                      <Row label="Cliente" value={p.customer?.name} />
-                      <Row label="Serviço" value={p.service_type?.name} />
-                      <Row label="Contrato" value={p.contract_type_display ?? p.contract_type?.name} />
-                      {p.parent_project && <Row label="Projeto Pai" value={`${p.parent_project.name} (${p.parent_project.code})`} />}
-                      <Row label="Data de Início" value={fmtDate(p.start_date)} />
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center py-16">
+            <p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
+          </div>
+        ) : !p ? null : (
+          <div className="flex-1 overflow-y-auto p-6">
+
+            {/* ── Visão Geral ── */}
+            {tab === 'overview' && (
+              <div className="space-y-6">
+                {/* Big metric cards */}
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { label: 'Horas Vendidas',   value: fmt(p.sold_hours, 1) + 'h',              color: 'var(--brand-text)',    bg: 'rgba(255,255,255,0.03)' },
+                    { label: 'Horas Consumidas', value: fmt(consumed, 1) + 'h',                  color: 'var(--brand-muted)',   bg: 'rgba(255,255,255,0.03)' },
+                    { label: 'Saldo de Horas',   value: fmt(p.general_hours_balance, 1) + 'h',   color: (p.general_hours_balance ?? 0) < 0 ? '#ef4444' : '#22c55e', bg: (p.general_hours_balance ?? 0) < 0 ? 'rgba(239,68,68,0.06)' : 'rgba(34,197,94,0.06)' },
+                    { label: 'Progresso',        value: totalAvail > 0 ? `${Math.round(pct)}%` : '—', color: bar, bg: 'rgba(255,255,255,0.03)' },
+                  ].map(it => (
+                    <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: it.bg, border: '1px solid var(--brand-border)' }}>
+                      <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{it.label}</p>
+                      <p className="text-xl font-bold tabular-nums" style={{ color: it.color }}>{it.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Progress bar */}
+                <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}>
+                  <div className="flex justify-between text-xs mb-2" style={{ color: 'var(--brand-subtle)' }}>
+                    <span>Consumo de horas</span>
+                    <span style={{ color: bar }}>{totalAvail > 0 ? `${Math.round(pct)}% de ${fmt(totalAvail, 1)}h` : 'Sem horas cadastradas'}</span>
+                  </div>
+                  <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, background: bar }} />
+                  </div>
+                  {(p.hour_contribution ?? 0) > 0 || (p.total_contributions_hours ?? 0) > 0 ? (
+                    <p className="text-[10px] mt-2" style={{ color: 'var(--brand-subtle)' }}>
+                      {`${fmt(p.sold_hours)}h contratadas + ${fmt((p.total_contributions_hours ?? p.hour_contribution) ?? 0, 1)}h em aportes`}
+                    </p>
+                  ) : null}
+                </div>
+
+                {/* Identification + Team side by side */}
+                <div className="grid grid-cols-2 gap-5">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
+                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                      <div className="divide-y px-4" style={{ borderColor: 'var(--brand-border)' }}>
+                        <Row label="Código" value={<span className="font-mono">{p.code}</span>} />
+                        <Row label="Cliente" value={p.customer?.name} />
+                        <Row label="Tipo de Serviço" value={p.service_type?.name} />
+                        <Row label="Tipo de Contrato" value={p.contract_type_display ?? p.contract_type?.name} />
+                        {p.parent_project && <Row label="Projeto Pai" value={`${p.parent_project.name} (${p.parent_project.code})`} />}
+                        <Row label="Data de Início" value={fmtDate(p.start_date)} />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Equipe</p>
+                    <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--brand-border)' }}>
+                      {(p.coordinators?.length ?? 0) > 0 && (
+                        <div>
+                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Coordenadores</p>
+                          <div className="flex flex-wrap gap-1.5">{p.coordinators!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}>{u.name}</span>)}</div>
+                        </div>
+                      )}
+                      {(p.consultants?.length ?? 0) > 0 && (
+                        <div>
+                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Consultores</p>
+                          <div className="flex flex-wrap gap-1.5">{p.consultants!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(139,92,246,0.10)', color: '#a78bfa' }}>{u.name}</span>)}</div>
+                        </div>
+                      )}
+                      {(p.approvers?.length ?? 0) > 0 && (
+                        <div>
+                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Aprovadores</p>
+                          <div className="flex flex-wrap gap-1.5">{p.approvers!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(245,158,11,0.10)', color: '#f59e0b' }}>{u.name}</span>)}</div>
+                        </div>
+                      )}
+                      {(p.coordinators?.length ?? 0) === 0 && (p.consultants?.length ?? 0) === 0 && (
+                        <p className="text-xs text-center py-3" style={{ color: 'var(--brand-subtle)' }}>Sem equipe cadastrada</p>
+                      )}
                     </div>
                   </div>
                 </div>
+
+                {/* Description */}
                 {p.description && (
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Descrição</p>
-                    <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>{p.description}</div>
+                    <div className="rounded-xl p-4 text-xs leading-relaxed" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>{p.description}</div>
                   </div>
                 )}
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Financeiro</p>
-                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                    <div className="divide-y" style={{ borderColor: 'var(--brand-border)' }}>
-                      <Row label="Valor do Projeto" value={<span style={{ color: '#00F5FF' }}>{fmtBRL(p.project_value)}</span>} />
-                      {p.total_project_value != null && p.total_project_value !== p.project_value && <Row label="Valor Total (aportes)" value={<span style={{ color: '#00F5FF' }}>{fmtBRL(p.total_project_value)}</span>} />}
-                      <Row label="Valor da Hora" value={fmtBRL(p.hourly_rate)} />
-                      {p.weighted_hourly_rate != null && <Row label="Taxa Média Ponderada" value={fmtBRL(p.weighted_hourly_rate)} />}
-                      <Row label="Hora Adicional" value={fmtBRL(p.additional_hourly_rate)} />
-                      <Row label="Custo Inicial" value={fmtBRL(p.initial_cost)} />
-                      {p.save_erpserv != null && p.save_erpserv > 0 && <Row label="Save ERPSERV" value={fmtBRL(p.save_erpserv)} />}
+              </div>
+            )}
+
+            {/* ── Financeiro ── */}
+            {tab === 'financial' && (
+              <div className="space-y-5">
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Valor do Projeto',  value: fmtBRL(p.project_value),          color: '#00F5FF' },
+                    { label: 'Valor Total (c/aportes)', value: fmtBRL(p.total_project_value ?? p.project_value), color: '#00F5FF' },
+                    { label: 'Taxa / Hora',        value: fmtBRL(p.hourly_rate),            color: 'var(--brand-text)' },
+                  ].map(it => (
+                    <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)' }}>
+                      <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{it.label}</p>
+                      <p className="text-lg font-bold tabular-nums" style={{ color: it.color }}>{it.value}</p>
                     </div>
+                  ))}
+                </div>
+
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                  <div className="px-4 py-2.5 border-b" style={{ borderColor: 'var(--brand-border)', background: 'rgba(0,0,0,0.2)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Detalhes Financeiros</p>
+                  </div>
+                  <div className="divide-y px-4" style={{ borderColor: 'var(--brand-border)' }}>
+                    <Row label="Valor do Projeto" value={<span style={{ color: '#00F5FF' }}>{fmtBRL(p.project_value)}</span>} />
+                    {p.total_project_value != null && <Row label="Valor Total com Aportes" value={<span style={{ color: '#00F5FF' }}>{fmtBRL(p.total_project_value)}</span>} />}
+                    <Row label="Valor da Hora" value={fmtBRL(p.hourly_rate)} />
+                    {p.weighted_hourly_rate != null && <Row label="Taxa Média Ponderada" value={fmtBRL(p.weighted_hourly_rate)} />}
+                    <Row label="Hora Adicional" value={fmtBRL(p.additional_hourly_rate)} />
+                    <Row label="Custo Inicial" value={fmtBRL(p.initial_cost)} />
+                    {p.save_erpserv != null && p.save_erpserv > 0 && <Row label="Save ERPSERV" value={<span style={{ color: '#22c55e' }}>{fmtBRL(p.save_erpserv)}</span>} />}
+                  </div>
+                </div>
+
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                  <div className="px-4 py-2.5 border-b" style={{ borderColor: 'var(--brand-border)', background: 'rgba(0,0,0,0.2)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Horas Detalhadas</p>
+                  </div>
+                  <div className="divide-y px-4" style={{ borderColor: 'var(--brand-border)' }}>
+                    {p.sold_hours != null && <Row label="Horas Contratadas" value={`${fmt(p.sold_hours, 1)}h`} />}
+                    {p.initial_hours_balance != null && <Row label="Saldo Inicial" value={`${fmt(p.initial_hours_balance, 1)}h`} />}
+                    {(p.hour_contribution ?? 0) > 0 && <Row label="Aporte Inicial de Horas" value={`${fmt(p.hour_contribution, 1)}h`} />}
+                    {(p.total_contributions_hours ?? 0) > 0 && <Row label="Total Aportes" value={`${fmt(p.total_contributions_hours, 1)}h`} />}
+                    {p.exceeded_hour_contribution != null && <Row label="Aporte Excedido" value={`${fmt(p.exceeded_hour_contribution, 1)}h`} />}
+                    {p.consultant_hours != null && <Row label="Horas Lançadas Consultores" value={`${fmt(p.consultant_hours, 1)}h`} />}
+                    {p.coordinator_hours != null && <Row label="Horas Lançadas Coordenadores" value={`${fmt(p.coordinator_hours, 1)}h`} />}
+                    <Row label="Total Disponível" value={<span style={{ color: 'var(--brand-text)' }}>{fmt(totalAvail, 1)}h</span>} />
+                    <Row label="Total Consumido" value={<span style={{ color: 'var(--brand-muted)' }}>{fmt(consumed, 1)}h</span>} />
+                    <Row label="Saldo Atual" value={<span style={{ color: (p.general_hours_balance ?? 0) < 0 ? '#ef4444' : '#22c55e' }}>{fmt(p.general_hours_balance, 1)}h</span>} />
+                    <Row label="% Consumido" value={<span style={{ color: bar }}>{totalAvail > 0 ? `${Math.round(pct)}%` : '—'}</span>} />
                   </div>
                 </div>
               </div>
-              {/* Coluna direita */}
-              <div className="p-5 space-y-5">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Horas</p>
-                  <div className="rounded-xl p-4 mb-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)' }}>
-                    <div className="grid grid-cols-3 gap-3 mb-4">
+            )}
+
+            {/* ── Consultores ── */}
+            {tab === 'consultants' && (
+              <div className="space-y-4">
+                {consultantsLoading ? (
+                  <div className="flex items-center justify-center py-16">
+                    <p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando horas dos consultores...</p>
+                  </div>
+                ) : consultants.length === 0 ? (
+                  <div className="flex items-center justify-center py-16">
+                    <p className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Nenhum lançamento de horas encontrado.</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Summary cards */}
+                    <div className="grid grid-cols-3 gap-3">
                       {[
-                        { label: 'Vendidas',   value: fmt(p.sold_hours) + 'h',              color: 'var(--brand-text)' },
-                        { label: 'Consumidas', value: fmt(consumed, 1) + 'h',               color: 'var(--brand-muted)' },
-                        { label: 'Saldo',      value: fmt(p.general_hours_balance, 1) + 'h', color: (p.general_hours_balance ?? 0) < 0 ? '#ef4444' : '#22c55e' },
+                        { label: 'Total de Horas', value: fmt(consultants.reduce((s, c) => s + c.total_hours, 0), 1) + 'h', color: 'var(--brand-text)' },
+                        { label: 'Horas Aprovadas', value: fmt(consultants.reduce((s, c) => s + c.approved_hours, 0), 1) + 'h', color: '#22c55e' },
+                        { label: 'Custo Total', value: fmtBRL(consultants.reduce((s, c) => s + c.cost, 0)), color: '#00F5FF' },
                       ].map(it => (
-                        <div key={it.label} className="text-center">
-                          <p className="text-[10px] mb-1" style={{ color: 'var(--brand-subtle)' }}>{it.label}</p>
-                          <p className="text-base font-bold tabular-nums" style={{ color: it.color }}>{it.value}</p>
+                        <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)' }}>
+                          <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{it.label}</p>
+                          <p className="text-lg font-bold tabular-nums" style={{ color: it.color }}>{it.value}</p>
                         </div>
                       ))}
                     </div>
-                    <div className="w-full h-2 rounded-full overflow-hidden mb-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                      <div className="h-full rounded-full" style={{ width: `${Math.min(pct, 100)}%`, background: bar }} />
+
+                    {/* Table */}
+                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid var(--brand-border)' }}>
+                            {['Consultor', 'Total', 'Aprovadas', 'Pendentes', 'Taxa/h', 'Custo'].map(h => (
+                              <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {consultants.map((c, i) => (
+                            <tr key={i} style={{ borderBottom: i < consultants.length - 1 ? '1px solid var(--brand-border)' : undefined }}>
+                              <td className="px-4 py-3 font-medium" style={{ color: 'var(--brand-text)' }}>{c.consultant_name}</td>
+                              <td className="px-4 py-3 tabular-nums font-semibold" style={{ color: 'var(--brand-text)' }}>{fmt(c.total_hours, 1)}h</td>
+                              <td className="px-4 py-3 tabular-nums" style={{ color: '#22c55e' }}>{fmt(c.approved_hours, 1)}h</td>
+                              <td className="px-4 py-3 tabular-nums" style={{ color: c.pending_hours > 0 ? '#f59e0b' : 'var(--brand-subtle)' }}>{fmt(c.pending_hours, 1)}h</td>
+                              <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(c.consultant_hourly_rate)}</td>
+                              <td className="px-4 py-3 tabular-nums font-semibold" style={{ color: '#00F5FF' }}>{fmtBRL(c.cost)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <div className="flex justify-between text-[10px]" style={{ color: bar }}>
-                      <span>{totalAvail > 0 ? `${Math.round(pct)}% consumido` : 'Sem horas'}</span>
-                      <span>{fmt(totalAvail, 1)}h disponíveis</span>
+
+                    {/* Per-consultant bars */}
+                    <div className="space-y-3">
+                      {consultants.map((c, i) => {
+                        const total = consultants.reduce((s, x) => s + x.total_hours, 0)
+                        const share = total > 0 ? (c.total_hours / total) * 100 : 0
+                        return (
+                          <div key={i} className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>{c.consultant_name}</span>
+                              <span className="text-xs tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmt(c.total_hours, 1)}h · {fmtBRL(c.cost)}</span>
+                            </div>
+                            <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                              <div className="h-full rounded-full" style={{ width: `${share}%`, background: '#a78bfa' }} />
+                            </div>
+                            <div className="flex gap-3 mt-2 text-[10px]" style={{ color: 'var(--brand-subtle)' }}>
+                              <span style={{ color: '#22c55e' }}>{fmt(c.approved_hours, 1)}h aprovadas</span>
+                              {c.pending_hours > 0 && <span style={{ color: '#f59e0b' }}>{fmt(c.pending_hours, 1)}h pendentes</span>}
+                              <span>{Math.round(share)}% do total</span>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
-                  </div>
-                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                    <div className="divide-y" style={{ borderColor: 'var(--brand-border)' }}>
-                      {p.sold_hours != null && <Row label="Horas Contratadas" value={`${p.sold_hours}h`} />}
-                      {(p.hour_contribution ?? 0) > 0 && <Row label="Aporte Inicial" value={`${p.hour_contribution}h`} />}
-                      {(p.total_contributions_hours ?? 0) > 0 && <Row label="Total Aportes" value={`${fmt(p.total_contributions_hours, 1)}h`} />}
-                      {p.exceeded_hour_contribution != null && <Row label="Aporte Excedido" value={`${p.exceeded_hour_contribution}h`} />}
-                      {p.consultant_hours != null && <Row label="Horas Consultores" value={`${p.consultant_hours}h`} />}
-                      {p.coordinator_hours != null && <Row label="Horas Coordenadores" value={`${p.coordinator_hours}h`} />}
-                      {p.initial_hours_balance != null && <Row label="Saldo Inicial" value={`${p.initial_hours_balance}h`} />}
-                      <Row label="% Consumido" value={<span style={{ color: bar }}>{totalAvail > 0 ? `${Math.round(pct)}%` : '—'}</span>} />
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Equipe</p>
-                  <div className="rounded-xl p-3 space-y-3" style={{ border: '1px solid var(--brand-border)' }}>
-                    {(p.coordinators?.length ?? 0) > 0 && (
-                      <div>
-                        <p className="text-[10px] mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Coordenadores</p>
-                        <div className="flex flex-wrap gap-1.5">{p.coordinators!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}>{u.name}</span>)}</div>
-                      </div>
-                    )}
-                    {(p.consultants?.length ?? 0) > 0 && (
-                      <div>
-                        <p className="text-[10px] mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Consultores</p>
-                        <div className="flex flex-wrap gap-1.5">{p.consultants!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}>{u.name}</span>)}</div>
-                      </div>
-                    )}
-                    {(p.approvers?.length ?? 0) > 0 && (
-                      <div>
-                        <p className="text-[10px] mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Aprovadores</p>
-                        <div className="flex flex-wrap gap-1.5">{p.approvers!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(139,92,246,0.10)', color: '#8B5CF6' }}>{u.name}</span>)}</div>
-                      </div>
-                    )}
-                    {(p.coordinators?.length ?? 0) === 0 && (p.consultants?.length ?? 0) === 0 && (
-                      <p className="text-xs text-center py-2" style={{ color: 'var(--brand-subtle)' }}>Sem equipe cadastrada</p>
-                    )}
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
-            </div>
+            )}
           </div>
-        ) : loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
-          </div>
-        ) : null}
+        )}
 
         <div className="flex justify-end px-6 py-3 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
