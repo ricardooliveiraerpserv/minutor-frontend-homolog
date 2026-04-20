@@ -291,7 +291,7 @@ function ContractKanbanCard({
 
 // ─── Request Card ─────────────────────────────────────────────────────────────
 
-function RequestKanbanCard({ card, onFinalize }: { card: RequestCard; onFinalize?: (e: React.MouseEvent) => void }) {
+function RequestKanbanCard({ card }: { card: RequestCard }) {
   const urgColor = URGENCIA_COLOR[card.nivel_urgencia] ?? '#64748b'
   const tipoLabel = card.tipo_necessidade === 'outro' && card.tipo_necessidade_outro
     ? card.tipo_necessidade_outro
@@ -329,14 +329,6 @@ function RequestKanbanCard({ card, onFinalize }: { card: RequestCard; onFinalize
           {new Date(card.created_at).toLocaleDateString('pt-BR')}
         </span>
       </div>
-      {onFinalize && (
-        <button
-          onClick={onFinalize}
-          className="w-full mt-2 py-1.5 rounded-lg text-[11px] font-semibold transition-all hover:opacity-80"
-          style={{ background: 'rgba(234,179,8,0.15)', color: '#eab308', border: '1px solid rgba(234,179,8,0.3)' }}>
-          Finalizar →
-        </button>
-      )}
     </div>
   )
 }
@@ -1417,7 +1409,7 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
 // ─── Column Component ─────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  col, contractCards, projectCards, requestCards = [], canDrag, canDrop, onContractClick, onProjectClick, onRequestClick, onFinalizeRequest,
+  col, contractCards, projectCards, requestCards = [], canDrag, canDrop, onContractClick, onProjectClick, onRequestClick,
 }: {
   col: Column
   contractCards: ContractCard[]
@@ -1428,7 +1420,6 @@ function KanbanColumn({
   onContractClick: (card: ContractCard) => void
   onProjectClick: (card: ProjectCard) => void
   onRequestClick?: (card: RequestCard) => void
-  onFinalizeRequest?: (card: RequestCard) => void
 }) {
   const isTransition = col.phase === 'transition'
   const isProject    = col.phase === 'project'
@@ -1508,12 +1499,7 @@ function KanbanColumn({
                       opacity: rSnap.isDragging ? 0.85 : 1,
                     }}
                   >
-                    <RequestKanbanCard
-                      card={card}
-                      onFinalize={card.kanban_column === 'inicio_autorizado' && card.req_decision && onFinalizeRequest
-                        ? (e) => { e.stopPropagation(); onFinalizeRequest(card) }
-                        : undefined}
-                    />
+                    <RequestKanbanCard card={card} />
                   </div>
                 )}
               </Draggable>
@@ -1620,7 +1606,7 @@ function KanbanContent() {
   // Compute visible columns based on role
   const visibleDemandCols = isConsultor ? [] : DEMAND_COLS
 
-  const showTransition = !isConsultor && !isCliente
+  const showTransition = !isConsultor
   const visibleProjectCols = PROJECT_COLS
 
   // Cards by column
@@ -1712,6 +1698,12 @@ function KanbanContent() {
       // Dropped on Aguardando Início → open decision modal
       if (toCol === 'req_inicio_autorizado' && !reqCard.req_decision) {
         setPlanDecisionCard(reqCard)
+        return
+      }
+
+      // Dragged from Início Autorizado to project phase → open coordinator selection
+      if (fromCol === 'inicio_autorizado' && PROJECT_COL_TO_STATUS[toCol]) {
+        setFinalizeCard(reqCard)
         return
       }
 
@@ -1867,7 +1859,6 @@ function KanbanContent() {
                       ? setPlanDecisionCard(card)
                       : setSelectedRequest(card)
                   }
-                  onFinalizeRequest={setFinalizeCard}
                 />
               ))}
 
@@ -1891,8 +1882,7 @@ function KanbanContent() {
                     }}
                     onProjectClick={setSelectedProject}
                     onRequestClick={setSelectedRequest}
-                    onFinalizeRequest={setFinalizeCard}
-                  />
+                    />
                   <PhaseSeparator label="Execução" icon={<ChevronRight />} />
                 </>
               )}
