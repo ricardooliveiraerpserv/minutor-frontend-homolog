@@ -51,6 +51,7 @@ interface ProjectCard {
   code: string
   status: string
   sold_hours?: number
+  expected_end_date?: string | null
   coordinator_ids?: number[]
   coordinators?: string[]
   consultants?: string[]
@@ -371,6 +372,14 @@ const PROJECT_MENU_ITEMS = [
   { action: 'team',       label: 'Selecionar Equipe', icon: Users },
 ] as const
 
+function endDateStyle(dateStr: string): { color: string; bg: string; label: string } {
+  const diff = Math.floor((new Date(dateStr).getTime() - Date.now()) / 86400000)
+  if (diff < 0)  return { color: '#ef4444', bg: '#ef444420', label: `Venceu há ${Math.abs(diff)}d` }
+  if (diff <= 7) return { color: '#f97316', bg: '#f9731620', label: `Vence em ${diff}d` }
+  if (diff <= 30) return { color: '#eab308', bg: '#eab30820', label: `${diff}d` }
+  return { color: '#22c55e', bg: '#22c55e20', label: `${diff}d` }
+}
+
 function ProjectKanbanCard({
   card, index, canDrag, onClick, onAction,
 }: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void; onAction: (action: string) => void }) {
@@ -452,6 +461,18 @@ function ProjectKanbanCard({
             </div>
           </div>
 
+          {card.expected_end_date && (() => {
+            const ds = endDateStyle(card.expected_end_date)
+            return (
+              <div className="flex items-center gap-1 mb-1.5">
+                <Clock size={10} style={{ color: ds.color }} />
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                  style={{ background: ds.bg, color: ds.color }}>
+                  {ds.label} — {new Date(card.expected_end_date).toLocaleDateString('pt-BR')}
+                </span>
+              </div>
+            )
+          })()}
           <div className="flex items-center justify-between mt-1 pt-2" style={{ borderTop: '1px solid rgba(99,102,241,0.15)' }}>
             <div className="flex items-center gap-2">
               {card.coordinators && card.coordinators.length > 0 && (
@@ -1459,7 +1480,7 @@ function KanbanLogTab({ logs, loading }: { logs: KanbanLogEntry[]; loading: bool
 interface ProjectFull {
   id: number; name: string; code: string; status: string; status_display?: string
   customer?: { id: number; name: string }
-  description?: string | null; start_date?: string | null
+  description?: string | null; start_date?: string | null; expected_end_date?: string | null
   project_value?: number | null; hourly_rate?: number | null
   additional_hourly_rate?: number | null; initial_cost?: number | null
   initial_hours_balance?: number | null; sold_hours?: number | null
@@ -1767,6 +1788,18 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                         <Row label="Tipo de Contrato" value={p.contract_type_display ?? p.contract_type?.name} />
                         {p.parent_project && <Row label="Projeto Pai" value={`${p.parent_project.name} (${p.parent_project.code})`} />}
                         <Row label="Data de Início" value={fmtDate(p.start_date)} />
+                        {p.expected_end_date && (() => {
+                          const ds = endDateStyle(p.expected_end_date)
+                          return (
+                            <Row label="Data de Conclusão" value={
+                              <span className="flex items-center gap-1.5">
+                                <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: ds.bg, color: ds.color }}>
+                                  {new Date(p.expected_end_date).toLocaleDateString('pt-BR')} — {ds.label}
+                                </span>
+                              </span>
+                            } />
+                          )
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -2041,6 +2074,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
 
 interface ProjectEditForm {
   name: string; description: string; status: string; start_date: string
+  expected_end_date: string
   sold_hours: string; project_value: string; hourly_rate: string
   additional_hourly_rate: string; initial_hours_balance: string
   allow_negative_balance: boolean
@@ -2052,6 +2086,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     description:             project.description ?? '',
     status:                  project.status ?? 'awaiting_start',
     start_date:              project.start_date?.slice(0, 10) ?? '',
+    expected_end_date:       project.expected_end_date?.slice(0, 10) ?? '',
     sold_hours:              String(project.sold_hours ?? ''),
     project_value:           String(project.project_value ?? ''),
     hourly_rate:             String(project.hourly_rate ?? ''),
@@ -2072,7 +2107,8 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
         name:        form.name.trim(),
         description: form.description || null,
         status:      form.status,
-        start_date:  form.start_date || null,
+        start_date:         form.start_date || null,
+        expected_end_date:  form.expected_end_date || null,
         allow_negative_balance: form.allow_negative_balance,
       }
       if (form.sold_hours !== '')             payload.sold_hours             = Number(form.sold_hours)
@@ -2133,6 +2169,10 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                   <label style={labelStyle}>Data de Início</label>
                   <input type="date" value={form.start_date} onChange={setF('start_date')} style={inputStyle} />
                 </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Data de Conclusão</label>
+                <input type="date" value={form.expected_end_date} onChange={setF('expected_end_date')} style={inputStyle} />
               </div>
               <div>
                 <label style={labelStyle}>Descrição</label>
