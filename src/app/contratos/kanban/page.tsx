@@ -671,7 +671,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     Promise.allSettled([
       api.get<any>('/service-types?pageSize=100'),
       api.get<any>('/contract-types?pageSize=100'),
-      api.get<any>('/users?type=coordenador&coordinator_type=projeto&pageSize=200'),
+      api.get<any>('/users?type=coordenador&coordinator_type=projetos&pageSize=200'),
       api.get<any>('/users?type=consultor&pageSize=200'),
       api.get<any>('/consultant-groups?pageSize=100&active=1'),
     ]).then(([st, ct, coords, consults, grps]) => {
