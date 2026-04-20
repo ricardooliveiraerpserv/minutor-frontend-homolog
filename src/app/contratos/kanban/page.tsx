@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, X } from 'lucide-react'
+import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, X, Check } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -626,6 +626,28 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     allow_negative_balance: false,
   })
   const [saving, setSaving] = useState(false)
+
+  // Team state
+  const [allCoordinators, setAllCoordinators] = useState<{ id: number; name: string }[]>([])
+  const [allConsultants,  setAllConsultants]  = useState<{ id: number; name: string }[]>([])
+  const [selCoordIds,     setSelCoordIds]     = useState<Set<number>>(new Set((project.coordinators ?? []).map(c => c.id)))
+  const [selConsultIds,   setSelConsultIds]   = useState<Set<number>>(new Set((project.consultants  ?? []).map(c => c.id)))
+  const [teamSearch,      setTeamSearch]      = useState('')
+  const [teamTab,         setTeamTab]         = useState<'coord' | 'consult'>('coord')
+
+  useEffect(() => {
+    Promise.all([
+      api.get<any>('/users?type=coordenador&pageSize=200'),
+      api.get<any>('/users?type=consultor&pageSize=200'),
+    ]).then(([coords, consults]) => {
+      setAllCoordinators(coords?.items ?? coords?.data ?? [])
+      setAllConsultants(consults?.items ?? consults?.data ?? [])
+    }).catch(() => {})
+  }, [])
+
+  const toggleCoord = (id: number) => setSelCoordIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleConsult = (id: number) => setSelConsultIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+
   const setF = (key: keyof ProjectEditForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(prev => ({ ...prev, [key]: e.target.value }))
 
@@ -637,6 +659,8 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
         name: form.name.trim(), description: form.description || null, status: form.status,
         start_date: form.start_date || null, expected_end_date: form.expected_end_date || null,
         allow_negative_balance: form.allow_negative_balance,
+        coordinator_ids: Array.from(selCoordIds),
+        consultant_ids:  Array.from(selConsultIds),
       }
       if (form.sold_hours !== '')             payload.sold_hours             = Number(form.sold_hours)
       if (form.project_value !== '')          payload.project_value          = Number(form.project_value)
@@ -665,9 +689,12 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     { value: 'cancelled',      label: 'Cancelado' },
   ]
 
+  const filteredCoords   = allCoordinators.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase()))
+  const filteredConsults = allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase()))
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
-      <div className="flex flex-col rounded-2xl w-full max-w-4xl max-h-[90vh]" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(0,245,255,0.25)' }}>
+      <div className="flex flex-col rounded-2xl w-full max-w-5xl max-h-[92vh]" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(0,245,255,0.25)' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{project.code}</p>
@@ -675,68 +702,131 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          {/* Identificação */}
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
-            <div className="space-y-3">
-              <div>
-                <label style={labelStyle}>Nome do Projeto *</label>
-                <input value={form.name} onChange={setF('name')} style={inputStyle} placeholder="Nome do projeto" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label style={labelStyle}>Status</label>
-                  <select value={form.status} onChange={setF('status')} style={inputStyle}>
-                    {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>Data de Início</label>
-                  <input type="date" value={form.start_date} onChange={setF('start_date')} style={inputStyle} />
-                </div>
-              </div>
-              <div>
-                <label style={labelStyle}>Data de Conclusão</label>
-                <input type="date" value={form.expected_end_date} onChange={setF('expected_end_date')} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Descrição</label>
-                <textarea value={form.description} onChange={setF('description')} style={{ ...inputStyle, resize: 'vertical', minHeight: '80px' }} placeholder="Descrição do projeto" />
-              </div>
-            </div>
-          </div>
 
-          {/* Financeiro */}
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Financeiro</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div><label style={labelStyle}>Valor do Projeto (R$)</label><input type="number" value={form.project_value} onChange={setF('project_value')} style={inputStyle} placeholder="0.00" step="0.01" /></div>
-              <div><label style={labelStyle}>Valor da Hora (R$)</label><input type="number" value={form.hourly_rate} onChange={setF('hourly_rate')} style={inputStyle} placeholder="0.00" step="0.01" /></div>
-              <div><label style={labelStyle}>Hora Adicional (R$)</label><input type="number" value={form.additional_hourly_rate} onChange={setF('additional_hourly_rate')} style={inputStyle} placeholder="0.00" step="0.01" /></div>
-            </div>
-          </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-          {/* Horas */}
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Horas</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div><label style={labelStyle}>Horas Contratadas</label><input type="number" value={form.sold_hours} onChange={setF('sold_hours')} style={inputStyle} placeholder="0" step="1" /></div>
-              <div><label style={labelStyle}>Saldo Inicial de Horas</label><input type="number" value={form.initial_hours_balance} onChange={setF('initial_hours_balance')} style={inputStyle} placeholder="0" step="1" /></div>
-            </div>
-            <div className="flex items-center gap-3 mt-3 px-4 py-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}>
-              <button
-                type="button"
-                onClick={() => setForm(prev => ({ ...prev, allow_negative_balance: !prev.allow_negative_balance }))}
-                className="relative w-10 h-5 rounded-full transition-colors shrink-0"
-                style={{ background: form.allow_negative_balance ? '#22c55e' : 'rgba(255,255,255,0.1)' }}
-              >
-                <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
-                  style={{ transform: form.allow_negative_balance ? 'translateX(20px)' : 'translateX(0)' }} />
-              </button>
+          {/* Layout 2 colunas: esquerda = identificação/financeiro/horas, direita = equipe */}
+          <div className="grid grid-cols-2 gap-6">
+
+            {/* Coluna Esquerda */}
+            <div className="space-y-5">
+
+              {/* Identificação */}
               <div>
-                <p className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>Permitir Saldo Negativo</p>
-                <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Permite que o projeto continue mesmo sem saldo de horas</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
+                <div className="space-y-3">
+                  <div>
+                    <label style={labelStyle}>Nome do Projeto *</label>
+                    <input value={form.name} onChange={setF('name')} style={inputStyle} placeholder="Nome do projeto" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label style={labelStyle}>Status</label>
+                      <select value={form.status} onChange={setF('status')} style={inputStyle}>
+                        {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Data de Início</label>
+                      <input type="date" value={form.start_date} onChange={setF('start_date')} style={inputStyle} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Data de Conclusão</label>
+                    <input type="date" value={form.expected_end_date} onChange={setF('expected_end_date')} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Descrição</label>
+                    <textarea value={form.description} onChange={setF('description')} style={{ ...inputStyle, resize: 'vertical', minHeight: '80px' }} placeholder="Descrição do projeto" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Financeiro */}
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Financeiro</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label style={labelStyle}>Valor do Projeto (R$)</label><input type="number" value={form.project_value} onChange={setF('project_value')} style={inputStyle} placeholder="0.00" step="0.01" /></div>
+                  <div><label style={labelStyle}>Valor da Hora (R$)</label><input type="number" value={form.hourly_rate} onChange={setF('hourly_rate')} style={inputStyle} placeholder="0.00" step="0.01" /></div>
+                  <div><label style={labelStyle}>Hora Adicional (R$)</label><input type="number" value={form.additional_hourly_rate} onChange={setF('additional_hourly_rate')} style={inputStyle} placeholder="0.00" step="0.01" /></div>
+                  <div><label style={labelStyle}>Horas Contratadas</label><input type="number" value={form.sold_hours} onChange={setF('sold_hours')} style={inputStyle} placeholder="0" step="1" /></div>
+                </div>
+              </div>
+
+              {/* Horas */}
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Horas</p>
+                <div>
+                  <label style={labelStyle}>Saldo Inicial de Horas</label>
+                  <input type="number" value={form.initial_hours_balance} onChange={setF('initial_hours_balance')} style={inputStyle} placeholder="0" step="1" />
+                </div>
+                <div className="flex items-center gap-3 mt-3 px-4 py-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}>
+                  <button type="button"
+                    onClick={() => setForm(prev => ({ ...prev, allow_negative_balance: !prev.allow_negative_balance }))}
+                    className="relative w-10 h-5 rounded-full transition-colors shrink-0"
+                    style={{ background: form.allow_negative_balance ? '#22c55e' : 'rgba(255,255,255,0.1)' }}>
+                    <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                      style={{ transform: form.allow_negative_balance ? 'translateX(20px)' : 'translateX(0)' }} />
+                  </button>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>Permitir Saldo Negativo</p>
+                    <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Projeto continua mesmo sem saldo de horas</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Coluna Direita — Equipe */}
+            <div className="flex flex-col" style={{ minHeight: 0 }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Equipe Alocada</p>
+
+              {/* Tabs */}
+              <div className="flex gap-1 mb-3 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                {([['coord', 'Coordenadores', selCoordIds.size], ['consult', 'Consultores', selConsultIds.size]] as const).map(([id, label, count]) => (
+                  <button key={id} onClick={() => { setTeamTab(id); setTeamSearch('') }}
+                    className="px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap"
+                    style={{ color: teamTab === id ? '#00F5FF' : 'var(--brand-subtle)', borderBottom: teamTab === id ? '2px solid #00F5FF' : '2px solid transparent', marginBottom: '-1px' }}>
+                    {label} {count > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>{count}</span>}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search */}
+              <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)}
+                placeholder={teamTab === 'coord' ? 'Buscar coordenador...' : 'Buscar consultor...'}
+                className="w-full text-xs px-3 py-2 rounded-xl outline-none mb-2"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+
+              {/* List */}
+              <div className="flex-1 overflow-y-auto space-y-1 rounded-xl p-2" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--brand-border)', maxHeight: 320 }}>
+                {teamTab === 'coord' && filteredCoords.map(c => (
+                  <button key={c.id} onClick={() => toggleCoord(c.id)}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+                    style={{ background: selCoordIds.has(c.id) ? 'rgba(0,245,255,0.06)' : 'transparent', border: `1px solid ${selCoordIds.has(c.id) ? 'rgba(0,245,255,0.2)' : 'transparent'}` }}>
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+                      style={{ background: selCoordIds.has(c.id) ? 'rgba(0,245,255,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
+                      {selCoordIds.has(c.id) && <Check size={10} style={{ color: '#00F5FF' }} />}
+                    </div>
+                    <span className="text-xs" style={{ color: selCoordIds.has(c.id) ? '#00F5FF' : 'var(--brand-text)' }}>{c.name}</span>
+                  </button>
+                ))}
+                {teamTab === 'consult' && filteredConsults.map(c => (
+                  <button key={c.id} onClick={() => toggleConsult(c.id)}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+                    style={{ background: selConsultIds.has(c.id) ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${selConsultIds.has(c.id) ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0"
+                      style={{ background: selConsultIds.has(c.id) ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
+                      {selConsultIds.has(c.id) && <Check size={10} style={{ color: '#a78bfa' }} />}
+                    </div>
+                    <span className="text-xs" style={{ color: selConsultIds.has(c.id) ? '#a78bfa' : 'var(--brand-text)' }}>{c.name}</span>
+                  </button>
+                ))}
+                {teamTab === 'coord' && filteredCoords.length === 0 && (
+                  <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum coordenador encontrado</p>
+                )}
+                {teamTab === 'consult' && filteredConsults.length === 0 && (
+                  <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum consultor encontrado</p>
+                )}
               </div>
             </div>
           </div>
