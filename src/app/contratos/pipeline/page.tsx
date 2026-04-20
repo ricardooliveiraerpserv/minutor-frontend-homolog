@@ -943,7 +943,7 @@ function FinalizeRequestModal({ card, coordinators, onClose, onDone }: {
       await api.post(`/contract-requests/${card.id}/finalize`, {
         coordinator_id: coordinatorId ?? undefined,
       })
-      toast.success('Requisição finalizada — contrato movido para o coordenador')
+      toast.success('Projeto gerado com sucesso!')
       onDone({ ...card, kanban_column: 'req_em_andamento' })
       onClose()
     } catch (e: any) {
@@ -970,7 +970,7 @@ function FinalizeRequestModal({ card, coordinators, onClose, onDone }: {
         </div>
         <div className="px-6 py-5 space-y-4">
           <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
-            O contrato vinculado será movido para a coluna do coordenador no kanban de contratos.
+            O projeto será gerado e alocado ao coordenador selecionado.
           </p>
           <div>
             <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--brand-subtle)' }}>COORDENADOR</label>
@@ -1980,8 +1980,8 @@ function KanbanContent() {
           coordinators={coordinators}
           onClose={() => setFinalizeCard(null)}
           onDone={updated => {
-            setRequestCards(prev => prev.map(r => r.id === updated.id ? updated : r))
             setFinalizeCard(null)
+            load()
           }}
         />
       )}
