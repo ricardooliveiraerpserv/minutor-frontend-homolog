@@ -1859,7 +1859,11 @@ function KanbanContent() {
                   canDrop={colCanDrop(col.id)}
                   onContractClick={setSelectedContract}
                   onProjectClick={setSelectedProject}
-                  onRequestClick={setSelectedRequest}
+                  onRequestClick={card =>
+                    card.kanban_column === 'req_inicio_autorizado' && !card.req_decision
+                      ? setPlanDecisionCard(card)
+                      : setSelectedRequest(card)
+                  }
                   onFinalizeRequest={setFinalizeCard}
                 />
               ))}
