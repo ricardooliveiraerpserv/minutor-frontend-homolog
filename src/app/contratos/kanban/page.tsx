@@ -1106,6 +1106,46 @@ function ProjectKanbanCard({ card, index, onClick, onAction }: {
 
 function CardDetailModal({ card, onClose }: { card: ContractCard; onClose: () => void }) {
   const badge = statusBadge(card)
+  const [full, setFull] = useState<any>(null)
+
+  useEffect(() => {
+    api.get<any>(`/contracts/${card.id}`).then(setFull).catch(() => {})
+  }, [card.id])
+
+  const fmt = (val: any, fallback = '—') => val ?? fallback
+  const fmtMoney = (val: any) => val != null ? `R$ ${Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'
+  const fmtHours = (val: any) => val != null ? `${val}h` : '—'
+  const fmtDate  = (val: any) => val ? new Date(val).toLocaleDateString('pt-BR') : '—'
+
+  const fields: [string, string][] = full ? [
+    ['Categoria',           full.categoria === 'sustentacao' ? 'Sustentação' : 'Projeto'],
+    ['Tipo de Contrato',    full.contract_type?.name ?? '—'],
+    ['Tipo de Serviço',     full.service_type?.name ?? '—'],
+    ['Faturamento',         full.tipo_faturamento ? (TIPO_LABEL[full.tipo_faturamento] ?? full.tipo_faturamento) : '—'],
+    ['Horas Contratadas',   fmtHours(full.horas_contratadas)],
+    ['Horas Consultor',     fmtHours(full.horas_consultor)],
+    ['% Horas Coordenador', full.pct_horas_coordenador != null ? `${full.pct_horas_coordenador}%` : '—'],
+    ['Valor do Projeto',    fmtMoney(full.valor_projeto)],
+    ['Valor/Hora',          fmtMoney(full.valor_hora)],
+    ['Hora Adicional',      fmtMoney(full.hora_adicional)],
+    ['Expectativa Início',  fmtDate(full.expectativa_inicio)],
+    ['Tipo de Alocação',    full.tipo_alocacao ?? '—'],
+    ['Cond. Pagamento',     full.condicao_pagamento ?? '—'],
+    ['Arquiteto',           full.architect?.name ?? '—'],
+    ['Executivo de Conta',  full.executivo_conta?.name ?? '—'],
+    ['Vendedor',            full.vendedor?.name ?? '—'],
+    ['Status Contrato',     full.status ?? '—'],
+    ['Projeto',             full.project?.code ?? '—'],
+  ] : [
+    ['Categoria',         card.categoria === 'sustentacao' ? 'Sustentação' : 'Projeto'],
+    ['Tipo de Contrato',  card.contract_type ?? '—'],
+    ['Faturamento',       card.tipo_faturamento ? (TIPO_LABEL[card.tipo_faturamento] ?? card.tipo_faturamento) : '—'],
+    ['Horas Contratadas', fmtHours(card.horas_contratadas)],
+    ['Valor do Projeto',  fmtMoney(card.valor_projeto)],
+    ['Status Contrato',   card.status],
+    ['Projeto',           card.project_code ?? '—'],
+  ]
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
       <div className="w-full max-w-lg rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
@@ -1120,17 +1160,9 @@ function CardDetailModal({ card, onClose }: { card: ContractCard; onClose: () =>
           </div>
         </div>
         <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+          {!full && <p className="text-xs text-center" style={{ color: 'var(--brand-muted)' }}>Carregando...</p>}
           <div className="grid grid-cols-2 gap-3 text-sm">
-            {([
-              ['Categoria', card.categoria === 'projeto' ? 'Projeto' : card.categoria === 'sustentacao' ? 'Sustentação' : '—'],
-              ['Tipo de Contrato', card.contract_type ?? '—'],
-              ['Faturamento', card.tipo_faturamento ? (TIPO_LABEL[card.tipo_faturamento] ?? card.tipo_faturamento) : '—'],
-              ['Horas Contratadas', card.horas_contratadas != null ? `${card.horas_contratadas}h` : '—'],
-              ['Valor do Projeto', card.valor_projeto != null ? `R$ ${Number(card.valor_projeto).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'],
-              ['Coordenador', card.kanban_coordinator ?? '—'],
-              ['Status Contrato', card.status],
-              ['Projeto', card.project_code ?? '—'],
-            ] as [string, string][]).map(([label, value]) => (
+            {fields.map(([label, value]) => (
               <div key={label}>
                 <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
                 <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
