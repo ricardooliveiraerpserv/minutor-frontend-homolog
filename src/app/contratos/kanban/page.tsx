@@ -1235,10 +1235,15 @@ function CardDetailModal({ card, onClose }: {
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Fechar</button>
+          <button onClick={() => { window.location.href = `/contratos?editId=${card.id}` }}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
+            <Pencil size={13} /> Editar Contrato
+          </button>
           <button onClick={() => { window.location.href = '/contratos' }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
             style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
-            <ExternalLink size={13} /> Ver Contrato
+            <ExternalLink size={13} /> Ver Lista
           </button>
         </div>
       </div>

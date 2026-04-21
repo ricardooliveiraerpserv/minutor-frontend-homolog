@@ -115,7 +115,6 @@ const NAV_CLIENTE: NavEntry[] = [
 const NAV: NavEntry[] = [
   { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
   { type: 'item', label: 'Gestão de Projetos',    href: '/gestao-projetos', icon: Layers },
-  { type: 'item', label: 'Contratos',             href: '/contratos',        icon: FileText },
   { type: 'item', label: 'Kanban Contratos',      href: '/contratos/kanban',   icon: LayoutGrid },
   { type: 'item', label: 'Demandas e Projetos',   href: '/contratos/pipeline', icon: Layers },
   { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',     icon: Headphones },

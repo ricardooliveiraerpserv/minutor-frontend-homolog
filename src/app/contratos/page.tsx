@@ -306,6 +306,17 @@ export default function ContratosPage() {
 
   useEffect(() => { loadContracts() }, [loadContracts])
 
+  // Auto-open edit when ?editId=X is present in URL (e.g. from Kanban)
+  useEffect(() => {
+    const editId = new URLSearchParams(window.location.search).get('editId')
+    if (!editId) return
+    api.get<Contract>(`/contracts/${editId}`).then(full => {
+      openEdit(full)
+      window.history.replaceState({}, '', '/contratos')
+    }).catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ─── Open modal helpers ───────────────────────────────────────────────────
 
   const openNew = () => {
