@@ -1202,9 +1202,10 @@ function KanbanContent() {
   const isSustCoordenador = user?.type === 'coordenador' && (user as any).coordinator_type === 'sustentacao'
 
   // Column list: fixed → coordinators → sustentação group → bizify → project status
-  // Coordenador de sustentação vê apenas "Pronto para Iniciar" + colunas de sustentação
+  // Coordenador de sustentação vê "Novo Contrato" + "Pronto para Iniciar" + colunas de sustentação
   const columns: Column[] = isSustCoordenador
     ? [
+        FIXED_COLUMNS.find(c => c.id === 'novo')!,
         FIXED_COLUMNS.find(c => c.id === 'pronto')!,
         ...SUSTENTACAO_COLS,
       ]
