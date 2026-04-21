@@ -642,24 +642,6 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
             ))}
           </div>
         </div>
-        {isSustAdmin && tab === 'details' && (
-          <div className="px-6 py-3 border-b flex items-center gap-3" style={{ borderColor: 'var(--brand-border)', background: 'rgba(251,146,60,0.05)' }}>
-            <span className="text-xs font-semibold shrink-0" style={{ color: '#f59e0b' }}>Fila de Sustentação</span>
-            <select value={queue} onChange={e => setQueue(e.target.value)}
-              className="flex-1 text-xs rounded-lg px-2 py-1.5 outline-none"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
-              <option value="">— Selecionar fila —</option>
-              {SUST_QUEUE_OPTIONS_P.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <button onClick={handleMoveQueue} disabled={!queue || moving}
-              className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
-              style={{ background: '#f59e0b', color: '#000' }}>
-              {moving ? '...' : 'Mover'}
-            </button>
-          </div>
-        )}
         {tab === 'log' ? (
           <div className="flex-1 overflow-y-auto">
             <KanbanLogTab logs={logs} loading={logsLoading} />
@@ -684,6 +666,24 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
               </div>
             ))}
           </div>
+          {isSustAdmin && (
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wider shrink-0" style={{ color: '#f59e0b' }}>Fila de Sustentação</p>
+              <select value={queue} onChange={e => setQueue(e.target.value)}
+                className="flex-1 text-xs rounded-lg px-2 py-1.5 outline-none"
+                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
+                <option value="">— Selecionar fila —</option>
+                {SUST_QUEUE_OPTIONS_P.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <button onClick={handleMoveQueue} disabled={!queue || moving}
+                className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
+                style={{ background: '#f59e0b', color: '#000' }}>
+                {moving ? '...' : 'Mover'}
+              </button>
+            </div>
+          )}
           {!card.is_complete && (
             <div className="flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
               <AlertCircle size={13} className="mt-0.5 shrink-0" />
