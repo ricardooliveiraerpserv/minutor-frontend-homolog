@@ -1263,6 +1263,7 @@ function KanbanContent() {
   const [loading,           setLoading]            = useState(true)
   const [selected,          setSelected]           = useState<ContractCard | null>(null)
   const [projectAction,     setProjectAction]      = useState<{ card: ProjectCard; action: string } | null>(null)
+  const [draggingIsSust,    setDraggingIsSust]     = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -1331,7 +1332,25 @@ function KanbanContent() {
     return projectCards.filter(p => p.status === targetStatus)
   }
 
+  const onDragStart = (start: any) => {
+    const [cardType, rawId] = start.draggableId.split('-')
+    if (cardType !== 'contract') return
+    const cardId = Number(rawId)
+    const allSustCards = Object.values(sustGroups).flat()
+    const card = [...demandCards, ...allSustCards].find(c => c.id === cardId)
+    if (!card) return
+    const ctLower = card.contract_type?.toLowerCase() ?? ''
+    const svLower = card.service_type?.toLowerCase() ?? ''
+    const isSust = card.categoria === 'sustentacao'
+      || card.sustentacao_column != null
+      || ctLower.includes('banco de horas') || ctLower.includes('on demand')
+      || ctLower.includes('cloud') || ctLower.includes('bizify')
+      || svLower.includes('cloud') || svLower.includes('bizify')
+    setDraggingIsSust(isSust)
+  }
+
   const onDragEnd = async (result: DropResult) => {
+    setDraggingIsSust(false)
     const { source, destination, draggableId } = result
     if (!destination) return
     if (source.droppableId === destination.droppableId && source.index === destination.index) return
@@ -1492,7 +1511,7 @@ function KanbanContent() {
             <p className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
           </div>
         ) : (
-          <DragDropContext onDragEnd={onDragEnd}>
+          <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
             <div className="flex-1 overflow-x-auto overflow-y-hidden">
               <div className="flex gap-3 p-4 h-full" style={{ minWidth: `${columns.length * 272 + 60}px` }}>
                 {columns.map((col, colIdx) => {
@@ -1598,7 +1617,8 @@ function KanbanContent() {
                         <Droppable
                           droppableId={col.id}
                           isDropDisabled={
-                            isStatusCol && !['col_pausado', 'col_cancelado', 'col_encerrado'].includes(col.id)
+                            (isStatusCol && !['col_pausado', 'col_cancelado', 'col_encerrado'].includes(col.id)) ||
+                            (isCoord && draggingIsSust)
                           }
                         >
                           {(prov, snap) => (
