@@ -1367,6 +1367,12 @@ function KanbanContent() {
       // ── Between sustentação columns (or from demand to sustentação)
       if (toCol.startsWith('sust_')) {
         if (!isSustAdmin) { toast.error('Apenas admin ou coordenador de sustentação pode mover.'); return }
+        const allSustCols = [...SUSTENTACAO_COLS, BIZIFY_COL]
+        const destCol = allSustCols.find(c => c.id === toCol)
+        if (destCol?.sustentacaoValidator && !destCol.sustentacaoValidator(card)) {
+          toast.error('Tipo de contrato incompatível com esta fila. Verifique o tipo de contrato cadastrado.')
+          return
+        }
         // Optimistic
         setSustGroups(prev => {
           const next = { ...prev }
@@ -1589,8 +1595,7 @@ function KanbanContent() {
                         <Droppable
                           droppableId={col.id}
                           isDropDisabled={
-                            ((isSust || isBizify) && !isSustAdmin) ||
-                            (isStatusCol && !['col_pausado', 'col_cancelado', 'col_encerrado'].includes(col.id))
+                            isStatusCol && !['col_pausado', 'col_cancelado', 'col_encerrado'].includes(col.id)
                           }
                         >
                           {(prov, snap) => (
