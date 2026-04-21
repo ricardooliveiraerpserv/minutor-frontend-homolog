@@ -66,13 +66,6 @@ interface DespesaRow {
 
 type Tab = 'servicos' | 'relatorio' | 'despesas'
 
-const CONTRACT_TYPES = [
-  { code: '',             label: 'Todos'          },
-  { code: 'on_demand',    label: 'On Demand'      },
-  { code: 'fixed_hours',  label: 'Banco de Horas' },
-  { code: 'closed',       label: 'Fechado'        },
-]
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function toYearMonth(month: number, year: number): string {
@@ -118,8 +111,8 @@ export default function FechamentoClientePage() {
   const toYM   = toMonth   && toYear   ? toYearMonth(toMonth,   toYear)   : ''
   const isSingleMonth = fromYM !== '' && fromYM === toYM
 
-  // ── Filtro de contrato ──
-  const [contractType, setContractType] = useState<string>('on_demand')
+  // ── Filtro de projeto (contrato) ──
+  const [projetoFilter, setProjetoFilter] = useState<number | null>(null)
 
   // ── Seleção de cliente ──
   const [clientes, setClientes]     = useState<ClienteStatus[]>([])
@@ -153,13 +146,12 @@ export default function FechamentoClientePage() {
   const loadServicos = useCallback(() => {
     if (!customerId || !fromYM || !toYM) return
     setLoading(true)
-    const params = new URLSearchParams({ from: fromYM, to: toYM })
-    if (contractType) params.set('contract_type', contractType)
+    const params = new URLSearchParams({ from: fromYM, to: toYM, contract_type: 'on_demand' })
     api.get<{ data: ApontamentosData }>(`/fechamento-cliente/${customerId}/${toYM}/apontamentos?${params}`)
       .then(r => setDados(r.data ?? null))
       .catch(() => toast.error('Erro ao carregar apontamentos'))
       .finally(() => setLoading(false))
-  }, [customerId, fromYM, toYM, contractType])
+  }, [customerId, fromYM, toYM])
 
   const loadDespesas = useCallback(() => {
     if (!customerId || !fromYM || !toYM) return
@@ -177,6 +169,7 @@ export default function FechamentoClientePage() {
     loadClientes()
     setDados(null)
     setDespesas([])
+    setProjetoFilter(null)
   }, [fromYM, toYM])
 
   useEffect(() => {
@@ -184,6 +177,7 @@ export default function FechamentoClientePage() {
     setStatus(clientes.find(c => c.customer_id === customerId) ?? null)
     setDados(null)
     setDespesas([])
+    setProjetoFilter(null)
     setTab('servicos')
   }, [customerId, clientes])
 
@@ -192,7 +186,7 @@ export default function FechamentoClientePage() {
       loadServicos()
       loadDespesas()
     }
-  }, [customerId, fromYM, toYM, contractType])
+  }, [customerId, fromYM, toYM])
 
   // ── Fechar / Reabrir ──
 
@@ -233,9 +227,11 @@ export default function FechamentoClientePage() {
 
   const isClosed       = status?.status === 'closed'
   const clienteOptions = clientes.map(c => ({ id: c.customer_id, name: c.nome }))
-  const projetos       = dados?.projetos ?? []
-  const totalHoras     = dados?.total_horas ?? 0
-  const totalGeral     = dados?.total_geral ?? 0
+  const todosProjetos  = dados?.projetos ?? []
+  const projetoOptions = todosProjetos.map(p => ({ id: p.projeto_id, name: `${p.projeto_codigo} — ${p.projeto_nome}` }))
+  const projetos       = projetoFilter ? todosProjetos.filter(p => p.projeto_id === projetoFilter) : todosProjetos
+  const totalHoras     = projetos.reduce((s, p) => s + p.horas, 0)
+  const totalGeral     = projetos.reduce((s, p) => s + p.total_receita, 0)
   const totalDespesas  = despesas.reduce((s, d) => s + d.valor, 0)
   const clienteNome    = clientes.find(c => c.customer_id === customerId)?.nome ?? ''
   const periodo        = fmtPeriodo(fromYM, toYM)
@@ -309,26 +305,18 @@ export default function FechamentoClientePage() {
               </div>
             </div>
 
-            {/* Filtro tipo de contrato */}
-            <div>
-              <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Contrato</div>
-              <div className="flex gap-1">
-                {CONTRACT_TYPES.map(ct => (
-                  <button
-                    key={ct.code}
-                    onClick={() => setContractType(ct.code)}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-                    style={{
-                      background: contractType === ct.code ? 'var(--brand-primary)' : 'var(--brand-surface)',
-                      color:      contractType === ct.code ? '#000' : 'var(--brand-muted)',
-                      border:     '1px solid var(--brand-border)',
-                    }}
-                  >
-                    {ct.label}
-                  </button>
-                ))}
+            {/* Filtro de contrato (projeto) */}
+            {projetoOptions.length > 0 && (
+              <div>
+                <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Contrato</div>
+                <SearchSelect
+                  value={projetoFilter ?? ''}
+                  onChange={v => setProjetoFilter(v ? Number(v) : null)}
+                  options={projetoOptions}
+                  placeholder="Todos os contratos"
+                />
               </div>
-            </div>
+            )}
 
             {/* Cliente */}
             <div className="ml-auto flex items-end gap-2 flex-wrap">
