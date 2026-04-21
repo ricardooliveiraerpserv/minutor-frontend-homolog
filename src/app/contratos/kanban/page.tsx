@@ -181,19 +181,19 @@ const BIZIFY_COLOR = '#a78bfa'
 const SUSTENTACAO_COLS: Column[] = [
   {
     id: 'sust_bh_fixo',   label: 'BH Fixo',   type: 'sustentacao', emoji: '🔒', color: SUST_COLOR,
-    sustentacaoValidator: (c) => c.tipo_faturamento === 'banco_horas_fixo',
+    sustentacaoValidator: (c) => !!(c.contract_type?.toLowerCase().includes('banco de horas fixo') || c.contract_type?.toLowerCase().includes('banco horas fixo')),
   },
   {
     id: 'sust_bh_mensal', label: 'BH Mensal', type: 'sustentacao', emoji: '📅', color: SUST_COLOR,
-    sustentacaoValidator: (c) => c.tipo_faturamento === 'banco_horas_mensal',
+    sustentacaoValidator: (c) => !!(c.contract_type?.toLowerCase().includes('banco de horas mensal') || c.contract_type?.toLowerCase().includes('banco horas mensal')),
   },
   {
     id: 'sust_on_demand', label: 'On Demand', type: 'sustentacao', emoji: '⚡', color: SUST_COLOR,
-    sustentacaoValidator: (c) => c.tipo_faturamento === 'on_demand',
+    sustentacaoValidator: (c) => !!(c.contract_type?.toLowerCase().includes('on demand')),
   },
   {
     id: 'sust_cloud',     label: 'Cloud',     type: 'sustentacao', emoji: '☁️', color: '#38bdf8',
-    sustentacaoValidator: (c) => !!(c.service_type?.toLowerCase().includes('cloud')),
+    sustentacaoValidator: (c) => !!(c.contract_type?.toLowerCase().includes('cloud') || c.service_type?.toLowerCase().includes('cloud')),
   },
 ]
 
