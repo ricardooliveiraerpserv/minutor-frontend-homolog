@@ -114,7 +114,7 @@ export function ContractMessages({ contractId, userRole }: Props) {
 
   useEffect(() => {
     if (!isCliente) {
-      api.get<MentionUser[]>(`/messages/mentionable-users?contract_id=${contractId}`)
+      api.get<MentionUser[]>(`/contracts/${contractId}/mentionable-users`)
         .then(r => setMentionUsers(Array.isArray(r) ? r : []))
         .catch(() => {})
     }
