@@ -3346,42 +3346,6 @@ function KanbanContent() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {!isCliente && (
-              <>
-                <button
-                  onClick={() => router.push('/contratos')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-opacity hover:opacity-80"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
-                >
-                  <List size={13} /> Lista
-                </button>
-                <button
-                  onClick={() => router.push('/contratos/kanban')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-opacity hover:opacity-80"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
-                >
-                  <FolderKanban size={13} /> Kanban
-                </button>
-              </>
-            )}
-            {!isConsultor && (
-              <button
-                onClick={() => router.push('/portal-cliente/nova-requisicao')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
-                style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.35)', color: '#a78bfa' }}
-              >
-                <Plus size={13} /> Nova Requisição
-              </button>
-            )}
-            {!isConsultor && !isCliente && (
-              <button
-                onClick={() => router.push('/contratos')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
-                style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
-              >
-                <Plus size={13} /> Novo Contrato
-              </button>
-            )}
           </div>
         </div>
 

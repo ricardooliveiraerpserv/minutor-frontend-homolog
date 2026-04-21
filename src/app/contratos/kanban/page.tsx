@@ -1468,11 +1468,7 @@ function KanbanContent() {
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
               <List size={13} /> Lista
             </button>
-            <button onClick={() => router.push('/contratos/pipeline')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm"
-              style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', color: '#818cf8' }}>
-              <Layers size={13} /> Pipeline
-            </button>
+
             <button onClick={() => { setEditingContractData(null); setShowNewContract(true) }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold"
               style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
