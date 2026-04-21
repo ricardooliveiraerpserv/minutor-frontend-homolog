@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Pencil, Eye, ChevronLeft, ChevronRight, LayoutGrid, Download, FileText, MoreVertical, CheckCircle, Rocket } from 'lucide-react'
+import { Plus, Pencil, Eye, ChevronLeft, ChevronRight, LayoutGrid, Download, FileText, MoreVertical, CheckCircle, Rocket, X } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 
@@ -444,10 +444,13 @@ export default function ContratosPage() {
                     <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{vc.customer?.name}</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>Criado em {fmtDate(vc.created_at)}</p>
                   </div>
-                  <span className="text-xs font-semibold px-2 py-1 rounded-full shrink-0"
-                    style={{ background: `${STATUS_COLOR[vc.status]}22`, color: STATUS_COLOR[vc.status] }}>
-                    {STATUS_LABEL[vc.status]}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full"
+                      style={{ background: `${STATUS_COLOR[vc.status]}22`, color: STATUS_COLOR[vc.status] }}>
+                      {STATUS_LABEL[vc.status]}
+                    </span>
+                    <button onClick={() => setViewContract(null)} className="p-1 rounded-lg hover:bg-white/10 transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+                  </div>
                 </div>
               </div>
 
