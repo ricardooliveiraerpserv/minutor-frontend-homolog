@@ -1,11 +1,11 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Pencil, ChevronLeft, ChevronRight, LayoutGrid, Download, FileText, MoreVertical, CheckCircle, Rocket } from 'lucide-react'
+import { Plus, Pencil, Eye, ChevronLeft, ChevronRight, LayoutGrid, Download, FileText, MoreVertical, CheckCircle, Rocket } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 
@@ -129,6 +129,20 @@ export default function ContratosPage() {
   const [customers, setCustomers] = useState<SelectOption[]>([])
 
   const isSustAdmin = user?.type === 'admin' || (user?.type === 'coordenador' && (user as any).coordinator_type === 'sustentacao')
+
+  // Row dropdown
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -309,7 +323,7 @@ export default function ContratosPage() {
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
-              <th className="w-8 px-2 py-3" />
+              <th className="w-10 px-2 py-3" />
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Categoria</th>
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Tipo de Contrato</th>
@@ -317,20 +331,36 @@ export default function ContratosPage() {
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Expectativa</th>
               <th className="text-center px-4 py-3 text-zinc-400 font-medium">Status</th>
               <th className="text-center px-4 py-3 text-zinc-400 font-medium">Projeto</th>
-              <th className="text-center px-4 py-3 text-zinc-400 font-medium">Ações</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-500 text-xs">Carregando...</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-500 text-xs">Carregando...</td></tr>
             )}
             {!loading && contracts.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhum contrato encontrado.</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhum contrato encontrado.</td></tr>
             )}
             {!loading && contracts.map((c, i) => (
               <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                <td className="w-8 px-2 py-3 text-center">
-                  <MoreVertical size={14} className="text-zinc-600 mx-auto" />
+                <td className="w-10 px-2 py-3 text-center relative">
+                  <button
+                    onClick={() => setOpenDropdown(openDropdown === c.id ? null : c.id)}
+                    className="p-1 rounded-md transition-colors hover:bg-zinc-700/60 text-zinc-500 hover:text-zinc-300">
+                    <MoreVertical size={15} />
+                  </button>
+                  {openDropdown === c.id && (
+                    <div ref={dropdownRef} className="absolute left-8 top-1/2 -translate-y-1/2 z-50 w-40 rounded-xl overflow-hidden shadow-xl"
+                      style={{ background: '#1c1c1e', border: '1px solid var(--brand-border)' }}>
+                      <button onClick={() => { setOpenDropdown(null); openView(c) }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-zinc-700/50" style={{ color: 'var(--brand-text)' }}>
+                        <Eye size={14} className="text-zinc-400" /> Visualizar
+                      </button>
+                      <button onClick={() => { setOpenDropdown(null); openEdit(c) }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-zinc-700/50" style={{ color: 'var(--brand-text)' }}>
+                        <Pencil size={14} className="text-zinc-400" /> Editar
+                      </button>
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-white font-medium">{c.customer?.name ?? '—'}</td>
                 <td className="px-4 py-3 text-zinc-300">{CATEGORIA_LABEL[c.categoria]}</td>
@@ -347,18 +377,6 @@ export default function ContratosPage() {
                   {c.project
                     ? <span className="text-cyan-400 font-mono">{c.project.code}</span>
                     : <span className="text-zinc-600">—</span>}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-center gap-2">
-                    <button onClick={() => openView(c)}
-                      className="px-2.5 py-1 rounded-md text-xs transition-colors hover:bg-zinc-700/60 text-zinc-400 hover:text-white">
-                      Visualizar
-                    </button>
-                    <button onClick={() => openEdit(c)}
-                      className="px-2.5 py-1 rounded-md text-xs transition-colors hover:bg-zinc-700/60 text-zinc-400 hover:text-white">
-                      Editar
-                    </button>
-                  </div>
                 </td>
               </tr>
             ))}
