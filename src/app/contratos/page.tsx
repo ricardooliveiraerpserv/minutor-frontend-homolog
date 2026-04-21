@@ -443,26 +443,6 @@ export default function ContratosPage() {
                 </div>
               </div>
 
-              {/* Sust queue (admin/sust-coord only) */}
-              {isSustAdmin && (
-                <div className="px-6 py-3 border-b flex items-center gap-3" style={{ borderColor: 'var(--brand-border)', background: 'rgba(251,146,60,0.05)' }}>
-                  <span className="text-xs font-semibold shrink-0" style={{ color: '#f59e0b' }}>Fila de Sustentação</span>
-                  <select value={sustQueue} onChange={e => setSustQueue(e.target.value)}
-                    className="flex-1 text-xs rounded-lg px-2 py-1.5 outline-none bg-zinc-800 border border-zinc-700 text-zinc-200">
-                    <option value="">— Selecionar fila —</option>
-                    <option value="sust_bh_fixo">BH Fixo</option>
-                    <option value="sust_bh_mensal">BH Mensal</option>
-                    <option value="sust_on_demand">On Demand</option>
-                    <option value="sust_cloud">Cloud</option>
-                    <option value="sust_bizify">Bizify</option>
-                  </select>
-                  <button onClick={handleSustMove} disabled={!sustQueue || sustMoving}
-                    className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
-                    style={{ background: '#f59e0b', color: '#000' }}>
-                    {sustMoving ? '...' : 'Mover'}
-                  </button>
-                </div>
-              )}
 
               {/* Body */}
               <div className="px-6 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
@@ -519,34 +499,16 @@ export default function ContratosPage() {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-                <div className="flex items-center gap-2">
-                  {vc.status === 'rascunho' && (
-                    <button onClick={() => { updateStatus(vc, 'aprovado'); setViewContract(null) }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                      style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6' }}>
-                      <CheckCircle size={13} /> Aprovar
-                    </button>
-                  )}
-                  {!vc.project_id && (vc.status === 'aprovado' || vc.status === 'rascunho') && (
-                    <button onClick={() => { openGenModal(vc); setViewContract(null) }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                      style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.3)', color: '#eab308' }}>
-                      <Rocket size={13} /> Gerar Projeto
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setViewContract(null)}
-                    className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>
-                    Fechar
-                  </button>
-                  <button onClick={() => { openEdit(vc); setViewContract(null) }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
-                    <Pencil size={13} /> Editar Contrato
-                  </button>
-                </div>
+              <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                <button onClick={() => setViewContract(null)}
+                  className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>
+                  Fechar
+                </button>
+                <button onClick={() => { openEdit(vc); setViewContract(null) }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
+                  <Pencil size={13} /> Editar Contrato
+                </button>
               </div>
             </div>
           </div>
