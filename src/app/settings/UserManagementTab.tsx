@@ -96,7 +96,7 @@ const BASE_PERMISSIONS_BY_TYPE: Record<string, string[]> = {
 }
 
 type ProfileType    = 'cliente' | 'consultor' | 'coordenador' | 'parceiro_adm' | 'administrator'
-type ConsultantType = 'horista' | 'bh_fixo' | 'bh_mensal' | 'fixo'
+type ConsultantType = 'horista' | 'banco_de_horas' | 'fixo'
 
 const PROFILE_OPTIONS: { value: ProfileType; label: string }[] = [
   { value: 'cliente',       label: 'Cliente' },
@@ -107,10 +107,9 @@ const PROFILE_OPTIONS: { value: ProfileType; label: string }[] = [
 ]
 
 const CONSULTANT_OPTIONS: { value: ConsultantType; label: string; desc: string }[] = [
-  { value: 'horista',   label: 'Horista',               desc: 'Pago por hora — possui horas extras' },
-  { value: 'bh_fixo',   label: 'Banco de Horas Fixo',   desc: 'Valor mensal fixo — banco de horas sem extras' },
-  { value: 'bh_mensal', label: 'Banco de Horas Mensal', desc: 'Valor mensal — banco de horas com extras e Total a Receber' },
-  { value: 'fixo',      label: 'Fixo',                  desc: 'Valor fixo mensal — sem banco de horas' },
+  { value: 'horista',        label: 'Horista',        desc: 'Pago por hora — possui horas extras' },
+  { value: 'banco_de_horas', label: 'Banco de Horas', desc: 'Valor mensal — banco de horas' },
+  { value: 'fixo',           label: 'Fixo',           desc: 'Valor fixo mensal — sem banco de horas' },
 ]
 
 function resolveTypeForBackend(profile: ProfileType): string {
@@ -356,7 +355,7 @@ export function UserManagementTab() {
     const profile = resolveProfileFromType(item.type)
     const profiles = profile ? [profile] : []
     const consultant_type = (item.consultant_type as ConsultantType | undefined)
-      ?? (item.rate_type === 'hourly' ? 'horista' : item.rate_type === 'monthly' ? 'bh_fixo' : '')
+      ?? (item.rate_type === 'hourly' ? 'horista' : item.rate_type === 'monthly' ? 'banco_de_horas' : '')
     setForm({
       name: item.name, email: item.email, password: '',
       enabled: item.enabled,

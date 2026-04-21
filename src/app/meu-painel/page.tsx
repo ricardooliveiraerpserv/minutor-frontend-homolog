@@ -1332,7 +1332,7 @@ export default function MeuPainelPage() {
   // ── Load Banco de Horas (only for bh_fixo / bh_mensal consultants) ─────────
   useEffect(() => {
     const ct = (user as any)?.consultant_type
-    if (ct !== 'bh_fixo' && ct !== 'bh_mensal') return
+    if (ct !== 'banco_de_horas') return
     if (!user?.id) return
     setHbLoading(true)
     const pad = (n: number) => String(n).padStart(2, '0')
@@ -1678,7 +1678,7 @@ export default function MeuPainelPage() {
 
   // ── Tabs config ────────────────────────────────────────────────────────────
 
-  const isHBConsultant    = ['bh_fixo', 'bh_mensal'].includes((user as any)?.consultant_type ?? '')
+  const isHBConsultant    = ['banco_de_horas'].includes((user as any)?.consultant_type ?? '')
   const isHorista         = (user as any)?.consultant_type === 'horista'
   const isFixo            = (user as any)?.consultant_type === 'fixo'
   const isParceiroSimples = user?.type === 'parceiro_admin' && !user?.is_executive
@@ -1837,7 +1837,7 @@ export default function MeuPainelPage() {
                   icon={DollarSign}
                   accent="bg-indigo-500/15 text-indigo-400"
                 />
-                {(user as any)?.consultant_type === 'bh_mensal' && (
+                {(user as any)?.consultant_type === 'banco_de_horas' && (
                   <SummaryCard
                     label="Total a Receber"
                     value={hbBeforeStart ? '—' : hourlyRate > 0 ? formatBRL(hbServiceVal) : '—'}
@@ -3051,7 +3051,7 @@ export default function MeuPainelPage() {
                   const now = new Date()
                   const isCurrentMonth = hbCurrent.year_month === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
                   const fixedSalary = (user as any)?.rate_type === 'monthly' ? Number((user as any)?.hourly_rate ?? 0) : 0
-                  const isBhFixo = (user as any)?.consultant_type === 'bh_fixo'
+                  const isBhFixo = (user as any)?.consultant_type === 'banco_de_horas'
                   return (
                     <>
                       <HBPaymentSection data={hbCurrent} fixedSalary={fixedSalary} expTotal={expTotal} showExtras={!isBhFixo} />
