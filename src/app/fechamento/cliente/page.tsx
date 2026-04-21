@@ -37,19 +37,21 @@ interface ApontamentoRow {
   observacao?: string
 }
 
-interface ProjetoOnDemand {
+interface ProjetoRow {
   projeto_id: number
   projeto_nome: string
   projeto_codigo: string
-  horas_aprovadas: number
+  tipo_contrato: string
+  horas: number
   valor_hora: number
   total_receita: number
-  apontamentos?: ApontamentoRow[]
+  apontamentos: ApontamentoRow[]
 }
 
-interface PorTipoData {
-  on_demand: { projetos: ProjetoOnDemand[]; total: number }
-  [key: string]: { projetos: any[]; total: number }
+interface ApontamentosData {
+  projetos: ProjetoRow[]
+  total_horas: number
+  total_geral: number
 }
 
 type Tab = 'apontamentos' | 'relatorio'
@@ -96,7 +98,7 @@ export default function FechamentoClientePage() {
   const [status, setStatus]         = useState<ClienteStatus | null>(null)
   const [tab, setTab]               = useState<Tab>('apontamentos')
 
-  const [porTipo, setPorTipo]       = useState<PorTipoData | null>(null)
+  const [dados, setDados]           = useState<ApontamentosData | null>(null)
   const [loading, setLoading]       = useState(false)
   const [loadingFechar,  setLoadingFechar]  = useState(false)
   const [loadingReabrir, setLoadingReabrir] = useState(false)
@@ -118,11 +120,11 @@ export default function FechamentoClientePage() {
       .catch(() => {})
   }, [yearMonth, customerId])
 
-  const loadPorTipo = useCallback(() => {
+  const loadDados = useCallback(() => {
     if (!customerId || !yearMonth) return
     setLoading(true)
-    api.get<{ data: PorTipoData }>(`/fechamento-cliente/${customerId}/${yearMonth}/por-tipo?include_timesheets=true`)
-      .then(r => setPorTipo(r.data ?? null))
+    api.get<{ data: ApontamentosData }>(`/fechamento-cliente/${customerId}/${yearMonth}/apontamentos`)
+      .then(r => setDados(r.data ?? null))
       .catch(() => toast.error('Erro ao carregar apontamentos'))
       .finally(() => setLoading(false))
   }, [customerId, yearMonth])
@@ -131,19 +133,19 @@ export default function FechamentoClientePage() {
 
   useEffect(() => {
     loadClientes()
-    setPorTipo(null)
+    setDados(null)
   }, [yearMonth])
 
   useEffect(() => {
-    if (!customerId) { setStatus(null); setPorTipo(null); return }
+    if (!customerId) { setStatus(null); setDados(null); return }
     const found = clientes.find(c => c.customer_id === customerId)
     setStatus(found ?? null)
-    setPorTipo(null)
+    setDados(null)
     setTab('apontamentos')
   }, [customerId, clientes])
 
   useEffect(() => {
-    if (customerId && yearMonth) loadPorTipo()
+    if (customerId && yearMonth) loadDados()
   }, [customerId, yearMonth])
 
   // ── fechar / reabrir ──
@@ -163,9 +165,9 @@ export default function FechamentoClientePage() {
     api.post(`/fechamento-cliente/${customerId}/${yearMonth}/reabrir`, {})
       .then(() => {
         toast.success('Fechamento reaberto.')
-        setPorTipo(null)
+        setDados(null)
         loadClientes()
-        loadPorTipo()
+        loadDados()
       })
       .catch(() => toast.error('Erro ao reabrir'))
       .finally(() => setLoadingReabrir(false))
@@ -181,9 +183,9 @@ export default function FechamentoClientePage() {
 
   const isClosed    = status?.status === 'closed'
   const clienteOptions = clientes.map(c => ({ id: c.customer_id, name: c.nome }))
-  const projetos    = porTipo?.on_demand?.projetos ?? []
-  const totalHoras  = projetos.reduce((s, p) => s + p.horas_aprovadas, 0)
-  const totalGeral  = porTipo?.on_demand?.total ?? 0
+  const projetos    = dados?.projetos ?? []
+  const totalHoras  = dados?.total_horas ?? 0
+  const totalGeral  = dados?.total_geral ?? 0
   const clienteNome = clientes.find(c => c.customer_id === customerId)?.nome ?? ''
 
   // ─── render ──────────────────────────────────────────────────────────────────
@@ -338,7 +340,7 @@ export default function FechamentoClientePage() {
                               <Tr>
                                 <td colSpan={4} className="px-5 py-3 text-right text-xs font-semibold"
                                   style={{ color: 'var(--brand-muted)' }}>
-                                  {p.horas_aprovadas.toFixed(2)}h × {formatBRL(p.valor_hora)}/h
+                                  {p.horas.toFixed(2)}h × {formatBRL(p.valor_hora)}/h
                                 </td>
                                 <Td right className="font-bold tabular-nums"
                                   style={{ color: 'var(--brand-primary)' }}>
@@ -462,7 +464,7 @@ export default function FechamentoClientePage() {
                                   <tfoot>
                                     <tr style={{ background: '#ede9fe', borderTop: '2px solid #5b21b6' }}>
                                       <td colSpan={4} className="px-3 py-2 text-right text-sm font-semibold text-gray-700">
-                                        {p.horas_aprovadas.toFixed(2)}h × {formatBRL(p.valor_hora)}/h =
+                                        {p.horas.toFixed(2)}h × {formatBRL(p.valor_hora)}/h =
                                       </td>
                                       <td className="px-3 py-2 text-right text-sm font-bold tabular-nums"
                                         style={{ color: '#5b21b6' }}>
