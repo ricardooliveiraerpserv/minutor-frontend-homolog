@@ -35,6 +35,7 @@ import {
   FileText,
   Contact,
   LayoutGrid,
+  DollarSign,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -134,6 +135,7 @@ const NAV: NavEntry[] = [
     ],
   },
   { type: 'item', label: 'Banco de Horas', href: '/hora-banco', icon: Landmark },
+  { type: 'item', label: 'Fechamento',     href: '/fechamento', icon: DollarSign },
   {
     type: 'group',
     label: 'Cadastros',
