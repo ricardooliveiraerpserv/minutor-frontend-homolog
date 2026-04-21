@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, X, Check } from 'lucide-react'
+import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1130,9 +1131,10 @@ function colLabel(col: string) {
   return COL_LABEL[col] ?? col
 }
 
-function CardDetailModal({ card, onClose }: {
+function CardDetailModal({ card, onClose, onEditContract }: {
   card: ContractCard
   onClose: () => void
+  onEditContract?: (contractId: number) => void
 }) {
   const badge = statusBadge(card)
   const [full, setFull] = useState<any>(null)
@@ -1235,7 +1237,7 @@ function CardDetailModal({ card, onClose }: {
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Fechar</button>
-          <button onClick={() => { window.location.href = `/contratos?editId=${card.id}` }}
+          <button onClick={() => { onClose(); onEditContract?.(card.id) }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
             style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
             <Pencil size={13} /> Editar Contrato
@@ -1268,6 +1270,10 @@ function KanbanContent() {
   const [loading,           setLoading]            = useState(true)
   const [selected,          setSelected]           = useState<ContractCard | null>(null)
   const [projectAction,     setProjectAction]      = useState<{ card: ProjectCard; action: string } | null>(null)
+
+  // Contract form modal state
+  const [showNewContract,     setShowNewContract]     = useState(false)
+  const [editingContractData, setEditingContractData] = useState<any | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -1467,7 +1473,7 @@ function KanbanContent() {
               style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', color: '#818cf8' }}>
               <Layers size={13} /> Pipeline
             </button>
-            <button onClick={() => router.push('/contratos')}
+            <button onClick={() => { setEditingContractData(null); setShowNewContract(true) }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold"
               style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
               <Plus size={13} /> Novo Contrato
@@ -1641,8 +1647,27 @@ function KanbanContent() {
       </div>
 
       {selected && (
-        <CardDetailModal card={selected} onClose={() => setSelected(null)} />
+        <CardDetailModal
+          card={selected}
+          onClose={() => setSelected(null)}
+          onEditContract={async (contractId) => {
+            setSelected(null)
+            try {
+              const contract = await api.get<any>(`/contracts/${contractId}`)
+              setEditingContractData(contract)
+              setShowNewContract(true)
+            } catch { toast.error('Erro ao carregar contrato') }
+          }}
+        />
       )}
+
+      {/* Contract Form Modal */}
+      <ContractFormModal
+        open={showNewContract}
+        editContract={editingContractData}
+        onClose={() => { setShowNewContract(false); setEditingContractData(null) }}
+        onSaved={load}
+      />
 
       {projectAction && (() => {
         const { card, action } = projectAction
