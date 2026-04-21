@@ -195,9 +195,13 @@ export default function ContratosPage() {
   const [serviceTypes, setServiceTypes]   = useState<SelectOption[]>([])
   const [contractTypes, setContractTypes] = useState<SelectOption[]>([])
 
+  const isSustAdmin = user?.type === 'admin' || (user?.type === 'coordenador' && (user as any).coordinator_type === 'sustentacao')
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [viewContract, setViewContract] = useState<Contract | null>(null)
+  const [sustQueue, setSustQueue]   = useState('')
+  const [sustMoving, setSustMoving] = useState(false)
   const [editContract, setEditContract] = useState<Contract | null>(null)
   const [form, setForm]           = useState<FormState>({ ...EMPTY_FORM })
   const [contacts, setContacts]   = useState<ContractContact[]>([])
@@ -349,7 +353,21 @@ export default function ContratosPage() {
 
   const openView = async (c: Contract) => {
     const full = await api.get<Contract>(`/contracts/${c.id}`)
+    setSustQueue((full as any).sustentacao_column ?? '')
     setViewContract(full)
+  }
+
+  const handleSustMove = async () => {
+    if (!viewContract || !sustQueue) return
+    setSustMoving(true)
+    try {
+      await api.patch(`/contracts/${viewContract.id}/sustentacao-move`, { to_column: sustQueue })
+      toast.success('Contrato movido para a fila de sustentação')
+      loadContracts()
+      setViewContract(null)
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao mover para fila')
+    } finally { setSustMoving(false) }
   }
 
   // ─── Save ─────────────────────────────────────────────────────────────────
@@ -1190,6 +1208,25 @@ export default function ContratosPage() {
               <button onClick={() => setViewContract(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors"><X size={18} /></button>
             </div>
 
+            {isSustAdmin && (
+              <div className="px-6 py-3 border-b flex items-center gap-3" style={{ borderColor: 'var(--brand-border)', background: 'rgba(251,146,60,0.05)' }}>
+                <span className="text-xs font-semibold shrink-0" style={{ color: '#f59e0b' }}>Fila de Sustentação</span>
+                <select value={sustQueue} onChange={e => setSustQueue(e.target.value)}
+                  className="flex-1 text-xs rounded-lg px-2 py-1.5 outline-none bg-zinc-800 border border-zinc-700 text-zinc-200">
+                  <option value="">— Selecionar fila —</option>
+                  <option value="sust_bh_fixo">BH Fixo</option>
+                  <option value="sust_bh_mensal">BH Mensal</option>
+                  <option value="sust_on_demand">On Demand</option>
+                  <option value="sust_cloud">Cloud</option>
+                  <option value="sust_bizify">Bizify</option>
+                </select>
+                <button onClick={handleSustMove} disabled={!sustQueue || sustMoving}
+                  className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
+                  style={{ background: '#f59e0b', color: '#000' }}>
+                  {sustMoving ? '...' : 'Mover'}
+                </button>
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 text-sm">
               <div className="grid grid-cols-2 gap-4">
                 <div><p className="text-[10px] text-zinc-500 mb-0.5">Categoria</p><p className="text-zinc-300">{CATEGORIA_LABEL[viewContract.categoria]}</p></div>

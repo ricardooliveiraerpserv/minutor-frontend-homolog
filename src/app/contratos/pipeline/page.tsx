@@ -567,17 +567,42 @@ function GenerateProjectModal({
 
 // ─── Card Detail Modal ────────────────────────────────────────────────────────
 
-function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGenerate }: {
+const SUST_QUEUE_OPTIONS_P = [
+  { value: 'sust_bh_fixo',   label: 'BH Fixo' },
+  { value: 'sust_bh_mensal', label: 'BH Mensal' },
+  { value: 'sust_on_demand', label: 'On Demand' },
+  { value: 'sust_cloud',     label: 'Cloud' },
+  { value: 'sust_bizify',    label: 'Bizify' },
+]
+
+function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGenerate, isSustAdmin, onMoved }: {
   card: ContractCard
   onClose: () => void
   onGenerate?: () => void
   coordinators: Coordinator[]
   canGenerate: boolean
+  isSustAdmin?: boolean
+  onMoved?: () => void
 }) {
   const [tab, setTab]             = useState<'details' | 'log'>('details')
   const [logs, setLogs]           = useState<KanbanLogEntry[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
   const [logsLoaded, setLogsLoaded]   = useState(false)
+  const [queue, setQueue]   = useState((card as any).sustentacao_column ?? '')
+  const [moving, setMoving] = useState(false)
+
+  const handleMoveQueue = async () => {
+    if (!queue) return
+    setMoving(true)
+    try {
+      await api.patch(`/contracts/${card.id}/sustentacao-move`, { to_column: queue })
+      toast.success('Contrato movido para a fila de sustentação')
+      onMoved?.()
+      onClose()
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao mover para fila')
+    } finally { setMoving(false) }
+  }
 
   useEffect(() => {
     if (tab === 'log' && !logsLoaded) {
@@ -617,6 +642,24 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
             ))}
           </div>
         </div>
+        {isSustAdmin && tab === 'details' && (
+          <div className="px-6 py-3 border-b flex items-center gap-3" style={{ borderColor: 'var(--brand-border)', background: 'rgba(251,146,60,0.05)' }}>
+            <span className="text-xs font-semibold shrink-0" style={{ color: '#f59e0b' }}>Fila de Sustentação</span>
+            <select value={queue} onChange={e => setQueue(e.target.value)}
+              className="flex-1 text-xs rounded-lg px-2 py-1.5 outline-none"
+              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
+              <option value="">— Selecionar fila —</option>
+              {SUST_QUEUE_OPTIONS_P.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <button onClick={handleMoveQueue} disabled={!queue || moving}
+              className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
+              style={{ background: '#f59e0b', color: '#000' }}>
+              {moving ? '...' : 'Mover'}
+            </button>
+          </div>
+        )}
         {tab === 'log' ? (
           <div className="flex-1 overflow-y-auto">
             <KanbanLogTab logs={logs} loading={logsLoading} />
@@ -3478,6 +3521,8 @@ function KanbanContent() {
           onGenerate={() => { setGenerateTarget(selectedContract); setSelectedContract(null) }}
           coordinators={coordinators}
           canGenerate={!isConsultor && !isCliente}
+          isSustAdmin={user?.type === 'admin' || (user?.type === 'coordenador' && (user as any).coordinator_type === 'sustentacao')}
+          onMoved={() => { setSelectedContract(null); load() }}
         />
       )}
       {selectedProject && (
