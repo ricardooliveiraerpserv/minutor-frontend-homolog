@@ -34,6 +34,8 @@ interface ApontamentoRow {
   colaborador: string
   horas: number
   ticket?: string
+  titulo?: string
+  solicitante?: string
   observacao?: string
 }
 
@@ -251,6 +253,10 @@ export default function FechamentoClientePage() {
           body[data-print="despesas"] #print-despesas * { visibility: visible !important; }
           body[data-print="despesas"] #print-despesas { position: fixed; top: 0; left: 0; width: 100%; z-index: 9999; }
         }
+        #print-servicos, #print-despesas {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
       `}</style>
 
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
@@ -411,7 +417,9 @@ export default function FechamentoClientePage() {
                             <tr>
                               <Th>Data</Th>
                               <Th>Colaborador</Th>
+                              <Th>Solicitante</Th>
                               <Th>Ticket</Th>
+                              <Th>Título</Th>
                               <Th>Descrição</Th>
                               <Th right>Horas</Th>
                             </tr>
@@ -421,13 +429,15 @@ export default function FechamentoClientePage() {
                               <Tr key={ts.id}>
                                 <Td muted className="text-xs tabular-nums whitespace-nowrap">{fmtDate(ts.data)}</Td>
                                 <Td className="text-xs">{ts.colaborador}</Td>
+                                <Td muted className="text-xs">{ts.solicitante ?? '—'}</Td>
                                 <Td muted className="text-xs">{ts.ticket ?? '—'}</Td>
+                                <Td muted className="text-xs">{ts.titulo ?? '—'}</Td>
                                 <Td muted className="text-xs">{ts.observacao ?? '—'}</Td>
                                 <Td right className="tabular-nums text-xs font-medium">{ts.horas.toFixed(2)}h</Td>
                               </Tr>
                             ))}
                             <Tr>
-                              <td colSpan={4} className="px-5 py-3 text-right text-xs font-semibold"
+                              <td colSpan={6} className="px-5 py-3 text-right text-xs font-semibold"
                                 style={{ color: 'var(--brand-muted)' }}>
                                 {p.horas.toFixed(2)}h × {formatBRL(p.valor_hora)}/h
                               </td>
@@ -507,10 +517,12 @@ export default function FechamentoClientePage() {
                               </div>
                               <table className="w-full text-sm border-collapse">
                                 <thead>
-                                  <tr style={{ background: '#f5f3ff' }}>
+                                  <tr style={{ background: '#f5f3ff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                                     <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Data</th>
                                     <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Colaborador</th>
+                                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Solicitante</th>
                                     <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Ticket</th>
+                                    <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Título</th>
                                     <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Descrição</th>
                                     <th className="text-right px-3 py-2 text-xs font-semibold text-gray-600">Horas</th>
                                   </tr>
@@ -518,10 +530,12 @@ export default function FechamentoClientePage() {
                                 <tbody>
                                   {(p.apontamentos ?? []).map((ts, i) => (
                                     <tr key={ts.id}
-                                      style={{ background: i % 2 === 0 ? '#fff' : '#faf9ff', borderBottom: '1px solid #e5e7eb' }}>
+                                      style={{ background: i % 2 === 0 ? '#fff' : '#faf9ff', borderBottom: '1px solid #e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                                       <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{fmtDate(ts.data)}</td>
                                       <td className="px-3 py-2 text-xs text-gray-800">{ts.colaborador}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-500">{ts.solicitante ?? '—'}</td>
                                       <td className="px-3 py-2 text-xs text-gray-500">{ts.ticket ?? '—'}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-500">{ts.titulo ?? '—'}</td>
                                       <td className="px-3 py-2 text-xs text-gray-500">{ts.observacao ?? '—'}</td>
                                       <td className="px-3 py-2 text-xs text-right font-medium text-gray-800 tabular-nums">
                                         {ts.horas.toFixed(2)}h
@@ -530,8 +544,8 @@ export default function FechamentoClientePage() {
                                   ))}
                                 </tbody>
                                 <tfoot>
-                                  <tr style={{ background: '#ede9fe', borderTop: '2px solid #5b21b6' }}>
-                                    <td colSpan={4} className="px-3 py-2 text-right text-sm font-semibold text-gray-700">
+                                  <tr style={{ background: '#ede9fe', borderTop: '2px solid #5b21b6', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
+                                    <td colSpan={6} className="px-3 py-2 text-right text-sm font-semibold text-gray-700">
                                       {p.horas.toFixed(2)}h × {formatBRL(p.valor_hora)}/h =
                                     </td>
                                     <td className="px-3 py-2 text-right text-sm font-bold tabular-nums"
@@ -547,14 +561,15 @@ export default function FechamentoClientePage() {
                             </div>
                           ))}
                         </div>
-                        <div className="px-10 py-6 mx-10 mb-10 rounded-xl" style={{ background: '#5b21b6' }}>
+                        <div className="px-10 py-6 mx-10 mb-10 rounded-xl"
+                          style={{ background: '#5b21b6', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                           <div className="flex items-center justify-between">
-                            <div className="text-white">
-                              <div className="text-sm font-medium opacity-80">Total de Horas</div>
+                            <div style={{ color: '#fff' }}>
+                              <div className="text-sm font-medium" style={{ opacity: 0.8 }}>Total de Horas</div>
                               <div className="text-2xl font-bold">{totalHoras.toFixed(2)}h</div>
                             </div>
-                            <div className="text-right text-white">
-                              <div className="text-sm font-medium opacity-80">Total Serviços</div>
+                            <div className="text-right" style={{ color: '#fff' }}>
+                              <div className="text-sm font-medium" style={{ opacity: 0.8 }}>Total Serviços</div>
                               <div className="text-3xl font-bold tabular-nums">{formatBRL(totalGeral)}</div>
                             </div>
                           </div>
