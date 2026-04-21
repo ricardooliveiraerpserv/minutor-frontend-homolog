@@ -1104,12 +1104,26 @@ function ProjectKanbanCard({ card, index, onClick, onAction }: {
 
 // ─── Contract Detail Modal ────────────────────────────────────────────────────
 
+const COL_LABEL: Record<string, string> = {
+  backlog: 'Novo Contrato', novo: 'Novo Contrato', novo_projeto: 'Novo Projeto',
+  em_planejamento: 'Em Planejamento', em_validacao: 'Em Validação', em_revisao: 'Em Revisão',
+  aprovado: 'Aprovado', inicio_autorizado: 'Início Autorizado', alocado: 'Alocado',
+  sust_bh_fixo: 'BH Fixo', sust_bh_mensal: 'BH Mensal', sust_on_demand: 'On Demand',
+  sust_cloud: 'Cloud', sust_bizify: 'Bizify',
+}
+function colLabel(col: string) {
+  if (col?.startsWith('coordinator:')) return 'Coordenador'
+  return COL_LABEL[col] ?? col
+}
+
 function CardDetailModal({ card, onClose }: { card: ContractCard; onClose: () => void }) {
   const badge = statusBadge(card)
-  const [full, setFull] = useState<any>(null)
+  const [full, setFull]   = useState<any>(null)
+  const [logs, setLogs]   = useState<any[]>([])
 
   useEffect(() => {
     api.get<any>(`/contracts/${card.id}`).then(setFull).catch(() => {})
+    api.get<any[]>(`/contracts/${card.id}/kanban-logs`).then(setLogs).catch(() => {})
   }, [card.id])
 
   const fmt = (val: any, fallback = '—') => val ?? fallback
@@ -1179,6 +1193,26 @@ function CardDetailModal({ card, onClose }: { card: ContractCard; onClose: () =>
               style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
               <AlertCircle size={13} className="mt-0.5 shrink-0" />
               <span>Contrato incompleto — preencha cliente, horas, tipo de contrato e faturamento para alocar a um coordenador.</span>
+            </div>
+          )}
+
+          {logs.length > 0 && (
+            <div className="pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Histórico de movimentações</p>
+              <div className="space-y-2">
+                {logs.map((log) => (
+                  <div key={log.id} className="flex items-start gap-2 text-xs" style={{ color: 'var(--brand-muted)' }}>
+                    <span className="mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full bg-current opacity-40 mt-1.5" />
+                    <div>
+                      <span style={{ color: 'var(--brand-text)' }}>{colLabel(log.from_column)}</span>
+                      <span className="mx-1">→</span>
+                      <span style={{ color: 'var(--brand-text)' }}>{colLabel(log.to_column)}</span>
+                      <span className="ml-2 opacity-60">por {log.moved_by}</span>
+                      <span className="ml-2 opacity-40">{new Date(log.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
