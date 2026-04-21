@@ -117,7 +117,7 @@ const NAV: NavEntry[] = [
   { type: 'item', label: 'Gestão de Projetos',    href: '/gestao-projetos', icon: Layers },
   { type: 'item', label: 'Contratos',             href: '/contratos',        icon: FileText },
   { type: 'item', label: 'Kanban Contratos',      href: '/contratos/kanban',   icon: LayoutGrid },
-  { type: 'item', label: 'Pipeline Unificado',   href: '/contratos/pipeline', icon: Layers },
+  { type: 'item', label: 'Demandas e Projetos',   href: '/contratos/pipeline', icon: Layers },
   { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',     icon: Headphones },
   { type: 'item', label: 'Visão Executiva',    href: '/portal-cliente',  icon: Building2 },
   { type: 'item', label: 'Apontamentos',       href: '/timesheets',      icon: Clock },

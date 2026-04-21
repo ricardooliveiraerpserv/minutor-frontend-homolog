@@ -148,9 +148,9 @@ const TRANSITION_COL: Column = {
 const PROJECT_COLS: Column[] = [
   { id: 'em_andamento',        label: 'Em Andamento',        phase: 'project', projectStatuses: ['awaiting_start', 'started'] },
   { id: 'liberado_para_testes',label: 'Liberado p/ Testes',  phase: 'project', projectStatuses: ['liberado_para_testes'] },
+  { id: 'encerrado',           label: 'Encerrado',           phase: 'project', projectStatuses: ['finished'] },
   { id: 'pausado',             label: 'Pausado',             phase: 'project', projectStatuses: ['paused'] },
   { id: 'cancelado',           label: 'Cancelado',           phase: 'project', projectStatuses: ['cancelled'] },
-  { id: 'encerrado',           label: 'Encerrado',           phase: 'project', projectStatuses: ['finished'] },
 ]
 
 const PROJECT_STATUS_TO_COL: Record<string, string> = {
@@ -397,7 +397,7 @@ function ProjectKanbanCard({
 
   const statusColor: Record<string, string> = {
     awaiting_start: '#94a3b8', started: '#22c55e',
-    liberado_para_testes: '#f59e0b', finished: '#6366f1', paused: '#ef4444',
+    liberado_para_testes: '#f59e0b', finished: '#f59e0b', paused: '#f97316', cancelled: '#ef4444',
   }
   const color = statusColor[card.status] ?? '#94a3b8'
 
@@ -763,7 +763,7 @@ function ProjectDetailModal({ card, onClose, userRole }: { card: ProjectCard; on
 
   const statusColor: Record<string, string> = {
     awaiting_start: '#94a3b8', started: '#22c55e',
-    liberado_para_testes: '#f59e0b', finished: '#6366f1', paused: '#ef4444',
+    liberado_para_testes: '#f59e0b', finished: '#f59e0b', paused: '#f97316', cancelled: '#ef4444',
   }
   const color = statusColor[card.status] ?? '#94a3b8'
   const hasReq = !!card.contract_request_id
@@ -1615,9 +1615,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const statusColors: Record<string, { background: string; color: string }> = {
     awaiting_start: { background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' },
     started:        { background: 'rgba(0,245,255,0.10)',   color: '#00F5FF' },
-    paused:         { background: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
+    paused:         { background: 'rgba(249,115,22,0.12)',  color: '#F97316' },
     cancelled:      { background: 'rgba(239,68,68,0.12)',   color: '#EF4444' },
-    finished:       { background: 'rgba(161,161,170,0.12)', color: '#71717A' },
+    finished:       { background: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
   }
   const statusLabel: Record<string, string> = {
     awaiting_start: 'Aguardando Início', started: 'Em Andamento',
