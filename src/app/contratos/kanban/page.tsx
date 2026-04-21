@@ -217,9 +217,9 @@ const BIZIFY_COL: Column = {
 }
 
 const STATUS_PROJECT_COLUMNS: Column[] = [
-  { id: 'col_pausado',   label: 'Pausado',   type: 'project_status', projectStatus: 'paused',    color: '#f97316' },
+  { id: 'col_encerrado', label: 'Encerrado', type: 'project_status', projectStatus: 'finished',  color: '#22c55e' },
+  { id: 'col_pausado',   label: 'Pausado',   type: 'project_status', projectStatus: 'paused',    color: '#eab308' },
   { id: 'col_cancelado', label: 'Cancelado', type: 'project_status', projectStatus: 'cancelled', color: '#ef4444' },
-  { id: 'col_encerrado', label: 'Encerrado', type: 'project_status', projectStatus: 'finished',  color: '#6366f1' },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
