@@ -125,6 +125,7 @@ interface Column {
   clientVisible?: boolean   // shows [C] badge + client can drop
   clientCanDrop?: boolean   // client can drop here but NO [C] badge
   clientLocked?: boolean    // client cannot drag FROM here
+  color?: string
 }
 
 // ─── Column Definitions ───────────────────────────────────────────────────────
@@ -148,9 +149,9 @@ const TRANSITION_COL: Column = {
 const PROJECT_COLS: Column[] = [
   { id: 'em_andamento',        label: 'Em Andamento',        phase: 'project', projectStatuses: ['awaiting_start', 'started'] },
   { id: 'liberado_para_testes',label: 'Liberado p/ Testes',  phase: 'project', projectStatuses: ['liberado_para_testes'] },
-  { id: 'encerrado',           label: 'Encerrado',           phase: 'project', projectStatuses: ['finished'] },
-  { id: 'pausado',             label: 'Pausado',             phase: 'project', projectStatuses: ['paused'] },
-  { id: 'cancelado',           label: 'Cancelado',           phase: 'project', projectStatuses: ['cancelled'] },
+  { id: 'encerrado',           label: 'Encerrado',           phase: 'project', projectStatuses: ['finished'],   color: '#22c55e' },
+  { id: 'pausado',             label: 'Pausado',             phase: 'project', projectStatuses: ['paused'],     color: '#eab308' },
+  { id: 'cancelado',           label: 'Cancelado',           phase: 'project', projectStatuses: ['cancelled'],  color: '#ef4444' },
 ]
 
 const PROJECT_STATUS_TO_COL: Record<string, string> = {
@@ -2973,8 +2974,12 @@ function KanbanColumn({
   const isClientCol   = !!col.clientVisible
   const totalCards    = contractCards.length + projectCards.length + requestCards.length
 
+  const projectColor = isProject && col.color ? col.color : null
+
   const borderColor = isTransition
     ? 'rgba(234,179,8,0.25)'
+    : projectColor
+    ? `${projectColor}40`
     : isProject
     ? 'rgba(99,102,241,0.25)'
     : isClientCol
@@ -2983,6 +2988,8 @@ function KanbanColumn({
 
   const headerColor = isTransition
     ? '#eab308'
+    : projectColor
+    ? projectColor
     : isProject
     ? '#818cf8'
     : isClientCol
@@ -2991,6 +2998,8 @@ function KanbanColumn({
 
   const bg = isTransition
     ? 'rgba(234,179,8,0.02)'
+    : projectColor
+    ? `${projectColor}08`
     : isProject
     ? 'rgba(99,102,241,0.02)'
     : isClientCol
