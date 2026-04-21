@@ -1373,7 +1373,13 @@ function KanbanContent() {
 
       // ── Moving to a coordinator column from demand
       if (toCol.startsWith('coordinator:')) {
-        if (card.categoria === 'sustentacao') {
+        const ctLower = card.contract_type?.toLowerCase() ?? ''
+        const svLower = card.service_type?.toLowerCase() ?? ''
+        const isSustType = card.categoria === 'sustentacao'
+          || ctLower.includes('banco de horas') || ctLower.includes('on demand')
+          || ctLower.includes('cloud') || ctLower.includes('bizify') || ctLower.includes('saas')
+          || svLower.includes('cloud') || svLower.includes('bizify')
+        if (isSustType) {
           toast.error('Contratos de sustentação devem ser movidos para a fila de sustentação (BH Fixo, BH Mensal, On Demand ou Cloud).')
           return
         }
