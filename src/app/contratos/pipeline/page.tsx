@@ -3129,6 +3129,7 @@ function KanbanContent() {
   const [selectedProject,  setSelectedProject]  = useState<ProjectCard | null>(null)
   const [generateTarget,   setGenerateTarget]   = useState<ContractCard | null>(null)
   const [projectAction,    setProjectAction]    = useState<{ card: ProjectCard; action: string } | null>(null)
+  const [viewMode,         setViewMode]         = useState<'kanban' | 'list'>('kanban')
 
   const isConsultor = userRole === 'consultor'
   const isCliente   = userRole === 'cliente'
@@ -3346,6 +3347,11 @@ function KanbanContent() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setViewMode(viewMode === 'kanban' ? 'list' : 'kanban')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-opacity hover:opacity-80"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
+              {viewMode === 'kanban' ? <><List size={13} /> Lista</> : <><FolderKanban size={13} /> Kanban</>}
+            </button>
           </div>
         </div>
 
@@ -3372,8 +3378,79 @@ function KanbanContent() {
           {!isConsultor && !isCliente && <span className="ml-auto opacity-50">Arraste para mover entre colunas</span>}
         </div>
 
+        {/* List View */}
+        {viewMode === 'list' && (() => {
+          const fmtMoney = (v: any) => v != null ? `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'
+          const colLabel = (card: ContractCard) => {
+            const col = [...DEMAND_COLS, TRANSITION_COL].find(c => c.id === contractColumnId(card))
+            return col?.label ?? card.kanban_status ?? '—'
+          }
+          const allContracts = [...demandCards, ...transitionCards]
+          const allProjects  = projectCards
+          return (
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)' }}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
+                      <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>
+                      <th className="text-left px-4 py-3 text-zinc-400 font-medium">Projeto / Tipo</th>
+                      <th className="text-left px-4 py-3 text-zinc-400 font-medium">Coluna</th>
+                      <th className="text-center px-4 py-3 text-zinc-400 font-medium">Horas</th>
+                      <th className="text-left px-4 py-3 text-zinc-400 font-medium">Valor</th>
+                      <th className="text-center px-4 py-3 text-zinc-400 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allContracts.length === 0 && allProjects.length === 0 && (
+                      <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhum item.</td></tr>
+                    )}
+                    {allContracts.map((c, i) => (
+                      <tr key={`c-${c.id}`} onClick={() => setSelectedContract(c)} className="cursor-pointer hover:bg-zinc-800/40 transition-colors"
+                        style={{ borderTop: i > 0 || allProjects.length > 0 ? '1px solid var(--brand-border)' : undefined }}>
+                        <td className="px-4 py-3 text-white font-medium">{c.customer_name}</td>
+                        <td className="px-4 py-3 text-zinc-400 text-xs">
+                          {c.project_name && <p className="text-zinc-300 text-sm">{c.project_name}</p>}
+                          <span>{c.contract_type ?? '—'}</span>
+                          {c.tipo_faturamento && <span className="ml-1 text-zinc-500">· {c.tipo_faturamento}</span>}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-400 text-xs">{colLabel(c)}</td>
+                        <td className="px-4 py-3 text-center text-zinc-300">{c.horas_contratadas != null ? `${c.horas_contratadas}h` : '—'}</td>
+                        <td className="px-4 py-3 text-zinc-300 text-xs">{fmtMoney(c.valor_projeto)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
+                            {c.kanban_status ?? c.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {allProjects.map((p, i) => (
+                      <tr key={`p-${p.id}`} onClick={() => setSelectedProject(p)} className="cursor-pointer hover:bg-zinc-800/40 transition-colors"
+                        style={{ borderTop: '1px solid var(--brand-border)' }}>
+                        <td className="px-4 py-3 text-white font-medium">{p.customer_name}</td>
+                        <td className="px-4 py-3 text-zinc-300 text-xs">
+                          <p className="text-zinc-300 text-sm">{p.project_name}</p>
+                          <span className="font-mono text-cyan-400">{p.code}</span>
+                        </td>
+                        <td className="px-4 py-3 text-zinc-400 text-xs">Projeto Ativo</td>
+                        <td className="px-4 py-3 text-center text-zinc-300">{p.sold_hours != null ? `${p.sold_hours}h` : '—'}</td>
+                        <td className="px-4 py-3 text-zinc-300 text-xs">—</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: 'rgba(129,140,248,0.12)', color: '#818cf8' }}>
+                            {p.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Board */}
-        <DragDropContext onDragEnd={onDragEnd}>
+        {viewMode === 'kanban' && <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex-1 overflow-x-auto overflow-y-hidden">
             <div className="flex gap-3 p-4 h-full items-start" style={{ minWidth: `${boardMinWidth}px` }}>
 
@@ -3440,7 +3517,7 @@ function KanbanContent() {
               ))}
             </div>
           </div>
-        </DragDropContext>
+        </DragDropContext>}
       </div>
 
       {/* Modals */}
