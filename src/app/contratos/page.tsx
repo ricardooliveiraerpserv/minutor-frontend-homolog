@@ -84,6 +84,14 @@ const ATTACHMENT_TYPE_LABEL: Record<string, string> = {
   logo: 'Logo',
 }
 
+const TIPO_LABEL: Record<string, string> = {
+  banco_horas_fixo:   'BH Fixo',
+  banco_horas_mensal: 'BH Mensal',
+  on_demand:          'On Demand',
+  fechado:            'Fechado',
+  cloud:              'Cloud',
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(bytes: number | null): string {
@@ -125,6 +133,7 @@ export default function ContratosPage() {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [viewContract, setViewContract] = useState<Contract | null>(null)
+  const [viewLogs, setViewLogs] = useState<any[]>([])
   const [sustQueue, setSustQueue]   = useState('')
   const [sustMoving, setSustMoving] = useState(false)
   const [editContract, setEditContract] = useState<Contract | null>(null)
@@ -156,6 +165,11 @@ export default function ContratosPage() {
   }, [page, filterStatus, filterCustomer, search])
 
   useEffect(() => { loadContracts() }, [loadContracts])
+
+  useEffect(() => {
+    if (!viewContract) { setViewLogs([]); return }
+    api.get<any[]>(`/contracts/${viewContract.id}/kanban-logs`).then(setViewLogs).catch(() => setViewLogs([]))
+  }, [viewContract])
 
   // Auto-open edit when ?editId=X is present in URL (e.g. from Kanban)
   // ─── Open modal helpers ───────────────────────────────────────────────────
@@ -385,141 +399,159 @@ export default function ContratosPage() {
       />
 
       {/* ── View Modal ── */}
-      {viewContract && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
-          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-              <div>
-                <h2 className="text-base font-semibold text-white">{viewContract.customer?.name}</h2>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                    style={{ background: `${STATUS_COLOR[viewContract.status]}18`, color: STATUS_COLOR[viewContract.status] }}>
-                    {STATUS_LABEL[viewContract.status]}
+      {viewContract && (() => {
+        const vc = viewContract
+        const fmtMoney = (val: any) => val != null ? `R$ ${Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'
+        const fmtHours = (val: any) => val != null ? `${val}h` : '—'
+        const fields: [string, string][] = [
+          ['Categoria',           CATEGORIA_LABEL[vc.categoria] ?? vc.categoria],
+          ['Tipo de Contrato',    vc.contract_type?.name ?? '—'],
+          ['Tipo de Serviço',     vc.service_type?.name ?? '—'],
+          ['Faturamento',         vc.contract_type?.name ? (TIPO_LABEL[vc.contract_type.name] ?? vc.contract_type.name) : '—'],
+          ['Horas Contratadas',   fmtHours(vc.horas_contratadas)],
+          ['Horas Consultor',     fmtHours(vc.horas_consultor)],
+          ['% Horas Coordenador', vc.pct_horas_coordenador != null ? `${vc.pct_horas_coordenador}%` : '—'],
+          ['Valor do Projeto',    fmtMoney(vc.valor_projeto)],
+          ['Valor/Hora',          fmtMoney(vc.valor_hora)],
+          ['Hora Adicional',      fmtMoney(vc.hora_adicional)],
+          ['Cobra Despesa',       vc.cobra_despesa_cliente ? 'Sim' : 'Não'],
+          ['Limite de Despesa',   fmtMoney(vc.limite_despesa)],
+          ['Expectativa Início',  fmtDate(vc.expectativa_inicio)],
+          ['Tipo de Alocação',    vc.tipo_alocacao ?? '—'],
+          ['Cond. Pagamento',     vc.condicao_pagamento ?? '—'],
+          ['Arquiteto',           vc.architect?.name ?? '—'],
+          ['Executivo de Conta',  vc.executivo_conta?.name ?? '—'],
+          ['Vendedor',            vc.vendedor?.name ?? '—'],
+          ['Observações',         vc.observacoes ?? '—'],
+          ['Status',              STATUS_LABEL[vc.status] ?? vc.status],
+          ['Projeto Gerado',      vc.project?.code ?? '—'],
+        ]
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+            <div className="w-full max-w-lg rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+              {/* Header */}
+              <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{vc.customer?.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>Criado em {fmtDate(vc.created_at)}</p>
+                  </div>
+                  <span className="text-xs font-semibold px-2 py-1 rounded-full shrink-0"
+                    style={{ background: `${STATUS_COLOR[vc.status]}22`, color: STATUS_COLOR[vc.status] }}>
+                    {STATUS_LABEL[vc.status]}
                   </span>
-                  <span className="text-[10px] text-zinc-500">Criado em {fmtDate(viewContract.created_at)}</span>
                 </div>
               </div>
-              <button onClick={() => setViewContract(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors"><X size={18} /></button>
-            </div>
 
-            {isSustAdmin && (
-              <div className="px-6 py-3 border-b flex items-center gap-3" style={{ borderColor: 'var(--brand-border)', background: 'rgba(251,146,60,0.05)' }}>
-                <span className="text-xs font-semibold shrink-0" style={{ color: '#f59e0b' }}>Fila de Sustentação</span>
-                <select value={sustQueue} onChange={e => setSustQueue(e.target.value)}
-                  className="flex-1 text-xs rounded-lg px-2 py-1.5 outline-none bg-zinc-800 border border-zinc-700 text-zinc-200">
-                  <option value="">— Selecionar fila —</option>
-                  <option value="sust_bh_fixo">BH Fixo</option>
-                  <option value="sust_bh_mensal">BH Mensal</option>
-                  <option value="sust_on_demand">On Demand</option>
-                  <option value="sust_cloud">Cloud</option>
-                  <option value="sust_bizify">Bizify</option>
-                </select>
-                <button onClick={handleSustMove} disabled={!sustQueue || sustMoving}
-                  className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
-                  style={{ background: '#f59e0b', color: '#000' }}>
-                  {sustMoving ? '...' : 'Mover'}
-                </button>
-              </div>
-            )}
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 text-sm">
-              <div className="grid grid-cols-2 gap-4">
-                <div><p className="text-[10px] text-zinc-500 mb-0.5">Categoria</p><p className="text-zinc-300">{CATEGORIA_LABEL[viewContract.categoria]}</p></div>
-                <div><p className="text-[10px] text-zinc-500 mb-0.5">Tipo de Serviço</p><p className="text-zinc-300">{viewContract.service_type?.name ?? '—'}</p></div>
-                <div><p className="text-[10px] text-zinc-500 mb-0.5">Tipo de Contrato</p><p className="text-zinc-300">{viewContract.contract_type?.name ?? '—'}</p></div>
-                <div><p className="text-[10px] text-zinc-500 mb-0.5">Horas Contratadas</p><p className="text-zinc-300 font-semibold">{viewContract.horas_contratadas}h</p></div>
-                <div><p className="text-[10px] text-zinc-500 mb-0.5">Alocação</p><p className="text-zinc-300 capitalize">{viewContract.tipo_alocacao ?? '—'}</p></div>
-                <div><p className="text-[10px] text-zinc-500 mb-0.5">Expectativa de Início</p><p className="text-zinc-300">{fmtDate(viewContract.expectativa_inicio)}</p></div>
-                {viewContract.architect && <div><p className="text-[10px] text-zinc-500 mb-0.5">Arquiteto</p><p className="text-zinc-300">{viewContract.architect.name}</p></div>}
-                {viewContract.executivo_conta && <div><p className="text-[10px] text-zinc-500 mb-0.5">Executivo</p><p className="text-zinc-300">{viewContract.executivo_conta.name}</p></div>}
-                {viewContract.cobra_despesa_cliente && viewContract.limite_despesa != null && (
-                  <div><p className="text-[10px] text-zinc-500 mb-0.5">Limite de Despesas</p><p className="text-zinc-300">R$ {Number(viewContract.limite_despesa).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p></div>
-                )}
-              </div>
-
-              {viewContract.condicao_pagamento && (
-                <div><p className="text-[10px] text-zinc-500 mb-1">Condição de Pagamento</p><p className="text-zinc-300 text-xs">{viewContract.condicao_pagamento}</p></div>
-              )}
-
-              {viewContract.observacoes && (
-                <div>
-                  <p className="text-[10px] text-zinc-500 mb-1">Observações</p>
-                  <div className="rounded-lg p-3 text-xs text-zinc-300 whitespace-pre-wrap" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)' }}>
-                    {viewContract.observacoes}
-                  </div>
+              {/* Sust queue (admin/sust-coord only) */}
+              {isSustAdmin && (
+                <div className="px-6 py-3 border-b flex items-center gap-3" style={{ borderColor: 'var(--brand-border)', background: 'rgba(251,146,60,0.05)' }}>
+                  <span className="text-xs font-semibold shrink-0" style={{ color: '#f59e0b' }}>Fila de Sustentação</span>
+                  <select value={sustQueue} onChange={e => setSustQueue(e.target.value)}
+                    className="flex-1 text-xs rounded-lg px-2 py-1.5 outline-none bg-zinc-800 border border-zinc-700 text-zinc-200">
+                    <option value="">— Selecionar fila —</option>
+                    <option value="sust_bh_fixo">BH Fixo</option>
+                    <option value="sust_bh_mensal">BH Mensal</option>
+                    <option value="sust_on_demand">On Demand</option>
+                    <option value="sust_cloud">Cloud</option>
+                    <option value="sust_bizify">Bizify</option>
+                  </select>
+                  <button onClick={handleSustMove} disabled={!sustQueue || sustMoving}
+                    className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
+                    style={{ background: '#f59e0b', color: '#000' }}>
+                    {sustMoving ? '...' : 'Mover'}
+                  </button>
                 </div>
               )}
 
-              {viewContract.contacts.length > 0 && (
-                <div>
-                  <p className="text-[10px] text-zinc-500 mb-2">Contatos ({viewContract.contacts.length})</p>
-                  <div className="space-y-2">
-                    {viewContract.contacts.map((ct, i) => (
-                      <div key={i} className="flex items-start gap-3 text-xs">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold" style={{ background: 'rgba(0,245,255,0.15)', color: '#00F5FF' }}>{ct.name[0]}</div>
-                        <div>
-                          <p className="text-zinc-200 font-medium">{ct.name} {ct.cargo && <span className="text-zinc-500">· {ct.cargo}</span>}</p>
-                          <p className="text-zinc-500">{ct.email}{ct.email && ct.phone ? ' · ' : ''}{ct.phone}</p>
+              {/* Body */}
+              <div className="px-6 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {fields.map(([label, value]) => (
+                    <div key={label}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
+                      <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Attachments */}
+                {vc.attachments.length > 0 && (
+                  <div className="pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Anexos ({vc.attachments.length})</p>
+                    <div className="space-y-2">
+                      {vc.attachments.map(att => (
+                        <div key={att.id} className="flex items-center justify-between px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
+                          <div className="flex items-center gap-2">
+                            <FileText size={13} className="text-zinc-400" />
+                            <div>
+                              <p className="text-xs text-zinc-300">{att.original_name}</p>
+                              <p className="text-[10px] text-zinc-600">{ATTACHMENT_TYPE_LABEL[att.type]} · {fmt(att.size)}</p>
+                            </div>
+                          </div>
+                          <button onClick={() => downloadAttachment(vc.id, att)} className="p-1 text-zinc-400 hover:text-cyan-400 transition-colors"><Download size={13} /></button>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {viewContract.attachments.length > 0 && (
-                <div>
-                  <p className="text-[10px] text-zinc-500 mb-2">Anexos ({viewContract.attachments.length})</p>
-                  <div className="space-y-2">
-                    {viewContract.attachments.map(att => (
-                      <div key={att.id} className="flex items-center justify-between px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
-                        <div className="flex items-center gap-2">
-                          <FileText size={13} className="text-zinc-400" />
+                {/* Kanban logs */}
+                {viewLogs.length > 0 && (
+                  <div className="pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Histórico de movimentações</p>
+                    <div className="space-y-2">
+                      {viewLogs.map((log) => (
+                        <div key={log.id} className="flex items-start gap-2 text-xs" style={{ color: 'var(--brand-muted)' }}>
+                          <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-current opacity-40 mt-1.5" />
                           <div>
-                            <p className="text-xs text-zinc-300">{att.original_name}</p>
-                            <p className="text-[10px] text-zinc-600">{ATTACHMENT_TYPE_LABEL[att.type]} · {fmt(att.size)}</p>
+                            <span style={{ color: 'var(--brand-text)' }}>{log.from_column}</span>
+                            <span className="mx-1">→</span>
+                            <span style={{ color: 'var(--brand-text)' }}>{log.to_column}</span>
+                            <span className="ml-2 opacity-60">por {log.moved_by}</span>
+                            <span className="ml-2 opacity-40">{new Date(log.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
                           </div>
                         </div>
-                        <button onClick={() => downloadAttachment(viewContract.id, att)} className="p-1 text-zinc-400 hover:text-cyan-400 transition-colors"><Download size={13} /></button>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {viewContract.project && (
-                <div className="rounded-lg p-3" style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
-                  <p className="text-[10px] text-green-500 mb-1">Projeto gerado</p>
-                  <p className="text-sm text-green-400 font-semibold font-mono">{viewContract.project.code}</p>
-                  <p className="text-xs text-zinc-400">{viewContract.project.name}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-              <div className="flex items-center gap-2">
-                {viewContract.status === 'rascunho' && (
-                  <button onClick={() => { updateStatus(viewContract, 'aprovado'); setViewContract(null) }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                    style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6' }}>
-                    <CheckCircle size={13} /> Aprovar
-                  </button>
-                )}
-                {!viewContract.project_id && (viewContract.status === 'aprovado' || viewContract.status === 'rascunho') && (
-                  <button onClick={() => { openGenModal(viewContract); setViewContract(null) }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                    style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.3)', color: '#eab308' }}>
-                    <Rocket size={13} /> Gerar Projeto
-                  </button>
                 )}
               </div>
-              <button onClick={() => setViewContract(null)}
-                className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition-colors">
-                Fechar
-              </button>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="flex items-center gap-2">
+                  {vc.status === 'rascunho' && (
+                    <button onClick={() => { updateStatus(vc, 'aprovado'); setViewContract(null) }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                      style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.3)', color: '#3b82f6' }}>
+                      <CheckCircle size={13} /> Aprovar
+                    </button>
+                  )}
+                  {!vc.project_id && (vc.status === 'aprovado' || vc.status === 'rascunho') && (
+                    <button onClick={() => { openGenModal(vc); setViewContract(null) }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                      style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.3)', color: '#eab308' }}>
+                      <Rocket size={13} /> Gerar Projeto
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setViewContract(null)}
+                    className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>
+                    Fechar
+                  </button>
+                  <button onClick={() => { openEdit(vc); setViewContract(null) }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
+                    <Pencil size={13} /> Editar Contrato
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
       {/* ── Generate Project Modal ── */}
       {genModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
