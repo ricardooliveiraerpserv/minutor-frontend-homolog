@@ -1130,15 +1130,45 @@ function colLabel(col: string) {
   return COL_LABEL[col] ?? col
 }
 
-function CardDetailModal({ card, onClose }: { card: ContractCard; onClose: () => void }) {
+const SUST_QUEUE_OPTIONS = [
+  { value: 'sust_bh_fixo',   label: 'BH Fixo' },
+  { value: 'sust_bh_mensal', label: 'BH Mensal' },
+  { value: 'sust_on_demand', label: 'On Demand' },
+  { value: 'sust_cloud',     label: 'Cloud' },
+  { value: 'sust_bizify',    label: 'Bizify' },
+]
+
+function CardDetailModal({ card, onClose, isSustAdmin, onMoved }: {
+  card: ContractCard
+  onClose: () => void
+  isSustAdmin?: boolean
+  onMoved?: () => void
+}) {
   const badge = statusBadge(card)
-  const [full, setFull]   = useState<any>(null)
-  const [logs, setLogs]   = useState<any[]>([])
+  const [full, setFull]     = useState<any>(null)
+  const [logs, setLogs]     = useState<any[]>([])
+  const [queue, setQueue]   = useState(card.sustentacao_column ?? '')
+  const [moving, setMoving] = useState(false)
 
   useEffect(() => {
     api.get<any>(`/contracts/${card.id}`).then(setFull).catch(() => {})
     api.get<any[]>(`/contracts/${card.id}/kanban-logs`).then(setLogs).catch(() => {})
   }, [card.id])
+
+  const handleMoveQueue = async () => {
+    if (!queue) return
+    setMoving(true)
+    try {
+      await api.patch(`/contracts/${card.id}/sustentacao-move`, { to_column: queue })
+      toast.success('Contrato movido para a fila de sustentação')
+      onMoved?.()
+      onClose()
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao mover para fila')
+    } finally {
+      setMoving(false)
+    }
+  }
 
   const fmt = (val: any, fallback = '—') => val ?? fallback
   const fmtMoney = (val: any) => val != null ? `R$ ${Number(val).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'
@@ -1192,6 +1222,30 @@ function CardDetailModal({ card, onClose }: { card: ContractCard; onClose: () =>
               style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
           </div>
         </div>
+        {isSustAdmin && (
+          <div className="px-6 py-3 border-b flex items-center gap-3" style={{ borderColor: 'var(--brand-border)', background: 'rgba(251,146,60,0.05)' }}>
+            <span className="text-xs font-semibold shrink-0" style={{ color: '#f59e0b' }}>Fila de Sustentação</span>
+            <select
+              value={queue}
+              onChange={e => setQueue(e.target.value)}
+              className="flex-1 text-xs rounded-lg px-2 py-1.5 outline-none"
+              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+            >
+              <option value="">— Selecionar fila —</option>
+              {SUST_QUEUE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleMoveQueue}
+              disabled={!queue || moving}
+              className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40"
+              style={{ background: '#f59e0b', color: '#000' }}
+            >
+              {moving ? '...' : 'Mover'}
+            </button>
+          </div>
+        )}
         <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
           {!full && <p className="text-xs text-center" style={{ color: 'var(--brand-muted)' }}>Carregando...</p>}
           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1639,7 +1693,7 @@ function KanbanContent() {
       </div>
 
       {selected && (
-        <CardDetailModal card={selected} onClose={() => setSelected(null)} />
+        <CardDetailModal card={selected} onClose={() => setSelected(null)} isSustAdmin={isSustAdmin} onMoved={() => { setSelected(null); load() }} />
       )}
 
       {projectAction && (() => {
