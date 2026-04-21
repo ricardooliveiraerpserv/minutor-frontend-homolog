@@ -309,6 +309,7 @@ export default function ContratosPage() {
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
+              <th className="w-8 px-2 py-3" />
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Categoria</th>
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Tipo de Contrato</th>
@@ -321,13 +322,16 @@ export default function ContratosPage() {
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-500 text-xs">Carregando...</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-500 text-xs">Carregando...</td></tr>
             )}
             {!loading && contracts.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhum contrato encontrado.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhum contrato encontrado.</td></tr>
             )}
             {!loading && contracts.map((c, i) => (
               <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                <td className="w-8 px-2 py-3 text-center">
+                  <MoreVertical size={14} className="text-zinc-600 mx-auto" />
+                </td>
                 <td className="px-4 py-3 text-white font-medium">{c.customer?.name ?? '—'}</td>
                 <td className="px-4 py-3 text-zinc-300">{CATEGORIA_LABEL[c.categoria]}</td>
                 <td className="px-4 py-3 text-zinc-400 text-xs">{c.contract_type?.name ?? '—'}</td>
@@ -346,7 +350,6 @@ export default function ContratosPage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-center gap-2">
-                    <MoreVertical size={14} className="text-zinc-600 shrink-0" />
                     <button onClick={() => openView(c)}
                       className="px-2.5 py-1 rounded-md text-xs transition-colors hover:bg-zinc-700/60 text-zinc-400 hover:text-white">
                       Visualizar
