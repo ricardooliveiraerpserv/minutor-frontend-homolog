@@ -154,7 +154,7 @@ function HBBalancePill({ value, size = 'sm' }: { value: number; size?: 'sm' | 'l
 // ─── Horista Payment Section ──────────────────────────────────────────────────
 
 function HoristaPaymentSection({
-  yearMonth, workedHours, billableHours, guaranteedHours, hourlyRate, expTotal, proporcional, prorationRatio,
+  yearMonth, workedHours, billableHours, guaranteedHours, hourlyRate, expTotal, expPaid, proporcional, prorationRatio,
 }: {
   yearMonth: string
   workedHours: number
@@ -162,11 +162,13 @@ function HoristaPaymentSection({
   guaranteedHours: number | null
   hourlyRate: number
   expTotal: number
+  expPaid: number
   proporcional?: boolean
   prorationRatio?: number
 }) {
   const totalService = hourlyRate > 0 ? billableHours * hourlyRate : 0
   const totalGeral   = totalService + expTotal
+  const expAllTotal  = expTotal + expPaid
   const isGuaranteed = guaranteedHours !== null && workedHours < Number(guaranteedHours)
 
   return (
@@ -214,25 +216,27 @@ function HoristaPaymentSection({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl p-3" style={{ background: expTotal > 0 ? 'rgba(249,115,22,0.06)' : 'var(--brand-bg)', border: `1px solid ${expTotal > 0 ? 'rgba(249,115,22,0.2)' : 'var(--brand-border)'}` }}>
-          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Despesas no Período</p>
-          <p className="text-lg font-bold" style={{ color: expTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
-            {expTotal > 0 ? formatBRL(expTotal) : '—'}
-          </p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>reembolsos e gastos</p>
-        </div>
-
-        <div className="rounded-xl p-3" style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.15)' }}>
-          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total a Receber</p>
-          <p className="text-lg font-bold" style={{ color: 'var(--brand-primary)' }}>
-            {hourlyRate > 0 ? formatBRL(totalGeral) : '—'}
-          </p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
-            {hourlyRate > 0
-              ? `${fmtHours(billableHours)} × ${formatBRL(hourlyRate)}/h${expTotal > 0 ? ' + despesas' : ''}`
-              : 'Taxa não configurada'}
-          </p>
+      {/* Despesas — breakdown */}
+      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total no Mês</p>
+            <p className="text-base font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
+              {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
+            </p>
+            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>reembolsos e gastos</p>
+          </div>
+          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor Pago</p>
+            <p className="text-base font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>já reembolsado</p>
+          </div>
+          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>A Receber</p>
+            <p className="text-base font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>em aberto</p>
+          </div>
         </div>
       </div>
 
@@ -245,9 +249,8 @@ function HoristaPaymentSection({
           </p>
         </div>
         <div className="text-right">
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total Geral</p>
-          <p className="text-lg font-bold" style={{ color: 'var(--brand-primary)' }}>
-            {hourlyRate > 0 ? formatBRL(totalGeral) : '—'}
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+            {fmtHours(billableHours)} × {hourlyRate > 0 ? formatBRL(hourlyRate) : '—'}/h
           </p>
         </div>
       </div>
@@ -258,16 +261,17 @@ function HoristaPaymentSection({
 // ─── Fixo Payment Section ─────────────────────────────────────────────────────
 
 function FixoPaymentSection({
-  yearMonth, workedHours, fixedMonthly, expTotal, proporcional, prorationRatio,
+  yearMonth, workedHours, fixedMonthly, expTotal, expPaid, proporcional, prorationRatio,
 }: {
   yearMonth: string
   workedHours: number
   fixedMonthly: number
   expTotal: number
+  expPaid: number
   proporcional?: boolean
   prorationRatio?: number
 }) {
-  const totalGeral = fixedMonthly + expTotal
+  const expAllTotal = expTotal + expPaid
 
   return (
     <div className="rounded-2xl p-5 space-y-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
@@ -303,13 +307,29 @@ function FixoPaymentSection({
           </p>
         </div>
 
-        {/* Despesas */}
-        <div className="rounded-xl p-3" style={{ background: expTotal > 0 ? 'rgba(249,115,22,0.06)' : 'var(--brand-bg)', border: `1px solid ${expTotal > 0 ? 'rgba(249,115,22,0.2)' : 'var(--brand-border)'}` }}>
-          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Despesas no Período</p>
-          <p className="text-lg font-bold" style={{ color: expTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
-            {expTotal > 0 ? formatBRL(expTotal) : '—'}
-          </p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>reembolsos e gastos</p>
+      </div>
+
+      {/* Despesas — breakdown */}
+      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total no Mês</p>
+            <p className="text-base font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
+              {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
+            </p>
+            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>reembolsos e gastos</p>
+          </div>
+          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor Pago</p>
+            <p className="text-base font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>já reembolsado</p>
+          </div>
+          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>A Receber</p>
+            <p className="text-base font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>em aberto</p>
+          </div>
         </div>
       </div>
 
@@ -317,13 +337,13 @@ function FixoPaymentSection({
   )
 }
 
-function HBPaymentSection({ data, fixedSalary, expTotal, showExtras = true }: { data: HourBankMonth; fixedSalary: number; expTotal: number; showExtras?: boolean }) {
+function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = true }: { data: HourBankMonth; fixedSalary: number; expTotal: number; expPaid: number; showExtras?: boolean }) {
   const hasExtra     = showExtras && data.accumulated_balance > 0
   const extraHours   = hasExtra ? data.accumulated_balance : 0
   const valorHoraExt = fixedSalary > 0 ? fixedSalary / 180 : 0
   const totalExtra   = hasExtra ? extraHours * valorHoraExt : 0
   const totalSalario = fixedSalary + totalExtra
-  const totalGeral   = totalSalario + expTotal
+  const expAllTotal  = expTotal + expPaid
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
@@ -339,40 +359,37 @@ function HBPaymentSection({ data, fixedSalary, expTotal, showExtras = true }: { 
         )}
       </div>
 
-      {/* CENTRO — valor */}
-      <div className="flex flex-col gap-1 border-l border-r border-zinc-800 px-8">
+      {/* CENTRO — valor (só serviços) */}
+      <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8">
         <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
-          {fixedSalary > 0 ? formatBRL(totalGeral) : '—'}
+          {fixedSalary > 0 ? formatBRL(totalSalario) : '—'}
         </div>
         <span className="text-[11px] text-zinc-600 mt-1">
-          {hasExtra
-            ? `base + ${fmtHours(extraHours)} extras${expTotal > 0 ? ' + despesas' : ''}`
-            : expTotal > 0 ? 'base mensal + despesas' : 'base mensal'}
+          {hasExtra ? `base + ${fmtHours(extraHours)} extras` : 'base mensal'}
         </span>
       </div>
 
-      {/* DIREITA — composição */}
-      <div className="flex items-center gap-5 min-w-[200px]">
-        {totalGeral > 0 && <MiniDonut services={totalSalario} expenses={expTotal} />}
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-[#00F5FF] shrink-0" />
-            <span className="text-[11px] text-zinc-500 w-16">Serviços</span>
-            <span className="text-[11px] font-medium text-zinc-200">{fixedSalary > 0 ? formatBRL(totalSalario) : '—'}</span>
-            {totalGeral > 0 && fixedSalary > 0 && (
-              <span className="text-[10px] text-zinc-600">{Math.round((totalSalario / totalGeral) * 100)}%</span>
-            )}
+      {/* Despesas — breakdown */}
+      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl p-3 border border-zinc-800 bg-zinc-900">
+            <p className="text-[10px] uppercase tracking-wider mb-1 text-zinc-500">Total no Mês</p>
+            <p className="text-base font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
+              {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
+            </p>
+            <p className="text-[10px] mt-0.5 text-zinc-600">reembolsos e gastos</p>
           </div>
-          {expTotal > 0 && (
-            <div className="flex items-center gap-3">
-              <div className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
-              <span className="text-[11px] text-zinc-500 w-16">Despesas</span>
-              <span className="text-[11px] font-medium text-zinc-200">{formatBRL(expTotal)}</span>
-              {totalGeral > 0 && (
-                <span className="text-[10px] text-zinc-600">{Math.round((expTotal / totalGeral) * 100)}%</span>
-              )}
-            </div>
-          )}
+          <div className="rounded-xl p-3 border border-zinc-800 bg-zinc-900">
+            <p className="text-[10px] uppercase tracking-wider mb-1 text-zinc-500">Valor Pago</p>
+            <p className="text-base font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-[10px] mt-0.5 text-zinc-600">já reembolsado</p>
+          </div>
+          <div className="rounded-xl p-3 border border-zinc-800 bg-zinc-900">
+            <p className="text-[10px] uppercase tracking-wider mb-1 text-zinc-500">A Receber</p>
+            <p className="text-base font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-[10px] mt-0.5 text-zinc-600">em aberto</p>
+          </div>
         </div>
       </div>
     </div>
@@ -2136,6 +2153,7 @@ export default function MeuPainelPage() {
               workedHours={workedHours}
               fixedMonthly={Math.round(hourlyRate * prorationRatio * 100) / 100}
               expTotal={expTotal}
+              expPaid={expPaid}
               proporcional={isProporcional}
               prorationRatio={prorationRatio}
             />
@@ -3101,6 +3119,7 @@ export default function MeuPainelPage() {
                     workedHours={workedHours}
                     fixedMonthly={hourlyRate}
                     expTotal={expTotal}
+                    expPaid={expPaid}
                   />
                 )}
 
@@ -3182,6 +3201,7 @@ export default function MeuPainelPage() {
                     guaranteedHours={guaranteedProrated}
                     hourlyRate={hourlyRate}
                     expTotal={expTotal}
+                    expPaid={expPaid}
                     proporcional={isProporcional}
                     prorationRatio={prorationRatio}
                   />
@@ -3272,7 +3292,7 @@ export default function MeuPainelPage() {
                   const showExtras = (user as any)?.consultant_type !== 'bh_fixo'
                   return (
                     <>
-                      <HBPaymentSection data={hbCurrent} fixedSalary={fixedSalary} expTotal={expTotal} showExtras={showExtras} />
+                      <HBPaymentSection data={hbCurrent} fixedSalary={fixedSalary} expTotal={expTotal} expPaid={expPaid} showExtras={showExtras} />
                       <HBCurrentMonthCard data={hbCurrent} isCurrentMonth={isCurrentMonth} />
                     </>
                   )
