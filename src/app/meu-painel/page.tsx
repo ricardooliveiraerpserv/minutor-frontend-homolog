@@ -1973,7 +1973,7 @@ export default function MeuPainelPage() {
           )}
 
           {/* Summary cards */}
-          <div className="grid gap-3 grid-cols-2 lg:grid-cols-6 xl:grid-cols-7">
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 xl:grid-cols-6 [&>*]:min-w-0">
             <SummaryCard
               label="Horas no Período"
               value={minutesToHours(tsTotalMin)}
