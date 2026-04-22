@@ -944,14 +944,18 @@ function MiniDonut({ services, expenses }: { services: number; expenses: number 
 }
 
 function HeroTotal({
-  period, total, variation, prevLabel,
+  period, total, variation, prevLabel, expTotal, expPaid,
 }: {
   period: string
   total: number | null
   variation: number | null
   prevLabel: string
+  expTotal?: number
+  expPaid?: number
 }) {
-  const isPos = variation !== null && variation >= 0
+  const isPos       = variation !== null && variation >= 0
+  const hasExpenses = expTotal !== undefined && expPaid !== undefined
+  const expAllTotal = hasExpenses ? (expTotal! + expPaid!) : 0
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-5 flex items-center gap-8">
@@ -972,12 +976,35 @@ function HeroTotal({
       </div>
 
       {/* VALOR — destaque */}
-      <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8">
+      <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8 flex-1">
         <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
           {total !== null ? formatBRL(total) : '—'}
         </div>
         <span className="text-[11px] text-zinc-600 mt-1">total de serviços no período</span>
       </div>
+
+      {/* DESPESAS — caixa laranja */}
+      {hasExpenses && (
+        <div className="ml-auto rounded-xl border border-orange-500/20 bg-orange-500/5 px-5 py-4 min-w-[180px] flex flex-col gap-3">
+          <p className="text-[9px] uppercase tracking-wider text-orange-400 font-bold">Despesas no Mês</p>
+          <div>
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Total no Mês</p>
+            <p className="text-base font-bold text-white">{expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}</p>
+          </div>
+          <div className="flex gap-4">
+            <div>
+              <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Valor Pago</p>
+              <p className="text-sm font-bold text-emerald-400">{expPaid! > 0 ? formatBRL(expPaid!) : '—'}</p>
+              <p className="text-[9px] mt-0.5 text-zinc-600">já reembolsado</p>
+            </div>
+            <div>
+              <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">A Receber</p>
+              <p className="text-sm font-bold text-amber-400">{expTotal! > 0 ? formatBRL(expTotal!) : '—'}</p>
+              <p className="text-[9px] mt-0.5 text-zinc-600">em aberto</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -2032,13 +2059,50 @@ export default function MeuPainelPage() {
       {validTab === 'overview' && (
         <div className="space-y-5">
 
-          {/* Hero Total — não mostrar para fixo (usa FixoPaymentSection abaixo) */}
-          {!isParceiroSimples && !isFixo && (
+          {/* Hero Horista — valor de serviço + despesas */}
+          {isHorista && !isParceiroSimples && !isFixo && (
+            <HoristaPaymentSection
+              yearMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
+              workedHours={workedHours}
+              billableHours={billableHours}
+              guaranteedHours={guaranteedHours}
+              hourlyRate={hourlyRate}
+              expTotal={expTotal}
+              expPaid={expPaid}
+              proporcional={isProporcional}
+              prorationRatio={prorationRatio}
+            />
+          )}
+
+          {/* Hero Banco de Horas — usa HBPaymentSection quando dados disponíveis */}
+          {isHBConsultant && !isParceiroSimples && !isFixo && (
+            hbCurrent
+              ? <HBPaymentSection
+                  data={hbCurrent}
+                  fixedSalary={rateType === 'monthly' ? hourlyRate : 0}
+                  expTotal={expTotal}
+                  expPaid={expPaid}
+                  showExtras={['banco_de_horas', 'bh_mensal'].includes((user as any)?.consultant_type ?? '')}
+                />
+              : <HeroTotal
+                  period={heroPeriodLabel}
+                  total={heroTotal}
+                  variation={heroVariation}
+                  prevLabel={heroPrevLabel}
+                  expTotal={expTotal}
+                  expPaid={expPaid}
+                />
+          )}
+
+          {/* Hero Total — outros perfis (coordenador, etc.) com despesas */}
+          {!isHorista && !isHBConsultant && !isParceiroSimples && !isFixo && (
             <HeroTotal
               period={heroPeriodLabel}
               total={heroTotal}
               variation={heroVariation}
               prevLabel={heroPrevLabel}
+              expTotal={expTotal}
+              expPaid={expPaid}
             />
           )}
 
