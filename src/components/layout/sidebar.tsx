@@ -115,6 +115,7 @@ const NAV_CLIENTE: NavEntry[] = [
 
 const NAV: NavEntry[] = [
   { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
+  { type: 'item', label: 'Meu Painel',            href: '/meu-painel',      icon: LayoutDashboard },
   { type: 'item', label: 'Gestão de Projetos',    href: '/gestao-projetos', icon: Layers },
   { type: 'item', label: 'Kanban Contratos',      href: '/contratos/kanban',   icon: LayoutGrid },
   { type: 'item', label: 'Demandas e Projetos',   href: '/contratos/pipeline', icon: Layers },
@@ -294,7 +295,7 @@ function SidebarInner({ user }: { user: User }) {
       return nav
     }
     if (isConsultor) {
-      const allowed = new Set(['/dashboard'])
+      const allowed = new Set(['/dashboard', '/meu-painel'])
       if (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update')) allowed.add('/gestao-projetos')
       return NAV.filter(e => e.type === 'item' && allowed.has(e.href))
     }
