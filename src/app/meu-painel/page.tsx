@@ -167,100 +167,62 @@ function HoristaPaymentSection({
   prorationRatio?: number
 }) {
   const totalService = hourlyRate > 0 ? billableHours * hourlyRate : 0
-  const totalGeral   = totalService + expTotal
   const expAllTotal  = expTotal + expPaid
   const isGuaranteed = guaranteedHours !== null && workedHours < Number(guaranteedHours)
 
   return (
-    <div className="rounded-2xl p-5 space-y-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-      <div className="flex items-center gap-2 flex-wrap">
-        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
-          Remuneração — {fmtYearMonth(yearMonth)}
-        </p>
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
+
+      {/* ESQUERDA */}
+      <div className="flex flex-col gap-2 min-w-[120px]">
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">Total a Receber</span>
+        <span className="text-[12px] text-zinc-400 font-medium">{fmtYearMonth(yearMonth)}</span>
         {proporcional && prorationRatio !== undefined && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(234,179,8,0.1)', color: '#eab308' }}>
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium w-fit" style={{ background: 'rgba(234,179,8,0.1)', color: '#eab308' }}>
             Proporcional {Math.round(prorationRatio * 100)}%
+          </span>
+        )}
+        {isGuaranteed && guaranteedHours !== null && (
+          <span className="text-[10px] px-2 py-0.5 rounded-full border w-fit bg-yellow-500/10 border-yellow-500/20 text-yellow-400">
+            Piso {fmtHours(Number(guaranteedHours))}
           </span>
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {/* Card 1 — Total de Horas em evidência */}
-        <div className="rounded-xl p-3" style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.15)' }}>
-          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total de Horas</p>
-          <p className="text-lg font-bold" style={{ color: 'var(--brand-primary)' }}>{fmtHours(billableHours)}</p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
-            {hourlyRate > 0
-              ? `× ${formatBRL(hourlyRate)}/h = ${formatBRL(totalService)}`
-              : 'pendentes + aprovadas'}
-          </p>
+      {/* CENTRO — valor serviços */}
+      <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8">
+        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
+          {hourlyRate > 0 ? formatBRL(totalService) : '—'}
         </div>
-
-        {/* Card 2 — Valor/Hora */}
-        <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor / Hora</p>
-          <p className="text-lg font-bold" style={{ color: hourlyRate > 0 ? 'var(--brand-text)' : 'var(--brand-muted)' }}>
-            {hourlyRate > 0 ? formatBRL(hourlyRate) : '—'}
-          </p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>taxa horária</p>
-        </div>
-
-        {/* Card 3 — Horas Garantidas (só aparece quando aplicável) */}
-        {guaranteedHours !== null ? (
-          <div className="rounded-xl p-3" style={{ background: isGuaranteed ? 'rgba(234,179,8,0.06)' : 'var(--brand-bg)', border: `1px solid ${isGuaranteed ? 'rgba(234,179,8,0.2)' : 'var(--brand-border)'}` }}>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Horas Garantidas</p>
-            <p className="text-lg font-bold" style={{ color: isGuaranteed ? '#eab308' : 'var(--brand-muted)' }}>{fmtHours(Number(guaranteedHours))}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{proporcional ? 'piso mínimo (proporcional)' : 'piso mínimo'}</p>
-          </div>
-        ) : (
-          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total do Serviço</p>
-            <p className="text-lg font-bold" style={{ color: totalService > 0 ? '#22c55e' : 'var(--brand-muted)' }}>
-              {totalService > 0 ? formatBRL(totalService) : '—'}
-            </p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>valor a receber</p>
-          </div>
-        )}
+        <span className="text-[11px] text-zinc-600 mt-1">
+          {hourlyRate > 0 ? `${fmtHours(billableHours)} × ${formatBRL(hourlyRate)}/h` : 'Taxa não configurada'}
+        </span>
       </div>
 
-      {/* Despesas — breakdown */}
-      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2">
+      {/* DIREITA — despesas */}
+      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2 min-w-[280px]">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total no Mês</p>
-            <p className="text-base font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Total no Mês</p>
+            <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
               {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>reembolsos e gastos</p>
+            <p className="text-[9px] mt-0.5 text-zinc-600">reembolsos e gastos</p>
           </div>
-          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor Pago</p>
-            <p className="text-base font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>já reembolsado</p>
+          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Valor Pago</p>
+            <p className="text-sm font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-[9px] mt-0.5 text-zinc-600">já reembolsado</p>
           </div>
-          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>A Receber</p>
-            <p className="text-base font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>em aberto</p>
+          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">A Receber</p>
+            <p className="text-sm font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-[9px] mt-0.5 text-zinc-600">em aberto</p>
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl px-4 py-3 flex items-center justify-between"
-        style={{ background: totalService > 0 ? 'rgba(34,197,94,0.06)' : 'var(--brand-bg)', border: `1px solid ${totalService > 0 ? 'rgba(34,197,94,0.2)' : 'var(--brand-border)'}` }}>
-        <div>
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total do Serviço</p>
-          <p className="text-lg font-bold" style={{ color: totalService > 0 ? '#22c55e' : 'var(--brand-muted)' }}>
-            {totalService > 0 ? formatBRL(totalService) : '—'}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
-            {fmtHours(billableHours)} × {hourlyRate > 0 ? formatBRL(hourlyRate) : '—'}/h
-          </p>
-        </div>
-      </div>
     </div>
   )
 }
