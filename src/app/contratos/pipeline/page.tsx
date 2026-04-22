@@ -3633,7 +3633,7 @@ function KanbanContent() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {!isConsultor && !isCliente && (
+            {!isConsultor && (
               <button onClick={() => router.push('/portal-cliente/nova-requisicao')}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
                 style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: '#00F5FF' }}>
