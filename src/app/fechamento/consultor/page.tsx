@@ -1,10 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import { ChevronDown, ChevronRight, Printer, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { RefreshCw, Printer, FileText, Users } from 'lucide-react'
+import {
+  PageHeader, Table, Thead, Th, Tbody, Tr, Td,
+  Button, SkeletonTable, EmptyState,
+} from '@/components/ds'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,8 +24,6 @@ interface ConsultorBase {
   horas_a_pagar: number
   total: number
 }
-
-interface ConsultorHorista extends ConsultorBase {}
 
 interface ConsultorBancoHoras extends ConsultorBase {
   daily_hours: number
@@ -50,7 +52,7 @@ interface Totais {
 }
 
 interface IndexData {
-  horistas: ConsultorHorista[]
+  horistas: ConsultorBase[]
   banco_horas: ConsultorBancoHoras[]
   fixos: ConsultorFixo[]
   totais: Totais
@@ -68,7 +70,6 @@ interface ApontamentoRow {
   status: string
   ticket?: string
   titulo?: string
-  solicitante?: string
   observacao?: string
 }
 
@@ -76,15 +77,12 @@ type Tab = 'horistas' | 'banco_horas' | 'fixo' | 'resumo'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function toYearMonth(input: string): string {
-  return input
-}
-
 function fmtYearMonth(ym: string): string {
   if (!ym) return ''
   const [year, month] = ym.split('-')
-  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-  return `${months[parseInt(month) - 1]}/${year}`
+  const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+  return `${months[parseInt(month) - 1]} de ${year}`
 }
 
 function fmtDate(d: string): string {
@@ -103,39 +101,121 @@ function balanceColor(val: number): string {
   return 'text-zinc-400'
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  approved: 'Aprovado',
-  pending: 'Pendente',
-  conflicted: 'Conflito',
-  rejected: 'Rejeitado',
-  adjustment_requested: 'Aj. Solicitado',
-}
+// ─── Print ────────────────────────────────────────────────────────────────────
 
 const printStyles = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; background: #fff; }
-  .page { padding: 24px; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #7c3aed; padding-bottom: 12px; }
+  .page { padding: 28px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #7c3aed; padding-bottom: 14px; }
   .logo { font-size: 22px; font-weight: 900; color: #7c3aed; letter-spacing: -0.5px; }
   .logo span { color: #a78bfa; }
-  .meta { text-align: right; font-size: 11px; color: #666; }
-  .meta strong { font-size: 14px; color: #1a1a1a; display: block; margin-bottom: 4px; }
-  .section-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #7c3aed; padding: 8px 0; margin: 16px 0 8px; }
-  .section-title { font-size: 13px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.5px; }
-  .section-total { font-size: 13px; font-weight: 700; color: #7c3aed; }
-  .consultor-block { margin-bottom: 16px; break-inside: avoid; }
-  .consultor-name { font-size: 12px; font-weight: 700; background: #f3f4f6; padding: 6px 10px; border-left: 3px solid #7c3aed; margin-bottom: 4px; }
-  .consultor-summary { font-size: 11px; color: #555; padding: 2px 10px 6px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  th { background: #f3f4f6; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 5px 8px; text-align: left; color: #555; }
-  td { font-size: 11px; padding: 4px 8px; border-bottom: 1px solid #e5e7eb; }
-  tr:last-child td { border-bottom: none; }
+  .meta { text-align: right; font-size: 11px; color: #555; line-height: 1.6; }
+  .meta strong { font-size: 15px; color: #1a1a1a; display: block; margin-bottom: 4px; }
+  .summary-box { display: flex; gap: 24px; background: #f9f7ff; border: 1px solid #ddd6fe; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; }
+  .summary-item { flex: 1; }
+  .summary-label { font-size: 10px; text-transform: uppercase; color: #888; letter-spacing: 0.5px; }
+  .summary-value { font-size: 14px; font-weight: 700; color: #1a1a1a; }
+  .section { margin-bottom: 20px; break-inside: avoid; }
+  .section-header { display: flex; justify-content: space-between; align-items: center; background: #ede9fe; border-left: 3px solid #7c3aed; padding: 6px 10px; margin-bottom: 6px; border-radius: 0 4px 4px 0; }
+  .section-title { font-size: 11px; font-weight: 700; color: #5b21b6; text-transform: uppercase; letter-spacing: 0.4px; }
+  .section-total { font-size: 12px; font-weight: 700; color: #5b21b6; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f3f4f6; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 5px 8px; text-align: left; color: #555; border-bottom: 1px solid #ddd; }
+  td { font-size: 11px; padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
   .right { text-align: right; }
-  .total-box { background: #7c3aed; color: #fff; padding: 12px 16px; margin-top: 20px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
-  .total-box-label { font-size: 13px; font-weight: 700; }
-  .total-box-value { font-size: 18px; font-weight: 900; }
+  .total-box { background: #7c3aed; color: #fff; padding: 12px 18px; margin-top: 24px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
+  .total-label { font-size: 13px; font-weight: 700; }
+  .total-value { font-size: 20px; font-weight: 900; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 `
+
+function buildReport(
+  consultor: ConsultorBase | ConsultorBancoHoras | ConsultorFixo,
+  apontamentos: ApontamentoRow[],
+  yearMonth: string
+): string {
+  const grouped = new Map<string, ApontamentoRow[]>()
+  for (const apt of apontamentos) {
+    const key = apt.tipo_contrato_nome || 'Sem tipo'
+    if (!grouped.has(key)) grouped.set(key, [])
+    grouped.get(key)!.push(apt)
+  }
+
+  let summaryExtra = ''
+  if ('fixed_salary' in consultor) {
+    const c = consultor as ConsultorBancoHoras
+    summaryExtra = `
+      <div class="summary-item"><div class="summary-label">Base Mensal</div><div class="summary-value">${formatBRL(c.fixed_salary)}</div></div>
+      <div class="summary-item"><div class="summary-label">Saldo Acumulado</div><div class="summary-value">${fmtH(c.accumulated_balance)}</div></div>
+      <div class="summary-item"><div class="summary-label">H Extras</div><div class="summary-value">${c.horas_extras > 0 ? fmtH(c.horas_extras) : '—'}</div></div>
+    `
+  } else if ('salario_mensal' in consultor) {
+    const c = consultor as ConsultorFixo
+    summaryExtra = `
+      <div class="summary-item"><div class="summary-label">Salário Mensal</div><div class="summary-value">${formatBRL(c.salario_mensal)}</div></div>
+    `
+  } else {
+    summaryExtra = `
+      <div class="summary-item"><div class="summary-label">Taxa/h</div><div class="summary-value">${formatBRL(consultor.effective_rate)}</div></div>
+    `
+  }
+
+  let sectionsHtml = ''
+  if (grouped.size === 0) {
+    sectionsHtml = '<p style="color:#999;text-align:center;padding:16px;">Nenhum apontamento no período</p>'
+  } else {
+    for (const [tipo, rows] of grouped.entries()) {
+      const totalHoras = rows.reduce((s, r) => s + r.horas, 0)
+      const rowsHtml = rows.map(r => `
+        <tr>
+          <td>${fmtDate(r.data)}</td>
+          <td><span style="color:#888;margin-right:4px">${r.projeto_codigo}</span>${r.projeto}</td>
+          <td>${r.cliente}</td>
+          <td>${r.ticket ?? '—'}</td>
+          <td>${r.titulo ? r.titulo.slice(0, 60) : (r.observacao ? r.observacao.slice(0, 60) : '—')}</td>
+          <td class="right">${fmtH(r.horas)}</td>
+        </tr>
+      `).join('')
+      sectionsHtml += `
+        <div class="section">
+          <div class="section-header">
+            <span class="section-title">${tipo}</span>
+            <span class="section-total">${fmtH(totalHoras)}</span>
+          </div>
+          <table>
+            <thead><tr><th>Data</th><th>Projeto</th><th>Cliente</th><th>Ticket</th><th>Descrição</th><th class="right">Horas</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+      `
+    }
+  }
+
+  const totalHoras = apontamentos.reduce((s, r) => s + r.horas, 0)
+
+  return `
+    <div class="page">
+      <div class="header">
+        <div class="logo">ERP<span>Serv</span></div>
+        <div class="meta">
+          <strong>${consultor.nome}</strong>
+          Fechamento de Consultores &nbsp;·&nbsp; ${fmtYearMonth(yearMonth)}
+        </div>
+      </div>
+      <div class="summary-box">
+        <div class="summary-item"><div class="summary-label">Total Horas</div><div class="summary-value">${fmtH(totalHoras)}</div></div>
+        ${summaryExtra}
+        <div class="summary-item"><div class="summary-label">Total a Pagar</div><div class="summary-value" style="color:#7c3aed">${formatBRL(consultor.total)}</div></div>
+      </div>
+      ${sectionsHtml}
+      <div class="total-box">
+        <span class="total-label">TOTAL A PAGAR — ${consultor.nome.toUpperCase()}</span>
+        <span class="total-value">${formatBRL(consultor.total)}</span>
+      </div>
+    </div>
+  `
+}
 
 function openPrintWindow(html: string) {
   const win = window.open('', '_blank')
@@ -143,6 +223,27 @@ function openPrintWindow(html: string) {
   win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório</title><style>${printStyles}</style></head><body>${html}</body></html>`)
   win.document.close()
   setTimeout(() => win.print(), 300)
+}
+
+// ─── RelatorioBtn ─────────────────────────────────────────────────────────────
+
+function RelatorioBtn({ userId, printingUser, onClick }: {
+  userId: number
+  printingUser: number | null
+  onClick: () => void
+}) {
+  const loading = printingUser === userId
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      title="Gerar relatório individual"
+      className="inline-flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 disabled:opacity-50 transition-colors"
+    >
+      {loading ? <RefreshCw size={13} className="animate-spin" /> : <Printer size={13} />}
+      Relatório
+    </button>
+  )
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -155,16 +256,12 @@ export default function FechamentoConsultorPage() {
   const [tab, setTab] = useState<Tab>('horistas')
   const [data, setData] = useState<IndexData | null>(null)
   const [loading, setLoading] = useState(false)
-  const [expandedUser, setExpandedUser] = useState<number | null>(null)
-  const [apontamentos, setApontamentos] = useState<Record<number, ApontamentoRow[]>>({})
-  const [loadingApt, setLoadingApt] = useState<Record<number, boolean>>({})
+  const [printingUser, setPrintingUser] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     if (!yearMonth) return
     setLoading(true)
     setData(null)
-    setExpandedUser(null)
-    setApontamentos({})
     try {
       const res = await api.get<{ data: IndexData }>(`/fechamento-consultor/${yearMonth}`)
       setData(res.data)
@@ -175,467 +272,347 @@ export default function FechamentoConsultorPage() {
 
   useEffect(() => { load() }, [load])
 
-  const toggleExpand = useCallback(async (userId: number) => {
-    if (expandedUser === userId) {
-      setExpandedUser(null)
-      return
+  async function handleRelatorio(consultor: ConsultorBase | ConsultorBancoHoras | ConsultorFixo) {
+    setPrintingUser(consultor.user_id)
+    try {
+      const res = await api.get<{ data: ApontamentoRow[] }>(
+        `/fechamento-consultor/${consultor.user_id}/${yearMonth}/apontamentos`
+      )
+      const html = buildReport(consultor, res.data ?? [], yearMonth)
+      openPrintWindow(html)
+    } finally {
+      setPrintingUser(null)
     }
-    setExpandedUser(userId)
-    if (!apontamentos[userId]) {
-      setLoadingApt(p => ({ ...p, [userId]: true }))
-      try {
-        const res = await api.get<{ data: ApontamentoRow[] }>(`/fechamento-consultor/${userId}/${yearMonth}/apontamentos`)
-        setApontamentos(p => ({ ...p, [userId]: res.data }))
-      } finally {
-        setLoadingApt(p => ({ ...p, [userId]: false }))
-      }
-    }
-  }, [expandedUser, apontamentos, yearMonth])
+  }
 
-  // ─── Print helpers ──────────────────────────────────────────────────────────
-
-  function buildApontamentosTableRows(rows: ApontamentoRow[]): string {
-    if (!rows.length) return '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:12px">Sem apontamentos</td></tr>'
-    return rows.map(r => `
-      <tr>
-        <td>${fmtDate(r.data)}</td>
-        <td>${r.projeto_codigo} — ${r.projeto}</td>
-        <td>${r.cliente}</td>
-        <td>${r.tipo_contrato_nome}</td>
-        <td>${r.ticket ?? '—'}</td>
-        <td class="right">${fmtH(r.horas)}</td>
-      </tr>
+  function handlePrintResumo() {
+    if (!data) return
+    const { totais } = data
+    const rows = [
+      { label: 'Horistas',      count: data.horistas.length,    total: totais.total_horistas },
+      { label: 'Banco de Horas', count: data.banco_horas.length, total: totais.total_banco_horas },
+      { label: 'Fixo',          count: data.fixos.length,       total: totais.total_fixos },
+    ]
+    const rowsHtml = rows.map(r => `
+      <tr><td>${r.label}</td><td class="right">${r.count}</td><td class="right">${formatBRL(r.total)}</td></tr>
     `).join('')
-  }
-
-  function handlePrintHoristas() {
-    if (!data) return
-    const rows = data.horistas
-    let html = `<div class="page"><div class="header"><div class="logo">ERP<span>Serv</span></div><div class="meta"><strong>Fechamento — Horistas</strong>${fmtYearMonth(yearMonth)}</div></div>`
-    for (const c of rows) {
-      const apts = apontamentos[c.user_id] ?? []
-      html += `<div class="consultor-block">
-        <div class="consultor-name">${c.nome}</div>
-        <div class="consultor-summary">Taxa/h: ${formatBRL(c.effective_rate)} &nbsp;|&nbsp; Horas: ${fmtH(c.horas_trabalhadas)} &nbsp;|&nbsp; Total: ${formatBRL(c.total)}</div>
-        <table><thead><tr><th>Data</th><th>Projeto</th><th>Cliente</th><th>Tipo</th><th>Ticket</th><th class="right">Horas</th></tr></thead><tbody>${buildApontamentosTableRows(apts)}</tbody></table>
-      </div>`
-    }
-    html += `<div class="total-box"><span class="total-box-label">TOTAL HORISTAS</span><span class="total-box-value">${formatBRL(data.totais.total_horistas)}</span></div></div>`
+    const html = `
+      <div class="page">
+        <div class="header">
+          <div class="logo">ERP<span>Serv</span></div>
+          <div class="meta"><strong>Fechamento de Consultores</strong>${fmtYearMonth(yearMonth)}</div>
+        </div>
+        <table>
+          <thead><tr><th>Tipo de Vínculo</th><th class="right">Consultores</th><th class="right">Total</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <div class="total-box">
+          <span class="total-label">TOTAL GERAL</span>
+          <span class="total-value">${formatBRL(totais.total_geral)}</span>
+        </div>
+      </div>
+    `
     openPrintWindow(html)
   }
 
-  function handlePrintBancoHoras() {
-    if (!data) return
-    const rows = data.banco_horas
-    let html = `<div class="page"><div class="header"><div class="logo">ERP<span>Serv</span></div><div class="meta"><strong>Fechamento — Banco de Horas</strong>${fmtYearMonth(yearMonth)}</div></div>`
-    for (const c of rows) {
-      const apts = apontamentos[c.user_id] ?? []
-      html += `<div class="consultor-block">
-        <div class="consultor-name">${c.nome}</div>
-        <div class="consultor-summary">
-          Base mensal: ${formatBRL(c.fixed_salary)} &nbsp;|&nbsp; Dias úteis: ${c.working_days} &nbsp;|&nbsp; Esperado: ${fmtH(c.expected_hours)} &nbsp;|&nbsp; Trabalhado: ${fmtH(c.horas_trabalhadas)} &nbsp;|&nbsp;
-          Saldo mês: ${fmtH(c.month_balance)} &nbsp;|&nbsp; Acumulado: ${fmtH(c.accumulated_balance)} &nbsp;|&nbsp;
-          H extras: ${fmtH(c.horas_extras)} × ${formatBRL(c.valor_hora_extra)} = ${formatBRL(c.total_extra)} &nbsp;|&nbsp; <strong>Total: ${formatBRL(c.total)}</strong>
-        </div>
-        <table><thead><tr><th>Data</th><th>Projeto</th><th>Cliente</th><th>Tipo</th><th>Ticket</th><th class="right">Horas</th></tr></thead><tbody>${buildApontamentosTableRows(apts)}</tbody></table>
-      </div>`
-    }
-    html += `<div class="total-box"><span class="total-box-label">TOTAL BANCO DE HORAS</span><span class="total-box-value">${formatBRL(data.totais.total_banco_horas)}</span></div></div>`
-    openPrintWindow(html)
-  }
-
-  function handlePrintFixo() {
-    if (!data) return
-    const rows = data.fixos as ConsultorFixo[]
-    let html = `<div class="page"><div class="header"><div class="logo">ERP<span>Serv</span></div><div class="meta"><strong>Fechamento — Fixo</strong>${fmtYearMonth(yearMonth)}</div></div>
-      <table><thead><tr><th>Consultor</th><th class="right">H Trabalhadas</th><th class="right">Salário Mensal</th></tr></thead><tbody>`
-    for (const c of rows) {
-      html += `<tr><td>${c.nome}</td><td class="right">${fmtH(c.horas_trabalhadas)}</td><td class="right">${formatBRL(c.salario_mensal)}</td></tr>`
-    }
-    html += `</tbody></table><div class="total-box"><span class="total-box-label">TOTAL FIXO</span><span class="total-box-value">${formatBRL(data.totais.total_fixos)}</span></div></div>`
-    openPrintWindow(html)
-  }
-
-  // ─── Expandable row apontamentos ────────────────────────────────────────────
-
-  function ApontamentosExpanded({ userId }: { userId: number }) {
-    if (loadingApt[userId]) {
-      return <tr><td colSpan={10} className="py-4 text-center"><RefreshCw size={16} className="animate-spin text-zinc-400 inline" /></td></tr>
-    }
-    const rows = apontamentos[userId] ?? []
-    if (!rows.length) {
-      return <tr><td colSpan={10} className="py-3 text-center text-zinc-500 text-xs">Nenhum apontamento no período</td></tr>
-    }
-    return (
-      <>
-        <tr className="bg-zinc-800/30">
-          <td colSpan={10} className="pt-2 pb-0 px-8">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-zinc-400">
-                  <th className="text-left py-1 font-medium w-24">Data</th>
-                  <th className="text-left py-1 font-medium">Projeto</th>
-                  <th className="text-left py-1 font-medium">Cliente</th>
-                  <th className="text-left py-1 font-medium">Tipo</th>
-                  <th className="text-left py-1 font-medium">Ticket</th>
-                  <th className="text-right py-1 font-medium w-16">Horas</th>
-                  <th className="text-left py-1 font-medium w-24">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(r => (
-                  <tr key={r.id} className="border-t border-zinc-700/30">
-                    <td className="py-1 text-zinc-300">{fmtDate(r.data)}</td>
-                    <td className="py-1 text-zinc-300">
-                      <span className="text-zinc-500 mr-1">{r.projeto_codigo}</span>
-                      {r.projeto}
-                    </td>
-                    <td className="py-1 text-zinc-300">{r.cliente}</td>
-                    <td className="py-1 text-zinc-400">{r.tipo_contrato_nome}</td>
-                    <td className="py-1 text-zinc-400">{r.ticket ?? '—'}</td>
-                    <td className="py-1 text-right text-zinc-200 font-mono">{fmtH(r.horas)}</td>
-                    <td className="py-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                        r.status === 'approved' ? 'bg-emerald-900/40 text-emerald-400' :
-                        r.status === 'pending'  ? 'bg-yellow-900/40 text-yellow-400' :
-                        'bg-zinc-700 text-zinc-400'
-                      }`}>
-                        {STATUS_LABEL[r.status] ?? r.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </td>
-        </tr>
-        <tr className="bg-zinc-800/30"><td colSpan={10} className="pb-3" /></tr>
-      </>
-    )
-  }
-
-  // ─── Tab: Horistas ──────────────────────────────────────────────────────────
-
-  function TabHoristas() {
-    const rows = data?.horistas ?? []
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-zinc-400">
-            {rows.length} consultor{rows.length !== 1 ? 'es' : ''}
-          </div>
-          <Button size="sm" variant="outline" onClick={handlePrintHoristas} className="gap-2">
-            <Printer size={14} /> Imprimir
-          </Button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-700 text-zinc-400 text-xs uppercase tracking-wide">
-                <th className="text-left py-2 px-3 font-medium"></th>
-                <th className="text-left py-2 px-3 font-medium">Consultor</th>
-                <th className="text-right py-2 px-3 font-medium">H Trabalhadas</th>
-                <th className="text-right py-2 px-3 font-medium">Taxa/h</th>
-                <th className="text-right py-2 px-3 font-medium">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 && (
-                <tr><td colSpan={5} className="py-8 text-center text-zinc-500">Nenhum consultor horista no período</td></tr>
-              )}
-              {rows.map(c => (
-                <>
-                  <tr
-                    key={c.user_id}
-                    className="border-b border-zinc-800 hover:bg-zinc-800/40 cursor-pointer"
-                    onClick={() => toggleExpand(c.user_id)}
-                  >
-                    <td className="py-2 px-3 w-8 text-zinc-500">
-                      {expandedUser === c.user_id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </td>
-                    <td className="py-2 px-3 font-medium text-zinc-100">{c.nome}</td>
-                    <td className="py-2 px-3 text-right font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</td>
-                    <td className="py-2 px-3 text-right text-zinc-400">
-                      {c.rate_type === 'monthly'
-                        ? <span title={`Mensal: ${formatBRL(c.valor_hora)}`}>{formatBRL(c.effective_rate)}</span>
-                        : formatBRL(c.effective_rate)
-                      }
-                    </td>
-                    <td className="py-2 px-3 text-right font-semibold text-zinc-100">{formatBRL(c.total)}</td>
-                  </tr>
-                  {expandedUser === c.user_id && <ApontamentosExpanded userId={c.user_id} />}
-                </>
-              ))}
-              {rows.length > 0 && (
-                <tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
-                  <td colSpan={4} className="py-2 px-3 text-right font-semibold text-zinc-300">Total</td>
-                  <td className="py-2 px-3 text-right font-bold text-violet-400">{formatBRL(data?.totais.total_horistas ?? 0)}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )
-  }
-
-  // ─── Tab: Banco de Horas ─────────────────────────────────────────────────────
-
-  function TabBancoHoras() {
-    const rows = data?.banco_horas ?? []
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-zinc-400">
-            {rows.length} consultor{rows.length !== 1 ? 'es' : ''}
-          </div>
-          <Button size="sm" variant="outline" onClick={handlePrintBancoHoras} className="gap-2">
-            <Printer size={14} /> Imprimir
-          </Button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-700 text-zinc-400 text-xs uppercase tracking-wide">
-                <th className="text-left py-2 px-3 font-medium w-8"></th>
-                <th className="text-left py-2 px-3 font-medium">Consultor</th>
-                <th className="text-right py-2 px-3 font-medium">Base Mensal</th>
-                <th className="text-right py-2 px-3 font-medium">Esperado</th>
-                <th className="text-right py-2 px-3 font-medium">Trabalhado</th>
-                <th className="text-right py-2 px-3 font-medium">Saldo mês</th>
-                <th className="text-right py-2 px-3 font-medium">Acumulado</th>
-                <th className="text-right py-2 px-3 font-medium">H Extras</th>
-                <th className="text-right py-2 px-3 font-medium">Taxa h.extra</th>
-                <th className="text-right py-2 px-3 font-medium">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 && (
-                <tr><td colSpan={10} className="py-8 text-center text-zinc-500">Nenhum consultor banco de horas no período</td></tr>
-              )}
-              {rows.map(c => (
-                <>
-                  <tr
-                    key={c.user_id}
-                    className="border-b border-zinc-800 hover:bg-zinc-800/40 cursor-pointer"
-                    onClick={() => toggleExpand(c.user_id)}
-                  >
-                    <td className="py-2 px-3 text-zinc-500">
-                      {expandedUser === c.user_id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </td>
-                    <td className="py-2 px-3 font-medium text-zinc-100">{c.nome}</td>
-                    <td className="py-2 px-3 text-right font-semibold text-zinc-200">{formatBRL(c.fixed_salary)}</td>
-                    <td className="py-2 px-3 text-right font-mono text-zinc-400">{fmtH(c.expected_hours)}</td>
-                    <td className="py-2 px-3 text-right font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</td>
-                    <td className={`py-2 px-3 text-right font-mono ${balanceColor(c.month_balance)}`}>{fmtH(c.month_balance)}</td>
-                    <td className={`py-2 px-3 text-right font-mono font-semibold ${balanceColor(c.accumulated_balance)}`}>{fmtH(c.accumulated_balance)}</td>
-                    <td className={`py-2 px-3 text-right font-mono font-semibold ${c.horas_extras > 0 ? 'text-emerald-400' : 'text-zinc-500'}`}>
-                      {c.horas_extras > 0 ? fmtH(c.horas_extras) : '—'}
-                    </td>
-                    <td className="py-2 px-3 text-right text-zinc-400 text-xs">
-                      {c.valor_hora_extra > 0 ? formatBRL(c.valor_hora_extra) : '—'}
-                    </td>
-                    <td className="py-2 px-3 text-right font-semibold text-zinc-100">
-                      {formatBRL(c.total)}
-                      {c.total_extra > 0 && (
-                        <div className="text-[10px] text-emerald-400 font-normal">+{formatBRL(c.total_extra)} extras</div>
-                      )}
-                    </td>
-                  </tr>
-                  {expandedUser === c.user_id && <ApontamentosExpanded userId={c.user_id} />}
-                </>
-              ))}
-              {rows.length > 0 && (
-                <tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
-                  <td colSpan={9} className="py-2 px-3 text-right font-semibold text-zinc-300">Total</td>
-                  <td className="py-2 px-3 text-right font-bold text-violet-400">{formatBRL(data?.totais.total_banco_horas ?? 0)}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )
-  }
-
-  // ─── Tab: Fixo ────────────────────────────────────────────────────────────────
-
-  function TabFixo() {
-    const rows = (data?.fixos ?? []) as ConsultorFixo[]
-    return (
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <div className="text-sm text-zinc-400">
-            {rows.length} consultor{rows.length !== 1 ? 'es' : ''}
-          </div>
-          <Button size="sm" variant="outline" onClick={handlePrintFixo} className="gap-2">
-            <Printer size={14} /> Imprimir
-          </Button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-700 text-zinc-400 text-xs uppercase tracking-wide">
-                <th className="text-left py-2 px-3 font-medium w-8"></th>
-                <th className="text-left py-2 px-3 font-medium">Consultor</th>
-                <th className="text-right py-2 px-3 font-medium">H Trabalhadas</th>
-                <th className="text-right py-2 px-3 font-medium">Salário Mensal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 && (
-                <tr><td colSpan={4} className="py-8 text-center text-zinc-500">Nenhum consultor fixo no período</td></tr>
-              )}
-              {rows.map(c => (
-                <>
-                  <tr
-                    key={c.user_id}
-                    className="border-b border-zinc-800 hover:bg-zinc-800/40 cursor-pointer"
-                    onClick={() => toggleExpand(c.user_id)}
-                  >
-                    <td className="py-2 px-3 text-zinc-500">
-                      {expandedUser === c.user_id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    </td>
-                    <td className="py-2 px-3 font-medium text-zinc-100">{c.nome}</td>
-                    <td className="py-2 px-3 text-right font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</td>
-                    <td className="py-2 px-3 text-right font-semibold text-zinc-100">{formatBRL(c.salario_mensal)}</td>
-                  </tr>
-                  {expandedUser === c.user_id && <ApontamentosExpanded userId={c.user_id} />}
-                </>
-              ))}
-              {rows.length > 0 && (
-                <tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
-                  <td colSpan={3} className="py-2 px-3 text-right font-semibold text-zinc-300">Total</td>
-                  <td className="py-2 px-3 text-right font-bold text-violet-400">{formatBRL(data?.totais.total_fixos ?? 0)}</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )
-  }
-
-  // ─── Tab: Resumo ──────────────────────────────────────────────────────────────
-
-  function TabResumo() {
-    const t = data?.totais
-    if (!t) return null
-    return (
-      <div className="max-w-lg space-y-3">
-        <div className="rounded-lg border border-zinc-700 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-zinc-800/50 text-zinc-400 text-xs uppercase">
-                <th className="text-left py-2 px-4 font-medium">Tipo</th>
-                <th className="text-right py-2 px-4 font-medium">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-t border-zinc-800">
-                <td className="py-3 px-4 text-zinc-300">Horistas ({data?.horistas.length ?? 0})</td>
-                <td className="py-3 px-4 text-right font-mono text-zinc-200">{formatBRL(t.total_horistas)}</td>
-              </tr>
-              <tr className="border-t border-zinc-800">
-                <td className="py-3 px-4 text-zinc-300">Banco de Horas ({data?.banco_horas.length ?? 0})</td>
-                <td className="py-3 px-4 text-right font-mono text-zinc-200">{formatBRL(t.total_banco_horas)}</td>
-              </tr>
-              <tr className="border-t border-zinc-800">
-                <td className="py-3 px-4 text-zinc-300">Fixo ({data?.fixos.length ?? 0})</td>
-                <td className="py-3 px-4 text-right font-mono text-zinc-200">{formatBRL(t.total_fixos)}</td>
-              </tr>
-              <tr className="border-t-2 border-violet-500 bg-violet-950/30">
-                <td className="py-3 px-4 font-bold text-violet-300">Total Geral</td>
-                <td className="py-3 px-4 text-right font-bold text-violet-300 text-base">{formatBRL(t.total_geral)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )
-  }
-
-  // ─── Render ───────────────────────────────────────────────────────────────────
-
-  const tabs: { key: Tab; label: string }[] = [
+  const TABS: { key: Tab; label: string }[] = [
     { key: 'horistas',    label: 'Horistas' },
     { key: 'banco_horas', label: 'Banco de Horas' },
     { key: 'fixo',        label: 'Fixo' },
     { key: 'resumo',      label: 'Resumo' },
   ]
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-zinc-100">Fechamento de Consultores</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">Custo mensal por tipo de vínculo</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <input
-            type="month"
-            value={yearMonth}
-            onChange={e => setYearMonth(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-100 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
-          />
-          <Button size="sm" variant="outline" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Atualizar
-          </Button>
-        </div>
-      </div>
+  // ─── Tab: Horistas ────────────────────────────────────────────────────────
 
-      {/* Summary cards */}
-      {data && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: 'Horistas', value: data.totais.total_horistas, count: data.horistas.length },
-            { label: 'Banco de Horas', value: data.totais.total_banco_horas, count: data.banco_horas.length },
-            { label: 'Fixo', value: data.totais.total_fixos, count: data.fixos.length },
-            { label: 'Total Geral', value: data.totais.total_geral, count: data.horistas.length + data.banco_horas.length + data.fixos.length, highlight: true },
-          ].map(card => (
-            <div key={card.label} className={`rounded-lg p-4 border ${card.highlight ? 'bg-violet-950/40 border-violet-700' : 'bg-zinc-800/40 border-zinc-700'}`}>
-              <div className="text-xs text-zinc-400 mb-1">{card.label}</div>
-              <div className={`text-lg font-bold ${card.highlight ? 'text-violet-300' : 'text-zinc-100'}`}>{formatBRL(card.value)}</div>
-              <div className="text-xs text-zinc-500 mt-0.5">{card.count} consultor{card.count !== 1 ? 'es' : ''}</div>
+  function TabHoristas() {
+    const rows = data?.horistas ?? []
+    return (
+      <div>
+        <p className="text-sm text-zinc-400 mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
+        <Table>
+          <Thead>
+            <tr>
+              <Th>Consultor</Th>
+              <Th right>H Trabalhadas</Th>
+              <Th right>Taxa/h</Th>
+              <Th right>Total</Th>
+              <Th right>Relatório</Th>
+            </tr>
+          </Thead>
+          <Tbody>
+            {rows.length === 0 && (
+              <Tr>
+                <td colSpan={5} className="py-8 text-center text-zinc-500 text-sm">
+                  Nenhum consultor horista no período
+                </td>
+              </Tr>
+            )}
+            {rows.map(c => (
+              <Tr key={c.user_id}>
+                <Td className="font-medium text-zinc-100">{c.nome}</Td>
+                <Td right className="font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</Td>
+                <Td right className="text-zinc-400">
+                  {c.rate_type === 'monthly'
+                    ? <span title={`Mensal: ${formatBRL(c.valor_hora)}`}>{formatBRL(c.effective_rate)}</span>
+                    : formatBRL(c.effective_rate)
+                  }
+                </Td>
+                <Td right className="font-semibold text-zinc-100">{formatBRL(c.total)}</Td>
+                <Td right>
+                  <RelatorioBtn userId={c.user_id} printingUser={printingUser} onClick={() => handleRelatorio(c)} />
+                </Td>
+              </Tr>
+            ))}
+            {rows.length > 0 && (
+              <Tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
+                <td colSpan={3} className="py-2 px-3 text-right font-semibold text-zinc-300 text-sm">Total</td>
+                <Td right className="font-bold text-violet-400">{formatBRL(data?.totais.total_horistas ?? 0)}</Td>
+                <Td />
+              </Tr>
+            )}
+          </Tbody>
+        </Table>
+      </div>
+    )
+  }
+
+  // ─── Tab: Banco de Horas ──────────────────────────────────────────────────
+
+  function TabBancoHoras() {
+    const rows = data?.banco_horas ?? []
+    return (
+      <div>
+        <p className="text-sm text-zinc-400 mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
+        <Table>
+          <Thead>
+            <tr>
+              <Th>Consultor</Th>
+              <Th right>Base Mensal</Th>
+              <Th right>Esperado</Th>
+              <Th right>Trabalhado</Th>
+              <Th right>Saldo Mês</Th>
+              <Th right>Acumulado</Th>
+              <Th right>H Extras</Th>
+              <Th right>Total</Th>
+              <Th right>Relatório</Th>
+            </tr>
+          </Thead>
+          <Tbody>
+            {rows.length === 0 && (
+              <Tr>
+                <td colSpan={9} className="py-8 text-center text-zinc-500 text-sm">
+                  Nenhum consultor banco de horas no período
+                </td>
+              </Tr>
+            )}
+            {rows.map(c => (
+              <Tr key={c.user_id}>
+                <Td className="font-medium text-zinc-100">{c.nome}</Td>
+                <Td right className="font-semibold text-zinc-200">{formatBRL(c.fixed_salary)}</Td>
+                <Td right className="font-mono text-zinc-400">{fmtH(c.expected_hours)}</Td>
+                <Td right className="font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</Td>
+                <Td right className={`font-mono ${balanceColor(c.month_balance)}`}>{fmtH(c.month_balance)}</Td>
+                <Td right className={`font-mono font-semibold ${balanceColor(c.accumulated_balance)}`}>{fmtH(c.accumulated_balance)}</Td>
+                <Td right className={`font-mono font-semibold ${c.horas_extras > 0 ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                  {c.horas_extras > 0 ? fmtH(c.horas_extras) : '—'}
+                </Td>
+                <Td right className="font-semibold text-zinc-100">
+                  {formatBRL(c.total)}
+                  {c.total_extra > 0 && (
+                    <div className="text-[10px] text-emerald-400 font-normal">+{formatBRL(c.total_extra)}</div>
+                  )}
+                </Td>
+                <Td right>
+                  <RelatorioBtn userId={c.user_id} printingUser={printingUser} onClick={() => handleRelatorio(c)} />
+                </Td>
+              </Tr>
+            ))}
+            {rows.length > 0 && (
+              <Tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
+                <td colSpan={7} className="py-2 px-3 text-right font-semibold text-zinc-300 text-sm">Total</td>
+                <Td right className="font-bold text-violet-400">{formatBRL(data?.totais.total_banco_horas ?? 0)}</Td>
+                <Td />
+              </Tr>
+            )}
+          </Tbody>
+        </Table>
+      </div>
+    )
+  }
+
+  // ─── Tab: Fixo ────────────────────────────────────────────────────────────
+
+  function TabFixo() {
+    const rows = (data?.fixos ?? []) as ConsultorFixo[]
+    return (
+      <div>
+        <p className="text-sm text-zinc-400 mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
+        <Table>
+          <Thead>
+            <tr>
+              <Th>Consultor</Th>
+              <Th right>H Trabalhadas</Th>
+              <Th right>Salário Mensal</Th>
+              <Th right>Relatório</Th>
+            </tr>
+          </Thead>
+          <Tbody>
+            {rows.length === 0 && (
+              <Tr>
+                <td colSpan={4} className="py-8 text-center text-zinc-500 text-sm">
+                  Nenhum consultor fixo no período
+                </td>
+              </Tr>
+            )}
+            {rows.map(c => (
+              <Tr key={c.user_id}>
+                <Td className="font-medium text-zinc-100">{c.nome}</Td>
+                <Td right className="font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</Td>
+                <Td right className="font-semibold text-zinc-100">{formatBRL(c.salario_mensal)}</Td>
+                <Td right>
+                  <RelatorioBtn userId={c.user_id} printingUser={printingUser} onClick={() => handleRelatorio(c)} />
+                </Td>
+              </Tr>
+            ))}
+            {rows.length > 0 && (
+              <Tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
+                <td colSpan={2} className="py-2 px-3 text-right font-semibold text-zinc-300 text-sm">Total</td>
+                <Td right className="font-bold text-violet-400">{formatBRL(data?.totais.total_fixos ?? 0)}</Td>
+                <Td />
+              </Tr>
+            )}
+          </Tbody>
+        </Table>
+      </div>
+    )
+  }
+
+  // ─── Tab: Resumo ──────────────────────────────────────────────────────────
+
+  function TabResumo() {
+    const t = data?.totais
+    if (!t) return null
+    const rows = [
+      { label: 'Horistas',      count: data?.horistas.length ?? 0,    total: t.total_horistas },
+      { label: 'Banco de Horas', count: data?.banco_horas.length ?? 0, total: t.total_banco_horas },
+      { label: 'Fixo',          count: data?.fixos.length ?? 0,       total: t.total_fixos },
+    ]
+    return (
+      <div className="max-w-md">
+        <div className="flex justify-end mb-3">
+          <button
+            onClick={handlePrintResumo}
+            className="inline-flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 transition-colors"
+          >
+            <Printer size={13} /> Imprimir resumo
+          </button>
+        </div>
+        <Table>
+          <Thead>
+            <tr>
+              <Th>Tipo de Vínculo</Th>
+              <Th right>Consultores</Th>
+              <Th right>Total</Th>
+            </tr>
+          </Thead>
+          <Tbody>
+            {rows.map(r => (
+              <Tr key={r.label}>
+                <Td>{r.label}</Td>
+                <Td right className="text-zinc-400">{r.count}</Td>
+                <Td right className="font-mono text-zinc-200">{formatBRL(r.total)}</Td>
+              </Tr>
+            ))}
+            <Tr className="border-t-2 border-violet-500 bg-violet-950/20">
+              <Td className="font-bold text-violet-300">Total Geral</Td>
+              <Td right className="text-violet-400">
+                {(data?.horistas.length ?? 0) + (data?.banco_horas.length ?? 0) + (data?.fixos.length ?? 0)}
+              </Td>
+              <Td right className="font-bold text-violet-300 text-base">{formatBRL(t.total_geral)}</Td>
+            </Tr>
+          </Tbody>
+        </Table>
+      </div>
+    )
+  }
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+
+  return (
+    <AppLayout title="Fechamento — Consultores">
+      <div className="space-y-6">
+
+        <PageHeader
+          icon={Users}
+          title="Fechamento de Consultores"
+          subtitle={`Custo mensal por tipo de vínculo — ${fmtYearMonth(yearMonth)}`}
+          actions={
+            <div className="flex items-center gap-3">
+              <input
+                type="month"
+                value={yearMonth}
+                onChange={e => setYearMonth(e.target.value)}
+                className="bg-zinc-800 border border-zinc-700 text-zinc-100 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
+              />
+              <Button size="sm" variant="secondary" onClick={load} disabled={loading} icon={RefreshCw} loading={loading}>
+                Atualizar
+              </Button>
             </div>
+          }
+        />
+
+        {/* Summary cards */}
+        {data && !loading && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Horistas',       value: data.totais.total_horistas,   count: data.horistas.length,    hl: false },
+              { label: 'Banco de Horas', value: data.totais.total_banco_horas, count: data.banco_horas.length, hl: false },
+              { label: 'Fixo',           value: data.totais.total_fixos,       count: data.fixos.length,       hl: false },
+              { label: 'Total Geral',    value: data.totais.total_geral,       count: data.horistas.length + data.banco_horas.length + data.fixos.length, hl: true },
+            ].map(card => (
+              <div key={card.label} className={`rounded-lg p-4 border ${card.hl ? 'bg-violet-950/40 border-violet-700' : 'bg-zinc-800/40 border-zinc-700'}`}>
+                <div className="text-xs text-zinc-400 mb-1">{card.label}</div>
+                <div className={`text-lg font-bold ${card.hl ? 'text-violet-300' : 'text-zinc-100'}`}>{formatBRL(card.value)}</div>
+                <div className="text-xs text-zinc-500 mt-0.5">{card.count} consultor{card.count !== 1 ? 'es' : ''}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="border-b border-zinc-700 flex gap-1">
+          {TABS.map(t => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                tab === t.key
+                  ? 'border-violet-500 text-violet-400'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              {t.label}
+            </button>
           ))}
         </div>
-      )}
 
-      {/* Tabs */}
-      <div className="border-b border-zinc-700 flex gap-1">
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === t.key
-                ? 'border-violet-500 text-violet-400'
-                : 'border-transparent text-zinc-500 hover:text-zinc-300'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+        {/* Content */}
+        <div className="min-h-[200px]">
+          {loading ? (
+            <SkeletonTable rows={5} cols={5} />
+          ) : !data ? (
+            <EmptyState icon={FileText} title="Nenhum dado" description="Selecione um período para visualizar o fechamento." />
+          ) : (
+            <>
+              {tab === 'horistas'    && <TabHoristas />}
+              {tab === 'banco_horas' && <TabBancoHoras />}
+              {tab === 'fixo'        && <TabFixo />}
+              {tab === 'resumo'      && <TabResumo />}
+            </>
+          )}
+        </div>
 
-      {/* Content */}
-      <div className="min-h-[200px]">
-        {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <RefreshCw size={20} className="animate-spin text-zinc-400" />
-          </div>
-        ) : !data ? null : (
-          <>
-            {tab === 'horistas'    && <TabHoristas />}
-            {tab === 'banco_horas' && <TabBancoHoras />}
-            {tab === 'fixo'        && <TabFixo />}
-            {tab === 'resumo'      && <TabResumo />}
-          </>
-        )}
       </div>
-    </div>
+    </AppLayout>
   )
 }
