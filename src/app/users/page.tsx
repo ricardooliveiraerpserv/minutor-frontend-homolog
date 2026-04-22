@@ -243,7 +243,9 @@ export default function UsersPage() {
   const [filterRole,    setFilterRole]    = useState('')
   const [page,    setPage]    = useState(1)
   const [hasNext, setHasNext] = useState(false)
-  const [viewUser,   setViewUser]   = useState<UserItem | null>(null)
+  const [viewUser,        setViewUser]        = useState<UserItem | null>(null)
+  const [rateHistory,     setRateHistory]     = useState<any[]>([])
+  const [rateHistLoading, setRateHistLoading] = useState(false)
   const [modal,      setModal]      = useState<{ open: boolean; item?: UserItem }>({ open: false })
   const [resetModal, setResetModal] = useState<{
     open: boolean
@@ -364,6 +366,16 @@ export default function UsersPage() {
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
     finally     { setSaving(false) }
   }
+
+  // Carrega histórico ao abrir viewUser
+  useEffect(() => {
+    if (!viewUser) { setRateHistory([]); return }
+    setRateHistLoading(true)
+    api.get<any>(`/users/${viewUser.id}/hourly-rate-history`)
+      .then(r => setRateHistory(r?.data ?? r?.items ?? []))
+      .catch(() => setRateHistory([]))
+      .finally(() => setRateHistLoading(false))
+  }, [viewUser?.id])
 
   const remove = (id: number) => setDeleteConfirm({ open: true, id })
 
@@ -923,6 +935,53 @@ export default function UsersPage() {
                   </div>
                 ))}
               </div>
+
+              {/* ── Histórico de alterações ── */}
+              {rateHistLoading && (
+                <p className="text-[10px] text-zinc-500 mt-4">Carregando histórico...</p>
+              )}
+              {!rateHistLoading && rateHistory.length > 0 && (
+                <div className="mt-5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Histórico de Alterações</p>
+                  <div className="rounded-lg overflow-hidden border border-zinc-800">
+                    <table className="w-full text-[10px]">
+                      <thead>
+                        <tr className="border-b border-zinc-800 bg-zinc-900">
+                          <th className="text-left px-3 py-2 text-zinc-500 font-medium">Data</th>
+                          <th className="text-left px-3 py-2 text-zinc-500 font-medium">Campo</th>
+                          <th className="text-left px-3 py-2 text-zinc-500 font-medium">De</th>
+                          <th className="text-left px-3 py-2 text-zinc-500 font-medium">Para</th>
+                          <th className="text-left px-3 py-2 text-zinc-500 font-medium">Por</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rateHistory.flatMap((h: any, i: number) => {
+                          const date = h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : '—'
+                          const by   = h.changed_by_user?.name ?? h.changed_by_name ?? '—'
+                          const rows = []
+                          const fmtRate = (v: any, t: any) => v != null ? `${new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(v))}${t === 'monthly' ? '/mês' : '/h'}` : '—'
+                          const fmtType = (v: any) => v === 'horista' ? 'Horista' : v === 'banco_de_horas' ? 'Banco de Horas' : v === 'fixo' ? 'Fixo' : v ?? '—'
+                          if (h.old_hourly_rate != null || h.new_hourly_rate != null) {
+                            rows.push({ key: `${i}-rate`, date, campo: 'Valor hora', de: fmtRate(h.old_hourly_rate, h.old_rate_type), para: fmtRate(h.new_hourly_rate, h.new_rate_type), by })
+                          }
+                          if (h.old_consultant_type || h.new_consultant_type) {
+                            rows.push({ key: `${i}-type`, date, campo: 'Tipo contrato', de: fmtType(h.old_consultant_type), para: fmtType(h.new_consultant_type), by })
+                          }
+                          return rows
+                        }).map(row => (
+                          <tr key={row.key} className="border-b border-zinc-800/50 last:border-0">
+                            <td className="px-3 py-2 text-zinc-400">{row.date}</td>
+                            <td className="px-3 py-2 text-zinc-400">{row.campo}</td>
+                            <td className="px-3 py-2 text-zinc-500">{row.de}</td>
+                            <td className="px-3 py-2 text-zinc-200 font-medium">{row.para}</td>
+                            <td className="px-3 py-2 text-zinc-500">{row.by}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2 mt-5 justify-end">
                 {canEdit && (
