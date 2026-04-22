@@ -15,7 +15,7 @@ import {
 import {
   Receipt, ChevronLeft, ChevronRight, Plus, Pencil, Trash2,
   X, Paperclip, Eye, Building2, FolderOpen, Tag,
-  CreditCard, FileText, Calendar, MoreVertical, CalendarDays, RefreshCw, DollarSign,
+  CreditCard, FileText, Calendar, MoreVertical, CalendarDays, RefreshCw, DollarSign, AlertTriangle,
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { ExpenseViewModal } from '@/components/ui/expense-view-modal'
@@ -413,6 +413,7 @@ export default function ExpensesPage() {
   const [data, setData] = useState<PaginatedResponse<Expense> | null>(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; item?: Expense }>({ open: false })
+  const [paidBlockModal, setPaidBlockModal] = useState<{ open: boolean; expense?: Expense }>({ open: false })
   const [form, setForm] = useState({
     customer_id: '', project_id: '', expense_category_id: '', expense_date: '',
     description: '', amount: '', expense_type: 'reimbursement',
@@ -615,6 +616,10 @@ export default function ExpensesPage() {
   const canEdit = (exp: Expense) => ['pending', 'rejected', 'adjustment_requested'].includes(exp.status)
 
   async function togglePaid(exp: Expense) {
+    if (!exp.is_paid && exp.status !== 'approved') {
+      setPaidBlockModal({ open: true, expense: exp })
+      return
+    }
     try {
       await api.post(`/expenses/${exp.id}/set-paid`, { is_paid: !exp.is_paid })
       toast.success(exp.is_paid ? 'Marcação removida.' : 'Despesa marcada como paga.')
@@ -1010,6 +1015,41 @@ export default function ExpensesPage() {
         onClose={() => setDeleteConfirm({ open: false })}
         onConfirm={confirmDelete}
       />
+
+      {paidBlockModal.open && (
+        <ModalOverlay onClose={() => setPaidBlockModal({ open: false })}>
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-950 flex items-center justify-center">
+                <AlertTriangle size={18} className="text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">Pagamento não permitido</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">Despesa pendente de aprovação</p>
+              </div>
+            </div>
+            <p className="text-sm text-zinc-300 mb-2">
+              Esta despesa ainda não foi aprovada e <strong className="text-white">não pode ser marcada como paga</strong>.
+            </p>
+            <p className="text-sm text-zinc-500 mb-6">
+              O pagamento só pode ser registrado após a aprovação pelo gestor responsável. Solicite a aprovação antes de efetuar o pagamento.
+            </p>
+            {paidBlockModal.expense && (
+              <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-xs text-zinc-400 space-y-1 mb-6">
+                <div><span className="text-zinc-500">Descrição:</span> {paidBlockModal.expense.description}</div>
+                <div><span className="text-zinc-500">Status atual:</span> {paidBlockModal.expense.status_display}</div>
+                <div><span className="text-zinc-500">Valor:</span> {paidBlockModal.expense.formatted_amount}</div>
+              </div>
+            )}
+            <button
+              onClick={() => setPaidBlockModal({ open: false })}
+              className="w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm text-zinc-200 transition-colors"
+            >
+              Entendi
+            </button>
+          </div>
+        </ModalOverlay>
+      )}
     </AppLayout>
   )
 }
