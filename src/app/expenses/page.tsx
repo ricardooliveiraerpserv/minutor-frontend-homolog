@@ -402,10 +402,12 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
 
 export default function ExpensesPage() {
   const { user } = useAuth()
-  const isCoordenador  = user?.type === 'coordenador'
-  const isAdmin        = user?.type === 'admin'
-  const canActAsUser   = isAdmin || isCoordenador
-  const isCliente      = user?.type === 'cliente'
+  const isCoordenador    = user?.type === 'coordenador'
+  const isAdmin          = user?.type === 'admin'
+  const isAdministrativo = user?.type === 'administrativo'
+  const canActAsUser     = isAdmin || isCoordenador
+  const isCliente        = user?.type === 'cliente'
+  const canPay           = isAdmin || isAdministrativo
 
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState('')
@@ -813,7 +815,7 @@ export default function ExpensesPage() {
                         ...(exp.receipt_url ? [
                           { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
                         ] : []),
-                        ...(isAdmin && (exp.status === 'approved' || exp.is_paid) ? [
+                        ...(canPay && (exp.status === 'approved' || exp.is_paid) ? [
                           { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
                         ] : []),
                       ]} />

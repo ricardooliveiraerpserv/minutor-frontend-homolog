@@ -277,7 +277,6 @@ function SidebarInner({ user }: { user: User }) {
         { type: 'item', label: 'Início',            href: '/dashboard',           icon: Home },
         { type: 'item', label: 'Apontamentos',      href: '/timesheets',          icon: Clock },
         { type: 'item', label: 'Despesas',          href: '/expenses',            icon: Receipt },
-        { type: 'item', label: 'Aprovações',        href: '/approvals',           icon: CheckSquare },
         { type: 'item', label: 'Kanban Contratos',  href: '/contratos/kanban',    icon: LayoutGrid },
         {
           type: 'group', label: 'Fechamento', icon: DollarSign,
@@ -296,7 +295,6 @@ function SidebarInner({ user }: { user: User }) {
           ],
         },
         { type: 'item', label: 'Usuários',     href: '/users',    icon: Users },
-        { type: 'item', label: 'Configurações', href: '/settings', icon: Settings },
       ] as NavEntry[]
     }
     if (isCliente) {

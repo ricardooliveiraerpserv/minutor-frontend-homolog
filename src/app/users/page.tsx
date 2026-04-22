@@ -352,10 +352,13 @@ export default function UsersPage() {
       }
       if (!modal.item && form.password) payload.password = form.password
 
-      if (modal.item) await api.put(`/users/${modal.item.id}`, payload)
-      else            await api.post('/users', payload)
-
-      toast.success(modal.item ? 'Usuário atualizado' : 'Usuário criado')
+      if (modal.item) {
+        await api.put(`/users/${modal.item.id}`, payload)
+        toast.success('Usuário atualizado')
+      } else {
+        await api.post('/users', payload)
+        toast.success('Usuário criado — e-mail de boas-vindas enviado com a senha de acesso')
+      }
       setModal({ open: false })
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
@@ -588,10 +591,15 @@ export default function UsersPage() {
                 </div>
                 {!modal.item && (
                   <div>
-                    <Label className="text-xs text-zinc-400">Senha</Label>
+                    <Label className="text-xs text-zinc-400">Senha inicial</Label>
                     <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                       placeholder="Deixe vazio para gerar automaticamente"
                       className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                    <p className="mt-1 text-[10px] text-zinc-500">
+                      {form.password
+                        ? 'O usuário receberá esta senha por e-mail de boas-vindas.'
+                        : 'Uma senha aleatória será gerada e enviada por e-mail ao usuário.'}
+                    </p>
                   </div>
                 )}
 

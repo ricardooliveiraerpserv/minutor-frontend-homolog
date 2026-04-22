@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   Clock, Receipt, CheckSquare, Plus, AlertTriangle,
   TrendingUp, FolderOpen, Users, X, ChevronRight,
+  DollarSign, CreditCard,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -122,6 +123,14 @@ export default function DashboardPage() {
   const [adminRecentTs,   setAdminRecentTs]   = useState<TsItem[]>([])
   const [adminLoading,    setAdminLoading]    = useState(false)
 
+  // ── Administrativo state ──
+  const [admPendingTs,     setAdmPendingTs]     = useState(0)
+  const [admPendingExp,    setAdmPendingExp]    = useState(0)
+  const [admUnpaidExp,     setAdmUnpaidExp]     = useState(0)
+  const [admValorFaturar,  setAdmValorFaturar]  = useState(0)
+  const [admValorPagar,    setAdmValorPagar]    = useState(0)
+  const [admLoading,       setAdmLoading]       = useState(false)
+
   // ── Consultant state ──
   const [todayTs,    setTodayTs]    = useState<TsItem[]>([])
   const [monthTs,    setMonthTs]    = useState<TsItem[]>([])
@@ -133,8 +142,9 @@ export default function DashboardPage() {
   const [recentExp,  setRecentExp]  = useState<ExpItem[]>([])
   const [conLoading, setConLoading] = useState(false)
 
-  const isAdmin     = user?.type === 'admin' || user?.type === 'coordenador'
-  const isConsultor = user?.type === 'consultor' || user?.type === 'parceiro_admin'
+  const isAdmin          = user?.type === 'admin' || user?.type === 'coordenador'
+  const isAdministrativo = user?.type === 'administrativo'
+  const isConsultor      = user?.type === 'consultor' || user?.type === 'parceiro_admin'
 
   // ── Load admin data ──
   useEffect(() => {
@@ -157,6 +167,31 @@ export default function DashboardPage() {
       setAdminRecentTs((m?.items ?? []).slice(0, 6))
     }).finally(() => setAdminLoading(false))
   }, [user, authLoading, isAdmin])
+
+  // ── Load administrativo data ──
+  useEffect(() => {
+    if (authLoading || !user || !isAdministrativo) return
+    const now  = new Date()
+    const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    setAdmLoading(true)
+    Promise.allSettled([
+      api.get<any>('/approvals/pending'),
+      api.get<any>('/expenses?status=approved&is_paid=false&pageSize=500'),
+      api.get<any>(`/fechamento/${yearMonth}/consolidado`),
+    ]).then(([approvals, unpaidExp, consolidado]) => {
+      const v = (r: PromiseSettledResult<any>) => r.status === 'fulfilled' ? r.value : null
+      const a = v(approvals)
+      const u = v(unpaidExp)
+      const c = v(consolidado)
+      setAdmPendingTs(a?.data?.summary?.total_timesheets ?? a?.total_timesheets ?? 0)
+      setAdmPendingExp(a?.data?.summary?.total_expenses  ?? a?.total_expenses  ?? 0)
+      setAdmUnpaidExp(sumAmt(u?.items ?? []))
+      setAdmValorFaturar(c?.data?.total_receita ?? 0)
+      setAdmValorPagar(
+        (c?.data?.total_custo_interno ?? 0) + (c?.data?.total_custo_parceiros ?? 0)
+      )
+    }).finally(() => setAdmLoading(false))
+  }, [user, authLoading, isAdministrativo])
 
   // ── Load consultant data ──
   useEffect(() => {
@@ -185,7 +220,7 @@ export default function DashboardPage() {
     }).finally(() => setConLoading(false))
   }, [user, authLoading, isConsultor])
 
-  const loading = authLoading || adminLoading || conLoading
+  const loading = authLoading || adminLoading || conLoading || admLoading
 
   // ── Computed ──
   const todayMin    = sumMin(todayTs)
@@ -211,7 +246,9 @@ export default function DashboardPage() {
               Olá, {user.name.split(' ')[0]} 👋
             </h2>
             <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
-              {isAdmin ? 'Visão operacional do sistema' : `Hoje é ${fmtDate(todayISO())} — veja o que precisa de atenção`}
+              {isAdmin          ? 'Visão operacional do sistema'
+              : isAdministrativo ? `Hoje é ${fmtDate(todayISO())} — resumo financeiro e operacional`
+              : `Hoje é ${fmtDate(todayISO())} — veja o que precisa de atenção`}
             </p>
           </div>
         )}
@@ -305,6 +342,110 @@ export default function DashboardPage() {
                 ))}
               </div>
             )}
+          </>
+        )}
+
+        {/* ══════════════════════════════════════════════ ADMINISTRATIVO ══ */}
+        {isAdministrativo && (
+          <>
+            {/* ── Alertas ── */}
+            {!admLoading && (admPendingTs > 0 || admPendingExp > 0) && (
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(234,179,8,0.2)', background: 'rgba(234,179,8,0.03)' }}>
+                <div className="px-4 py-2.5 border-b flex items-center gap-2" style={{ borderColor: 'rgba(234,179,8,0.12)' }}>
+                  <AlertTriangle size={12} className="text-yellow-400" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-yellow-400">Requer atenção</span>
+                </div>
+                {admPendingTs > 0 && (
+                  <AlertRow
+                    icon={Clock} color="#eab308"
+                    message={<><span className="font-semibold">{admPendingTs}</span> apontamento{admPendingTs !== 1 ? 's' : ''} aguardando aprovação</>}
+                    action="Ver apontamentos" href="/timesheets"
+                  />
+                )}
+                {admPendingExp > 0 && (
+                  <AlertRow
+                    icon={Receipt} color="#f97316"
+                    message={<><span className="font-semibold">{admPendingExp}</span> despesa{admPendingExp !== 1 ? 's' : ''} aguardando aprovação</>}
+                    action="Ver despesas" href="/expenses"
+                  />
+                )}
+              </div>
+            )}
+
+            {/* ── Cards de resumo ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <StatCard
+                label="Apontamentos Pendentes"
+                value={admLoading ? '—' : String(admPendingTs)}
+                sub={admLoading ? undefined : 'aguardando aprovação'}
+                loading={admLoading}
+                onClick={() => window.location.href = '/timesheets'}
+              />
+              <StatCard
+                label="Despesas Pendentes"
+                value={admLoading ? '—' : String(admPendingExp)}
+                sub={admLoading ? undefined : 'aguardando aprovação'}
+                loading={admLoading}
+                onClick={() => window.location.href = '/expenses'}
+              />
+              <StatCard
+                label="Despesas a Pagar"
+                value={admLoading ? '—' : formatBRL(admUnpaidExp)}
+                sub={admLoading ? undefined : 'aprovadas e não pagas'}
+                loading={admLoading}
+                onClick={() => window.location.href = '/expenses'}
+              />
+              <StatCard
+                label="Valor a Faturar (mês)"
+                value={admLoading ? '—' : formatBRL(admValorFaturar)}
+                sub={admLoading ? undefined : 'receita do mês atual'}
+                loading={admLoading}
+                onClick={() => window.location.href = '/fechamento'}
+              />
+            </div>
+
+            {/* ── Segunda linha: custo consultores + atalhos ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div
+                className="col-span-1 rounded-xl p-4"
+                style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+              >
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Valor a Pagar (Consultores)</p>
+                {admLoading
+                  ? <div className="h-6 w-24 rounded bg-zinc-800 animate-pulse" />
+                  : <p className="text-xl font-bold" style={{ color: 'var(--brand-text)' }}>{formatBRL(admValorPagar)}</p>
+                }
+                <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>custo de produção do mês</p>
+              </div>
+
+              <Link href="/timesheets" className="col-span-1">
+                <div
+                  className="flex items-center gap-3 rounded-xl px-4 py-4 h-full border transition-all hover:bg-white/[0.03] active:scale-[0.98]"
+                  style={{ border: '1px solid var(--brand-border)' }}
+                >
+                  <Clock size={16} style={{ color: 'var(--brand-primary)' }} />
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>Apontamentos</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>Visualizar e gerenciar</p>
+                  </div>
+                  <ChevronRight size={13} className="ml-auto" style={{ color: 'var(--brand-subtle)' }} />
+                </div>
+              </Link>
+
+              <Link href="/expenses" className="col-span-1">
+                <div
+                  className="flex items-center gap-3 rounded-xl px-4 py-4 h-full border transition-all hover:bg-white/[0.03] active:scale-[0.98]"
+                  style={{ border: '1px solid var(--brand-border)' }}
+                >
+                  <Receipt size={16} style={{ color: 'var(--brand-primary)' }} />
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>Despesas</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>Aprovar e pagar</p>
+                  </div>
+                  <ChevronRight size={13} className="ml-auto" style={{ color: 'var(--brand-subtle)' }} />
+                </div>
+              </Link>
+            </div>
           </>
         )}
 
