@@ -230,10 +230,9 @@ function HoristaPaymentSection({
 // ─── Fixo Payment Section ─────────────────────────────────────────────────────
 
 function FixoPaymentSection({
-  yearMonth, workedHours, fixedMonthly, expTotal, expPaid, proporcional, prorationRatio,
+  yearMonth, fixedMonthly, expTotal, expPaid, proporcional, prorationRatio,
 }: {
   yearMonth: string
-  workedHours: number
   fixedMonthly: number
   expTotal: number
   expPaid: number
@@ -243,61 +242,51 @@ function FixoPaymentSection({
   const expAllTotal = expTotal + expPaid
 
   return (
-    <div className="rounded-2xl p-5 space-y-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-      <div className="flex items-center gap-2 flex-wrap">
-        <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
-          Remuneração — {fmtYearMonth(yearMonth)}
-        </p>
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
+
+      {/* ESQUERDA */}
+      <div className="flex flex-col gap-2 min-w-[120px]">
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">Total a Receber</span>
+        <span className="text-[12px] text-zinc-400 font-medium">{fmtYearMonth(yearMonth)}</span>
         {proporcional && prorationRatio !== undefined && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(234,179,8,0.1)', color: '#eab308' }}>
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-medium w-fit" style={{ background: 'rgba(234,179,8,0.1)', color: '#eab308' }}>
             Proporcional {Math.round(prorationRatio * 100)}%
           </span>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Horas Trabalhadas */}
-        <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Horas Trabalhadas</p>
-          <p className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>{fmtHours(workedHours)}</p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>apontadas no período</p>
+      {/* CENTRO — valor fixo */}
+      <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8">
+        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
+          {fixedMonthly > 0 ? formatBRL(fixedMonthly) : '—'}
         </div>
-
-        {/* Valor Fixo Mensal */}
-        <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-          <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>
-            {proporcional ? 'Valor Proporcional' : 'Valor Fixo Mensal'}
-          </p>
-          <p className="text-lg font-bold" style={{ color: fixedMonthly > 0 ? 'var(--brand-text)' : 'var(--brand-muted)' }}>
-            {fixedMonthly > 0 ? formatBRL(fixedMonthly) : '—'}
-          </p>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
-            {proporcional ? `proporcional (${Math.round((prorationRatio ?? 1) * 100)}% do mês)` : 'valor do serviço mensal'}
-          </p>
-        </div>
-
+        <span className="text-[11px] text-zinc-600 mt-1">
+          {proporcional && prorationRatio !== undefined
+            ? `${Math.round(prorationRatio * 100)}% do mês (proporcional)`
+            : 'valor fixo mensal'}
+        </span>
       </div>
 
-      {/* Despesas — breakdown */}
-      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2">
+      {/* DIREITA — despesas */}
+      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2 min-w-[280px]">
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total no Mês</p>
-            <p className="text-base font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Total no Mês</p>
+            <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
               {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>reembolsos e gastos</p>
+            <p className="text-[9px] mt-0.5 text-zinc-600">reembolsos e gastos</p>
           </div>
-          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor Pago</p>
-            <p className="text-base font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>já reembolsado</p>
+          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Valor Pago</p>
+            <p className="text-sm font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-[9px] mt-0.5 text-zinc-600">já reembolsado</p>
           </div>
-          <div className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>A Receber</p>
-            <p className="text-base font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>em aberto</p>
+          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">A Receber</p>
+            <p className="text-sm font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-[9px] mt-0.5 text-zinc-600">em aberto</p>
           </div>
         </div>
       </div>
@@ -2076,44 +2065,17 @@ export default function MeuPainelPage() {
             />
           </div>
 
-          {/* Linha 2 — Despesas */}
-          <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-1">Despesas</p>
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-4 [&>*]:min-w-0">
-            <SummaryCard
-              label="Total no Mês"
-              value={formatBRL(expTotal + expPaid)}
-              sub={`${expenses.length} lançamento${expenses.length !== 1 ? 's' : ''}`}
-              icon={Receipt}
-              accent="bg-orange-500/15 text-orange-400"
-              onClick={() => setActiveTab('expenses')}
+          {/* Hero de remuneração — fixo com despesas inline */}
+          {isFixo && !isParceiroSimples && (
+            <FixoPaymentSection
+              yearMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
+              fixedMonthly={Math.round(hourlyRate * prorationRatio * 100) / 100}
+              expTotal={expTotal}
+              expPaid={expPaid}
+              proporcional={isProporcional}
+              prorationRatio={prorationRatio}
             />
-            <SummaryCard
-              label="Valor Pago"
-              value={expPaid > 0 ? formatBRL(expPaid) : '—'}
-              sub="despesas reembolsadas"
-              icon={DollarSign}
-              accent="bg-emerald-500/15 text-emerald-400"
-              onClick={() => setActiveTab('expenses')}
-            />
-            <SummaryCard
-              label="A Receber"
-              value={expTotal > 0 ? formatBRL(expTotal) : '—'}
-              sub="despesas em aberto"
-              icon={TrendingUp}
-              accent="bg-amber-500/15 text-amber-400"
-              onClick={() => setActiveTab('expenses')}
-            />
-            <SummaryCard
-              label="Despesas Pendentes"
-              value={String(notApprExp)}
-              sub={`${approvedExp} aprov. · ${rejectedExp} reprov. de ${expenses.length}`}
-              icon={Receipt}
-              accent="bg-yellow-500/15 text-yellow-400"
-              onClick={() => setActiveTab('expenses')}
-            />
-          </div>
-          </div>
+          )}
 
           {/* Recent lists */}
           <div className="grid md:grid-cols-2 gap-4">
@@ -3072,7 +3034,6 @@ export default function MeuPainelPage() {
                 {!isParceiroSimples && (
                   <FixoPaymentSection
                     yearMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
-                    workedHours={workedHours}
                     fixedMonthly={hourlyRate}
                     expTotal={expTotal}
                     expPaid={expPaid}
