@@ -860,6 +860,36 @@ function SummaryCard({
   )
 }
 
+function ExpenseBreakdownCard({ total, paid, pending, count, onClick }: {
+  total: number; paid: number; pending: number; count: number; onClick?: () => void
+}) {
+  return (
+    <div
+      onClick={onClick}
+      className={`rounded-xl p-5 border border-zinc-800 bg-zinc-900 transition-colors ${onClick ? 'cursor-pointer hover:border-zinc-600 hover:bg-zinc-800/60' : ''}`}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Total Despesas</span>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-orange-500/15 text-orange-400">
+          <Receipt size={14} />
+        </div>
+      </div>
+      <div className="text-lg font-bold text-white tracking-tight">{formatBRL(total)}</div>
+      <div className="text-xs text-zinc-500 mt-1 mb-3">{count} lançamento{count !== 1 ? 's' : ''}</div>
+      <div className="space-y-1.5 border-t border-zinc-800 pt-3">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-zinc-500">Pago</span>
+          <span className="font-semibold text-emerald-400">{formatBRL(paid)}</span>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-zinc-500">Em aberto</span>
+          <span className={`font-semibold ${pending > 0 ? 'text-amber-400' : 'text-zinc-600'}`}>{formatBRL(pending)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function MiniDonut({ services, expenses }: { services: number; expenses: number }) {
   const total = services + expenses
   const r = 20, cx = 26, cy = 26
@@ -1321,6 +1351,7 @@ export default function MeuPainelPage() {
   const [expenses,    setExpenses]   = useState<ExpenseItem[]>([])
   const [expLoading,  setExpLoading] = useState(true)
   const [expTotal,    setExpTotal]   = useState(0)
+  const [expPaid,     setExpPaid]    = useState(0)
   const [expSearch,   setExpSearch]  = useState('')
   const [expCustomer, setExpCustomer] = useState('')
   const [expProject,  setExpProject] = useState('')
@@ -1412,7 +1443,9 @@ export default function MeuPainelPage() {
       const list: ExpenseItem[] = Array.isArray(r?.items) ? r.items : []
       setExpenses(list)
       setExpHasNext(!!r?.hasNext)
-      setExpTotal(list.filter(e => !e.is_paid).reduce((acc, e) => acc + (parseFloat(String(e.amount)) || 0), 0))
+      const toNum = (e: ExpenseItem) => parseFloat(String(e.amount)) || 0
+      setExpPaid(list.filter(e => e.is_paid).reduce((acc, e) => acc + toNum(e), 0))
+      setExpTotal(list.filter(e => !e.is_paid).reduce((acc, e) => acc + toNum(e), 0))
     } catch { toast.error('Erro ao carregar despesas') }
     finally   { setExpLoading(false) }
   }, [expPage, startDate, endDate, expSearch, expCustomer, expProject, expStatus, expCategory, expDateFrom, expDateTo])
@@ -2042,12 +2075,11 @@ export default function MeuPainelPage() {
                   icon={DollarSign}
                   accent="bg-indigo-500/15 text-indigo-400"
                 />
-                <SummaryCard
-                  label="Total Despesas"
-                  value={formatBRL(expTotal)}
-                  sub={`${expenses.length} lançamento${expenses.length !== 1 ? 's' : ''}`}
-                  icon={Receipt}
-                  accent="bg-orange-500/15 text-orange-400"
+                <ExpenseBreakdownCard
+                  total={expTotal + expPaid}
+                  paid={expPaid}
+                  pending={expTotal}
+                  count={expenses.length}
                   onClick={() => setActiveTab('expenses')}
                 />
               </>
@@ -2073,12 +2105,11 @@ export default function MeuPainelPage() {
                     accent="bg-green-500/15 text-green-400"
                   />
                 )}
-                <SummaryCard
-                  label="Total Despesas"
-                  value={formatBRL(expTotal)}
-                  sub={`${expenses.length} lançamento${expenses.length !== 1 ? 's' : ''}`}
-                  icon={Receipt}
-                  accent="bg-orange-500/15 text-orange-400"
+                <ExpenseBreakdownCard
+                  total={expTotal + expPaid}
+                  paid={expPaid}
+                  pending={expTotal}
+                  count={expenses.length}
                   onClick={() => setActiveTab('expenses')}
                 />
               </>
@@ -2102,12 +2133,11 @@ export default function MeuPainelPage() {
                   icon={TrendingUp}
                   accent="bg-green-500/15 text-green-400"
                 />
-                <SummaryCard
-                  label="Total Despesas"
-                  value={formatBRL(expTotal)}
-                  sub={`${expenses.length} lançamento${expenses.length !== 1 ? 's' : ''}`}
-                  icon={Receipt}
-                  accent="bg-orange-500/15 text-orange-400"
+                <ExpenseBreakdownCard
+                  total={expTotal + expPaid}
+                  paid={expPaid}
+                  pending={expTotal}
+                  count={expenses.length}
                   onClick={() => setActiveTab('expenses')}
                 />
               </>
