@@ -2052,8 +2052,8 @@ export default function MeuPainelPage() {
             />
           )}
 
-          {/* Linha 1 — Serviços */}
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 [&>*]:min-w-0">
+          {/* Linha 1 — Serviços (oculto para parceiro simples que já tem hero) */}
+          {!isParceiroSimples && <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 [&>*]:min-w-0">
             <SummaryCard
               label="Horas no Período"
               value={minutesToHours(tsTotalMin)}
@@ -2135,7 +2135,7 @@ export default function MeuPainelPage() {
               accent="bg-purple-500/15 text-purple-400"
               onClick={() => setActiveTab('timesheets')}
             />
-          </div>
+          </div>}
 
           {/* Hero de remuneração — fixo com despesas inline */}
           {isFixo && !isParceiroSimples && (
@@ -2562,7 +2562,7 @@ export default function MeuPainelPage() {
           )}
 
           {/* ── Hero KPIs ────────────────────────────────────────────────────── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className={`grid gap-3 ${isParceiroSimples ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-4'}`}>
 
             {/* Valor Gerado */}
             {!isParceiroSimples && (
