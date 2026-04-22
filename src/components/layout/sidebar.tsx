@@ -229,10 +229,11 @@ function SidebarInner({ user }: { user: User }) {
         nav.splice(1, 0, { type: 'item', label: 'Gestão de Projetos',  href: '/gestao-projetos',    icon: Layers })
       }
 
-      // Portal de Sustentação + Kanban — somente para coordenadores do tipo "sustentacao"
+      // Portal de Sustentação + Kanban + Meu Painel — somente para coordenadores do tipo "sustentacao"
       if (user?.coordinator_type === 'sustentacao') {
-        nav.splice(1, 0, { type: 'item', label: 'Kanban Contratos', href: '/contratos/kanban', icon: LayoutGrid })
-        nav.splice(1, 0, { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao', icon: Headphones })
+        nav.splice(1, 0, { type: 'item', label: 'Kanban Contratos',      href: '/contratos/kanban', icon: LayoutGrid })
+        nav.splice(1, 0, { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',      icon: Headphones })
+        nav.splice(1, 0, { type: 'item', label: 'Meu Painel',            href: '/meu-painel',       icon: LayoutDashboard })
       }
 
       // Projetos e Usuários — opcionais via extra_permissions
