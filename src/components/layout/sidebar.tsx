@@ -135,7 +135,6 @@ const NAV: NavEntry[] = [
       { label: 'Fechado',                href: '/dashboards/fechado',             icon: CheckSquare },
     ],
   },
-  { type: 'item', label: 'Banco de Horas', href: '/hora-banco', icon: Landmark },
   {
     type: 'group',
     label: 'Fechamento',
@@ -247,8 +246,6 @@ function SidebarInner({ user }: { user: User }) {
       if (has('dashboards.on_demand.view'))          dashItems.push({ label: 'On Demand',              href: '/dashboards/on-demand',           icon: Zap })
       if (dashItems.length > 0) nav.push({ type: 'group', label: 'Dashboards', icon: BarChart2, items: dashItems })
 
-      // Banco de Horas
-      if (has('hora_banco.view')) nav.push({ type: 'item', label: 'Banco de Horas', href: '/hora-banco', icon: Landmark })
 
       // Cadastros — monta apenas os subitens concedidos
       const cadastrosItems: { label: string; href: string; icon: typeof Users }[] = []
