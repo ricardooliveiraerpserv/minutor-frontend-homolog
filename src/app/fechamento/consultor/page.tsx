@@ -568,7 +568,7 @@ export default function FechamentoConsultorPage() {
     return (
       <div className="space-y-6">
         {/* Tabela por tipo */}
-        <div className="max-w-md">
+        <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs text-zinc-500 uppercase tracking-wide font-medium">Por tipo de vínculo</p>
             <button
