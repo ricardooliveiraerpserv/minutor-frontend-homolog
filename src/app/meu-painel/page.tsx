@@ -1325,6 +1325,7 @@ const EMPTY_EXP = {
 
 export default function MeuPainelPage() {
   const { user } = useAuth()
+  const isCoordenador = user?.type === 'coordenador'
 
   // Period
   const now = new Date()
@@ -1436,6 +1437,7 @@ export default function MeuPainelPage() {
         start_date: tsDateFrom || startDate,
         end_date:   tsDateTo   || endDate,
       })
+      if (isCoordenador && user?.id) p.set('user_id', String(user.id))
       if (tsSearch)   p.set('search',      tsSearch)
       if (tsProject)  p.set('project_id',  tsProject)
       if (tsCustomer) p.set('customer_id', tsCustomer)
@@ -1446,7 +1448,7 @@ export default function MeuPainelPage() {
       setTsTotalMin(r?.totalEffortMinutes ?? 0)
     } catch { toast.error('Erro ao carregar apontamentos') }
     finally   { setTsLoading(false) }
-  }, [tsPage, startDate, endDate, tsSearch, tsProject, tsCustomer, tsStatus, tsDateFrom, tsDateTo])
+  }, [tsPage, startDate, endDate, tsSearch, tsProject, tsCustomer, tsStatus, tsDateFrom, tsDateTo, isCoordenador, user?.id])
 
   // ── Load expenses ──────────────────────────────────────────────────────────
   const loadExpenses = useCallback(async () => {
@@ -1457,6 +1459,7 @@ export default function MeuPainelPage() {
         start_date: expDateFrom || startDate,
         end_date:   expDateTo   || endDate,
       })
+      if (isCoordenador && user?.id) p.set('user_id', String(user.id))
       if (expSearch)   p.set('search',      expSearch)
       if (expCustomer)  p.set('customer_id',  expCustomer)
       if (expProject)   p.set('project_id',   expProject)
@@ -1471,7 +1474,7 @@ export default function MeuPainelPage() {
       setExpTotal(list.filter(e => !e.is_paid).reduce((acc, e) => acc + toNum(e), 0))
     } catch { toast.error('Erro ao carregar despesas') }
     finally   { setExpLoading(false) }
-  }, [expPage, startDate, endDate, expSearch, expCustomer, expProject, expStatus, expCategory, expDateFrom, expDateTo])
+  }, [expPage, startDate, endDate, expSearch, expCustomer, expProject, expStatus, expCategory, expDateFrom, expDateTo, isCoordenador, user?.id])
 
   const hasTsFilters = !!(tsSearch || tsCustomer || tsProject || tsStatus || tsDateFrom || tsDateTo)
   const hasExpFilters = !!(expSearch || expCustomer || expProject || expStatus || expCategory || expDateFrom || expDateTo)
