@@ -401,33 +401,26 @@ export default function FechamentoClientePage() {
 
           {/* ── Tab Visão Global ── */}
           {tab === 'global' && (() => {
-            if (loadingGlobal && clientes.length === 0) return <SkeletonTable rows={6} cols={4} />
-            if (clientes.length === 0) {
+            if (loadingGlobal) return <SkeletonTable rows={6} cols={4} />
+            const onDemand = globalData?.tipos.find(t => t.code === 'on_demand')
+            const lista    = onDemand?.clientes ?? []
+            if (lista.length === 0) {
               return (
-                <EmptyState icon={Building2} title="Sem clientes On Demand"
-                  description="Nenhum cliente com contrato On Demand encontrado." />
+                <EmptyState icon={Building2} title="Sem movimento no período"
+                  description="Nenhum cliente com apontamentos aprovados em contratos On Demand no período selecionado." />
               )
             }
-            // Mapa de totais calculados (do /fechamento-contrato — só clientes com timesheets aprovados)
-            const onDemandGlobal = globalData?.tipos.find(t => t.code === 'on_demand')
-            const byId = new Map<number, ClienteGlobal>(
-              onDemandGlobal?.clientes.map(c => [c.customer_id, c]) ?? []
-            )
-            const totalHoras    = onDemandGlobal?.total_horas ?? 0
-            const totalReceita  = onDemandGlobal?.total_receita ?? 0
-            const comMovimento  = byId.size
+            const totalHoras   = onDemand!.total_horas
+            const totalReceita = onDemand!.total_receita
+            // Enriquece com status de fechamento (da lista de clientes já carregada)
+            const statusMap = new Map(clientes.map(c => [c.customer_id, c.status]))
             return (
               <div>
                 {/* Cards de resumo */}
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Total de Clientes</div>
-                    <div className="text-2xl font-bold" style={{ color: 'var(--brand-text)' }}>{clientes.length}</div>
-                    {comMovimento > 0 && (
-                      <div className="text-xs mt-1" style={{ color: 'var(--brand-muted)' }}>
-                        {comMovimento} com movimento no período
-                      </div>
-                    )}
+                    <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Clientes com movimento</div>
+                    <div className="text-2xl font-bold" style={{ color: 'var(--brand-text)' }}>{lista.length}</div>
                   </div>
                   <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                     <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Horas Aprovadas</div>
@@ -443,7 +436,7 @@ export default function FechamentoClientePage() {
                   </div>
                 </div>
 
-                {/* Tabela: todos os clientes (com totais do /fechamento-contrato onde disponível) */}
+                {/* Tabela apenas com quem tem movimento */}
                 <Table>
                   <Thead>
                     <tr>
@@ -454,8 +447,8 @@ export default function FechamentoClientePage() {
                     </tr>
                   </Thead>
                   <Tbody>
-                    {clientes.map(c => {
-                      const g = byId.get(c.customer_id)
+                    {lista.map(c => {
+                      const st = statusMap.get(c.customer_id)
                       return (
                         <tr
                           key={c.customer_id}
@@ -470,18 +463,18 @@ export default function FechamentoClientePage() {
                             </div>
                           </td>
                           <td className="px-5 py-3">
-                            {c.status === 'closed'
+                            {st === 'closed'
                               ? <Badge variant="success"><Lock size={10} className="mr-1" />Fechado</Badge>
-                              : c.status === 'open'
+                              : st === 'open'
                               ? <Badge variant="warning">Aberto</Badge>
-                              : <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>—</span>
+                              : <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>Aberto</span>
                             }
                           </td>
-                          <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: g ? 'var(--brand-text)' : 'var(--brand-muted)' }}>
-                            {g ? `${g.total_horas.toFixed(2)}h` : '—'}
+                          <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: 'var(--brand-text)' }}>
+                            {c.total_horas.toFixed(2)}h
                           </td>
-                          <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: g ? 'var(--brand-primary)' : 'var(--brand-muted)' }}>
-                            {g ? formatBRL(g.total_receita) : '—'}
+                          <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                            {formatBRL(c.total_receita)}
                           </td>
                         </tr>
                       )
@@ -489,20 +482,18 @@ export default function FechamentoClientePage() {
                   </Tbody>
                 </Table>
 
-                {/* Rodapé total */}
-                {totalReceita > 0 && (
-                  <div className="flex justify-end pt-4">
-                    <div className="px-5 py-3 rounded-xl"
-                      style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                      <span className="text-sm font-semibold mr-4" style={{ color: 'var(--brand-muted)' }}>
-                        {totalHoras.toFixed(2)}h · Total On Demand
-                      </span>
-                      <span className="text-base font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
-                        {formatBRL(totalReceita)}
-                      </span>
-                    </div>
+                {/* Rodapé */}
+                <div className="flex justify-end pt-4">
+                  <div className="px-5 py-3 rounded-xl"
+                    style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                    <span className="text-sm font-semibold mr-4" style={{ color: 'var(--brand-muted)' }}>
+                      {totalHoras.toFixed(2)}h · Total On Demand
+                    </span>
+                    <span className="text-base font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+                      {formatBRL(totalReceita)}
+                    </span>
                   </div>
-                )}
+                </div>
               </div>
             )
           })()}
