@@ -1701,7 +1701,7 @@ function KanbanContent() {
                       )}
 
                       {/* Column */}
-                      <div className="flex flex-col rounded-2xl shrink-0" style={{
+                      <div className="flex flex-col rounded-2xl shrink-0 h-full" style={{
                         width: 264,
                         background: isStatusCol ? `${col.color}05`
                           : isSust   ? `${col.color}04`
