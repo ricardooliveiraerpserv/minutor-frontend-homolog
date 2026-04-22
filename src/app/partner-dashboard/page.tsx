@@ -807,7 +807,7 @@ export default function PartnerDashboardPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                    {['Consultor', 'Data', 'Projeto', 'Descrição', 'Valor', 'Status', ''].map((h, i) => (
+                    {['Consultor', 'Data', 'Projeto', 'Descrição', 'Valor', 'Status', 'Pagamento', ''].map((h, i) => (
                       <th key={i} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
                     ))}
                   </tr>
@@ -870,6 +870,12 @@ export default function PartnerDashboardPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
+                          {e.is_paid
+                            ? <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/20 text-emerald-400">Pago</span>
+                            : <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/20 text-amber-400">Em aberto</span>
+                          }
+                        </td>
+                        <td className="px-4 py-3">
                           <RowMenu
                             isOwn={canEditExp}
                             onView={() => openExpenseModal(e.id)}
@@ -885,9 +891,9 @@ export default function PartnerDashboardPage() {
                     <tr style={{ borderTop: '2px solid var(--brand-border)', background: 'rgba(34,197,94,0.04)' }}>
                       <td colSpan={4} className="px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total</td>
                       <td className="px-4 py-3 font-bold tabular-nums" style={{ color: '#22c55e' }}>
-                        {formatBRL(expenses.reduce((s, e) => s + e.amount, 0))}
+                        {formatBRL(expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0))}
                       </td>
-                      <td colSpan={2} />
+                      <td colSpan={3} />
                     </tr>
                   </tfoot>
                 )}
