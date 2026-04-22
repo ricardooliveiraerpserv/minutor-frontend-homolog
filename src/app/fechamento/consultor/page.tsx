@@ -32,6 +32,10 @@ interface ConsultorBancoHoras extends ConsultorBase {
   accumulated_balance: number
   paid_hours: number
   final_balance: number
+  fixed_salary: number
+  valor_hora_extra: number
+  horas_extras: number
+  total_extra: number
 }
 
 interface ConsultorFixo extends ConsultorBase {
@@ -229,9 +233,9 @@ export default function FechamentoConsultorPage() {
       html += `<div class="consultor-block">
         <div class="consultor-name">${c.nome}</div>
         <div class="consultor-summary">
-          Dias úteis: ${c.working_days} &nbsp;|&nbsp; Esperado: ${fmtH(c.expected_hours)} &nbsp;|&nbsp; Trabalhado: ${fmtH(c.horas_trabalhadas)} &nbsp;|&nbsp;
-          Saldo mês: ${fmtH(c.month_balance)} &nbsp;|&nbsp; Saldo anterior: ${fmtH(c.previous_balance)} &nbsp;|&nbsp;
-          Acumulado: ${fmtH(c.accumulated_balance)} &nbsp;|&nbsp; <strong>H a pagar: ${fmtH(c.paid_hours)}</strong> &nbsp;|&nbsp; Total: ${formatBRL(c.total)}
+          Base mensal: ${formatBRL(c.fixed_salary)} &nbsp;|&nbsp; Dias úteis: ${c.working_days} &nbsp;|&nbsp; Esperado: ${fmtH(c.expected_hours)} &nbsp;|&nbsp; Trabalhado: ${fmtH(c.horas_trabalhadas)} &nbsp;|&nbsp;
+          Saldo mês: ${fmtH(c.month_balance)} &nbsp;|&nbsp; Acumulado: ${fmtH(c.accumulated_balance)} &nbsp;|&nbsp;
+          H extras: ${fmtH(c.horas_extras)} × ${formatBRL(c.valor_hora_extra)} = ${formatBRL(c.total_extra)} &nbsp;|&nbsp; <strong>Total: ${formatBRL(c.total)}</strong>
         </div>
         <table><thead><tr><th>Data</th><th>Projeto</th><th>Cliente</th><th>Tipo</th><th>Ticket</th><th class="right">Horas</th></tr></thead><tbody>${buildApontamentosTableRows(apts)}</tbody></table>
       </div>`
@@ -395,13 +399,13 @@ export default function FechamentoConsultorPage() {
               <tr className="border-b border-zinc-700 text-zinc-400 text-xs uppercase tracking-wide">
                 <th className="text-left py-2 px-3 font-medium w-8"></th>
                 <th className="text-left py-2 px-3 font-medium">Consultor</th>
+                <th className="text-right py-2 px-3 font-medium">Base Mensal</th>
                 <th className="text-right py-2 px-3 font-medium">Esperado</th>
                 <th className="text-right py-2 px-3 font-medium">Trabalhado</th>
                 <th className="text-right py-2 px-3 font-medium">Saldo mês</th>
-                <th className="text-right py-2 px-3 font-medium">Saldo ant.</th>
                 <th className="text-right py-2 px-3 font-medium">Acumulado</th>
-                <th className="text-right py-2 px-3 font-medium">H a pagar</th>
-                <th className="text-right py-2 px-3 font-medium">Taxa/h</th>
+                <th className="text-right py-2 px-3 font-medium">H Extras</th>
+                <th className="text-right py-2 px-3 font-medium">Taxa h.extra</th>
                 <th className="text-right py-2 px-3 font-medium">Total</th>
               </tr>
             </thead>
@@ -420,14 +424,23 @@ export default function FechamentoConsultorPage() {
                       {expandedUser === c.user_id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </td>
                     <td className="py-2 px-3 font-medium text-zinc-100">{c.nome}</td>
+                    <td className="py-2 px-3 text-right font-semibold text-zinc-200">{formatBRL(c.fixed_salary)}</td>
                     <td className="py-2 px-3 text-right font-mono text-zinc-400">{fmtH(c.expected_hours)}</td>
                     <td className="py-2 px-3 text-right font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</td>
                     <td className={`py-2 px-3 text-right font-mono ${balanceColor(c.month_balance)}`}>{fmtH(c.month_balance)}</td>
-                    <td className={`py-2 px-3 text-right font-mono ${balanceColor(c.previous_balance)}`}>{fmtH(c.previous_balance)}</td>
                     <td className={`py-2 px-3 text-right font-mono font-semibold ${balanceColor(c.accumulated_balance)}`}>{fmtH(c.accumulated_balance)}</td>
-                    <td className="py-2 px-3 text-right font-mono text-emerald-400 font-semibold">{fmtH(c.paid_hours)}</td>
-                    <td className="py-2 px-3 text-right text-zinc-400">{formatBRL(c.effective_rate)}</td>
-                    <td className="py-2 px-3 text-right font-semibold text-zinc-100">{formatBRL(c.total)}</td>
+                    <td className={`py-2 px-3 text-right font-mono font-semibold ${c.horas_extras > 0 ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                      {c.horas_extras > 0 ? fmtH(c.horas_extras) : '—'}
+                    </td>
+                    <td className="py-2 px-3 text-right text-zinc-400 text-xs">
+                      {c.valor_hora_extra > 0 ? formatBRL(c.valor_hora_extra) : '—'}
+                    </td>
+                    <td className="py-2 px-3 text-right font-semibold text-zinc-100">
+                      {formatBRL(c.total)}
+                      {c.total_extra > 0 && (
+                        <div className="text-[10px] text-emerald-400 font-normal">+{formatBRL(c.total_extra)} extras</div>
+                      )}
+                    </td>
                   </tr>
                   {expandedUser === c.user_id && <ApontamentosExpanded userId={c.user_id} />}
                 </>
