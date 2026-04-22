@@ -8,7 +8,7 @@ import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
-import { Lock, RefreshCw, Building2, Printer, FileText, Receipt, ChevronRight } from 'lucide-react'
+import { Lock, RefreshCw, Building2, Printer, FileText, Receipt, ChevronRight, ChevronDown } from 'lucide-react'
 import {
   Table, Thead, Th, Tbody, Tr, Td,
   Badge, Button, SkeletonTable, EmptyState,
@@ -128,8 +128,9 @@ export default function FechamentoClientePage() {
   const [tab, setTab]               = useState<Tab>('servicos')
 
   // ── Dados ──
-  const [globalData,    setGlobalData]    = useState<GlobalData | null>(null)
-  const [loadingGlobal, setLoadingGlobal] = useState(false)
+  const [globalData,      setGlobalData]      = useState<GlobalData | null>(null)
+  const [loadingGlobal,   setLoadingGlobal]   = useState(false)
+  const [expandedClients, setExpandedClients] = useState<Set<number>>(new Set())
 
   const [dados,    setDados]    = useState<ApontamentosData | null>(null)
   const [despesas, setDespesas] = useState<DespesaRow[]>([])
@@ -242,6 +243,13 @@ export default function FechamentoClientePage() {
     window.print()
     setTimeout(() => document.body.removeAttribute('data-print'), 500)
   }
+
+  // ── Toggle expansão de cliente na visão global ──
+  const toggleClient = (id: number) => setExpandedClients(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
 
   // ── Derivados ──
 
@@ -440,7 +448,7 @@ export default function FechamentoClientePage() {
                 <Table>
                   <Thead>
                     <tr>
-                      <Th>Cliente</Th>
+                      <Th>Cliente / Projeto</Th>
                       <Th>Status</Th>
                       <Th right>Horas</Th>
                       <Th right>Total Serviços</Th>
@@ -448,35 +456,67 @@ export default function FechamentoClientePage() {
                   </Thead>
                   <Tbody>
                     {lista.map(c => {
-                      const st = statusMap.get(c.customer_id)
+                      const st       = statusMap.get(c.customer_id)
+                      const expanded = expandedClients.has(c.customer_id)
+                      const hasMult  = c.projetos.length > 1
                       return (
-                        <tr
-                          key={c.customer_id}
-                          style={{ cursor: 'pointer' }}
-                          className="border-b transition-colors hover:bg-white/5"
-                          onClick={() => { setCustomerId(c.customer_id); setTab('servicos') }}
-                        >
-                          <td className="px-5 py-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
-                            <div className="flex items-center gap-2">
-                              <ChevronRight size={14} style={{ color: 'var(--brand-muted)' }} />
-                              {c.nome}
-                            </div>
-                          </td>
-                          <td className="px-5 py-3">
-                            {st === 'closed'
-                              ? <Badge variant="success"><Lock size={10} className="mr-1" />Fechado</Badge>
-                              : st === 'open'
-                              ? <Badge variant="warning">Aberto</Badge>
-                              : <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>Aberto</span>
-                            }
-                          </td>
-                          <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: 'var(--brand-text)' }}>
-                            {c.total_horas.toFixed(2)}h
-                          </td>
-                          <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--brand-primary)' }}>
-                            {formatBRL(c.total_receita)}
-                          </td>
-                        </tr>
+                        <>
+                          {/* Linha do cliente */}
+                          <tr
+                            key={c.customer_id}
+                            style={{ cursor: 'pointer' }}
+                            className="border-b transition-colors hover:bg-white/5"
+                            onClick={() => hasMult ? toggleClient(c.customer_id) : (setCustomerId(c.customer_id), setTab('servicos'))}
+                          >
+                            <td className="px-5 py-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+                              <div className="flex items-center gap-2">
+                                {hasMult
+                                  ? (expanded ? <ChevronDown size={14} style={{ color: 'var(--brand-muted)' }} /> : <ChevronRight size={14} style={{ color: 'var(--brand-muted)' }} />)
+                                  : <ChevronRight size={14} style={{ color: 'var(--brand-muted)' }} />
+                                }
+                                <span>{c.nome}</span>
+                                {!hasMult && c.projetos[0] && (
+                                  <span className="text-xs font-normal" style={{ color: 'var(--brand-muted)' }}>
+                                    — {c.projetos[0].nome}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-5 py-3">
+                              {st === 'closed'
+                                ? <Badge variant="success"><Lock size={10} className="mr-1" />Fechado</Badge>
+                                : <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>Aberto</span>
+                              }
+                            </td>
+                            <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: 'var(--brand-text)' }}>
+                              {c.total_horas.toFixed(2)}h
+                            </td>
+                            <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                              {formatBRL(c.total_receita)}
+                            </td>
+                          </tr>
+                          {/* Linhas dos projetos (expandido ou multi-projeto) */}
+                          {(expanded || hasMult) && hasMult && c.projetos.map(p => (
+                            <tr
+                              key={`${c.customer_id}-${p.projeto_id}`}
+                              style={{ cursor: 'pointer' }}
+                              className="border-b transition-colors hover:bg-white/5"
+                              onClick={() => { setCustomerId(c.customer_id); setTab('servicos') }}
+                            >
+                              <td className="py-2.5 text-xs" style={{ color: 'var(--brand-muted)', paddingLeft: '2.75rem' }}>
+                                {p.nome}
+                                <span className="ml-2 opacity-60">{p.codigo}</span>
+                              </td>
+                              <td />
+                              <td className="px-5 py-2.5 text-right tabular-nums text-xs" style={{ color: 'var(--brand-muted)' }}>
+                                {p.horas.toFixed(2)}h
+                              </td>
+                              <td className="px-5 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: 'var(--brand-primary)' }}>
+                                {formatBRL(p.total_receita)}
+                              </td>
+                            </tr>
+                          ))}
+                        </>
                       )
                     })}
                   </Tbody>
