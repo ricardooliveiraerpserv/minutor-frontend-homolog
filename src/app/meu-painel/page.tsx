@@ -2212,6 +2212,10 @@ export default function MeuPainelPage() {
                           <div className="flex items-center gap-2.5 shrink-0">
                             <span className="text-xs font-semibold text-zinc-300">{exp.formatted_amount}</span>
                             <StatusBadge status={exp.status} display={exp.status_display} />
+                            {exp.is_paid
+                              ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">Pago</span>
+                              : exp.status === 'approved' && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-amber-400">Em aberto</span>
+                            }
                           </div>
                         </div>
                       ))
@@ -2484,7 +2488,13 @@ export default function MeuPainelPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
-                        <StatusBadge status={exp.status} display={exp.status_display} />
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <StatusBadge status={exp.status} display={exp.status_display} />
+                          {exp.is_paid
+                            ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-zinc-700 text-zinc-400">Pago</span>
+                            : exp.status === 'approved' && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-amber-400">Em aberto</span>
+                          }
+                        </div>
                       </td>
                       <td className="px-4 py-3.5 w-10">
                         <RowMenu items={[
