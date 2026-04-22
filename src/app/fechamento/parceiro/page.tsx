@@ -56,6 +56,9 @@ interface ApontamentoRow {
   user_id: number
   consultor: string
   projeto: string
+  projeto_codigo: string
+  tipo_contrato_code: string
+  tipo_contrato_nome: string
   horas: number
   status: string
   ticket?: string
@@ -131,6 +134,7 @@ export default function FechamentoParceiroPage() {
   const [filterConsultor, setFilterConsultor] = useState<number | ''>('')
   const [filterApStatus,  setFilterApStatus]  = useState<string>('')
   const [filterApConsultor, setFilterApConsultor] = useState<number | ''>('')
+  const [consultorView, setConsultorView] = useState<'resumo' | 'tipo'>('resumo')
 
   // ─── Carregamento de dados ────────────────────────────────────────────────
 
@@ -196,7 +200,7 @@ export default function FechamentoParceiroPage() {
 
   useEffect(() => {
     if (!partnerId || !yearMonth) return
-    if (tab === 'consultores')  loadConsultores()
+    if (tab === 'consultores')  { loadConsultores(); if (!apontamentos.length) loadApontamentos() }
     if (tab === 'despesas')     loadDespesas()
     if (tab === 'apontamentos') loadApontamentos()
     if (tab === 'resumo' || tab === 'relatorio') {
@@ -286,44 +290,57 @@ export default function FechamentoParceiroPage() {
     const competencia = yearMonth ? fmtYearMonth(yearMonth).replace('/', ' / ') : '—'
     const tipoPrec = isFixed ? `Precificação Fixa — Taxa: ${formatBRL(status.hourly_rate)}/h` : 'Precificação Variável'
 
-    // Agrupa apontamentos por consultor
-    const porConsultor = new Map<number, { consultor: string; taxa: number; horas: number; total: number; rows: ApontamentoRow[] }>()
+    // Agrupa apontamentos: tipo de contrato → consultor
+    const tipoMapPrint = new Map<string, { nome: string; consultores: Map<number, { consultor: string; taxa: number; horas: number; total: number; rows: ApontamentoRow[] }> }>()
     apontamentos.forEach(a => {
-      if (!porConsultor.has(a.user_id)) {
+      if (!tipoMapPrint.has(a.tipo_contrato_code)) tipoMapPrint.set(a.tipo_contrato_code, { nome: a.tipo_contrato_nome, consultores: new Map() })
+      const tipo = tipoMapPrint.get(a.tipo_contrato_code)!
+      if (!tipo.consultores.has(a.user_id)) {
         const c = consultores.find(c => c.user_id === a.user_id)
-        porConsultor.set(a.user_id, { consultor: a.consultor, taxa: c?.valor_hora ?? 0, horas: 0, total: 0, rows: [] })
+        tipo.consultores.set(a.user_id, { consultor: a.consultor, taxa: c?.valor_hora ?? 0, horas: 0, total: 0, rows: [] })
       }
-      const entry = porConsultor.get(a.user_id)!
+      const entry = tipo.consultores.get(a.user_id)!
       entry.rows.push(a)
       entry.horas += a.horas
-      entry.total += a.horas * (entry.taxa)
+      entry.total += a.horas * entry.taxa
     })
 
-    const sectionsHtml = Array.from(porConsultor.values()).map(({ consultor, taxa, horas, total, rows }) => {
-      const rowsHtml = rows.map(r => `
-        <tr>
-          <td>${new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-          <td>${r.projeto}</td>
-          <td>${r.solicitante ?? '—'}</td>
-          <td>${r.ticket ?? '0'}</td>
-          <td>${r.titulo ?? '—'}</td>
-          <td>${r.observacao ?? '—'}</td>
-          <td class="right">${r.horas.toFixed(2)}h</td>
-        </tr>`).join('')
+    const sectionsHtml = Array.from(tipoMapPrint.entries()).map(([, { nome, consultores: consMap }]) => {
+      const tipoHoras = Array.from(consMap.values()).reduce((s, c) => s + c.horas, 0)
+      const tipoTotal = Array.from(consMap.values()).reduce((s, c) => s + c.total, 0)
+
+      const consultoresHtml = Array.from(consMap.values()).map(({ consultor, taxa, horas, total, rows }) => {
+        const rowsHtml = rows.map(r => `
+          <tr>
+            <td>${new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+            <td>${r.projeto}</td>
+            <td>${r.solicitante ?? '—'}</td>
+            <td>${r.ticket ?? '0'}</td>
+            <td>${r.titulo ?? '—'}</td>
+            <td>${r.observacao ?? '—'}</td>
+            <td class="right">${r.horas.toFixed(2)}h</td>
+          </tr>`).join('')
+        return `
+          <div style="margin-bottom:16px">
+            <div class="section-header">
+              <div><span class="section-title" style="font-size:13px">${consultor}</span></div>
+              <div class="section-rate">Valor/hora: <b>${formatBRL(taxa)}/h</b></div>
+            </div>
+            <table>
+              <thead><tr><th>Data</th><th>Projeto</th><th>Solicitante</th><th>Ticket</th><th>Título</th><th>Descrição</th><th class="right">Horas</th></tr></thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+            <div class="section-footer">${horas.toFixed(2)}h × ${formatBRL(taxa)}/h = <b>${formatBRL(Math.round(total * 100) / 100)}</b></div>
+          </div>`
+      }).join('')
 
       return `
-        <div class="section">
-          <div class="section-header">
-            <div><span class="section-title">${consultor}</span></div>
-            <div class="section-rate">Valor/hora: <b>${formatBRL(taxa)}/h</b></div>
+        <div class="section" style="margin-bottom:24px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #7c3aed;padding-bottom:6px;margin-bottom:14px">
+            <span style="font-size:16px;font-weight:700;color:#111">${nome}</span>
+            <span style="font-size:11px;color:#6b7280">${tipoHoras.toFixed(2)}h · <b style="color:#7c3aed">${formatBRL(tipoTotal)}</b></span>
           </div>
-          <table>
-            <thead>
-              <tr><th>Data</th><th>Projeto</th><th>Solicitante</th><th>Ticket</th><th>Título</th><th>Descrição</th><th class="right">Horas</th></tr>
-            </thead>
-            <tbody>${rowsHtml}</tbody>
-          </table>
-          <div class="section-footer">${horas.toFixed(2)}h × ${formatBRL(taxa)}/h = <b>${formatBRL(Math.round(total * 100) / 100)}</b></div>
+          ${consultoresHtml}
         </div>
         <hr class="divider"/>`
     }).join('')
@@ -582,72 +599,137 @@ export default function FechamentoParceiroPage() {
               {/* ── Tab Consultores ── */}
               {tab === 'consultores' && (
                 <div className="p-6">
-                  {/* Filtro de consultor */}
-                  {consultores.length > 1 && (
-                    <div className="flex items-center gap-2 mb-4">
-                      <Filter size={14} style={{ color: 'var(--brand-muted)' }} />
-                      <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>Filtrar:</span>
-                      <SearchSelect
-                        value={filterConsultor}
-                        onChange={v => setFilterConsultor(v ? Number(v) : '')}
-                        options={consultorOptions}
-                        placeholder="Todos os consultores"
-                      />
-                      {filterConsultor && (
-                        <button
-                          className="text-xs underline"
-                          style={{ color: 'var(--brand-muted)' }}
-                          onClick={() => setFilterConsultor('')}
-                        >
-                          Limpar
-                        </button>
+                  {/* Toggle de visão */}
+                  <div className="flex items-center gap-2 mb-5">
+                    {(['resumo', 'tipo'] as const).map(v => (
+                      <button key={v} onClick={() => setConsultorView(v)}
+                        className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                        style={{
+                          background: consultorView === v ? 'var(--brand-primary)' : 'var(--brand-surface)',
+                          color: consultorView === v ? '#000' : 'var(--brand-muted)',
+                          border: '1px solid var(--brand-border)',
+                        }}
+                      >
+                        {v === 'resumo' ? 'Resumo por Consultor' : 'Por Tipo de Contrato'}
+                      </button>
+                    ))}
+
+                    {consultorView === 'resumo' && consultores.length > 1 && (
+                      <div className="flex items-center gap-2 ml-4">
+                        <Filter size={13} style={{ color: 'var(--brand-muted)' }} />
+                        <SearchSelect value={filterConsultor} onChange={v => setFilterConsultor(v ? Number(v) : '')} options={consultorOptions} placeholder="Todos" />
+                        {filterConsultor && <button className="text-xs underline" style={{ color: 'var(--brand-muted)' }} onClick={() => setFilterConsultor('')}>Limpar</button>}
+                      </div>
+                    )}
+                  </div>
+
+                  {loadingConsult || (consultorView === 'tipo' && loadingAp) ? (
+                    <SkeletonTable rows={4} cols={4} />
+                  ) : consultorView === 'resumo' ? (
+                    <>
+                      {filteredConsultores.length === 0 ? (
+                        <EmptyState icon={Handshake} title="Sem consultores" description="Nenhum consultor com apontamentos neste período." />
+                      ) : (
+                        <Table>
+                          <Thead>
+                            <tr><Th>Consultor</Th><Th right>Horas</Th><Th right>Taxa/h</Th><Th right>Total</Th></tr>
+                          </Thead>
+                          <Tbody>
+                            {filteredConsultores.map(row => (
+                              <Tr key={row.user_id}>
+                                <Td>
+                                  <div className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>{row.nome}</div>
+                                  {row.rate_type === 'monthly' && !isFixed && (
+                                    <div className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Mensalista · ÷180</div>
+                                  )}
+                                </Td>
+                                <Td right className="tabular-nums text-xs">{row.horas.toFixed(2)}h</Td>
+                                <Td right className="tabular-nums text-xs">{formatBRL(row.valor_hora)}/h</Td>
+                                <Td right className="tabular-nums text-sm font-semibold" style={{ color: 'var(--brand-primary)' }}>{formatBRL(row.total)}</Td>
+                              </Tr>
+                            ))}
+                          </Tbody>
+                        </Table>
                       )}
-                    </div>
+                      {filteredConsultores.length > 0 && (
+                        <div className="mt-4 flex justify-between items-center">
+                          <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>Total: <b>{filteredConsultores.reduce((s, c) => s + c.horas, 0).toFixed(2)}h</b></span>
+                          <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'rgba(0,245,255,0.07)', color: 'var(--brand-primary)' }}>
+                            Total Serviços: {formatBRL(filteredConsultores.reduce((s, c) => s + c.total, 0))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* ── Visão Por Tipo de Contrato ── */
+                    (() => {
+                      // Agrupa apontamentos: tipo → consultor → {horas, total}
+                      const tipoMap = new Map<string, { nome: string; consultores: Map<number, { user_id: number; consultor: string; taxa: number; horas: number; total: number }> }>()
+                      apontamentos.forEach(a => {
+                        if (!tipoMap.has(a.tipo_contrato_code)) {
+                          tipoMap.set(a.tipo_contrato_code, { nome: a.tipo_contrato_nome, consultores: new Map() })
+                        }
+                        const tipo = tipoMap.get(a.tipo_contrato_code)!
+                        if (!tipo.consultores.has(a.user_id)) {
+                          const c = consultores.find(c => c.user_id === a.user_id)
+                          tipo.consultores.set(a.user_id, { user_id: a.user_id, consultor: a.consultor, taxa: c?.valor_hora ?? 0, horas: 0, total: 0 })
+                        }
+                        const entry = tipo.consultores.get(a.user_id)!
+                        entry.horas += a.horas
+                        entry.total += a.horas * entry.taxa
+                      })
+
+                      if (tipoMap.size === 0) return <EmptyState icon={Handshake} title="Sem apontamentos" description="Nenhum apontamento no período." />
+
+                      return (
+                        <div className="space-y-8">
+                          {Array.from(tipoMap.entries()).map(([code, { nome, consultores: consMap }]) => {
+                            const rows = Array.from(consMap.values())
+                            const tipoHoras = rows.reduce((s, r) => s + r.horas, 0)
+                            const tipoTotal = rows.reduce((s, r) => s + r.total, 0)
+                            return (
+                              <div key={code}>
+                                {/* Header do tipo */}
+                                <div className="flex items-center justify-between mb-3 pb-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{nome}</span>
+                                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>{code}</span>
+                                  </div>
+                                  <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                                    {tipoHoras.toFixed(2)}h · <b style={{ color: 'var(--brand-primary)' }}>{formatBRL(tipoTotal)}</b>
+                                  </span>
+                                </div>
+                                <Table>
+                                  <Thead>
+                                    <tr><Th>Consultor</Th><Th right>Horas</Th><Th right>Taxa/h</Th><Th right>Total</Th></tr>
+                                  </Thead>
+                                  <Tbody>
+                                    {rows.map(r => (
+                                      <Tr key={r.user_id}>
+                                        <Td className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>{r.consultor}</Td>
+                                        <Td right className="tabular-nums text-xs">{r.horas.toFixed(2)}h</Td>
+                                        <Td right className="tabular-nums text-xs">{formatBRL(r.taxa)}/h</Td>
+                                        <Td right className="tabular-nums text-sm font-semibold" style={{ color: 'var(--brand-primary)' }}>{formatBRL(Math.round(r.total * 100) / 100)}</Td>
+                                      </Tr>
+                                    ))}
+                                  </Tbody>
+                                </Table>
+                              </div>
+                            )
+                          })}
+                          <div className="flex justify-between items-center pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                            <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                              Total: <b>{apontamentos.reduce((s, a) => s + a.horas, 0).toFixed(2)}h</b>
+                            </span>
+                            <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'rgba(0,245,255,0.07)', color: 'var(--brand-primary)' }}>
+                              Total Serviços: {formatBRL(totalServicos)}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()
                   )}
 
-                  {loadingConsult ? (
-                    <SkeletonTable rows={4} cols={4} />
-                  ) : filteredConsultores.length === 0 ? (
-                    <EmptyState icon={Handshake} title="Sem consultores" description="Nenhum consultor com apontamentos neste período." />
-                  ) : (
-                    <Table>
-                      <Thead>
-                        <tr>
-                          <Th>Consultor</Th>
-                          <Th right>Horas</Th>
-                          <Th right>Taxa/h</Th>
-                          <Th right>Total</Th>
-                        </tr>
-                      </Thead>
-                      <Tbody>
-                        {filteredConsultores.map(row => (
-                          <Tr key={row.user_id}>
-                            <Td>
-                              <div className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>{row.nome}</div>
-                              {row.rate_type === 'monthly' && !isFixed && (
-                                <div className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Mensalista · ÷180</div>
-                              )}
-                            </Td>
-                            <Td right className="tabular-nums text-xs">{row.horas.toFixed(2)}h</Td>
-                            <Td right className="tabular-nums text-xs">{formatBRL(row.valor_hora)}/h</Td>
-                            <Td right className="tabular-nums text-sm font-semibold" style={{ color: 'var(--brand-primary)' }}>
-                              {formatBRL(row.total)}
-                            </Td>
-                          </Tr>
-                        ))}
-                      </Tbody>
-                    </Table>
-                  )}
-                  {filteredConsultores.length > 0 && (
-                    <div className="mt-4 flex justify-between items-center">
-                      <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                        Total: <b>{filteredConsultores.reduce((s, c) => s + c.horas, 0).toFixed(2)}h</b>
-                      </span>
-                      <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'rgba(0,245,255,0.07)', color: 'var(--brand-primary)' }}>
-                        Total Serviços: {formatBRL(filteredConsultores.reduce((s, c) => s + c.total, 0))}
-                      </div>
-                    </div>
-                  )}
                   {isFixed && consultores.length > 0 && (
                     <p className="mt-3 text-xs" style={{ color: 'var(--brand-subtle)' }}>
                       * Taxa fixa do parceiro aplicada a todos os consultores.
@@ -854,60 +936,74 @@ export default function FechamentoParceiroPage() {
                       </div>
                     </div>
 
-                    {/* Apontamentos por consultor */}
+                    {/* Apontamentos por tipo de contrato → consultor */}
                     {loadingAp ? <SkeletonTable rows={4} cols={6} /> : (() => {
-                      const porConsultor = new Map<number, { consultor: string; taxa: number; horas: number; total: number; rows: ApontamentoRow[] }>()
+                      // tipo → consultor → rows
+                      const tipoMap = new Map<string, { nome: string; consultores: Map<number, { consultor: string; taxa: number; horas: number; total: number; rows: ApontamentoRow[] }> }>()
                       apontamentos.forEach(a => {
-                        if (!porConsultor.has(a.user_id)) {
+                        if (!tipoMap.has(a.tipo_contrato_code)) tipoMap.set(a.tipo_contrato_code, { nome: a.tipo_contrato_nome, consultores: new Map() })
+                        const tipo = tipoMap.get(a.tipo_contrato_code)!
+                        if (!tipo.consultores.has(a.user_id)) {
                           const c = consultores.find(c => c.user_id === a.user_id)
-                          porConsultor.set(a.user_id, { consultor: a.consultor, taxa: c?.valor_hora ?? 0, horas: 0, total: 0, rows: [] })
+                          tipo.consultores.set(a.user_id, { consultor: a.consultor, taxa: c?.valor_hora ?? 0, horas: 0, total: 0, rows: [] })
                         }
-                        const entry = porConsultor.get(a.user_id)!
+                        const entry = tipo.consultores.get(a.user_id)!
                         entry.rows.push(a)
                         entry.horas += a.horas
                         entry.total += a.horas * entry.taxa
                       })
-                      return Array.from(porConsultor.values()).map(({ consultor, taxa, horas, total, rows }) => (
-                        <div key={consultor} className="mb-8">
-                          <div className="flex justify-between items-baseline mb-2">
-                            <div className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{consultor}</div>
-                            <div className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                              Valor/hora: <b style={{ color: 'var(--brand-text)' }}>{formatBRL(taxa)}/h</b>
+
+                      return Array.from(tipoMap.entries()).map(([code, { nome, consultores: consMap }]) => {
+                        const tipoHoras = Array.from(consMap.values()).reduce((s, c) => s + c.horas, 0)
+                        const tipoTotal = Array.from(consMap.values()).reduce((s, c) => s + c.total, 0)
+                        return (
+                          <div key={code} className="mb-10">
+                            {/* Header do tipo */}
+                            <div className="flex items-center justify-between mb-4 pb-2 border-b-2" style={{ borderColor: 'var(--brand-primary)' }}>
+                              <div className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{nome}</div>
+                              <div className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                                {tipoHoras.toFixed(2)}h · <b style={{ color: 'var(--brand-primary)' }}>{formatBRL(tipoTotal)}</b>
+                              </div>
                             </div>
+
+                            {Array.from(consMap.values()).map(({ consultor, taxa, horas, total, rows }) => (
+                              <div key={consultor} className="mb-6">
+                                <div className="flex justify-between items-baseline mb-2">
+                                  <div className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>{consultor}</div>
+                                  <div className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                                    Valor/hora: <b style={{ color: 'var(--brand-text)' }}>{formatBRL(taxa)}/h</b>
+                                  </div>
+                                </div>
+                                <Table>
+                                  <Thead>
+                                    <tr>
+                                      <Th>Data</Th><Th>Projeto</Th><Th>Solicitante</Th>
+                                      <Th>Ticket</Th><Th>Título</Th><Th>Descrição</Th><Th right>Horas</Th>
+                                    </tr>
+                                  </Thead>
+                                  <Tbody>
+                                    {rows.map(r => (
+                                      <Tr key={r.id}>
+                                        <Td className="text-xs tabular-nums whitespace-nowrap">{new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</Td>
+                                        <Td className="text-xs">{r.projeto}</Td>
+                                        <Td className="text-xs">{r.solicitante ?? '—'}</Td>
+                                        <Td className="text-xs tabular-nums">{r.ticket ?? '—'}</Td>
+                                        <Td className="text-xs">{r.titulo ?? '—'}</Td>
+                                        <Td className="text-xs">{r.observacao ?? '—'}</Td>
+                                        <Td right className="tabular-nums text-xs">{r.horas.toFixed(2)}h</Td>
+                                      </Tr>
+                                    ))}
+                                  </Tbody>
+                                </Table>
+                                <div className="flex justify-end px-3 py-2 text-xs font-semibold rounded-b"
+                                  style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
+                                  {horas.toFixed(2)}h × {formatBRL(taxa)}/h = <b className="ml-1">{formatBRL(Math.round(total * 100) / 100)}</b>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <Table>
-                            <Thead>
-                              <tr>
-                                <Th>Data</Th>
-                                <Th>Projeto</Th>
-                                <Th>Solicitante</Th>
-                                <Th>Ticket</Th>
-                                <Th>Título</Th>
-                                <Th>Descrição</Th>
-                                <Th right>Horas</Th>
-                              </tr>
-                            </Thead>
-                            <Tbody>
-                              {rows.map(r => (
-                                <Tr key={r.id}>
-                                  <Td className="text-xs tabular-nums whitespace-nowrap">{new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</Td>
-                                  <Td className="text-xs">{r.projeto}</Td>
-                                  <Td className="text-xs">{r.solicitante ?? '—'}</Td>
-                                  <Td className="text-xs tabular-nums">{r.ticket ?? '—'}</Td>
-                                  <Td className="text-xs">{r.titulo ?? '—'}</Td>
-                                  <Td className="text-xs">{r.observacao ?? '—'}</Td>
-                                  <Td right className="tabular-nums text-xs">{r.horas.toFixed(2)}h</Td>
-                                </Tr>
-                              ))}
-                            </Tbody>
-                          </Table>
-                          {/* Rodapé da seção */}
-                          <div className="flex justify-end px-3 py-2 text-xs font-semibold rounded-b"
-                            style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
-                            {horas.toFixed(2)}h × {formatBRL(taxa)}/h = <b className="ml-1">{formatBRL(Math.round(total * 100) / 100)}</b>
-                          </div>
-                        </div>
-                      ))
+                        )
+                      })
                     })()}
 
                     {/* Totalizador */}
