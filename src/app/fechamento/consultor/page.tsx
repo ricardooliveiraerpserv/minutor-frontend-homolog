@@ -552,52 +552,93 @@ export default function FechamentoConsultorPage() {
   function TabResumo() {
     const t = data?.totais
     if (!t) return null
-    const rows = [
-      { label: 'Horistas',      count: data?.horistas.length ?? 0,    total: t.total_horistas },
+
+    const tipoRows = [
+      { label: 'Horistas',       count: data?.horistas.length ?? 0,    total: t.total_horistas },
       { label: 'Banco de Horas', count: data?.banco_horas.length ?? 0, total: t.total_banco_horas },
-      { label: 'Fixo',          count: data?.fixos.length ?? 0,       total: t.total_fixos },
+      { label: 'Fixo',           count: data?.fixos.length ?? 0,       total: t.total_fixos },
     ]
+
+    const todos = [
+      ...data!.horistas,
+      ...data!.banco_horas,
+      ...data!.fixos,
+    ].sort((a, b) => a.nome.localeCompare(b.nome))
+
     return (
-      <div className="max-w-md">
-        <div className="flex justify-end gap-3 mb-3">
-          <button
-            onClick={handlePrintTodos}
-            className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
-          >
-            <Printer size={13} /> Todos os consultores
-          </button>
-          <button
-            onClick={handlePrintResumo}
-            className="inline-flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 transition-colors"
-          >
-            <Printer size={13} /> Imprimir resumo
-          </button>
-        </div>
-        <Table>
-          <Thead>
-            <tr>
-              <Th>Tipo de Vínculo</Th>
-              <Th right>Consultores</Th>
-              <Th right>Total</Th>
-            </tr>
-          </Thead>
-          <Tbody>
-            {rows.map(r => (
-              <Tr key={r.label}>
-                <Td>{r.label}</Td>
-                <Td right className="text-zinc-400">{r.count}</Td>
-                <Td right className="font-mono text-zinc-200">{formatBRL(r.total)}</Td>
+      <div className="space-y-6">
+        {/* Tabela por tipo */}
+        <div className="max-w-md">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-zinc-500 uppercase tracking-wide font-medium">Por tipo de vínculo</p>
+            <button
+              onClick={handlePrintResumo}
+              className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-300 transition-colors"
+            >
+              <Printer size={12} /> Imprimir
+            </button>
+          </div>
+          <Table>
+            <Thead>
+              <tr>
+                <Th>Tipo de Vínculo</Th>
+                <Th right>Consultores</Th>
+                <Th right>Total</Th>
+              </tr>
+            </Thead>
+            <Tbody>
+              {tipoRows.map(r => (
+                <Tr key={r.label}>
+                  <Td>{r.label}</Td>
+                  <Td right className="text-zinc-400">{r.count}</Td>
+                  <Td right className="font-mono text-zinc-200">{formatBRL(r.total)}</Td>
+                </Tr>
+              ))}
+              <Tr className="border-t-2 border-violet-500 bg-violet-950/20">
+                <Td className="font-bold text-violet-300">Total Geral</Td>
+                <Td right className="text-violet-400">{todos.length}</Td>
+                <Td right className="font-bold text-violet-300 text-base">{formatBRL(t.total_geral)}</Td>
               </Tr>
-            ))}
-            <Tr className="border-t-2 border-violet-500 bg-violet-950/20">
-              <Td className="font-bold text-violet-300">Total Geral</Td>
-              <Td right className="text-violet-400">
-                {(data?.horistas.length ?? 0) + (data?.banco_horas.length ?? 0) + (data?.fixos.length ?? 0)}
-              </Td>
-              <Td right className="font-bold text-violet-300 text-base">{formatBRL(t.total_geral)}</Td>
-            </Tr>
-          </Tbody>
-        </Table>
+            </Tbody>
+          </Table>
+        </div>
+
+        {/* Lista individual de todos os consultores */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-zinc-500 uppercase tracking-wide font-medium">
+              Todos os consultores ({todos.length})
+            </p>
+            <button
+              onClick={handlePrintTodos}
+              className="inline-flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 transition-colors"
+            >
+              <Printer size={12} /> Imprimir lista
+            </button>
+          </div>
+          <Table>
+            <Thead>
+              <tr>
+                <Th>Consultor</Th>
+                <Th>E-mail</Th>
+                <Th right>Total a Pagar</Th>
+              </tr>
+            </Thead>
+            <Tbody>
+              {todos.map(c => (
+                <Tr key={c.user_id}>
+                  <Td className="font-medium text-zinc-100">{c.nome}</Td>
+                  <Td className="text-zinc-400">{c.email ?? '—'}</Td>
+                  <Td right className="font-semibold text-zinc-100">{formatBRL(c.total)}</Td>
+                </Tr>
+              ))}
+              <Tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
+                <td colSpan={2} className="py-2 px-3 text-right font-semibold text-zinc-300 text-sm">Total</td>
+                <Td right className="font-bold text-violet-400">{formatBRL(t.total_geral)}</Td>
+              </Tr>
+            </Tbody>
+          </Table>
+        </div>
       </div>
     )
   }
