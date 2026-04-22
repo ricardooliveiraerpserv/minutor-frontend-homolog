@@ -1725,7 +1725,11 @@ export default function MeuPainelPage() {
   const prorationRatio = (() => {
     if (!consultantStartStr) return 1
     const sd = new Date(consultantStartStr + 'T00:00:00')
-    if (sd.getFullYear() !== year || sd.getMonth() !== month) return 1
+    const startYM    = sd.getFullYear() * 12 + sd.getMonth()
+    const selectedYM = year * 12 + month
+    if (selectedYM < startYM) return 0  // mês anterior à contratação: sem valor
+    if (selectedYM > startYM) return 1  // mês posterior: valor cheio
+    // Mesmo mês de entrada: proporcional pelos dias úteis a partir do dia de início
     const daysInMonth = new Date(year, month + 1, 0).getDate()
     let fullWD = 0, periodWD = 0
     for (let i = 1; i <= daysInMonth; i++) {
@@ -2046,9 +2050,11 @@ export default function MeuPainelPage() {
                   label="Valor Total do Serviço"
                   value={estimatedValue !== null ? formatBRL(estimatedValue) : '—'}
                   sub={estimatedValue !== null
-                    ? guaranteedHours !== null && workedHours < Number(guaranteedHours)
-                      ? `${formatBRL(effectiveRate)}/h × ${Number(guaranteedHours)}h (garantido)`
-                      : `${formatBRL(effectiveRate)}/h × ${workedHours.toFixed(1)}h`
+                    ? prorationRatio === 0
+                      ? 'Período anterior à contratação'
+                      : guaranteedProrated !== null && workedHours < guaranteedProrated
+                        ? `${formatBRL(effectiveRate)}/h × ${guaranteedProrated}h (garantido)`
+                        : `${formatBRL(effectiveRate)}/h × ${workedHours.toFixed(1)}h`
                     : 'Taxa não configurada'}
                   icon={TrendingUp}
                   accent="bg-green-500/15 text-green-400"
@@ -2506,9 +2512,11 @@ export default function MeuPainelPage() {
               </div>
               <div className="text-[11px] text-zinc-500 mt-1.5">
                 {estimatedValue !== null
-                  ? guaranteedHours !== null && workedHours < Number(guaranteedHours)
-                    ? `${formatBRL(effectiveRate)}/h × ${Number(guaranteedHours)}h garantidas`
-                    : `${formatBRL(effectiveRate)}/h × ${workedHours.toFixed(1)}h`
+                  ? prorationRatio === 0
+                    ? 'Período anterior à contratação'
+                    : guaranteedProrated !== null && workedHours < guaranteedProrated
+                      ? `${formatBRL(effectiveRate)}/h × ${guaranteedProrated}h garantidas`
+                      : `${formatBRL(effectiveRate)}/h × ${workedHours.toFixed(1)}h`
                   : 'Taxa não configurada no perfil'}
               </div>
             </div>
