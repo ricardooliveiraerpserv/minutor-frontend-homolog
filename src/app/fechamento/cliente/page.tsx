@@ -148,7 +148,7 @@ export default function FechamentoClientePage() {
   const loadServicos = useCallback(() => {
     if (!customerId || !fromYM || !toYM) return
     setLoading(true)
-    const params = new URLSearchParams({ from: fromYM, to: toYM })
+    const params = new URLSearchParams({ from: fromYM, to: toYM, contract_type: 'on_demand' })
     api.get<{ data: ApontamentosData }>(`/fechamento-cliente/${customerId}/${toYM}/apontamentos?${params}`)
       .then(r => setDados(r.data ?? null))
       .catch(() => toast.error('Erro ao carregar apontamentos'))
