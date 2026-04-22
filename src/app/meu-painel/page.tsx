@@ -817,6 +817,137 @@ function SummaryCard({
   )
 }
 
+function DonutChart({ services, expenses }: { services: number; expenses: number }) {
+  const total = services + expenses
+  const r = 36, cx = 44, cy = 44
+  const circ = 2 * Math.PI * r
+
+  if (total <= 0) {
+    return (
+      <svg width={88} height={88} viewBox="0 0 88 88">
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#27272a" strokeWidth={9} />
+      </svg>
+    )
+  }
+
+  const srvLen = (services / total) * circ
+  const expLen = (expenses / total) * circ
+
+  return (
+    <svg width={88} height={88} viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#27272a" strokeWidth={9} />
+      {srvLen > 0 && (
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#00F5FF" strokeWidth={9}
+          strokeDasharray={`${srvLen} ${circ - srvLen}`}
+          strokeDashoffset={0}
+        />
+      )}
+      {expLen > 0 && (
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f97316" strokeWidth={9}
+          strokeDasharray={`${expLen} ${circ - expLen}`}
+          strokeDashoffset={circ - srvLen}
+        />
+      )}
+    </svg>
+  )
+}
+
+function HeroTotal({
+  period, total, services, expTotal, variation, prevLabel,
+}: {
+  period: string
+  total: number | null
+  services: number | null
+  expTotal: number
+  variation: number | null
+  prevLabel: string
+}) {
+  const isPos = variation !== null && variation >= 0
+  const hasValue = total !== null
+
+  return (
+    <div className="rounded-2xl border border-[#00F5FF]/25 bg-gradient-to-br from-[rgba(0,245,255,0.04)] to-transparent p-6 shadow-[0_0_40px_rgba(0,245,255,0.06)]">
+      <div className="flex items-start justify-between gap-6 flex-wrap">
+
+        {/* Left: label + value + pills + badge */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#00F5FF]/50">Total Geral</span>
+            <span className="text-[10px] text-zinc-600 font-medium">{period}</span>
+          </div>
+
+          {hasValue ? (
+            <>
+              <div className="text-[40px] font-extrabold leading-none tracking-tight text-[#00F5FF] mb-4" style={{ textShadow: '0 0 30px rgba(0,245,255,0.35)' }}>
+                {formatBRL(total!)}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {services !== null && (
+                  <div className="flex items-center gap-1.5 bg-zinc-800/60 rounded-full px-3 py-1 border border-zinc-700/50">
+                    <div className="w-2 h-2 rounded-full bg-[#00F5FF]" />
+                    <span className="text-[11px] text-zinc-400">Serviços</span>
+                    <span className="text-[11px] font-medium text-zinc-300">{formatBRL(services)}</span>
+                  </div>
+                )}
+                {expTotal > 0 && (
+                  <div className="flex items-center gap-1.5 bg-zinc-800/60 rounded-full px-3 py-1 border border-zinc-700/50">
+                    <div className="w-2 h-2 rounded-full bg-orange-400" />
+                    <span className="text-[11px] text-zinc-400">Despesas</span>
+                    <span className="text-[11px] font-medium text-zinc-300">{formatBRL(expTotal)}</span>
+                  </div>
+                )}
+              </div>
+
+              {variation !== null && (
+                <div className={`inline-flex items-center gap-1.5 mt-3 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
+                  isPos
+                    ? 'bg-green-500/10 border-green-500/20 text-green-400'
+                    : 'bg-red-500/10 border-red-500/20 text-red-400'
+                }`}>
+                  {isPos ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                  {isPos ? '+' : ''}{variation.toFixed(1)}% vs {prevLabel}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-3xl font-bold text-zinc-600 mb-4">—</div>
+          )}
+        </div>
+
+        {/* Right: donut */}
+        {hasValue && total! > 0 && (
+          <div className="flex flex-col items-center gap-2 shrink-0">
+            <div className="relative w-[88px] h-[88px]">
+              <DonutChart services={services ?? 0} expenses={expTotal} />
+              <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ transform: 'none' }}>
+                <span className="text-[10px] text-zinc-500 font-medium">
+                  {services !== null && total! > 0 ? `${Math.round((services / total!) * 100)}%` : ''}
+                </span>
+                <span className="text-[9px] text-zinc-600">srv</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-center gap-0.5">
+              {services !== null && services > 0 && (
+                <div className="flex items-center gap-1.5 text-[9px] text-zinc-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#00F5FF]" />
+                  {((services / total!) * 100).toFixed(0)}% serviços
+                </div>
+              )}
+              {expTotal > 0 && (
+                <div className="flex items-center gap-1.5 text-[9px] text-zinc-600">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                  {((expTotal / total!) * 100).toFixed(0)}% despesas
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function BarChartRow({
   label, minutes, maxMinutes, color = '#00F5FF',
 }: {
@@ -1731,6 +1862,38 @@ export default function MeuPainelPage() {
   const isFixo            = (user as any)?.consultant_type === 'fixo'
   const isParceiroSimples = user?.type === 'parceiro_admin' && !user?.is_executive
 
+  // ── Hero Total computation ─────────────────────────────────────────────────
+  const _heroPad = (n: number) => String(n).padStart(2, '0')
+  const heroPeriodLabel = fmtYearMonth(`${year}-${_heroPad(month + 1)}`)
+  const heroPrevPoint   = history.length >= 2 ? history[history.length - 2] : null
+  const heroCurrPoint   = history.length >= 1 ? history[history.length - 1] : null
+  const heroPrevTotal   = heroPrevPoint ? heroPrevPoint.revenue + heroPrevPoint.expenses : null
+  const heroCurrTotal   = heroCurrPoint ? heroCurrPoint.revenue + heroCurrPoint.expenses : null
+  const heroVariation   = heroPrevTotal && heroPrevTotal > 0 && heroCurrTotal !== null
+    ? ((heroCurrTotal - heroPrevTotal) / heroPrevTotal) * 100
+    : null
+  const heroPrevLabel   = heroPrevPoint?.label ?? '—'
+
+  let heroTotal: number | null    = null
+  let heroServices: number | null = null
+  if (!isParceiroSimples) {
+    if (isFixo) {
+      const fixedMonthlySvc = hourlyRate > 0 ? Math.round(hourlyRate * prorationRatio * 100) / 100 : null
+      heroServices = fixedMonthlySvc
+      heroTotal    = fixedMonthlySvc !== null ? fixedMonthlySvc + expTotal : expTotal > 0 ? expTotal : null
+    } else if (isHBConsultant) {
+      if (!hbBeforeStart && hourlyRate > 0) {
+        heroServices = hbServiceVal
+        heroTotal    = hbTotalGeral
+      } else if (!hbBeforeStart && expTotal > 0) {
+        heroTotal = expTotal
+      }
+    } else {
+      heroServices = estimatedValue
+      heroTotal    = estimatedValue !== null ? estimatedValue + expTotal : expTotal > 0 ? expTotal : null
+    }
+  }
+
   const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
     { id: 'overview',   label: 'Total Geral',  icon: LayoutDashboard },
     { id: 'timesheets', label: 'Apontamentos', icon: Clock },
@@ -1832,6 +1995,18 @@ export default function MeuPainelPage() {
       {validTab === 'overview' && (
         <div className="space-y-5">
 
+          {/* Hero Total */}
+          {!isParceiroSimples && (
+            <HeroTotal
+              period={heroPeriodLabel}
+              total={heroTotal}
+              services={heroServices}
+              expTotal={expTotal}
+              variation={heroVariation}
+              prevLabel={heroPrevLabel}
+            />
+          )}
+
           {/* Summary cards */}
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-6 xl:grid-cols-7">
             <SummaryCard
@@ -1867,15 +2042,6 @@ export default function MeuPainelPage() {
                   accent="bg-orange-500/15 text-orange-400"
                   onClick={() => setActiveTab('expenses')}
                 />
-                <SummaryCard
-                  label="Total Geral"
-                  value={hourlyRate > 0 ? formatBRL(hourlyRate + expTotal) : expTotal > 0 ? formatBRL(expTotal) : '—'}
-                  sub={expTotal > 0 ? 'Valor fixo + despesas' : 'Sem despesas no período'}
-                  icon={TrendingUp}
-                  accent="bg-cyan-500/15 text-cyan-400"
-                  featured
-                />
-                {/* "Total a Receber" removido — redundante com "Total Geral" */}
               </>
             ) : isHBConsultant ? (
               <>
@@ -1907,16 +2073,6 @@ export default function MeuPainelPage() {
                   accent="bg-orange-500/15 text-orange-400"
                   onClick={() => setActiveTab('expenses')}
                 />
-                <SummaryCard
-                  label="Total Geral"
-                  value={hbBeforeStart ? '—' : formatBRL(hbTotalGeral)}
-                  sub={expTotal > 0
-                    ? `Serviço${hbExtraHours > 0 ? ' + extras' : ''} + despesas`
-                    : 'Sem despesas no período'}
-                  icon={DollarSign}
-                  accent="bg-cyan-500/15 text-cyan-400"
-                  featured
-                />
               </>
             ) : (
               <>
@@ -1945,16 +2101,6 @@ export default function MeuPainelPage() {
                   icon={Receipt}
                   accent="bg-orange-500/15 text-orange-400"
                   onClick={() => setActiveTab('expenses')}
-                />
-                <SummaryCard
-                  label="Total Geral"
-                  value={estimatedValue !== null ? formatBRL(estimatedValue + expTotal) : expTotal > 0 ? formatBRL(expTotal) : '—'}
-                  sub={estimatedValue !== null
-                    ? expTotal > 0 ? 'Serviço + despesas' : 'Somente serviço'
-                    : expTotal > 0 ? 'Somente despesas' : 'Sem lançamentos'}
-                  icon={TrendingUp}
-                  accent="bg-cyan-500/15 text-cyan-400"
-                  featured
                 />
               </>
             ))}
