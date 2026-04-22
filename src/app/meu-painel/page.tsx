@@ -1956,6 +1956,9 @@ export default function MeuPainelPage() {
       heroTotal = fixedMonthlySvc
     } else if (isHBConsultant) {
       if (!hbBeforeStart && hourlyRate > 0) heroTotal = hbServiceVal
+    } else if (rateType === 'monthly' && hourlyRate > 0) {
+      // Mensalistas (ex: coordenadores com salário fixo) → valor fixo proporcional
+      heroTotal = Math.round(hourlyRate * prorationRatio * 100) / 100
     } else {
       heroTotal = estimatedValue
     }
@@ -2097,8 +2100,20 @@ export default function MeuPainelPage() {
                 />
           )}
 
-          {/* Hero Total — outros perfis (coordenador, etc.) com despesas */}
-          {!isHorista && !isHBConsultant && !isParceiroSimples && !isFixo && (
+          {/* Hero mensalista não-fixo (ex: coordenador com salário mensal) */}
+          {!isHorista && !isHBConsultant && !isParceiroSimples && !isFixo && rateType === 'monthly' && (
+            <FixoPaymentSection
+              yearMonth={`${year}-${String(month + 1).padStart(2, '0')}`}
+              fixedMonthly={Math.round(hourlyRate * prorationRatio * 100) / 100}
+              expTotal={expTotal}
+              expPaid={expPaid}
+              proporcional={isProporcional}
+              prorationRatio={prorationRatio}
+            />
+          )}
+
+          {/* Hero Total — outros perfis (horista sem tipo, etc.) com despesas */}
+          {!isHorista && !isHBConsultant && !isParceiroSimples && !isFixo && rateType !== 'monthly' && (
             <HeroTotal
               period={heroPeriodLabel}
               total={heroTotal}
