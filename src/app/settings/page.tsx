@@ -10,16 +10,18 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Settings,
-  RefreshCw, CheckCircle, XCircle, Users,
+  RefreshCw, CheckCircle, XCircle, Users, Shield,
 } from 'lucide-react'
 import type { SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
+import { PermissionGroupsTab } from './PermissionGroupsTab'
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: 'general', label: 'Geral',    icon: Settings },
-  { id: 'users',   label: 'Usuários', icon: Users },
+  { id: 'general', label: 'Geral',               icon: Settings },
+  { id: 'users',   label: 'Usuários',             icon: Users },
+  { id: 'groups',  label: 'Grupos de Permissões', icon: Shield },
 ]
 
 // ─── TAB: GENERAL SETTINGS ───────────────────────────────────────────────────
@@ -260,6 +262,7 @@ export default function SettingsPage() {
 
           {activeTab === 'general' && <GeneralTab />}
           {activeTab === 'users'   && <UserManagementTab />}
+          {activeTab === 'groups'  && <PermissionGroupsTab />}
         </div>
       </div>
     </AppLayout>
