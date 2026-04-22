@@ -206,6 +206,8 @@ export interface Expense {
   reviewed_by?: number
   reviewedBy?: User
   created_at: string
+  status_display?: string
+  formatted_amount?: string
 }
 
 export interface ProjectMessage {
