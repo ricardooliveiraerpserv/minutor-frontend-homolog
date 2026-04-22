@@ -108,8 +108,7 @@ const printStyles = `
   body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; background: #fff; }
   .page { padding: 28px; }
   .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 2px solid #7c3aed; padding-bottom: 14px; }
-  .logo { font-size: 22px; font-weight: 900; color: #7c3aed; letter-spacing: -0.5px; }
-  .logo span { color: #a78bfa; }
+  .logo img { height: 48px; width: auto; display: block; }
   .meta { text-align: right; font-size: 11px; color: #555; line-height: 1.6; }
   .meta strong { font-size: 15px; color: #1a1a1a; display: block; margin-bottom: 4px; }
   .summary-box { display: flex; gap: 24px; background: #f9f7ff; border: 1px solid #ddd6fe; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; }
@@ -197,7 +196,7 @@ function buildReport(
   return `
     <div class="page">
       <div class="header">
-        <div class="logo">ERP<span>Serv</span></div>
+        <div class="logo"><img src="${window.location.origin}/logo.png" alt="ERPServ Consultoria" /></div>
         <div class="meta">
           <strong>${consultor.nome}</strong>
           Fechamento de Consultores &nbsp;·&nbsp; ${fmtYearMonth(yearMonth)}
@@ -299,7 +298,7 @@ export default function FechamentoConsultorPage() {
     const html = `
       <div class="page">
         <div class="header">
-          <div class="logo">ERP<span>Serv</span></div>
+          <div class="logo"><img src="${window.location.origin}/logo.png" alt="ERPServ Consultoria" /></div>
           <div class="meta"><strong>Fechamento de Consultores</strong>${fmtYearMonth(yearMonth)}</div>
         </div>
         <table>
