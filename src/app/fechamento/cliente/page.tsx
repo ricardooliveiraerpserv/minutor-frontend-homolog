@@ -410,17 +410,36 @@ export default function FechamentoClientePage() {
           {/* ── Tab Visão Global ── */}
           {tab === 'global' && (() => {
             if (loadingGlobal) return <SkeletonTable rows={6} cols={4} />
-            const onDemand = globalData?.tipos.find(t => t.code === 'on_demand')
-            const lista    = (onDemand?.clientes ?? []).filter(c => c.total_receita > 0)
+
+            // Agrega TODOS os tipos → um mapa por cliente com todos os projetos
+            type ProjDisp = ProjetoGlobal & { tipo_nome: string }
+            type ClienteAgg = { customer_id: number; nome: string; projetos: ProjDisp[]; total_horas: number; total_receita: number }
+            const clientMap = new Map<number, ClienteAgg>()
+            ;(globalData?.tipos ?? []).forEach(tipo => {
+              tipo.clientes.forEach(c => {
+                if (!clientMap.has(c.customer_id)) {
+                  clientMap.set(c.customer_id, { customer_id: c.customer_id, nome: c.nome, projetos: [], total_horas: 0, total_receita: 0 })
+                }
+                const entry = clientMap.get(c.customer_id)!
+                c.projetos.forEach(p => {
+                  if (p.total_receita > 0) entry.projetos.push({ ...p, tipo_nome: tipo.nome })
+                })
+                entry.total_horas   += c.total_horas
+                entry.total_receita += c.total_receita
+              })
+            })
+            const lista = Array.from(clientMap.values())
+              .filter(c => c.total_receita > 0)
+              .sort((a, b) => a.nome.localeCompare(b.nome))
+
             if (lista.length === 0) {
               return (
                 <EmptyState icon={Building2} title="Sem movimento no período"
-                  description="Nenhum cliente com apontamentos aprovados em contratos On Demand no período selecionado." />
+                  description="Nenhum cliente com apontamentos no período selecionado." />
               )
             }
             const totalHoras   = lista.reduce((s, c) => s + c.total_horas, 0)
             const totalReceita = lista.reduce((s, c) => s + c.total_receita, 0)
-            // Enriquece com status de fechamento (da lista de clientes já carregada)
             const statusMap = new Map(clientes.map(c => [c.customer_id, c.status]))
             return (
               <div>
@@ -437,7 +456,7 @@ export default function FechamentoClientePage() {
                     </div>
                   </div>
                   <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Total On Demand</div>
+                    <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Total Geral</div>
                     <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
                       {formatBRL(totalReceita)}
                     </div>
@@ -506,6 +525,9 @@ export default function FechamentoClientePage() {
                               <td className="py-2.5 text-xs" style={{ color: 'var(--brand-muted)', paddingLeft: '2.75rem' }}>
                                 {p.nome}
                                 <span className="ml-2 opacity-60">{p.codigo}</span>
+                                <span className="ml-2 px-1.5 py-0.5 rounded text-xs" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+                                  {(p as any).tipo_nome}
+                                </span>
                               </td>
                               <td />
                               <td className="px-5 py-2.5 text-right tabular-nums text-xs" style={{ color: 'var(--brand-muted)' }}>
@@ -527,7 +549,7 @@ export default function FechamentoClientePage() {
                   <div className="px-5 py-3 rounded-xl"
                     style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                     <span className="text-sm font-semibold mr-4" style={{ color: 'var(--brand-muted)' }}>
-                      {totalHoras.toFixed(2)}h · Total On Demand
+                      {totalHoras.toFixed(2)}h · Total Geral
                     </span>
                     <span className="text-base font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
                       {formatBRL(totalReceita)}
