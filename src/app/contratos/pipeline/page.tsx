@@ -3927,10 +3927,10 @@ function KanbanContent() {
                 `/contract-requests/${card.id}/plan-decision`,
                 { decision: 'novo_projeto', contract_id: contractId }
               )
-              toast.success('Projeto criado — requisição em Início Autorizado')
+              toast.success('Contrato criado — requisição aguardando em Aguardando Início (Req.)')
               setRequestCards(prev => prev.map(r =>
                 r.id === card.id
-                  ? { ...r, kanban_column: 'inicio_autorizado', req_decision: 'novo_projeto', linked_contract_id: res.linked_contract_id }
+                  ? { ...r, kanban_column: 'req_inicio_autorizado', req_decision: 'novo_projeto', linked_contract_id: res.linked_contract_id }
                   : r
               ))
             } catch (e: any) {
