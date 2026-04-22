@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
@@ -105,7 +105,6 @@ const now = new Date()
 export default function FechamentoParceiroPage() {
   const { user } = useAuth()
   const isAdmin = (user as any)?.type === 'admin'
-  const printRef = useRef<HTMLDivElement>(null)
 
   const [month, setMonth] = useState<number | null>(now.getMonth() + 1)
   const [year,  setYear]  = useState<number | null>(now.getFullYear())
@@ -235,7 +234,119 @@ export default function FechamentoParceiroPage() {
       .finally(() => setLoadingReabrir(false))
   }
 
-  const handlePrint = () => window.print()
+  const handlePrint = () => {
+    if (!status) return
+
+    // Agrupa despesas por consultor para o relatório
+    const despesasPorConsultor = despesas.reduce<Record<string, DespesaRow[]>>((acc, d) => {
+      if (!acc[d.colaborador]) acc[d.colaborador] = []
+      acc[d.colaborador].push(d)
+      return acc
+    }, {})
+
+    const consultoresRows = consultores.map(r => `
+      <tr>
+        <td>${r.nome}${r.rate_type === 'monthly' && !isFixed ? ' <small>(mensalista)</small>' : ''}</td>
+        <td class="right">${r.horas.toFixed(2)}h</td>
+        <td class="right">${formatBRL(r.valor_hora)}/h</td>
+        <td class="right primary">${formatBRL(r.total)}</td>
+      </tr>`).join('')
+
+    const despesasSection = Object.entries(despesasPorConsultor).map(([consultor, rows]) => {
+      const subtotal = rows.reduce((s, r) => s + r.valor, 0)
+      const itens = rows.map(row => `
+        <tr>
+          <td>${new Date(row.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+          <td>${row.descricao}</td>
+          <td>${row.categoria}</td>
+          <td>${row.projeto}</td>
+          <td><span class="badge ${row.status === 'approved' ? 'badge-ok' : 'badge-warn'}">${EXPENSE_STATUS_LABELS[row.status] ?? row.status}</span></td>
+          <td class="right primary">${formatBRL(row.valor)}</td>
+        </tr>`).join('')
+      return `
+        <div class="section">
+          <h4 class="consultor-title">${consultor}</h4>
+          <table>
+            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Projeto</th><th>Status</th><th class="right">Valor</th></tr></thead>
+            <tbody>${itens}</tbody>
+          </table>
+          <p class="subtotal">Subtotal ${consultor}: <strong>${formatBRL(subtotal)}</strong></p>
+        </div>`
+    }).join('')
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Relatório de Fechamento — ${status.nome} — ${fmtYearMonth(yearMonth)}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background: #fff; padding: 32px; }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    h2 { font-size: 14px; font-weight: 600; margin: 24px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    h3 { font-size: 13px; font-weight: 600; margin: 24px 0 8px; }
+    h4.consultor-title { font-size: 12px; font-weight: 600; color: #444; margin: 16px 0 6px; }
+    p { color: #555; margin: 2px 0; font-size: 11px; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 20px; }
+    .date-gen { text-align: right; font-size: 11px; color: #666; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+    thead tr { background: #f5f5f5; }
+    th { text-align: left; padding: 6px 8px; font-size: 10px; font-weight: 600; text-transform: uppercase; color: #555; border-bottom: 1px solid #ddd; }
+    td { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 11px; }
+    .right { text-align: right; }
+    .primary { color: #0284c7; font-weight: 600; }
+    .subtotal { text-align: right; margin-top: 4px; font-size: 11px; color: #555; }
+    .section { margin-bottom: 16px; }
+    .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; }
+    .badge-ok   { background: #dcfce7; color: #15803d; }
+    .badge-warn { background: #fef9c3; color: #854d0e; }
+    .totalizador { border: 1px solid #ddd; border-radius: 6px; padding: 16px; margin-top: 20px; background: #f9fafb; }
+    .totalizador-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; color: #555; }
+    .totalizador-total { display: flex; justify-content: space-between; padding: 8px 0 0; margin-top: 8px; border-top: 2px solid #111; font-size: 15px; font-weight: 700; }
+    .nota { margin-top: 12px; font-size: 10px; color: #888; }
+    @media print { body { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Relatório de Fechamento</h1>
+      <p>Parceiro: <strong>${status.nome}</strong></p>
+      <p>Competência: <strong>${fmtYearMonth(yearMonth)}</strong></p>
+      <p>${isFixed ? `Precificação Fixa · Taxa: ${formatBRL(status.hourly_rate)}/h` : 'Precificação Variável'}${isClosed ? ` · Fechado em ${new Date(status.closed_at!).toLocaleDateString('pt-BR')}` : ' · Em aberto'}</p>
+    </div>
+    <div class="date-gen">Gerado em<br/><strong>${new Date().toLocaleDateString('pt-BR')}</strong></div>
+  </div>
+
+  <h2>Consultores</h2>
+  <table>
+    <thead><tr><th>Consultor</th><th class="right">Horas</th><th class="right">Taxa/h</th><th class="right">Total</th></tr></thead>
+    <tbody>${consultoresRows}</tbody>
+  </table>
+  <p class="subtotal">Total: ${totalHoras.toFixed(2)}h &nbsp;·&nbsp; Subtotal Serviços: <strong>${formatBRL(totalServicos)}</strong></p>
+
+  ${despesas.length > 0 ? `
+  <h2>Despesas por Consultor</h2>
+  ${despesasSection}
+  <p class="subtotal">Total Despesas: <strong>${formatBRL(totalDespesas)}</strong></p>` : ''}
+
+  <div class="totalizador">
+    <div class="totalizador-row"><span>Total Horas</span><span>${totalHoras.toFixed(2)}h</span></div>
+    <div class="totalizador-row"><span>Total Serviços</span><span>${formatBRL(totalServicos)}</span></div>
+    <div class="totalizador-row"><span>Total Despesas</span><span>${formatBRL(totalDespesas)}</span></div>
+    <div class="totalizador-total"><span>TOTAL A PAGAR</span><span style="color:#0284c7">${formatBRL(totalAPagar)}</span></div>
+  </div>
+  ${isFixed ? '<p class="nota">* Taxa fixa do parceiro aplicada a todos os consultores.</p>' : ''}
+</body>
+</html>`
+
+    const win = window.open('', '_blank', 'width=900,height=700')
+    if (!win) { toast.error('Popup bloqueado — permita popups para imprimir.'); return }
+    win.document.write(html)
+    win.document.close()
+    win.focus()
+    setTimeout(() => { win.print() }, 300)
+  }
 
   // ─── Derivados ────────────────────────────────────────────────────────────
 
@@ -267,18 +378,9 @@ export default function FechamentoParceiroPage() {
 
   return (
     <AppLayout title="Fechamento — Parceiros">
-      {/* Estilos de impressão */}
-      <style>{`
-        @media print {
-          body > *:not(#print-area) { display: none !important; }
-          #print-area { display: block !important; }
-          .no-print { display: none !important; }
-        }
-      `}</style>
-
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b no-print" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div className="flex flex-wrap items-center gap-3">
             <Handshake size={20} style={{ color: 'var(--brand-primary)' }} />
             <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>
@@ -356,7 +458,7 @@ export default function FechamentoParceiroPage() {
         ) : (
           <>
             {/* Tabs */}
-            <div className="flex gap-1 px-6 border-b no-print" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="flex gap-1 px-6 border-b" style={{ borderColor: 'var(--brand-border)' }}>
               {TABS.map(t => (
                 <button
                   key={t.key}
@@ -631,9 +733,7 @@ export default function FechamentoParceiroPage() {
               {/* ── Tab Relatório ── */}
               {tab === 'relatorio' && (
                 <div className="p-6">
-                  <div id="print-area" ref={printRef}
-                    style={{ maxWidth: 760, margin: '0 auto', fontFamily: 'sans-serif' }}
-                  >
+                  <div style={{ maxWidth: 760, margin: '0 auto', fontFamily: 'sans-serif' }}>
                     {/* Cabeçalho do relatório */}
                     <div className="mb-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                       <div className="flex justify-between items-start">
@@ -700,47 +800,67 @@ export default function FechamentoParceiroPage() {
                       </div>
                     </div>
 
-                    {/* Despesas */}
-                    {despesas.length > 0 && (
-                      <div className="mb-6">
-                        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text)' }}>
-                          Despesas
-                        </h3>
-                        <Table>
-                          <Thead>
-                            <tr>
-                              <Th>Data</Th>
-                              <Th>Descrição</Th>
-                              <Th>Consultor</Th>
-                              <Th>Projeto</Th>
-                              <Th>Status</Th>
-                              <Th right>Valor</Th>
-                            </tr>
-                          </Thead>
-                          <Tbody>
-                            {despesas.map(row => (
-                              <Tr key={row.id}>
-                                <Td className="text-xs tabular-nums">{new Date(row.data + 'T12:00:00').toLocaleDateString('pt-BR')}</Td>
-                                <Td className="text-xs">{row.descricao}</Td>
-                                <Td className="text-xs">{row.colaborador}</Td>
-                                <Td className="text-xs">{row.projeto}</Td>
-                                <Td className="text-xs">
-                                  <Badge variant={EXPENSE_STATUS_VARIANTS[row.status] ?? 'secondary'}>
-                                    {EXPENSE_STATUS_LABELS[row.status] ?? row.status}
-                                  </Badge>
-                                </Td>
-                                <Td right className="tabular-nums text-xs font-medium" style={{ color: 'var(--brand-primary)' }}>
-                                  {formatBRL(row.valor)}
-                                </Td>
-                              </Tr>
-                            ))}
-                          </Tbody>
-                        </Table>
-                        <div className="mt-2 flex justify-end text-xs px-1" style={{ color: 'var(--brand-muted)' }}>
-                          <span>Subtotal Despesas: <b style={{ color: 'var(--brand-primary)' }}>{formatBRL(totalDespesas)}</b></span>
+                    {/* Despesas agrupadas por consultor */}
+                    {despesas.length > 0 && (() => {
+                      const grupos = despesas.reduce<Record<string, DespesaRow[]>>((acc, d) => {
+                        if (!acc[d.colaborador]) acc[d.colaborador] = []
+                        acc[d.colaborador].push(d)
+                        return acc
+                      }, {})
+                      return (
+                        <div className="mb-6">
+                          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text)' }}>
+                            Despesas por Consultor
+                          </h3>
+                          {Object.entries(grupos).map(([consultor, rows]) => {
+                            const sub = rows.reduce((s, r) => s + r.valor, 0)
+                            return (
+                              <div key={consultor} className="mb-5">
+                                <div className="text-xs font-semibold mb-2 px-1" style={{ color: 'var(--brand-muted)' }}>
+                                  {consultor}
+                                </div>
+                                <Table>
+                                  <Thead>
+                                    <tr>
+                                      <Th>Data</Th>
+                                      <Th>Descrição</Th>
+                                      <Th>Categoria</Th>
+                                      <Th>Projeto</Th>
+                                      <Th>Status</Th>
+                                      <Th right>Valor</Th>
+                                    </tr>
+                                  </Thead>
+                                  <Tbody>
+                                    {rows.map(row => (
+                                      <Tr key={row.id}>
+                                        <Td className="text-xs tabular-nums">{new Date(row.data + 'T12:00:00').toLocaleDateString('pt-BR')}</Td>
+                                        <Td className="text-xs">{row.descricao}</Td>
+                                        <Td className="text-xs">{row.categoria}</Td>
+                                        <Td className="text-xs">{row.projeto}</Td>
+                                        <Td className="text-xs">
+                                          <Badge variant={EXPENSE_STATUS_VARIANTS[row.status] ?? 'secondary'}>
+                                            {EXPENSE_STATUS_LABELS[row.status] ?? row.status}
+                                          </Badge>
+                                        </Td>
+                                        <Td right className="tabular-nums text-xs font-medium" style={{ color: 'var(--brand-primary)' }}>
+                                          {formatBRL(row.valor)}
+                                        </Td>
+                                      </Tr>
+                                    ))}
+                                  </Tbody>
+                                </Table>
+                                <div className="mt-1 flex justify-end text-xs px-1" style={{ color: 'var(--brand-muted)' }}>
+                                  Subtotal {consultor}: <b className="ml-1" style={{ color: 'var(--brand-primary)' }}>{formatBRL(sub)}</b>
+                                </div>
+                              </div>
+                            )
+                          })}
+                          <div className="flex justify-end text-xs px-1 pt-2 border-t" style={{ color: 'var(--brand-muted)', borderColor: 'var(--brand-border)' }}>
+                            Total Despesas: <b className="ml-1" style={{ color: 'var(--brand-primary)' }}>{formatBRL(totalDespesas)}</b>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )
+                    })()}
 
                     {/* Totalizador */}
                     <div className="rounded-lg p-4 mt-4" style={{ background: 'rgba(0,245,255,0.05)', border: '1px solid var(--brand-border)' }}>
