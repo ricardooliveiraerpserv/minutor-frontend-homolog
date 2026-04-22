@@ -619,7 +619,10 @@ export default function ExpensesPage() {
       await api.post(`/expenses/${exp.id}/set-paid`, { is_paid: !exp.is_paid })
       toast.success(exp.is_paid ? 'Marcação removida.' : 'Despesa marcada como paga.')
       load()
-    } catch { toast.error('Erro ao atualizar status de pagamento') }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message
+      toast.error(msg ?? 'Erro ao atualizar status de pagamento')
+    }
   }
 
   return (
@@ -804,7 +807,7 @@ export default function ExpensesPage() {
                         ...(exp.receipt_url ? [
                           { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
                         ] : []),
-                        ...(isAdmin ? [
+                        ...(isAdmin && (exp.status === 'approved' || exp.is_paid) ? [
                           { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
                         ] : []),
                       ]} />
