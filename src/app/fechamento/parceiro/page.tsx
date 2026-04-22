@@ -59,6 +59,8 @@ interface ApontamentoRow {
   horas: number
   status: string
   ticket?: string
+  titulo?: string
+  solicitante?: string
   observacao?: string
 }
 
@@ -200,6 +202,7 @@ export default function FechamentoParceiroPage() {
     if (tab === 'resumo' || tab === 'relatorio') {
       if (!consultores.length)  loadConsultores()
       if (!despesas.length)     loadDespesas()
+      if (!apontamentos.length) loadApontamentos()
     }
   }, [tab, partnerId, yearMonth])
 
@@ -234,118 +237,211 @@ export default function FechamentoParceiroPage() {
       .finally(() => setLoadingReabrir(false))
   }
 
-  const handlePrint = () => {
-    if (!status) return
-
-    // Agrupa despesas por consultor para o relatório
-    const despesasPorConsultor = despesas.reduce<Record<string, DespesaRow[]>>((acc, d) => {
-      if (!acc[d.colaborador]) acc[d.colaborador] = []
-      acc[d.colaborador].push(d)
-      return acc
-    }, {})
-
-    const consultoresRows = consultores.map(r => `
-      <tr>
-        <td>${r.nome}${r.rate_type === 'monthly' && !isFixed ? ' <small>(mensalista)</small>' : ''}</td>
-        <td class="right">${r.horas.toFixed(2)}h</td>
-        <td class="right">${formatBRL(r.valor_hora)}/h</td>
-        <td class="right primary">${formatBRL(r.total)}</td>
-      </tr>`).join('')
-
-    const despesasSection = Object.entries(despesasPorConsultor).map(([consultor, rows]) => {
-      const subtotal = rows.reduce((s, r) => s + r.valor, 0)
-      const itens = rows.map(row => `
-        <tr>
-          <td>${new Date(row.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
-          <td>${row.descricao}</td>
-          <td>${row.categoria}</td>
-          <td>${row.projeto}</td>
-          <td><span class="badge ${row.status === 'approved' ? 'badge-ok' : 'badge-warn'}">${EXPENSE_STATUS_LABELS[row.status] ?? row.status}</span></td>
-          <td class="right primary">${formatBRL(row.valor)}</td>
-        </tr>`).join('')
-      return `
-        <div class="section">
-          <h4 class="consultor-title">${consultor}</h4>
-          <table>
-            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Projeto</th><th>Status</th><th class="right">Valor</th></tr></thead>
-            <tbody>${itens}</tbody>
-          </table>
-          <p class="subtotal">Subtotal ${consultor}: <strong>${formatBRL(subtotal)}</strong></p>
-        </div>`
-    }).join('')
-
-    const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8"/>
-  <title>Relatório de Fechamento — ${status.nome} — ${fmtYearMonth(yearMonth)}</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background: #fff; padding: 32px; }
-    h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
-    h2 { font-size: 14px; font-weight: 600; margin: 24px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-    h3 { font-size: 13px; font-weight: 600; margin: 24px 0 8px; }
-    h4.consultor-title { font-size: 12px; font-weight: 600; color: #444; margin: 16px 0 6px; }
-    p { color: #555; margin: 2px 0; font-size: 11px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 20px; }
-    .date-gen { text-align: right; font-size: 11px; color: #666; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-    thead tr { background: #f5f5f5; }
-    th { text-align: left; padding: 6px 8px; font-size: 10px; font-weight: 600; text-transform: uppercase; color: #555; border-bottom: 1px solid #ddd; }
-    td { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 11px; }
-    .right { text-align: right; }
-    .primary { color: #0284c7; font-weight: 600; }
-    .subtotal { text-align: right; margin-top: 4px; font-size: 11px; color: #555; }
-    .section { margin-bottom: 16px; }
-    .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 500; }
-    .badge-ok   { background: #dcfce7; color: #15803d; }
-    .badge-warn { background: #fef9c3; color: #854d0e; }
-    .totalizador { border: 1px solid #ddd; border-radius: 6px; padding: 16px; margin-top: 20px; background: #f9fafb; }
-    .totalizador-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; color: #555; }
-    .totalizador-total { display: flex; justify-content: space-between; padding: 8px 0 0; margin-top: 8px; border-top: 2px solid #111; font-size: 15px; font-weight: 700; }
-    .nota { margin-top: 12px; font-size: 10px; color: #888; }
-    @media print { body { padding: 16px; } }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <h1>Relatório de Fechamento</h1>
-      <p>Parceiro: <strong>${status.nome}</strong></p>
-      <p>Competência: <strong>${fmtYearMonth(yearMonth)}</strong></p>
-      <p>${isFixed ? `Precificação Fixa · Taxa: ${formatBRL(status.hourly_rate)}/h` : 'Precificação Variável'}${isClosed ? ` · Fechado em ${new Date(status.closed_at!).toLocaleDateString('pt-BR')}` : ' · Em aberto'}</p>
-    </div>
-    <div class="date-gen">Gerado em<br/><strong>${new Date().toLocaleDateString('pt-BR')}</strong></div>
-  </div>
-
-  <h2>Consultores</h2>
-  <table>
-    <thead><tr><th>Consultor</th><th class="right">Horas</th><th class="right">Taxa/h</th><th class="right">Total</th></tr></thead>
-    <tbody>${consultoresRows}</tbody>
-  </table>
-  <p class="subtotal">Total: ${totalHoras.toFixed(2)}h &nbsp;·&nbsp; Subtotal Serviços: <strong>${formatBRL(totalServicos)}</strong></p>
-
-  ${despesas.length > 0 ? `
-  <h2>Despesas por Consultor</h2>
-  ${despesasSection}
-  <p class="subtotal">Total Despesas: <strong>${formatBRL(totalDespesas)}</strong></p>` : ''}
-
-  <div class="totalizador">
-    <div class="totalizador-row"><span>Total Horas</span><span>${totalHoras.toFixed(2)}h</span></div>
-    <div class="totalizador-row"><span>Total Serviços</span><span>${formatBRL(totalServicos)}</span></div>
-    <div class="totalizador-row"><span>Total Despesas</span><span>${formatBRL(totalDespesas)}</span></div>
-    <div class="totalizador-total"><span>TOTAL A PAGAR</span><span style="color:#0284c7">${formatBRL(totalAPagar)}</span></div>
-  </div>
-  ${isFixed ? '<p class="nota">* Taxa fixa do parceiro aplicada a todos os consultores.</p>' : ''}
-</body>
-</html>`
-
-    const win = window.open('', '_blank', 'width=900,height=700')
+  const openPrintWindow = (html: string) => {
+    const win = window.open('', '_blank', 'width=960,height=780')
     if (!win) { toast.error('Popup bloqueado — permita popups para imprimir.'); return }
     win.document.write(html)
     win.document.close()
     win.focus()
     setTimeout(() => { win.print() }, 300)
+  }
+
+  const printStyles = `
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #111; background: #fff; padding: 28px 32px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 18px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; }
+    .page-header-left img { width: 130px; }
+    .page-header-right { text-align: right; }
+    .page-header-right h1 { font-size: 22px; font-weight: 700; color: #111; margin-bottom: 2px; }
+    .page-header-right .subtitle { font-size: 11px; color: #6b7280; margin-bottom: 6px; }
+    .page-header-right .meta { font-size: 12px; color: #111; }
+    .page-header-right .meta b { font-weight: 700; }
+    .section { margin-bottom: 24px; }
+    .section-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .section-title { font-size: 14px; font-weight: 700; color: #111; }
+    .section-code { font-size: 11px; font-weight: 400; color: #6b7280; margin-left: 6px; }
+    .section-rate { font-size: 11px; color: #6b7280; }
+    .section-rate b { color: #111; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: #f3f4f6; padding: 7px 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; color: #6b7280; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    tbody td { padding: 7px 10px; font-size: 11px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+    .right { text-align: right; }
+    .section-footer { background: #f5f3ff; padding: 8px 12px; text-align: right; font-size: 12px; color: #7c3aed; font-weight: 600; border-radius: 0 0 6px 6px; margin-top: -1px; }
+    .divider { border: none; border-top: 1px dashed #d1d5db; margin: 20px 0; }
+    .total-box { background: #7c3aed; border-radius: 8px; padding: 16px 24px; display: flex; justify-content: space-between; margin-top: 24px; color: #fff; }
+    .total-box-block { }
+    .total-box-label { font-size: 11px; opacity: 0.85; margin-bottom: 4px; }
+    .total-box-value { font-size: 26px; font-weight: 700; }
+    .page-footer { margin-top: 32px; display: flex; justify-content: space-between; font-size: 10px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+    @media print { body { padding: 16px 20px; } }
+  `
+
+  const handlePrint = () => {
+    if (!status || !apontamentos.length) {
+      toast.error('Carregue os apontamentos antes de imprimir.')
+      return
+    }
+
+    const logoUrl = window.location.origin + '/logo.png'
+    const competencia = yearMonth ? fmtYearMonth(yearMonth).replace('/', ' / ') : '—'
+    const tipoPrec = isFixed ? `Precificação Fixa — Taxa: ${formatBRL(status.hourly_rate)}/h` : 'Precificação Variável'
+
+    // Agrupa apontamentos por consultor
+    const porConsultor = new Map<number, { consultor: string; taxa: number; horas: number; total: number; rows: ApontamentoRow[] }>()
+    apontamentos.forEach(a => {
+      if (!porConsultor.has(a.user_id)) {
+        const c = consultores.find(c => c.user_id === a.user_id)
+        porConsultor.set(a.user_id, { consultor: a.consultor, taxa: c?.valor_hora ?? 0, horas: 0, total: 0, rows: [] })
+      }
+      const entry = porConsultor.get(a.user_id)!
+      entry.rows.push(a)
+      entry.horas += a.horas
+      entry.total += a.horas * (entry.taxa)
+    })
+
+    const sectionsHtml = Array.from(porConsultor.values()).map(({ consultor, taxa, horas, total, rows }) => {
+      const rowsHtml = rows.map(r => `
+        <tr>
+          <td>${new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+          <td>${r.projeto}</td>
+          <td>${r.solicitante ?? '—'}</td>
+          <td>${r.ticket ?? '0'}</td>
+          <td>${r.titulo ?? '—'}</td>
+          <td>${r.observacao ?? '—'}</td>
+          <td class="right">${r.horas.toFixed(2)}h</td>
+        </tr>`).join('')
+
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div><span class="section-title">${consultor}</span></div>
+            <div class="section-rate">Valor/hora: <b>${formatBRL(taxa)}/h</b></div>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Data</th><th>Projeto</th><th>Solicitante</th><th>Ticket</th><th>Título</th><th>Descrição</th><th class="right">Horas</th></tr>
+            </thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+          <div class="section-footer">${horas.toFixed(2)}h × ${formatBRL(taxa)}/h = <b>${formatBRL(Math.round(total * 100) / 100)}</b></div>
+        </div>
+        <hr class="divider"/>`
+    }).join('')
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"/>
+<title>Relatório de Fechamento — ${status.nome} — ${competencia}</title>
+<style>${printStyles}</style>
+</head>
+<body>
+  <div class="page-header">
+    <div class="page-header-left"><img src="${logoUrl}" alt="Logo"/></div>
+    <div class="page-header-right">
+      <h1>Relatório de Fechamento</h1>
+      <div class="subtitle">${tipoPrec}</div>
+      <div class="meta"><b>Parceiro:</b> ${status.nome}</div>
+      <div class="meta"><b>Competência:</b> ${competencia}</div>
+    </div>
+  </div>
+
+  ${sectionsHtml}
+
+  <div class="total-box">
+    <div class="total-box-block">
+      <div class="total-box-label">Total de Horas</div>
+      <div class="total-box-value">${totalHoras.toFixed(2)}h</div>
+    </div>
+    <div class="total-box-block" style="text-align:right">
+      <div class="total-box-label">Total Serviços</div>
+      <div class="total-box-value">${formatBRL(totalServicos)}</div>
+    </div>
+  </div>
+  ${isFixed ? '<p style="margin-top:8px;font-size:10px;color:#9ca3af">* Taxa fixa aplicada a todos os consultores.</p>' : ''}
+
+  <div class="page-footer">
+    <span>ERPSERV Consultoria — Documento gerado pelo sistema Minutor</span>
+    <span>Emitido em ${new Date().toLocaleDateString('pt-BR')}</span>
+  </div>
+</body>
+</html>`
+
+    openPrintWindow(html)
+  }
+
+  const handlePrintDespesas = () => {
+    if (!status) return
+    if (!despesas.length) { toast.error('Nenhuma despesa para imprimir.'); return }
+
+    const logoUrl = window.location.origin + '/logo.png'
+    const competencia = yearMonth ? fmtYearMonth(yearMonth).replace('/', ' / ') : '—'
+
+    const porConsultor = despesas.reduce<Record<string, DespesaRow[]>>((acc, d) => {
+      if (!acc[d.colaborador]) acc[d.colaborador] = []
+      acc[d.colaborador].push(d)
+      return acc
+    }, {})
+
+    const sectionsHtml = Object.entries(porConsultor).map(([consultor, rows]) => {
+      const sub = rows.reduce((s, r) => s + r.valor, 0)
+      const rowsHtml = rows.map(r => `
+        <tr>
+          <td>${new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+          <td>${r.descricao}</td>
+          <td>${r.categoria}</td>
+          <td>${r.projeto}</td>
+          <td><span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:${r.status === 'approved' ? '#dcfce7' : '#fef9c3'};color:${r.status === 'approved' ? '#15803d' : '#854d0e'}">${EXPENSE_STATUS_LABELS[r.status] ?? r.status}</span></td>
+          <td class="right" style="color:#7c3aed;font-weight:600">${formatBRL(r.valor)}</td>
+        </tr>`).join('')
+
+      return `
+        <div class="section">
+          <div class="section-header">
+            <div><span class="section-title">${consultor}</span></div>
+            <div class="section-rate">Subtotal: <b>${formatBRL(sub)}</b></div>
+          </div>
+          <table>
+            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Projeto</th><th>Status</th><th class="right">Valor</th></tr></thead>
+            <tbody>${rowsHtml}</tbody>
+          </table>
+        </div>
+        <hr class="divider"/>`
+    }).join('')
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"/>
+<title>Relatório de Despesas — ${status.nome} — ${competencia}</title>
+<style>${printStyles}</style>
+</head>
+<body>
+  <div class="page-header">
+    <div class="page-header-left"><img src="${logoUrl}" alt="Logo"/></div>
+    <div class="page-header-right">
+      <h1>Relatório de Despesas</h1>
+      <div class="subtitle">Fechamento — Parceiros</div>
+      <div class="meta"><b>Parceiro:</b> ${status.nome}</div>
+      <div class="meta"><b>Competência:</b> ${competencia}</div>
+    </div>
+  </div>
+
+  ${sectionsHtml}
+
+  <div class="total-box">
+    <div class="total-box-block">
+      <div class="total-box-label">Total de Despesas</div>
+      <div class="total-box-value">${formatBRL(totalDespesas)}</div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>ERPSERV Consultoria — Documento gerado pelo sistema Minutor</span>
+    <span>Emitido em ${new Date().toLocaleDateString('pt-BR')}</span>
+  </div>
+</body>
+</html>`
+
+    openPrintWindow(html)
   }
 
   // ─── Derivados ────────────────────────────────────────────────────────────
@@ -407,9 +503,16 @@ export default function FechamentoParceiroPage() {
                 onChange={(m, y) => { setMonth(m || null); setYear(y || null) }}
               />
               {tab === 'relatorio' && partnerId && (
-                <Button size="sm" variant="secondary" onClick={handlePrint}>
-                  <Printer size={12} className="mr-1" /> Imprimir
-                </Button>
+                <>
+                  <Button size="sm" variant="secondary" onClick={handlePrint}>
+                    <Printer size={12} className="mr-1" /> Serviços
+                  </Button>
+                  {despesas.length > 0 && (
+                    <Button size="sm" variant="secondary" onClick={handlePrintDespesas}>
+                      <Printer size={12} className="mr-1" /> Despesas
+                    </Button>
+                  )}
+                </>
               )}
               {isAdmin && partnerId && yearMonth && !isClosed && (
                 <Button size="sm" onClick={handleFechar} disabled={loadingFechar} style={{ background: 'var(--brand-primary)', color: '#000' }}>
@@ -733,156 +836,90 @@ export default function FechamentoParceiroPage() {
               {/* ── Tab Relatório ── */}
               {tab === 'relatorio' && (
                 <div className="p-6">
-                  <div style={{ maxWidth: 760, margin: '0 auto', fontFamily: 'sans-serif' }}>
-                    {/* Cabeçalho do relatório */}
-                    <div className="mb-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h2 className="text-xl font-bold" style={{ color: 'var(--brand-text)' }}>
-                            Relatório de Fechamento
-                          </h2>
-                          <p className="text-sm mt-1" style={{ color: 'var(--brand-muted)' }}>
-                            Parceiro: <b style={{ color: 'var(--brand-text)' }}>{status?.nome}</b>
-                          </p>
-                          <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
-                            Competência: <b style={{ color: 'var(--brand-text)' }}>{yearMonth ? fmtYearMonth(yearMonth) : '—'}</b>
-                          </p>
-                          {status && (
-                            <p className="text-xs mt-1" style={{ color: 'var(--brand-muted)' }}>
-                              {isFixed
-                                ? `Precificação Fixa · Taxa: ${formatBRL(status.hourly_rate)}/h`
-                                : 'Precificação Variável'}
-                              {isClosed ? ` · Fechado em ${new Date(status.closed_at!).toLocaleDateString('pt-BR')}` : ' · Em aberto'}
-                            </p>
-                          )}
+                  <div style={{ maxWidth: 800, margin: '0 auto' }}>
+                    {/* Cabeçalho preview */}
+                    <div className="flex justify-between items-start mb-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                      <img src="/logo.png" alt="Logo" style={{ height: 48, objectFit: 'contain' }} />
+                      <div className="text-right">
+                        <div className="text-xl font-bold" style={{ color: 'var(--brand-text)' }}>Relatório de Fechamento</div>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
+                          {isFixed ? `Precificação Fixa · Taxa: ${formatBRL(status?.hourly_rate ?? 0)}/h` : 'Precificação Variável'}
                         </div>
-                        <div className="text-right">
-                          <div className="text-xs" style={{ color: 'var(--brand-muted)' }}>Gerado em</div>
-                          <div className="text-sm" style={{ color: 'var(--brand-text)' }}>
-                            {new Date().toLocaleDateString('pt-BR')}
-                          </div>
+                        <div className="text-sm mt-1" style={{ color: 'var(--brand-text)' }}>
+                          <b>Parceiro:</b> {status?.nome}
+                        </div>
+                        <div className="text-sm" style={{ color: 'var(--brand-text)' }}>
+                          <b>Competência:</b> {yearMonth ? fmtYearMonth(yearMonth).replace('/', ' / ') : '—'}
                         </div>
                       </div>
                     </div>
 
-                    {/* Consultores */}
-                    <div className="mb-6">
-                      <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text)' }}>
-                        Consultores
-                      </h3>
-                      {loadingConsult ? <SkeletonTable rows={3} cols={4} /> : (
-                        <Table>
-                          <Thead>
-                            <tr>
-                              <Th>Consultor</Th>
-                              <Th right>Horas</Th>
-                              <Th right>Taxa/h</Th>
-                              <Th right>Total</Th>
-                            </tr>
-                          </Thead>
-                          <Tbody>
-                            {consultores.map(row => (
-                              <Tr key={row.user_id}>
-                                <Td className="text-xs">{row.nome}</Td>
-                                <Td right className="tabular-nums text-xs">{row.horas.toFixed(2)}h</Td>
-                                <Td right className="tabular-nums text-xs">{formatBRL(row.valor_hora)}/h</Td>
-                                <Td right className="tabular-nums text-xs font-semibold" style={{ color: 'var(--brand-primary)' }}>
-                                  {formatBRL(row.total)}
-                                </Td>
-                              </Tr>
-                            ))}
-                          </Tbody>
-                        </Table>
-                      )}
-                      <div className="mt-2 flex justify-between text-xs px-1" style={{ color: 'var(--brand-muted)' }}>
-                        <span>Total: <b>{totalHoras.toFixed(2)}h</b></span>
-                        <span>Subtotal Serviços: <b style={{ color: 'var(--brand-primary)' }}>{formatBRL(totalServicos)}</b></span>
-                      </div>
-                    </div>
-
-                    {/* Despesas agrupadas por consultor */}
-                    {despesas.length > 0 && (() => {
-                      const grupos = despesas.reduce<Record<string, DespesaRow[]>>((acc, d) => {
-                        if (!acc[d.colaborador]) acc[d.colaborador] = []
-                        acc[d.colaborador].push(d)
-                        return acc
-                      }, {})
-                      return (
-                        <div className="mb-6">
-                          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text)' }}>
-                            Despesas por Consultor
-                          </h3>
-                          {Object.entries(grupos).map(([consultor, rows]) => {
-                            const sub = rows.reduce((s, r) => s + r.valor, 0)
-                            return (
-                              <div key={consultor} className="mb-5">
-                                <div className="text-xs font-semibold mb-2 px-1" style={{ color: 'var(--brand-muted)' }}>
-                                  {consultor}
-                                </div>
-                                <Table>
-                                  <Thead>
-                                    <tr>
-                                      <Th>Data</Th>
-                                      <Th>Descrição</Th>
-                                      <Th>Categoria</Th>
-                                      <Th>Projeto</Th>
-                                      <Th>Status</Th>
-                                      <Th right>Valor</Th>
-                                    </tr>
-                                  </Thead>
-                                  <Tbody>
-                                    {rows.map(row => (
-                                      <Tr key={row.id}>
-                                        <Td className="text-xs tabular-nums">{new Date(row.data + 'T12:00:00').toLocaleDateString('pt-BR')}</Td>
-                                        <Td className="text-xs">{row.descricao}</Td>
-                                        <Td className="text-xs">{row.categoria}</Td>
-                                        <Td className="text-xs">{row.projeto}</Td>
-                                        <Td className="text-xs">
-                                          <Badge variant={EXPENSE_STATUS_VARIANTS[row.status] ?? 'secondary'}>
-                                            {EXPENSE_STATUS_LABELS[row.status] ?? row.status}
-                                          </Badge>
-                                        </Td>
-                                        <Td right className="tabular-nums text-xs font-medium" style={{ color: 'var(--brand-primary)' }}>
-                                          {formatBRL(row.valor)}
-                                        </Td>
-                                      </Tr>
-                                    ))}
-                                  </Tbody>
-                                </Table>
-                                <div className="mt-1 flex justify-end text-xs px-1" style={{ color: 'var(--brand-muted)' }}>
-                                  Subtotal {consultor}: <b className="ml-1" style={{ color: 'var(--brand-primary)' }}>{formatBRL(sub)}</b>
-                                </div>
-                              </div>
-                            )
-                          })}
-                          <div className="flex justify-end text-xs px-1 pt-2 border-t" style={{ color: 'var(--brand-muted)', borderColor: 'var(--brand-border)' }}>
-                            Total Despesas: <b className="ml-1" style={{ color: 'var(--brand-primary)' }}>{formatBRL(totalDespesas)}</b>
+                    {/* Apontamentos por consultor */}
+                    {loadingAp ? <SkeletonTable rows={4} cols={6} /> : (() => {
+                      const porConsultor = new Map<number, { consultor: string; taxa: number; horas: number; total: number; rows: ApontamentoRow[] }>()
+                      apontamentos.forEach(a => {
+                        if (!porConsultor.has(a.user_id)) {
+                          const c = consultores.find(c => c.user_id === a.user_id)
+                          porConsultor.set(a.user_id, { consultor: a.consultor, taxa: c?.valor_hora ?? 0, horas: 0, total: 0, rows: [] })
+                        }
+                        const entry = porConsultor.get(a.user_id)!
+                        entry.rows.push(a)
+                        entry.horas += a.horas
+                        entry.total += a.horas * entry.taxa
+                      })
+                      return Array.from(porConsultor.values()).map(({ consultor, taxa, horas, total, rows }) => (
+                        <div key={consultor} className="mb-8">
+                          <div className="flex justify-between items-baseline mb-2">
+                            <div className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{consultor}</div>
+                            <div className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                              Valor/hora: <b style={{ color: 'var(--brand-text)' }}>{formatBRL(taxa)}/h</b>
+                            </div>
+                          </div>
+                          <Table>
+                            <Thead>
+                              <tr>
+                                <Th>Data</Th>
+                                <Th>Projeto</Th>
+                                <Th>Solicitante</Th>
+                                <Th>Ticket</Th>
+                                <Th>Título</Th>
+                                <Th>Descrição</Th>
+                                <Th right>Horas</Th>
+                              </tr>
+                            </Thead>
+                            <Tbody>
+                              {rows.map(r => (
+                                <Tr key={r.id}>
+                                  <Td className="text-xs tabular-nums whitespace-nowrap">{new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</Td>
+                                  <Td className="text-xs">{r.projeto}</Td>
+                                  <Td className="text-xs">{r.solicitante ?? '—'}</Td>
+                                  <Td className="text-xs tabular-nums">{r.ticket ?? '—'}</Td>
+                                  <Td className="text-xs">{r.titulo ?? '—'}</Td>
+                                  <Td className="text-xs">{r.observacao ?? '—'}</Td>
+                                  <Td right className="tabular-nums text-xs">{r.horas.toFixed(2)}h</Td>
+                                </Tr>
+                              ))}
+                            </Tbody>
+                          </Table>
+                          {/* Rodapé da seção */}
+                          <div className="flex justify-end px-3 py-2 text-xs font-semibold rounded-b"
+                            style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
+                            {horas.toFixed(2)}h × {formatBRL(taxa)}/h = <b className="ml-1">{formatBRL(Math.round(total * 100) / 100)}</b>
                           </div>
                         </div>
-                      )
+                      ))
                     })()}
 
                     {/* Totalizador */}
-                    <div className="rounded-lg p-4 mt-4" style={{ background: 'rgba(0,245,255,0.05)', border: '1px solid var(--brand-border)' }}>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm" style={{ color: 'var(--brand-muted)' }}>
-                          <span>Total Horas</span>
-                          <span className="tabular-nums font-medium">{totalHoras.toFixed(2)}h</span>
-                        </div>
-                        <div className="flex justify-between text-sm" style={{ color: 'var(--brand-muted)' }}>
-                          <span>Total Serviços</span>
-                          <span className="tabular-nums">{formatBRL(totalServicos)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm" style={{ color: 'var(--brand-muted)' }}>
-                          <span>Total Despesas</span>
-                          <span className="tabular-nums">{formatBRL(totalDespesas)}</span>
-                        </div>
-                        <div className="border-t pt-2 mt-2 flex justify-between items-center" style={{ borderColor: 'var(--brand-border)' }}>
-                          <span className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>TOTAL A PAGAR</span>
-                          <span className="text-xl font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
-                            {formatBRL(totalAPagar)}
-                          </span>
-                        </div>
+                    <div className="flex justify-between items-center rounded-xl p-5 mt-4"
+                      style={{ background: '#7c3aed', color: '#fff' }}>
+                      <div>
+                        <div className="text-xs opacity-80 mb-1">Total de Horas</div>
+                        <div className="text-2xl font-bold tabular-nums">{totalHoras.toFixed(2)}h</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs opacity-80 mb-1">Total Serviços</div>
+                        <div className="text-2xl font-bold tabular-nums">{formatBRL(totalServicos)}</div>
                       </div>
                     </div>
 
@@ -891,6 +928,11 @@ export default function FechamentoParceiroPage() {
                         * Taxa fixa do parceiro aplicada a todos os consultores.
                       </p>
                     )}
+
+                    <div className="flex justify-between mt-8 pt-3 text-xs border-t" style={{ color: 'var(--brand-muted)', borderColor: 'var(--brand-border)' }}>
+                      <span>ERPSERV Consultoria — Documento gerado pelo sistema Minutor</span>
+                      <span>Emitido em {new Date().toLocaleDateString('pt-BR')}</span>
+                    </div>
                   </div>
                 </div>
               )}
