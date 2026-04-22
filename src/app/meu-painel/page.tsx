@@ -1972,8 +1972,8 @@ export default function MeuPainelPage() {
       {validTab === 'overview' && (
         <div className="space-y-5">
 
-          {/* Hero Total */}
-          {!isParceiroSimples && (
+          {/* Hero Total — não mostrar para fixo (usa FixoPaymentSection abaixo) */}
+          {!isParceiroSimples && !isFixo && (
             <HeroTotal
               period={heroPeriodLabel}
               total={heroTotal}
