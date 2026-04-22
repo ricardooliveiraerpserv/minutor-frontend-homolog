@@ -3633,6 +3633,13 @@ function KanbanContent() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {!isConsultor && !isCliente && (
+              <button onClick={() => router.push('/portal-cliente/nova-requisicao')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: '#00F5FF' }}>
+                <Plus size={13} /> Nova Requisição
+              </button>
+            )}
             <button onClick={() => setViewMode(viewMode === 'kanban' ? 'list' : 'kanban')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-opacity hover:opacity-80"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
