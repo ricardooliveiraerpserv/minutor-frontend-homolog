@@ -202,7 +202,8 @@ function SidebarInner({ user }: { user: User }) {
   const isParceiroAdmin    = user?.type === 'parceiro_admin'
   const isParceiroGestor   = isParceiroAdmin && !!user?.is_executive
   const isAdministrativo   = user?.type === 'administrativo'
-  const ep = user?.extra_permissions ?? []
+  // permissions = lista resolvida pelo backend (base + extra + grupos); fallback para extra_permissions
+  const ep: string[] = (user as any)?.permissions ?? user?.extra_permissions ?? []
 
   // Para clientes: carrega os códigos de tipo de contrato dos seus projetos
   const [clienteContractCodes, setClienteContractCodes] = useState<Set<string>>(new Set())

@@ -227,7 +227,7 @@ const EMPTY_FORM = {
 export default function UsersPage() {
   const { user: authUser } = useAuth()
   const isAdmin      = authUser?.type === 'admin'
-  const ep           = authUser?.extra_permissions ?? []
+  const ep: string[] = (authUser as any)?.permissions ?? authUser?.extra_permissions ?? []
   const canCreate    = isAdmin || ep.includes('users.create')
   const canView      = isAdmin || ep.includes('users.view_all')
   const canEdit      = isAdmin || ep.includes('users.update')
