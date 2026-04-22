@@ -305,9 +305,12 @@ function SidebarInner({ user }: { user: User }) {
           { type: 'item', label: 'Painel do Parceiro', href: '/partner-dashboard', icon: Handshake },
         ] as NavEntry[]
       }
-      // Parceiro simples: igual ao consultor
+      // Parceiro simples: meu painel + apontamentos + despesas
       return [
-        { type: 'item', label: 'Início',     href: '/dashboard',  icon: Home },
+        { type: 'item', label: 'Início',       href: '/dashboard',  icon: Home },
+        { type: 'item', label: 'Meu Painel',   href: '/meu-painel', icon: LayoutDashboard },
+        { type: 'item', label: 'Apontamentos', href: '/timesheets', icon: Clock },
+        { type: 'item', label: 'Despesas',     href: '/expenses',   icon: Receipt },
       ] as NavEntry[]
     }
     return NAV
