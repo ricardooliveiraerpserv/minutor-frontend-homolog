@@ -3461,12 +3461,18 @@ function KanbanContent() {
   const showTransition = !isConsultor
   const visibleProjectCols = PROJECT_COLS
 
+  // IDs de contratos gerenciados por requisições — não exibir como card duplicado no pipeline
+  const linkedContractIds = new Set(requestCards.map(r => r.linked_contract_id).filter(Boolean))
+
   // Cards by column
   const contractsInCol = (colId: string): ContractCard[] => {
     if (colId === 'inicio_autorizado') {
       return transitionCards.sort((a, b) => a.kanban_order - b.kanban_order)
     }
-    return demandCards.filter(c => contractColumnId(c) === colId).sort((a, b) => a.kanban_order - b.kanban_order)
+    return demandCards
+      .filter(c => !linkedContractIds.has(c.id))
+      .filter(c => contractColumnId(c) === colId)
+      .sort((a, b) => a.kanban_order - b.kanban_order)
   }
 
   const projectsInCol = (colId: string): ProjectCard[] =>
