@@ -235,8 +235,9 @@ function uniqueCardId(card: AnyCard): string {
 // ─── Contract Card ────────────────────────────────────────────────────────────
 
 function ContractKanbanCard({
-  card, index, canDrag, onClick, onAction,
-}: { card: ContractCard; index: number; canDrag: boolean; onClick: () => void; onAction?: (action: string) => void }) {
+  card, index, canDrag, onClick, onAction, onMove, availableColumns,
+}: { card: ContractCard; index: number; canDrag: boolean; onClick: () => void; onAction?: (action: string) => void
+    onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[] }) {
   const isIncomplete = !card.is_complete
   const isTransition = card.kanban_status === 'inicio_autorizado'
   const [menuOpen, setMenuOpen] = useState(false)
@@ -353,6 +354,22 @@ function ContractKanbanCard({
               </span>
             )}
           </div>
+          {availableColumns && availableColumns.length > 0 && (
+            <div className="mt-2 pt-2" style={{ borderTop: '1px solid var(--brand-border)' }}
+              onClick={e => e.stopPropagation()}>
+              <select
+                value=""
+                onChange={e => { if (e.target.value) { onMove?.(e.target.value); e.currentTarget.value = '' } }}
+                className="w-full text-[10px] rounded-lg px-2 py-1.5 cursor-pointer appearance-none"
+                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)', outline: 'none' }}
+              >
+                <option value="" disabled>Mover para...</option>
+                {availableColumns.map(col => (
+                  <option key={col.id} value={col.id}>{col.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
     </Draggable>
@@ -472,8 +489,9 @@ function endDateStyle(dateStr: string): { color: string; bg: string; label: stri
 }
 
 function ProjectKanbanCard({
-  card, index, canDrag, onClick, onAction,
-}: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void; onAction: (action: string) => void }) {
+  card, index, canDrag, onClick, onAction, onMove, availableColumns,
+}: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void; onAction: (action: string) => void
+    onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[] }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -576,6 +594,22 @@ function ProjectKanbanCard({
               {card.code}
             </span>
           </div>
+          {availableColumns && availableColumns.length > 0 && (
+            <div className="mt-2 pt-2" style={{ borderTop: '1px solid rgba(99,102,241,0.15)' }}
+              onClick={e => e.stopPropagation()}>
+              <select
+                value=""
+                onChange={e => { if (e.target.value) { onMove?.(e.target.value); e.currentTarget.value = '' } }}
+                className="w-full text-[10px] rounded-lg px-2 py-1.5 cursor-pointer appearance-none"
+                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)', outline: 'none' }}
+              >
+                <option value="" disabled>Mover para...</option>
+                {availableColumns.map(col => (
+                  <option key={col.id} value={col.id}>{col.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
     </Draggable>
@@ -3256,7 +3290,9 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
 // ─── Column Component ─────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  col, contractCards, projectCards, requestCards = [], canDrag, canDrop, onContractClick, onProjectClick, onRequestClick, onProjectAction, onContractAction,
+  col, contractCards, projectCards, requestCards = [], canDrag, canDrop,
+  onContractClick, onProjectClick, onRequestClick, onProjectAction, onContractAction,
+  onContractMove, onProjectMove, getContractCols, getProjectCols,
 }: {
   col: Column
   contractCards: ContractCard[]
@@ -3269,6 +3305,10 @@ function KanbanColumn({
   onRequestClick?: (card: RequestCard) => void
   onProjectAction?: (card: ProjectCard, action: string) => void
   onContractAction?: (card: ContractCard, action: string) => void
+  onContractMove?: (card: ContractCard, toCol: string) => void
+  onProjectMove?: (card: ProjectCard, toCol: string) => void
+  getContractCols?: (card: ContractCard, fromCol: string) => { id: string; label: string }[]
+  getProjectCols?: (card: ProjectCard, fromCol: string) => { id: string; label: string }[]
 }) {
   const isTransition  = col.phase === 'transition'
   const isProject     = col.phase === 'project'
@@ -3377,12 +3417,30 @@ function KanbanColumn({
             {requestCards.length > 0 && (contractCards.length > 0 || projectCards.length > 0) && (
               <div style={{ borderTop: '1px dashed rgba(139,92,246,0.2)' }} />
             )}
-            {contractCards.map((card, idx) => (
-              <ContractKanbanCard key={uniqueCardId(card)} card={card} index={requestCards.length + idx} canDrag={canDrag} onClick={() => onContractClick(card)} onAction={onContractAction ? action => onContractAction(card, action) : undefined} />
-            ))}
-            {projectCards.map((card, idx) => (
-              <ProjectKanbanCard key={uniqueCardId(card)} card={card} index={requestCards.length + contractCards.length + idx} canDrag={canDrag} onClick={() => onProjectClick(card)} onAction={action => onProjectAction?.(card, action)} />
-            ))}
+            {contractCards.map((card, idx) => {
+              const fromCol = card.kanban_status === 'inicio_autorizado' ? 'inicio_autorizado' : (card.kanban_status ?? 'backlog')
+              return (
+                <ContractKanbanCard key={uniqueCardId(card)} card={card} index={requestCards.length + idx}
+                  canDrag={canDrag}
+                  onClick={() => onContractClick(card)}
+                  onAction={onContractAction ? action => onContractAction(card, action) : undefined}
+                  onMove={onContractMove ? toCol => onContractMove(card, toCol) : undefined}
+                  availableColumns={getContractCols ? getContractCols(card, fromCol) : undefined}
+                />
+              )
+            })}
+            {projectCards.map((card, idx) => {
+              const fromCol = projectColumnId(card)
+              return (
+                <ProjectKanbanCard key={uniqueCardId(card)} card={card} index={requestCards.length + contractCards.length + idx}
+                  canDrag={canDrag}
+                  onClick={() => onProjectClick(card)}
+                  onAction={action => onProjectAction?.(card, action)}
+                  onMove={onProjectMove ? toCol => onProjectMove(card, toCol) : undefined}
+                  availableColumns={getProjectCols ? getProjectCols(card, fromCol) : undefined}
+                />
+              )
+            })}
             {prov.placeholder}
             {contractCards.length === 0 && projectCards.length === 0 && requestCards.length === 0 && !snap.isDraggingOver && (
               <p className="text-center text-xs py-6" style={{ color: 'var(--brand-subtle)' }}>Vazio</p>
@@ -3505,6 +3563,117 @@ function KanbanContent() {
   const projectsInCol = (colId: string): ProjectCard[] =>
     projectCards.filter(p => projectColumnId(p) === colId)
 
+  const handleContractMove = async (cardId: number, card: ContractCard, fromCol: string, toCol: string, order = 0) => {
+    if (toCol === 'req_inicio_autorizado') {
+      setContractDecisionCard(card)
+      return
+    }
+
+    if (toCol === 'inicio_autorizado') {
+      if (!card.is_complete) {
+        toast.error('Contrato incompleto — preencha todos os campos obrigatórios antes de autorizar.')
+        return
+      }
+      setDemandCards(prev => prev.filter(c => c.id !== cardId))
+      setTransitionCards(prev => [...prev, { ...card, kanban_status: 'inicio_autorizado', status: 'inicio_autorizado' }])
+      try {
+        await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: 'inicio_autorizado', order })
+        toast.success('Contrato movido para Início Autorizado')
+      } catch (e: any) {
+        toast.error(e?.message ?? 'Erro ao mover contrato')
+        load()
+      }
+      return
+    }
+
+    if (DEMAND_COLS.find(c => c.id === toCol)) {
+      const wasTransition = card.kanban_status === 'inicio_autorizado'
+      setTransitionCards(prev => prev.filter(c => c.id !== cardId))
+      setDemandCards(prev => [...prev.filter(c => c.id !== cardId), { ...card, kanban_status: toCol }])
+      try {
+        await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: toCol, order })
+        if (wasTransition) toast.success('Contrato retornado à fase de demanda')
+        else toast.success('Card movido')
+      } catch (e: any) {
+        toast.error(e?.message ?? 'Erro ao mover card')
+        load()
+      }
+      return
+    }
+
+    setDemandCards(prev => prev.map(c =>
+      c.id === cardId ? { ...c, kanban_status: toCol, kanban_order: order } : c
+    ))
+    try {
+      await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: toCol, order })
+      toast.success('Card movido')
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao mover card')
+      load()
+    }
+  }
+
+  const handleRequestMove = async (cardId: number, reqCard: RequestCard, fromCol: string, toCol: string) => {
+    if (toCol === 'req_inicio_autorizado') {
+      setPlanDecisionCard(reqCard)
+      return
+    }
+
+    if (fromCol === 'inicio_autorizado' && PROJECT_COL_TO_STATUS[toCol]) {
+      setFinalizeCard(reqCard)
+      return
+    }
+
+    setRequestCards(prev => prev.map(r => r.id === cardId ? { ...r, kanban_column: toCol } : r))
+    try {
+      await api.patch(`/contract-requests/${cardId}/kanban-move`, { kanban_column: toCol })
+    } catch {
+      load()
+    }
+  }
+
+  const handleProjectMove = async (cardId: number, toCol: string) => {
+    const newStatus = PROJECT_COL_TO_STATUS[toCol]
+    if (!newStatus) return
+    setProjectCards(prev => prev.map(p => p.id === cardId ? { ...p, status: newStatus } : p))
+    try {
+      await api.patch(`/projects/${cardId}/kanban-move`, { status: newStatus })
+      toast.success('Projeto atualizado')
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao mover projeto')
+      load()
+    }
+  }
+
+  const getAvailableContractCols = (card: ContractCard, fromCol: string): { id: string; label: string }[] => {
+    if (isConsultor) return []
+
+    if (isCliente) {
+      return DEMAND_COLS
+        .filter(c => (c.clientVisible || c.clientCanDrop) && c.id !== fromCol)
+        .map(c => ({ id: c.id, label: c.label }))
+    }
+
+    const demandOptions = DEMAND_COLS
+      .filter(c => c.id !== fromCol)
+      .map(c => ({ id: c.id, label: c.label }))
+
+    const cols = [...demandOptions]
+
+    if (fromCol !== 'inicio_autorizado' && card.is_complete && !cols.find(c => c.id === 'inicio_autorizado')) {
+      cols.push({ id: 'inicio_autorizado', label: 'Início Autorizado' })
+    }
+
+    return cols.filter(c => c.id !== fromCol)
+  }
+
+  const getAvailableProjectCols = (_card: ProjectCard, fromCol: string): { id: string; label: string }[] => {
+    if (isConsultor || isCliente) return []
+    return PROJECT_COLS
+      .filter(c => c.id !== fromCol)
+      .map(c => ({ id: c.id, label: c.label }))
+  }
+
   const onDragEnd = async (result: DropResult) => {
     const { source, destination, draggableId } = result
     if (!destination) return
@@ -3513,7 +3682,6 @@ function KanbanContent() {
     const toCol   = destination.droppableId
     const fromCol = source.droppableId
 
-    // Client can only DROP on clientVisible or clientCanDrop columns
     if (isCliente) {
       const col = DEMAND_COLS.find(c => c.id === toCol)
       if (!col?.clientVisible && !col?.clientCanDrop) return
@@ -3522,108 +3690,22 @@ function KanbanContent() {
     const [cardType, rawId] = draggableId.split('-')
     const cardId = Number(rawId)
 
-    // ── Moving a contract card ──
     if (cardType === 'contract') {
       const card = [...demandCards, ...transitionCards].find(c => c.id === cardId)
       if (!card) return
-
-      // Dropped on Aguardando Início (Req.) → open decision modal
-      if (toCol === 'req_inicio_autorizado') {
-        setContractDecisionCard(card)
-        return
-      }
-
-      if (toCol === 'inicio_autorizado') {
-        if (!card.is_complete) {
-          toast.error('Contrato incompleto — preencha todos os campos obrigatórios antes de autorizar.')
-          return
-        }
-        // Optimistic update
-        setDemandCards(prev => prev.filter(c => c.id !== cardId))
-        setTransitionCards(prev => [...prev, { ...card, kanban_status: 'inicio_autorizado', status: 'inicio_autorizado' }])
-        try {
-          await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: 'inicio_autorizado', order: destination.index })
-          toast.success('Contrato movido para Início Autorizado')
-        } catch (e: any) {
-          toast.error(e?.message ?? 'Erro ao mover contrato')
-          load()
-        }
-        return
-      }
-
-      // Moving back from transition to a demand column
-      if (DEMAND_COLS.find(c => c.id === toCol)) {
-        const wasTransition = card.kanban_status === 'inicio_autorizado'
-        setTransitionCards(prev => prev.filter(c => c.id !== cardId))
-        setDemandCards(prev => [...prev.filter(c => c.id !== cardId), { ...card, kanban_status: toCol }])
-        try {
-          await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: toCol, order: destination.index })
-          if (wasTransition) toast.success('Contrato retornado à fase de demanda')
-          else toast.success('Card movido')
-        } catch (e: any) {
-          toast.error(e?.message ?? 'Erro ao mover card')
-          load()
-        }
-        return
-      }
-
-      // Moving between demand columns
-      setDemandCards(prev => prev.map(c =>
-        c.id === cardId ? { ...c, kanban_status: toCol, kanban_order: destination.index } : c
-      ))
-      try {
-        await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: toCol, order: destination.index })
-        toast.success('Card movido')
-      } catch (e: any) {
-        toast.error(e?.message ?? 'Erro ao mover card')
-        load()
-      }
+      await handleContractMove(cardId, card, fromCol, toCol, destination.index)
       return
     }
 
-    // ── Moving a request card ──
     if (cardType === 'request') {
       const reqCard = requestCards.find(r => r.id === cardId)
       if (!reqCard) return
-
-      // Dropped on Aguardando Início → open decision modal
-      if (toCol === 'req_inicio_autorizado') {
-        setPlanDecisionCard(reqCard)
-        return
-      }
-
-      // Dragged from Início Autorizado to project phase → open coordinator selection
-      if (fromCol === 'inicio_autorizado' && PROJECT_COL_TO_STATUS[toCol]) {
-        setFinalizeCard(reqCard)
-        return
-      }
-
-      // Normal move
-      setRequestCards(prev => prev.map(r => r.id === cardId ? { ...r, kanban_column: toCol } : r))
-      try {
-        await api.patch(`/contract-requests/${cardId}/kanban-move`, { kanban_column: toCol })
-      } catch {
-        load()
-      }
+      await handleRequestMove(cardId, reqCard, fromCol, toCol)
       return
     }
 
-    // ── Moving a project card ──
     if (cardType === 'project') {
-      const proj = projectCards.find(p => p.id === cardId)
-      if (!proj) return
-
-      const newStatus = PROJECT_COL_TO_STATUS[toCol]
-      if (!newStatus) return
-
-      setProjectCards(prev => prev.map(p => p.id === cardId ? { ...p, status: newStatus } : p))
-      try {
-        await api.patch(`/projects/${cardId}/kanban-move`, { status: newStatus })
-        toast.success('Projeto atualizado')
-      } catch (e: any) {
-        toast.error(e?.message ?? 'Erro ao mover projeto')
-        load()
-      }
+      await handleProjectMove(cardId, toCol)
     }
   }
 
@@ -3804,6 +3886,8 @@ function KanbanContent() {
                       ? setPlanDecisionCard(card)
                       : setSelectedRequest(card)
                   }
+                  onContractMove={(card, toCol) => handleContractMove(card.id, card, card.kanban_status ?? 'backlog', toCol)}
+                  getContractCols={getAvailableContractCols}
                 />
               ))}
 
@@ -3829,6 +3913,8 @@ function KanbanContent() {
                     onProjectClick={setSelectedProject}
                     onProjectAction={(card, action) => setProjectAction({ card, action })}
                     onRequestClick={setSelectedRequest}
+                    onContractMove={(card, toCol) => handleContractMove(card.id, card, 'inicio_autorizado', toCol)}
+                    getContractCols={(card, fromCol) => getAvailableContractCols(card, fromCol)}
                     />
                   <PhaseSeparator label="Execução" icon={<ChevronRight />} />
                 </>
@@ -3846,6 +3932,8 @@ function KanbanContent() {
                   onContractClick={setSelectedContract}
                   onProjectClick={setSelectedProject}
                   onProjectAction={(card, action) => setProjectAction({ card, action })}
+                  onProjectMove={(card, toCol) => handleProjectMove(card.id, toCol)}
+                  getProjectCols={getAvailableProjectCols}
                 />
               ))}
             </div>
