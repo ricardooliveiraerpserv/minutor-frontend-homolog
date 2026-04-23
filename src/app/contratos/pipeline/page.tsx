@@ -3990,7 +3990,7 @@ function KanbanContent() {
                     col={TRANSITION_COL}
                     contractCards={contractsInCol('inicio_autorizado')}
                     projectCards={[]}
-                    requestCards={requestCards.filter(r => r.kanban_column === 'inicio_autorizado')}
+                    requestCards={requestCards.filter(r => r.kanban_column === 'inicio_autorizado' && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? ''))}
                     canDrag={colCanDrag('inicio_autorizado')}
                     canDrop={colCanDrop('inicio_autorizado')}
                     onContractClick={card => {
