@@ -3670,6 +3670,9 @@ function KanbanContent() {
   }
 
   const getAvailableContractCols = (card: ContractCard, fromCol: string): { id: string; label: string }[] => {
+    // Contratos vindos de requisição só podem ser movidos pelo Kanban de Contratos
+    if (card.kanban_status === 'novo_projeto') return []
+
     if (isConsultor) return []
 
     if (isCliente) {
@@ -3717,6 +3720,7 @@ function KanbanContent() {
     if (cardType === 'contract') {
       const card = [...demandCards, ...transitionCards].find(c => c.id === cardId)
       if (!card) return
+      if (card.kanban_status === 'novo_projeto') return
       await handleContractMove(cardId, card, fromCol, toCol, destination.index)
       return
     }

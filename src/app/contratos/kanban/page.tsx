@@ -1646,6 +1646,11 @@ function KanbanContent() {
 
     // ── Moving to a coordinator column from demand
     if (toCol.startsWith('coordinator:')) {
+      // Contratos vindos de requisição (novo_projeto) devem passar por Início Autorizado antes de serem alocados
+      if (card.kanban_status === 'novo_projeto') {
+        toast.error('Este contrato deve ser movido para "Pronto para Iniciar" antes de ser alocado a um coordenador.')
+        return
+      }
       const ctLower = card.contract_type?.toLowerCase() ?? ''
       const svLower = card.service_type?.toLowerCase() ?? ''
       const isSustType = card.categoria === 'sustentacao'
@@ -1740,15 +1745,18 @@ function KanbanContent() {
       if (fromCol === 'novo') cols.push({ id: 'pronto', label: 'Pronto para Iniciar' })
       if (fromCol === 'pronto') cols.push({ id: 'novo', label: 'Novo Contrato' })
 
-      const ctLower = card.contract_type?.toLowerCase() ?? ''
-      const svLower = card.service_type?.toLowerCase() ?? ''
-      const isSustType = card.categoria === 'sustentacao'
-        || ctLower.includes('banco de horas') || ctLower.includes('on demand')
-        || ctLower.includes('cloud') || ctLower.includes('bizify') || ctLower.includes('saas')
-        || svLower.includes('cloud') || svLower.includes('bizify')
+      // Contratos vindos de requisição (novo_projeto) só vão para Início Autorizado — sem alocação direta
+      if (card.kanban_status !== 'novo_projeto') {
+        const ctLower = card.contract_type?.toLowerCase() ?? ''
+        const svLower = card.service_type?.toLowerCase() ?? ''
+        const isSustType = card.categoria === 'sustentacao'
+          || ctLower.includes('banco de horas') || ctLower.includes('on demand')
+          || ctLower.includes('cloud') || ctLower.includes('bizify') || ctLower.includes('saas')
+          || svLower.includes('cloud') || svLower.includes('bizify')
 
-      if (!isSustType && card.is_complete) {
-        coordinators.forEach(coord => cols.push({ id: `coordinator:${coord.id}`, label: coord.name }))
+        if (!isSustType && card.is_complete) {
+          coordinators.forEach(coord => cols.push({ id: `coordinator:${coord.id}`, label: coord.name }))
+        }
       }
     }
 
