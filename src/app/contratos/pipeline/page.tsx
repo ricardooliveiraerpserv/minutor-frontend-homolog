@@ -3582,6 +3582,13 @@ function KanbanContent() {
     ...demandCards.filter(c => c.project_id != null).map(c => c.id),
   ])
 
+  // Mapa contrato_id → project_id para suprimir requisições subprojeto cujo projeto já está ativo
+  const contractToProjectId = new Map<number, number>([
+    ...[...transitionCards, ...demandCards]
+      .filter(c => c.project_id != null)
+      .map(c => [c.id, c.project_id!] as [number, number]),
+  ])
+
   // ── Filtros ──────────────────────────────────────────────────────────────
   const matchFilter = (customerName?: string | null, name?: string | null, description?: string | null): boolean => {
     const cn   = customerName ?? ''
@@ -4006,7 +4013,16 @@ function KanbanContent() {
                     col={TRANSITION_COL}
                     contractCards={contractsInCol('inicio_autorizado')}
                     projectCards={[]}
-                    requestCards={requestCards.filter(r => r.kanban_column === 'inicio_autorizado' && r.req_decision !== 'novo_projeto' && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? ''))}
+                    requestCards={requestCards.filter(r => {
+                      if (r.kanban_column !== 'inicio_autorizado') return false
+                      if (r.req_decision === 'novo_projeto') return false
+                      // Suprime subprojeto quando o projeto vinculado já está ativo nas colunas de execução
+                      if (r.req_decision === 'subprojeto' && r.linked_contract_id) {
+                        const projId = contractToProjectId.get(r.linked_contract_id)
+                        if (projId && visibleProjectIds.has(projId)) return false
+                      }
+                      return matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
+                    })}
                     canDrag={colCanDrag('inicio_autorizado')}
                     canDrop={colCanDrop('inicio_autorizado')}
                     onContractClick={card => {
