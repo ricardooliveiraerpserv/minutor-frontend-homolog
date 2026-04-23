@@ -269,12 +269,12 @@ function ContractKanbanCard({
         >
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
+              <p className="text-[10px] truncate mb-0.5" style={{ color: 'var(--brand-subtle)' }}>
                 {card.customer_name}
               </p>
-              {card.project_name && (
-                <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
-              )}
+              <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
+                {card.project_name || card.customer_name}
+              </p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span
@@ -510,10 +510,10 @@ function ProjectKanbanCard({
         >
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
+              <p className="text-[10px] truncate mb-0.5" style={{ color: 'var(--brand-subtle)' }}>
                 {card.customer_name}
               </p>
-              <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
+              <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>{card.project_name}</p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap"
