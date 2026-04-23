@@ -1727,6 +1727,9 @@ function KanbanContent() {
   const getAvailableContractCols = (card: ContractCard, fromCol: string): { id: string; label: string }[] => {
     const cols: { id: string; label: string }[] = []
 
+    // Colunas de status de projeto: movimentação apenas pelo Pipeline
+    if (fromCol.startsWith('col_')) return []
+
     if (fromCol.startsWith('sust_')) {
       if (!isSustAdmin) return []
       SUSTENTACAO_COLS.forEach(s => { if (s.id !== fromCol) cols.push({ id: s.id, label: s.label }) })
