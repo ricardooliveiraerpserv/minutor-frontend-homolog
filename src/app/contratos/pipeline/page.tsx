@@ -410,6 +410,7 @@ const CONTRACT_MENU_ITEMS = [
   { action: 'edit',    label: 'Editar',     icon: Pencil },
   { action: 'chat',    label: 'Chat',       icon: MessageSquare },
   { action: 'log',     label: 'Histórico',  icon: Clock },
+  { action: 'delete',  label: 'Excluir',    icon: Trash2 },
 ] as const
 
 const PROJECT_MENU_ITEMS = [
@@ -4021,6 +4022,35 @@ function KanbanContent() {
             .catch(() => toast.error('Erro ao carregar contrato'))
           close()
           return null
+        }
+        if (action === 'delete') {
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={close}>
+              <div className="rounded-2xl p-6 flex flex-col gap-4 w-80" style={{ background: '#0f172a', border: '1px solid rgba(239,68,68,0.4)' }} onClick={e => e.stopPropagation()}>
+                <div className="flex items-center gap-3">
+                  <Trash2 size={20} className="text-red-400" />
+                  <p className="font-semibold text-white">Excluir Contrato</p>
+                </div>
+                <p className="text-sm text-slate-300">Tem certeza que deseja excluir <strong className="text-white">{card.project_name}</strong>? Esta ação não pode ser desfeita.</p>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={close} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-white" style={{ background: 'rgba(255,255,255,0.05)' }}>Cancelar</button>
+                  <button onClick={async () => {
+                    try {
+                      await api.delete(`/contracts/${card.id}`)
+                      toast.success('Contrato excluído.')
+                      close()
+                      load()
+                    } catch (e: any) {
+                      toast.error(e?.message ?? 'Erro ao excluir contrato')
+                      close()
+                    }
+                  }} className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2" style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
+                    <Trash2 size={14} /> Excluir
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
         }
         return null
       })()}

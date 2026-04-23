@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, MessageSquare } from 'lucide-react'
+import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, MessageSquare, Trash2 } from 'lucide-react'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 
@@ -158,9 +158,10 @@ const PROJECT_MENU_ITEMS = [
 ]
 
 const CONTRACT_MENU_ITEMS = [
-  { action: 'view',  label: 'Visualizar', icon: Eye },
-  { action: 'edit',  label: 'Editar',     icon: Pencil },
-  { action: 'chat',  label: 'Chat',       icon: MessageSquare },
+  { action: 'view',   label: 'Visualizar', icon: Eye },
+  { action: 'edit',   label: 'Editar',     icon: Pencil },
+  { action: 'chat',   label: 'Chat',       icon: MessageSquare },
+  { action: 'delete', label: 'Excluir',    icon: Trash2 },
   { action: 'log',   label: 'Histórico',  icon: Clock },
 ]
 
@@ -1850,6 +1851,53 @@ function KanbanContent() {
             .catch(() => toast.error('Erro ao carregar contrato'))
           close()
           return null
+        }
+        if (action === 'delete') {
+          if (card.project_id) {
+            toast.error('Contrato com projeto gerado não pode ser excluído.')
+            close()
+            return null
+          }
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+              <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                      <Trash2 size={16} style={{ color: '#ef4444' }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Excluir Contrato</p>
+                      <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{card.customer_name}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="px-6 py-4">
+                  <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
+                    Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                  <button onClick={close} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Cancelar</button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.delete(`/contracts/${card.id}`)
+                        toast.success('Contrato excluído')
+                        close()
+                        load()
+                      } catch (e: any) {
+                        toast.error(e?.message ?? 'Erro ao excluir')
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+                    style={{ background: '#ef4444', color: '#fff' }}>
+                    <Trash2 size={13} /> Excluir
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
         }
         return null
       })()}
