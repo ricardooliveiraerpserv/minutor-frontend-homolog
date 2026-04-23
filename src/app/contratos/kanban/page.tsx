@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, MessageSquare, Trash2 } from 'lucide-react'
+import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, MessageSquare, Trash2, Search } from 'lucide-react'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 
@@ -1551,6 +1551,8 @@ function KanbanContent() {
   // Contract form modal state
   const [showNewContract,     setShowNewContract]     = useState(false)
   const [editingContractData, setEditingContractData] = useState<any | null>(null)
+  const [filterSearch,        setFilterSearch]        = useState('')
+  const [filterCustomer,      setFilterCustomer]      = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -1598,11 +1600,29 @@ function KanbanContent() {
         ...STATUS_PROJECT_COLUMNS,
       ]
 
+  // ── Filtros ──────────────────────────────────────────────────────────────
+  const matchFilter = (customerName = '', name = ''): boolean => {
+    if (filterCustomer && customerName !== filterCustomer) return false
+    if (filterSearch) {
+      const q = filterSearch.toLowerCase()
+      return customerName.toLowerCase().includes(q) || name.toLowerCase().includes(q)
+    }
+    return true
+  }
+
+  const allCustomers = [...new Set([
+    ...demandCards.map(c => c.customer_name),
+    ...projectCards.map(p => p.customer_name),
+    ...Object.values(sustGroups).flat().map(c => c.customer_name),
+  ].filter(Boolean))].sort() as string[]
+
   // Contract cards per column
   const contractsInCol = (colId: string): ContractCard[] => {
-    if (colId.startsWith('sust_')) return sustGroups[colId] ?? []
-    return demandCards
-      .filter(c => contractColumnId(c) === colId)
+    const base = colId.startsWith('sust_')
+      ? (sustGroups[colId] ?? [])
+      : demandCards.filter(c => contractColumnId(c) === colId)
+    return base
+      .filter(c => matchFilter(c.customer_name, c.project_name))
       .sort((a, b) => a.kanban_order - b.kanban_order)
   }
 
@@ -1610,13 +1630,16 @@ function KanbanContent() {
   const activeProjectsInCoordCol = (coordId: number): ProjectCard[] =>
     projectCards.filter(p =>
       isActiveProject(p) &&
-      (p.coordinator_ids ?? []).includes(coordId)
+      (p.coordinator_ids ?? []).includes(coordId) &&
+      matchFilter(p.customer_name, p.project_name)
     )
 
   // Project cards in status columns
   const projectsInStatusCol = (colId: string): ProjectCard[] => {
     const targetStatus = COL_TO_PROJECT_STATUS[colId]
-    return projectCards.filter(p => p.status === targetStatus)
+    return projectCards
+      .filter(p => p.status === targetStatus)
+      .filter(p => matchFilter(p.customer_name, p.project_name))
   }
 
   const handleContractMove = async (cardId: number, card: ContractCard, fromCol: string, toCol: string, order = 0) => {
@@ -1834,6 +1857,43 @@ function KanbanContent() {
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: SUST_COLOR }} />Sustentação</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: BIZIFY_COLOR }} />Bizify</span>
           <span className="ml-auto flex items-center gap-1.5"><Users size={11} />Colunas de coordenador geram projeto automaticamente</span>
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center gap-2 px-6 py-2 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--brand-subtle)' }} />
+            <input
+              value={filterSearch}
+              onChange={e => setFilterSearch(e.target.value)}
+              placeholder="Buscar nome ou projeto..."
+              className="pl-7 pr-7 py-1.5 rounded-lg text-xs outline-none w-56"
+              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+            />
+            {filterSearch && (
+              <button onClick={() => setFilterSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2">
+                <X size={10} style={{ color: 'var(--brand-subtle)' }} />
+              </button>
+            )}
+          </div>
+          {allCustomers.length > 0 && (
+            <select
+              value={filterCustomer}
+              onChange={e => setFilterCustomer(e.target.value)}
+              className="py-1.5 px-2 rounded-lg text-xs outline-none"
+              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: filterCustomer ? 'var(--brand-text)' : 'var(--brand-subtle)' }}
+            >
+              <option value="">Todos os clientes</option>
+              {allCustomers.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          )}
+          {(filterSearch || filterCustomer) && (
+            <button onClick={() => { setFilterSearch(''); setFilterCustomer('') }}
+              className="text-xs px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+              style={{ color: 'var(--brand-subtle)' }}>
+              Limpar
+            </button>
+          )}
         </div>
 
         {/* Board */}

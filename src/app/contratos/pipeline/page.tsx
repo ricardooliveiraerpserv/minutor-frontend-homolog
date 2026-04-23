@@ -7,7 +7,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2 } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -3519,6 +3519,8 @@ function KanbanContent() {
   const [editContractData, setEditContractData] = useState<any | null>(null)
   const [showEditContract, setShowEditContract] = useState(false)
   const [contractAction,   setContractAction]   = useState<{ card: ContractCard; action: string } | null>(null)
+  const [filterSearch,     setFilterSearch]     = useState('')
+  const [filterCustomer,   setFilterCustomer]   = useState('')
 
   const isConsultor = userRole === 'consultor'
   const isCliente   = userRole === 'cliente'
@@ -3573,19 +3575,39 @@ function KanbanContent() {
   // IDs de contratos gerenciados por requisições — não exibir como card duplicado no pipeline
   const linkedContractIds = new Set(requestCards.map(r => r.linked_contract_id).filter(Boolean))
 
+  // ── Filtros ──────────────────────────────────────────────────────────────
+  const matchFilter = (customerName = '', name = '', description = ''): boolean => {
+    if (filterCustomer && customerName !== filterCustomer) return false
+    if (filterSearch) {
+      const q = filterSearch.toLowerCase()
+      return customerName.toLowerCase().includes(q)
+        || name.toLowerCase().includes(q)
+        || description.toLowerCase().includes(q)
+    }
+    return true
+  }
+
+  const allCustomers = [...new Set([
+    ...demandCards.map(c => c.customer_name),
+    ...transitionCards.map(c => c.customer_name),
+    ...projectCards.map(p => p.customer_name),
+    ...requestCards.map(r => r.customer_name ?? ''),
+  ].filter(Boolean))].sort() as string[]
+
   // Cards by column
   const contractsInCol = (colId: string): ContractCard[] => {
-    if (colId === 'inicio_autorizado') {
-      return transitionCards.sort((a, b) => a.kanban_order - b.kanban_order)
-    }
-    return demandCards
-      .filter(c => !linkedContractIds.has(c.id))
-      .filter(c => contractColumnId(c) === colId)
+    const base = colId === 'inicio_autorizado'
+      ? transitionCards
+      : demandCards.filter(c => !linkedContractIds.has(c.id)).filter(c => contractColumnId(c) === colId)
+    return base
+      .filter(c => matchFilter(c.customer_name, c.project_name))
       .sort((a, b) => a.kanban_order - b.kanban_order)
   }
 
   const projectsInCol = (colId: string): ProjectCard[] =>
-    projectCards.filter(p => projectColumnId(p) === colId)
+    projectCards
+      .filter(p => projectColumnId(p) === colId)
+      .filter(p => matchFilter(p.customer_name, p.project_name))
 
   const handleContractMove = async (cardId: number, card: ContractCard, fromCol: string, toCol: string, order = 0) => {
     if (toCol === 'req_inicio_autorizado') {
@@ -3816,6 +3838,43 @@ function KanbanContent() {
           {!isConsultor && !isCliente && <span className="ml-auto opacity-50">Arraste para mover entre colunas</span>}
         </div>
 
+        {/* Filters */}
+        <div className="flex items-center gap-2 px-6 py-2 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="relative">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--brand-subtle)' }} />
+            <input
+              value={filterSearch}
+              onChange={e => setFilterSearch(e.target.value)}
+              placeholder="Buscar nome ou descrição..."
+              className="pl-7 pr-7 py-1.5 rounded-lg text-xs outline-none w-56"
+              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+            />
+            {filterSearch && (
+              <button onClick={() => setFilterSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2">
+                <X size={10} style={{ color: 'var(--brand-subtle)' }} />
+              </button>
+            )}
+          </div>
+          {!isCliente && allCustomers.length > 0 && (
+            <select
+              value={filterCustomer}
+              onChange={e => setFilterCustomer(e.target.value)}
+              className="py-1.5 px-2 rounded-lg text-xs outline-none"
+              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: filterCustomer ? 'var(--brand-text)' : 'var(--brand-subtle)' }}
+            >
+              <option value="">Todos os clientes</option>
+              {allCustomers.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          )}
+          {(filterSearch || filterCustomer) && (
+            <button onClick={() => { setFilterSearch(''); setFilterCustomer('') }}
+              className="text-xs px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+              style={{ color: 'var(--brand-subtle)' }}>
+              Limpar
+            </button>
+          )}
+        </div>
+
         {/* List View */}
         {viewMode === 'list' && (() => {
           const fmtMoney = (v: any) => v != null ? `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'
@@ -3904,7 +3963,7 @@ function KanbanContent() {
                   col={col}
                   contractCards={REQ_ONLY_COLS.has(col.id) ? [] : contractsInCol(col.id)}
                   projectCards={[]}
-                  requestCards={requestCards.filter(r => (r.kanban_column ?? 'backlog') === col.id)}
+                  requestCards={requestCards.filter(r => (r.kanban_column ?? 'backlog') === col.id && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? ''))}
                   canDrag={colCanDrag(col.id)}
                   canDrop={colCanDrop(col.id)}
                   onContractClick={setSelectedContract}
