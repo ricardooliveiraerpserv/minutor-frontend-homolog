@@ -1693,6 +1693,7 @@ function KanbanContent() {
       try {
         await api.patch(`/projects/${cardId}/kanban-move`, { status: newStatus })
         toast.success('Projeto atualizado')
+        await load()
       } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover projeto'); load() }
     }
   }
