@@ -1402,13 +1402,15 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
                         {parentBalance.balance > 0 ? '' : ''}{parentBalance.balance.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo negativo</p>
-                      <p className="text-xs font-semibold"
-                        style={{ color: parentBalance.allow_negative ? '#f59e0b' : '#ef4444' }}>
-                        {parentBalance.allow_negative ? 'Permitido' : 'Bloqueado'}
-                      </p>
-                    </div>
+                    {parentBalance.balance <= 0 && (
+                      <div className="text-right">
+                        <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo negativo</p>
+                        <p className="text-xs font-semibold"
+                          style={{ color: parentBalance.allow_negative ? '#f59e0b' : '#ef4444' }}>
+                          {parentBalance.allow_negative ? 'Permitido' : 'Bloqueado'}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : null}
               </div>
