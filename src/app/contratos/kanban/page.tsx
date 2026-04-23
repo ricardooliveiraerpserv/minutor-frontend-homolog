@@ -1595,7 +1595,8 @@ function KanbanContent() {
       if (fromCol.startsWith('sust_')) return
 
       // ── Moving between fixed columns (novo ↔ pronto)
-      const toKanbanStatus = toCol === 'pronto' ? 'aprovado' : 'backlog'
+      // "Pronto para Iniciar" = inicio_autorizado para sincronizar com o pipeline
+      const toKanbanStatus = toCol === 'pronto' ? 'inicio_autorizado' : 'backlog'
       setDemandCards(prev => prev.map(c =>
         c.id === cardId ? { ...c, kanban_status: toKanbanStatus, kanban_order: destination.index } : c
       ))
