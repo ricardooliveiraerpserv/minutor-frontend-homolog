@@ -3531,7 +3531,7 @@ function KanbanContent() {
     if (isConsultor) return false
     if (isCliente) {
       const col = DEMAND_COLS.find(c => c.id === colId)
-      return !(col?.clientLocked)  // clients cannot drag FROM locked columns
+      return !!(col?.clientVisible)  // clients can only drag FROM clientVisible columns
     }
     return true
   }
@@ -3710,8 +3710,10 @@ function KanbanContent() {
     const fromCol = source.droppableId
 
     if (isCliente) {
-      const col = DEMAND_COLS.find(c => c.id === toCol)
-      if (!col?.clientVisible && !col?.clientCanDrop) return
+      const srcCol = DEMAND_COLS.find(c => c.id === fromCol)
+      const dstCol = DEMAND_COLS.find(c => c.id === toCol)
+      if (!srcCol?.clientVisible) return  // bloqueia drag de colunas não interativas
+      if (!dstCol?.clientVisible && !dstCol?.clientCanDrop) return
     }
 
     const [cardType, rawId] = draggableId.split('-')
