@@ -3576,7 +3576,11 @@ function KanbanContent() {
   const linkedContractIds = new Set(requestCards.map(r => r.linked_contract_id).filter(Boolean))
 
   // IDs de contratos já em Início Autorizado — requisições novo_projeto vinculadas devem ser suprimidas
-  const authorizedContractIds = new Set(transitionCards.map(c => c.id))
+  // Suprime requisição novo_projeto quando o contrato já avançou (inicio_autorizado ou projeto gerado)
+  const authorizedContractIds = new Set([
+    ...transitionCards.map(c => c.id),
+    ...demandCards.filter(c => c.project_id != null).map(c => c.id),
+  ])
 
   // ── Filtros ──────────────────────────────────────────────────────────────
   const matchFilter = (customerName?: string | null, name?: string | null, description?: string | null): boolean => {
