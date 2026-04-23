@@ -1690,6 +1690,18 @@ function KanbanContent() {
     // ── Block drops of sustentação cards into demand/fixed columns
     if (fromCol.startsWith('sust_')) return
 
+    // ── Contract with project moving to a project status column
+    if (card.project_id && COL_TO_PROJECT_STATUS[toCol]) {
+      const newStatus = COL_TO_PROJECT_STATUS[toCol]
+      setProjectCards(prev => prev.map(p => p.id === card.project_id ? { ...p, status: newStatus } : p))
+      try {
+        await api.patch(`/projects/${card.project_id}/kanban-move`, { status: newStatus })
+        toast.success('Projeto atualizado')
+        await load()
+      } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover projeto'); load() }
+      return
+    }
+
     // ── Moving between fixed columns (novo ↔ pronto)
     const toKanbanStatus = toCol === 'pronto' ? 'inicio_autorizado' : 'backlog'
     setDemandCards(prev => prev.map(c =>
@@ -1725,6 +1737,18 @@ function KanbanContent() {
       return cols
     }
 
+    // ── Card alocado num coordenador (tem project_id = "Projeto Ativo")
+    if (fromCol.startsWith('coordinator:')) {
+      // Pode realocar para outro coordenador
+      coordinators.forEach(coord => {
+        if (`coordinator:${coord.id}` !== fromCol)
+          cols.push({ id: `coordinator:${coord.id}`, label: coord.name })
+      })
+      // Pode mover o projeto para status de conclusão/pausa/cancelamento
+      STATUS_PROJECT_COLUMNS.forEach(s => cols.push({ id: s.id, label: s.label }))
+      return cols
+    }
+
     if (!isSustCoordenador) {
       if (fromCol === 'novo') cols.push({ id: 'pronto', label: 'Pronto para Iniciar' })
       if (fromCol === 'pronto') cols.push({ id: 'novo', label: 'Novo Contrato' })
@@ -1741,7 +1765,8 @@ function KanbanContent() {
       }
     }
 
-    if (isSustAdmin) {
+    // Sust cols só para cards de demanda pura (sem project_id)
+    if (isSustAdmin && !card.project_id) {
       SUSTENTACAO_COLS.forEach(s => cols.push({ id: s.id, label: s.label }))
       cols.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
     }
