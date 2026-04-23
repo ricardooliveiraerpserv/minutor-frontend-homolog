@@ -3661,6 +3661,7 @@ function KanbanContent() {
   }
 
   const handleRequestMove = async (cardId: number, reqCard: RequestCard, fromCol: string, toCol: string) => {
+    if (reqCard.req_decision === 'novo_projeto') return
     if (toCol === 'req_inicio_autorizado') {
       setPlanDecisionCard(reqCard)
       return
@@ -3753,6 +3754,7 @@ function KanbanContent() {
     if (cardType === 'request') {
       const reqCard = requestCards.find(r => r.id === cardId)
       if (!reqCard) return
+      if (reqCard.req_decision === 'novo_projeto') return
       await handleRequestMove(cardId, reqCard, fromCol, toCol)
       return
     }
@@ -3964,7 +3966,12 @@ function KanbanContent() {
                   col={col}
                   contractCards={REQ_ONLY_COLS.has(col.id) ? [] : contractsInCol(col.id)}
                   projectCards={[]}
-                  requestCards={requestCards.filter(r => (r.kanban_column ?? 'backlog') === col.id && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? ''))}
+                  requestCards={requestCards.filter(r => {
+                    const inCol = (r.kanban_column ?? 'backlog') === col.id
+                    // Cards novo_projeto que foram movidos indevidamente para inicio_autorizado: reancora em req_inicio_autorizado
+                    const misplaced = col.id === 'req_inicio_autorizado' && r.req_decision === 'novo_projeto' && r.kanban_column === 'inicio_autorizado'
+                    return (inCol || misplaced) && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
+                  })}
                   canDrag={colCanDrag(col.id)}
                   canDrop={colCanDrop(col.id)}
                   onContractClick={setSelectedContract}
@@ -3972,7 +3979,7 @@ function KanbanContent() {
                   onProjectClick={setSelectedProject}
                   onProjectAction={(card, action) => setProjectAction({ card, action })}
                   onRequestClick={card =>
-                    card.kanban_column === 'req_inicio_autorizado'
+                    card.kanban_column === 'req_inicio_autorizado' && !card.req_decision
                       ? setPlanDecisionCard(card)
                       : setSelectedRequest(card)
                   }
@@ -3990,7 +3997,7 @@ function KanbanContent() {
                     col={TRANSITION_COL}
                     contractCards={contractsInCol('inicio_autorizado')}
                     projectCards={[]}
-                    requestCards={requestCards.filter(r => r.kanban_column === 'inicio_autorizado' && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? ''))}
+                    requestCards={requestCards.filter(r => r.kanban_column === 'inicio_autorizado' && r.req_decision !== 'novo_projeto' && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? ''))}
                     canDrag={colCanDrag('inicio_autorizado')}
                     canDrop={colCanDrop('inicio_autorizado')}
                     onContractClick={card => {
