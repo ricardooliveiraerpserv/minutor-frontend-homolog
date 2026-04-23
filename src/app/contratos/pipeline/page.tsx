@@ -3575,6 +3575,9 @@ function KanbanContent() {
   // IDs de contratos gerenciados por requisições — não exibir como card duplicado no pipeline
   const linkedContractIds = new Set(requestCards.map(r => r.linked_contract_id).filter(Boolean))
 
+  // IDs de contratos já em Início Autorizado — requisições novo_projeto vinculadas devem ser suprimidas
+  const authorizedContractIds = new Set(transitionCards.map(c => c.id))
+
   // ── Filtros ──────────────────────────────────────────────────────────────
   const matchFilter = (customerName?: string | null, name?: string | null, description?: string | null): boolean => {
     const cn   = customerName ?? ''
@@ -3966,7 +3969,11 @@ function KanbanContent() {
                   col={col}
                   contractCards={REQ_ONLY_COLS.has(col.id) ? [] : contractsInCol(col.id)}
                   projectCards={[]}
-                  requestCards={requestCards.filter(r => (r.kanban_column ?? 'backlog') === col.id && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? ''))}
+                  requestCards={requestCards.filter(r => {
+                    if ((r.kanban_column ?? 'backlog') !== col.id) return false
+                    if (r.req_decision === 'novo_projeto' && r.linked_contract_id && authorizedContractIds.has(r.linked_contract_id)) return false
+                    return matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
+                  })}
                   canDrag={colCanDrag(col.id)}
                   canDrop={colCanDrop(col.id)}
                   onContractClick={setSelectedContract}
