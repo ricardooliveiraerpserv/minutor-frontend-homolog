@@ -62,6 +62,14 @@ interface Props {
   initialParentProjectId?: number | string
   title?: string
   customerReadOnly?: boolean
+  excludeSustentacao?: boolean
+}
+
+const isSustentacaoName = (name: string) => {
+  const n = name.toLowerCase()
+  return n.includes('sustentacao') || n.includes('sustentação')
+    || n.includes('cloud') || n.includes('bizify')
+    || n.includes('banco de horas') || n.includes('on demand') || n.includes('saas')
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -71,6 +79,7 @@ export function ContractCreateModal({
   initialCustomerId, initialProjectName, initialParentProjectId,
   title = 'Novo Contrato',
   customerReadOnly = false,
+  excludeSustentacao = false,
 }: Props) {
   const TABS = ['Cliente', 'Classificação', 'Faturamento', 'Despesas', 'Operacional', 'Contatos', 'Financeiro', 'Comercial', 'Observações']
   const [activeTab, setActiveTab] = useState(customerReadOnly ? 1 : 0)
@@ -458,7 +467,7 @@ export function ContractCreateModal({
                 <SearchSelect
                   value={form.service_type_id}
                   onChange={v => setForm(f => ({ ...f, service_type_id: v }))}
-                  options={serviceTypes}
+                  options={excludeSustentacao ? serviceTypes.filter(s => !isSustentacaoName(String(s.name))) : serviceTypes}
                   placeholder="Selecionar tipo de serviço..."
                 />
                 {!form.service_type_id && (
@@ -475,7 +484,7 @@ export function ContractCreateModal({
                 Tipo de Contrato <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <div className="space-y-2">
-                {contractTypes.map(ct => (
+                {(excludeSustentacao ? contractTypes.filter(ct => !isSustentacaoName(String(ct.name))) : contractTypes).map(ct => (
                   <label key={ct.id} className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" name="contract_type_id" value={ct.id}
                       checked={String(form.contract_type_id) === String(ct.id)}
