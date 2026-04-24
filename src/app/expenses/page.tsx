@@ -538,7 +538,7 @@ export default function ExpensesPage() {
     if (!modal.open) return
     if (!form.customer_id) { setProjects([]); return }
     let cancelled = false
-    const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'active' })
+    const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open' })
     if (isCoordenador) qs.set('consultant_only', 'true')
     api.get<PaginatedResponse<SelectOption>>(`/projects?${qs}`)
       .then(p => { if (!cancelled) setProjects(Array.isArray(p?.items) ? p.items : []) })

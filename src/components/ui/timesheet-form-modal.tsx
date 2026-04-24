@@ -166,7 +166,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   useEffect(() => {
     if (!form.customer_id) { setProjects([]); return }
     let cancelled = false
-    const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'active' })
+    const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open' })
     if (!isAdmin) qs.set('consultant_only', 'true')
     api.get<{ items: SelectOption[] }>(`/projects?${qs}`)
       .then(r => { if (!cancelled) setProjects(Array.isArray(r?.items) ? r.items : []) })
