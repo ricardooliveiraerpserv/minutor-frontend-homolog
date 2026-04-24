@@ -6,7 +6,7 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
 
-interface SelectOption { id: number; name: string }
+interface SelectOption { id: number; name: string; service_type_code?: string | null }
 
 interface Props {
   open: boolean
@@ -168,8 +168,14 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
     let cancelled = false
     const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open' })
     if (!isAdmin) qs.set('consultant_only', 'true')
-    api.get<{ items: SelectOption[] }>(`/projects?${qs}`)
-      .then(r => { if (!cancelled) setProjects(Array.isArray(r?.items) ? r.items : []) })
+    api.get<{ items: any[] }>(`/projects?${qs}`)
+      .then(r => {
+        if (!cancelled) setProjects(
+          Array.isArray(r?.items)
+            ? r.items.map((p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type?.code ?? null }))
+            : []
+        )
+      })
       .catch(() => {})
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -359,13 +365,15 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               </>
             )}
 
-            {/* Ticket */}
-            <div>
-              <Label className="text-xs text-zinc-400">Ticket</Label>
-              <input type="number" value={form.ticket} placeholder="Ex: 12345"
-                onChange={e => setForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
-                className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
-            </div>
+            {/* Ticket — apenas para projetos de sustentação */}
+            {projects.find(p => String(p.id) === form.project_id)?.service_type_code === 'sustentacao' && (
+              <div>
+                <Label className="text-xs text-zinc-400">Ticket</Label>
+                <input type="number" value={form.ticket} placeholder="Ex: 12345"
+                  onChange={e => setForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
+                  className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+              </div>
+            )}
 
             {/* Observação */}
             <div>
