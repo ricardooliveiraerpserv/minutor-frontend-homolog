@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { User, Lock, RefreshCw, Eye, EyeOff, Copy, Check } from 'lucide-react'
+import { User, Lock, RefreshCw, Eye, EyeOff, Copy, Check, Building2 } from 'lucide-react'
 
 // ─── Password mode ────────────────────────────────────────────────────────────
 
@@ -18,14 +18,20 @@ export default function ProfilePage() {
   const { user } = useAuth()
 
   // Info fields
-  const [name,  setName]  = useState('')
-  const [email, setEmail] = useState('')
-  const [savingInfo, setSavingInfo] = useState(false)
+  const [name,        setName]        = useState('')
+  const [email,       setEmail]       = useState('')
+  const [savingInfo,  setSavingInfo]  = useState(false)
+  const [companyName, setCompanyName] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
       setName(user.name ?? '')
       setEmail(user.email ?? '')
+      if (user.customer_id) {
+        api.get<any>(`/customers/${user.customer_id}`)
+          .then(r => setCompanyName(r?.name ?? null))
+          .catch(() => {})
+      }
     }
   }, [user])
 
@@ -116,6 +122,19 @@ export default function ProfilePage() {
   return (
     <AppLayout title="Meu Perfil">
       <div className="max-w-lg space-y-6">
+
+        {/* ── Empresa (apenas para clientes) ── */}
+        {companyName && (
+          <div className="rounded-xl border border-[#00F5FF]/25 bg-gradient-to-br from-[#00F5FF]/10 to-[#00F5FF]/5 px-5 py-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(0,245,255,0.15)' }}>
+              <Building2 size={20} className="text-[#00F5FF]" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#00F5FF]/60 mb-0.5">Empresa</p>
+              <p className="text-xl font-bold text-white leading-tight">{companyName}</p>
+            </div>
+          </div>
+        )}
 
         {/* ── Dados pessoais ── */}
         <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
