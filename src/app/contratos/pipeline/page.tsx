@@ -1693,6 +1693,27 @@ const SOURCE_META: Record<string, { label: string; color: string; bg: string }> 
   project:  { label: 'Projeto',    color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
 }
 
+const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  // demand columns
+  backlog:                { label: 'Backlog',                  color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' },
+  novo_projeto:           { label: 'Novo Projeto',             color: '#818cf8', bg: 'rgba(99,102,241,0.12)'  },
+  em_planejamento:        { label: 'Em Planejamento',          color: '#60a5fa', bg: 'rgba(59,130,246,0.12)'  },
+  em_validacao:           { label: 'Em Validação',             color: '#22d3ee', bg: 'rgba(6,182,212,0.12)'   },
+  em_revisao:             { label: 'Em Revisão',               color: '#c084fc', bg: 'rgba(168,85,247,0.12)'  },
+  aprovado:               { label: 'Aprovado',                 color: '#4ade80', bg: 'rgba(34,197,94,0.12)'   },
+  req_inicio_autorizado:  { label: 'Aguardando Início (Req.)', color: '#fb923c', bg: 'rgba(251,146,60,0.12)'  },
+  // transition
+  inicio_autorizado:      { label: 'Início Autorizado',        color: '#eab308', bg: 'rgba(234,179,8,0.12)'   },
+  alocado:                { label: 'Início Autorizado',        color: '#eab308', bg: 'rgba(234,179,8,0.12)'   },
+  // project statuses
+  awaiting_start:         { label: 'Em Andamento',             color: '#818cf8', bg: 'rgba(99,102,241,0.12)'  },
+  started:                { label: 'Em Andamento',             color: '#818cf8', bg: 'rgba(99,102,241,0.12)'  },
+  liberado_para_testes:   { label: 'Lib. p/ Testes',           color: '#38bdf8', bg: 'rgba(56,189,248,0.12)'  },
+  paused:                 { label: 'Pausado',                  color: '#eab308', bg: 'rgba(234,179,8,0.12)'   },
+  finished:               { label: 'Encerrado',                color: '#22c55e', bg: 'rgba(34,197,94,0.12)'   },
+  cancelled:              { label: 'Cancelado',                color: '#ef4444', bg: 'rgba(239,68,68,0.12)'   },
+}
+
 function KanbanLogTab({ logs, loading }: { logs: KanbanLogEntry[]; loading: boolean }) {
   const label = (v?: string) => v ? (COL_LABEL[v] ?? v) : '—'
 
@@ -3962,9 +3983,9 @@ function KanbanContent() {
                         <td className="px-4 py-3 text-center text-zinc-500">—</td>
                         <td className="px-4 py-3 text-center text-zinc-500">—</td>
                         <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
-                            {c.kanban_status ?? c.status}
-                          </span>
+                          {(() => { const b = STATUS_BADGE[c.kanban_status ?? c.status ?? ''] ?? STATUS_BADGE['backlog']; return (
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: b.bg, color: b.color }}>{b.label}</span>
+                          )})()}
                         </td>
                         <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                           <ListActionMenu card={c} onAction={action => setContractAction({ card: c, action })} />
@@ -3982,7 +4003,7 @@ function KanbanContent() {
                             <p className="text-zinc-300 text-sm">{p.project_name}</p>
                             <span className="font-mono text-cyan-400">{p.code}</span>
                           </td>
-                          <td className="px-4 py-3 text-zinc-400 text-xs">Projeto Ativo</td>
+                          <td className="px-4 py-3 text-zinc-400 text-xs">{PROJECT_COLS.find(c => c.id === PROJECT_STATUS_TO_COL[p.status])?.label ?? 'Projeto'}</td>
                           <td className="px-4 py-3 text-center text-zinc-300">{p.sold_hours != null ? `${p.sold_hours}h` : '—'}</td>
                           <td className="px-4 py-3 text-center text-zinc-300">
                             {hideHours ? '—' : p.consumed_hours != null ? `${p.consumed_hours.toFixed(1)}h` : '—'}
@@ -3992,9 +4013,9 @@ function KanbanContent() {
                             {hideHours ? '—' : p.general_hours_balance != null ? `${p.general_hours_balance.toFixed(1)}h` : '—'}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: 'rgba(129,140,248,0.12)', color: '#818cf8' }}>
-                              {p.status}
-                            </span>
+                            {(() => { const b = STATUS_BADGE[p.status] ?? { label: p.status, color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' }; return (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: b.bg, color: b.color }}>{b.label}</span>
+                            )})()}
                           </td>
                           <td className="px-4 py-3" />
                         </tr>
