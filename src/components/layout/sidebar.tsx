@@ -36,6 +36,7 @@ import {
   Contact,
   LayoutGrid,
   DollarSign,
+  Webhook,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -163,6 +164,7 @@ const NAV: NavEntry[] = [
       { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',     icon: Receipt },
       { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',   icon: CreditCard },
       { label: 'Parceiros',             href: '/partners',                        icon: Handshake },
+      { label: 'Integração Movidesk',   href: '/configuracoes/movidesk',          icon: Webhook },
     ],
   },
   { type: 'item', label: 'Usuários',      href: '/users',    icon: Users },
