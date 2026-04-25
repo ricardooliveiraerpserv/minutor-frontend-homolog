@@ -53,6 +53,8 @@ interface ProjectCard {
   code: string
   status: string
   sold_hours?: number
+  consumed_hours?: number | null
+  general_hours_balance?: number | null
   expected_end_date?: string | null
   coordinator_ids?: number[]
   coordinators?: string[]
@@ -3923,7 +3925,7 @@ function KanbanContent() {
             const col = [...DEMAND_COLS, TRANSITION_COL].find(c => c.id === contractColumnId(card))
             return col?.label ?? card.kanban_status ?? '—'
           }
-          const allContracts = [...demandCards, ...transitionCards]
+          const allContracts = [...demandCards, ...transitionCards].filter(c => c.categoria !== 'sustentacao')
           const allProjects  = projectCards
           return (
             <div className="flex-1 overflow-y-auto p-4">
@@ -3935,14 +3937,15 @@ function KanbanContent() {
                       <th className="text-left px-4 py-3 text-zinc-400 font-medium">Projeto / Tipo</th>
                       <th className="text-left px-4 py-3 text-zinc-400 font-medium">Coluna</th>
                       <th className="text-center px-4 py-3 text-zinc-400 font-medium">Horas</th>
-                      <th className="text-left px-4 py-3 text-zinc-400 font-medium">Valor</th>
+                      <th className="text-center px-4 py-3 text-zinc-400 font-medium">HS Consumidas</th>
+                      <th className="text-center px-4 py-3 text-zinc-400 font-medium">Saldo</th>
                       <th className="text-center px-4 py-3 text-zinc-400 font-medium">Status</th>
                       <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody>
                     {allContracts.length === 0 && allProjects.length === 0 && (
-                      <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhum item.</td></tr>
+                      <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhum item.</td></tr>
                     )}
                     {allContracts.map((c, i) => (
                       <tr key={`c-${c.id}`} onClick={() => setSelectedContract(c)} className="cursor-pointer hover:bg-zinc-800/40 transition-colors group/row"
@@ -3955,7 +3958,8 @@ function KanbanContent() {
                         </td>
                         <td className="px-4 py-3 text-zinc-400 text-xs">{colLabel(c)}</td>
                         <td className="px-4 py-3 text-center text-zinc-300">{c.horas_contratadas != null ? `${c.horas_contratadas}h` : '—'}</td>
-                        <td className="px-4 py-3 text-zinc-300 text-xs">{fmtMoney(c.valor_projeto)}</td>
+                        <td className="px-4 py-3 text-center text-zinc-500">—</td>
+                        <td className="px-4 py-3 text-center text-zinc-500">—</td>
                         <td className="px-4 py-3 text-center">
                           <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
                             {c.kanban_status ?? c.status}
@@ -3966,25 +3970,35 @@ function KanbanContent() {
                         </td>
                       </tr>
                     ))}
-                    {allProjects.map((p, i) => (
-                      <tr key={`p-${p.id}`} onClick={() => setSelectedProject(p)} className="cursor-pointer hover:bg-zinc-800/40 transition-colors"
-                        style={{ borderTop: '1px solid var(--brand-border)' }}>
-                        <td className="px-4 py-3 text-white font-medium">{p.customer_name}</td>
-                        <td className="px-4 py-3 text-zinc-300 text-xs">
-                          <p className="text-zinc-300 text-sm">{p.project_name}</p>
-                          <span className="font-mono text-cyan-400">{p.code}</span>
-                        </td>
-                        <td className="px-4 py-3 text-zinc-400 text-xs">Projeto Ativo</td>
-                        <td className="px-4 py-3 text-center text-zinc-300">{p.sold_hours != null ? `${p.sold_hours}h` : '—'}</td>
-                        <td className="px-4 py-3 text-zinc-300 text-xs">—</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: 'rgba(129,140,248,0.12)', color: '#818cf8' }}>
-                            {p.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3" />
-                      </tr>
-                    ))}
+                    {allProjects.map((p, i) => {
+                      const isClosed  = p.status === 'finished' || p.status === 'cancelled'
+                      const hideHours = isCliente && isClosed
+                      return (
+                        <tr key={`p-${p.id}`} onClick={() => setSelectedProject(p)} className="cursor-pointer hover:bg-zinc-800/40 transition-colors"
+                          style={{ borderTop: '1px solid var(--brand-border)' }}>
+                          <td className="px-4 py-3 text-white font-medium">{p.customer_name}</td>
+                          <td className="px-4 py-3 text-zinc-300 text-xs">
+                            <p className="text-zinc-300 text-sm">{p.project_name}</p>
+                            <span className="font-mono text-cyan-400">{p.code}</span>
+                          </td>
+                          <td className="px-4 py-3 text-zinc-400 text-xs">Projeto Ativo</td>
+                          <td className="px-4 py-3 text-center text-zinc-300">{p.sold_hours != null ? `${p.sold_hours}h` : '—'}</td>
+                          <td className="px-4 py-3 text-center text-zinc-300">
+                            {hideHours ? '—' : p.consumed_hours != null ? `${p.consumed_hours.toFixed(1)}h` : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-center"
+                            style={{ color: !hideHours && (p.general_hours_balance ?? 0) < 0 ? '#ef4444' : 'rgb(212 212 216)' }}>
+                            {hideHours ? '—' : p.general_hours_balance != null ? `${p.general_hours_balance.toFixed(1)}h` : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: 'rgba(129,140,248,0.12)', color: '#818cf8' }}>
+                              {p.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3" />
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
