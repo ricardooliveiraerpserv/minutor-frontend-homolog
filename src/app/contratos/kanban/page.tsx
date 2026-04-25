@@ -1629,7 +1629,7 @@ function KanbanContent() {
       : null
     return base
       .filter(c => matchFilter(c.customer_name, c.project_name))
-      .filter(c => !activeProjectIds || !c.project_id || !activeProjectIds.has(c.project_id))
+      .filter(c => !activeProjectIds || !c.project_id)
       .sort((a, b) => a.kanban_order - b.kanban_order)
   }
 
