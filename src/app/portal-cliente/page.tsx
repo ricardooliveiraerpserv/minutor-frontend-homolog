@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import {
   AlertTriangle, TrendingUp, Clock, Users, ChevronDown,
-  FileText, CheckCircle, X, Search, ChevronRight,
+  FileText, CheckCircle, Check, X, Search, ChevronRight,
   BarChart2, CalendarClock, Zap, Layers, LayoutGrid, List, FolderOpen,
 } from 'lucide-react'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
@@ -280,6 +280,80 @@ function IndSearchSelect({ value, onChange, placeholder, options }: {
   )
 }
 
+// ── ExecMultiSelect ───────────────────────────────────────────────────────────
+
+function ExecMultiSelect({ selected, onChange, options }: {
+  selected: string[]
+  onChange: (v: string[]) => void
+  options: { value: string; label: string }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  const filtered = useMemo(() => options.filter(o => o.label.toLowerCase().includes(q.toLowerCase())), [options, q])
+
+  const toggle = (v: string) =>
+    onChange(selected.includes(v) ? selected.filter(x => x !== v) : [...selected, v])
+
+  const label = selected.length === 0
+    ? 'Todos os executivos'
+    : selected.length === 1
+      ? (options.find(o => o.value === selected[0])?.label ?? '1 executivo')
+      : `${selected.length} executivos`
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setQ('') }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => { setOpen(v => !v); setQ('') }}
+        className="flex items-center gap-2 pl-3 pr-2 py-2 text-sm rounded-lg outline-none cursor-pointer whitespace-nowrap"
+        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: selected.length > 0 ? 'var(--brand-text)' : 'var(--brand-subtle)', minWidth: 160 }}>
+        <span className="flex-1 text-left truncate">{label}</span>
+        <ChevronDown size={12} style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 rounded-xl shadow-xl overflow-hidden" style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.10)', minWidth: 220, maxWidth: 320 }}>
+          <div className="p-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar executivo..."
+              className="w-full bg-transparent outline-none text-sm px-1"
+              style={{ color: 'var(--brand-text)', caretColor: '#00F5FF' }} />
+          </div>
+          {selected.length > 0 && (
+            <button type="button" onClick={() => onChange([])}
+              className="w-full text-left px-3 py-2 text-xs font-semibold hover:bg-white/[0.06] transition-colors"
+              style={{ color: '#00F5FF', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              Limpar seleção
+            </button>
+          )}
+          <div className="overflow-y-auto" style={{ maxHeight: 240 }}>
+            {filtered.map(o => {
+              const checked = selected.includes(o.value)
+              return (
+                <button key={o.value} type="button" onClick={() => toggle(o.value)}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-white/[0.06] transition-colors flex items-center gap-2"
+                  style={{ color: checked ? '#00F5FF' : 'var(--brand-text)' }}>
+                  <span className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center border"
+                    style={{ borderColor: checked ? '#00F5FF' : 'rgba(255,255,255,0.2)', background: checked ? '#00F5FF' : 'transparent' }}>
+                    {checked && <Check size={9} color="#0A0A0B" strokeWidth={3} />}
+                  </span>
+                  {o.label}
+                </button>
+              )
+            })}
+            {filtered.length === 0 && <p className="px-3 py-3 text-xs text-center" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Indicadores helpers ──────────────────────────────────────────────────────
 
 const IND_CACHE_TTL = 5 * 60 * 1000
@@ -364,8 +438,8 @@ export default function PortalClientePage() {
   const [indPFilter, setIndPFilter] = useState('')
 
   const [indStatusFilter, setIndStatusFilter] = useState('')
-  const [indExecFilter, setIndExecFilter] = useState('')
-  const [execFilter,    setExecFilter]    = useState('')
+  const [indExecFilter, setIndExecFilter] = useState<string[]>([])
+  const [execFilter,    setExecFilter]    = useState<string[]>([])
 
   // Para cliente: usa o customer_id do próprio usuário automaticamente
   useEffect(() => {
@@ -589,7 +663,7 @@ export default function PortalClientePage() {
 
   const filteredMultiData = useMemo(() => {
     let base = healthFilter === 'all' ? multiData : multiData.filter(md => md.overview?.status === healthFilter)
-    if (execFilter) base = base.filter(md => custToExecs.get(md._cid)?.has(Number(execFilter)) ?? false)
+    if (execFilter.length > 0) base = base.filter(md => execFilter.some(eid => custToExecs.get(md._cid)?.has(Number(eid)) ?? false))
     return base
   }, [multiData, healthFilter, execFilter, custToExecs])
 
@@ -603,7 +677,7 @@ export default function PortalClientePage() {
     if (indCFilter && String(p.customer?.id) !== indCFilter) return false
     if (indPFilter && String(p.id) !== indPFilter) return false
     if (indStatusFilter && p.status !== indStatusFilter) return false
-    if (indExecFilter && !(p.coordinators ?? []).some((c: any) => String(c.id) === indExecFilter)) return false
+    if (indExecFilter.length > 0 && !(p.coordinators ?? []).some((c: any) => indExecFilter.includes(String(c.id)))) return false
     return true
   }), [indProjects, indCFilter, indPFilter, indStatusFilter, indExecFilter])
 
@@ -644,7 +718,7 @@ export default function PortalClientePage() {
       if (indCFilter && String(p.customer?.id) !== indCFilter) return false
       if (indPFilter && String(p.id) !== indPFilter) return false
       if (indStatusFilter && p.status !== indStatusFilter) return false
-      if (indExecFilter && !(p.coordinators ?? []).some((c: any) => String(c.id) === indExecFilter)) return false
+      if (indExecFilter.length > 0 && !(p.coordinators ?? []).some((c: any) => indExecFilter.includes(String(c.id)))) return false
       return true
     })
     for (const p of filtered) {
@@ -656,7 +730,7 @@ export default function PortalClientePage() {
     return Array.from(map.values()).sort((a, b) => b.projects - a.projects)
   }, [indTeamProjects, indCFilter, indPFilter, indStatusFilter, indExecFilter])
 
-  const indHasFilter = indCFilter !== '' || indPFilter !== '' || indStatusFilter !== '' || indExecFilter !== ''
+  const indHasFilter = indCFilter !== '' || indPFilter !== '' || indStatusFilter !== '' || indExecFilter.length > 0
 
   return (
     <AppLayout>
@@ -758,10 +832,9 @@ export default function PortalClientePage() {
                 })}
               </div>
               {indExecOptions.length > 0 && (
-                <IndSearchSelect
-                  value={execFilter}
+                <ExecMultiSelect
+                  selected={execFilter}
                   onChange={setExecFilter}
-                  placeholder="Todos os executivos"
                   options={indExecOptions}
                 />
               )}
@@ -1316,14 +1389,14 @@ export default function PortalClientePage() {
 
                 {/* SearchSelects */}
                 {[
-                  { value: indCFilter,    onChange: setIndCFilter,    placeholder: 'Todos os clientes',   options: indClienteOptions },
-                  { value: indPFilter,    onChange: setIndPFilter,    placeholder: 'Todos os projetos',   options: indProjetoOptions },
-                  { value: indExecFilter, onChange: setIndExecFilter, placeholder: 'Todos os executivos', options: indExecOptions },
+                  { value: indCFilter, onChange: setIndCFilter, placeholder: 'Todos os clientes',  options: indClienteOptions },
+                  { value: indPFilter, onChange: setIndPFilter, placeholder: 'Todos os projetos',  options: indProjetoOptions },
                 ].map(({ value, onChange, placeholder, options }) => (
                   <IndSearchSelect key={placeholder} value={value} onChange={onChange} placeholder={placeholder} options={options} />
                 ))}
+                <ExecMultiSelect selected={indExecFilter} onChange={setIndExecFilter} options={indExecOptions} />
                 {indHasFilter && (
-                  <button onClick={() => { setIndCFilter(''); setIndPFilter(''); setIndStatusFilter(''); setIndExecFilter('') }}
+                  <button onClick={() => { setIndCFilter(''); setIndPFilter(''); setIndStatusFilter(''); setIndExecFilter([]) }}
                     className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg transition-colors hover:bg-white/[0.06]"
                     style={{ color: 'var(--brand-muted)' }}>
                     <X size={13} /> Limpar
