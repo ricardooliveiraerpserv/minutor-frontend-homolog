@@ -12,6 +12,7 @@ import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
+import { MultiSelect } from '@/components/ui/multi-select'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -3543,8 +3544,8 @@ function KanbanContent() {
   const [showEditContract, setShowEditContract] = useState(false)
   const [contractAction,   setContractAction]   = useState<{ card: ContractCard; action: string } | null>(null)
   const [filterSearch,     setFilterSearch]     = useState('')
-  const [filterCustomer,   setFilterCustomer]   = useState('')
-  const [filterExecutivo,  setFilterExecutivo]  = useState('')
+  const [filterCustomers,  setFilterCustomers]  = useState<string[]>([])
+  const [filterExecutivos, setFilterExecutivos] = useState<string[]>([])
 
   const isConsultor = userRole === 'consultor'
   const isCliente   = userRole === 'cliente'
@@ -3634,7 +3635,7 @@ function KanbanContent() {
     const cn   = customerName ?? ''
     const nm   = name ?? ''
     const desc = description ?? ''
-    if (filterCustomer && cn !== filterCustomer) return false
+    if (filterCustomers.length > 0 && !filterCustomers.includes(cn)) return false
     if (filterSearch) {
       const q = filterSearch.toLowerCase()
       return cn.toLowerCase().includes(q) || nm.toLowerCase().includes(q) || desc.toLowerCase().includes(q)
@@ -3656,9 +3657,9 @@ function KanbanContent() {
   ])].sort()
 
   const matchExecutivo = (coordinator?: string | null, coordinators?: string[]): boolean => {
-    if (!filterExecutivo) return true
-    if (coordinators) return coordinators.includes(filterExecutivo)
-    return (coordinator ?? '') === filterExecutivo
+    if (filterExecutivos.length === 0) return true
+    const arr = coordinators ?? (coordinator ? [coordinator] : [])
+    return arr.some(e => filterExecutivos.includes(e))
   }
 
   // IDs de projetos já visíveis em colunas de execução — evita duplicar contrato + projeto
@@ -3935,29 +3936,25 @@ function KanbanContent() {
             )}
           </div>
           {!isCliente && allCustomers.length > 0 && (
-            <select
-              value={filterCustomer}
-              onChange={e => setFilterCustomer(e.target.value)}
-              className="py-1.5 px-2 rounded-lg text-xs outline-none"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: filterCustomer ? 'var(--brand-text)' : 'var(--brand-subtle)' }}
-            >
-              <option value="">Todos os clientes</option>
-              {allCustomers.map(name => <option key={name} value={name}>{name}</option>)}
-            </select>
+            <MultiSelect
+              value={filterCustomers}
+              onChange={setFilterCustomers}
+              options={allCustomers.map(n => ({ id: n, name: n }))}
+              placeholder="Todos os clientes"
+              wide
+            />
           )}
           {!isCliente && allExecutivos.length > 0 && (
-            <select
-              value={filterExecutivo}
-              onChange={e => setFilterExecutivo(e.target.value)}
-              className="py-1.5 px-2 rounded-lg text-xs outline-none"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: filterExecutivo ? 'var(--brand-text)' : 'var(--brand-subtle)' }}
-            >
-              <option value="">Todos os executivos</option>
-              {allExecutivos.map(name => <option key={name} value={name}>{name}</option>)}
-            </select>
+            <MultiSelect
+              value={filterExecutivos}
+              onChange={setFilterExecutivos}
+              options={allExecutivos.map(n => ({ id: n, name: n }))}
+              placeholder="Todos os executivos"
+              wide
+            />
           )}
-          {(filterSearch || filterCustomer || filterExecutivo) && (
-            <button onClick={() => { setFilterSearch(''); setFilterCustomer(''); setFilterExecutivo('') }}
+          {(filterSearch || filterCustomers.length > 0 || filterExecutivos.length > 0) && (
+            <button onClick={() => { setFilterSearch(''); setFilterCustomers([]); setFilterExecutivos([]) }}
               className="text-xs px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
               style={{ color: 'var(--brand-subtle)' }}>
               Limpar
@@ -3982,16 +3979,19 @@ function KanbanContent() {
             })
             .filter(c => c.categoria !== 'sustentacao' && !/sustenta/i.test(c.service_type ?? ''))
             .filter(c => {
-              if (filterCustomer && c.customer_name !== filterCustomer) return false
+              if (filterCustomers.length > 0 && !filterCustomers.includes(c.customer_name)) return false
               if (sq && !c.customer_name.toLowerCase().includes(sq) && !(c.project_name ?? '').toLowerCase().includes(sq)) return false
-              if (filterExecutivo && c.kanban_coordinator !== filterExecutivo) return false
+              if (filterExecutivos.length > 0) {
+                const coord = c.kanban_coordinator ? [c.kanban_coordinator] : []
+                if (!coord.some(e => filterExecutivos.includes(e))) return false
+              }
               return true
             })
           const allProjects  = projectCards
             .filter(p => {
-              if (filterCustomer && p.customer_name !== filterCustomer) return false
+              if (filterCustomers.length > 0 && !filterCustomers.includes(p.customer_name)) return false
               if (sq && !p.customer_name.toLowerCase().includes(sq) && !(p.project_name ?? '').toLowerCase().includes(sq)) return false
-              if (filterExecutivo && !(p.coordinators ?? []).includes(filterExecutivo)) return false
+              if (filterExecutivos.length > 0 && !(p.coordinators ?? []).some(e => filterExecutivos.includes(e))) return false
               return true
             })
           return (
