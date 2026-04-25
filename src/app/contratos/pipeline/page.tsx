@@ -3622,8 +3622,10 @@ function KanbanContent() {
   // Cards by column
   const contractsInCol = (colId: string): ContractCard[] => {
     const base = colId === 'inicio_autorizado'
-      ? transitionCards.filter(c => !c.project_id || !visibleProjectIds.has(c.project_id))
-      : demandCards.filter(c => !linkedContractIds.has(c.id)).filter(c => contractColumnId(c) === colId)
+      ? transitionCards
+          .filter(c => !c.project_id || !visibleProjectIds.has(c.project_id))
+          .filter(c => linkedContractIds.has(c.id))
+      : []
     return base
       .filter(c => c.categoria !== 'sustentacao')
       .filter(c => matchFilter(c.customer_name, c.project_name))
