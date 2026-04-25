@@ -3970,6 +3970,7 @@ function KanbanContent() {
             return col?.label ?? card.kanban_status ?? '—'
           }
           const sq = filterSearch.trim().toLowerCase()
+          const listProjectIds = new Set(projectCards.map(p => p.id))
           const seenContractIds = new Set<number>()
           const allContracts = [...demandCards, ...transitionCards]
             .filter(c => {
@@ -3977,6 +3978,8 @@ function KanbanContent() {
               seenContractIds.add(c.id)
               return true
             })
+            // se o projeto vinculado já aparece como linha de projeto, ocultar o contrato para evitar duplicata
+            .filter(c => !c.project_id || !listProjectIds.has(c.project_id))
             .filter(c => c.categoria !== 'sustentacao' && !/sustenta/i.test(c.service_type ?? ''))
             .filter(c => {
               if (filterCustomers.length > 0 && !filterCustomers.includes(c.customer_name)) return false
