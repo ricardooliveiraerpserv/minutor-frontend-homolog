@@ -789,14 +789,14 @@ export default function ExpensesPage() {
                 {!isCliente && <Th className="hidden lg:table-cell">Categoria</Th>}
                 <Th className="hidden xl:table-cell">Tipo de Serviço</Th>
                 <Th right>Valor</Th>
-                <Th>Status</Th>
+                {!isCliente && <Th>Status</Th>}
                 <Th>Pagamento</Th>
               </tr>
             </Thead>
             <Tbody>
               {data?.items.length === 0 ? (
                 <tr>
-                  <td colSpan={isCliente ? 5 : 10}>
+                  <td colSpan={isCliente ? 6 : 11}>
                     <EmptyState icon={Receipt} title="Nenhuma despesa encontrada" description="Tente ajustar os filtros ou criar uma nova despesa." />
                   </td>
                 </tr>
@@ -833,10 +833,12 @@ export default function ExpensesPage() {
                   )}
                   {!isCliente && <Td muted className="hidden lg:table-cell">{exp.category?.name ?? '—'}</Td>}
                   <Td muted className="hidden xl:table-cell truncate max-w-[120px]">{(exp.project as any)?.service_type?.name ?? '—'}</Td>
-                  <Td right mono className={`font-semibold ${exp.is_paid ? 'opacity-40' : ''}`} style={{ color: exp.is_paid ? 'var(--brand-muted)' : 'var(--brand-primary)' }}>{formatCurrency(exp.amount)}</Td>
-                  <Td>
-                    <Badge variant={exp.status as any}>{STATUS_LABEL[exp.status] ?? exp.status}</Badge>
+                  <Td right mono className={`font-semibold ${exp.is_paid ? 'opacity-40' : ''}`} style={{ color: exp.is_paid ? 'var(--brand-muted)' : 'var(--brand-primary)' }}>
+                    {formatCurrency(isCliente && (exp.project as any)?.max_expense_per_consultant != null
+                      ? Number((exp.project as any).max_expense_per_consultant)
+                      : Number(exp.amount))}
                   </Td>
+                  {!isCliente && <Td><Badge variant={exp.status as any}>{STATUS_LABEL[exp.status] ?? exp.status}</Badge></Td>}
                   <Td>
                     {exp.is_paid
                       ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400">Pago</span>
