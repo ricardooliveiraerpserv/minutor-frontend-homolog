@@ -790,13 +790,13 @@ export default function ExpensesPage() {
                 <Th className="hidden xl:table-cell">Tipo de Serviço</Th>
                 <Th right>Valor</Th>
                 {!isCliente && <Th>Status</Th>}
-                <Th>Pagamento</Th>
+                {!isCliente && <Th>Pagamento</Th>}
               </tr>
             </Thead>
             <Tbody>
               {data?.items.length === 0 ? (
                 <tr>
-                  <td colSpan={isCliente ? 6 : 11}>
+                  <td colSpan={isCliente ? 4 : 11}>
                     <EmptyState icon={Receipt} title="Nenhuma despesa encontrada" description="Tente ajustar os filtros ou criar uma nova despesa." />
                   </td>
                 </tr>
@@ -839,12 +839,14 @@ export default function ExpensesPage() {
                       : Number(exp.amount))}
                   </Td>
                   {!isCliente && <Td><Badge variant={exp.status as any}>{STATUS_LABEL[exp.status] ?? exp.status}</Badge></Td>}
-                  <Td>
-                    {exp.is_paid
-                      ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400">Pago</span>
-                      : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-950 text-amber-400">Em aberto</span>
-                    }
-                  </Td>
+                  {!isCliente && (
+                    <Td>
+                      {exp.is_paid
+                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400">Pago</span>
+                        : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-950 text-amber-400">Em aberto</span>
+                      }
+                    </Td>
+                  )}
                 </Tr>
               ))}
             </Tbody>
