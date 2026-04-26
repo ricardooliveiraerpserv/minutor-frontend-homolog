@@ -80,6 +80,7 @@ type NavItem = {
   label: string
   href: string
   icon: LucideIcon
+  matchPaths?: string[]
 }
 type NavGroup = {
   type: 'group'
@@ -118,7 +119,7 @@ const NAV: NavEntry[] = [
   { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
   { type: 'item', label: 'Meu Painel',            href: '/meu-painel',      icon: LayoutDashboard },
   { type: 'item', label: 'Gestão de Projetos',    href: '/gestao-projetos', icon: Layers },
-  { type: 'item', label: 'Kanban Contratos',      href: '/contratos/kanban',   icon: LayoutGrid },
+  { type: 'item', label: 'Kanban Contratos', href: '/contratos/kanban', icon: LayoutGrid, matchPaths: ['/contratos'] },
   { type: 'item', label: 'Demandas e Projetos',   href: '/contratos/pipeline', icon: Layers },
   { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',     icon: Headphones },
   { type: 'item', label: 'Visão Executiva',    href: '/portal-cliente',  icon: Building2 },
@@ -233,7 +234,7 @@ function SidebarInner({ user }: { user: User }) {
 
       // Portal de Sustentação + Kanban + Meu Painel — somente para coordenadores do tipo "sustentacao"
       if (user?.coordinator_type === 'sustentacao') {
-        nav.splice(1, 0, { type: 'item', label: 'Kanban Contratos',      href: '/contratos/kanban', icon: LayoutGrid })
+        nav.splice(1, 0, { type: 'item', label: 'Kanban Contratos', href: '/contratos/kanban', icon: LayoutGrid, matchPaths: ['/contratos'] })
         nav.splice(1, 0, { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',      icon: Headphones })
         nav.splice(1, 0, { type: 'item', label: 'Meu Painel',            href: '/meu-painel',       icon: LayoutDashboard })
       }
@@ -279,7 +280,7 @@ function SidebarInner({ user }: { user: User }) {
         { type: 'item', label: 'Início',            href: '/dashboard',           icon: Home },
         { type: 'item', label: 'Apontamentos',      href: '/timesheets',          icon: Clock },
         { type: 'item', label: 'Despesas',          href: '/expenses',            icon: Receipt },
-        { type: 'item', label: 'Kanban Contratos',  href: '/contratos/kanban',    icon: LayoutGrid },
+        { type: 'item', label: 'Kanban Contratos', href: '/contratos/kanban', icon: LayoutGrid, matchPaths: ['/contratos'] },
         {
           type: 'group', label: 'Fechamento', icon: DollarSign,
           items: [
@@ -351,9 +352,11 @@ function SidebarInner({ user }: { user: User }) {
   const toggleGroup = (label: string) =>
     setOpenGroups(prev => prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label])
 
-  const isActive = (href: string) => {
+  const isActive = (href: string, matchPaths?: string[]) => {
     const [hrefPath, hrefQuery] = href.split('?')
-    if (!hrefQuery) return pathname === hrefPath || pathname.startsWith(hrefPath + '/')
+    const pathMatch = (p: string) => pathname === p || pathname.startsWith(p + '/')
+    if (matchPaths?.some(pathMatch)) return true
+    if (!hrefQuery) return pathMatch(hrefPath)
     // com query param: pathname deve bater E o tab deve bater
     if (pathname !== hrefPath) return false
     const params = new URLSearchParams(hrefQuery)
@@ -420,7 +423,7 @@ function SidebarInner({ user }: { user: User }) {
         {visibleNav.map(entry => {
           // ── Plain item ──
           if (entry.type === 'item') {
-            const active = isActive(entry.href)
+            const active = isActive(entry.href, entry.matchPaths)
             const Icon   = entry.icon
             const item = (
               <Link
