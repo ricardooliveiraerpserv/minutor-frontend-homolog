@@ -490,14 +490,15 @@ const CONTRACT_MENU_ITEMS = [
 ] as const
 
 const PROJECT_MENU_ITEMS = [
-  { action: 'view',       label: 'Visualizar',       icon: Eye },
-  { action: 'edit',       label: 'Editar',            icon: Pencil },
-  { action: 'status',     label: 'Alterar Status',    icon: Layers },
-  { action: 'cost',       label: 'Custo',             icon: DollarSign },
-  { action: 'timesheets', label: 'Apontamentos',      icon: Clock },
-  { action: 'expenses',   label: 'Despesas',          icon: BarChart2 },
-  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp },
-  { action: 'team',       label: 'Selecionar Equipe', icon: Users },
+  { action: 'view',       label: 'Visualizar',       icon: Eye,           clientVisible: false },
+  { action: 'edit',       label: 'Editar',            icon: Pencil,        clientVisible: false },
+  { action: 'chat',       label: 'Chat',              icon: MessageSquare, clientVisible: true  },
+  { action: 'status',     label: 'Alterar Status',    icon: Layers,        clientVisible: false },
+  { action: 'cost',       label: 'Custo',             icon: DollarSign,    clientVisible: false },
+  { action: 'timesheets', label: 'Apontamentos',      icon: Clock,         clientVisible: false },
+  { action: 'expenses',   label: 'Despesas',          icon: BarChart2,     clientVisible: false },
+  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp,    clientVisible: false },
+  { action: 'team',       label: 'Selecionar Equipe', icon: Users,         clientVisible: false },
 ] as const
 
 function endDateStyle(dateStr: string): { color: string; bg: string; label: string } {
@@ -509,9 +510,9 @@ function endDateStyle(dateStr: string): { color: string; bg: string; label: stri
 }
 
 function ProjectKanbanCard({
-  card, index, canDrag, onClick, onAction, onMove, availableColumns,
+  card, index, canDrag, onClick, onAction, onMove, availableColumns, isCliente,
 }: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void; onAction: (action: string) => void
-    onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[] }) {
+    onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isCliente?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -570,7 +571,7 @@ function ProjectKanbanCard({
                 {menuOpen && (
                   <div className="absolute right-0 top-6 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
                     style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    {PROJECT_MENU_ITEMS.map(item => {
+                    {PROJECT_MENU_ITEMS.filter(item => !isCliente || item.clientVisible).map(item => {
                       const Icon = item.icon
                       return (
                         <button
@@ -3335,7 +3336,7 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
 // ─── Column Component ─────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  col, contractCards, projectCards, requestCards = [], canDrag, canDrop,
+  col, contractCards, projectCards, requestCards = [], canDrag, canDrop, isCliente,
   onContractClick, onProjectClick, onRequestClick, onRequestView, onProjectAction, onContractAction,
   onContractMove, onProjectMove, getContractCols, getProjectCols,
 }: {
@@ -3345,6 +3346,7 @@ function KanbanColumn({
   requestCards?: RequestCard[]
   canDrag: boolean
   canDrop: boolean
+  isCliente?: boolean
   onContractClick: (card: ContractCard) => void
   onProjectClick: (card: ProjectCard) => void
   onRequestClick?: (card: RequestCard) => void
@@ -3484,6 +3486,7 @@ function KanbanColumn({
               return (
                 <ProjectKanbanCard key={uniqueCardId(card)} card={card} index={requestCards.length + contractCards.length + idx}
                   canDrag={canDrag}
+                  isCliente={isCliente}
                   onClick={() => onProjectClick(card)}
                   onAction={action => onProjectAction?.(card, action)}
                   onMove={onProjectMove ? toCol => onProjectMove(card, toCol) : undefined}
@@ -4212,6 +4215,7 @@ function KanbanContent() {
                   })}
                   canDrag={colCanDrag(col.id)}
                   canDrop={colCanDrop(col.id)}
+                  isCliente={isCliente}
                   onContractClick={setSelectedContract}
                   onContractAction={(card, action) => setContractAction({ card, action })}
                   onProjectClick={setSelectedProject}
@@ -4248,6 +4252,7 @@ function KanbanContent() {
                     })}
                     canDrag={colCanDrag('inicio_autorizado')}
                     canDrop={colCanDrop('inicio_autorizado')}
+                    isCliente={isCliente}
                     onContractClick={card => {
                       if (card.kanban_status === 'inicio_autorizado' && !card.project_id) {
                         setGenerateTarget(card)
@@ -4275,6 +4280,7 @@ function KanbanContent() {
                   projectCards={projectsInCol(col.id)}
                   canDrag={!isConsultor && !isCliente}
                   canDrop={!isConsultor && !isCliente}
+                  isCliente={isCliente}
                   onContractClick={setSelectedContract}
                   onProjectClick={setSelectedProject}
                   onProjectAction={(card, action) => setProjectAction({ card, action })}
