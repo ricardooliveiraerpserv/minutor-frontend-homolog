@@ -394,13 +394,13 @@ export default function ContratosPage() {
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Tipo de Contrato</th>
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Tipo de Serviço</th>
               <th className="text-center px-4 py-3 text-zinc-400 font-medium">Horas</th>
-              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Expectativa</th>
-              <th className="text-center px-4 py-3 text-zinc-400 font-medium">Status</th>
-              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Projeto</th>
               {listTab === 'projetos' && <>
                 <th className="text-center px-4 py-3 text-zinc-400 font-medium">HS Consumidas</th>
                 <th className="text-center px-4 py-3 text-zinc-400 font-medium">Saldo</th>
               </>}
+              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Expectativa</th>
+              <th className="text-center px-4 py-3 text-zinc-400 font-medium">Status</th>
+              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Projeto</th>
             </tr>
           </thead>
           <tbody>
@@ -457,6 +457,20 @@ export default function ContratosPage() {
                 <td className="px-4 py-3 text-zinc-400 text-xs">{c.contract_type?.name ?? '—'}</td>
                 <td className="px-4 py-3 text-zinc-400 text-xs">{c.service_type?.name ?? '—'}</td>
                 <td className="px-4 py-3 text-center text-zinc-300">{c.horas_contratadas}h</td>
+                {listTab === 'projetos' && (() => {
+                  const isClosed  = c.project?.status === 'finished' || c.project?.status === 'cancelled'
+                  const hideHours = isCliente && isClosed
+                  const bal       = c.project?.general_hours_balance
+                  return (<>
+                    <td className="px-4 py-3 text-center text-zinc-300 text-xs">
+                      {!c.project ? '—' : hideHours ? '—' : c.project.consumed_hours != null ? `${c.project.consumed_hours.toFixed(1)}h` : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-center text-xs"
+                      style={{ color: !hideHours && c.project && (bal ?? 0) < 0 ? '#ef4444' : 'rgb(212 212 216)' }}>
+                      {!c.project ? '—' : hideHours ? '—' : bal != null ? `${bal.toFixed(1)}h` : '—'}
+                    </td>
+                  </>)
+                })()}
                 <td className="px-4 py-3 text-zinc-400 text-xs">{fmtDate(c.expectativa_inicio)}</td>
                 <td className="px-4 py-3 text-center">
                   <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
@@ -472,20 +486,6 @@ export default function ContratosPage() {
                     </div>
                   ) : <span className="text-zinc-600">—</span>}
                 </td>
-                {listTab === 'projetos' && (() => {
-                  const isClosed  = c.project?.status === 'finished' || c.project?.status === 'cancelled'
-                  const hideHours = isCliente && isClosed
-                  const bal       = c.project?.general_hours_balance
-                  return (<>
-                    <td className="px-4 py-3 text-center text-zinc-300 text-xs">
-                      {!c.project ? '—' : hideHours ? '—' : c.project.consumed_hours != null ? `${c.project.consumed_hours.toFixed(1)}h` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-center text-xs"
-                      style={{ color: !hideHours && c.project && (bal ?? 0) < 0 ? '#ef4444' : 'rgb(212 212 216)' }}>
-                      {!c.project ? '—' : hideHours ? '—' : bal != null ? `${bal.toFixed(1)}h` : '—'}
-                    </td>
-                  </>)
-                })()}
               </tr>
             ))}
           </tbody>
