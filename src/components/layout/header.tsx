@@ -153,7 +153,7 @@ export function Header({ title, actions }: HeaderProps) {
                         return (
                           <div
                             key={n.id}
-                            onClick={() => { setBellOpen(false); if (href) router.push(href) }}
+                            onClick={() => { setBellOpen(false); if (href) window.location.href = href }}
                             className="flex flex-col px-4 py-3 hover:bg-white/5 transition-colors border-b gap-0.5 cursor-pointer"
                             style={{ borderColor: 'var(--brand-border)' }}
                           >
