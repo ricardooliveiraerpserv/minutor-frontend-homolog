@@ -81,12 +81,13 @@ type NavItem = {
   href: string
   icon: LucideIcon
   matchPaths?: string[]
+  exactMatch?: boolean
 }
 type NavGroup = {
   type: 'group'
   label: string
   icon: LucideIcon
-  items: { label: string; href: string; icon: LucideIcon }[]
+  items: { label: string; href: string; icon: LucideIcon; exactMatch?: boolean }[]
 }
 type NavEntry = NavItem | NavGroup
 
@@ -140,7 +141,7 @@ const NAV: NavEntry[] = [
     label: 'Sustentação',
     icon: Headphones,
     items: [
-      { label: 'Portal',   href: '/sustentacao',          icon: Headphones },
+      { label: 'Portal',   href: '/sustentacao',          icon: Headphones, exactMatch: true },
       { label: 'Projetos', href: '/sustentacao/projetos', icon: Layers },
     ],
   },
@@ -276,7 +277,7 @@ function SidebarInner({ user }: { user: User }) {
           label: 'Sustentação',
           icon: Headphones,
           items: [
-            { label: 'Portal',   href: '/sustentacao',          icon: Headphones },
+            { label: 'Portal',   href: '/sustentacao',          icon: Headphones, exactMatch: true },
             { label: 'Projetos', href: '/sustentacao/projetos', icon: Layers },
           ],
         })
@@ -417,10 +418,10 @@ function SidebarInner({ user }: { user: User }) {
   const toggleGroup = (label: string) =>
     setOpenGroups(prev => prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label])
 
-  const isActive = (href: string, matchPaths?: string[]) => {
+  const isActive = (href: string, matchPaths?: string[], exactMatch?: boolean) => {
     const [hrefPath, hrefQuery] = href.split('?')
-    const pathMatch = (p: string) => pathname === p || pathname.startsWith(p + '/')
-    if (matchPaths?.some(pathMatch)) return true
+    const pathMatch = (p: string) => exactMatch ? pathname === p : (pathname === p || pathname.startsWith(p + '/'))
+    if (matchPaths?.some(p => pathname === p || pathname.startsWith(p + '/'))) return true
     if (!hrefQuery) return pathMatch(hrefPath)
     // com query param: pathname deve bater E o tab deve bater
     if (pathname !== hrefPath) return false
@@ -430,7 +431,7 @@ function SidebarInner({ user }: { user: User }) {
     }
     return true
   }
-  const groupActive = (g: NavGroup) => g.items.some(i => isActive(i.href))
+  const groupActive = (g: NavGroup) => g.items.some(i => isActive(i.href, undefined, i.exactMatch))
 
   return (
     <aside
@@ -523,7 +524,7 @@ function SidebarInner({ user }: { user: User }) {
               <div key={group.label} className="space-y-0.5">
                 {group.items.map(sub => {
                   const SubIcon = sub.icon
-                  const subActive = isActive(sub.href)
+                  const subActive = isActive(sub.href, undefined, sub.exactMatch)
                   const subItem = (
                     <Link
                       key={sub.href}
@@ -563,7 +564,7 @@ function SidebarInner({ user }: { user: User }) {
                 <div className="ml-3 mt-0.5 space-y-0.5 border-l pl-2" style={{ borderColor: 'var(--brand-border)' }}>
                   {group.items.map(sub => {
                     const SubIcon = sub.icon
-                    const subActive = isActive(sub.href)
+                    const subActive = isActive(sub.href, undefined, sub.exactMatch)
                     return (
                       <Link
                         key={sub.href}
