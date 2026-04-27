@@ -241,9 +241,9 @@ function uniqueCardId(card: AnyCard): string {
 // ─── Contract Card ────────────────────────────────────────────────────────────
 
 function ContractKanbanCard({
-  card, index, canDrag, onClick, onAction, onMove, availableColumns,
+  card, index, canDrag, onClick, onAction, onMove, availableColumns, isNew,
 }: { card: ContractCard; index: number; canDrag: boolean; onClick: () => void; onAction?: (action: string) => void
-    onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[] }) {
+    onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isNew?: boolean }) {
   const isIncomplete = !card.is_complete
   const isTransition = card.kanban_status === 'inicio_autorizado'
   const [menuOpen, setMenuOpen] = useState(false)
@@ -268,17 +268,25 @@ function ContractKanbanCard({
           onClick={onClick}
           className="rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
-            background: snap.isDragging ? 'rgba(0,245,255,0.06)' : 'var(--brand-surface)',
-            border: `1px solid ${snap.isDragging ? 'rgba(0,245,255,0.3)' : isTransition ? 'rgba(234,179,8,0.3)' : 'var(--brand-border)'}`,
-            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.45)' : 'none',
+            background: snap.isDragging ? 'rgba(0,245,255,0.06)' : isNew ? 'rgba(0,245,255,0.04)' : 'var(--brand-surface)',
+            border: `1px solid ${snap.isDragging ? 'rgba(0,245,255,0.3)' : isNew ? 'rgba(0,245,255,0.5)' : isTransition ? 'rgba(234,179,8,0.3)' : 'var(--brand-border)'}`,
+            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.45)' : isNew ? '0 0 0 1px rgba(0,245,255,0.25)' : 'none',
             ...prov.draggableProps.style,
           }}
         >
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
-              <p className="text-[10px] truncate mb-0.5" style={{ color: 'var(--brand-subtle)' }}>
-                {card.customer_name}
-              </p>
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <p className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+                  {card.customer_name}
+                </p>
+                {isNew && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+                    style={{ background: 'rgba(0,245,255,0.15)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)' }}>
+                    NOVO
+                  </span>
+                )}
+              </div>
               <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
                 {card.project_name || card.customer_name}
               </p>
@@ -3396,7 +3404,7 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
 // ─── Column Component ─────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  col, contractCards, projectCards, requestCards = [], canDrag, canDrop, isCliente, unreadContractIds,
+  col, contractCards, projectCards, requestCards = [], canDrag, canDrop, isCliente, unreadContractIds, newContractIds,
   onContractClick, onProjectClick, onRequestClick, onRequestView, onProjectAction, onContractAction,
   onContractMove, onProjectMove, getContractCols, getProjectCols,
 }: {
@@ -3408,6 +3416,7 @@ function KanbanColumn({
   canDrop: boolean
   isCliente?: boolean
   unreadContractIds?: number[]
+  newContractIds?: Set<number>
   onContractClick: (card: ContractCard) => void
   onProjectClick: (card: ProjectCard) => void
   onRequestClick?: (card: RequestCard) => void
@@ -3535,6 +3544,7 @@ function KanbanColumn({
               return (
                 <ContractKanbanCard key={uniqueCardId(card)} card={card} index={requestCards.length + idx}
                   canDrag={canDrag}
+                  isNew={!!(newContractIds?.has(card.id))}
                   onClick={() => onContractClick(card)}
                   onAction={onContractAction ? action => onContractAction(card, action) : undefined}
                   onMove={onContractMove ? toCol => onContractMove(card, toCol) : undefined}
@@ -3615,9 +3625,29 @@ function KanbanContent() {
   const [filterExecutivos, setFilterExecutivos] = useState<string[]>([])
   const [listTab,          setListTab]          = useState<'contratos' | 'projetos' | 'requisicoes'>('projetos')
   const [unreadContractIds, setUnreadContractIds] = useState<number[]>([])
+  const [seenContractIds, setSeenContractIds] = useState<Set<number>>(() => {
+    try {
+      const userId = JSON.parse(localStorage.getItem('minutor_user') ?? '{}').id
+      return new Set(JSON.parse(localStorage.getItem(`minutor_seen_contracts_${userId}`) ?? '[]'))
+    } catch { return new Set() }
+  })
 
   const isConsultor = userRole === 'consultor'
   const isCliente   = userRole === 'cliente'
+  const isCoord     = userRole === 'coordenador'
+
+  const markContractSeen = (contractId: number) => {
+    setSeenContractIds(prev => {
+      if (prev.has(contractId)) return prev
+      const next = new Set(prev)
+      next.add(contractId)
+      try {
+        const userId = JSON.parse(localStorage.getItem('minutor_user') ?? '{}').id
+        localStorage.setItem(`minutor_seen_contracts_${userId}`, JSON.stringify([...next]))
+      } catch {}
+      return next
+    })
+  }
 
   useEffect(() => {
     if (projectCards.length === 0) return
@@ -3687,7 +3717,7 @@ function KanbanContent() {
   }, [])
 
   // Compute visible columns based on role
-  const visibleDemandCols = isConsultor ? [] : DEMAND_COLS
+  const visibleDemandCols = (isConsultor || isCoord) ? [] : DEMAND_COLS
 
   const showTransition = !isConsultor
   const visibleProjectCols = PROJECT_COLS
@@ -3717,6 +3747,11 @@ function KanbanContent() {
     ...transitionCards.map(c => c.id),
     ...demandCards.filter(c => c.project_id != null).map(c => c.id),
   ])
+
+  // IDs de contratos novos para o coordenador (não vistos ainda) — usados para badge e ordenação
+  const newContractIds = isCoord
+    ? new Set(transitionCards.filter(c => !seenContractIds.has(c.id)).map(c => c.id))
+    : undefined
 
   // Mapa contrato_id → project_id para suprimir requisições subprojeto cujo projeto já está ativo
   const contractToProjectId = new Map<number, number>([
@@ -3771,7 +3806,13 @@ function KanbanContent() {
       .filter(c => c.categoria !== 'sustentacao')
       .filter(c => matchFilter(c.customer_name, c.project_name))
       .filter(c => matchExecutivo(c.kanban_coordinator))
-      .sort((a, b) => a.kanban_order - b.kanban_order)
+      .sort((a, b) => {
+        // Para coordenador: cards novos (não vistos) aparecem primeiro
+        const aNew = newContractIds?.has(a.id) ? 0 : 1
+        const bNew = newContractIds?.has(b.id) ? 0 : 1
+        if (aNew !== bNew) return aNew - bNew
+        return a.kanban_order - b.kanban_order
+      })
   }
 
   const projectsInCol = (colId: string): ProjectCard[] =>
@@ -4357,7 +4398,9 @@ function KanbanContent() {
                     canDrop={colCanDrop('inicio_autorizado')}
                     isCliente={isCliente}
                     unreadContractIds={unreadContractIds}
+                    newContractIds={newContractIds}
                     onContractClick={card => {
+                      if (newContractIds?.has(card.id)) markContractSeen(card.id)
                       if (card.kanban_status === 'inicio_autorizado' && !card.project_id) {
                         setGenerateTarget(card)
                       } else {
