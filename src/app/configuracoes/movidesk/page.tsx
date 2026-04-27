@@ -23,10 +23,8 @@ interface MovideskStatus {
 }
 
 interface SystemSettings {
-  movidesk?: {
-    movidesk_default_customer_id?: { value: number | null }
-    movidesk_default_project_id?:  { value: number | null }
-  }
+  movidesk_default_customer_id?: number | null
+  movidesk_default_project_id?:  number | null
 }
 
 interface SelectOption { id: number | string; name: string }
@@ -89,9 +87,9 @@ export default function MovideskIntegracaoPage() {
       setCustomers(items(custRes))
       setProjects(items(projRes))
 
-      const mv = (settingsRes as any)?.movidesk ?? {}
-      setDefaultCustomer(String(mv.movidesk_default_customer_id?.value ?? ''))
-      setDefaultProject(String(mv.movidesk_default_project_id?.value ?? ''))
+      const mv = settingsRes as SystemSettings
+      setDefaultCustomer(String(mv.movidesk_default_customer_id ?? ''))
+      setDefaultProject(String(mv.movidesk_default_project_id ?? ''))
     } catch {}
   }, [])
 
