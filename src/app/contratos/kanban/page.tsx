@@ -49,6 +49,8 @@ interface ProjectCard {
   code: string
   status: string
   sold_hours?: number
+  kanban_order?: number
+  sustentacao_column?: string | null
   coordinator_ids?: number[]
   coordinators?: string[]
 }
@@ -1555,7 +1557,7 @@ function KanbanContent() {
   const router = useRouter()
   const { user } = useAuth()
 
-  type SustGroups = Record<string, ContractCard[]>
+  type SustGroups = Record<string, (ContractCard | ProjectCard)[]>
 
   const [demandCards,       setDemandCards]       = useState<ContractCard[]>([])
   const [projectCards,      setProjectCards]       = useState<ProjectCard[]>([])
@@ -1639,7 +1641,7 @@ function KanbanContent() {
   ].filter(Boolean))].sort() as string[]
 
   // Contract cards per column
-  const contractsInCol = (colId: string): ContractCard[] => {
+  const contractsInCol = (colId: string): (ContractCard | ProjectCard)[] => {
     const base = colId.startsWith('sust_')
       ? (sustGroups[colId] ?? [])
       : demandCards.filter(c => contractColumnId(c) === colId)
@@ -1649,8 +1651,8 @@ function KanbanContent() {
       : null
     return base
       .filter(c => matchFilter(c.customer_name, c.project_name))
-      .filter(c => !activeProjectIds || !c.project_id)
-      .sort((a, b) => a.kanban_order - b.kanban_order)
+      .filter(c => !activeProjectIds || !(c as ContractCard).project_id)
+      .sort((a, b) => (a.kanban_order ?? 0) - (b.kanban_order ?? 0))
   }
 
   // Active project cards per coordinator column
@@ -1841,7 +1843,7 @@ function KanbanContent() {
     const cardId   = Number(rawId)
 
     if (cardType === 'contract') {
-      const allSustCards = Object.values(sustGroups).flat()
+      const allSustCards = Object.values(sustGroups).flat().filter(c => c.card_type !== 'project') as ContractCard[]
       const card = [...demandCards, ...allSustCards].find(c => c.id === cardId)
       if (!card) return
       await handleContractMove(cardId, card, fromCol, toCol, destination.index)
@@ -2053,13 +2055,23 @@ function KanbanContent() {
                               }}
                             >
                               {contractCards.map((card, idx) => {
-                                const fromCol = col.id.startsWith('sust_') ? col.id : contractColumnId(card)
+                                if (card.card_type === 'project') {
+                                  const proj = card as ProjectCard
+                                  return (
+                                    <ProjectKanbanCard key={`sp-${proj.id}`} card={proj} index={idx}
+                                      onClick={() => setProjectAction({ card: proj, action: 'view' })}
+                                      onAction={action => setProjectAction({ card: proj, action })}
+                                    />
+                                  )
+                                }
+                                const cc = card as ContractCard
+                                const fromCol = col.id.startsWith('sust_') ? col.id : contractColumnId(cc)
                                 return (
-                                  <ContractKanbanCard key={`c-${card.id}`} card={card} index={idx}
-                                    onClick={() => setSelected(card)}
-                                    onAction={action => setContractAction({ card, action })}
-                                    onMove={toCol => handleContractMove(card.id, card, fromCol, toCol)}
-                                    availableColumns={getAvailableContractCols(card, fromCol)}
+                                  <ContractKanbanCard key={`c-${cc.id}`} card={cc} index={idx}
+                                    onClick={() => setSelected(cc)}
+                                    onAction={action => setContractAction({ card: cc, action })}
+                                    onMove={toCol => handleContractMove(cc.id, cc, fromCol, toCol)}
+                                    availableColumns={getAvailableContractCols(cc, fromCol)}
                                   />
                                 )
                               })}
