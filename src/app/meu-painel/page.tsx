@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, toRelativePath } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
@@ -574,7 +574,7 @@ function periodBounds(year: number, month: number): { startDate: string; endDate
 async function openReceiptUrl(url: string) {
   try {
     const token = localStorage.getItem('minutor_token')
-    const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    const res = await fetch(toRelativePath(url), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
     if (!res.ok) { alert('Arquivo não encontrado no servidor'); return }
     const blob = await res.blob()
     const blobUrl = URL.createObjectURL(blob)
@@ -589,7 +589,7 @@ function ReceiptLinkInline({ url, label = 'Visualizar' }: { url: string; label?:
     setLoading(true)
     try {
       const token = localStorage.getItem('minutor_token')
-      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      const res = await fetch(toRelativePath(url), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       if (!res.ok) { alert('Arquivo não encontrado no servidor'); return }
       const blob = await res.blob()
       const blobUrl = URL.createObjectURL(blob)

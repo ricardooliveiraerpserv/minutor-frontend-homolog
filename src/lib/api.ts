@@ -9,6 +9,15 @@ export function secureUrl(url: string | null | undefined): string | undefined {
   return url.replace(/^http:\/\//, 'https://')
 }
 
+/**
+ * Extrai apenas o pathname de uma URL completa.
+ * Necessário porque o backend pode retornar URLs com host errado (APP_URL=http://localhost).
+ * O proxy Next.js em /api/v1/* encaminha para o backend real.
+ */
+export function toRelativePath(url: string): string {
+  try { return new URL(url).pathname } catch { return url }
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message)

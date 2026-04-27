@@ -14,7 +14,7 @@ import { RowMenu } from '@/components/ui/row-menu'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, toRelativePath } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 
@@ -269,7 +269,7 @@ function ReceiptLink({ url }: { url: string }) {
     setLoading(true)
     try {
       const token = localStorage.getItem('minutor_token')
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch(toRelativePath(url), { headers: { Authorization: `Bearer ${token}` } })
       if (!res.ok) { toast.error('Comprovante não encontrado no servidor'); return }
       const blob = await res.blob()
       const blobUrl = URL.createObjectURL(blob)
@@ -291,7 +291,7 @@ function ReceiptLink({ url }: { url: string }) {
 async function openReceiptUrl(url: string) {
   try {
     const token = localStorage.getItem('minutor_token')
-    const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    const res = await fetch(toRelativePath(url), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
     if (!res.ok) { alert('Arquivo não encontrado no servidor'); return }
     const blob = await res.blob()
     const blobUrl = URL.createObjectURL(blob)

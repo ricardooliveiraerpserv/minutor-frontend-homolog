@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, toRelativePath } from '@/lib/api'
 import { Expense, PaginatedResponse } from '@/types'
 import { Button as UIButton } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,7 +29,7 @@ function ReceiptLink({ url, label = 'Visualizar Comprovante' }: { url: string; l
     setLoading(true)
     try {
       const token = localStorage.getItem('minutor_token')
-      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      const res = await fetch(toRelativePath(url), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
       if (!res.ok) { alert('Arquivo não encontrado no servidor'); return }
       const blob = await res.blob()
       const blobUrl = URL.createObjectURL(blob)
@@ -336,7 +336,7 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 async function openReceipt(url: string) {
   try {
     const token = localStorage.getItem('minutor_token')
-    const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    const res = await fetch(toRelativePath(url), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
     if (!res.ok) { alert('Arquivo não encontrado no servidor'); return }
     const blob = await res.blob()
     const blobUrl = URL.createObjectURL(blob)
