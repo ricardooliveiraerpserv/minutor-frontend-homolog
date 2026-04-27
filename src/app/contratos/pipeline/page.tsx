@@ -1176,11 +1176,6 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
                     style={{ background: 'rgba(99,102,241,0.2)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.35)' }}>
                     <ExternalLink size={13} /> Visualizar Projeto
                   </button>
-                  <button onClick={() => window.location.href = `/projetos/${card.id}?edit=1`}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
-                    <Pencil size={13} /> Editar Projeto
-                  </button>
                 </>
               )}
             </div>
