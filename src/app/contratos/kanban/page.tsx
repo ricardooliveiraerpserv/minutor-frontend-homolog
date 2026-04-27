@@ -1678,6 +1678,7 @@ function KanbanContent() {
     // ── Between sustentação columns (or from demand to sustentação)
     if (toCol.startsWith('sust_')) {
       if (!isSustAdmin) { toast.error('Apenas admin ou coordenador de sustentação pode mover.'); return }
+      if (card.categoria === 'projeto') { toast.error('Contratos de projeto não podem ser movidos para filas de sustentação.'); return }
       setSustGroups(prev => {
         const next = { ...prev }
         if (fromCol.startsWith('sust_')) next[fromCol] = prev[fromCol].filter(c => c.id !== cardId)
@@ -1809,8 +1810,8 @@ function KanbanContent() {
       }
     }
 
-    // Sust cols apenas para contratos de categoria sustentação sem projeto gerado
-    if (isSustAdmin && !card.project_id && card.categoria !== 'projeto') {
+    // Sust cols apenas para contratos explicitamente de sustentação sem projeto gerado
+    if (isSustAdmin && !card.project_id && card.categoria === 'sustentacao') {
       SUSTENTACAO_COLS.forEach(s => cols.push({ id: s.id, label: s.label }))
       cols.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
     }
