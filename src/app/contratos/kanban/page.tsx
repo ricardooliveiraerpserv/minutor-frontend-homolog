@@ -1809,8 +1809,8 @@ function KanbanContent() {
       }
     }
 
-    // Sust cols só para cards de demanda pura (sem project_id)
-    if (isSustAdmin && !card.project_id) {
+    // Sust cols apenas para contratos de categoria sustentação sem projeto gerado
+    if (isSustAdmin && !card.project_id && card.categoria !== 'projeto') {
       SUSTENTACAO_COLS.forEach(s => cols.push({ id: s.id, label: s.label }))
       cols.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
     }

@@ -1259,8 +1259,8 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
         tipo_faturamento: tipoFaturamento || undefined,
         valor_projeto: valorProjeto ? Number(valorProjeto) : undefined,
       })
-      toast.success('Contrato criado — requisição em Início Autorizado')
-      onDone({ ...card, kanban_column: 'inicio_autorizado', req_decision: 'novo_projeto', linked_contract_id: res.linked_contract_id })
+      toast.success('Contrato criado — requisição aguardando em Aguardando Início (Req.)')
+      onDone({ ...card, kanban_column: 'req_inicio_autorizado', req_decision: 'novo_projeto', linked_contract_id: res.linked_contract_id })
       onClose()
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao processar')
