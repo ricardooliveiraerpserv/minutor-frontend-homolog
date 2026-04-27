@@ -1688,9 +1688,9 @@ function KanbanContent() {
       })
       setDemandCards(prev => prev.filter(c => c.id !== cardId))
       try {
-        await api.patch(`/contracts/${cardId}/sustentacao-move`, { to_column: toCol })
+        const res = await api.patch<any>(`/contracts/${cardId}/sustentacao-move`, { to_column: toCol })
         await load()
-        toast.success('Card movido para fila de sustentação')
+        toast.success(res?.project_created ? '🚀 Projeto gerado e card movido para sustentação!' : 'Card movido para fila de sustentação')
       } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover'); load() }
       return
     }
