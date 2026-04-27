@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import {
   CheckSquare, Clock, Receipt, ChevronLeft, ChevronRight,
   Check, XCircle, X, Filter, ChevronDown, Eye, Pencil, RotateCcw,
-  Paperclip,
+  Paperclip, Download,
 } from 'lucide-react'
 import { RowMenu } from '@/components/ui/row-menu'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -260,44 +260,61 @@ function TsViewModal({ item, onClose }: { item: TSItem; onClose: () => void }) {
   )
 }
 
-// ─── ReceiptLink: abre comprovante autenticado ────────────────────────────────
+// ─── Receipt helpers ──────────────────────────────────────────────────────────
+
+async function fetchReceipt(url: string): Promise<{ blobUrl: string; filename: string }> {
+  const token = localStorage.getItem('minutor_token')
+  const res = await fetch(toRelativePath(url), { headers: { Authorization: `Bearer ${token ?? ''}` } })
+  if (!res.ok) throw new Error('not_found')
+  const blob = await res.blob()
+  const cd = res.headers.get('content-disposition') ?? ''
+  const match = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+  const ext = blob.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'pdf'
+  const filename = match?.[1]?.replace(/['"]/g, '') ?? `comprovante.${ext}`
+  return { blobUrl: URL.createObjectURL(blob), filename }
+}
+
+function triggerAnchor(href: string, download?: string) {
+  const a = document.createElement('a')
+  a.href = href
+  if (download) { a.download = download } else { a.target = '_blank'; a.rel = 'noopener noreferrer' }
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(href), 60000)
+}
 
 function ReceiptLink({ url }: { url: string }) {
   const [loading, setLoading] = useState(false)
 
-  const open = async () => {
+  const handle = async (download: boolean) => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('minutor_token')
-      const res = await fetch(toRelativePath(url), { headers: { Authorization: `Bearer ${token}` } })
-      if (!res.ok) { toast.error('Comprovante não encontrado no servidor'); return }
-      const blob = await res.blob()
-      const blobUrl = URL.createObjectURL(blob)
-      window.open(blobUrl, '_blank')
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
-    } catch { toast.error('Erro ao abrir comprovante') }
+      const { blobUrl, filename } = await fetchReceipt(url)
+      triggerAnchor(blobUrl, download ? filename : undefined)
+    } catch { toast.error(download ? 'Erro ao baixar comprovante' : 'Erro ao abrir comprovante') }
     finally { setLoading(false) }
   }
 
   return (
-    <button onClick={open} disabled={loading}
-      className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 underline text-xs disabled:opacity-50">
-      {loading ? 'Carregando...' : 'Ver comprovante'}
-    </button>
+    <div className="flex items-center gap-3">
+      <button onClick={() => handle(false)} disabled={loading}
+        className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-xs disabled:opacity-50">
+        <Eye size={11} /> {loading ? 'Carregando...' : 'Visualizar'}
+      </button>
+      <button onClick={() => handle(true)} disabled={loading}
+        className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 text-xs disabled:opacity-50">
+        <Download size={11} /> Baixar
+      </button>
+    </div>
   )
 }
 
-
 async function openReceiptUrl(url: string) {
   try {
-    const token = localStorage.getItem('minutor_token')
-    const res = await fetch(toRelativePath(url), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-    if (!res.ok) { alert('Arquivo não encontrado no servidor'); return }
-    const blob = await res.blob()
-    const blobUrl = URL.createObjectURL(blob)
-    window.open(blobUrl, '_blank')
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
-  } catch { alert('Erro ao abrir arquivo') }
+    const { blobUrl } = await fetchReceipt(url)
+    triggerAnchor(blobUrl)
+  } catch { toast.error('Erro ao abrir comprovante') }
 }
 
 // ─── Modal: visualizar / aprovar despesa ─────────────────────────────────────

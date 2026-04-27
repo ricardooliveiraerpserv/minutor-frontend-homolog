@@ -15,7 +15,7 @@ import {
   ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock,
   Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, TrendingDown, Minus, Eye,
   CalendarDays, RefreshCw, ChevronDown, ChevronUp, MoreVertical,
-  AlertTriangle, Zap, Users, DollarSign, Target, Activity, Paperclip,
+  AlertTriangle, Zap, Users, DollarSign, Target, Activity, Paperclip, Download,
   Building2, FolderOpen, Tag, CreditCard, FileText, User,
 } from 'lucide-react'
 import {
@@ -571,40 +571,51 @@ function periodBounds(year: number, month: number): { startDate: string; endDate
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+async function fetchAndOpenFile(url: string, download = false) {
+  const token = localStorage.getItem('minutor_token')
+  const res = await fetch(toRelativePath(url), { headers: { Authorization: `Bearer ${token ?? ''}` } })
+  if (!res.ok) throw new Error('not_found')
+  const blob = await res.blob()
+  const cd = res.headers.get('content-disposition') ?? ''
+  const match = cd.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+  const ext = blob.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'pdf'
+  const filename = match?.[1]?.replace(/['"]/g, '') ?? `comprovante.${ext}`
+  const blobUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = blobUrl
+  if (download) { a.download = filename } else { a.target = '_blank'; a.rel = 'noopener noreferrer' }
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+}
+
 async function openReceiptUrl(url: string) {
-  try {
-    const token = localStorage.getItem('minutor_token')
-    const res = await fetch(toRelativePath(url), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-    if (!res.ok) { alert('Arquivo não encontrado no servidor'); return }
-    const blob = await res.blob()
-    const blobUrl = URL.createObjectURL(blob)
-    window.open(blobUrl, '_blank')
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
-  } catch { alert('Erro ao abrir arquivo') }
+  try { await fetchAndOpenFile(url) }
+  catch { alert('Erro ao abrir comprovante') }
 }
 
 function ReceiptLinkInline({ url, label = 'Visualizar' }: { url: string; label?: string }) {
   const [loading, setLoading] = useState(false)
-  const open = async () => {
+  const handle = async (download: boolean) => {
     setLoading(true)
-    try {
-      const token = localStorage.getItem('minutor_token')
-      const res = await fetch(toRelativePath(url), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-      if (!res.ok) { alert('Arquivo não encontrado no servidor'); return }
-      const blob = await res.blob()
-      const blobUrl = URL.createObjectURL(blob)
-      window.open(blobUrl, '_blank')
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
-    } catch { alert('Erro ao abrir arquivo') }
+    try { await fetchAndOpenFile(url, download) }
+    catch { alert(download ? 'Erro ao baixar comprovante' : 'Erro ao abrir comprovante') }
     finally { setLoading(false) }
   }
   return (
-    <button type="button" onClick={open} disabled={loading}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-      style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.15)' }}>
-      <Paperclip size={11} />
-      {loading ? 'Abrindo...' : label}
-    </button>
+    <div className="flex items-center gap-2">
+      <button type="button" onClick={() => handle(false)} disabled={loading}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+        style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.15)' }}>
+        <Eye size={11} /> {loading ? 'Carregando...' : label}
+      </button>
+      <button type="button" onClick={() => handle(true)} disabled={loading}
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+        style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-subtle)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <Download size={11} /> Baixar
+      </button>
+    </div>
   )
 }
 
