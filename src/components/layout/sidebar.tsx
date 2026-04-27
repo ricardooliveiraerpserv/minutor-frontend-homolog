@@ -123,9 +123,10 @@ const NAV: NavEntry[] = [
     label: 'Projetos',
     icon: FolderOpen,
     items: [
-      { label: 'Gestão de Projetos',  href: '/gestao-projetos',    icon: Layers },
-      { label: 'Kanban Contratos',    href: '/contratos/kanban',   icon: LayoutGrid },
-      { label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: Layers },
+      { label: 'Gestão de Projetos',      href: '/gestao-projetos',          icon: Layers },
+      { label: 'Projetos de Sustentação', href: '/sustentacao/projetos',     icon: Headphones },
+      { label: 'Kanban Contratos',        href: '/contratos/kanban',         icon: LayoutGrid },
+      { label: 'Demandas e Projetos',     href: '/contratos/pipeline',       icon: Layers },
     ],
   },
   { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',     icon: Headphones },
@@ -248,9 +249,10 @@ function SidebarInner({ user }: { user: User }) {
 
       // Portal de Sustentação + Kanban + Meu Painel — somente para coordenadores do tipo "sustentacao"
       if (user?.coordinator_type === 'sustentacao') {
-        nav.splice(1, 0, { type: 'item', label: 'Kanban Contratos', href: '/contratos/kanban', icon: LayoutGrid, matchPaths: ['/contratos'] })
-        nav.splice(1, 0, { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',      icon: Headphones })
-        nav.splice(1, 0, { type: 'item', label: 'Meu Painel',            href: '/meu-painel',       icon: LayoutDashboard })
+        nav.splice(1, 0, { type: 'item', label: 'Kanban Contratos',      href: '/contratos/kanban',      icon: LayoutGrid,    matchPaths: ['/contratos'] })
+        nav.splice(1, 0, { type: 'item', label: 'Projetos',              href: '/sustentacao/projetos',  icon: Layers })
+        nav.splice(1, 0, { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',           icon: Headphones })
+        nav.splice(1, 0, { type: 'item', label: 'Meu Painel',            href: '/meu-painel',            icon: LayoutDashboard })
       }
 
       // Projetos e Usuários — opcionais via extra_permissions
