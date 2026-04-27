@@ -134,6 +134,7 @@ const NAV: NavEntry[] = [
       { label: 'Gestão de Projetos',  href: '/gestao-projetos',    icon: Layers },
       { label: 'Kanban Contratos',    href: '/contratos/kanban',   icon: LayoutGrid },
       { label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: Layers },
+      { label: 'Visão Executiva',     href: '/portal-cliente',     icon: Building2 },
     ],
   },
   {
@@ -141,11 +142,11 @@ const NAV: NavEntry[] = [
     label: 'Sustentação',
     icon: Headphones,
     items: [
-      { label: 'Portal',   href: '/sustentacao',          icon: Headphones, exactMatch: true },
-      { label: 'Projetos', href: '/sustentacao/projetos', icon: Layers },
+      { label: 'Portal',          href: '/sustentacao',          icon: Headphones, exactMatch: true },
+      { label: 'Projetos',        href: '/sustentacao/projetos', icon: Layers },
+      { label: 'Visão Executiva', href: '/portal-cliente',       icon: Building2 },
     ],
   },
-  { type: 'item', label: 'Visão Executiva', href: '/portal-cliente', icon: Building2 },
   {
     type: 'group',
     label: 'Apontamentos & Despesas',
@@ -265,6 +266,7 @@ function SidebarInner({ user }: { user: User }) {
           items: [
             { label: 'Gestão de Projetos',  href: '/gestao-projetos',    icon: Layers },
             { label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: LayoutGrid },
+            { label: 'Visão Executiva',     href: '/portal-cliente',     icon: Building2 },
           ],
         })
       }
@@ -277,11 +279,18 @@ function SidebarInner({ user }: { user: User }) {
           label: 'Sustentação',
           icon: Headphones,
           items: [
-            { label: 'Portal',   href: '/sustentacao',          icon: Headphones, exactMatch: true },
-            { label: 'Projetos', href: '/sustentacao/projetos', icon: Layers },
+            { label: 'Portal',          href: '/sustentacao',          icon: Headphones, exactMatch: true },
+            { label: 'Projetos',        href: '/sustentacao/projetos', icon: Layers },
+            { label: 'Visão Executiva', href: '/portal-cliente',       icon: Building2 },
           ],
         })
         nav.splice(1, 0, { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard })
+      }
+
+      // Remove o standalone Visão Executiva quando já está dentro do grupo tipo-específico
+      if (user?.coordinator_type === 'projetos' || user?.coordinator_type === 'sustentacao') {
+        const idx = nav.findIndex(e => e.type === 'item' && (e as NavItem).href === '/portal-cliente')
+        if (idx !== -1) nav.splice(idx, 1)
       }
 
       // Projetos e Usuários — opcionais via extra_permissions
