@@ -114,6 +114,7 @@ export function ProjectMessages({ projectId, userRole }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef   = useRef<HTMLDivElement>(null)
+  const lastIdRef   = useRef<number>(0)
 
   useEffect(() => {
     api.get<MentionUser[]>(`/messages/mentionable-users?project_id=${projectId}`)
@@ -126,16 +127,36 @@ export function ProjectMessages({ projectId, userRole }: Props) {
     api.get<any>(`/projects/${projectId}/messages`)
       .then(res => {
         const items: MessageWithAttachments[] = res.data ?? (Array.isArray(res) ? res : [])
+        lastIdRef.current = items.reduce((max, m) => Math.max(max, m.id), 0)
         setMessages([...items].reverse())
       })
       .catch(() => toast.error('Erro ao carregar mensagens'))
       .finally(() => setLoading(false))
   }, [projectId])
 
+  const silentLoad = useCallback(() => {
+    api.get<any>(`/projects/${projectId}/messages`)
+      .then(res => {
+        const items: MessageWithAttachments[] = res.data ?? (Array.isArray(res) ? res : [])
+        const maxId = items.reduce((max, m) => Math.max(max, m.id), 0)
+        if (maxId > lastIdRef.current) {
+          lastIdRef.current = maxId
+          setMessages([...items].reverse())
+          api.post(`/projects/${projectId}/messages/mark-read`, {}).catch(() => {})
+        }
+      })
+      .catch(() => {})
+  }, [projectId])
+
   useEffect(() => {
     load()
     api.post(`/projects/${projectId}/messages/mark-read`, {}).catch(() => {})
   }, [projectId, load])
+
+  useEffect(() => {
+    const interval = setInterval(() => { if (!document.hidden) silentLoad() }, 3000)
+    return () => clearInterval(interval)
+  }, [silentLoad])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
