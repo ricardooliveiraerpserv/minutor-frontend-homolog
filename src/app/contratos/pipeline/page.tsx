@@ -4343,7 +4343,8 @@ function KanbanContent() {
                     projectCards={[]}
                     requestCards={requestCards.filter(r => {
                       if (r.kanban_column !== 'inicio_autorizado') return false
-                      if (r.req_decision === 'novo_projeto') return false
+                      // Suprime o card de requisição apenas quando existe um card de contrato substituindo-o
+                      if (r.req_decision === 'novo_projeto' && r.linked_contract_id && transitionCards.some(c => c.id === r.linked_contract_id)) return false
                       if (r.linked_contract_id && sustContractIds.has(r.linked_contract_id)) return false
                       // Suprime subprojeto quando o projeto vinculado já está ativo nas colunas de execução
                       if (r.req_decision === 'subprojeto' && r.linked_contract_id) {
