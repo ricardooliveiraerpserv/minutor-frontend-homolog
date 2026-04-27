@@ -329,6 +329,7 @@ export default function SustentacaoProjetosPage() {
   const [search, setSearch]     = useState('')
   const [activeTab, setActiveTab] = useState('all')
   const [statusFilter, setStatusFilter] = useState('')
+  const [saudeFilter, setSaudeFilter] = useState('')
 
   // Modals
   const [viewProject, setViewProject]       = useState<SustProject | null>(null)
@@ -361,13 +362,18 @@ export default function SustentacaoProjetosPage() {
     return projects.filter(p => {
       if (activeTab !== 'all' && getTab(p) !== activeTab) return false
       if (statusFilter && p.status !== statusFilter) return false
+      if (saudeFilter) {
+        const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
+        const pct = p.sold_hours ? (consumed / p.sold_hours) * 100 : 0
+        if (healthColor(pct) !== saudeFilter) return false
+      }
       if (search) {
         const q = search.toLowerCase()
         return p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q) || (p.customer?.name ?? '').toLowerCase().includes(q)
       }
       return true
     })
-  }, [projects, activeTab, statusFilter, search])
+  }, [projects, activeTab, statusFilter, saudeFilter, search])
 
   const stats = useMemo(() => ({
     total:     filtered.length,
@@ -465,6 +471,21 @@ export default function SustentacaoProjetosPage() {
                 style={statusFilter === opt.id
                   ? { background: '#00F5FF', color: '#0A0A0B' }
                   : { color: '#71717A' }}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          {/* Saúde filter */}
+          <div className="flex items-center gap-0.5 bg-zinc-800/70 border border-zinc-700/50 rounded-full p-1">
+            {([
+              { id: '',       label: 'Todos',    active: 'bg-cyan-400 text-zinc-900',  inactive: 'text-zinc-400 hover:text-zinc-200' },
+              { id: 'green',  label: 'Saudável', active: 'bg-green-500 text-white',    inactive: 'text-green-500 hover:text-green-400' },
+              { id: 'yellow', label: 'Atenção',  active: 'bg-amber-400 text-zinc-900', inactive: 'text-amber-400 hover:text-amber-300' },
+              { id: 'red',    label: 'Crítico',  active: 'bg-red-500 text-white',      inactive: 'text-red-500 hover:text-red-400' },
+            ] as const).map(opt => (
+              <button key={opt.id} type="button"
+                onClick={() => setSaudeFilter(opt.id)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${saudeFilter === opt.id ? opt.active : opt.inactive}`}>
                 {opt.label}
               </button>
             ))}
