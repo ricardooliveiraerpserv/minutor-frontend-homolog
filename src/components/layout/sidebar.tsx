@@ -118,9 +118,16 @@ const NAV_CLIENTE: NavEntry[] = [
 const NAV: NavEntry[] = [
   { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
   { type: 'item', label: 'Meu Painel',            href: '/meu-painel',      icon: LayoutDashboard },
-  { type: 'item', label: 'Gestão de Projetos',    href: '/gestao-projetos', icon: Layers },
-  { type: 'item', label: 'Kanban Contratos', href: '/contratos/kanban', icon: LayoutGrid, matchPaths: ['/contratos'] },
-  { type: 'item', label: 'Demandas e Projetos',   href: '/contratos/pipeline', icon: Layers },
+  {
+    type: 'group',
+    label: 'Projetos',
+    icon: FolderOpen,
+    items: [
+      { label: 'Gestão de Projetos',  href: '/gestao-projetos',    icon: Layers },
+      { label: 'Kanban Contratos',    href: '/contratos/kanban',   icon: LayoutGrid },
+      { label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: Layers },
+    ],
+  },
   { type: 'item', label: 'Portal de Sustentação', href: '/sustentacao',     icon: Headphones },
   { type: 'item', label: 'Visão Executiva',    href: '/portal-cliente',  icon: Building2 },
   { type: 'item', label: 'Apontamentos',       href: '/timesheets',      icon: Clock },
@@ -226,10 +233,17 @@ function SidebarInner({ user }: { user: User }) {
       const has = (p: string) => ep.includes(p)
       const nav: NavEntry[] = [...NAV_COORDINATOR]
 
-      // Gestão de Projetos + Demandas e Projetos — somente para coordenadores do tipo "projetos"
+      // Grupo Projetos — somente para coordenadores do tipo "projetos"
       if (user?.coordinator_type === 'projetos') {
-        nav.splice(1, 0, { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: LayoutGrid })
-        nav.splice(1, 0, { type: 'item', label: 'Gestão de Projetos',  href: '/gestao-projetos',    icon: Layers })
+        nav.splice(1, 0, {
+          type: 'group',
+          label: 'Projetos',
+          icon: FolderOpen,
+          items: [
+            { label: 'Gestão de Projetos',  href: '/gestao-projetos',    icon: Layers },
+            { label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: LayoutGrid },
+          ],
+        })
       }
 
       // Portal de Sustentação + Kanban + Meu Painel — somente para coordenadores do tipo "sustentacao"
