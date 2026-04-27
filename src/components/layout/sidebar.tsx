@@ -93,9 +93,16 @@ type NavEntry = NavItem | NavGroup
 const NAV_COORDINATOR: NavEntry[] = [
   { type: 'item', label: 'Início',          href: '/dashboard',      icon: Home },
   { type: 'item', label: 'Visão Executiva', href: '/portal-cliente', icon: Building2 },
-  { type: 'item', label: 'Apontamentos',    href: '/timesheets',     icon: Clock },
-  { type: 'item', label: 'Despesas',        href: '/expenses',       icon: Receipt },
-  { type: 'item', label: 'Aprovações',      href: '/approvals',      icon: CheckSquare },
+  {
+    type: 'group',
+    label: 'Apontamentos & Despesas',
+    icon: Clock,
+    items: [
+      { label: 'Apontamentos', href: '/timesheets', icon: Clock },
+      { label: 'Despesas',     href: '/expenses',   icon: Receipt },
+      { label: 'Aprovações',   href: '/approvals',  icon: CheckSquare },
+    ],
+  },
 ]
 
 const NAV_CLIENTE: NavEntry[] = [
@@ -137,10 +144,17 @@ const NAV: NavEntry[] = [
       { label: 'Projetos', href: '/sustentacao/projetos', icon: Layers },
     ],
   },
-  { type: 'item', label: 'Visão Executiva',    href: '/portal-cliente',  icon: Building2 },
-  { type: 'item', label: 'Apontamentos',       href: '/timesheets',      icon: Clock },
-  { type: 'item', label: 'Despesas',           href: '/expenses',        icon: Receipt },
-  { type: 'item', label: 'Aprovações',         href: '/approvals',       icon: CheckSquare },
+  { type: 'item', label: 'Visão Executiva', href: '/portal-cliente', icon: Building2 },
+  {
+    type: 'group',
+    label: 'Apontamentos & Despesas',
+    icon: Clock,
+    items: [
+      { label: 'Apontamentos', href: '/timesheets', icon: Clock },
+      { label: 'Despesas',     href: '/expenses',   icon: Receipt },
+      { label: 'Aprovações',   href: '/approvals',  icon: CheckSquare },
+    ],
+  },
   {
     type: 'group',
     label: 'Dashboards',
@@ -307,9 +321,16 @@ function SidebarInner({ user }: { user: User }) {
     }
     if (isAdministrativo) {
       return [
-        { type: 'item', label: 'Início',            href: '/dashboard',           icon: Home },
-        { type: 'item', label: 'Apontamentos',      href: '/timesheets',          icon: Clock },
-        { type: 'item', label: 'Despesas',          href: '/expenses',            icon: Receipt },
+        { type: 'item', label: 'Início', href: '/dashboard', icon: Home },
+        {
+          type: 'group',
+          label: 'Apontamentos & Despesas',
+          icon: Clock,
+          items: [
+            { label: 'Apontamentos', href: '/timesheets', icon: Clock },
+            { label: 'Despesas',     href: '/expenses',   icon: Receipt },
+          ],
+        },
         { type: 'item', label: 'Kanban Contratos', href: '/contratos/kanban', icon: LayoutGrid, matchPaths: ['/contratos'] },
         {
           type: 'group', label: 'Fechamento', icon: DollarSign,
@@ -342,10 +363,17 @@ function SidebarInner({ user }: { user: User }) {
         .filter(([code]) => clienteContractCodes.has(code))
         .map(([, item]) => item)
       const nav: NavEntry[] = [
-        { type: 'item', label: 'Visão Executiva', href: '/portal-cliente',   icon: Building2 },
-        { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: LayoutGrid },
-        { type: 'item', label: 'Apontamentos',    href: '/timesheets',       icon: Clock },
-        { type: 'item', label: 'Despesas',        href: '/expenses',         icon: Receipt },
+        { type: 'item', label: 'Visão Executiva',     href: '/portal-cliente',      icon: Building2 },
+        { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid },
+        {
+          type: 'group',
+          label: 'Apontamentos & Despesas',
+          icon: Clock,
+          items: [
+            { label: 'Apontamentos', href: '/timesheets', icon: Clock },
+            { label: 'Despesas',     href: '/expenses',   icon: Receipt },
+          ],
+        },
       ]
       if (dashItems.length > 0) {
         nav.push({ type: 'group', label: 'Dashboards', icon: BarChart2, items: dashItems })
@@ -365,10 +393,17 @@ function SidebarInner({ user }: { user: User }) {
       }
       // Parceiro simples: meu painel + apontamentos + despesas
       return [
-        { type: 'item', label: 'Início',       href: '/dashboard',  icon: Home },
-        { type: 'item', label: 'Meu Painel',   href: '/meu-painel', icon: LayoutDashboard },
-        { type: 'item', label: 'Apontamentos', href: '/timesheets', icon: Clock },
-        { type: 'item', label: 'Despesas',     href: '/expenses',   icon: Receipt },
+        { type: 'item', label: 'Início',     href: '/dashboard',  icon: Home },
+        { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
+        {
+          type: 'group',
+          label: 'Apontamentos & Despesas',
+          icon: Clock,
+          items: [
+            { label: 'Apontamentos', href: '/timesheets', icon: Clock },
+            { label: 'Despesas',     href: '/expenses',   icon: Receipt },
+          ],
+        },
       ] as NavEntry[]
     }
     return NAV
