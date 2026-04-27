@@ -779,7 +779,7 @@ function GenerateProjectModal({
 
 // ─── Card Detail Modal ────────────────────────────────────────────────────────
 
-function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGenerate, onEdit, initialTab }: {
+function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGenerate, onEdit, initialTab, userRole }: {
   card: ContractCard
   onClose: () => void
   onGenerate?: () => void
@@ -787,6 +787,7 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
   canGenerate: boolean
   onEdit?: () => void
   initialTab?: 'details' | 'chat' | 'log'
+  userRole?: string
 }) {
   const [tab, setTab]             = useState<'details' | 'chat' | 'log'>(initialTab ?? 'details')
   const [logs, setLogs]           = useState<KanbanLogEntry[]>([])
@@ -844,7 +845,7 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
           </div>
         ) : tab === 'chat' ? (
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-            <ContractMessages contractId={card.id} />
+            <ContractMessages contractId={card.id} userRole={userRole} />
           </div>
         ) : (
         <>
@@ -4453,6 +4454,7 @@ function KanbanContent() {
           onGenerate={() => { setGenerateTarget(selectedContract); setSelectedContract(null) }}
           coordinators={coordinators}
           canGenerate={!isConsultor && !isCliente}
+          userRole={userRole}
           onEdit={!isConsultor && !isCliente ? async () => {
             const id = selectedContract.id
             setSelectedContract(null)
@@ -4641,6 +4643,7 @@ function KanbanContent() {
         const close = () => setContractAction(null)
         if (action === 'view') return (
           <ContractDetailModal card={card} onClose={close} coordinators={coordinators} canGenerate={!isConsultor && !isCliente}
+            userRole={userRole}
             onGenerate={() => { setGenerateTarget(card); close() }}
             onEdit={!isConsultor && !isCliente ? async () => {
               close()
@@ -4651,11 +4654,11 @@ function KanbanContent() {
         )
         if (action === 'chat') return (
           <ContractDetailModal card={card} onClose={close} coordinators={coordinators} canGenerate={false}
-            onEdit={undefined} initialTab="chat" />
+            userRole={userRole} onEdit={undefined} initialTab="chat" />
         )
         if (action === 'log') return (
           <ContractDetailModal card={card} onClose={close} coordinators={coordinators} canGenerate={false}
-            onEdit={undefined} initialTab="log" />
+            userRole={userRole} onEdit={undefined} initialTab="log" />
         )
         if (action === 'edit') {
           api.get<any>(`/contracts/${card.id}`)

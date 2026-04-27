@@ -2111,7 +2111,7 @@ export default function GestaoProjetosPage() {
               <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <ProjectMessages projectId={messagesProject.id} />
+              <ProjectMessages projectId={messagesProject.id} userRole={user?.type ?? undefined} />
             </div>
           </div>
         </div>

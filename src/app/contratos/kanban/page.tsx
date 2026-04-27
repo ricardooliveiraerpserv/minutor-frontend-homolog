@@ -1389,11 +1389,12 @@ function colLabel(col: string) {
   return COL_LABEL[col] ?? col
 }
 
-function CardDetailModal({ card, onClose, onEditContract, initialTab }: {
+function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }: {
   card: ContractCard
   onClose: () => void
   onEditContract?: (contractId: number) => void
   initialTab?: 'details' | 'chat' | 'log'
+  userRole?: string
 }) {
   const badge = statusBadge(card)
   const [tab, setTab]   = useState<'details' | 'chat' | 'log'>(initialTab ?? 'details')
@@ -1485,7 +1486,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab }: {
 
         {tab === 'chat' ? (
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-            <ContractMessages contractId={card.id} />
+            <ContractMessages contractId={card.id} userRole={userRole} />
           </div>
         ) : tab === 'log' ? (
           <div className="flex-1 overflow-y-auto px-6 py-4">
@@ -2107,6 +2108,7 @@ function KanbanContent() {
         <CardDetailModal
           card={selected}
           onClose={() => setSelected(null)}
+          userRole={user?.type ?? undefined}
           onEditContract={async (contractId) => {
             setSelected(null)
             try {
@@ -2134,11 +2136,11 @@ function KanbanContent() {
             const userType = (user as any)?.type
             return <ProjectViewModal projectId={card.project_id} onClose={close} userRole={userType} initialTab="overview" />
           }
-          return <CardDetailModal card={card} onClose={close} initialTab="details"
+          return <CardDetailModal card={card} onClose={close} initialTab="details" userRole={user?.type ?? undefined}
             onEditContract={async id => { close(); try { const c = await api.get<any>(`/contracts/${id}`); setEditingContractData(c); setShowNewContract(true) } catch { toast.error('Erro') } }} />
         }
-        if (action === 'chat') return <CardDetailModal card={card} onClose={close} initialTab="chat" />
-        if (action === 'log')  return <CardDetailModal card={card} onClose={close} initialTab="log" />
+        if (action === 'chat') return <CardDetailModal card={card} onClose={close} initialTab="chat" userRole={user?.type ?? undefined} />
+        if (action === 'log')  return <CardDetailModal card={card} onClose={close} initialTab="log" userRole={user?.type ?? undefined} />
         if (action === 'edit') {
           api.get<any>(`/contracts/${card.id}`)
             .then(c => { setEditingContractData(c); setShowNewContract(true) })
@@ -2208,7 +2210,7 @@ function KanbanContent() {
         if (action === 'team')       return <ProjectTeamModal projectId={card.id} projectName={card.project_name} onClose={close} onSaved={close} />
         if (action === 'chat' && card.contract_id) {
           const chatCard = { id: card.contract_id, customer_name: card.customer_name, project_name: card.project_name } as any
-          return <CardDetailModal card={chatCard} onClose={close} initialTab="chat" />
+          return <CardDetailModal card={chatCard} onClose={close} initialTab="chat" userRole={user?.type ?? undefined} />
         }
         return null
       })()}
