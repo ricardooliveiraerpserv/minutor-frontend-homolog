@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, ChevronDown,
-  Search, KeyRound, Check, Copy, Eye
+  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -261,7 +261,10 @@ export default function UsersPage() {
   const [deleting, setDeleting] = useState<number | null>(null)
   const [resetting,setResetting]= useState<number | null>(null)
   const [copied,   setCopied]   = useState(false)
-  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
+  const [deleteConfirm,  setDeleteConfirm]  = useState<{ open: boolean; id?: number }>({ open: false })
+  const [selectedIds,    setSelectedIds]    = useState<Set<number>>(new Set())
+  const [resending,      setResending]      = useState<number | null>(null)
+  const [bulkResending,  setBulkResending]  = useState(false)
 
   useEffect(() => {
     api.get<any>('/customers?pageSize=500').then(r =>
@@ -282,6 +285,7 @@ export default function UsersPage() {
       const r = await api.get<{ items?: UserItem[]; data?: UserItem[]; hasNext?: boolean; meta?: { last_page: number } }>(`/users?${p}`)
       const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setUsers(list)
+      setSelectedIds(new Set())
       setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar usuários') }
     finally   { setLoading(false) }
@@ -418,6 +422,40 @@ export default function UsersPage() {
     }
   }
 
+  const resendWelcome = async (user: UserItem) => {
+    setResending(user.id)
+    try {
+      await api.post(`/users/${user.id}/resend-welcome`, {})
+      toast.success(`E-mail de boas-vindas reenviado para ${user.name}`)
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao reenviar e-mail') }
+    finally { setResending(null) }
+  }
+
+  const resendWelcomeBulk = async () => {
+    if (selectedIds.size === 0) return
+    setBulkResending(true)
+    try {
+      const r = await api.post<{ message: string; sent: number; failed: number }>(
+        '/users/resend-welcome-bulk', { user_ids: [...selectedIds] }
+      )
+      toast.success(r.message)
+      setSelectedIds(new Set())
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao reenviar e-mails') }
+    finally { setBulkResending(false) }
+  }
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => prev.size === users.length ? new Set() : new Set(users.map(u => u.id)))
+  }
+
   // ── Derived booleans for conditional form fields
   const isCliente     = form.profiles.includes('cliente')
   const isConsultor   = form.profiles.includes('consultor')
@@ -487,11 +525,39 @@ export default function UsersPage() {
         )}
       </div>
 
+      {/* Barra de ação em massa */}
+      {selectedIds.size > 0 && canResetPwd && (
+        <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-zinc-800/60 border border-zinc-700/50 rounded-lg">
+          <span className="text-xs text-zinc-400">{selectedIds.size} usuário(s) selecionado(s)</span>
+          <button
+            type="button"
+            onClick={resendWelcomeBulk}
+            disabled={bulkResending}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+          >
+            <Mail size={12} />
+            {bulkResending ? 'Enviando...' : 'Reenviar boas-vindas'}
+          </button>
+          <button type="button" onClick={() => setSelectedIds(new Set())} className="ml-auto text-zinc-500 hover:text-zinc-300">
+            <X size={13} />
+          </button>
+        </div>
+      )}
+
       {/* Tabela */}
       <div className="rounded-lg border border-zinc-800 overflow-hidden">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-zinc-800 bg-zinc-900">
+              {canResetPwd && (
+                <th className="px-3 py-2.5 w-8">
+                  <button type="button" onClick={toggleSelectAll} className="text-zinc-500 hover:text-zinc-300 flex items-center">
+                    {selectedIds.size === users.length && users.length > 0
+                      ? <CheckSquare2 size={13} className="text-cyan-400" />
+                      : <Square size={13} />}
+                  </button>
+                </th>
+              )}
               <th className="px-3 py-2.5 w-10"></th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">E-mail</th>
@@ -501,15 +567,25 @@ export default function UsersPage() {
           </thead>
           <tbody>
             {loading ? <TableSkeleton /> : users.length === 0 ? (
-              <tr><td colSpan={5} className="px-3 py-8 text-center text-zinc-500">Nenhum usuário encontrado</td></tr>
+              <tr><td colSpan={canResetPwd ? 6 : 5} className="px-3 py-8 text-center text-zinc-500">Nenhum usuário encontrado</td></tr>
             ) : users.map(user => (
-              <tr key={user.id} className="border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors">
+              <tr key={user.id} className={`border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors ${selectedIds.has(user.id) ? 'bg-cyan-500/5' : ''}`}>
+                {canResetPwd && (
+                  <td className="px-3 py-2.5 w-8">
+                    <button type="button" onClick={() => toggleSelect(user.id)} className="text-zinc-500 hover:text-zinc-300 flex items-center">
+                      {selectedIds.has(user.id)
+                        ? <CheckSquare2 size={13} className="text-cyan-400" />
+                        : <Square size={13} />}
+                    </button>
+                  </td>
+                )}
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
-                    ...(canView     ? [{ label: 'Visualizar',    icon: <Eye      size={12} />, onClick: () => setViewUser(user) }] : []),
-                    ...(canEdit     ? [{ label: 'Editar',        icon: <Pencil   size={12} />, onClick: () => openEdit(user) }] : []),
-                    ...(canResetPwd ? [{ label: 'Resetar senha', icon: <KeyRound size={12} />, onClick: () => resetPassword(user), disabled: resetting === user.id }] : []),
-                    ...(canDelete   ? [{ label: 'Excluir',       icon: <Trash2   size={12} />, onClick: () => remove(user.id), danger: true, disabled: deleting === user.id }] : []),
+                    ...(canView     ? [{ label: 'Visualizar',           icon: <Eye      size={12} />, onClick: () => setViewUser(user) }] : []),
+                    ...(canEdit     ? [{ label: 'Editar',               icon: <Pencil   size={12} />, onClick: () => openEdit(user) }] : []),
+                    ...(canResetPwd ? [{ label: 'Resetar senha',        icon: <KeyRound size={12} />, onClick: () => resetPassword(user), disabled: resetting === user.id }] : []),
+                    ...(canResetPwd ? [{ label: 'Reenviar boas-vindas', icon: <Mail     size={12} />, onClick: () => resendWelcome(user), disabled: resending === user.id }] : []),
+                    ...(canDelete   ? [{ label: 'Excluir',              icon: <Trash2   size={12} />, onClick: () => remove(user.id), danger: true, disabled: deleting === user.id }] : []),
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 text-zinc-200 font-medium">{user.name}</td>
