@@ -143,7 +143,7 @@ export default function EditTimesheetPage() {
     setLoadingData(true)
     const customerEndpoint = isAdmin ? '/customers?pageSize=500' : '/customers/user-linked?pageSize=500'
     const calls: Promise<any>[] = [api.get<any>(customerEndpoint)]
-    if (canActAsUser) calls.push(api.get<any>('/users?pageSize=200&exclude_type=cliente'))
+    if (canActAsUser) calls.push(api.get<any>('/users?pageSize=500&exclude_type=cliente'))
     Promise.all(calls)
       .then(([c, us]) => {
         const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
@@ -154,6 +154,24 @@ export default function EditTimesheetPage() {
       .finally(() => setLoadingData(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Ensure the timesheet's user is always available in the dropdown (even if not in the paged list)
+  useEffect(() => {
+    if (!ts?.user || !canActAsUser) return
+    setConsultants(prev =>
+      prev.some(c => c.id === ts.user!.id)
+        ? prev
+        : [{ id: ts.user!.id, name: ts.user!.name || 'Usuário' }, ...prev]
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ts?.user?.id])
+
+  // Sync is_billable_only separately so it's picked up even if backend returns it after pre-fill
+  useEffect(() => {
+    if (!ts || !initialized) return
+    setForm(f => ({ ...f, is_billable_only: ts.is_billable_only ?? false }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ts?.is_billable_only])
 
   // Pre-fill form when timesheet loads
   useEffect(() => {
