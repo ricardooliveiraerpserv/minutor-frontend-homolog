@@ -990,7 +990,6 @@ export default function GestaoProjetosPage() {
     setLoading(true)
     const qs = new URLSearchParams({ pageSize: '200', gestao: 'true' })
     if (multiContratual) qs.set('parent_projects_only', 'true')
-    if (!multiContratual && filterContractType) qs.set('contract_type_id', filterContractType)
     api.get<PaginatedResponse<ProjectWithTeam>>(`/projects?${qs}`)
       .then(res => {
         const items = res.items ?? []
@@ -999,7 +998,7 @@ export default function GestaoProjetosPage() {
       })
       .catch(() => toast.error('Erro ao carregar projetos'))
       .finally(() => setLoading(false))
-  }, [multiContratual, filterContractType, refreshKey])
+  }, [multiContratual, refreshKey])
 
   const clientes = useMemo(() => {
     const seen = new Set<string>()
