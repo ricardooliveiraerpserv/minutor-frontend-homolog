@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Plus, Pencil, Eye, ChevronLeft, ChevronRight, LayoutGrid, Download, FileText, MoreVertical, CheckCircle, Rocket, X, Layers, DollarSign, Clock, BarChart2, TrendingUp, Users, MessageSquare, Trash2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -128,12 +129,25 @@ export default function ContratosPage() {
   // List state
   const [contracts, setContracts] = useState<Contract[]>([])
   const [total, setTotal]         = useState(0)
-  const [page, setPage]           = useState(1)
   const [loading, setLoading]     = useState(false)
-  const [filterStatus, setFilterStatus] = useState('')
-  const [filterCustomer, setFilterCustomer] = useState('')
-  const [search, setSearch]       = useState('')
-  const [listTab, setListTab]     = useState<'contratos' | 'projetos'>('contratos')
+
+  const { filters: flt, set: setFilter } = usePersistedFilters(
+    'contratos',
+    user?.id,
+    {
+      page:           1,
+      filterStatus:   '',
+      filterCustomer: '',
+      search:         '',
+      listTab:        'contratos' as 'contratos' | 'projetos',
+    },
+  )
+  const { page, filterStatus, filterCustomer, search, listTab } = flt
+  const setPage           = (v: number)                           => setFilter('page', v)
+  const setFilterStatus   = (v: string)                           => setFilter('filterStatus', v)
+  const setFilterCustomer = (v: string)                           => setFilter('filterCustomer', v)
+  const setSearch         = (v: string)                           => setFilter('search', v)
+  const setListTab        = (v: 'contratos' | 'projetos')         => setFilter('listTab', v)
 
   // Master data (apenas customers para filtro)
   const [customers, setCustomers] = useState<SelectOption[]>([])
@@ -497,10 +511,10 @@ export default function ContratosPage() {
         <div className="flex items-center justify-between mt-4 text-xs text-zinc-500">
           <span>{total} contratos</span>
           <div className="flex items-center gap-2">
-            <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
+            <button disabled={page === 1} onClick={() => setPage(page - 1)}
               className="p-1 rounded disabled:opacity-30"><ChevronLeft size={14} /></button>
             <span>Pág. {page}</span>
-            <button disabled={contracts.length < 200} onClick={() => setPage(p => p + 1)}
+            <button disabled={contracts.length < 200} onClick={() => setPage(page + 1)}
               className="p-1 rounded disabled:opacity-30"><ChevronRight size={14} /></button>
           </div>
         </div>

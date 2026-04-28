@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { Project, PaginatedResponse, HourContribution } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
@@ -884,16 +885,30 @@ export default function GestaoProjetosPage() {
   const canChangeStatus = !isCliente
   const canDelete = isAdmin || isCoordenador
 
+  const { filters: flt, set: setFilter } = usePersistedFilters(
+    'gestao_projetos',
+    user?.id,
+    {
+      search:             '',
+      statusFilter:       '',
+      clienteFilters:     [] as string[],
+      saudeFilter:        '',
+      filterContractType: '',
+      filterServiceTypes: [] as string[],
+    },
+  )
+  const { search, statusFilter, clienteFilters, saudeFilter, filterContractType, filterServiceTypes } = flt
+  const setSearch             = (v: string)   => setFilter('search', v)
+  const setStatus             = (v: string)   => setFilter('statusFilter', v)
+  const setCliente            = (v: string[]) => setFilter('clienteFilters', v)
+  const setSaude              = (v: string)   => setFilter('saudeFilter', v)
+  const setFilterContractType = (v: string)   => setFilter('filterContractType', v)
+  const setFilterServiceType  = (v: string[]) => setFilter('filterServiceTypes', v)
+
   const [projects, setProjects]   = useState<ProjectWithTeam[]>([])
   const [loading, setLoading]     = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
-  const [search, setSearch]       = useState('')
-  const [statusFilter, setStatus] = useState('')
-  const [clienteFilters, setCliente] = useState<string[]>([])
-  const [saudeFilter, setSaude]   = useState('')
   const [expanded, setExpanded]   = useState<Set<number>>(new Set())
-  const [filterContractType, setFilterContractType] = useState('')
-  const [filterServiceTypes, setFilterServiceType] = useState<string[]>([])
   const [serviceTypes, setServiceTypes] = useState<{ id: number; name: string }[]>([])
   const [multiContratual, setMultiContratual] = useState(false)
   const [rows, setRows] = useState<TreeRow[]>([])

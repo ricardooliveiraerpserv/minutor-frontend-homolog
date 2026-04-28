@@ -22,6 +22,7 @@ import { ExpenseViewModal } from '@/components/ui/expense-view-modal'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 
 async function fetchAndOpenFile(url: string, download = false) {
   const token = localStorage.getItem('minutor_token')
@@ -421,9 +422,42 @@ export default function ExpensesPage() {
   const isCliente        = user?.type === 'cliente'
   const canPay           = isAdmin || isAdministrativo
 
-  const [page, setPage] = useState(1)
-  const [status, setStatus] = useState('')
-  const [isPaidFilter, setIsPaidFilter] = useState<'' | 'false' | 'true'>('')
+  const { filters: flt, set: setFilter, clear: clearPersistedFilters } = usePersistedFilters(
+    'expenses',
+    user?.id,
+    {
+      page:            1,
+      status:          '',
+      isPaidFilter:    '' as '' | 'false' | 'true',
+      dateFrom:        '',
+      dateTo:          '',
+      refMonth:        null as number | null,
+      refYear:         null as number | null,
+      filterMode:      'month' as 'month' | 'period',
+      customerIds:     [] as string[],
+      projectId:       '',
+      userIds:         [] as string[],
+      coordinatorIds:  [] as string[],
+      executiveIds:    [] as string[],
+      contractTypeId:  '',
+    },
+  )
+  const { page, status, isPaidFilter, dateFrom, dateTo, refMonth, refYear, filterMode, customerIds, projectId, userIds, coordinatorIds, executiveIds, contractTypeId } = flt
+  const setPage           = (v: number)                     => setFilter('page', v)
+  const setStatus         = (v: string)                     => setFilter('status', v)
+  const setIsPaidFilter   = (v: '' | 'false' | 'true')      => setFilter('isPaidFilter', v)
+  const setDateFrom       = (v: string)                     => setFilter('dateFrom', v)
+  const setDateTo         = (v: string)                     => setFilter('dateTo', v)
+  const setRefMonth       = (v: number | null)              => setFilter('refMonth', v)
+  const setRefYear        = (v: number | null)              => setFilter('refYear', v)
+  const setFilterMode     = (v: 'month' | 'period')         => setFilter('filterMode', v)
+  const setCustomerIds    = (v: string[])                   => setFilter('customerIds', v)
+  const setProjectId      = (v: string)                     => setFilter('projectId', v)
+  const setUserIds        = (v: string[])                   => setFilter('userIds', v)
+  const setCoordinatorIds = (v: string[])                   => setFilter('coordinatorIds', v)
+  const setExecutiveIds   = (v: string[])                   => setFilter('executiveIds', v)
+  const setContractTypeId = (v: string)                     => setFilter('contractTypeId', v)
+
   const [data, setData] = useState<PaginatedResponse<Expense> | null>(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; item?: Expense }>({ open: false })
@@ -441,16 +475,6 @@ export default function ExpensesPage() {
   const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
   const [viewItem,       setViewItem]       = useState<Expense | null>(null)
-  const [dateFrom,       setDateFrom]       = useState('')
-  const [dateTo,         setDateTo]         = useState('')
-  const [refMonth,       setRefMonth]       = useState<number | null>(null)
-  const [refYear,        setRefYear]        = useState<number | null>(null)
-  const [filterMode,     setFilterMode]     = useState<'month' | 'period'>('month')
-  const [customerIds,    setCustomerIds]    = useState<string[]>([])
-  const [projectId,      setProjectId]      = useState('')
-  const [userIds,        setUserIds]        = useState<string[]>([])
-  const [coordinatorIds, setCoordinatorIds] = useState<string[]>([])
-  const [executiveIds,   setExecutiveIds]   = useState<string[]>([])
   const [customers,        setCustomers]        = useState<SelectOption[]>([])
   const [allProjects,      setAllProjects]      = useState<SelectOption[]>([])
   const [consultants,      setConsultants]      = useState<SelectOption[]>([])
@@ -458,7 +482,6 @@ export default function ExpensesPage() {
   const [executives,       setExecutives]       = useState<SelectOption[]>([])
   interface ClienteProject { id: number; name: string; contract_type_id?: number; contract_type_display?: string }
   const [clienteProjects,  setClienteProjects]  = useState<ClienteProject[]>([])
-  const [contractTypeId,   setContractTypeId]   = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const clienteContractTypes = useMemo(() => {
@@ -704,7 +727,7 @@ export default function ExpensesPage() {
               />
             )}
             {(customerIds.length > 0 || projectId || userIds.length > 0 || coordinatorIds.length > 0 || executiveIds.length > 0 || contractTypeId || dateFrom || dateTo) && (
-              <button onClick={() => { setCustomerIds([]); setProjectId(''); setUserIds([]); setCoordinatorIds([]); setExecutiveIds([]); setContractTypeId(''); setDateFrom(''); setDateTo(''); setRefMonth(null); setRefYear(null); setPage(1) }}
+              <button onClick={() => clearPersistedFilters()}
                 className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs transition-all hover:bg-white/5"
                 style={{ color: 'var(--brand-danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 <X size={11} /> Limpar
@@ -869,8 +892,8 @@ export default function ExpensesPage() {
           <Pagination
             page={page}
             hasNext={data?.hasNext ?? false}
-            onPrev={() => setPage(p => Math.max(1, p - 1))}
-            onNext={() => setPage(p => p + 1)}
+            onPrev={() => setPage(Math.max(1, page - 1))}
+            onNext={() => setPage(page + 1)}
           />
         )}
       </div>

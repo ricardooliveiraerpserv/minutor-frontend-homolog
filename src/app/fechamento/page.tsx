@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { toast } from 'sonner'
 import {
   DollarSign, TrendingUp, BarChart2, UserCheck, AlertTriangle,
@@ -475,9 +476,15 @@ export default function FechamentoPage() {
   const isAdmin = (user as any)?.type === 'admin'
 
   const now = new Date()
-  const [month, setMonth] = useState(now.getMonth() + 1)
-  const [year,  setYear]  = useState(now.getFullYear())
-  const [tab,   setTab]   = useState<TabId>('producao')
+  const { filters: flt, set: setFilter } = usePersistedFilters(
+    'fechamento',
+    user?.id,
+    { month: now.getMonth() + 1, year: now.getFullYear(), tab: 'producao' as TabId },
+  )
+  const { month, year, tab } = flt
+  const setMonth = (v: number)  => setFilter('month', v)
+  const setYear  = (v: number)  => setFilter('year', v)
+  const setTab   = (v: TabId)   => setFilter('tab', v)
 
   const yearMonth = toYearMonth(month, year)
 

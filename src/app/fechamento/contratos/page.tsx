@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
@@ -306,13 +308,21 @@ function ResumoTab({ data }: { data: ContratoData }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function FechamentoContratosPage() {
-  const [month, setMonth] = useState<number | null>(now.getMonth() + 1)
-  const [year,  setYear]  = useState<number | null>(now.getFullYear())
+  const { user } = useAuth()
+  const { filters: flt, set: setFilter } = usePersistedFilters(
+    'fechamento_contratos',
+    user?.id,
+    { month: now.getMonth() + 1 as number | null, year: now.getFullYear() as number | null, activeTab: 'resumo' },
+  )
+  const { month, year, activeTab } = flt
+  const setMonth     = (v: number | null) => setFilter('month', v)
+  const setYear      = (v: number | null) => setFilter('year', v)
+  const setActiveTab = (v: string)        => setFilter('activeTab', v)
+
   const yearMonth = month && year ? toYearMonth(month, year) : ''
 
   const [data,    setData]    = useState<ContratoData | null>(null)
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<string>('resumo')
 
   const load = useCallback(() => {
     if (!yearMonth) return

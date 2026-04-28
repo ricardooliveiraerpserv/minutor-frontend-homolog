@@ -3,6 +3,8 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useCallback, useEffect } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -54,12 +56,20 @@ function TableSkeleton() {
 const EMPTY_FORM = { name: '', document: '', email: '', phone: '', active: true, pricing_type: 'fixed' as 'fixed' | 'variable', hourly_rate: '' }
 
 export default function PartnersPage() {
+  const { user } = useAuth()
   const [items, setItems]   = useState<PartnerItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch]   = useState('')
-  const [filterActive, setFilterActive] = useState('')
-  const [page, setPage]       = useState(1)
   const [hasNext, setHasNext] = useState(false)
+
+  const { filters: flt, set: setFilter } = usePersistedFilters(
+    'partners',
+    user?.id,
+    { search: '', filterActive: '', page: 1 },
+  )
+  const { search, filterActive, page } = flt
+  const setSearch       = (v: string) => setFilter('search', v)
+  const setFilterActive = (v: string) => setFilter('filterActive', v)
+  const setPage         = (v: number) => setFilter('page', v)
   const [modal, setModal]     = useState<{ open: boolean; item?: PartnerItem }>({ open: false })
   const [form, setForm]       = useState({ ...EMPTY_FORM })
   const [saving, setSaving]   = useState(false)
@@ -233,12 +243,12 @@ export default function PartnersPage() {
       {/* Paginação */}
       {(page > 1 || hasNext) && (
         <div className="flex items-center justify-end gap-2 mt-3">
-          <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
+          <button onClick={() => setPage(page - 1)} disabled={page === 1}
             className="p-1 text-zinc-500 hover:text-zinc-200 disabled:opacity-30">
             <ChevronLeft size={14} />
           </button>
           <span className="text-xs text-zinc-500">Página {page}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={!hasNext}
+          <button onClick={() => setPage(page + 1)} disabled={!hasNext}
             className="p-1 text-zinc-500 hover:text-zinc-200 disabled:opacity-30">
             <ChevronRight size={14} />
           </button>

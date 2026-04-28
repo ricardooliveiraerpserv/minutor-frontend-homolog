@@ -16,6 +16,7 @@ import {
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
 import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -238,11 +239,18 @@ export default function UsersPage() {
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
   const [loading,   setLoading]   = useState(true)
-  const [search,        setSearch]        = useState('')
-  const [filterEnabled, setFilterEnabled] = useState('')
-  const [filterRole,    setFilterRole]    = useState('')
-  const [page,    setPage]    = useState(1)
   const [hasNext, setHasNext] = useState(false)
+
+  const { filters: flt, set: setFilter } = usePersistedFilters(
+    'users',
+    authUser?.id,
+    { search: '', filterEnabled: '', filterRole: '', page: 1 },
+  )
+  const { search, filterEnabled, filterRole, page } = flt
+  const setSearch        = (v: string) => setFilter('search', v)
+  const setFilterEnabled = (v: string) => setFilter('filterEnabled', v)
+  const setFilterRole    = (v: string) => setFilter('filterRole', v)
+  const setPage          = (v: number) => setFilter('page', v)
   const [viewUser,        setViewUser]        = useState<UserItem | null>(null)
   const [rateHistory,     setRateHistory]     = useState<any[]>([])
   const [rateHistLoading, setRateHistLoading] = useState(false)
@@ -637,10 +645,10 @@ export default function UsersPage() {
       {/* Paginação */}
       {(page > 1 || hasNext) && (
         <div className="flex items-center justify-end gap-2 mt-3">
-          <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
+          <button onClick={() => setPage(page - 1)} disabled={page === 1}
             className="p-1 text-zinc-500 hover:text-zinc-200 disabled:opacity-30"><ChevronLeft size={14} /></button>
           <span className="text-xs text-zinc-500">Página {page}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={!hasNext}
+          <button onClick={() => setPage(page + 1)} disabled={!hasNext}
             className="p-1 text-zinc-500 hover:text-zinc-200 disabled:opacity-30"><ChevronRight size={14} /></button>
         </div>
       )}

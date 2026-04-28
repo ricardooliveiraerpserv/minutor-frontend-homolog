@@ -16,6 +16,7 @@ import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { api, ApiError, toRelativePath } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { toast } from 'sonner'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -463,19 +464,36 @@ export default function ApprovalsPage() {
   const { user } = useAuth()
   const isCoordenador = user?.type === 'coordenador'
 
-  const [tab, setTab] = useState<'timesheets' | 'expenses'>('timesheets')
+  const { filters: flt, set: setFilter, clear: clearPersistedFilters } = usePersistedFilters(
+    'approvals',
+    user?.id,
+    {
+      tab:          'timesheets' as 'timesheets' | 'expenses',
+      dateFrom:     '',
+      dateTo:       '',
+      refMonth:     null as number | null,
+      refYear:      null as number | null,
+      filterMode:   'month' as 'month' | 'period',
+      userId:       '',
+      coordinatorId: '',
+      executiveId:  '',
+      projectId:    '',
+      customerId:   '',
+    },
+  )
+  const { tab, dateFrom, dateTo, refMonth, refYear, filterMode, userId, coordinatorId, executiveId, projectId, customerId } = flt
+  const setTab          = (v: 'timesheets' | 'expenses') => setFilter('tab', v)
+  const setDateFrom     = (v: string)                    => setFilter('dateFrom', v)
+  const setDateTo       = (v: string)                    => setFilter('dateTo', v)
+  const setRefMonth     = (v: number | null)             => setFilter('refMonth', v)
+  const setRefYear      = (v: number | null)             => setFilter('refYear', v)
+  const setFilterMode   = (v: 'month' | 'period')        => setFilter('filterMode', v)
+  const setUserId       = (v: string)                    => setFilter('userId', v)
+  const setCoordinatorId= (v: string)                    => setFilter('coordinatorId', v)
+  const setExecutiveId  = (v: string)                    => setFilter('executiveId', v)
+  const setProjectId    = (v: string)                    => setFilter('projectId', v)
+  const setCustomerId   = (v: string)                    => setFilter('customerId', v)
 
-  // Filters
-  const [dateFrom,      setDateFrom]      = useState('')
-  const [dateTo,        setDateTo]        = useState('')
-  const [refMonth,      setRefMonth]      = useState<number | null>(null)
-  const [refYear,       setRefYear]       = useState<number | null>(null)
-  const [filterMode,    setFilterMode]    = useState<'month' | 'period'>('month')
-  const [userId,        setUserId]        = useState('')
-  const [coordinatorId, setCoordinatorId] = useState('')
-  const [executiveId,   setExecutiveId]   = useState('')
-  const [projectId,     setProjectId]     = useState('')
-  const [customerId,    setCustomerId]    = useState('')
   const tsStatus  = 'pending'
   const expStatus = 'pending'
   const [showFilters,   setShowFilters]   = useState(true)
@@ -581,8 +599,7 @@ export default function ApprovalsPage() {
   useEffect(() => { setTsPage(1); setExpPage(1); setSelected([]) }, [filterParams])
 
   const clearFilters = () => {
-    setDateFrom(''); setDateTo(''); setUserId(''); setCoordinatorId('')
-    setExecutiveId(''); setProjectId(''); setCustomerId('')
+    clearPersistedFilters()
   }
   const hasFilters = !!(dateFrom || dateTo || userId || coordinatorId || executiveId || projectId || customerId)
 

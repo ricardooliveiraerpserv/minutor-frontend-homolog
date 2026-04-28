@@ -7,6 +7,7 @@ import { formatBRL } from '@/lib/format'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { toast } from 'sonner'
 import { Lock, RefreshCw, Building2, Printer, FileText, Receipt, ChevronRight, ChevronDown } from 'lucide-react'
 import {
@@ -110,24 +111,36 @@ export default function FechamentoClientePage() {
   const { user } = useAuth()
   const isAdmin = (user as any)?.type === 'admin'
 
-  // ── Período ──
-  const [fromMonth, setFromMonth] = useState<number | null>(now.getMonth() + 1)
-  const [fromYear,  setFromYear]  = useState<number | null>(now.getFullYear())
-  const [toMonth,   setToMonth]   = useState<number | null>(now.getMonth() + 1)
-  const [toYear,    setToYear]    = useState<number | null>(now.getFullYear())
+  const { filters: flt, set: setFilter } = usePersistedFilters(
+    'fechamento_cliente',
+    user?.id,
+    {
+      fromMonth:    now.getMonth() + 1 as number | null,
+      fromYear:     now.getFullYear() as number | null,
+      toMonth:      now.getMonth() + 1 as number | null,
+      toYear:       now.getFullYear() as number | null,
+      customerId:   null as number | null,
+      projetoFilter: null as number | null,
+      tab:          'servicos' as Tab,
+    },
+  )
+  const { fromMonth, fromYear, toMonth, toYear, customerId, projetoFilter, tab } = flt
+  const setFromMonth     = (v: number | null) => setFilter('fromMonth', v)
+  const setFromYear      = (v: number | null) => setFilter('fromYear', v)
+  const setToMonth       = (v: number | null) => setFilter('toMonth', v)
+  const setToYear        = (v: number | null) => setFilter('toYear', v)
+  const setCustomerId    = (v: number | null) => setFilter('customerId', v)
+  const setProjetoFilter = (v: number | null) => setFilter('projetoFilter', v)
+  const setTab           = (v: Tab)           => setFilter('tab', v)
 
+  // ── Período ──
   const fromYM = fromMonth && fromYear ? toYearMonth(fromMonth, fromYear) : ''
   const toYM   = toMonth   && toYear   ? toYearMonth(toMonth,   toYear)   : ''
   const isSingleMonth = fromYM !== '' && fromYM === toYM
 
-  // ── Filtro de projeto (contrato) ──
-  const [projetoFilter, setProjetoFilter] = useState<number | null>(null)
-
   // ── Seleção de cliente ──
   const [clientes, setClientes]     = useState<ClienteStatus[]>([])
-  const [customerId, setCustomerId] = useState<number | null>(null)
   const [status, setStatus]         = useState<ClienteStatus | null>(null)
-  const [tab, setTab]               = useState<Tab>('servicos')
 
   // ── Dados ──
   const [globalData,      setGlobalData]      = useState<GlobalData | null>(null)

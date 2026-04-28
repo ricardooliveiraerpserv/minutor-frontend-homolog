@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
 import { RefreshCw, Printer, FileText, Users } from 'lucide-react'
@@ -274,11 +276,17 @@ function RelatorioBtn({ userId, printingUser, onClick }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FechamentoConsultorPage() {
-  const [yearMonth, setYearMonth] = useState(() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  })
-  const [tab, setTab] = useState<Tab>('horistas')
+  const { user } = useAuth()
+  const now = new Date()
+  const defaultYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const { filters: flt, set: setFilter } = usePersistedFilters(
+    'fechamento_consultor',
+    user?.id,
+    { yearMonth: defaultYearMonth, tab: 'horistas' as Tab },
+  )
+  const { yearMonth, tab } = flt
+  const setYearMonth = (v: string) => setFilter('yearMonth', v)
+  const setTab       = (v: Tab)    => setFilter('tab', v)
   const [data, setData] = useState<IndexData | null>(null)
   const [loading, setLoading] = useState(false)
   const [printingUser, setPrintingUser] = useState<number | null>(null)

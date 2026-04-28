@@ -7,6 +7,7 @@ import { formatBRL } from '@/lib/format'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { toast } from 'sonner'
 import { Lock, RefreshCw, Handshake, Printer, Filter } from 'lucide-react'
 import {
@@ -111,14 +112,33 @@ export default function FechamentoParceiroPage() {
   const { user } = useAuth()
   const isAdmin = (user as any)?.type === 'admin'
 
-  const [month, setMonth] = useState<number | null>(now.getMonth() + 1)
-  const [year,  setYear]  = useState<number | null>(now.getFullYear())
+  type ParceiroTab = 'consultores' | 'despesas' | 'apontamentos' | 'resumo' | 'relatorio'
+  const { filters: flt, set: setFilter } = usePersistedFilters(
+    'fechamento_parceiro',
+    user?.id,
+    {
+      month:              now.getMonth() + 1 as number | null,
+      year:               now.getFullYear() as number | null,
+      partnerId:          null as number | null,
+      tab:                'consultores' as ParceiroTab,
+      filterConsultor:    '' as number | '',
+      filterApStatus:     '',
+      filterApConsultor:  '' as number | '',
+    },
+  )
+  const { month, year, partnerId, tab, filterConsultor, filterApStatus, filterApConsultor } = flt
+  const setMonth             = (v: number | null)      => setFilter('month', v)
+  const setYear              = (v: number | null)      => setFilter('year', v)
+  const setPartnerId         = (v: number | null)      => setFilter('partnerId', v)
+  const setTab               = (v: ParceiroTab)        => setFilter('tab', v)
+  const setFilterConsultor   = (v: number | '')        => setFilter('filterConsultor', v)
+  const setFilterApStatus    = (v: string)             => setFilter('filterApStatus', v)
+  const setFilterApConsultor = (v: number | '')        => setFilter('filterApConsultor', v)
+
   const yearMonth = month && year ? toYearMonth(month, year) : ''
 
   const [parceiros, setParceiros]     = useState<ParceiroStatus[]>([])
-  const [partnerId, setPartnerId]     = useState<number | null>(null)
   const [status, setStatus]           = useState<ParceiroStatus | null>(null)
-  const [tab, setTab]                 = useState<'consultores' | 'despesas' | 'apontamentos' | 'resumo' | 'relatorio'>('consultores')
 
   const [consultores, setConsultores] = useState<ConsultorRow[]>([])
   const [despesas, setDespesas]       = useState<DespesaRow[]>([])
@@ -129,11 +149,6 @@ export default function FechamentoParceiroPage() {
   const [loadingAp,      setLoadingAp]        = useState(false)
   const [loadingFechar,  setLoadingFechar]    = useState(false)
   const [loadingReabrir, setLoadingReabrir]   = useState(false)
-
-  // ── Filtros ──────────────────────────────────────────────────────────────────
-  const [filterConsultor, setFilterConsultor] = useState<number | ''>('')
-  const [filterApStatus,  setFilterApStatus]  = useState<string>('')
-  const [filterApConsultor, setFilterApConsultor] = useState<number | ''>('')
   const [consultorView, setConsultorView] = useState<'resumo' | 'tipo'>('resumo')
 
   // ─── Carregamento de dados ────────────────────────────────────────────────

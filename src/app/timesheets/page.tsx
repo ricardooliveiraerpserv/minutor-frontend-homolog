@@ -21,6 +21,7 @@ import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/use-auth'
+import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { ApiError } from '@/lib/api'
 import {
   PageHeader, Table, Thead, Th, Tbody, Tr, Td,
@@ -633,26 +634,66 @@ function TimesheetsPageContent() {
   const canActAsUser   = isAdmin || isCoordenador
   const isCliente      = user?.type === 'cliente'
   const searchParams = useSearchParams()
-  const [projectId, setProjectId]     = useState(() => searchParams.get('project_id') ?? '')
-  const [page, setPage]               = useState(1)
-  const [status, setStatus]           = useState('')
-  const [origins, setOrigins]               = useState<string[]>([])
-  const [serviceTypeIds, setServiceTypeIds] = useState<string[]>([])
-  const [contractTypeIds, setContractTypeIds] = useState<string[]>([])
-  const [customerIds, setCustomerIds]   = useState<string[]>(() => { const v = searchParams.get('customer_id'); return v ? [v] : [] })
-  const [executiveIds, setExecutiveIds] = useState<string[]>([])
-  const [userIds, setUserIds]           = useState<string[]>([])
-  const [startDate, setStartDate]     = useState(() => searchParams.get('start_date') ?? '')
-  const [endDate, setEndDate]         = useState(() => searchParams.get('end_date') ?? '')
-  const [refMonth, setRefMonth]       = useState<number | null>(null)
-  const [refYear,  setRefYear]        = useState<number | null>(null)
-  const [filterMode, setFilterMode]   = useState<'month' | 'period'>('month')
-  const [ticket, setTicket]           = useState(() => searchParams.get('ticket') ?? '')
-  const [requester, setRequester]     = useState(() => searchParams.get('requester') ?? '')
-  const [ticketService, setTicketService] = useState(() => searchParams.get('ticket_service') ?? '')
+  const spProjectId  = searchParams.get('project_id') ?? ''
+  const spCustomerId = searchParams.get('customer_id')
+  const spStartDate  = searchParams.get('start_date') ?? ''
+  const spEndDate    = searchParams.get('end_date') ?? ''
+  const spTicket     = searchParams.get('ticket') ?? ''
+  const spRequester  = searchParams.get('requester') ?? ''
+  const spTicketSvc  = searchParams.get('ticket_service') ?? ''
+
+  const { filters, set: setFilter, clear: clearPersistedFilters } = usePersistedFilters(
+    'timesheets',
+    user?.id,
+    {
+      projectId:       spProjectId,
+      page:            1,
+      status:          '',
+      origins:         [] as string[],
+      serviceTypeIds:  [] as string[],
+      contractTypeIds: [] as string[],
+      customerIds:     spCustomerId ? [spCustomerId] : [] as string[],
+      executiveIds:    [] as string[],
+      userIds:         [] as string[],
+      startDate:       spStartDate,
+      endDate:         spEndDate,
+      refMonth:        null as number | null,
+      refYear:         null as number | null,
+      filterMode:      'month' as 'month' | 'period',
+      ticket:          spTicket,
+      requester:       spRequester,
+      ticketService:   spTicketSvc,
+      sortField:       'date' as SortField | null,
+      sortDir:         'desc' as SortDir,
+    },
+  )
+
+  const {
+    projectId, page, status, origins, serviceTypeIds, contractTypeIds,
+    customerIds, executiveIds, userIds, startDate, endDate, refMonth, refYear,
+    filterMode, ticket, requester, ticketService, sortField, sortDir,
+  } = filters
+
+  const setProjectId      = (v: string)              => setFilter('projectId', v)
+  const setPage           = (v: number | ((p: number) => number)) => {
+    setFilter('page', typeof v === 'function' ? v(filters.page) : v)
+  }
+  const setStatus         = (v: string)              => setFilter('status', v)
+  const setOrigins        = (v: string[])            => setFilter('origins', v)
+  const setServiceTypeIds = (v: string[])            => setFilter('serviceTypeIds', v)
+  const setContractTypeIds= (v: string[])            => setFilter('contractTypeIds', v)
+  const setCustomerIds    = (v: string[])            => setFilter('customerIds', v)
+  const setExecutiveIds   = (v: string[])            => setFilter('executiveIds', v)
+  const setUserIds        = (v: string[])            => setFilter('userIds', v)
+  const setStartDate      = (v: string)              => setFilter('startDate', v)
+  const setEndDate        = (v: string)              => setFilter('endDate', v)
+  const setRefMonth       = (v: number | null)       => setFilter('refMonth', v)
+  const setRefYear        = (v: number | null)       => setFilter('refYear', v)
+  const setFilterMode     = (v: 'month' | 'period')  => setFilter('filterMode', v)
+  const setTicket         = (v: string)              => setFilter('ticket', v)
+  const setRequester      = (v: string)              => setFilter('requester', v)
+  const setTicketService  = (v: string)              => setFilter('ticketService', v)
   const [exporting, setExporting]     = useState(false)
-  const [sortField, setSortField]     = useState<SortField | null>('date')
-  const [sortDir, setSortDir]         = useState<SortDir>('desc')
   const [customers, setCustomers]     = useState<SelectOption[]>([])
   const [executives, setExecutives]   = useState<SelectOption[]>([])
   const [consultants, setConsultants] = useState<SelectOption[]>([])
@@ -676,12 +717,14 @@ function TimesheetsPageContent() {
   }, [])
 
   const handleSort = useCallback((field: SortField) => {
-    setSortField(prev => {
-      if (prev === field) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return field }
-      setSortDir('asc'); return field
-    })
-    setPage(1)
-  }, [])
+    if (sortField === field) {
+      setFilter('sortDir', sortDir === 'asc' ? 'desc' : 'asc')
+    } else {
+      setFilter('sortDir', 'asc')
+      setFilter('sortField', field)
+    }
+    setFilter('page', 1)
+  }, [sortField, sortDir, setFilter])
 
   const { data: serviceTypes }  = useApiQuery<{ items: SelectOption[] } | SelectOption[]>('/service-types')
   const { data: contractTypes } = useApiQuery<{ items: SelectOption[] } | SelectOption[]>('/contract-types')
@@ -764,11 +807,8 @@ function TimesheetsPageContent() {
   const hasFilters = !!(status || origins.length || serviceTypeIds.length || contractTypeIds.length || customerIds.length || executiveIds.length || userIds.length || projectId || startDate || endDate || ticket || requester || ticketService)
 
   const clearFilters = useCallback(() => {
-    setStatus(''); setOrigins([]); setServiceTypeIds([]); setContractTypeIds([])
-    setCustomerIds([]); setExecutiveIds([]); setUserIds([]); setProjectId('')
-    setStartDate(''); setEndDate(''); setRefMonth(null); setRefYear(null)
-    setTicket(''); setRequester(''); setTicketService(''); setPage(1)
-  }, [])
+    clearPersistedFilters()
+  }, [clearPersistedFilters])
 
   const handleExport = async () => {
     setExporting(true)
