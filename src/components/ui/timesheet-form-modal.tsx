@@ -131,7 +131,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   const [projects,     setProjects]     = useState<SelectOption[]>([])
   const [loadingData,  setLoadingData]  = useState(false)
 
-  // Reset and load data when modal opens
+  // Reset and load users list when modal opens
   useEffect(() => {
     if (!open) return
     setUseTotal(false)
@@ -144,32 +144,55 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       is_billable_only: false,
     })
     setProjects([])
+    setCustomers([])
+    if (canActAsUser) {
+      api.get<any>('/users?pageSize=200&exclude_type=cliente')
+        .then(r => {
+          const items = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+          setConsultants(items)
+        })
+        .catch(() => {})
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  // Reload customers whenever selected user changes
+  useEffect(() => {
+    if (!open) return
     setLoadingData(true)
+    setForm(f => ({ ...f, customer_id: '', project_id: '', is_billable_only: false }))
+    setProjects([])
 
-    const customerEndpoint = isAdmin
-      ? '/customers?pageSize=500'
-      : '/customers/user-linked?pageSize=500'
+    // When admin picks a different consultant → load only their allocated customers
+    const actingAsOther = isAdmin && form.user_id && form.user_id !== String(currentUser?.id)
+    const customerEndpoint = actingAsOther
+      ? `/customers/user-linked?pageSize=500&user_id=${form.user_id}`
+      : isAdmin
+        ? '/customers?pageSize=500'
+        : '/customers/user-linked?pageSize=500'
 
-    const calls: Promise<any>[] = [api.get<any>(customerEndpoint)]
-    if (canActAsUser) calls.push(api.get<any>('/users?pageSize=200&exclude_type=cliente'))
-
-    Promise.all(calls)
-      .then(([c, us]) => {
-        const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-        setCustomers(items(c))
-        if (us) setConsultants(items(us))
+    api.get<any>(customerEndpoint)
+      .then(r => {
+        const items = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+        setCustomers(items)
       })
       .catch(() => {})
       .finally(() => setLoadingData(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, form.user_id])
 
   // Load projects when customer changes
   useEffect(() => {
     if (!form.customer_id) { setProjects([]); return }
     let cancelled = false
     const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open' })
-    if (!isAdmin) qs.set('consultant_only', 'true')
+    const actingAsOther = isAdmin && form.user_id && form.user_id !== String(currentUser?.id)
+    if (actingAsOther) {
+      qs.set('consultant_only', 'true')
+      qs.set('user_id', form.user_id)
+    } else if (!isAdmin) {
+      qs.set('consultant_only', 'true')
+    }
     api.get<{ items: any[] }>(`/projects?${qs}`)
       .then(r => {
         if (!cancelled) setProjects(
