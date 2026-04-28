@@ -271,9 +271,8 @@ function SidebarInner({ user }: { user: User }) {
         })
       }
 
-      // Portal de Sustentação + Kanban + Meu Painel — somente para coordenadores do tipo "sustentacao"
+      // Portal de Sustentação + Meu Painel — somente para coordenadores do tipo "sustentacao"
       if (user?.coordinator_type === 'sustentacao') {
-        nav.splice(1, 0, { type: 'item', label: 'Kanban Contratos', href: '/contratos/kanban', icon: LayoutGrid, matchPaths: ['/contratos'] })
         nav.splice(1, 0, {
           type: 'group',
           label: 'Sustentação',
