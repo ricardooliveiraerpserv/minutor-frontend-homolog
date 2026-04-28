@@ -198,6 +198,7 @@ function buildReport(
         const rowsHtml = clienteRows.map(r => `
           <tr>
             <td>${fmtDate(r.data)}</td>
+            <td>${r.cliente || '—'}</td>
             <td><span style="color:#888;margin-right:4px">${r.projeto_codigo}</span>${r.projeto}</td>
             <td>${r.ticket ?? '—'}</td>
             <td>${r.titulo ? r.titulo.slice(0, 70) : (r.observacao ? r.observacao.slice(0, 70) : '—')}</td>
@@ -212,7 +213,7 @@ function buildReport(
             <span class="client-total">${fmtH(clienteHoras)}</span>
           </div>
           <table>
-            <thead><tr><th>Data</th><th>Projeto</th><th>Ticket</th><th>Descrição</th><th class="center">Início</th><th class="center">Fim</th><th class="right">Horas / Extra</th></tr></thead>
+            <thead><tr><th>Data</th><th>Cliente</th><th>Projeto</th><th>Ticket</th><th>Descrição</th><th class="center">Início</th><th class="center">Fim</th><th class="right">Horas / Extra</th></tr></thead>
             <tbody>${rowsHtml}</tbody>
           </table>
         `

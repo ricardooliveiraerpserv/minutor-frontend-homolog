@@ -56,6 +56,7 @@ interface ApontamentoRow {
   data: string
   user_id: number
   consultor: string
+  cliente?: string
   projeto: string
   projeto_codigo: string
   tipo_contrato_code: string
@@ -328,6 +329,7 @@ export default function FechamentoParceiroPage() {
         const rowsHtml = rows.map(r => `
           <tr>
             <td>${new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+            <td>${r.cliente ?? '—'}</td>
             <td>${r.projeto}</td>
             <td>${r.solicitante ?? '—'}</td>
             <td>${r.ticket ?? '0'}</td>
@@ -342,7 +344,7 @@ export default function FechamentoParceiroPage() {
               <div class="section-rate">Valor/hora: <b>${formatBRL(taxa)}/h</b></div>
             </div>
             <table>
-              <thead><tr><th>Data</th><th>Projeto</th><th>Solicitante</th><th>Ticket</th><th>Título</th><th>Descrição</th><th class="right">Horas</th></tr></thead>
+              <thead><tr><th>Data</th><th>Cliente</th><th>Projeto</th><th>Solicitante</th><th>Ticket</th><th>Título</th><th>Descrição</th><th class="right">Horas</th></tr></thead>
               <tbody>${rowsHtml}</tbody>
             </table>
             <div class="section-footer">${horas.toFixed(2)}h × ${formatBRL(taxa)}/h = <b>${formatBRL(Math.round(total * 100) / 100)}</b></div>
