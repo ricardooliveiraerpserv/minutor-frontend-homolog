@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { FileType, Wrench, Users, Star, UserCheck, CalendarDays, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Check, Tag, CreditCard, Receipt, Contact } from 'lucide-react'
+import { FileType, Wrench, Users, Star, UserCheck, CalendarDays, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Check, Tag, CreditCard, Receipt, Contact, Download } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -830,6 +830,7 @@ function HolidaysTab() {
   const [modal, setModal] = useState<{ open: boolean; item?: HolidayItem }>({ open: false })
   const [form, setForm] = useState({ date: '', name: '', type: 'national', state: '', active: true })
   const [saving, setSaving] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
@@ -883,6 +884,21 @@ function HolidaysTab() {
 
   const typeLabel = (t: string) => HOLIDAY_TYPES.find(x => x.value === t)?.label ?? t
 
+  const importHolidays = async () => {
+    setImporting(true)
+    try {
+      const r = await api.post<{ message: string; imported: number; items: HolidayItem[] }>(
+        `/holidays/import?year=${year}`
+      )
+      toast.success(r.message)
+      setItems(r.items ?? [])
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao importar feriados')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
@@ -894,7 +910,11 @@ function HolidaysTab() {
             </button>
           ))}
         </div>
-        <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5 ml-auto">
+        <Button onClick={importHolidays} disabled={importing}
+          className="bg-zinc-700 hover:bg-zinc-600 text-zinc-200 h-8 text-xs gap-1.5 ml-auto">
+          <Download size={13} /> {importing ? 'Importando…' : 'Importar Nacionais'}
+        </Button>
+        <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5">
           <Plus size={13} /> Novo
         </Button>
       </div>
