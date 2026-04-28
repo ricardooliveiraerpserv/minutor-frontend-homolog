@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import { RefreshCw, Printer, FileText, Users } from 'lucide-react'
+import { RefreshCw, Printer, FileText, Users, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   PageHeader, Table, Thead, Th, Tbody, Tr, Td,
@@ -317,6 +317,8 @@ export default function FechamentoConsultorPage() {
   const [printingUser, setPrintingUser] = useState<number | null>(null)
   const [reportHtml, setReportHtml] = useState<string | null>(null)
   const reportIframeRef = useRef<HTMLIFrameElement>(null)
+  const [apenasComMovimento, setApenasComMovimento] = useState(true)
+  const [filterNome, setFilterNome] = useState('')
 
   const load = useCallback(async () => {
     if (!yearMonth) return
@@ -421,10 +423,22 @@ export default function FechamentoConsultorPage() {
     { key: 'resumo',      label: 'Resumo' },
   ]
 
+  // ─── Filtros ──────────────────────────────────────────────────────────────
+
+  function applyFilters<T extends ConsultorBase>(rows: T[]): T[] {
+    let r = rows
+    if (apenasComMovimento) r = r.filter(c => c.total > 0 || c.horas_trabalhadas > 0)
+    if (filterNome.trim()) {
+      const q = filterNome.trim().toLowerCase()
+      r = r.filter(c => c.nome.toLowerCase().includes(q))
+    }
+    return r
+  }
+
   // ─── Tab: Horistas ────────────────────────────────────────────────────────
 
   function TabHoristas() {
-    const rows = data?.horistas ?? []
+    const rows = applyFilters(data?.horistas ?? [])
     return (
       <div>
         <p className="text-sm text-zinc-400 mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
@@ -492,7 +506,7 @@ export default function FechamentoConsultorPage() {
   // ─── Tab: Banco de Horas ──────────────────────────────────────────────────
 
   function TabBancoHoras() {
-    const rows = data?.banco_horas ?? []
+    const rows = applyFilters(data?.banco_horas ?? [])
     return (
       <div>
         <p className="text-sm text-zinc-400 mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
@@ -556,7 +570,7 @@ export default function FechamentoConsultorPage() {
   // ─── Tab: Fixo ────────────────────────────────────────────────────────────
 
   function TabFixo() {
-    const rows = (data?.fixos ?? []) as ConsultorFixo[]
+    const rows = applyFilters((data?.fixos ?? []) as ConsultorFixo[])
     return (
       <div>
         <p className="text-sm text-zinc-400 mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
@@ -754,6 +768,39 @@ export default function FechamentoConsultorPage() {
               {t.label}
             </button>
           ))}
+        </div>
+
+        {/* Filtros */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex rounded-lg overflow-hidden border border-zinc-700 text-xs font-medium">
+            <button
+              onClick={() => setApenasComMovimento(true)}
+              className={`px-3 py-1.5 transition-colors ${apenasComMovimento ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+            >
+              Com movimentos
+            </button>
+            <button
+              onClick={() => setApenasComMovimento(false)}
+              className={`px-3 py-1.5 transition-colors ${!apenasComMovimento ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+            >
+              Todos
+            </button>
+          </div>
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar consultor..."
+              value={filterNome}
+              onChange={e => setFilterNome(e.target.value)}
+              className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 rounded-lg pl-8 pr-7 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 placeholder-zinc-500"
+            />
+            {filterNome && (
+              <button onClick={() => setFilterNome('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+                <X size={12} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Content */}
