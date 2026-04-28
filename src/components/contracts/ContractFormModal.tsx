@@ -293,6 +293,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
 
   const save = async () => {
     if (!form.customer_id)                      { toast.error('Selecione o cliente'); setActiveTab(0); return }
+    if (!(form as any).project_name?.trim())    { toast.error('Informe o nome do projeto'); setActiveTab(0); return }
     if (!isOnDemand && !form.horas_contratadas) { toast.error('Informe as horas contratadas'); setActiveTab(4); return }
 
     setSaving(true)
@@ -504,14 +505,14 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
 
               {/* Nome do Projeto */}
               <div>
-                <label className={labelCls}>Nome do Projeto <span className="text-zinc-600 font-normal">(opcional)</span></label>
+                <label className={labelCls}>Nome do Projeto <span style={{ color: '#ef4444' }}>*</span></label>
                 <input
                   type="text"
-                  placeholder="Gerado automaticamente se não preenchido"
+                  placeholder="Nome do projeto"
                   value={(form as any).project_name ?? ''}
                   onChange={e => setForm(f => ({ ...f, project_name: e.target.value } as any))}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40"
-                  style={inputStyle}
+                  style={{ ...inputStyle, ...(!(form as any).project_name?.trim() ? { borderColor: 'rgba(239,68,68,0.5)' } : {}) }}
                 />
               </div>
 

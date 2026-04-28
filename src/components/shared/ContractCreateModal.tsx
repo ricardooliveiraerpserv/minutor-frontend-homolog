@@ -188,7 +188,8 @@ export function ContractCreateModal({
   const validateCurrentTab = (): boolean => {
     switch (activeTab) {
       case 0: // Cliente
-        if (!form.customer_id) { toast.error('Selecione o cliente'); return false }
+        if (!form.customer_id)          { toast.error('Selecione o cliente'); return false }
+        if (!form.project_name.trim())  { toast.error('Informe o nome do projeto'); return false }
         return true
 
       case 1: // Classificação
@@ -264,7 +265,7 @@ export function ContractCreateModal({
   const save = async () => {
     // Revalidate all required tabs before saving
     const checks: [number, () => boolean][] = [
-      [0, () => !!form.customer_id],
+      [0, () => !!form.customer_id && !!form.project_name.trim()],
       [1, () => !!form.service_type_id],
       [2, () => !!form.contract_type_id],
       [4, () => !isOnDemand ? !!form.horas_contratadas && !!form.expectativa_inicio && !!form.valor_hora : !!form.expectativa_inicio && !!form.valor_hora],
@@ -435,12 +436,12 @@ export function ContractCreateModal({
               </div>
 
               <div>
-                <label className={labelCls}>Nome do Projeto <span className="text-zinc-600 font-normal">(opcional)</span></label>
-                <input type="text" placeholder="Gerado automaticamente se não preenchido"
+                <label className={labelCls}>Nome do Projeto <span style={{ color: '#ef4444' }}>*</span></label>
+                <input type="text" placeholder="Nome do projeto"
                   value={form.project_name}
                   onChange={e => setForm(f => ({ ...f, project_name: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40"
-                  style={inputStyle} />
+                  style={{ ...inputStyle, ...(!form.project_name.trim() ? { borderColor: 'rgba(239,68,68,0.5)' } : {}) }} />
               </div>
 
               {form.customer_id && parentProjects.length > 0 && (
