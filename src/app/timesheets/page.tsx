@@ -1053,25 +1053,38 @@ function TimesheetsPageContent() {
 
         {/* Total horas */}
         {data && data.totalEffortHours && (() => {
-          const extraMin = (isAdmin || isCoordenador) ? (data.totalConsultantExtraMinutes ?? 0) : 0
-          const baseMin  = data.totalEffortMinutes ?? 0
-          const totalMin = baseMin + extraMin
-          if (extraMin > 0) {
-            return (
-              <div className="mb-4 flex items-center gap-1 flex-wrap">
-                <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Apontadas:</span>
-                <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{data.totalEffortHours}</span>
-                <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>+ % extra:</span>
-                <span className="text-sm font-bold" style={{ color: '#22C55E' }}>+{formatMinutes(extraMin)}</span>
-                <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>=</span>
-                <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>Total efetivo: {formatMinutes(totalMin)}</span>
-              </div>
-            )
-          }
+          const fatAdminMin  = data.totalBillableOnlyMinutes ?? 0
+          const allMin       = data.totalEffortMinutes ?? 0
+          const baseMin      = allMin - fatAdminMin
+          const extraMin     = data.totalConsultantExtraMinutes ?? 0
+          const totalMin     = baseMin + extraMin
+          const canSeeFatAdmin = isAdmin || isCoordenador
+          const baseHours    = formatMinutes(baseMin)
+
           return (
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Total de horas:</span>
-              <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{data.totalEffortHours}</span>
+            <div className="mb-4 flex items-center gap-1 flex-wrap">
+              {extraMin > 0 ? (
+                <>
+                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Apontadas:</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{baseHours}</span>
+                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>+ % extra:</span>
+                  <span className="text-sm font-bold" style={{ color: '#22C55E' }}>+{formatMinutes(extraMin)}</span>
+                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>=</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>Total efetivo: {formatMinutes(totalMin)}</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Total de horas:</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{baseHours}</span>
+                </>
+              )}
+              {canSeeFatAdmin && fatAdminMin > 0 && (
+                <>
+                  <span className="text-xs mx-1" style={{ color: 'var(--brand-subtle)' }}>|</span>
+                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Fat. Admin:</span>
+                  <span className="text-sm font-semibold" style={{ color: '#F59E0B' }}>{formatMinutes(fatAdminMin)}</span>
+                </>
+              )}
             </div>
           )
         })()}
