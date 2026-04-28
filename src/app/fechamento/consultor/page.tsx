@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
@@ -255,11 +255,18 @@ function buildReport(
   `
 }
 
-function openPrintWindow(html: string, win?: Window | null) {
-  const w = win ?? window.open('', '_blank')
+function openPrintWindow(html: string, iframe?: HTMLIFrameElement | null) {
+  const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório</title><style>${printStyles}</style></head><body>${html}</body></html>`
+  if (iframe) {
+    iframe.srcdoc = fullHtml
+    iframe.onload = () => { iframe.contentWindow?.print(); iframe.onload = null }
+    return
+  }
+  // fallback popup
+  const w = window.open('', '_blank')
   if (!w) return
   w.document.open()
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório</title><style>${printStyles}</style></head><body>${html}</body></html>`)
+  w.document.write(fullHtml)
   w.document.close()
   setTimeout(() => w.print(), 300)
 }
@@ -302,6 +309,7 @@ export default function FechamentoConsultorPage() {
   const [data, setData] = useState<IndexData | null>(null)
   const [loading, setLoading] = useState(false)
   const [printingUser, setPrintingUser] = useState<number | null>(null)
+  const printIframeRef = useRef<HTMLIFrameElement>(null)
 
   const load = useCallback(async () => {
     if (!yearMonth) return
@@ -318,23 +326,14 @@ export default function FechamentoConsultorPage() {
   useEffect(() => { load() }, [load])
 
   async function handleRelatorio(consultor: ConsultorBase | ConsultorBancoHoras | ConsultorFixo) {
-    // Abre a janela imediatamente (contexto síncrono do click) para evitar bloqueio de popup
-    const win = window.open('', '_blank')
-    if (!win) {
-      toast.error('Popup bloqueado pelo navegador. Permita popups para este site.')
-      return
-    }
-    // Escreve placeholder para manter a aba viva durante a chamada de API
-    win.document.write('<html><head><title>Gerando relatório…</title><style>body{background:#111;color:#aaa;font:14px sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style></head><body>Gerando relatório, aguarde…</body></html>')
     setPrintingUser(consultor.user_id)
     try {
       const res = await api.get<{ data: ApontamentoRow[] }>(
         `/fechamento-consultor/${consultor.user_id}/${yearMonth}/apontamentos`
       )
       const html = buildReport(consultor, res.data ?? [], yearMonth)
-      openPrintWindow(html, win)
+      openPrintWindow(html, printIframeRef.current)
     } catch (err: unknown) {
-      win?.close()
       toast.error(`Erro ao gerar relatório: ${err instanceof Error ? err.message : 'falha na API'}`)
     } finally {
       setPrintingUser(null)
@@ -375,7 +374,7 @@ export default function FechamentoConsultorPage() {
         </div>
       </div>
     `
-    openPrintWindow(html)
+    openPrintWindow(html, printIframeRef.current)
   }
 
   function handlePrintResumo() {
@@ -405,7 +404,7 @@ export default function FechamentoConsultorPage() {
         </div>
       </div>
     `
-    openPrintWindow(html)
+    openPrintWindow(html, printIframeRef.current)
   }
 
   const TABS: { key: Tab; label: string }[] = [
@@ -753,6 +752,8 @@ export default function FechamentoConsultorPage() {
         </div>
 
       </div>
+      {/* iframe oculto para impressão — evita bloqueio de popup */}
+      <iframe ref={printIframeRef} style={{ position: 'fixed', width: 0, height: 0, opacity: 0, top: -9999, left: -9999, border: 'none' }} />
     </AppLayout>
   )
 }
