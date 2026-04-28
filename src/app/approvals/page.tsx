@@ -32,6 +32,7 @@ interface TSItem {
   ticket?: string
   status: string
   attachment_url?: string
+  consultant_extra_pct?: number | null
 }
 
 interface ExpItem {
@@ -237,7 +238,17 @@ function TsViewModal({ item, onClose }: { item: TSItem; onClose: () => void }) {
           <Row label="Data"         value={fmt(item.date)} />
           <Row label="Cliente"      value={item.project?.customer?.name} />
           <Row label="Projeto"      value={item.project?.name} />
-          <Row label="Tempo"        value={fmtMin(item.effort_minutes)} />
+          <Row label="Tempo" value={fmtMin(item.effort_minutes)} />
+          {item.consultant_extra_pct ? (() => {
+            const extraMin = Math.round(item.effort_minutes * (Number(item.consultant_extra_pct) / 100))
+            const totalMin = item.effort_minutes + extraMin
+            return (
+              <div className="flex justify-between items-center text-[11px]">
+                <span className="text-zinc-500">% extra cons</span>
+                <span style={{ color: '#22C55E' }}>+{Number(item.consultant_extra_pct)}% = {fmtMin(totalMin)}</span>
+              </div>
+            )
+          })() : null}
           {item.ticket && <Row label="Ticket" value={`#${item.ticket}`} />}
           {item.observation && (
             <div>
@@ -955,7 +966,20 @@ export default function ApprovalsPage() {
                     </span>
                   ) : <span className="text-zinc-600">—</span>}
                 </td>
-                <td className="px-3 py-2.5 text-right font-mono text-zinc-300">{fmtMin(ts.effort_minutes)}</td>
+                <td className="px-3 py-2.5 text-right font-mono text-zinc-300">
+                  {ts.consultant_extra_pct ? (() => {
+                    const extraMin = Math.round(ts.effort_minutes * (Number(ts.consultant_extra_pct) / 100))
+                    const totalMin = ts.effort_minutes + extraMin
+                    return (
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span>{fmtMin(ts.effort_minutes)}</span>
+                        <span className="text-[10px] font-normal" style={{ color: '#22C55E' }}>
+                          +{Number(ts.consultant_extra_pct)}% = {fmtMin(totalMin)}
+                        </span>
+                      </div>
+                    )
+                  })() : fmtMin(ts.effort_minutes)}
+                </td>
               </tr>
             ))}
 

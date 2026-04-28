@@ -1168,7 +1168,18 @@ function TimesheetsPageContent() {
                       : '—'}
                   </Td>
                   <Td right mono className="font-semibold" style={{ color: 'var(--brand-primary)' }}>
-                    {formatMinutes(ts.effort_minutes)}
+                    {!isCliente && ts.consultant_extra_pct ? (() => {
+                      const extraMin = Math.round(ts.effort_minutes * (Number(ts.consultant_extra_pct) / 100))
+                      const totalMin = ts.effort_minutes + extraMin
+                      return (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span>{formatMinutes(ts.effort_minutes)}</span>
+                          <span className="text-[10px] font-normal" style={{ color: '#22C55E' }}>
+                            +{Number(ts.consultant_extra_pct)}% = {formatMinutes(totalMin)}
+                          </span>
+                        </div>
+                      )
+                    })() : formatMinutes(ts.effort_minutes)}
                   </Td>
                   <Td className="hidden sm:table-cell">
                     <OriginBadge
