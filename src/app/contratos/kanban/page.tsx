@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, MessageSquare, Trash2, Search } from 'lucide-react'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
+import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2132,13 +2133,23 @@ function KanbanContent() {
         />
       )}
 
-      {/* Contract Form Modal */}
-      <ContractFormModal
-        open={showNewContract}
-        editContract={editingContractData}
-        onClose={() => { setShowNewContract(false); setEditingContractData(null) }}
-        onSaved={load}
-      />
+      {/* New Contract Modal — with required-field validation */}
+      {showNewContract && !editingContractData && (
+        <ContractCreateModal
+          onClose={() => setShowNewContract(false)}
+          onSuccess={() => { setShowNewContract(false); load() }}
+        />
+      )}
+
+      {/* Edit Contract Modal */}
+      {showNewContract && editingContractData && (
+        <ContractFormModal
+          open={showNewContract}
+          editContract={editingContractData}
+          onClose={() => { setShowNewContract(false); setEditingContractData(null) }}
+          onSaved={load}
+        />
+      )}
 
       {contractAction && (() => {
         const { card, action } = contractAction
