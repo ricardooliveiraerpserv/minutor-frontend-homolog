@@ -75,6 +75,7 @@ interface ReceitaRow {
   horas_aprovadas: number
   valor_base: number
   total_receita: number
+  extra_receita?: number
 }
 
 interface ReceitaCliente {
@@ -277,7 +278,12 @@ function TabReceita({ data, loading }: { data: ReceitaData | null; loading: bool
                     <Td className="text-xs">{tipoLabel[p.tipo_faturamento] ?? p.tipo_faturamento}</Td>
                     <Td right className="tabular-nums text-xs">{p.horas_aprovadas.toFixed(1)}h</Td>
                     <Td right className="tabular-nums text-xs" style={{ color: 'var(--brand-muted)' }}>{p.valor_base > 0 ? formatBRL(p.valor_base) : '—'}</Td>
-                    <Td right className="tabular-nums text-xs font-bold" style={{ color: '#22c55e' }}>{formatBRL(p.total_receita)}</Td>
+                    <Td right className="tabular-nums text-xs font-bold" style={{ color: '#22c55e' }}>
+                      {formatBRL(p.total_receita)}
+                      {p.extra_receita != null && p.extra_receita > 0 && (
+                        <div className="text-[10px] font-normal" style={{ color: '#f59e0b' }}>+{formatBRL(p.extra_receita)} extra %</div>
+                      )}
+                    </Td>
                   </Tr>
                 ))}
               </Tbody>

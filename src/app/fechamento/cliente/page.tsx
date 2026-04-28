@@ -50,6 +50,7 @@ interface ProjetoRow {
   horas: number
   valor_hora: number
   total_receita: number
+  extra_receita?: number
   apontamentos: ApontamentoRow[]
 }
 
@@ -653,10 +654,21 @@ export default function FechamentoClientePage() {
                                 </Td>
                               </Tr>
                             ))}
+                            {p.extra_receita != null && p.extra_receita > 0 && (
+                              <Tr>
+                                <td colSpan={6} className="px-5 py-2 text-right text-[10px] font-semibold"
+                                  style={{ color: '#d97706' }}>
+                                  Acréscimo %
+                                </td>
+                                <Td right className="text-[10px] font-bold tabular-nums" style={{ color: '#d97706' }}>
+                                  +{formatBRL(p.extra_receita)}
+                                </Td>
+                              </Tr>
+                            )}
                             <Tr>
                               <td colSpan={6} className="px-5 py-3 text-right text-xs font-semibold"
                                 style={{ color: 'var(--brand-muted)' }}>
-                                {p.horas.toFixed(2)}h × {formatBRL(p.valor_hora)}/h
+                                {p.horas.toFixed(2)}h × {formatBRL(p.valor_hora)}/h{p.extra_receita && p.extra_receita > 0 ? ' + acréscimo' : ''} =
                               </td>
                               <Td right className="font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
                                 {formatBRL(p.total_receita)}
@@ -766,9 +778,19 @@ export default function FechamentoClientePage() {
                                   ))}
                                 </tbody>
                                 <tfoot>
+                                  {p.extra_receita != null && p.extra_receita > 0 && (
+                                    <tr style={{ background: '#fffbeb', borderTop: '1px solid #fde68a', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
+                                      <td colSpan={6} className="px-3 py-1.5 text-right text-xs font-semibold" style={{ color: '#92400e' }}>
+                                        Acréscimo % ({p.apontamentos.filter(a => a.client_extra_pct).map(a => `+${Number(a.client_extra_pct)}%`).filter((v, i, s) => s.indexOf(v) === i).join(', ')}) =
+                                      </td>
+                                      <td className="px-3 py-1.5 text-right text-xs font-bold tabular-nums" style={{ color: '#d97706' }}>
+                                        +{formatBRL(p.extra_receita)}
+                                      </td>
+                                    </tr>
+                                  )}
                                   <tr style={{ background: '#ede9fe', borderTop: '2px solid #5b21b6', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                                     <td colSpan={6} className="px-3 py-2 text-right text-sm font-semibold text-gray-700">
-                                      {p.horas.toFixed(2)}h × {formatBRL(p.valor_hora)}/h =
+                                      {p.horas.toFixed(2)}h × {formatBRL(p.valor_hora)}/h{p.extra_receita && p.extra_receita > 0 ? ' + acréscimo' : ''} =
                                     </td>
                                     <td className="px-3 py-2 text-right text-sm font-bold tabular-nums"
                                       style={{ color: '#5b21b6' }}>
