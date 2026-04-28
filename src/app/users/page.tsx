@@ -659,7 +659,8 @@ export default function UsersPage() {
               <p className="text-[10px] text-zinc-500 mb-2">Selecione um ou mais perfis — os acessos se somam.</p>
               <div className="grid grid-cols-3 gap-2">
                 {PROFILE_OPTIONS.map(opt => {
-                  const active = form.profiles.includes(opt.value)
+                  const active   = form.profiles.includes(opt.value)
+                  const isAdmin  = opt.value === 'administrator'
                   return (
                     <button
                       key={opt.value}
@@ -667,12 +668,18 @@ export default function UsersPage() {
                       onClick={() => toggleProfile(opt.value)}
                       className={`py-2 px-3 rounded-lg text-xs font-medium border transition-all text-left ${
                         active
-                          ? 'bg-blue-600/20 border-blue-500 text-blue-300'
-                          : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                          ? isAdmin
+                            ? 'bg-amber-600/20 border-amber-500 text-amber-300'
+                            : 'bg-blue-600/20 border-blue-500 text-blue-300'
+                          : isAdmin
+                            ? 'bg-zinc-800 border-amber-800/60 text-amber-500/80 hover:border-amber-600'
+                            : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
                       }`}
                     >
                       <span className={`mr-1.5 inline-block w-3 h-3 rounded border text-center leading-[10px] ${
-                        active ? 'border-blue-400 bg-blue-500 text-white' : 'border-zinc-600'
+                        active
+                          ? isAdmin ? 'border-amber-400 bg-amber-500 text-white' : 'border-blue-400 bg-blue-500 text-white'
+                          : 'border-zinc-600'
                       }`}>{active ? '✓' : ''}</span>
                       {opt.label}
                     </button>
