@@ -255,20 +255,8 @@ function buildReport(
   `
 }
 
-function openPrintWindow(html: string, iframe?: HTMLIFrameElement | null) {
-  const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório</title><style>${printStyles}</style></head><body>${html}</body></html>`
-  if (iframe) {
-    iframe.srcdoc = fullHtml
-    iframe.onload = () => { iframe.contentWindow?.print(); iframe.onload = null }
-    return
-  }
-  // fallback popup
-  const w = window.open('', '_blank')
-  if (!w) return
-  w.document.open()
-  w.document.write(fullHtml)
-  w.document.close()
-  setTimeout(() => w.print(), 300)
+function buildFullHtml(html: string) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório</title><style>${printStyles}</style></head><body>${html}</body></html>`
 }
 
 // ─── RelatorioBtn ─────────────────────────────────────────────────────────────
@@ -309,7 +297,8 @@ export default function FechamentoConsultorPage() {
   const [data, setData] = useState<IndexData | null>(null)
   const [loading, setLoading] = useState(false)
   const [printingUser, setPrintingUser] = useState<number | null>(null)
-  const printIframeRef = useRef<HTMLIFrameElement>(null)
+  const [reportHtml, setReportHtml] = useState<string | null>(null)
+  const reportIframeRef = useRef<HTMLIFrameElement>(null)
 
   const load = useCallback(async () => {
     if (!yearMonth) return
@@ -332,7 +321,7 @@ export default function FechamentoConsultorPage() {
         `/fechamento-consultor/${consultor.user_id}/${yearMonth}/apontamentos`
       )
       const html = buildReport(consultor, res.data ?? [], yearMonth)
-      openPrintWindow(html, printIframeRef.current)
+      setReportHtml(buildFullHtml(html))
     } catch (err: unknown) {
       toast.error(`Erro ao gerar relatório: ${err instanceof Error ? err.message : 'falha na API'}`)
     } finally {
@@ -374,7 +363,7 @@ export default function FechamentoConsultorPage() {
         </div>
       </div>
     `
-    openPrintWindow(html, printIframeRef.current)
+    setReportHtml(buildFullHtml(html))
   }
 
   function handlePrintResumo() {
@@ -404,7 +393,7 @@ export default function FechamentoConsultorPage() {
         </div>
       </div>
     `
-    openPrintWindow(html, printIframeRef.current)
+    setReportHtml(buildFullHtml(html))
   }
 
   const TABS: { key: Tab; label: string }[] = [
@@ -752,8 +741,36 @@ export default function FechamentoConsultorPage() {
         </div>
 
       </div>
-      {/* iframe oculto para impressão — evita bloqueio de popup */}
-      <iframe ref={printIframeRef} style={{ position: 'fixed', width: 0, height: 0, opacity: 0, top: -9999, left: -9999, border: 'none' }} />
+      {/* Modal de visualização do relatório */}
+      {reportHtml && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'rgba(0,0,0,0.85)' }}>
+          <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ background: '#18181b', borderBottom: '1px solid #3f3f46' }}>
+            <span className="text-sm font-semibold text-white">Relatório</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => reportIframeRef.current?.contentWindow?.print()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+              >
+                <Printer size={12} /> Imprimir
+              </button>
+              <button
+                onClick={() => setReportHtml(null)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-300 hover:bg-zinc-700 transition-colors"
+                style={{ border: '1px solid #3f3f46' }}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+          <iframe
+            ref={reportIframeRef}
+            srcDoc={reportHtml}
+            className="flex-1 w-full"
+            style={{ background: '#fff', border: 'none' }}
+          />
+        </div>
+      )}
     </AppLayout>
   )
 }
