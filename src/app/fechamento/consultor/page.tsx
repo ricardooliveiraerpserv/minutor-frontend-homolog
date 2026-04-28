@@ -258,6 +258,7 @@ function buildReport(
 function openPrintWindow(html: string, win?: Window | null) {
   const w = win ?? window.open('', '_blank')
   if (!w) return
+  w.document.open()
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório</title><style>${printStyles}</style></head><body>${html}</body></html>`)
   w.document.close()
   setTimeout(() => w.print(), 300)
@@ -319,6 +320,12 @@ export default function FechamentoConsultorPage() {
   async function handleRelatorio(consultor: ConsultorBase | ConsultorBancoHoras | ConsultorFixo) {
     // Abre a janela imediatamente (contexto síncrono do click) para evitar bloqueio de popup
     const win = window.open('', '_blank')
+    if (!win) {
+      toast.error('Popup bloqueado pelo navegador. Permita popups para este site.')
+      return
+    }
+    // Escreve placeholder para manter a aba viva durante a chamada de API
+    win.document.write('<html><head><title>Gerando relatório…</title><style>body{background:#111;color:#aaa;font:14px sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style></head><body>Gerando relatório, aguarde…</body></html>')
     setPrintingUser(consultor.user_id)
     try {
       const res = await api.get<{ data: ApontamentoRow[] }>(
