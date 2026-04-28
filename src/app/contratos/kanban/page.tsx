@@ -159,7 +159,10 @@ const PROJECT_MENU_ITEMS = [
   { action: 'status',     label: 'Alterar Status',    icon: Layers },
   { action: 'cost',       label: 'Custo',             icon: DollarSign },
   { action: 'timesheets', label: 'Apontamentos',      icon: Clock },
+  { action: 'expenses',   label: 'Despesas',          icon: BarChart2 },
+  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp },
   { action: 'team',       label: 'Selecionar Equipe', icon: Users },
+  { action: 'delete',     label: 'Excluir',           icon: Trash2,     danger: true },
 ]
 
 const CONTRACT_MENU_ITEMS = [
@@ -1331,12 +1334,13 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
                     style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                     {PROJECT_MENU_ITEMS.map(item => {
                       const Icon = item.icon
+                      const isDanger = (item as any).danger
                       return (
                         <button key={item.action}
                           onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
                           className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
-                          style={{ color: 'var(--brand-text)' }}>
-                          <Icon size={13} style={{ color: 'var(--brand-subtle)' }} />
+                          style={{ color: isDanger ? '#ef4444' : 'var(--brand-text)' }}>
+                          <Icon size={13} style={{ color: isDanger ? '#ef4444' : 'var(--brand-subtle)' }} />
                           {item.label}
                         </button>
                       )
@@ -2256,6 +2260,58 @@ function KanbanContent() {
         if (action === 'chat' && card.contract_id) {
           const chatCard = { id: card.contract_id, customer_name: card.customer_name, project_name: card.project_name } as any
           return <CardDetailModal card={chatCard} onClose={close} initialTab="chat" userRole={user?.type ?? undefined} />
+        }
+        if (action === 'expenses') {
+          router.push(`/expenses?project_id=${card.id}`)
+          close()
+          return null
+        }
+        if (action === 'aportes') {
+          router.push('/gestao-projetos')
+          close()
+          return null
+        }
+        if (action === 'delete') {
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+              <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                      <Trash2 size={16} style={{ color: '#ef4444' }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Excluir Projeto</p>
+                      <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{card.project_name ?? card.customer_name}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="px-6 py-4">
+                  <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
+                    Tem certeza que deseja excluir este projeto? Esta ação não pode ser desfeita.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                  <button onClick={close} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Cancelar</button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.delete(`/projects/${card.id}`)
+                        toast.success('Projeto excluído')
+                        close()
+                        load()
+                      } catch (e: any) {
+                        toast.error(e?.message ?? 'Erro ao excluir')
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+                    style={{ background: '#ef4444', color: '#fff' }}>
+                    <Trash2 size={13} /> Excluir
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
         }
         return null
       })()}
