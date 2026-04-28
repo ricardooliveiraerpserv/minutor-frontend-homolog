@@ -72,7 +72,7 @@ function OriginBadge({ origin, isBillableOnly, canSeePct, clientExtraPct, consul
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
           style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}
         >
-          +{clientExtraPct}% cli
+          +{Number(clientExtraPct)}% cli
         </span>
       ) : null}
       {canSeePct && consultantExtraPct ? (
@@ -80,7 +80,7 @@ function OriginBadge({ origin, isBillableOnly, canSeePct, clientExtraPct, consul
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
           style={{ background: 'rgba(34,197,94,0.12)', color: '#22C55E' }}
         >
-          +{consultantExtraPct}% cons
+          +{Number(consultantExtraPct)}% cons
         </span>
       ) : null}
       {origin === 'webhook' ? (
@@ -1052,12 +1052,29 @@ function TimesheetsPageContent() {
         </div>}
 
         {/* Total horas */}
-        {data && data.totalEffortHours && (
-          <div className="mb-4 flex items-center gap-2">
-            <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Total de horas:</span>
-            <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{data.totalEffortHours}</span>
-          </div>
-        )}
+        {data && data.totalEffortHours && (() => {
+          const extraMin = (isAdmin || isCoordenador) ? (data.totalConsultantExtraMinutes ?? 0) : 0
+          const baseMin  = data.totalEffortMinutes ?? 0
+          const totalMin = baseMin + extraMin
+          if (extraMin > 0) {
+            return (
+              <div className="mb-4 flex items-center gap-1 flex-wrap">
+                <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Apontadas:</span>
+                <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{data.totalEffortHours}</span>
+                <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>+ % extra:</span>
+                <span className="text-sm font-bold" style={{ color: '#22C55E' }}>+{formatMinutes(extraMin)}</span>
+                <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>=</span>
+                <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>Total efetivo: {formatMinutes(totalMin)}</span>
+              </div>
+            )
+          }
+          return (
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Total de horas:</span>
+              <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{data.totalEffortHours}</span>
+            </div>
+          )
+        })()}
 
         {/* Table */}
         {loading ? (

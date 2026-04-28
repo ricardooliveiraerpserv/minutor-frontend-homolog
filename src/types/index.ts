@@ -27,6 +27,7 @@ export interface PaginatedResponse<T> {
   hasNext: boolean
   totalEffortMinutes?: number
   totalEffortHours?: string
+  totalConsultantExtraMinutes?: number
 }
 
 export interface Customer {
