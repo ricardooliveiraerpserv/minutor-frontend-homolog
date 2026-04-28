@@ -281,10 +281,11 @@ function DateRangePicker({ from, to, onChange }: {
 
 // ─── Extra Pct Modal ─────────────────────────────────────────────────────────
 
-function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, onClose, onSaved }: {
+function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillableOnly, onClose, onSaved }: {
   ids: number[]
   initialClientPct?: number | null
   initialConsultantPct?: number | null
+  isBillableOnly?: boolean
   onClose: () => void
   onSaved: () => void
 }) {
@@ -352,13 +353,17 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, onClose, o
             <div className="relative mt-1">
               <input
                 type="number" min="0" max="999" step="0.01"
-                value={consultantPct}
+                value={isBillableOnly ? '' : consultantPct}
                 onChange={e => setConsultantPct(e.target.value)}
-                placeholder={isBulk ? 'Não alterar' : '0'}
-                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                placeholder={isBillableOnly ? 'N/A — Fat. Admin' : (isBulk ? 'Não alterar' : '0')}
+                disabled={isBillableOnly}
+                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-green-400 pointer-events-none">%</span>
             </div>
+            {isBillableOnly && (
+              <p className="text-[10px] text-amber-500 mt-1">Apontamento Fat. Admin — % consultor não aplicável.</p>
+            )}
           </div>
         </div>
 
@@ -1226,6 +1231,7 @@ function TimesheetsPageContent() {
           ids={extraPctModalData.ids}
           initialClientPct={extraPctModalData.ts?.client_extra_pct}
           initialConsultantPct={extraPctModalData.ts?.consultant_extra_pct}
+          isBillableOnly={extraPctModalData.ids.length === 1 ? extraPctModalData.ts?.is_billable_only : false}
           onClose={() => setExtraPctModalData(null)}
           onSaved={() => { refetch(); setSelectedIds(new Set()) }}
         />

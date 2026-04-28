@@ -468,10 +468,11 @@ export default function EditTimesheetPage() {
                   <div className="relative">
                     <input
                       type="number" min="0" max="999" step="0.01"
-                      value={form.consultant_extra_pct}
+                      value={form.is_billable_only ? '' : form.consultant_extra_pct}
                       onChange={e => setForm(f => ({ ...f, consultant_extra_pct: e.target.value }))}
-                      placeholder="0"
-                      className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      placeholder={form.is_billable_only ? 'N/A — Fat. Admin' : '0'}
+                      disabled={form.is_billable_only}
+                      className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-green-400 pointer-events-none">%</span>
                     <span className="absolute -top-0 left-0 text-[10px] text-zinc-500 -mt-4">Consultor</span>
