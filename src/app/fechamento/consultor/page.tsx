@@ -7,6 +7,7 @@ import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
 import { RefreshCw, Printer, FileText, Users } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   PageHeader, Table, Thead, Th, Tbody, Tr, Td,
   Button, SkeletonTable, EmptyState,
@@ -100,10 +101,11 @@ function fmtDate(d: string): string {
 }
 
 function fmtH(h: number): string {
-  const totalMins = Math.round(h * 60)
+  const sign     = h < 0 ? '-' : ''
+  const totalMins = Math.abs(Math.round(h * 60))
   const hrs  = Math.floor(totalMins / 60)
   const mins = totalMins % 60
-  return `${hrs}h${String(mins).padStart(2, '0')}`
+  return `${sign}${hrs}h${String(mins).padStart(2, '0')}`
 }
 
 function balanceColor(val: number): string {
@@ -324,8 +326,9 @@ export default function FechamentoConsultorPage() {
       )
       const html = buildReport(consultor, res.data ?? [], yearMonth)
       openPrintWindow(html, win)
-    } catch {
+    } catch (err: unknown) {
       win?.close()
+      toast.error(`Erro ao gerar relatório: ${err instanceof Error ? err.message : 'falha na API'}`)
     } finally {
       setPrintingUser(null)
     }
