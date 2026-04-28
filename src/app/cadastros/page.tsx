@@ -943,7 +943,7 @@ function HolidaysTab() {
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 font-mono text-zinc-200">
-                  {new Date(item.date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                  {new Date(item.date.slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR')}
                 </td>
                 <td className="px-3 py-2.5 text-zinc-200">{item.name}</td>
                 <td className="px-3 py-2.5 text-zinc-400">{typeLabel(item.type)}{item.state && ` (${item.state})`}</td>
