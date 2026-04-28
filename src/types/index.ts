@@ -85,6 +85,7 @@ export interface Timesheet {
   reviewedBy?: User
   reviewed_at?: string
   origin?: string
+  is_billable_only?: boolean
   movidesk_appointment_id?: number | null
   created_at: string
 }

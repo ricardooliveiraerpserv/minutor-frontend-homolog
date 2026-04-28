@@ -51,6 +51,7 @@ export default function NewTimesheetPage() {
     end_time: '',
     ticket: '',
     observation: '',
+    is_billable_only: false,
   })
   const [saving, setSaving] = useState(false)
   const [users,     setUsers]     = useState<SelectOption[]>([])
@@ -132,6 +133,9 @@ export default function NewTimesheetPage() {
         observation: form.observation || null,
       }
       if (isAdmin && form.user_id) body.user_id = Number(form.user_id)
+      if (isAdmin && form.user_id && form.user_id !== String(user?.id) && form.is_billable_only) {
+        body.is_billable_only = true
+      }
       await api.post('/timesheets', body)
       toast.success('Apontamento criado com sucesso')
       router.push('/timesheets')
@@ -265,6 +269,19 @@ export default function NewTimesheetPage() {
               onChange={e => set('observation', e.target.value)}
               className={inputCls + ' resize-none'} style={inputStyle} />
           </div>
+
+          {/* Somente faturável (admin, apontando para outro usuário) */}
+          {isAdmin && form.user_id && form.user_id !== String(user?.id) && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={form.is_billable_only}
+                onChange={e => setForm(f => ({ ...f, is_billable_only: e.target.checked }))}
+                className="w-3.5 h-3.5 accent-amber-500"
+              />
+              <span className="text-xs text-amber-400">Somente faturável — não reflete no pagamento do consultor</span>
+            </label>
+          )}
 
           {/* Ações */}
           <div className="flex gap-2 pt-2">

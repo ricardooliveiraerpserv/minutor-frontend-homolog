@@ -129,15 +129,17 @@ interface TrProps {
   children: React.ReactNode
   onClick?: () => void
   className?: string
+  baseBackground?: string
 }
 
-export function Tr({ children, onClick, className }: TrProps) {
+export function Tr({ children, onClick, className, baseBackground }: TrProps) {
+  const base = baseBackground ?? 'transparent'
   return (
     <tr
       className={cn('transition-colors duration-100', onClick && 'cursor-pointer', className)}
-      style={{ borderBottom: '1px solid var(--brand-border)' }}
-      onMouseEnter={e => { if (onClick || true) e.currentTarget.style.background = 'rgba(0,245,255,0.03)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+      style={{ borderBottom: '1px solid var(--brand-border)', background: base }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,245,255,0.03)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = base }}
       onClick={onClick}
     >
       {children}

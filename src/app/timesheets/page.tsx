@@ -12,7 +12,7 @@ import {
   Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
   Trash2, X, Globe, Webhook, MoreVertical, Eye, Search, ChevronDown,
   Paperclip, Calendar, Building2, FolderOpen, Ticket, Hash,
-  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight,
+  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign,
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
@@ -49,21 +49,32 @@ function formatMinutes(minutes: number) {
 
 // ─── Origin badge ─────────────────────────────────────────────────────────────
 
-function OriginBadge({ origin }: { origin?: string }) {
-  if (origin === 'webhook') return (
-    <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-      style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}
-    >
-      <Webhook size={9} /> Movidesk
-    </span>
-  )
+function OriginBadge({ origin, isBillableOnly }: { origin?: string; isBillableOnly?: boolean }) {
   return (
-    <span
-      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-      style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}
-    >
-      <Globe size={9} /> Web
+    <span className="inline-flex items-center gap-1 flex-wrap">
+      {isBillableOnly && (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+          style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}
+        >
+          <DollarSign size={9} /> Fat. Admin
+        </span>
+      )}
+      {origin === 'webhook' ? (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+          style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}
+        >
+          <Webhook size={9} /> Movidesk
+        </span>
+      ) : (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+          style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}
+        >
+          <Globe size={9} /> Web
+        </span>
+      )}
     </span>
   )
 }
@@ -907,7 +918,7 @@ function TimesheetsPageContent() {
                   </td>
                 </tr>
               ) : data?.items.map(ts => (
-                <Tr key={ts.id}>
+                <Tr key={ts.id} baseBackground={ts.is_billable_only ? 'rgba(245,158,11,0.06)' : undefined}>
                   <Td className="w-10">
                     <RowActions id={ts.id} onView={() => openView(ts)} onDeleted={refetch} viewOnly={isCliente} />
                   </Td>
@@ -932,7 +943,7 @@ function TimesheetsPageContent() {
                     {formatMinutes(ts.effort_minutes)}
                   </Td>
                   <Td className="hidden sm:table-cell">
-                    <OriginBadge origin={ts.origin} />
+                    <OriginBadge origin={ts.origin} isBillableOnly={ts.is_billable_only} />
                   </Td>
                   <Td muted>{ts.user?.name ?? '—'}</Td>
                   <Td className="max-w-[160px]">

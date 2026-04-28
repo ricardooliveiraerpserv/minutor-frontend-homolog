@@ -123,6 +123,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
     date: new Date().toISOString().split('T')[0],
     start_time: '', end_time: '', total_hours: '',
     ticket: '', observation: '',
+    is_billable_only: false,
   })
 
   const [customers,    setCustomers]    = useState<SelectOption[]>([])
@@ -140,6 +141,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       date: new Date().toISOString().split('T')[0],
       start_time: '', end_time: '', total_hours: '',
       ticket: '', observation: '',
+      is_billable_only: false,
     })
     setProjects([])
     setLoadingData(true)
@@ -227,6 +229,9 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
         observation: form.observation || null,
       }
       if (canActAsUser && form.user_id) body.user_id = Number(form.user_id)
+      if (isAdmin && form.user_id && form.user_id !== String(currentUser?.id) && form.is_billable_only) {
+        body.is_billable_only = true
+      }
       await api.post('/timesheets', body)
       toast.success('Apontamento criado com sucesso')
       onClose()
@@ -383,6 +388,19 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                 onChange={e => setForm(f => ({ ...f, observation: e.target.value }))}
                 className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 resize-none" />
             </div>
+
+            {/* Somente faturável (admin, apontando para outro usuário) */}
+            {isAdmin && form.user_id && form.user_id !== String(currentUser?.id) && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.is_billable_only}
+                  onChange={e => setForm(f => ({ ...f, is_billable_only: e.target.checked }))}
+                  className="w-3.5 h-3.5 accent-amber-500"
+                />
+                <span className="text-xs text-amber-400">Somente faturável — não reflete no pagamento do consultor</span>
+              </label>
+            )}
           </div>
 
           <div className="flex gap-2 mt-5 justify-end">
