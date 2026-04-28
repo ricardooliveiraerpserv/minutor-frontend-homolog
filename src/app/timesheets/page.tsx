@@ -12,7 +12,7 @@ import {
   Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
   Trash2, X, Globe, Webhook, MoreVertical, Eye, Search, ChevronDown,
   Paperclip, Calendar, Building2, FolderOpen, Ticket, Hash,
-  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign,
+  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign, TrendingUp,
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
@@ -49,7 +49,13 @@ function formatMinutes(minutes: number) {
 
 // ─── Origin badge ─────────────────────────────────────────────────────────────
 
-function OriginBadge({ origin, isBillableOnly }: { origin?: string; isBillableOnly?: boolean }) {
+function OriginBadge({ origin, isBillableOnly, canSeePct, clientExtraPct, consultantExtraPct }: {
+  origin?: string
+  isBillableOnly?: boolean
+  canSeePct?: boolean
+  clientExtraPct?: number | null
+  consultantExtraPct?: number | null
+}) {
   return (
     <span className="inline-flex items-center gap-1 flex-wrap">
       {isBillableOnly && (
@@ -60,6 +66,22 @@ function OriginBadge({ origin, isBillableOnly }: { origin?: string; isBillableOn
           <DollarSign size={9} /> Fat. Admin
         </span>
       )}
+      {canSeePct && clientExtraPct ? (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+          style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}
+        >
+          +{clientExtraPct}% cli
+        </span>
+      ) : null}
+      {canSeePct && consultantExtraPct ? (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+          style={{ background: 'rgba(34,197,94,0.12)', color: '#22C55E' }}
+        >
+          +{consultantExtraPct}% cons
+        </span>
+      ) : null}
       {origin === 'webhook' ? (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
@@ -257,11 +279,116 @@ function DateRangePicker({ from, to, onChange }: {
   )
 }
 
+// ─── Extra Pct Modal ─────────────────────────────────────────────────────────
+
+function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, onClose, onSaved }: {
+  ids: number[]
+  initialClientPct?: number | null
+  initialConsultantPct?: number | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const isBulk = ids.length > 1
+  const [clientPct,     setClientPct]     = useState(initialClientPct != null ? String(initialClientPct) : '')
+  const [consultantPct, setConsultantPct] = useState(initialConsultantPct != null ? String(initialConsultantPct) : '')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      if (isBulk) {
+        const body: Record<string, any> = { ids }
+        if (clientPct !== '')     body.client_extra_pct     = clientPct ? parseFloat(clientPct) : null
+        if (consultantPct !== '') body.consultant_extra_pct = consultantPct ? parseFloat(consultantPct) : null
+        await api.put('/timesheets/bulk-extra-pct', body)
+        toast.success(`% extras aplicados em ${ids.length} apontamentos`)
+      } else {
+        await api.put(`/timesheets/${ids[0]}`, {
+          client_extra_pct:     clientPct !== '' ? (clientPct ? parseFloat(clientPct) : null) : null,
+          consultant_extra_pct: consultantPct !== '' ? (consultantPct ? parseFloat(consultantPct) : null) : null,
+        })
+        toast.success('% extras atualizados')
+      }
+      onSaved()
+      onClose()
+    } catch {
+      toast.error('Erro ao salvar % extras')
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative rounded-2xl p-6 w-full max-w-sm mx-4" style={{ background: '#111113', border: '1px solid #3f3f46' }}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-white">
+            {isBulk ? `% Extras — ${ids.length} apontamentos` : `% Extras — #${ids[0]}`}
+          </h3>
+          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
+            <X size={14} className="text-zinc-400" />
+          </button>
+        </div>
+
+        {isBulk && (
+          <p className="text-[11px] text-zinc-500 mb-3">Campos vazios não serão alterados nos apontamentos selecionados.</p>
+        )}
+
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs text-zinc-400">% Extra Cliente</Label>
+            <div className="relative mt-1">
+              <input
+                type="number" min="0" max="999" step="0.01"
+                value={clientPct}
+                onChange={e => setClientPct(e.target.value)}
+                placeholder={isBulk ? 'Não alterar' : '0'}
+                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-amber-400 pointer-events-none">%</span>
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs text-zinc-400">% Extra Consultor</Label>
+            <div className="relative mt-1">
+              <input
+                type="number" min="0" max="999" step="0.01"
+                value={consultantPct}
+                onChange={e => setConsultantPct(e.target.value)}
+                placeholder={isBulk ? 'Não alterar' : '0'}
+                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-green-400 pointer-events-none">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-5 justify-end">
+          <button onClick={() => { setClientPct(''); setConsultantPct('') }}
+            className="px-3 py-2 rounded-xl text-xs text-zinc-400 hover:bg-white/5 transition-colors border border-zinc-700">
+            Limpar
+          </button>
+          <button onClick={onClose}
+            className="px-3 py-2 rounded-xl text-xs text-zinc-400 hover:bg-white/5 transition-colors border border-zinc-700">
+            Cancelar
+          </button>
+          <button onClick={save} disabled={saving}
+            className="px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-40 transition-all"
+            style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+            {saving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Row actions ─────────────────────────────────────────────────────────────
 
 interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }
 
-function RowActions({ id, onView, onDeleted, viewOnly }: { id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean }) {
+function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct }: {
+  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void
+}) {
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
 
@@ -282,6 +409,7 @@ function RowActions({ id, onView, onDeleted, viewOnly }: { id: number; onView: (
     : [
         { label: 'Visualizar', icon: <Eye size={12} />, onClick: onView },
         { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } },
+        ...(onExtraPct ? [{ label: '% Extras', icon: <TrendingUp size={12} />, onClick: onExtraPct }] : []),
         { label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true },
       ]
 
@@ -525,6 +653,8 @@ function TimesheetsPageContent() {
   const [consultants, setConsultants] = useState<SelectOption[]>([])
   const [viewItem, setViewItem]       = useState<Timesheet | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [extraPctModalData, setExtraPctModalData] = useState<{ ids: number[]; ts?: Timesheet } | null>(null)
 
   // ── New timesheet modal ──────────────────────────────────────────────────
   const [newModalOpen, setNewModalOpen] = useState(false)
@@ -894,6 +1024,19 @@ function TimesheetsPageContent() {
             <Thead>
               <tr>
                 <Th className="w-10" />
+                {(isAdmin || isCoordenador) && (
+                  <Th className="w-8">
+                    <input
+                      type="checkbox"
+                      className="w-3.5 h-3.5 accent-cyan-400 cursor-pointer"
+                      checked={!!(data?.items.length && data.items.every(ts => selectedIds.has(ts.id)))}
+                      onChange={e => {
+                        if (e.target.checked) setSelectedIds(new Set(data?.items.map(ts => ts.id) ?? []))
+                        else setSelectedIds(new Set())
+                      }}
+                    />
+                  </Th>
+                )}
                 <Th sortable active={sortField === 'date'}          dir={sortDir} onClick={() => handleSort('date')}>Data</Th>
                 <Th className="hidden md:table-cell">Início</Th>
                 <Th className="hidden md:table-cell">Fim</Th>
@@ -920,8 +1063,31 @@ function TimesheetsPageContent() {
               ) : data?.items.map(ts => (
                 <Tr key={ts.id} baseBackground={ts.is_billable_only ? 'rgba(245,158,11,0.06)' : undefined}>
                   <Td className="w-10">
-                    <RowActions id={ts.id} onView={() => openView(ts)} onDeleted={refetch} viewOnly={isCliente} />
+                    <RowActions
+                      id={ts.id}
+                      onView={() => openView(ts)}
+                      onDeleted={refetch}
+                      viewOnly={isCliente}
+                      onExtraPct={(isAdmin || isCoordenador) ? () => setExtraPctModalData({ ids: [ts.id], ts }) : undefined}
+                    />
                   </Td>
+                  {(isAdmin || isCoordenador) && (
+                    <Td className="w-8">
+                      <input
+                        type="checkbox"
+                        className="w-3.5 h-3.5 accent-cyan-400 cursor-pointer"
+                        checked={selectedIds.has(ts.id)}
+                        onChange={e => {
+                          setSelectedIds(prev => {
+                            const next = new Set(prev)
+                            if (e.target.checked) next.add(ts.id)
+                            else next.delete(ts.id)
+                            return next
+                          })
+                        }}
+                      />
+                    </Td>
+                  )}
                   <Td className="whitespace-nowrap font-medium">{formatDate(ts.date)}</Td>
                   <Td muted className="hidden md:table-cell font-mono tabular-nums">{ts.start_time ?? '—'}</Td>
                   <Td muted className="hidden md:table-cell font-mono tabular-nums">{ts.end_time ?? '—'}</Td>
@@ -943,7 +1109,13 @@ function TimesheetsPageContent() {
                     {formatMinutes(ts.effort_minutes)}
                   </Td>
                   <Td className="hidden sm:table-cell">
-                    <OriginBadge origin={ts.origin} isBillableOnly={ts.is_billable_only} />
+                    <OriginBadge
+                      origin={ts.origin}
+                      isBillableOnly={ts.is_billable_only}
+                      canSeePct={isAdmin || isCoordenador}
+                      clientExtraPct={ts.client_extra_pct}
+                      consultantExtraPct={ts.consultant_extra_pct}
+                    />
                   </Td>
                   <Td muted>{ts.user?.name ?? '—'}</Td>
                   <Td className="max-w-[160px]">
@@ -1008,6 +1180,7 @@ function TimesheetsPageContent() {
           ts={viewItem}
           onClose={() => setViewItem(null)}
           onEdit={() => { window.location.href = `/timesheets/${viewItem.id}/edit` }}
+          currentUser={user}
         />
       )}
       {viewLoading && viewItem && (
@@ -1023,6 +1196,40 @@ function TimesheetsPageContent() {
         onSaved={refetch}
         currentUser={user}
       />
+
+      {/* Bulk action bar */}
+      {(isAdmin || isCoordenador) && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl"
+          style={{ background: '#18181B', border: '1px solid #3f3f46' }}>
+          <span className="text-xs text-zinc-300">
+            {selectedIds.size} apontamento{selectedIds.size > 1 ? 's' : ''} selecionado{selectedIds.size > 1 ? 's' : ''}
+          </span>
+          <button
+            onClick={() => setExtraPctModalData({ ids: Array.from(selectedIds) })}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+            style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+          >
+            <TrendingUp size={11} /> % Extras
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <X size={14} className="text-zinc-400" />
+          </button>
+        </div>
+      )}
+
+      {/* ExtraPct Modal */}
+      {extraPctModalData && (
+        <ExtraPctModal
+          ids={extraPctModalData.ids}
+          initialClientPct={extraPctModalData.ts?.client_extra_pct}
+          initialConsultantPct={extraPctModalData.ts?.consultant_extra_pct}
+          onClose={() => setExtraPctModalData(null)}
+          onSaved={() => { refetch(); setSelectedIds(new Set()) }}
+        />
+      )}
     </AppLayout>
   )
 }

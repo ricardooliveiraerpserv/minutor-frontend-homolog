@@ -2436,6 +2436,9 @@ export default function MeuPainelPage() {
                       <td className="px-4 py-3.5 text-white font-mono font-bold whitespace-nowrap">
                         <span className="flex items-center gap-1.5">
                           {ts.effort_hours}
+                          {(ts as any).consultant_extra_pct ? (
+                            <span className="text-[10px] font-semibold text-green-400">+{(ts as any).consultant_extra_pct}%</span>
+                          ) : null}
                           {ts.attachment_url && <Paperclip size={10} className="text-zinc-500 shrink-0" aria-label="Tem anexo" />}
                         </span>
                       </td>

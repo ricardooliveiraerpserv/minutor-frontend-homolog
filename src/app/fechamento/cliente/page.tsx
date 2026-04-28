@@ -37,6 +37,8 @@ interface ApontamentoRow {
   titulo?: string
   solicitante?: string
   observacao?: string
+  client_extra_pct?: number | null
+  valor_extra?: number | null
 }
 
 interface ProjetoRow {
@@ -628,7 +630,14 @@ export default function FechamentoClientePage() {
                                 <Td muted className="text-xs">{ts.ticket ?? '—'}</Td>
                                 <Td muted className="text-xs">{ts.titulo ?? '—'}</Td>
                                 <Td muted className="text-xs">{ts.observacao ?? '—'}</Td>
-                                <Td right className="tabular-nums text-xs font-medium">{ts.horas.toFixed(2)}h</Td>
+                                <Td right className="tabular-nums text-xs font-medium">
+                                  {ts.horas.toFixed(2)}h
+                                  {ts.client_extra_pct ? (
+                                    <span className="ml-1.5 text-[10px] font-semibold" style={{ color: '#F59E0B' }}>
+                                      +{ts.client_extra_pct}%{ts.valor_extra ? ` = +${formatBRL(ts.valor_extra)}` : ''}
+                                    </span>
+                                  ) : null}
+                                </Td>
                               </Tr>
                             ))}
                             <Tr>
@@ -734,6 +743,11 @@ export default function FechamentoClientePage() {
                                       <td className="px-3 py-2 text-xs text-gray-500">{ts.observacao ?? '—'}</td>
                                       <td className="px-3 py-2 text-xs text-right font-medium text-gray-800 tabular-nums">
                                         {ts.horas.toFixed(2)}h
+                                        {ts.client_extra_pct ? (
+                                          <span className="block text-[10px] font-semibold" style={{ color: '#d97706' }}>
+                                            +{ts.client_extra_pct}%{ts.valor_extra ? ` (+${formatBRL(ts.valor_extra)})` : ''}
+                                          </span>
+                                        ) : null}
                                       </td>
                                     </tr>
                                   ))}

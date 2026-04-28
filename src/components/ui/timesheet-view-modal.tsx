@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   X, Clock, Pencil, Calendar, User, Building2, FolderOpen,
-  Ticket, Hash, Paperclip, FileText, CheckCircle, Globe, Webhook, DollarSign,
+  Ticket, Hash, Paperclip, FileText, CheckCircle, Globe, Webhook, DollarSign, TrendingUp,
 } from 'lucide-react'
 import { Badge } from '@/components/ds'
 import type { Timesheet } from '@/types'
@@ -74,11 +74,12 @@ function OriginChip({ origin }: { origin?: string }) {
 }
 
 export function TimesheetViewModal({
-  ts, onClose, onEdit,
+  ts, onClose, onEdit, currentUser,
 }: {
   ts: Timesheet
   onClose: () => void
   onEdit?: () => void
+  currentUser?: { type?: string | null } | null
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -174,6 +175,12 @@ export function TimesheetViewModal({
             {ts.movidesk_appointment_id && (
               <InfoRow icon={Hash} label="ID Movidesk" value={String(ts.movidesk_appointment_id)} />
             )}
+            {(currentUser?.type === 'admin' || currentUser?.type === 'coordenador') && ts.client_extra_pct ? (
+              <InfoRow icon={TrendingUp} label="Acréscimo Cliente" value={`+${ts.client_extra_pct}%`} />
+            ) : null}
+            {(currentUser?.type === 'admin' || currentUser?.type === 'coordenador') && ts.consultant_extra_pct ? (
+              <InfoRow icon={TrendingUp} label="Acréscimo Consultor" value={`+${ts.consultant_extra_pct}%`} />
+            ) : null}
             <InfoRow icon={Paperclip} label="Anexo" last>
               {(ts as any).attachment_url
                 ? <AttachmentLink url={(ts as any).attachment_url} />

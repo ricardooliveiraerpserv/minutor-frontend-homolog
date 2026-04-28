@@ -127,6 +127,8 @@ export default function EditTimesheetPage() {
     date: '', start_time: '', end_time: '', total_hours: '',
     ticket: '', observation: '',
     is_billable_only: false,
+    client_extra_pct: '' as string,
+    consultant_extra_pct: '' as string,
   })
   const [useTotal,   setUseTotal]   = useState(false)
   const [timeDriver, setTimeDriver] = useState<'end' | 'total'>('end')
@@ -179,16 +181,18 @@ export default function EditTimesheetPage() {
     const customerId = ts.customer?.id ? String(ts.customer.id) : ''
     const userId = ts.user?.id ? String(ts.user.id) : ts.user_id ? String(ts.user_id) : ''
     setForm({
-      user_id:          userId,
-      customer_id:      customerId,
-      project_id:       String(ts.project_id ?? ''),
-      date:             ts.date ?? '',
-      start_time:       ts.start_time ?? '',
-      end_time:         ts.end_time ?? '',
-      total_hours:      '',
-      ticket:           ts.ticket ?? '',
-      observation:      ts.observation ?? '',
-      is_billable_only: ts.is_billable_only ?? false,
+      user_id:              userId,
+      customer_id:          customerId,
+      project_id:           String(ts.project_id ?? ''),
+      date:                 ts.date ?? '',
+      start_time:           ts.start_time ?? '',
+      end_time:             ts.end_time ?? '',
+      total_hours:          '',
+      ticket:               ts.ticket ?? '',
+      observation:          ts.observation ?? '',
+      is_billable_only:     ts.is_billable_only ?? false,
+      client_extra_pct:     ts.client_extra_pct != null ? String(ts.client_extra_pct) : '',
+      consultant_extra_pct: ts.consultant_extra_pct != null ? String(ts.consultant_extra_pct) : '',
     })
     setInitialized(true)
   }, [ts, initialized])
@@ -262,6 +266,10 @@ export default function EditTimesheetPage() {
         body.is_billable_only = true
       } else if (isAdmin) {
         body.is_billable_only = false
+      }
+      if (isAdmin || isCoordenador) {
+        body.client_extra_pct     = form.client_extra_pct !== '' ? parseFloat(form.client_extra_pct) : null
+        body.consultant_extra_pct = form.consultant_extra_pct !== '' ? parseFloat(form.consultant_extra_pct) : null
       }
       await api.put(`/timesheets/${id}`, body)
       toast.success('Apontamento atualizado')
@@ -439,6 +447,37 @@ export default function EditTimesheetPage() {
                 />
                 <span className="text-xs text-amber-400">Somente faturável — não reflete no pagamento do consultor</span>
               </label>
+            )}
+
+            {/* % Extras (admin / coordenador) */}
+            {(isAdmin || isCoordenador) && (
+              <div>
+                <Label className="text-xs text-zinc-400">% Extras</Label>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <input
+                      type="number" min="0" max="999" step="0.01"
+                      value={form.client_extra_pct}
+                      onChange={e => setForm(f => ({ ...f, client_extra_pct: e.target.value }))}
+                      placeholder="0"
+                      className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-amber-400 pointer-events-none">%</span>
+                    <span className="absolute -top-0 left-0 text-[10px] text-zinc-500 -mt-4">Cliente</span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number" min="0" max="999" step="0.01"
+                      value={form.consultant_extra_pct}
+                      onChange={e => setForm(f => ({ ...f, consultant_extra_pct: e.target.value }))}
+                      placeholder="0"
+                      className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-green-400 pointer-events-none">%</span>
+                    <span className="absolute -top-0 left-0 text-[10px] text-zinc-500 -mt-4">Consultor</span>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Status (leitura) */}

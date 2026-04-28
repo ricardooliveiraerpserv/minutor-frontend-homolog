@@ -72,6 +72,8 @@ interface ApontamentoRow {
   ticket?: string
   titulo?: string
   observacao?: string
+  consultant_extra_pct?: number | null
+  valor_extra?: number | null
 }
 
 type Tab = 'horistas' | 'banco_horas' | 'fixo' | 'resumo'
@@ -188,7 +190,7 @@ function buildReport(
             <td><span style="color:#888;margin-right:4px">${r.projeto_codigo}</span>${r.projeto}</td>
             <td>${r.ticket ?? '—'}</td>
             <td>${r.titulo ? r.titulo.slice(0, 70) : (r.observacao ? r.observacao.slice(0, 70) : '—')}</td>
-            <td class="right">${fmtH(r.horas)}</td>
+            <td class="right">${fmtH(r.horas)}${r.consultant_extra_pct ? `<span style="color:#16a34a;font-size:10px;margin-left:4px">+${r.consultant_extra_pct}%${r.valor_extra ? ` (${formatBRL(r.valor_extra)})` : ''}</span>` : ''}</td>
           </tr>
         `).join('')
         clienteBlocksHtml += `
@@ -197,7 +199,7 @@ function buildReport(
             <span class="client-total">${fmtH(clienteHoras)}</span>
           </div>
           <table>
-            <thead><tr><th>Data</th><th>Projeto</th><th>Ticket</th><th>Descrição</th><th class="right">Horas</th></tr></thead>
+            <thead><tr><th>Data</th><th>Projeto</th><th>Ticket</th><th>Descrição</th><th class="right">Horas / Extra</th></tr></thead>
             <tbody>${rowsHtml}</tbody>
           </table>
         `

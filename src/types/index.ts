@@ -86,6 +86,8 @@ export interface Timesheet {
   reviewed_at?: string
   origin?: string
   is_billable_only?: boolean
+  client_extra_pct?: number | null
+  consultant_extra_pct?: number | null
   movidesk_appointment_id?: number | null
   created_at: string
 }
