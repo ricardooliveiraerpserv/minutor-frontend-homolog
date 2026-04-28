@@ -523,7 +523,7 @@ export default function UsersPage() {
           <option value="0">Inativos</option>
         </select>
         <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
-          {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin']] as const).map(([val, label]) => (
+          {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin'], ['administrativo', 'Adm']] as const).map(([val, label]) => (
             <button key={val} type="button"
               onClick={() => { setFilterRole(val); setPage(1) }}
               className={`px-3 py-1.5 font-medium transition-colors whitespace-nowrap ${

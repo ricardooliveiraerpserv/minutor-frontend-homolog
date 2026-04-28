@@ -485,11 +485,12 @@ export function UserManagementTab() {
         <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-full px-1.5 py-1">
           {[
             { value: '',              label: 'Todos' },
-            { value: 'consultor',     label: 'Consultor' },
-            { value: 'coordenador',   label: 'Coordenador' },
-            { value: 'cliente',       label: 'Cliente' },
+            { value: 'consultor',      label: 'Consultor' },
+            { value: 'coordenador',    label: 'Coordenador' },
+            { value: 'cliente',        label: 'Cliente' },
             { value: 'parceiro_admin', label: 'Parceiro' },
-            { value: 'admin',         label: 'Admin' },
+            { value: 'admin',          label: 'Admin' },
+            { value: 'administrativo', label: 'Adm' },
           ].map(opt => (
             <button key={opt.value} type="button"
               onClick={() => { setFilterRole(opt.value); setPage(1) }}
