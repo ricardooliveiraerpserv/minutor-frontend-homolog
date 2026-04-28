@@ -727,8 +727,11 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 
                       {/* Bloco 3 — RESULTADO */}
                       <div className="rounded-xl p-4" style={{ background: isPositive ? 'rgba(34,197,94,0.04)' : 'rgba(239,68,68,0.04)', border: `1px solid ${isPositive ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'}` }}>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: marginColor }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: marginColor }}>
                           <BarChart2 size={11} />Resultado
+                        </p>
+                        <p className="text-[10px] tabular-nums mb-3" style={{ color: 'var(--brand-subtle)' }}>
+                          {fmtBRL(cc.receita_total)} <span className="opacity-50">−</span> {fmtBRL(cc.custo_total)} <span className="opacity-50">=</span> <span style={{ color: marginColor }}>{fmtBRL(cc.margin)}</span>
                         </p>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="rounded-lg p-3.5" style={{ background: 'var(--brand-bg)', border: `1px solid ${isPositive ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
