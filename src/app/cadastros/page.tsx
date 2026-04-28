@@ -888,7 +888,8 @@ function HolidaysTab() {
     setImporting(true)
     try {
       const r = await api.post<{ message: string; imported: number; items: HolidayItem[] }>(
-        `/holidays/import?year=${year}`
+        `/holidays/import?year=${year}`,
+        {}
       )
       toast.success(r.message)
       setItems(r.items ?? [])
