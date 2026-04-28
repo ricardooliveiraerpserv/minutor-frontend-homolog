@@ -67,6 +67,7 @@ interface ProjectFull {
   initial_hours_balance?: number | null; sold_hours?: number | null
   hour_contribution?: number; exceeded_hour_contribution?: number | null
   consultant_hours?: number | null; coordinator_hours?: number | null
+  coordinator_percentage?: number | null
   save_erpserv?: number | null; total_available_hours?: number | null
   total_project_value?: number | null; weighted_hourly_rate?: number | null
   general_hours_balance?: number | null; consumed_hours?: number | null
@@ -86,9 +87,23 @@ interface ConsultantBreakdown {
 }
 
 interface CostSummary {
-  project_info: { project_value?: number | null; initial_cost?: number | null; total_available_hours?: number; weighted_hourly_rate?: number }
-  hours_summary: { total_logged_hours: number; approved_hours: number; pending_hours: number; remaining_hours: number; general_balance?: number; total_available_hours?: number; hours_percentage: number }
-  cost_calculation: { total_cost: number; approved_cost: number; pending_cost: number; margin: number; margin_percentage: number }
+  project_info: {
+    project_value?: number | null; initial_cost?: number | null
+    initial_hours_balance?: number | null
+    total_available_hours?: number; weighted_hourly_rate?: number
+  }
+  hours_summary: {
+    total_logged_hours: number; approved_hours: number; pending_hours: number
+    remaining_hours: number; general_balance?: number
+    total_available_hours?: number; hours_percentage: number
+  }
+  cost_calculation: {
+    total_cost: number; approved_cost: number; pending_cost: number
+    aportes_total: number; receita_total: number
+    custo_operacional: number; custo_total: number
+    margin: number; margin_percentage: number
+    coordinator_percentage: number; valor_coordenador: number
+  }
   consultant_breakdown: ConsultantBreakdown[]
 }
 
@@ -654,46 +669,144 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
             )}
 
             {tab === 'cost' && (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {!costSummary ? (
                   <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum dado de custo disponível.</p>
                 ) : (() => {
                   const { project_info: pi, hours_summary: hs, cost_calculation: cc, consultant_breakdown: cb } = costSummary
-                  const marginColor = cc.margin_percentage >= 30 ? '#22c55e' : cc.margin_percentage >= 10 ? '#f59e0b' : '#ef4444'
-                  const hoursUsedPct = Math.min(100, Math.max(0, hs.hours_percentage ?? 0))
-                  const hoursBarColor = hoursUsedPct >= 90 ? '#ef4444' : hoursUsedPct >= 70 ? '#f59e0b' : '#22c55e'
+                  const isPositive = cc.margin >= 0
+                  const marginColor = isPositive ? '#22c55e' : '#ef4444'
+                  const hoursIniciais = Math.abs(pi.initial_hours_balance ?? 0)
+                  const horasConsumidas = hoursIniciais + hs.total_logged_hours
+                  const totalDisp = hs.total_available_hours ?? pi.total_available_hours ?? 0
+                  const horasRestantes = Math.max(0, totalDisp - horasConsumidas)
+                  const pctUso = totalDisp > 0 ? Math.min(100, (horasConsumidas / totalDisp) * 100) : 0
+                  const hoursBarColor = pctUso >= 90 ? '#ef4444' : pctUso >= 70 ? '#f59e0b' : '#22c55e'
+                  const showHistorico = (pi.initial_hours_balance ?? 0) !== 0 || (pi.initial_cost ?? 0) !== 0
                   return (
                     <>
-                      <div className="grid grid-cols-2 gap-3">
-                        {[
-                          { label: 'Valor do Projeto', value: fmtBRL(pi.project_value ?? 0),      icon: DollarSign, color: '#00F5FF' },
-                          { label: 'Custo Total',       value: fmtBRL(cc.total_cost),              icon: TrendingUp,  color: '#f59e0b' },
-                          { label: 'Margem',            value: fmtBRL(cc.margin),                  icon: BarChart2,   color: marginColor },
-                          { label: 'Margem %',          value: `${cc.margin_percentage.toFixed(1)}%`, icon: BarChart2, color: marginColor },
-                        ].map(c => (
-                          <div key={c.label} className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-                            <div className="flex items-center gap-2 mb-1"><c.icon size={12} style={{ color: c.color }} /><p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p></div>
-                            <p className="text-sm font-bold tabular-nums" style={{ color: c.color }}>{c.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Monitoramento de Horas</p>
-                        <div className="grid grid-cols-3 gap-4 text-xs mb-3">
-                          <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Disponíveis</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{(hs.total_available_hours ?? pi.total_available_hours ?? 0).toFixed(1)}h</p></div>
-                          <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Apontadas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{hs.total_logged_hours.toFixed(1)}h</p></div>
-                          <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (hs.general_balance ?? hs.remaining_hours) < 0 ? '#ef4444' : 'var(--brand-text)' }}>{(hs.general_balance ?? hs.remaining_hours).toFixed(1)}h</p></div>
-                          <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Aprovadas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: '#22c55e' }}>{hs.approved_hours.toFixed(1)}h</p></div>
-                          <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Pendentes</p><p className="font-bold tabular-nums mt-0.5" style={{ color: '#f59e0b' }}>{hs.pending_hours.toFixed(1)}h</p></div>
+                      {/* Bloco 1 — RECEITA */}
+                      <div className="rounded-xl p-4" style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.18)' }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#00F5FF' }}>
+                          <DollarSign size={11} />Receita
+                        </p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { label: 'Valor Projeto', value: fmtBRL(pi.project_value ?? 0) },
+                            { label: 'Aportes',        value: fmtBRL(cc.aportes_total) },
+                            { label: 'Receita Total',  value: fmtBRL(cc.receita_total), highlight: true },
+                          ].map(c => (
+                            <div key={c.label} className="rounded-lg p-2.5" style={{ background: 'var(--brand-bg)', border: `1px solid ${c.highlight ? 'rgba(0,245,255,0.35)' : 'var(--brand-border)'}` }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p>
+                              <p className="text-sm font-bold tabular-nums" style={{ color: c.highlight ? '#00F5FF' : 'var(--brand-text)' }}>{c.value}</p>
+                            </div>
+                          ))}
                         </div>
-                        <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--brand-border)' }}><div className="h-1.5 rounded-full transition-all" style={{ width: `${hoursUsedPct}%`, background: hoursBarColor }} /></div>
-                        <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{hoursUsedPct.toFixed(1)}% das horas utilizadas</p>
                       </div>
+
+                      {/* Bloco 2 — CUSTO */}
+                      <div className="rounded-xl p-4" style={{ background: 'rgba(245,158,11,0.04)', border: '1px solid rgba(245,158,11,0.18)' }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#f59e0b' }}>
+                          <TrendingUp size={11} />Custo
+                        </p>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { label: 'Custo Inicial',     value: fmtBRL(pi.initial_cost ?? 0) },
+                            { label: 'Custo Operacional', value: fmtBRL(cc.custo_operacional) },
+                            { label: 'Custo Total',        value: fmtBRL(cc.custo_total), highlight: true },
+                          ].map(c => (
+                            <div key={c.label} className="rounded-lg p-2.5" style={{ background: 'var(--brand-bg)', border: `1px solid ${c.highlight ? 'rgba(245,158,11,0.35)' : 'var(--brand-border)'}` }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p>
+                              <p className="text-sm font-bold tabular-nums" style={{ color: c.highlight ? '#f59e0b' : 'var(--brand-text)' }}>{c.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Bloco 3 — RESULTADO */}
+                      <div className="rounded-xl p-4" style={{ background: isPositive ? 'rgba(34,197,94,0.04)' : 'rgba(239,68,68,0.04)', border: `1px solid ${isPositive ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.25)'}` }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: marginColor }}>
+                          <BarChart2 size={11} />Resultado
+                        </p>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="rounded-lg p-3.5" style={{ background: 'var(--brand-bg)', border: `1px solid ${isPositive ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Margem R$</p>
+                            <p className="text-xl font-bold tabular-nums" style={{ color: marginColor }}>{fmtBRL(cc.margin)}</p>
+                          </div>
+                          <div className="rounded-lg p-3.5" style={{ background: 'var(--brand-bg)', border: `1px solid ${isPositive ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Margem %</p>
+                            <p className="text-xl font-bold tabular-nums" style={{ color: marginColor }}>{cc.margin_percentage.toFixed(1)}%</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bloco 4 — COORDENADOR (condicional) */}
+                      {cc.coordinator_percentage > 0 && (
+                        <div className="rounded-xl p-4" style={{ background: 'rgba(167,139,250,0.04)', border: '1px solid rgba(167,139,250,0.18)' }}>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#a78bfa' }}>
+                            <UserCheck size={11} />Coordenador
+                          </p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-lg p-2.5" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>% da Margem</p>
+                              <p className="text-sm font-bold tabular-nums" style={{ color: '#a78bfa' }}>{cc.coordinator_percentage.toFixed(1)}%</p>
+                            </div>
+                            <div className="rounded-lg p-2.5" style={{ background: 'var(--brand-bg)', border: '1px solid rgba(167,139,250,0.35)' }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor a Receber</p>
+                              <p className="text-sm font-bold tabular-nums" style={{ color: '#a78bfa' }}>{fmtBRL(cc.valor_coordenador)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Bloco 5 — HORAS */}
+                      <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Horas</p>
+                        <div className="grid grid-cols-5 gap-2 mb-3">
+                          {[
+                            { label: 'Iniciais',    value: `${hoursIniciais.toFixed(1)}h`,          color: 'var(--brand-text)' },
+                            { label: 'Apontadas',   value: `${hs.total_logged_hours.toFixed(1)}h`,  color: 'var(--brand-text)' },
+                            { label: 'Consumido',   value: `${horasConsumidas.toFixed(1)}h`,        color: 'var(--brand-text)' },
+                            { label: '% Uso',       value: `${pctUso.toFixed(1)}%`,                 color: hoursBarColor },
+                            { label: 'Restantes',   value: `${horasRestantes.toFixed(1)}h`,         color: horasRestantes < 10 ? '#ef4444' : 'var(--brand-text)' },
+                          ].map(c => (
+                            <div key={c.label}>
+                              <p className="text-[9px]" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p>
+                              <p className="font-bold tabular-nums mt-0.5 text-xs" style={{ color: c.color }}>{c.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--brand-border)' }}>
+                          <div className="h-1.5 rounded-full transition-all" style={{ width: `${pctUso}%`, background: hoursBarColor }} />
+                        </div>
+                        <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{pctUso.toFixed(1)}% das horas utilizadas</p>
+                      </div>
+
+                      {/* Bloco 6 — HISTÓRICO */}
+                      {showHistorico && (
+                        <div className="rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)' }}>
+                          <p className="text-[9px] font-semibold uppercase tracking-wider w-full mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Saldo do sistema anterior</p>
+                          <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>Horas iniciais: <strong>{(pi.initial_hours_balance ?? 0) < 0 ? '-' : ''}{Math.abs(pi.initial_hours_balance ?? 0).toFixed(1)}h</strong></span>
+                          <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>Custo inicial: <strong>{fmtBRL(pi.initial_cost ?? 0)}</strong></span>
+                        </div>
+                      )}
+
+                      {/* Tabela de custo por consultor */}
                       {cb.length > 0 && (
                         <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                          <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}><p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}><UserCheck size={11} />Custo por Consultor</p></div>
+                          <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}>
+                              <UserCheck size={11} />Custo por Consultor
+                            </p>
+                          </div>
                           <table className="w-full text-xs">
-                            <thead><tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>{['Consultor','Hs Total','Aprovadas','Pendentes','Taxa/h','Custo'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}</tr></thead>
+                            <thead>
+                              <tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>
+                                {['Consultor','Hs Total','Aprovadas','Pendentes','Taxa/h','Custo'].map(h => (
+                                  <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
                             <tbody>
                               {cb.map((c, i) => (
                                 <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)' }}>
@@ -701,13 +814,16 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                                   <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-text)' }}>{c.total_hours.toFixed(1)}h</td>
                                   <td className="px-3 py-2.5 tabular-nums" style={{ color: '#22c55e' }}>{c.approved_hours.toFixed(1)}h</td>
                                   <td className="px-3 py-2.5 tabular-nums" style={{ color: '#f59e0b' }}>{c.pending_hours.toFixed(1)}h</td>
-                                  <td className="px-3 py-2.5 tabular-nums text-[11px]" style={{ color: 'var(--brand-muted)' }}>{c.consultant_hourly_rate != null ? fmtBRL(c.consultant_hourly_rate) : '—'}{c.consultant_rate_type === 'monthly' && <span className="ml-1 opacity-60">÷180</span>}</td>
+                                  <td className="px-3 py-2.5 tabular-nums text-[11px]" style={{ color: 'var(--brand-muted)' }}>
+                                    {c.consultant_hourly_rate != null ? fmtBRL(c.consultant_hourly_rate) : '—'}
+                                    {c.consultant_rate_type === 'monthly' && <span className="ml-1 opacity-60">÷180</span>}
+                                  </td>
                                   <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--brand-text)' }}>{fmtBRL(c.cost)}</td>
                                 </tr>
                               ))}
                               <tr style={{ background: 'rgba(0,245,255,0.04)', borderTop: '1px solid var(--brand-border)' }}>
-                                <td className="px-3 py-2.5 font-bold text-[11px] uppercase" style={{ color: 'var(--brand-subtle)' }} colSpan={5}>Total</td>
-                                <td className="px-3 py-2.5 font-bold tabular-nums" style={{ color: '#00F5FF' }}>{fmtBRL(cc.total_cost)}</td>
+                                <td className="px-3 py-2.5 font-bold text-[11px] uppercase" style={{ color: 'var(--brand-subtle)' }} colSpan={5}>Total Operacional</td>
+                                <td className="px-3 py-2.5 font-bold tabular-nums" style={{ color: '#00F5FF' }}>{fmtBRL(cc.custo_operacional)}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -2254,7 +2370,7 @@ function KanbanContent() {
         if (action === 'view')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userType} initialTab="overview" />
         if (action === 'edit')       return <ProjectEditByIdModal projectId={card.id} onClose={close} onSaved={close} />
         if (action === 'status')     return <ProjectStatusModal projectId={card.id} projectName={card.project_name} currentStatus={card.status} onClose={close} onSaved={st => { setProjectCards(prev => prev.map(p => p.id === card.id ? { ...p, status: st } : p)); close() }} />
-        if (action === 'cost')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userType} initialTab="consultants" />
+        if (action === 'cost')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userType} initialTab="cost" />
         if (action === 'timesheets') return <ProjectViewModal projectId={card.id} onClose={close} userRole={userType} initialTab="timesheets" />
         if (action === 'team')       return <ProjectTeamModal projectId={card.id} projectName={card.project_name} onClose={close} onSaved={close} />
         if (action === 'chat' && card.contract_id) {
