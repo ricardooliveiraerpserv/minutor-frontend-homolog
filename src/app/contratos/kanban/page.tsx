@@ -1716,7 +1716,7 @@ function KanbanContent() {
       const isSustType = card.categoria === 'sustentacao'
         || ctLower.includes('banco de horas') || ctLower.includes('on demand')
         || ctLower.includes('cloud') || ctLower.includes('bizify') || ctLower.includes('saas')
-        || svLower.includes('cloud') || svLower.includes('bizify')
+        || svLower.includes('cloud') || svLower.includes('bizify') || svLower.includes('sustent')
       if (isSustType) {
         toast.error('Contratos de sustentação devem ser movidos para a fila de sustentação (BH Fixo, BH Mensal, On Demand ou Cloud).')
         return
@@ -1778,6 +1778,14 @@ function KanbanContent() {
   const getAvailableContractCols = (card: ContractCard, fromCol: string): { id: string; label: string }[] => {
     const cols: { id: string; label: string }[] = []
 
+    // Detecção de sustentação por categoria, tipo de contrato OU tipo de serviço
+    const ctLower = card.contract_type?.toLowerCase() ?? ''
+    const svLower = card.service_type?.toLowerCase() ?? ''
+    const isSustType = card.categoria === 'sustentacao'
+      || ctLower.includes('banco de horas') || ctLower.includes('on demand')
+      || ctLower.includes('cloud') || ctLower.includes('bizify') || ctLower.includes('saas')
+      || svLower.includes('cloud') || svLower.includes('bizify') || svLower.includes('sustent')
+
     // Colunas de status de projeto: movimentação apenas pelo Pipeline
     if (fromCol.startsWith('col_')) return []
 
@@ -1786,7 +1794,6 @@ function KanbanContent() {
 
     if (fromCol.startsWith('sust_')) {
       if (!isSustAdmin) return []
-      // Sustentação só pode mover entre filas de sustentação — nunca para coordenadores
       SUSTENTACAO_COLS.forEach(s => { if (s.id !== fromCol) cols.push({ id: s.id, label: s.label }) })
       if (BIZIFY_COL.id !== fromCol) cols.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
       return cols
@@ -1794,12 +1801,10 @@ function KanbanContent() {
 
     // ── Card alocado num coordenador (tem project_id = "Projeto Ativo")
     if (fromCol.startsWith('coordinator:')) {
-      // Pode realocar para outro coordenador
       coordinators.forEach(coord => {
         if (`coordinator:${coord.id}` !== fromCol)
           cols.push({ id: `coordinator:${coord.id}`, label: coord.name })
       })
-      // Pode mover o projeto para status de conclusão/pausa/cancelamento
       STATUS_PROJECT_COLUMNS.forEach(s => cols.push({ id: s.id, label: s.label }))
       return cols
     }
@@ -1808,23 +1813,15 @@ function KanbanContent() {
       if (fromCol === 'novo') cols.push({ id: 'pronto', label: 'Pronto para Iniciar' })
       if (fromCol === 'pronto') cols.push({ id: 'novo', label: 'Novo Contrato' })
 
-      // Contratos vindos de requisição (novo_projeto) só vão para Início Autorizado — sem alocação direta
       if (card.kanban_status !== 'novo_projeto') {
-        const ctLower = card.contract_type?.toLowerCase() ?? ''
-        const svLower = card.service_type?.toLowerCase() ?? ''
-        const isSustType = card.categoria === 'sustentacao'
-          || ctLower.includes('banco de horas') || ctLower.includes('on demand')
-          || ctLower.includes('cloud') || ctLower.includes('bizify') || ctLower.includes('saas')
-          || svLower.includes('cloud') || svLower.includes('bizify')
-
         if (!isSustType && card.is_complete) {
           coordinators.forEach(coord => cols.push({ id: `coordinator:${coord.id}`, label: coord.name }))
         }
       }
     }
 
-    // Sust cols apenas para contratos explicitamente de sustentação sem projeto gerado
-    if (isSustAdmin && !card.project_id && card.categoria === 'sustentacao') {
+    // Sust cols para contratos detectados como sustentação (por categoria, tipo de contrato ou tipo de serviço)
+    if (isSustAdmin && !card.project_id && isSustType) {
       SUSTENTACAO_COLS.forEach(s => cols.push({ id: s.id, label: s.label }))
       cols.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
     }
