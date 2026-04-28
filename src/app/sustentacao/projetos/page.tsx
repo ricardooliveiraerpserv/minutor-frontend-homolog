@@ -331,10 +331,88 @@ export default function SustentacaoProjetosPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [saudeFilter, setSaudeFilter] = useState('')
 
+  const isAdmin = user?.type === 'admin'
+
   // Modals
-  const [viewProject, setViewProject]       = useState<SustProject | null>(null)
-  const [costProject, setCostProject]       = useState<SustProject | null>(null)
+  const [viewProject, setViewProject]         = useState<SustProject | null>(null)
+  const [costProject, setCostProject]         = useState<SustProject | null>(null)
   const [messagesProject, setMessagesProject] = useState<SustProject | null>(null)
+
+  // Status modal
+  const [statusModal, setStatusModal] = useState<{ project: SustProject | null; newStatus: string }>({ project: null, newStatus: '' })
+  const [statusSaving, setStatusSaving] = useState(false)
+
+  const PROJECT_STATUSES = [
+    { value: 'awaiting_start', label: 'Aguardando Início' },
+    { value: 'started',        label: 'Em Andamento' },
+    { value: 'paused',         label: 'Pausado' },
+    { value: 'finished',       label: 'Encerrado' },
+    { value: 'cancelled',      label: 'Cancelado' },
+  ]
+
+  const handleChangeStatus = async () => {
+    if (!statusModal.project || !statusModal.newStatus) return
+    setStatusSaving(true)
+    const projectId = statusModal.project.id
+    const newStatus = statusModal.newStatus
+    try {
+      const res = await api.patch<{ status: string; status_display: string }>(`/projects/${projectId}/status`, { status: newStatus })
+      toast.success('Status atualizado')
+      setStatusModal({ project: null, newStatus: '' })
+      setProjects(prev => prev.map(p => p.id === projectId ? { ...p, status: res.status, status_display: res.status_display } : p))
+    } catch { toast.error('Erro ao atualizar status') }
+    finally { setStatusSaving(false) }
+  }
+
+  // Delete modal
+  const [deleteProject, setDeleteProject] = useState<SustProject | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!deleteProject) return
+    setDeleting(true)
+    try {
+      await api.delete(`/projects/${deleteProject.id}`)
+      toast.success('Projeto excluído')
+      setDeleteProject(null)
+      setProjects(prev => prev.filter(p => p.id !== deleteProject.id))
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao excluir projeto')
+    } finally { setDeleting(false) }
+  }
+
+  // Team modal
+  const [teamProject, setTeamProject]     = useState<SustProject | null>(null)
+  const [allConsultants, setAllConsultants] = useState<{ id: number; name: string }[]>([])
+  const [selectedIds, setSelectedIds]     = useState<Set<number>>(new Set())
+  const [teamSearch, setTeamSearch]       = useState('')
+  const [teamSaving, setTeamSaving]       = useState(false)
+
+  const openTeam = async (p: SustProject) => {
+    setTeamProject(p)
+    setTeamSearch('')
+    setSelectedIds(new Set((p.consultants ?? []).map(c => c.id)))
+    if (allConsultants.length === 0) {
+      try {
+        const r = await api.get<{ items: { id: number; name: string }[] }>('/users?exclude_type=cliente&pageSize=200')
+        setAllConsultants(r.items ?? [])
+      } catch { toast.error('Erro ao carregar consultores') }
+    }
+  }
+
+  const saveTeam = async () => {
+    if (!teamProject) return
+    setTeamSaving(true)
+    try {
+      await api.put(`/projects/${teamProject.id}`, { consultant_ids: [...selectedIds] })
+      toast.success('Equipe atualizada')
+      setProjects(prev => prev.map(p => p.id === teamProject.id
+        ? { ...p, consultants: allConsultants.filter(c => selectedIds.has(c.id)).map(c => ({ ...c, email: '' })) }
+        : p))
+      setTeamProject(null)
+    } catch { toast.error('Erro ao salvar equipe') }
+    finally { setTeamSaving(false) }
+  }
 
   // Unread messages
   const [unreadIds, setUnreadIds] = useState<Set<number>>(new Set())
@@ -540,10 +618,15 @@ export default function SustentacaoProjetosPage() {
                       <td className="py-2 pl-2 pr-1" style={{ width: 48 }} onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-1">
                           <RowMenu items={[
-                            { label: 'Visualizar',   icon: <Eye size={12} />,       onClick: () => setViewProject(p) },
-                            { label: 'Custo',        icon: <DollarSign size={12} />, onClick: () => setCostProject(p) },
-                            { label: 'Apontamentos', icon: <Clock size={12} />,     onClick: () => router.push(`/timesheets?project_id=${p.id}`) },
-                            { label: 'Despesas',     icon: <BarChart2 size={12} />, onClick: () => router.push(`/expenses?project_id=${p.id}`) },
+                            { label: 'Visualizar',      icon: <Eye size={12} />,        onClick: () => setViewProject(p) },
+                            ...(isAdmin ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => router.push(`/gestao-projetos`) }] : []),
+                            { label: 'Alterar Status',  icon: <Layers size={12} />,     onClick: () => setStatusModal({ project: p, newStatus: p.status }) },
+                            { label: 'Custo',           icon: <DollarSign size={12} />, onClick: () => setCostProject(p) },
+                            { label: 'Apontamentos',    icon: <Clock size={12} />,      onClick: () => router.push(`/timesheets?project_id=${p.id}`) },
+                            { label: 'Despesas',        icon: <BarChart2 size={12} />,  onClick: () => router.push(`/expenses?project_id=${p.id}`) },
+                            { label: 'Aportes',         icon: <TrendingUp size={12} />, onClick: () => router.push(`/gestao-projetos`) },
+                            { label: 'Selecionar Equipe', icon: <Users size={12} />,    onClick: () => openTeam(p) },
+                            ...(isAdmin ? [{ label: 'Excluir', icon: <Trash2 size={12} className="text-red-400" />, onClick: () => setDeleteProject(p), danger: true }] : []),
                           ]} />
                           <button
                             onClick={e => { e.stopPropagation(); setMessagesProject(p) }}
@@ -622,6 +705,108 @@ export default function SustentacaoProjetosPage() {
       {/* Modals */}
       {viewProject && <ViewProjectModal project={viewProject} onClose={() => setViewProject(null)} />}
       {costProject  && <CostModal project={costProject} onClose={() => setCostProject(null)} />}
+
+      {/* Alterar Status */}
+      {statusModal.project && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="rounded-2xl w-full max-w-sm p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Alterar Status</h3>
+              <button onClick={() => setStatusModal({ project: null, newStatus: '' })} style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+            </div>
+            <p className="text-xs mb-4" style={{ color: 'var(--brand-muted)' }}>
+              Projeto: <strong style={{ color: 'var(--brand-text)' }}>{statusModal.project.name}</strong>
+            </p>
+            <select
+              value={statusModal.newStatus}
+              onChange={e => setStatusModal(s => ({ ...s, newStatus: e.target.value }))}
+              className="w-full appearance-none px-3 py-2.5 rounded-xl text-sm outline-none mb-5"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+            >
+              {PROJECT_STATUSES.map(s => (
+                <option key={s.value} value={s.value} style={{ background: '#161618' }}>{s.label}</option>
+              ))}
+            </select>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setStatusModal({ project: null, newStatus: '' })}
+                className="px-4 py-2 rounded-xl text-sm font-medium"
+                style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+              <button onClick={handleChangeStatus} disabled={statusSaving || statusModal.newStatus === statusModal.project.status}
+                className="px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+                style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+                {statusSaving ? 'Salvando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Selecionar Equipe */}
+      {teamProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+          <div className="flex flex-col rounded-2xl w-full max-w-md max-h-[80vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Equipe</p>
+                <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{teamProject.name}</h2>
+              </div>
+              <button onClick={() => setTeamProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            </div>
+            <div className="px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+                <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)}
+                  placeholder="Buscar consultor..."
+                  className="w-full pl-8 pr-3 py-2 rounded-lg text-xs outline-none"
+                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase())).map(c => (
+                <label key={c.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                  <input type="checkbox" checked={selectedIds.has(c.id)}
+                    onChange={() => setSelectedIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })}
+                    className="w-4 h-4 rounded accent-cyan-400" />
+                  <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between items-center px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
+              <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{selectedIds.size} consultor(es)</span>
+              <div className="flex gap-2">
+                <button onClick={() => setTeamProject(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+                <button onClick={saveTeam} disabled={teamSaving} className="px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}>{teamSaving ? 'Salvando...' : 'Salvar'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Excluir Projeto */}
+      {deleteProject && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70">
+          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(239,68,68,0.4)' }}>
+            <div className="px-6 py-5 flex items-center gap-3">
+              <Trash2 size={20} className="text-red-400 shrink-0" />
+              <div>
+                <p className="font-semibold text-white">Excluir Projeto</p>
+                <p className="text-xs text-zinc-400 mt-0.5">{deleteProject.name} · {deleteProject.code}</p>
+              </div>
+            </div>
+            <div className="px-6 pb-4">
+              <p className="text-sm text-zinc-300">Tem certeza? Esta ação não pode ser desfeita.</p>
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+              <button onClick={() => setDeleteProject(null)} disabled={deleting} className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition-colors">Cancelar</button>
+              <button disabled={deleting} onClick={handleDelete}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
+                <Trash2 size={14} /> {deleting ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {messagesProject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
