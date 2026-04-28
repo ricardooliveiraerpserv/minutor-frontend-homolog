@@ -265,6 +265,8 @@ export default function UsersPage() {
   const [selectedIds,    setSelectedIds]    = useState<Set<number>>(new Set())
   const [resending,      setResending]      = useState<number | null>(null)
   const [bulkResending,  setBulkResending]  = useState(false)
+  const [resendPwd,      setResendPwd]      = useState('')
+  const [resendingModal, setResendingModal] = useState(false)
 
   useEffect(() => {
     api.get<any>('/customers?pageSize=500').then(r =>
@@ -295,10 +297,12 @@ export default function UsersPage() {
 
   const openCreate = () => {
     setForm({ ...EMPTY_FORM })
+    setResendPwd('')
     setModal({ open: true })
   }
 
   const openEdit = (item: UserItem) => {
+    setResendPwd('')
     const profile = resolveProfileFromType(item.type)
     const profiles = profile ? [profile] : []
     // Prefer stored consultant_type; fall back only for horista (hourly)
@@ -420,6 +424,19 @@ export default function UsersPage() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
+  }
+
+  const resendWelcomeFromModal = async () => {
+    if (!modal.item) return
+    setResendingModal(true)
+    try {
+      const body: Record<string, string> = {}
+      if (resendPwd.trim()) body.password = resendPwd.trim()
+      await api.post(`/users/${modal.item.id}/resend-welcome`, body)
+      toast.success('E-mail de boas-vindas reenviado com sucesso')
+      setResendPwd('')
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao reenviar e-mail') }
+    finally { setResendingModal(false) }
   }
 
   const resendWelcome = async (user: UserItem) => {
@@ -687,6 +704,39 @@ export default function UsersPage() {
                       {form.password
                         ? 'O usuário receberá esta senha por e-mail de boas-vindas.'
                         : 'Uma senha aleatória será gerada e enviada por e-mail ao usuário.'}
+                    </p>
+                  </div>
+                )}
+
+                {/* ── Reenviar boas-vindas (apenas edição) ── */}
+                {modal.item && canResetPwd && (
+                  <div className="border border-zinc-700/50 rounded-lg p-3 bg-zinc-800/40 space-y-2">
+                    <p className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
+                      <Mail size={12} className="text-cyan-400" />
+                      Reenviar e-mail de boas-vindas
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        value={resendPwd}
+                        onChange={e => setResendPwd(e.target.value)}
+                        placeholder="Senha predefinida (deixe vazio para gerar nova)"
+                        className="flex-1 bg-zinc-800 border-zinc-700 text-white h-8 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={resendWelcomeFromModal}
+                        disabled={resendingModal}
+                        className="flex items-center gap-1.5 px-3 h-8 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+                      >
+                        <Mail size={11} />
+                        {resendingModal ? 'Enviando...' : 'Reenviar'}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-zinc-500">
+                      {resendPwd.trim()
+                        ? 'O usuário receberá esta senha no e-mail de boas-vindas.'
+                        : 'Uma nova senha temporária será gerada e enviada automaticamente.'}
                     </p>
                   </div>
                 )}
