@@ -198,8 +198,8 @@ function buildReport(
             <td><span style="color:#888;margin-right:4px">${r.projeto_codigo}</span>${r.projeto}</td>
             <td>${r.ticket ?? '—'}</td>
             <td>${r.titulo ? r.titulo.slice(0, 70) : (r.observacao ? r.observacao.slice(0, 70) : '—')}</td>
-            <td class="center">${r.start_time ?? '—'}</td>
-            <td class="center">${r.end_time ?? '—'}</td>
+            <td class="center">${r.start_time ? (r.start_time.includes('T') ? r.start_time.slice(11, 16) : r.start_time.slice(0, 5)) : '—'}</td>
+            <td class="center">${r.end_time   ? (r.end_time.includes('T')   ? r.end_time.slice(11, 16)   : r.end_time.slice(0, 5))   : '—'}</td>
             <td class="right">${fmtH(r.horas)}${r.consultant_extra_pct ? `<span style="color:#16a34a;font-size:10px;margin-left:4px">+${r.consultant_extra_pct}%${r.valor_extra ? ` (${formatBRL(r.valor_extra)})` : ''}</span>` : ''}</td>
           </tr>
         `).join('')
