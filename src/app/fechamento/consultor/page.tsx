@@ -71,13 +71,14 @@ interface ApontamentoRow {
   cliente: string
   tipo_contrato_code: string
   tipo_contrato_nome: string
-  horas: number
+  horas: number       // efetivas (infladas para banco de horas, base para horista)
+  horas_base?: number // horas originais sem o acréscimo
   status: string
   ticket?: string
   titulo?: string
   observacao?: string
   consultant_extra_pct?: number | null
-  valor_extra?: number | null
+  valor_extra?: number | null // apenas horista/fixo
 }
 
 type Tab = 'horistas' | 'banco_horas' | 'fixo' | 'resumo'
@@ -200,7 +201,7 @@ function buildReport(
             <td>${r.titulo ? r.titulo.slice(0, 70) : (r.observacao ? r.observacao.slice(0, 70) : '—')}</td>
             <td class="center">${r.start_time ? (r.start_time.includes('T') ? r.start_time.slice(11, 16) : r.start_time.slice(0, 5)) : '—'}</td>
             <td class="center">${r.end_time   ? (r.end_time.includes('T')   ? r.end_time.slice(11, 16)   : r.end_time.slice(0, 5))   : '—'}</td>
-            <td class="right">${fmtH(r.horas)}${r.consultant_extra_pct ? `<span style="color:#16a34a;font-size:10px;margin-left:4px">+${r.consultant_extra_pct}%${r.valor_extra ? ` (${formatBRL(r.valor_extra)})` : ''}</span>` : ''}</td>
+            <td class="right">${fmtH(r.horas)}${r.consultant_extra_pct ? (r.valor_extra != null ? `<span style="color:#16a34a;font-size:10px;margin-left:4px">+${r.consultant_extra_pct}% (${formatBRL(r.valor_extra)})</span>` : `<span style="color:#16a34a;font-size:10px;margin-left:4px">+${r.consultant_extra_pct}% base ${fmtH(r.horas_base ?? r.horas)}</span>`) : ''}</td>
           </tr>
         `).join('')
         clienteBlocksHtml += `
