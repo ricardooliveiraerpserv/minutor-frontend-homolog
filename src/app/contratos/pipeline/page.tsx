@@ -3856,6 +3856,12 @@ function KanbanContent() {
       })
 
   const handleContractMove = async (cardId: number, card: ContractCard, fromCol: string, toCol: string, order = 0) => {
+    // Projeto já gerado não pode retornar para fases anteriores
+    if (card.project_id && (DEMAND_COLS.find(c => c.id === toCol) || toCol === 'inicio_autorizado')) {
+      toast.error('Este contrato já foi transformado em projeto e não pode retornar para fases anteriores.')
+      return
+    }
+
     if (toCol === 'req_inicio_autorizado') {
       setContractDecisionCard(card)
       return
@@ -3942,6 +3948,9 @@ function KanbanContent() {
     // Contratos vindos de requisição só podem ser movidos pelo Kanban de Contratos
     if (card.kanban_status === 'novo_projeto') return []
 
+    // Projeto já gerado: sem opção de retorno a fases anteriores
+    if (card.project_id) return []
+
     if (isConsultor) return []
 
     if (isCliente) {
@@ -3992,6 +4001,10 @@ function KanbanContent() {
       const card = [...demandCards, ...transitionCards].find(c => c.id === cardId)
       if (!card) return
       if (card.kanban_status === 'novo_projeto') return
+      if (card.project_id && (DEMAND_COLS.find(c => c.id === toCol) || toCol === 'inicio_autorizado')) {
+        toast.error('Este contrato já foi transformado em projeto e não pode retornar para fases anteriores.')
+        return
+      }
       await handleContractMove(cardId, card, fromCol, toCol, destination.index)
       return
     }

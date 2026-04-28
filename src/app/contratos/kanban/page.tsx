@@ -1673,6 +1673,12 @@ function KanbanContent() {
   }
 
   const handleContractMove = async (cardId: number, card: ContractCard, fromCol: string, toCol: string, order = 0) => {
+    // ── Projeto já gerado não pode voltar para fases anteriores à transformação
+    if (card.project_id && (toCol === 'novo' || toCol === 'pronto')) {
+      toast.error('Este contrato já foi transformado em projeto e não pode retornar para fases anteriores.')
+      return
+    }
+
     // ── Sustentação → coordinator is never allowed
     if (fromCol.startsWith('sust_') && toCol.startsWith('coordinator:')) {
       toast.error('Contratos de sustentação só podem mover entre filas de sustentação.')
@@ -1775,6 +1781,9 @@ function KanbanContent() {
     // Colunas de status de projeto: movimentação apenas pelo Pipeline
     if (fromCol.startsWith('col_')) return []
 
+    // Projeto já gerado: nunca pode voltar para fases pré-projeto
+    if (card.project_id && (fromCol === 'novo' || fromCol === 'pronto')) return []
+
     if (fromCol.startsWith('sust_')) {
       if (!isSustAdmin) return []
       // Sustentação só pode mover entre filas de sustentação — nunca para coordenadores
@@ -1847,6 +1856,10 @@ function KanbanContent() {
       const allSustCards = Object.values(sustGroups).flat().filter(c => c.card_type !== 'project') as ContractCard[]
       const card = [...demandCards, ...allSustCards].find(c => c.id === cardId)
       if (!card) return
+      if (card.project_id && (toCol === 'novo' || toCol === 'pronto')) {
+        toast.error('Este contrato já foi transformado em projeto e não pode retornar para fases anteriores.')
+        return
+      }
       await handleContractMove(cardId, card, fromCol, toCol, destination.index)
       return
     }
