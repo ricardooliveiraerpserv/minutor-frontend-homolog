@@ -89,7 +89,7 @@ interface ConsultantBreakdown {
 interface CostSummary {
   project_info: {
     project_value?: number | null; initial_cost?: number | null
-    initial_hours_balance?: number | null
+    initial_hours_balance?: number | null; tipo_faturamento?: string | null
     total_available_hours?: number; weighted_hourly_rate?: number
   }
   hours_summary: {
@@ -99,6 +99,7 @@ interface CostSummary {
   }
   cost_calculation: {
     total_cost: number; approved_cost: number; pending_cost: number
+    is_on_demand: boolean; project_revenue: number
     aportes_total: number; receita_total: number
     custo_operacional: number; custo_total: number
     margin: number; margin_percentage: number
@@ -683,16 +684,17 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   const pctUso = totalDisp > 0 ? Math.min(100, (horasConsumidas / totalDisp) * 100) : 0
                   const hoursBarColor = pctUso >= 90 ? '#ef4444' : pctUso >= 70 ? '#f59e0b' : '#22c55e'
                   const showHistorico = (pi.initial_hours_balance ?? 0) !== 0 || (pi.initial_cost ?? 0) !== 0
+                  const isOnDemand = cc.is_on_demand
                   return (
                     <>
                       {/* Bloco 1 — RECEITA */}
                       <div className="rounded-xl p-4" style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.18)' }}>
                         <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#00F5FF' }}>
-                          <DollarSign size={11} />Receita
+                          <DollarSign size={11} />Receita {isOnDemand && <span className="text-[9px] font-normal ml-1 opacity-70">(On Demand — horas × R$/h)</span>}
                         </p>
                         <div className="grid grid-cols-3 gap-3">
                           {[
-                            { label: 'Valor Projeto', value: fmtBRL(pi.project_value ?? 0) },
+                            { label: isOnDemand ? 'Horas × R$/h' : 'Valor Projeto', value: fmtBRL(cc.project_revenue) },
                             { label: 'Aportes',        value: fmtBRL(cc.aportes_total) },
                             { label: 'Receita Total',  value: fmtBRL(cc.receita_total), highlight: true },
                           ].map(c => (
