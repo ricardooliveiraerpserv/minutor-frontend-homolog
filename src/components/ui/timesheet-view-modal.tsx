@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   X, Clock, Pencil, Calendar, User, Building2, FolderOpen,
-  Ticket, Hash, Paperclip, FileText, CheckCircle, Globe, Webhook,
+  Ticket, Hash, Paperclip, FileText, CheckCircle, Globe, Webhook, DollarSign,
 } from 'lucide-react'
 import { Badge } from '@/components/ds'
 import type { Timesheet } from '@/types'
@@ -109,6 +109,12 @@ export function TimesheetViewModal({
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
             <OriginChip origin={ts.origin} />
+            {ts.is_billable_only && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}>
+                <DollarSign size={11} /> Somente Faturável
+              </span>
+            )}
             {ts.rejection_reason && (
               <span className="text-xs" style={{ color: 'var(--brand-danger)' }}>{ts.rejection_reason}</span>
             )}

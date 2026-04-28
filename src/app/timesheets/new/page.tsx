@@ -58,21 +58,34 @@ export default function NewTimesheetPage() {
   const [customers, setCustomers] = useState<SelectOption[]>([])
   const [projects,  setProjects]  = useState<SelectOption[]>([])
 
+  // Load users list once (admin only)
   useEffect(() => {
-    const items = (r: any) => Array.isArray(r?.items) ? r.items : []
-    Promise.all([
-      isAdmin ? api.get<any>('/users?pageSize=200') : Promise.resolve(null),
-      api.get<any>('/customers?pageSize=500'),
-    ]).then(([u, c]) => {
-      if (u) setUsers(items(u))
-      setCustomers(items(c))
-    }).catch(() => {})
+    if (!isAdmin) return
+    api.get<any>('/users?pageSize=200')
+      .then(r => setUsers(Array.isArray(r?.items) ? r.items : []))
+      .catch(() => {})
   }, [isAdmin])
+
+  // Reload customers when user_id changes (scoped to consultant if admin acting as other)
+  useEffect(() => {
+    let cancelled = false
+    const actingAsOther = isAdmin && form.user_id && form.user_id !== String(user?.id)
+    const endpoint = actingAsOther
+      ? `/customers/user-linked?pageSize=500&user_id=${form.user_id}`
+      : '/customers?pageSize=500'
+    api.get<any>(endpoint)
+      .then(r => { if (!cancelled) setCustomers(Array.isArray(r?.items) ? r.items : []) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.user_id, isAdmin])
 
   useEffect(() => {
     if (!form.customer_id) { setProjects([]); return }
     let cancelled = false
     const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open' })
+    const actingAsOther = isAdmin && form.user_id && form.user_id !== String(user?.id)
+    if (actingAsOther) { qs.set('consultant_only', 'true'); qs.set('user_id', form.user_id) }
     api.get<{ items: any[] }>(`/projects?${qs}`)
       .then(r => {
         if (!cancelled) setProjects(
@@ -83,7 +96,8 @@ export default function NewTimesheetPage() {
       })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [form.customer_id])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.customer_id, form.user_id, isAdmin])
 
   // Auto-calculate times
   useEffect(() => {
@@ -167,7 +181,9 @@ export default function NewTimesheetPage() {
           {isAdmin && (
             <div>
               <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Usuário</Label>
-              <SearchSelect value={form.user_id} onChange={v => set('user_id', v)}
+              <SearchSelect
+                value={form.user_id}
+                onChange={v => setForm(f => ({ ...f, user_id: v, customer_id: '', project_id: '', is_billable_only: false }))}
                 options={users} placeholder="Selecione o usuário..." />
             </div>
           )}

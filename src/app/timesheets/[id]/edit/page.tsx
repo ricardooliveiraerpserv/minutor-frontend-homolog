@@ -126,6 +126,7 @@ export default function EditTimesheetPage() {
     user_id: '', customer_id: '', project_id: '',
     date: '', start_time: '', end_time: '', total_hours: '',
     ticket: '', observation: '',
+    is_billable_only: false,
   })
   const [useTotal,   setUseTotal]   = useState(false)
   const [timeDriver, setTimeDriver] = useState<'end' | 'total'>('end')
@@ -158,16 +159,18 @@ export default function EditTimesheetPage() {
   useEffect(() => {
     if (!ts || initialized) return
     const customerId = ts.customer?.id ? String(ts.customer.id) : ''
+    const userId = ts.user?.id ? String(ts.user.id) : ts.user_id ? String(ts.user_id) : ''
     setForm({
-      user_id:      ts.user?.id ? String(ts.user.id) : '',
-      customer_id:  customerId,
-      project_id:   String(ts.project_id ?? ''),
-      date:         ts.date ?? '',
-      start_time:   ts.start_time ?? '',
-      end_time:     ts.end_time ?? '',
-      total_hours:  '',
-      ticket:       ts.ticket ?? '',
-      observation:  ts.observation ?? '',
+      user_id:          userId,
+      customer_id:      customerId,
+      project_id:       String(ts.project_id ?? ''),
+      date:             ts.date ?? '',
+      start_time:       ts.start_time ?? '',
+      end_time:         ts.end_time ?? '',
+      total_hours:      '',
+      ticket:           ts.ticket ?? '',
+      observation:      ts.observation ?? '',
+      is_billable_only: ts.is_billable_only ?? false,
     })
     setInitialized(true)
   }, [ts, initialized])
@@ -237,6 +240,11 @@ export default function EditTimesheetPage() {
         observation: form.observation || null,
       }
       if (canActAsUser && form.user_id) body.user_id = Number(form.user_id)
+      if (isAdmin && form.user_id && form.user_id !== String(user?.id) && form.is_billable_only) {
+        body.is_billable_only = true
+      } else if (isAdmin) {
+        body.is_billable_only = false
+      }
       await api.put(`/timesheets/${id}`, body)
       toast.success('Apontamento atualizado')
       router.push('/timesheets')
@@ -401,6 +409,19 @@ export default function EditTimesheetPage() {
                 onChange={e => setForm(f => ({ ...f, observation: e.target.value }))}
                 className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 resize-none" />
             </div>
+
+            {/* Somente faturável (admin, apontando para outro usuário) */}
+            {isAdmin && form.user_id && form.user_id !== String(user?.id) && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.is_billable_only}
+                  onChange={e => setForm(f => ({ ...f, is_billable_only: e.target.checked }))}
+                  className="w-3.5 h-3.5 accent-amber-500"
+                />
+                <span className="text-xs text-amber-400">Somente faturável — não reflete no pagamento do consultor</span>
+              </label>
+            )}
 
             {/* Status (leitura) */}
             <div className="rounded-xl px-3 py-2.5 text-xs" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
