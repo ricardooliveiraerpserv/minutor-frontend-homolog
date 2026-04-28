@@ -173,7 +173,7 @@ const NAV: NavEntry[] = [
     label: 'Fechamento',
     icon: DollarSign,
     items: [
-      { label: 'Geral',        href: '/fechamento',             icon: BarChart2  },
+      { label: 'Geral',        href: '/fechamento',             icon: BarChart2,  exactMatch: true },
       { label: 'Clientes',     href: '/fechamento/cliente',   icon: Building2  },
       { label: 'Parceiros',    href: '/fechamento/parceiro',  icon: Handshake  },
       { label: 'Consultores',  href: '/fechamento/consultor', icon: UserCheck  },
