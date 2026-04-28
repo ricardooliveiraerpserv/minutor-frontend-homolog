@@ -1192,11 +1192,18 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
           </div>
 
           <div className="flex flex-wrap gap-1 mb-2">
-            {card.categoria && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>
-                {card.categoria === 'projeto' ? 'Projeto' : 'Sustentação'}
-              </span>
-            )}
+            {card.categoria && (() => {
+              const svL = card.service_type?.toLowerCase() ?? ''
+              const ctL = card.contract_type?.toLowerCase() ?? ''
+              const effectivelySust = card.categoria === 'sustentacao'
+                || svL.includes('sustent') || svL.includes('cloud') || svL.includes('bizify')
+                || ctL.includes('banco de horas') || ctL.includes('on demand') || ctL.includes('cloud') || ctL.includes('bizify') || ctL.includes('saas')
+              return (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>
+                  {effectivelySust ? 'Sustentação' : 'Projeto'}
+                </span>
+              )
+            })()}
             {card.contract_type && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
                 {card.contract_type}
@@ -1688,7 +1695,12 @@ function KanbanContent() {
     // ── Between sustentação columns (or from demand to sustentação)
     if (toCol.startsWith('sust_')) {
       if (!isSustAdmin) { toast.error('Apenas admin ou coordenador de sustentação pode mover.'); return }
-      if (card.categoria === 'projeto') { toast.error('Contratos de projeto não podem ser movidos para filas de sustentação.'); return }
+      const ctL2 = card.contract_type?.toLowerCase() ?? ''
+      const svL2 = card.service_type?.toLowerCase() ?? ''
+      const isSustCard = card.categoria === 'sustentacao'
+        || ctL2.includes('banco de horas') || ctL2.includes('on demand') || ctL2.includes('cloud') || ctL2.includes('bizify') || ctL2.includes('saas')
+        || svL2.includes('sustent') || svL2.includes('cloud') || svL2.includes('bizify')
+      if (!isSustCard) { toast.error('Contratos de projeto não podem ser movidos para filas de sustentação.'); return }
       setSustGroups(prev => {
         const next = { ...prev }
         if (fromCol.startsWith('sust_')) next[fromCol] = prev[fromCol].filter(c => c.id !== cardId)
