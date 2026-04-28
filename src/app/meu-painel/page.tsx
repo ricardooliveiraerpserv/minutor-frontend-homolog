@@ -41,6 +41,7 @@ interface TimesheetItem {
   status: 'pending' | 'approved' | 'rejected' | 'conflicted' | 'adjustment_requested'
   status_display: string
   attachment_url?: string
+  consultant_extra_pct?: number | null
 }
 
 interface ExpenseItem {
@@ -1814,6 +1815,11 @@ export default function MeuPainelPage() {
   const effectiveRate   = hourlyRate > 0
     ? (rateType === 'monthly' ? hourlyRate / 180 : hourlyRate)
     : 0
+  const tsPctExtraMin = useMemo(() =>
+    timesheets.reduce((acc, ts) => acc + (ts.consultant_extra_pct
+      ? Math.round(ts.effort_minutes * (ts.consultant_extra_pct / 100))
+      : 0), 0),
+  [timesheets])
   const workedHours     = tsTotalMin / 60
 
   // Proporcionalidade: se bank_hours_start_date cai no mês selecionado
@@ -2375,8 +2381,18 @@ export default function MeuPainelPage() {
 
           {/* Total bar */}
           {!tsLoading && tsTotalMin > 0 && (
-            <div className="flex items-center gap-4 mb-3 text-xs text-zinc-500">
-              <span>Total: <span className="text-white font-semibold">{minutesToHours(tsTotalMin)}</span></span>
+            <div className="flex items-center gap-4 mb-3 text-xs text-zinc-500 flex-wrap">
+              {tsPctExtraMin > 0 ? (
+                <span className="flex items-center gap-1.5">
+                  <span>Apontadas: <span className="text-zinc-300 font-semibold">{minutesToHours(tsTotalMin)}</span></span>
+                  <span className="text-zinc-600">+</span>
+                  <span>% extra: <span className="text-green-400 font-semibold">+{minutesToHours(tsPctExtraMin)}</span></span>
+                  <span className="text-zinc-600">=</span>
+                  <span>Total efetivo: <span className="text-white font-bold">{minutesToHours(tsTotalMin + tsPctExtraMin)}</span></span>
+                </span>
+              ) : (
+                <span>Total: <span className="text-white font-semibold">{minutesToHours(tsTotalMin)}</span></span>
+              )}
               <span>Aprovados: <span className="text-green-400 font-medium">{approvedTs}</span></span>
               <span>Pendentes: <span className="text-yellow-400 font-medium">{notApprTs}</span></span>
             </div>
@@ -2434,13 +2450,26 @@ export default function MeuPainelPage() {
                         {ts.start_time} – {ts.end_time}
                       </td>
                       <td className="px-4 py-3.5 text-white font-mono font-bold whitespace-nowrap">
-                        <span className="flex items-center gap-1.5">
-                          {ts.effort_hours}
-                          {(ts as any).consultant_extra_pct ? (
-                            <span className="text-[10px] font-semibold text-green-400">+{(ts as any).consultant_extra_pct}%</span>
-                          ) : null}
-                          {ts.attachment_url && <Paperclip size={10} className="text-zinc-500 shrink-0" aria-label="Tem anexo" />}
-                        </span>
+                        {ts.consultant_extra_pct ? (() => {
+                          const extraMin  = Math.round(ts.effort_minutes * (ts.consultant_extra_pct / 100))
+                          const totalMin  = ts.effort_minutes + extraMin
+                          return (
+                            <span className="flex flex-col gap-0.5">
+                              <span className="flex items-center gap-1">
+                                <span className="text-zinc-400 font-normal">{ts.effort_hours}</span>
+                                <span className="text-[10px] text-green-400 font-semibold">+{ts.consultant_extra_pct}%</span>
+                                <span className="text-[10px] text-green-400">+{minutesToHours(extraMin)}</span>
+                              </span>
+                              <span className="text-green-300 text-[11px]">= {minutesToHours(totalMin)}</span>
+                            </span>
+                          )
+                        })() : (
+                          <span className="flex items-center gap-1.5">
+                            {ts.effort_hours}
+                            {ts.attachment_url && <Paperclip size={10} className="text-zinc-500 shrink-0" aria-label="Tem anexo" />}
+                          </span>
+                        )}
+                        {ts.consultant_extra_pct && ts.attachment_url && <Paperclip size={10} className="text-zinc-500 shrink-0 mt-0.5" aria-label="Tem anexo" />}
                       </td>
                       <td className="px-4 py-3.5 text-zinc-500 hidden xl:table-cell max-w-[120px] truncate">
                         {(ts as any).project?.service_type?.name ?? <span className="text-zinc-700">—</span>}
