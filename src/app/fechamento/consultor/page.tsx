@@ -29,6 +29,17 @@ interface ConsultorBase {
   total: number
 }
 
+interface ConsultorHorista extends ConsultorBase {
+  guaranteed_hours: number
+  guaranteed_prorated: number
+  proporcional: boolean
+  ratio: number
+  dias_uteis_periodo: number
+  dias_uteis_cheio: number
+  data_inicio: string | null
+  total_extras: number
+}
+
 interface ConsultorBancoHoras extends ConsultorBase {
   daily_hours: number
   working_days: number
@@ -56,7 +67,7 @@ interface Totais {
 }
 
 interface IndexData {
-  horistas: ConsultorBase[]
+  horistas: ConsultorHorista[]
   banco_horas: ConsultorBancoHoras[]
   fixos: ConsultorFixo[]
   totais: Totais
@@ -147,7 +158,7 @@ const printStyles = `
 `
 
 function buildReport(
-  consultor: ConsultorBase | ConsultorBancoHoras | ConsultorFixo,
+  consultor: ConsultorBase | ConsultorHorista | ConsultorBancoHoras | ConsultorFixo,
   apontamentos: ApontamentoRow[],
   yearMonth: string
 ): string {
@@ -172,7 +183,13 @@ function buildReport(
       <div class="summary-item"><div class="summary-label">Salário Mensal</div><div class="summary-value">${formatBRL(c.salario_mensal)}</div></div>
     `
   } else {
+    const ch = consultor as ConsultorHorista
+    const hasGuaranteed = ch.guaranteed_prorated > 0 && ch.horas_a_pagar > ch.horas_trabalhadas
     summaryExtra = `
+      ${hasGuaranteed ? `
+        <div class="summary-item"><div class="summary-label">H Garantidas (mín)</div><div class="summary-value" style="color:#d97706">${fmtH(ch.guaranteed_prorated)}</div></div>
+        <div class="summary-item"><div class="summary-label">H a Pagar</div><div class="summary-value">${fmtH(ch.horas_a_pagar)}</div></div>
+      ` : ''}
       <div class="summary-item"><div class="summary-label">Taxa/h</div><div class="summary-value">${formatBRL(consultor.effective_rate)}</div></div>
     `
   }
@@ -315,7 +332,7 @@ export default function FechamentoConsultorPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function handleRelatorio(consultor: ConsultorBase | ConsultorBancoHoras | ConsultorFixo) {
+  async function handleRelatorio(consultor: ConsultorBase | ConsultorHorista | ConsultorBancoHoras | ConsultorFixo) {
     setPrintingUser(consultor.user_id)
     try {
       const res = await api.get<{ data: ApontamentoRow[] }>(
@@ -416,6 +433,7 @@ export default function FechamentoConsultorPage() {
             <tr>
               <Th>Consultor</Th>
               <Th right>H Trabalhadas</Th>
+              <Th right>H a Pagar</Th>
               <Th right>Taxa/h</Th>
               <Th right>Total</Th>
               <Th right>Relatório</Th>
@@ -424,30 +442,43 @@ export default function FechamentoConsultorPage() {
           <Tbody>
             {rows.length === 0 && (
               <Tr>
-                <td colSpan={5} className="py-8 text-center text-zinc-500 text-sm">
+                <td colSpan={6} className="py-8 text-center text-zinc-500 text-sm">
                   Nenhum consultor horista no período
                 </td>
               </Tr>
             )}
-            {rows.map(c => (
-              <Tr key={c.user_id}>
-                <Td className="font-medium text-zinc-100">{c.nome}</Td>
-                <Td right className="font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</Td>
-                <Td right className="text-zinc-400">
-                  {c.rate_type === 'monthly'
-                    ? <span title={`Mensal: ${formatBRL(c.valor_hora)}`}>{formatBRL(c.effective_rate)}</span>
-                    : formatBRL(c.effective_rate)
-                  }
-                </Td>
-                <Td right className="font-semibold text-zinc-100">{formatBRL(c.total)}</Td>
-                <Td right>
-                  <RelatorioBtn userId={c.user_id} printingUser={printingUser} onClick={() => handleRelatorio(c)} />
-                </Td>
-              </Tr>
-            ))}
+            {rows.map(c => {
+              const hasGuaranteed = c.guaranteed_prorated > 0 && c.horas_a_pagar > c.horas_trabalhadas
+              return (
+                <Tr key={c.user_id}>
+                  <Td className="font-medium text-zinc-100">{c.nome}</Td>
+                  <Td right className="font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</Td>
+                  <Td right>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className="font-mono text-zinc-300">{fmtH(c.horas_a_pagar)}</span>
+                      {hasGuaranteed && (
+                        <span className="text-[10px] font-normal text-amber-400">
+                          mín {fmtH(c.guaranteed_prorated)} garantidas
+                        </span>
+                      )}
+                    </div>
+                  </Td>
+                  <Td right className="text-zinc-400">
+                    {c.rate_type === 'monthly'
+                      ? <span title={`Mensal: ${formatBRL(c.valor_hora)}`}>{formatBRL(c.effective_rate)}</span>
+                      : formatBRL(c.effective_rate)
+                    }
+                  </Td>
+                  <Td right className="font-semibold text-zinc-100">{formatBRL(c.total)}</Td>
+                  <Td right>
+                    <RelatorioBtn userId={c.user_id} printingUser={printingUser} onClick={() => handleRelatorio(c)} />
+                  </Td>
+                </Tr>
+              )
+            })}
             {rows.length > 0 && (
               <Tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
-                <td colSpan={3} className="py-2 px-3 text-right font-semibold text-zinc-300 text-sm">Total</td>
+                <td colSpan={4} className="py-2 px-3 text-right font-semibold text-zinc-300 text-sm">Total</td>
                 <Td right className="font-bold text-violet-400">{formatBRL(data?.totais.total_horistas ?? 0)}</Td>
                 <Td />
               </Tr>
