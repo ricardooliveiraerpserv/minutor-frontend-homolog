@@ -253,12 +253,12 @@ function buildReport(
   `
 }
 
-function openPrintWindow(html: string) {
-  const win = window.open('', '_blank')
-  if (!win) return
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório</title><style>${printStyles}</style></head><body>${html}</body></html>`)
-  win.document.close()
-  setTimeout(() => win.print(), 300)
+function openPrintWindow(html: string, win?: Window | null) {
+  const w = win ?? window.open('', '_blank')
+  if (!w) return
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório</title><style>${printStyles}</style></head><body>${html}</body></html>`)
+  w.document.close()
+  setTimeout(() => w.print(), 300)
 }
 
 // ─── RelatorioBtn ─────────────────────────────────────────────────────────────
@@ -315,13 +315,17 @@ export default function FechamentoConsultorPage() {
   useEffect(() => { load() }, [load])
 
   async function handleRelatorio(consultor: ConsultorBase | ConsultorBancoHoras | ConsultorFixo) {
+    // Abre a janela imediatamente (contexto síncrono do click) para evitar bloqueio de popup
+    const win = window.open('', '_blank')
     setPrintingUser(consultor.user_id)
     try {
       const res = await api.get<{ data: ApontamentoRow[] }>(
         `/fechamento-consultor/${consultor.user_id}/${yearMonth}/apontamentos`
       )
       const html = buildReport(consultor, res.data ?? [], yearMonth)
-      openPrintWindow(html)
+      openPrintWindow(html, win)
+    } catch {
+      win?.close()
     } finally {
       setPrintingUser(null)
     }
