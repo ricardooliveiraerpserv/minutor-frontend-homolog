@@ -64,6 +64,8 @@ interface IndexData {
 interface ApontamentoRow {
   id: number
   data: string
+  start_time?: string | null
+  end_time?: string | null
   projeto: string
   projeto_codigo: string
   cliente: string
@@ -97,7 +99,10 @@ function fmtDate(d: string): string {
 }
 
 function fmtH(h: number): string {
-  return `${h.toFixed(2)}h`
+  const totalMins = Math.round(h * 60)
+  const hrs  = Math.floor(totalMins / 60)
+  const mins = totalMins % 60
+  return `${hrs}h${String(mins).padStart(2, '0')}`
 }
 
 function balanceColor(val: number): string {
@@ -131,6 +136,7 @@ const printStyles = `
   th { background: #f3f4f6; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 5px 8px; text-align: left; color: #555; border-bottom: 1px solid #ddd; }
   td { font-size: 11px; padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
   .right { text-align: right; }
+  .center { text-align: center; }
   .total-box { background: #7c3aed; color: #fff; padding: 12px 18px; margin-top: 24px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
   .total-label { font-size: 13px; font-weight: 700; }
   .total-value { font-size: 20px; font-weight: 900; }
@@ -192,6 +198,8 @@ function buildReport(
             <td><span style="color:#888;margin-right:4px">${r.projeto_codigo}</span>${r.projeto}</td>
             <td>${r.ticket ?? '—'}</td>
             <td>${r.titulo ? r.titulo.slice(0, 70) : (r.observacao ? r.observacao.slice(0, 70) : '—')}</td>
+            <td class="center">${r.start_time ?? '—'}</td>
+            <td class="center">${r.end_time ?? '—'}</td>
             <td class="right">${fmtH(r.horas)}${r.consultant_extra_pct ? `<span style="color:#16a34a;font-size:10px;margin-left:4px">+${r.consultant_extra_pct}%${r.valor_extra ? ` (${formatBRL(r.valor_extra)})` : ''}</span>` : ''}</td>
           </tr>
         `).join('')
@@ -201,7 +209,7 @@ function buildReport(
             <span class="client-total">${fmtH(clienteHoras)}</span>
           </div>
           <table>
-            <thead><tr><th>Data</th><th>Projeto</th><th>Ticket</th><th>Descrição</th><th class="right">Horas / Extra</th></tr></thead>
+            <thead><tr><th>Data</th><th>Projeto</th><th>Ticket</th><th>Descrição</th><th class="center">Início</th><th class="center">Fim</th><th class="right">Horas / Extra</th></tr></thead>
             <tbody>${rowsHtml}</tbody>
           </table>
         `
