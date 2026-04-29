@@ -263,11 +263,15 @@ interface ProjectRowProps {
 
 function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread }: ProjectRowProps) {
   const consumedHours = project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0)
-  const pct   = project.sold_hours ? (consumedHours / project.sold_hours) * 100 : 0
-  const color = healthColor(pct)
+  const isOnDemand = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase().includes('on demand')
+    || (project as any).tipo_faturamento === 'on_demand'
+  const displaySold  = isOnDemand ? consumedHours : (project.sold_hours ?? 0)
+  const displaySaldo = isOnDemand ? 0 : (project.general_hours_balance ?? null)
+  const pct   = isOnDemand ? 100 : (project.sold_hours ? (consumedHours / project.sold_hours) * 100 : 0)
+  const color = isOnDemand ? 'green' : healthColor(pct)
   const hs    = healthStyles[color]
 
-  const saldo = project.general_hours_balance
+  const saldo    = displaySaldo
   const saldoNeg = saldo != null && saldo < 0
 
   const statusLabel: Record<string, string> = {
@@ -405,7 +409,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
         {/* HS Vendidas */}
         <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>
-          {fmt(project.sold_hours)}
+          {isOnDemand ? <span style={{ color: 'var(--brand-subtle)', fontSize: 11 }}>= consumo</span> : fmt(project.sold_hours)}
         </td>
 
         {/* HS Consumidas */}
@@ -421,22 +425,26 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
         {/* Saldo */}
         <td className="py-3 px-4 text-sm text-center tabular-nums font-semibold"
           style={{ color: saldoNeg ? '#ef4444' : 'var(--brand-text)' }}>
-          {saldo != null ? fmt(saldo, 1) : '—'}
+          {isOnDemand ? <span style={{ color: 'var(--brand-subtle)' }}>0,0</span> : (saldo != null ? fmt(saldo, 1) : '—')}
         </td>
 
         {/* % Uso + barra */}
         <td className="py-3 px-4 min-w-[140px]">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${Math.min(pct, 100)}%`, background: hs.bar }}
-              />
+          {isOnDemand ? (
+            <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>—</span>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${Math.min(pct, 100)}%`, background: hs.bar }}
+                />
+              </div>
+              <span className="text-xs tabular-nums w-9 text-center" style={{ color: hs.text }}>
+                {project.sold_hours ? `${Math.round(pct)}%` : '—'}
+              </span>
             </div>
-            <span className="text-xs tabular-nums w-9 text-center" style={{ color: hs.text }}>
-              {project.sold_hours ? `${Math.round(pct)}%` : '—'}
-            </span>
-          </div>
+          )}
         </td>
 
         {/* Status */}
