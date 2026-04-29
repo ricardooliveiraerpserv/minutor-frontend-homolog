@@ -3865,11 +3865,14 @@ function KanbanContent() {
       .sort((a, b) => a.kanban_order - b.kanban_order)
   }
 
+  const isSustType = (st?: string | null) => /sustentac|cloud|bizify/i.test(st ?? '')
+
   const projectsInCol = (colId: string): ProjectCard[] =>
     projectCards
       .filter(p => projectColumnId(p) === colId)
       .filter(p => !p.contract_id || !sustContractIds.has(p.contract_id))
       .filter(p => !p.contract_id || !kanbanBornNotAllocatedIds.has(p.contract_id))
+      .filter(p => !isCoord || !isSustType(p.service_type))
       .filter(p => matchFilter(p.customer_name, p.project_name))
       .filter(p => matchExecutivo(undefined, p.coordinators))
       .sort((a, b) => {
@@ -4196,6 +4199,7 @@ function KanbanContent() {
               return true
             })
           const allProjects = projectCards
+            .filter(p => !isCoord || !isSustType(p.service_type))
             .filter(p => {
               if (filterCustomers.length > 0 && !filterCustomers.includes(p.customer_name)) return false
               if (sq && !p.customer_name.toLowerCase().includes(sq) && !(p.project_name ?? '').toLowerCase().includes(sq)) return false
