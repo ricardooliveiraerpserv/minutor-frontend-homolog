@@ -410,8 +410,8 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
 
 interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }
 
-function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease }: {
-  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void
+function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseRelease }: {
+  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseRelease?: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -434,6 +434,7 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease }: 
         { label: 'Visualizar', icon: <Eye size={12} />, onClick: onView },
         { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } },
         ...(onRelease ? [{ label: 'Liberar', icon: <CheckCircle size={12} />, onClick: onRelease }] : []),
+        ...(onReverseRelease ? [{ label: 'Estornar liberação', icon: <X size={12} />, onClick: onReverseRelease }] : []),
         ...(onExtraPct ? [{ label: '% Extras', icon: <TrendingUp size={12} />, onClick: onExtraPct }] : []),
         { label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true },
       ]
@@ -869,6 +870,16 @@ function TimesheetsPageContent() {
     }
   }
 
+  const handleReverseRelease = async (id: number) => {
+    try {
+      await api.post(`/timesheets/${id}/reverse-release`, {})
+      toast.success('Liberação estornada!')
+      refetch()
+    } catch {
+      toast.error('Erro ao estornar liberação')
+    }
+  }
+
   return (
     <AppLayout title="Apontamentos">
       <div className="max-w-7xl mx-auto">
@@ -1176,6 +1187,7 @@ function TimesheetsPageContent() {
                       viewOnly={isCliente}
                       onExtraPct={(isAdmin || isCoordenador) ? () => setExtraPctModalData({ ids: [ts.id], ts }) : undefined}
                       onRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'internal' ? () => handleRelease(ts.id) : undefined}
+                      onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
                     />
                   </Td>
                   {(isAdmin || isCoordenador) && (
