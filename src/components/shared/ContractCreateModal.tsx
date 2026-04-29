@@ -121,6 +121,17 @@ export function ContractCreateModal({
     api.get<any>('/contract-types?pageSize=100').then(r => setContractTypes(r?.items ?? r?.data ?? r ?? [])).catch(() => {})
   }, [customerReadOnly])
 
+  // When a parent project is selected, lock code fields to match the parent's code
+  useEffect(() => {
+    if (!form.is_subproject || !form.parent_project_id) return
+    const parent = parentProjects.find(p => String(p.id) === String(form.parent_project_id))
+    const code = parent?.code_prefix  // e.g. "AAM002-26"
+    if (!code) return
+    const match = code.match(/^[A-Za-z]+(\d+)-(\d+)$/)
+    if (!match) return
+    setForm(f => ({ ...f, code_seq: match[1], code_year: match[2] }))
+  }, [form.parent_project_id, form.is_subproject, parentProjects])
+
   useEffect(() => {
     if (!form.parent_project_id) { setParentBalance(null); return }
     setParentBalanceLoading(true)
@@ -419,17 +430,19 @@ export function ContractCreateModal({
                         style={{ ...inputStyle, opacity: 0.5, minWidth: '4.5rem' }}>{codePrefix}</div>
                       <input type="text" maxLength={3} placeholder="001"
                         value={form.code_seq}
-                        onChange={e => { setForm(f => ({ ...f, code_seq: e.target.value.replace(/\D/g, '').slice(0, 3) })); setCodeExists(false) }}
+                        onChange={e => { if (form.is_subproject && form.parent_project_id) return; setForm(f => ({ ...f, code_seq: e.target.value.replace(/\D/g, '').slice(0, 3) })); setCodeExists(false) }}
                         onBlur={checkCodeExists}
+                        readOnly={form.is_subproject && !!form.parent_project_id}
                         className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
-                        style={{ ...inputStyle, width: '5rem' }} />
+                        style={{ ...inputStyle, width: '5rem', opacity: form.is_subproject && form.parent_project_id ? 0.5 : 1 }} />
                       <span className="text-zinc-500 text-sm font-mono">-</span>
                       <input type="text" maxLength={2} placeholder="26"
                         value={form.code_year}
-                        onChange={e => setForm(f => ({ ...f, code_year: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+                        onChange={e => { if (form.is_subproject && form.parent_project_id) return; setForm(f => ({ ...f, code_year: e.target.value.replace(/\D/g, '').slice(0, 2) })) }}
                         onBlur={checkCodeExists}
+                        readOnly={form.is_subproject && !!form.parent_project_id}
                         className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
-                        style={{ ...inputStyle, width: '4rem' }} />
+                        style={{ ...inputStyle, width: '4rem', opacity: form.is_subproject && form.parent_project_id ? 0.5 : 1 }} />
                       {form.is_subproject && (
                         <>
                           <span className="text-zinc-500 text-sm font-mono">-</span>
