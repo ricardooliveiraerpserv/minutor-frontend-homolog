@@ -1992,9 +1992,12 @@ function KanbanContent() {
     const isStatusColCard = !!COL_TO_PROJECT_STATUS[fromCol]
     const effectiveCoordId = currentCoordId ?? card.coordinator_ids?.[0]
     if (!isStatusColCard && effectiveCoordId !== undefined) {
-      return coordinators
-        .filter(c => c.id !== effectiveCoordId)
-        .map(c => ({ id: `coordinator:${c.id}`, label: c.name }))
+      return [
+        ...coordinators
+          .filter(c => c.id !== effectiveCoordId)
+          .map(c => ({ id: `coordinator:${c.id}`, label: c.name })),
+        ...STATUS_PROJECT_COLUMNS.map(c => ({ id: c.id, label: c.label })),
+      ]
     }
     return STATUS_PROJECT_COLUMNS
       .filter(c => c.id !== fromCol)
