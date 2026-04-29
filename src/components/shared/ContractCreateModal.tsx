@@ -138,8 +138,11 @@ export function ContractCreateModal({
     api.get<CustomerContact[]>(`/customer-contacts?customer_id=${form.customer_id}`)
       .then(r => setCustomerContacts(Array.isArray(r) ? r : []))
       .catch(() => setCustomerContacts([]))
-    api.get<any>(`/projects?customer_id=${form.customer_id}&parent_projects_only=true&pageSize=100`)
-      .then(r => setParentProjects((r?.items ?? []).map((p: any) => ({ id: p.id, name: `${p.code} — ${p.name}` }))))
+    api.get<any>(`/projects?customer_id=${form.customer_id}&per_page=200`)
+      .then(r => {
+        const list: any[] = r?.items ?? (Array.isArray(r) ? r : [])
+        setParentProjects(list.map((p: any) => ({ id: p.id, name: p.code ? `[${p.code}] ${p.name}` : p.name, code_prefix: p.code ?? null })))
+      })
       .catch(() => setParentProjects([]))
   }, [form.customer_id])
 
@@ -486,7 +489,7 @@ export function ContractCreateModal({
               </div>
 
               {form.customer_id && form.is_subproject && (
-                <div>
+                <div className="space-y-1.5">
                   <label className={labelCls}>Projeto Pai <span style={{ color: '#ef4444' }}>*</span></label>
                   {parentProjects.length === 0
                     ? <p className="text-xs text-amber-400 italic px-3 py-2 rounded-lg" style={inputStyle}>Nenhum projeto pai disponível para este cliente</p>
@@ -497,6 +500,20 @@ export function ContractCreateModal({
                         placeholder="Selecionar projeto pai..."
                       />
                   }
+                  {form.parent_project_id && (() => {
+                    const parent = parentProjects.find(p => String(p.id) === String(form.parent_project_id))
+                    const code = parent?.code_prefix
+                    if (!code) return null
+                    return (
+                      <p className="text-xs font-mono px-1 mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+                        Código do pai: <span className="font-semibold" style={{ color: '#67e8f9' }}>{code}</span>
+                        {' '}→ subprojeto será{' '}
+                        <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>
+                          {code}-{form.sub_seq ? form.sub_seq.padStart(2, '0') : '??'}
+                        </span>
+                      </p>
+                    )
+                  })()}
                 </div>
               )}
             </div>
