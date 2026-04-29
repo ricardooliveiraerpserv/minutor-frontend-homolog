@@ -1904,17 +1904,23 @@ function KanbanContent() {
   const handleProjectMove = async (cardId: number, toCol: string, currentCoordId?: number) => {
     if (toCol.startsWith('coordinator:')) {
       const newCoordId = Number(toCol.split(':')[1])
+      const card = projectCards.find(p => p.id === cardId)
+      const fromCoordId = currentCoordId ?? card?.coordinator_ids?.[0]
       setProjectCards(prev => prev.map(p => {
         if (p.id !== cardId) return p
-        const ids = (p.coordinator_ids ?? []).filter(id => id !== currentCoordId)
+        const ids = (p.coordinator_ids ?? []).filter(id => id !== fromCoordId)
         if (!ids.includes(newCoordId)) ids.push(newCoordId)
         return { ...p, coordinator_ids: ids }
       }))
       try {
-        await api.patch(`/projects/${cardId}/kanban-move`, { coordinator_id: newCoordId, from_coordinator_id: currentCoordId })
+        await api.patch(`/projects/${cardId}/kanban-move`, { coordinator_id: newCoordId, from_coordinator_id: fromCoordId })
         toast.success('Coordenador atualizado')
         await load()
-      } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover projeto'); load() }
+      } catch (e: any) {
+        const msg = e?.response?.data?.message ?? e?.message ?? 'Erro ao mover projeto'
+        toast.error(msg)
+        load()
+      }
       return
     }
     const newStatus = COL_TO_PROJECT_STATUS[toCol]
@@ -1981,11 +1987,13 @@ function KanbanContent() {
     return cols
   }
 
-  const getAvailableProjectCols = (_card: ProjectCard, fromCol: string, currentCoordId?: number): { id: string; label: string }[] => {
+  const getAvailableProjectCols = (card: ProjectCard, fromCol: string, currentCoordId?: number): { id: string; label: string }[] => {
     if (isConsultor || isCliente) return []
-    if (currentCoordId !== undefined) {
+    const isStatusColCard = !!COL_TO_PROJECT_STATUS[fromCol]
+    const effectiveCoordId = currentCoordId ?? card.coordinator_ids?.[0]
+    if (!isStatusColCard && effectiveCoordId !== undefined) {
       return coordinators
-        .filter(c => c.id !== currentCoordId)
+        .filter(c => c.id !== effectiveCoordId)
         .map(c => ({ id: `coordinator:${c.id}`, label: c.name }))
     }
     return STATUS_PROJECT_COLUMNS
