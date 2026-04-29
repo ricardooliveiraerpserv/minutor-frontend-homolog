@@ -24,15 +24,24 @@ import { toast } from 'sonner'
 interface TSItem {
   id: number
   date: string
+  start_time?: string | null
+  end_time?: string | null
   created_at?: string
   user?: { id: number; name: string }
-  project?: { id: number; name: string; customer?: { id: number; name: string } }
+  project?: { id: number; name: string; customer?: { id: number; name: string }; contract_type_display?: string }
   effort_minutes: number
   observation?: string
   ticket?: string
+  ticket_subject?: string
+  ticket_solicitante?: { id?: number; name?: string } | null
+  origin?: string
+  is_billable_only?: boolean
+  is_internal_action?: boolean
   status: string
+  status_display?: string
   attachment_url?: string
   consultant_extra_pct?: number | null
+  client_extra_pct?: number | null
 }
 
 interface ExpItem {
@@ -180,6 +189,40 @@ function SearchableSelect({
         </div>
       )}
     </div>
+  )
+}
+
+// ─── OriginLabel / TsStatusBadge ─────────────────────────────────────────────
+
+function OriginLabel({ origin, isInternalAction, isBillableOnly }: {
+  origin?: string
+  isInternalAction?: boolean
+  isBillableOnly?: boolean
+}) {
+  if (isInternalAction) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400">Ação Interna</span>
+  if (isBillableOnly)   return <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-700/30 text-amber-400">Apenas Fatura</span>
+  const labels: Record<string, string> = { manual: 'Manual', webhook: 'Webhook', integration: 'Integração', import: 'Importação' }
+  return <span className="text-[10px] text-zinc-500">{labels[origin ?? ''] ?? (origin || '—')}</span>
+}
+
+function TsStatusBadge({ status, display }: { status: string; display?: string }) {
+  const colors: Record<string, string> = {
+    pending:              'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
+    approved:             'bg-green-500/15  text-green-400  border-green-500/20',
+    rejected:             'bg-red-500/15    text-red-400    border-red-500/20',
+    adjustment_requested: 'bg-blue-500/15   text-blue-400   border-blue-500/20',
+    conflicted:           'bg-purple-500/15 text-purple-400 border-purple-500/20',
+    internal:             'bg-slate-500/15  text-slate-400  border-slate-500/20',
+    released:             'bg-cyan-500/15   text-cyan-400   border-cyan-500/20',
+  }
+  const labels: Record<string, string> = {
+    pending: 'Pendente', approved: 'Aprovado', rejected: 'Rejeitado',
+    adjustment_requested: 'Ajuste', conflicted: 'Conflito', internal: 'Ação Interna', released: 'Liberado',
+  }
+  return (
+    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${colors[status] ?? 'bg-zinc-700/30 text-zinc-400 border-zinc-600/20'}`}>
+      {display ?? labels[status] ?? status}
+    </span>
   )
 }
 
@@ -895,15 +938,23 @@ export default function ApprovalsPage() {
                 </th>
               )}
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Data</th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Início</th>}
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Fim</th>}
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Ticket #</th>}
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Gravação</th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Origem</th>}
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Colaborador</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Projeto</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Tipo de Serviço</th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Título</th>}
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Descrição</th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Solicitante</th>}
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Tipo de Serviço</th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Contrato</th>}
               <th className="text-right px-3 py-2.5 text-zinc-500 font-medium">
                 {tab === 'timesheets' ? 'Tempo' : 'Valor'}
               </th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Status</th>}
             </tr>
           </thead>
           <tbody>
@@ -923,7 +974,7 @@ export default function ApprovalsPage() {
             {/* Empty */}
             {!currentLoading && currentItems.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-16 text-center text-zinc-500">
+                <td colSpan={20} className="px-3 py-16 text-center text-zinc-500">
                   <CheckSquare size={28} className="mx-auto mb-2 opacity-20" />
                   <p className="text-sm">Nenhum item pendente de aprovação</p>
                   {hasFilters && (
@@ -954,11 +1005,26 @@ export default function ApprovalsPage() {
                     className="rounded border-zinc-600 bg-zinc-800 accent-blue-500" />
                 </td>
                 <td className="px-3 py-2.5 text-zinc-300 whitespace-nowrap">{fmt(ts.date)}</td>
+                <td className="px-3 py-2.5 text-zinc-400 font-mono hidden md:table-cell">{ts.start_time ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-400 font-mono hidden md:table-cell">{ts.end_time ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-400 font-mono hidden lg:table-cell">
+                  {ts.ticket
+                    ? ts.ticket.length >= 5
+                      ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()} className="hover:underline" style={{ color: '#22d3ee' }}>
+                          #{ts.ticket}
+                        </a>
+                      : `#${ts.ticket}`
+                    : '—'}
+                </td>
                 <td className="px-3 py-2.5 text-zinc-400 whitespace-nowrap hidden sm:table-cell">{fmtDateTime(ts.created_at)}</td>
+                <td className="px-3 py-2.5 hidden sm:table-cell">
+                  <OriginLabel origin={ts.origin} isInternalAction={ts.is_internal_action} isBillableOnly={ts.is_billable_only} />
+                </td>
                 <td className="px-3 py-2.5 text-zinc-200 font-medium">{ts.user?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-zinc-500 hidden md:table-cell">{ts.project?.customer?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden lg:table-cell truncate max-w-[200px]">{ts.project?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{(ts.project as any)?.service_type?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-400 hidden lg:table-cell truncate max-w-[160px]">{ts.project?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-500 hidden lg:table-cell truncate max-w-[160px]">{ts.ticket_subject ?? '—'}</td>
                 <td className="px-3 py-2.5 hidden lg:table-cell max-w-[200px]">
                   {ts.observation ? (
                     <span title={ts.observation} className="block truncate text-zinc-400 cursor-default">
@@ -966,6 +1032,9 @@ export default function ApprovalsPage() {
                     </span>
                   ) : <span className="text-zinc-600">—</span>}
                 </td>
+                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{ts.ticket_solicitante?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{(ts.project as any)?.service_type?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{ts.project?.contract_type_display ?? '—'}</td>
                 <td className="px-3 py-2.5 text-right font-mono text-zinc-300">
                   {ts.consultant_extra_pct ? (() => {
                     const extraMin = Math.round(ts.effort_minutes * (Number(ts.consultant_extra_pct) / 100))
@@ -979,6 +1048,9 @@ export default function ApprovalsPage() {
                       </div>
                     )
                   })() : fmtMin(ts.effort_minutes)}
+                </td>
+                <td className="px-3 py-2.5 hidden xl:table-cell">
+                  <TsStatusBadge status={ts.status} display={ts.status_display} />
                 </td>
               </tr>
             ))}
