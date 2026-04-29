@@ -1901,7 +1901,22 @@ function KanbanContent() {
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover card'); load() }
   }
 
-  const handleProjectMove = async (cardId: number, toCol: string) => {
+  const handleProjectMove = async (cardId: number, toCol: string, currentCoordId?: number) => {
+    if (toCol.startsWith('coordinator:')) {
+      const newCoordId = Number(toCol.split(':')[1])
+      setProjectCards(prev => prev.map(p => {
+        if (p.id !== cardId) return p
+        const ids = (p.coordinator_ids ?? []).filter(id => id !== currentCoordId)
+        if (!ids.includes(newCoordId)) ids.push(newCoordId)
+        return { ...p, coordinator_ids: ids }
+      }))
+      try {
+        await api.patch(`/projects/${cardId}/kanban-move`, { coordinator_id: newCoordId, from_coordinator_id: currentCoordId })
+        toast.success('Coordenador atualizado')
+        await load()
+      } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover projeto'); load() }
+      return
+    }
     const newStatus = COL_TO_PROJECT_STATUS[toCol]
     if (!newStatus) return
     setProjectCards(prev => prev.map(p => p.id === cardId ? { ...p, status: newStatus } : p))
@@ -1966,8 +1981,13 @@ function KanbanContent() {
     return cols
   }
 
-  const getAvailableProjectCols = (_card: ProjectCard, fromCol: string): { id: string; label: string }[] => {
+  const getAvailableProjectCols = (_card: ProjectCard, fromCol: string, currentCoordId?: number): { id: string; label: string }[] => {
     if (isConsultor || isCliente) return []
+    if (currentCoordId !== undefined) {
+      return coordinators
+        .filter(c => c.id !== currentCoordId)
+        .map(c => ({ id: `coordinator:${c.id}`, label: c.name }))
+    }
     return STATUS_PROJECT_COLUMNS
       .filter(c => c.id !== fromCol)
       .map(c => ({ id: c.id, label: c.label }))
@@ -1999,7 +2019,10 @@ function KanbanContent() {
     }
 
     if (cardType === 'project') {
-      await handleProjectMove(cardId, toCol)
+      const currentCoordId = fromCol.startsWith('coordinator:')
+        ? Number(fromCol.split(':')[1])
+        : undefined
+      await handleProjectMove(cardId, toCol, currentCoordId)
     }
   }
 
@@ -2229,8 +2252,8 @@ function KanbanContent() {
                                   <ProjectKanbanCard key={`p-${proj.id}`} card={proj} index={contractCards.length + idx}
                                     onClick={() => setProjectAction({ card: proj, action: 'view' })}
                                     onAction={action => setProjectAction({ card: proj, action })}
-                                    onMove={toCol => handleProjectMove(proj.id, toCol)}
-                                    availableColumns={getAvailableProjectCols(proj, fromCol)}
+                                    onMove={toCol => handleProjectMove(proj.id, toCol, col.coordinatorId)}
+                                    availableColumns={getAvailableProjectCols(proj, fromCol, col.coordinatorId)}
                                   />
                                 )
                               })}
