@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import React, { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import { useRouter } from 'next/navigation'
 import DashboardIndicators from '@/components/dashboard/DashboardIndicators'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
@@ -152,8 +153,13 @@ function ProjectsTable({ items, loading }: { items: ProjectItem[]; loading: bool
 
 export default function BankHoursMonthlyPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const isAdmin   = user?.type === 'admin'
   const isCliente = user?.type === 'cliente'
+
+  useEffect(() => {
+    if (user && user.type === 'coordenador') router.replace('/timesheets')
+  }, [user, router])
 
   const now = new Date()
   const isoFirstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`

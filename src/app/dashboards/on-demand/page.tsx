@@ -5,6 +5,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import { useRouter } from 'next/navigation'
 import { Zap, Clock, DollarSign } from 'lucide-react'
 import DashboardIndicators from '@/components/dashboard/DashboardIndicators'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -82,8 +83,13 @@ function SkeletonCard() {
 
 export default function OnDemandPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const isAdmin   = user?.type === 'admin'
   const isCliente = user?.type === 'cliente'
+
+  useEffect(() => {
+    if (user && user.type === 'coordenador') router.replace('/timesheets')
+  }, [user, router])
 
   const now = new Date()
   const isoFirstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`

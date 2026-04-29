@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import { useRouter } from 'next/navigation'
 import { BarChart2, Clock, TrendingUp, TrendingDown, AlertCircle, DollarSign, ChevronDown } from 'lucide-react'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
@@ -223,8 +224,13 @@ function SkeletonCard() {
 
 export default function BankHoursFixedPage() {
   const { user } = useAuth()
+  const router = useRouter()
   const isAdmin   = user?.type === 'admin'
   const isCliente = user?.type === 'cliente'
+
+  useEffect(() => {
+    if (user && user.type === 'coordenador') router.replace('/timesheets')
+  }, [user, router])
 
   const now = new Date()
   const isoFirstDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`

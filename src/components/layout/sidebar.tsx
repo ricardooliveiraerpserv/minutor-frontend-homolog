@@ -287,14 +287,6 @@ function SidebarInner({ user }: { user: User }) {
       const hasProjectsAction = ['projects.create','projects.update','projects.delete','projects.view_financial'].some(p => ep.includes(p))
       const hasAnyUserPerm = ['users.view_all','users.create','users.update','users.reset_password'].some(p => ep.includes(p))
 
-      // Dashboards — aparece se tiver ao menos um dashboard extra
-      const dashItems: { label: string; href: string; icon: typeof BarChart2 }[] = []
-      if (has('dashboards.bank_hours_fixed.view'))   dashItems.push({ label: 'Banco de Horas Fixo',    href: '/dashboards/bank-hours-fixed',    icon: BarChart2 })
-      if (has('dashboards.bank_hours_monthly.view')) dashItems.push({ label: 'Banco de Horas Mensais', href: '/dashboards/bank-hours-monthly',  icon: CalendarClock })
-      if (has('dashboards.on_demand.view'))          dashItems.push({ label: 'On Demand',              href: '/dashboards/on-demand',           icon: Zap })
-      if (dashItems.length > 0) nav.push({ type: 'group', label: 'Dashboards', icon: BarChart2, items: dashItems })
-
-
       // Cadastros — monta apenas os subitens concedidos
       const cadastrosItems: { label: string; href: string; icon: typeof Users }[] = []
       if (has('contracts.manage'))          cadastrosItems.push({ label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',          icon: FileType })
