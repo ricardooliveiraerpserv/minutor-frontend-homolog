@@ -403,6 +403,10 @@ export default function PortalClientePage() {
   const router = useRouter()
   const isCliente = user?.type === 'cliente'
 
+  useEffect(() => {
+    if (user && user.type === 'coordenador') router.replace('/dashboard')
+  }, [user, router])
+
   const [customers, setCustomers] = useState<{ value: string; label: string }[]>([])
   const [customerIds, setCustomerIds] = useState<string[]>([])
   const [multiData, setMultiData] = useState<(PortalData & { _cid: string })[]>([])
@@ -646,7 +650,10 @@ export default function PortalClientePage() {
 
   const indExecOptions = useMemo(() => {
     const map = new Map<number, string>()
-    for (const p of indProjects) for (const c of p.coordinators ?? []) if (c.id && c.name) map.set(c.id, c.name)
+    for (const p of indProjects) {
+      const ec = p.executivo_conta
+      if (ec?.id && ec?.name) map.set(ec.id, ec.name)
+    }
     return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(([id, name]) => ({ value: String(id), label: name }))
   }, [indProjects])
 
@@ -654,9 +661,11 @@ export default function PortalClientePage() {
     const map = new Map<string, Set<number>>()
     for (const p of indProjects) {
       if (!p.customer?.id) continue
+      const ec = p.executivo_conta
+      if (!ec?.id) continue
       const cid = String(p.customer.id)
       if (!map.has(cid)) map.set(cid, new Set())
-      for (const c of p.coordinators ?? []) if (c.id) map.get(cid)!.add(c.id)
+      map.get(cid)!.add(ec.id)
     }
     return map
   }, [indProjects])
@@ -677,7 +686,7 @@ export default function PortalClientePage() {
     if (indCFilter && String(p.customer?.id) !== indCFilter) return false
     if (indPFilter && String(p.id) !== indPFilter) return false
     if (indStatusFilter && p.status !== indStatusFilter) return false
-    if (indExecFilter.length > 0 && !(p.coordinators ?? []).some((c: any) => indExecFilter.includes(String(c.id)))) return false
+    if (indExecFilter.length > 0 && !indExecFilter.includes(String(p.executivo_conta?.id))) return false
     return true
   }), [indProjects, indCFilter, indPFilter, indStatusFilter, indExecFilter])
 
@@ -718,7 +727,7 @@ export default function PortalClientePage() {
       if (indCFilter && String(p.customer?.id) !== indCFilter) return false
       if (indPFilter && String(p.id) !== indPFilter) return false
       if (indStatusFilter && p.status !== indStatusFilter) return false
-      if (indExecFilter.length > 0 && !(p.coordinators ?? []).some((c: any) => indExecFilter.includes(String(c.id)))) return false
+      if (indExecFilter.length > 0 && !indExecFilter.includes(String(p.executivo_conta?.id))) return false
       return true
     })
     for (const p of filtered) {
