@@ -211,6 +211,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
         setForm({
           customer_id:           String(full.customer_id),
           project_name:          (full as any).project_name ?? '',
+          is_subproject:         !!(full as any).parent_project_id,
+          sub_seq:               '',
           parent_project_id:     (full as any).parent_project_id ? String((full as any).parent_project_id) : '',
           code_seq:              '',
           code_year:             CURRENT_YEAR_2D,
