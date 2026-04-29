@@ -84,6 +84,8 @@ const ATTACHMENT_TYPE_LABEL: Record<string, string> = {
 type FormState = {
   customer_id: string
   project_name: string
+  is_subproject: boolean
+  sub_seq: string
   parent_project_id: string
   code_seq: string
   code_year: string
@@ -110,6 +112,8 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   customer_id: '',
   project_name: '',
+  is_subproject: false,
+  sub_seq: '',
   parent_project_id: '',
   code_seq: '',
   code_year: CURRENT_YEAR_2D,
@@ -276,8 +280,11 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
   const codePrefix = selectedCustomerObj?.code_prefix?.toUpperCase() ?? ''
   const codePreview = useMemo(() => {
     if (!codePrefix || !form.code_seq.trim()) return ''
-    return `${codePrefix}${form.code_seq.padStart(3, '0')}-${form.code_year}`
-  }, [codePrefix, form.code_seq, form.code_year])
+    const base = `${codePrefix}${form.code_seq.padStart(3, '0')}-${form.code_year}`
+    if (form.is_subproject && form.sub_seq.trim())
+      return `${base}-${form.sub_seq.padStart(2, '0')}`
+    return base
+  }, [codePrefix, form.code_seq, form.code_year, form.is_subproject, form.sub_seq])
 
   const checkCodeExists = useCallback(async () => {
     if (!codePreview) { setCodeExists(false); return }
@@ -292,9 +299,10 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
   // ─── Save ─────────────────────────────────────────────────────────────────
 
   const save = async () => {
-    if (!form.customer_id)                      { toast.error('Selecione o cliente'); setActiveTab(0); return }
-    if (!(form as any).project_name?.trim())    { toast.error('Informe o nome do projeto'); setActiveTab(0); return }
-    if (!isOnDemand && !form.horas_contratadas) { toast.error('Informe as horas contratadas'); setActiveTab(4); return }
+    if (!form.customer_id)                                               { toast.error('Selecione o cliente'); setActiveTab(0); return }
+    if (!(form as any).project_name?.trim())                             { toast.error('Informe o nome do projeto'); setActiveTab(0); return }
+    if (form.is_subproject && !form.parent_project_id)                   { toast.error('Selecione o projeto pai para o subprojeto'); setActiveTab(0); return }
+    if (!isOnDemand && !form.horas_contratadas)                          { toast.error('Informe as horas contratadas'); setActiveTab(4); return }
 
     setSaving(true)
     try {
@@ -457,7 +465,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Código do Projeto</p>
                 {codePrefix ? (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <div className="px-3 py-2 rounded-lg text-sm font-mono tracking-widest text-center select-none"
                         style={{ ...inputStyle, opacity: 0.5, minWidth: '4.5rem' }}>
                         {codePrefix}
@@ -475,9 +483,20 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                         onBlur={checkCodeExists}
                         className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
                         style={{ ...inputStyle, width: '4rem' }} />
+                      {form.is_subproject && (
+                        <>
+                          <span className="text-zinc-500 text-sm font-mono">-</span>
+                          <input type="text" maxLength={2} placeholder="01"
+                            value={form.sub_seq}
+                            onChange={e => { setForm(f => ({ ...f, sub_seq: e.target.value.replace(/\D/g, '').slice(0, 2) })); setCodeExists(false) }}
+                            onBlur={checkCodeExists}
+                            className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
+                            style={{ ...inputStyle, width: '4rem' }} />
+                        </>
+                      )}
                       {codePreview && (
                         <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
-                          {codePreview}
+                          {codePreview}{form.is_subproject && !form.sub_seq.trim() ? '-??' : ''}
                         </span>
                       )}
                       {!form.code_seq && (
@@ -516,16 +535,38 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                 />
               </div>
 
+              {/* Toggle subprojeto */}
+              {form.customer_id && (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}
+                    className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+                    style={{ background: form.is_subproject ? 'var(--brand-primary)' : 'rgba(255,255,255,0.12)' }}
+                  >
+                    <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+                      style={{ transform: form.is_subproject ? 'translateX(16px)' : 'translateX(0)' }} />
+                  </button>
+                  <label className="text-sm cursor-pointer select-none" style={{ color: form.is_subproject ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}
+                    onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}>
+                    É subprojeto
+                  </label>
+                </div>
+              )}
+
               {/* Projeto Pai */}
-              {form.customer_id && parentProjects.length > 0 && (
+              {form.customer_id && form.is_subproject && (
                 <div>
-                  <label className={labelCls}>Projeto Pai <span className="text-zinc-600 font-normal">(opcional — para subprojetos)</span></label>
-                  <SearchSelect
-                    value={(form as any).parent_project_id ?? ''}
-                    onChange={v => setForm(f => ({ ...f, parent_project_id: v } as any))}
-                    options={parentProjects}
-                    placeholder="Selecionar projeto pai..."
-                  />
+                  <label className={labelCls}>Projeto Pai <span style={{ color: '#ef4444' }}>*</span></label>
+                  {parentProjects.length === 0
+                    ? <p className="text-xs text-amber-400 italic px-3 py-2 rounded-lg" style={inputStyle}>Nenhum projeto pai disponível para este cliente</p>
+                    : <SearchSelect
+                        value={(form as any).parent_project_id ?? ''}
+                        onChange={v => setForm(f => ({ ...f, parent_project_id: v } as any))}
+                        options={parentProjects}
+                        placeholder="Selecionar projeto pai..."
+                      />
+                  }
                 </div>
               )}
             </div>
