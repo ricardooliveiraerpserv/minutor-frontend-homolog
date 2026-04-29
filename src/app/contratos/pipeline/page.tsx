@@ -3769,6 +3769,18 @@ function KanbanContent() {
     return () => clearInterval(id)
   }, [])
 
+  // Limpa projetos selecionados que não pertencem ao cliente recém-filtrado
+  useEffect(() => {
+    if (filterCustomers.length === 0 || filterProjectNames.length === 0) return
+    const validIds = new Set(
+      projectCards
+        .filter(p => filterCustomers.includes(p.customer_name))
+        .map(p => String(p.id))
+    )
+    setFilterProjectNames(prev => prev.filter(id => validIds.has(id)))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterCustomers])
+
   // Compute visible columns based on role
   const visibleDemandCols = (isConsultor || isCoord) ? [] : DEMAND_COLS
 
@@ -3849,7 +3861,9 @@ function KanbanContent() {
   )].sort()
 
   const allProjectOptions = [...new Map(
-    projectCards.map(p => [p.id, { id: String(p.id), name: p.project_name + (p.code ? ` (${p.code})` : '') }])
+    projectCards
+      .filter(p => filterCustomers.length === 0 || filterCustomers.includes(p.customer_name))
+      .map(p => [p.id, { id: String(p.id), name: p.project_name + (p.code ? ` (${p.code})` : '') }])
   ).values()].sort((a, b) => a.name.localeCompare(b.name))
 
   const matchExecutivo = (coordinator?: string | null, coordinators?: string[]): boolean => {
@@ -4166,6 +4180,15 @@ function KanbanContent() {
               wide
             />
           )}
+          {!isCliente && (
+            <MultiSelect
+              value={filterProjectNames}
+              onChange={setFilterProjectNames}
+              options={allProjectOptions}
+              placeholder="Todos os projetos"
+              wide
+            />
+          )}
           {!isCliente && allExecutivos.length > 0 && (
             <MultiSelect
               value={filterExecutivos}
@@ -4181,15 +4204,6 @@ function KanbanContent() {
               onChange={setFilterCoordinators}
               options={allProjectCoordinators.map(n => ({ id: n, name: n }))}
               placeholder="Coordenador de projetos"
-              wide
-            />
-          )}
-          {!isCliente && allProjectOptions.length > 0 && (
-            <MultiSelect
-              value={filterProjectNames}
-              onChange={setFilterProjectNames}
-              options={allProjectOptions}
-              placeholder="Todos os projetos"
               wide
             />
           )}
