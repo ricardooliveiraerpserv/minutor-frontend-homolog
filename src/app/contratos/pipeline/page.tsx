@@ -3650,10 +3650,12 @@ function KanbanContent() {
   const [editContractData, setEditContractData] = useState<any | null>(null)
   const [showEditContract, setShowEditContract] = useState(false)
   const [contractAction,   setContractAction]   = useState<{ card: ContractCard; action: string } | null>(null)
-  const [filterSearch,     setFilterSearch]     = useState('')
-  const [filterCustomers,  setFilterCustomers]  = useState<string[]>([])
-  const [filterExecutivos, setFilterExecutivos] = useState<string[]>([])
-  const [listTab,          setListTab]          = useState<'contratos' | 'projetos' | 'requisicoes'>('projetos')
+  const [filterSearch,        setFilterSearch]        = useState('')
+  const [filterCustomers,     setFilterCustomers]     = useState<string[]>([])
+  const [filterExecutivos,    setFilterExecutivos]    = useState<string[]>([])
+  const [filterCoordinators,  setFilterCoordinators]  = useState<string[]>([])
+  const [filterProjectNames,  setFilterProjectNames]  = useState<string[]>([])
+  const [listTab,             setListTab]             = useState<'contratos' | 'projetos' | 'requisicoes'>('projetos')
   const [unreadContractIds, setUnreadContractIds] = useState<number[]>([])
   const [seenProjectIds, setSeenProjectIds] = useState<Set<number>>(() => {
     try {
@@ -3842,6 +3844,14 @@ function KanbanContent() {
     ...projectCards.flatMap(p => p.coordinators ?? []),
   ])].sort()
 
+  const allProjectCoordinators = [...new Set(
+    projectCards.flatMap(p => p.coordinators ?? [])
+  )].sort()
+
+  const allProjectOptions = [...new Map(
+    projectCards.map(p => [p.id, { id: String(p.id), name: p.project_name + (p.code ? ` (${p.code})` : '') }])
+  ).values()].sort((a, b) => a.name.localeCompare(b.name))
+
   const matchExecutivo = (coordinator?: string | null, coordinators?: string[]): boolean => {
     if (filterExecutivos.length === 0) return true
     const arr = coordinators ?? (coordinator ? [coordinator] : [])
@@ -3873,6 +3883,8 @@ function KanbanContent() {
       .filter(p => !p.contract_id || !sustContractIds.has(p.contract_id))
       .filter(p => !p.contract_id || !kanbanBornNotAllocatedIds.has(p.contract_id))
       .filter(p => !isCoord || !isSustType(p.service_type))
+      .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
+      .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
       .filter(p => matchFilter(p.customer_name, p.project_name))
       .filter(p => matchExecutivo(undefined, p.coordinators))
       .sort((a, b) => {
@@ -4163,8 +4175,26 @@ function KanbanContent() {
               wide
             />
           )}
-          {(filterSearch || filterCustomers.length > 0 || filterExecutivos.length > 0) && (
-            <button onClick={() => { setFilterSearch(''); setFilterCustomers([]); setFilterExecutivos([]) }}
+          {!isCliente && allProjectCoordinators.length > 0 && (
+            <MultiSelect
+              value={filterCoordinators}
+              onChange={setFilterCoordinators}
+              options={allProjectCoordinators.map(n => ({ id: n, name: n }))}
+              placeholder="Coordenador de projetos"
+              wide
+            />
+          )}
+          {!isCliente && allProjectOptions.length > 0 && (
+            <MultiSelect
+              value={filterProjectNames}
+              onChange={setFilterProjectNames}
+              options={allProjectOptions}
+              placeholder="Todos os projetos"
+              wide
+            />
+          )}
+          {(filterSearch || filterCustomers.length > 0 || filterExecutivos.length > 0 || filterCoordinators.length > 0 || filterProjectNames.length > 0) && (
+            <button onClick={() => { setFilterSearch(''); setFilterCustomers([]); setFilterExecutivos([]); setFilterCoordinators([]); setFilterProjectNames([]) }}
               className="text-xs px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
               style={{ color: 'var(--brand-subtle)' }}>
               Limpar
@@ -4200,6 +4230,8 @@ function KanbanContent() {
             })
           const allProjects = projectCards
             .filter(p => !isCoord || !isSustType(p.service_type))
+            .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
+            .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
             .filter(p => {
               if (filterCustomers.length > 0 && !filterCustomers.includes(p.customer_name)) return false
               if (sq && !p.customer_name.toLowerCase().includes(sq) && !(p.project_name ?? '').toLowerCase().includes(sq)) return false
