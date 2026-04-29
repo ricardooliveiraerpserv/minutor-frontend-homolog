@@ -1276,7 +1276,12 @@ function TimesheetsPageContent() {
                   </Td>
                   <Td>
                     {ts.is_internal_action
-                      ? null
+                      ? (
+                        <span className="inline-flex items-center gap-1 flex-wrap">
+                          <Badge variant="internal">Ação Interna</Badge>
+                          {ts.status === 'released' && <Badge variant="approved">Liberado</Badge>}
+                        </span>
+                      )
                       : <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
                     }
                   </Td>
