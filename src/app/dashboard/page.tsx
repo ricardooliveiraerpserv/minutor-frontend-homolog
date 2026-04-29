@@ -142,9 +142,13 @@ export default function DashboardPage() {
   const [recentExp,  setRecentExp]  = useState<ExpItem[]>([])
   const [conLoading, setConLoading] = useState(false)
 
-  const isAdmin          = user?.type === 'admin' || user?.type === 'coordenador'
+  const isAdmin          = user?.type === 'admin'
   const isAdministrativo = user?.type === 'administrativo'
   const isConsultor      = user?.type === 'consultor' || user?.type === 'parceiro_admin'
+
+  useEffect(() => {
+    if (user && user.type === 'coordenador') router.replace('/timesheets')
+  }, [user, router])
 
   // ── Load admin data ──
   useEffect(() => {

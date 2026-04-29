@@ -92,7 +92,6 @@ type NavGroup = {
 type NavEntry = NavItem | NavGroup
 
 const NAV_COORDINATOR: NavEntry[] = [
-  { type: 'item', label: 'Início', href: '/dashboard', icon: Home },
   {
     type: 'group',
     label: 'Apontamentos & Despesas',
