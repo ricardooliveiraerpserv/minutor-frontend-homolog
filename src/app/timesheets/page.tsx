@@ -50,10 +50,11 @@ function formatMinutes(minutes: number) {
 
 // ─── Origin badge ─────────────────────────────────────────────────────────────
 
-function OriginBadge({ origin, isBillableOnly, isInternalAction, canSeePct, clientExtraPct, consultantExtraPct }: {
+function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, canSeePct, clientExtraPct, consultantExtraPct }: {
   origin?: string
   isBillableOnly?: boolean
   isInternalAction?: boolean
+  isReleased?: boolean
   canSeePct?: boolean
   clientExtraPct?: number | null
   consultantExtraPct?: number | null
@@ -66,6 +67,14 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, canSeePct, clie
           style={{ background: 'rgba(100,116,139,0.18)', color: '#94a3b8' }}
         >
           Ação Interna
+        </span>
+      )}
+      {isReleased && (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+          style={{ background: 'rgba(16,185,129,0.14)', color: '#10B981' }}
+        >
+          Liberado
         </span>
       )}
       {isBillableOnly && (
@@ -401,8 +410,8 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
 
 interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }
 
-function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct }: {
-  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void
+function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease }: {
+  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -424,6 +433,7 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct }: {
     : [
         { label: 'Visualizar', icon: <Eye size={12} />, onClick: onView },
         { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } },
+        ...(onRelease ? [{ label: 'Liberar', icon: <CheckCircle size={12} />, onClick: onRelease }] : []),
         ...(onExtraPct ? [{ label: '% Extras', icon: <TrendingUp size={12} />, onClick: onExtraPct }] : []),
         { label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true },
       ]
@@ -504,6 +514,8 @@ const STATUS_PILLS = [
   { value: 'rejected',             label: 'Rejeitado' },
   { value: 'adjustment_requested', label: 'Ajuste' },
   { value: 'conflicted',           label: 'Conflito' },
+  { value: 'internal',             label: 'Ação Interna' },
+  { value: 'released',             label: 'Liberado' },
 ]
 
 const ORIGIN_OPTIONS = [
@@ -847,6 +859,16 @@ function TimesheetsPageContent() {
     finally { setExporting(false) }
   }
 
+  const handleRelease = async (id: number) => {
+    try {
+      await api.post(`/timesheets/${id}/release`, {})
+      toast.success('Ação interna liberada!')
+      refetch()
+    } catch {
+      toast.error('Erro ao liberar ação interna')
+    }
+  }
+
   return (
     <AppLayout title="Apontamentos">
       <div className="max-w-7xl mx-auto">
@@ -1153,6 +1175,7 @@ function TimesheetsPageContent() {
                       onDeleted={refetch}
                       viewOnly={isCliente}
                       onExtraPct={(isAdmin || isCoordenador) ? () => setExtraPctModalData({ ids: [ts.id], ts }) : undefined}
+                      onRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'internal' ? () => handleRelease(ts.id) : undefined}
                     />
                   </Td>
                   {(isAdmin || isCoordenador) && (
@@ -1208,6 +1231,7 @@ function TimesheetsPageContent() {
                       origin={ts.origin}
                       isBillableOnly={ts.is_billable_only}
                       isInternalAction={ts.is_internal_action}
+                      isReleased={ts.status === 'released'}
                       canSeePct={isAdmin || isCoordenador}
                       clientExtraPct={ts.client_extra_pct}
                       consultantExtraPct={ts.consultant_extra_pct}
@@ -1251,7 +1275,10 @@ function TimesheetsPageContent() {
                     {ts.project?.contract_type_display ?? '—'}
                   </Td>
                   <Td>
-                    <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
+                    {ts.is_internal_action
+                      ? null
+                      : <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
+                    }
                   </Td>
                 </Tr>
               ))}

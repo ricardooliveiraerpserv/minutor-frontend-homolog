@@ -178,10 +178,13 @@ const BADGE_STYLES: Record<string, { bg: string; color: string }> = {
   danger:    { bg: 'rgba(239,68,68,0.12)',    color: '#EF4444' },
   purple:    { bg: 'rgba(139,92,246,0.12)',   color: '#8B5CF6' },
   // timesheet statuses
-  pending:    { bg: 'rgba(245,158,11,0.12)', color: '#F59E0B' },
-  approved:   { bg: 'rgba(16,185,129,0.12)', color: '#10B981' },
-  rejected:   { bg: 'rgba(239,68,68,0.12)',  color: '#EF4444' },
-  conflicted: { bg: 'rgba(239,68,68,0.14)',  color: '#F87171' },
+  pending:              { bg: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
+  approved:             { bg: 'rgba(16,185,129,0.12)',  color: '#10B981' },
+  rejected:             { bg: 'rgba(239,68,68,0.12)',   color: '#EF4444' },
+  conflicted:           { bg: 'rgba(239,68,68,0.14)',   color: '#F87171' },
+  internal:             { bg: 'rgba(100,116,139,0.18)', color: '#94A3B8' },
+  released:             { bg: 'rgba(100,116,139,0.18)', color: '#94A3B8' },
+  adjustment_requested: { bg: 'rgba(139,92,246,0.12)',  color: '#8B5CF6' },
   // project statuses
   active:    { bg: 'rgba(16,185,129,0.12)',  color: '#10B981' },
   started:   { bg: 'rgba(0,245,255,0.10)',   color: '#00F5FF' },

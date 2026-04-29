@@ -80,7 +80,7 @@ export interface Timesheet {
   ticket?: string
   ticket_subject?: string
   ticket_solicitante?: { name?: string; email?: string; organization?: string } | null
-  status: 'pending' | 'approved' | 'rejected' | 'conflicted'
+  status: 'pending' | 'approved' | 'rejected' | 'conflicted' | 'adjustment_requested' | 'internal' | 'released'
   status_display: string
   rejection_reason?: string
   reviewed_by?: number
