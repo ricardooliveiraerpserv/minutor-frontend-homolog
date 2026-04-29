@@ -462,6 +462,26 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                 />
               </div>
 
+              {/* Toggle subprojeto — logo após cliente, sempre visível */}
+              {form.customer_id && (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}
+                    className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+                    style={{ background: form.is_subproject ? 'var(--brand-primary)' : 'rgba(255,255,255,0.12)' }}
+                  >
+                    <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+                      style={{ transform: form.is_subproject ? 'translateX(16px)' : 'translateX(0)' }} />
+                  </button>
+                  <label className="text-sm cursor-pointer select-none"
+                    style={{ color: form.is_subproject ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}
+                    onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}>
+                    É subprojeto
+                  </label>
+                </div>
+              )}
+
               {/* Código do Projeto */}
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Código do Projeto</p>
@@ -536,25 +556,6 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                   style={{ ...inputStyle, ...(!(form as any).project_name?.trim() ? { borderColor: 'rgba(239,68,68,0.5)' } : {}) }}
                 />
               </div>
-
-              {/* Toggle subprojeto */}
-              {form.customer_id && (
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}
-                    className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
-                    style={{ background: form.is_subproject ? 'var(--brand-primary)' : 'rgba(255,255,255,0.12)' }}
-                  >
-                    <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
-                      style={{ transform: form.is_subproject ? 'translateX(16px)' : 'translateX(0)' }} />
-                  </button>
-                  <label className="text-sm cursor-pointer select-none" style={{ color: form.is_subproject ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}
-                    onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}>
-                    É subprojeto
-                  </label>
-                </div>
-              )}
 
               {/* Projeto Pai */}
               {form.customer_id && form.is_subproject && (
