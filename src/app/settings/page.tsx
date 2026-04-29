@@ -1,20 +1,104 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Settings,
-  RefreshCw, CheckCircle, XCircle, Users, Shield,
+  RefreshCw, CheckCircle, XCircle, Users, Shield, ChevronDown, X,
 } from 'lucide-react'
 import type { SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
 import { PermissionGroupsTab } from './PermissionGroupsTab'
+
+// ─── SEARCHABLE SELECT ───────────────────────────────────────────────────────
+
+function SearchSelect({
+  options, value, onChange, placeholder = 'Buscar...', disabled = false,
+}: {
+  options: { id: number; name: string }[]
+  value: number | undefined
+  onChange: (id: number | undefined) => void
+  placeholder?: string
+  disabled?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  const selected = options.find(o => o.id === value)
+  const filtered = options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()))
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => { setOpen(o => !o); setSearch('') }}
+        className="w-full flex items-center justify-between bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-3 disabled:opacity-40 hover:border-zinc-500 transition-colors"
+      >
+        <span className={selected ? 'text-white' : 'text-zinc-500'}>
+          {selected ? selected.name : 'Nenhum'}
+        </span>
+        <div className="flex items-center gap-1">
+          {value && (
+            <span onClick={e => { e.stopPropagation(); onChange(undefined) }}
+              className="text-zinc-500 hover:text-zinc-200 p-0.5 rounded">
+              <X size={11} />
+            </span>
+          )}
+          <ChevronDown size={12} className="text-zinc-500" />
+        </div>
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 shadow-xl">
+          <div className="p-2 border-b border-zinc-800">
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={placeholder}
+              className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded px-2.5 h-7 outline-none focus:border-zinc-500"
+            />
+          </div>
+          <ul className="max-h-52 overflow-y-auto py-1">
+            <li
+              onClick={() => { onChange(undefined); setOpen(false) }}
+              className="px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-800 cursor-pointer"
+            >
+              Nenhum
+            </li>
+            {filtered.length === 0 && (
+              <li className="px-3 py-1.5 text-xs text-zinc-600 italic">Nenhum resultado</li>
+            )}
+            {filtered.map(o => (
+              <li
+                key={o.id}
+                onClick={() => { onChange(o.id); setOpen(false) }}
+                className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-800 ${value === o.id ? 'text-blue-400 font-medium' : 'text-zinc-200'}`}
+              >
+                {o.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
 
@@ -175,39 +259,33 @@ function GeneralTab() {
 
         <div className="space-y-3">
           <div>
-            <Label className="text-xs text-zinc-400">Cliente padrão (fallback)</Label>
-            <select
-              value={settings.movidesk_default_customer_id ?? ''}
-              onChange={e => setSettings(s => ({ ...s, movidesk_default_customer_id: Number(e.target.value) || undefined, movidesk_default_project_id: undefined }))}
-              className="mt-1.5 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-3"
-            >
-              <option value="">Nenhum</option>
-              {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <Label className="text-xs text-zinc-400 block mb-1.5">Cliente padrão (fallback)</Label>
+            <SearchSelect
+              options={customers}
+              value={settings.movidesk_default_customer_id}
+              onChange={id => setSettings(s => ({ ...s, movidesk_default_customer_id: id, movidesk_default_project_id: undefined }))}
+              placeholder="Buscar cliente..."
+            />
           </div>
           <div>
-            <Label className="text-xs text-zinc-400">Projeto padrão (fallback)</Label>
-            <select
-              value={settings.movidesk_default_project_id ?? ''}
-              onChange={e => setSettings(s => ({ ...s, movidesk_default_project_id: Number(e.target.value) || undefined }))}
+            <Label className="text-xs text-zinc-400 block mb-1.5">Projeto padrão (fallback)</Label>
+            <SearchSelect
+              options={projects}
+              value={settings.movidesk_default_project_id}
+              onChange={id => setSettings(s => ({ ...s, movidesk_default_project_id: id }))}
+              placeholder="Buscar projeto..."
               disabled={!settings.movidesk_default_customer_id}
-              className="mt-1.5 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-3 disabled:opacity-40"
-            >
-              <option value="">Nenhum</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            />
           </div>
           <div>
-            <Label className="text-xs text-zinc-400">Usuário padrão (fallback)</Label>
+            <Label className="text-xs text-zinc-400 block mb-1.5">Usuário padrão (fallback)</Label>
             <p className="text-[11px] text-zinc-500 mb-1.5">Usado quando o autor do apontamento não existe no Minutor.</p>
-            <select
-              value={settings.movidesk_default_user_id ?? ''}
-              onChange={e => setSettings(s => ({ ...s, movidesk_default_user_id: Number(e.target.value) || undefined }))}
-              className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-3"
-            >
-              <option value="">Nenhum</option>
-              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
+            <SearchSelect
+              options={users}
+              value={settings.movidesk_default_user_id}
+              onChange={id => setSettings(s => ({ ...s, movidesk_default_user_id: id }))}
+              placeholder="Buscar usuário..."
+            />
           </div>
         </div>
       </section>
