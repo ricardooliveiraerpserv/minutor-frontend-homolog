@@ -25,6 +25,7 @@ interface MovideskStatus {
 interface SystemSettings {
   movidesk_default_customer_id?: number | null
   movidesk_default_project_id?:  number | null
+  movidesk_default_user_id?:     number | null
 }
 
 interface SelectOption { id: number | string; name: string }
@@ -63,8 +64,10 @@ export default function MovideskIntegracaoPage() {
 
   const [customers, setCustomers] = useState<SelectOption[]>([])
   const [projects,  setProjects]  = useState<SelectOption[]>([])
+  const [users,     setUsers]     = useState<SelectOption[]>([])
   const [defaultCustomer, setDefaultCustomer] = useState('')
   const [defaultProject,  setDefaultProject]  = useState('')
+  const [defaultUser,     setDefaultUser]     = useState('')
   const [saving, setSaving] = useState(false)
 
   const loadStatus = useCallback(async () => {
@@ -78,18 +81,21 @@ export default function MovideskIntegracaoPage() {
 
   const loadSettings = useCallback(async () => {
     try {
-      const [settingsRes, custRes, projRes] = await Promise.all([
+      const [settingsRes, custRes, projRes, usersRes] = await Promise.all([
         api.get<SystemSettings>('/system-settings'),
         api.get<any>('/customers?pageSize=500'),
         api.get<any>('/projects?pageSize=500&status=open&gestao=false'),
+        api.get<any>('/users?pageSize=500'),
       ])
       const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : Array.isArray(r) ? r : []
       setCustomers(items(custRes))
       setProjects(items(projRes))
+      setUsers(items(usersRes).map((u: any) => ({ id: u.id, name: u.name ?? u.email })))
 
       const mv = settingsRes as SystemSettings
       setDefaultCustomer(String(mv.movidesk_default_customer_id ?? ''))
       setDefaultProject(String(mv.movidesk_default_project_id ?? ''))
+      setDefaultUser(String(mv.movidesk_default_user_id ?? ''))
     } catch {}
   }, [])
 
@@ -127,6 +133,7 @@ export default function MovideskIntegracaoPage() {
       await api.put('/system-settings', {
         movidesk_default_customer_id: defaultCustomer ? Number(defaultCustomer) : null,
         movidesk_default_project_id:  defaultProject  ? Number(defaultProject)  : null,
+        movidesk_default_user_id:     defaultUser     ? Number(defaultUser)     : null,
       })
       toast.success('Configurações salvas')
     } catch { toast.error('Erro ao salvar configurações') }
@@ -239,29 +246,48 @@ export default function MovideskIntegracaoPage() {
           <div className="flex items-center gap-2">
             <Settings size={16} style={{ color: '#a78bfa' }} />
             <h2 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Padrões de Importação</h2>
-            <span className="text-xs ml-1" style={{ color: 'var(--brand-subtle)' }}>— usados quando cliente ou projeto não são identificados automaticamente</span>
+            <span className="text-xs ml-1" style={{ color: 'var(--brand-subtle)' }}>— usados quando usuário, cliente ou projeto não são identificados automaticamente</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-xl p-3 text-xs" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+            <p style={{ color: '#f59e0b' }}>
+              <strong>Regra:</strong> apontamentos com duração inferior a 5 minutos são descartados automaticamente. Todos os demais são importados — se o usuário, cliente ou projeto não forem identificados, o apontamento é alocado nos padrões abaixo para tratamento manual.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Cliente Padrão</label>
+              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Usuário Padrão <span style={{ color: '#ef4444' }}>*</span></label>
+              <SearchSelect
+                value={defaultUser}
+                onChange={setDefaultUser}
+                options={users}
+                placeholder="Nenhum (descartar)"
+                fullWidth
+              />
+              <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Usado quando o agente do Movidesk não existe no sistema</p>
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Cliente Padrão <span style={{ color: '#ef4444' }}>*</span></label>
               <SearchSelect
                 value={defaultCustomer}
                 onChange={setDefaultCustomer}
                 options={customers}
-                placeholder="Nenhum (ignorar ticket)"
+                placeholder="Nenhum (descartar)"
                 fullWidth
               />
+              <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Usado quando a organização do ticket não é encontrada</p>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Projeto Padrão</label>
+              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Projeto Padrão <span style={{ color: '#ef4444' }}>*</span></label>
               <SearchSelect
                 value={defaultProject}
                 onChange={setDefaultProject}
                 options={projects}
-                placeholder="Nenhum (ignorar ticket)"
+                placeholder="Nenhum (descartar)"
                 fullWidth
               />
+              <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Usado quando o cliente não tem projeto de sustentação ativo</p>
             </div>
           </div>
 
