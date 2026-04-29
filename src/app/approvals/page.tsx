@@ -626,7 +626,7 @@ export default function ApprovalsPage() {
     setTsLoading(true)
     try {
       const p = new URLSearchParams(filterParams)
-      p.set('page', String(tsPage)); p.set('per_page', '30')
+      p.set('page', String(tsPage)); p.set('per_page', '100')
       if (tsStatus) p.set('status', tsStatus)
       const r = await api.get<any>(`/approvals/timesheets?${p}`)
       setTsItems(Array.isArray(r?.data) ? r.data : [])
@@ -639,7 +639,7 @@ export default function ApprovalsPage() {
     setExpLoading(true)
     try {
       const p = new URLSearchParams(filterParams)
-      p.set('page', String(expPage)); p.set('per_page', '30')
+      p.set('page', String(expPage)); p.set('per_page', '100')
       if (expStatus) p.set('status', expStatus)
       const r = await api.get<any>(`/approvals/expenses?${p}`)
       setExpItems(Array.isArray(r?.data) ? r.data : [])
