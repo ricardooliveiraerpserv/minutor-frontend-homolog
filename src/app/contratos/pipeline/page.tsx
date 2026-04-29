@@ -3770,7 +3770,7 @@ function KanbanContent() {
   // Compute visible columns based on role
   const visibleDemandCols = (isConsultor || isCoord) ? [] : DEMAND_COLS
 
-  const showTransition = !isConsultor
+  const showTransition = !isConsultor && !isCoord
   const visibleProjectCols = PROJECT_COLS
 
   // IDs de contratos de sustentação — não exibidos em Demandas e Projetos
@@ -4104,7 +4104,7 @@ function KanbanContent() {
 
         {/* Legend */}
         <div className="flex items-center gap-6 px-6 py-2 shrink-0 border-b text-[11px]" style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
-          {!isConsultor && (
+          {!isConsultor && !isCoord && (
             <>
               <span className="flex items-center gap-1.5">
                 <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded" style={{ background: 'var(--brand-border)' }}><Layers size={8} /></span>
