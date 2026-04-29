@@ -50,15 +50,24 @@ function formatMinutes(minutes: number) {
 
 // ─── Origin badge ─────────────────────────────────────────────────────────────
 
-function OriginBadge({ origin, isBillableOnly, canSeePct, clientExtraPct, consultantExtraPct }: {
+function OriginBadge({ origin, isBillableOnly, isInternalAction, canSeePct, clientExtraPct, consultantExtraPct }: {
   origin?: string
   isBillableOnly?: boolean
+  isInternalAction?: boolean
   canSeePct?: boolean
   clientExtraPct?: number | null
   consultantExtraPct?: number | null
 }) {
   return (
     <span className="inline-flex items-center gap-1 flex-wrap">
+      {isInternalAction && (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+          style={{ background: 'rgba(100,116,139,0.18)', color: '#94a3b8' }}
+        >
+          Ação Interna
+        </span>
+      )}
       {isBillableOnly && (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
@@ -1136,7 +1145,7 @@ function TimesheetsPageContent() {
                   </td>
                 </tr>
               ) : data?.items.map(ts => (
-                <Tr key={ts.id} baseBackground={ts.is_billable_only ? 'rgba(245,158,11,0.06)' : undefined}>
+                <Tr key={ts.id} baseBackground={ts.is_internal_action ? 'rgba(100,116,139,0.07)' : ts.is_billable_only ? 'rgba(245,158,11,0.06)' : undefined}>
                   <Td className="w-10">
                     <RowActions
                       id={ts.id}
@@ -1198,6 +1207,7 @@ function TimesheetsPageContent() {
                     <OriginBadge
                       origin={ts.origin}
                       isBillableOnly={ts.is_billable_only}
+                      isInternalAction={ts.is_internal_action}
                       canSeePct={isAdmin || isCoordenador}
                       clientExtraPct={ts.client_extra_pct}
                       consultantExtraPct={ts.consultant_extra_pct}
