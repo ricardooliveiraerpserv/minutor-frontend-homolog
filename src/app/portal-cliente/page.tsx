@@ -346,6 +346,66 @@ function IndChartTooltip({ active, payload, label }: any) {
   )
 }
 
+// ── ProjectSearchSelect ───────────────────────────────────────────────────────
+
+function ProjectSearchSelect({ value, onChange, options }: {
+  value: string
+  onChange: (v: string) => void
+  options: { value: string; label: string }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  const filtered = useMemo(() => options.filter(o => o.label.toLowerCase().includes(q.toLowerCase())), [options, q])
+  const selected = options.find(o => o.value === value)
+
+  useEffect(() => {
+    const handle = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setQ('') } }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [])
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => { setOpen(v => !v); setQ('') }}
+        className="flex items-center gap-2 pl-3 pr-2 py-2.5 text-sm rounded-xl outline-none cursor-pointer whitespace-nowrap font-medium"
+        style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${value ? 'rgba(0,245,255,0.4)' : 'var(--brand-border)'}`, color: value ? 'var(--brand-primary)' : 'var(--brand-text)', minWidth: 180 }}>
+        <span className="flex-1 text-left truncate">{selected?.label ?? 'Todos os projetos'}</span>
+        <ChevronDown size={12} style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />
+      </button>
+      {open && (
+        <div className="absolute right-0 z-50 mt-1 rounded-xl shadow-xl overflow-hidden" style={{ background: '#1c1c1e', border: '1px solid rgba(255,255,255,0.10)', minWidth: 260, maxWidth: 360 }}>
+          <div className="p-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+              <input autoFocus type="text" value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar projeto..."
+                className="w-full pl-7 pr-2 py-1.5 text-sm rounded-lg outline-none"
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-text)', caretColor: '#00F5FF' }} />
+            </div>
+          </div>
+          <div className="overflow-y-auto" style={{ maxHeight: 240 }}>
+            <button type="button" onClick={() => { onChange(''); setOpen(false); setQ('') }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-white/[0.06] transition-colors"
+              style={{ color: value === '' ? '#00F5FF' : 'var(--brand-muted)' }}>
+              Todos os projetos
+            </button>
+            {filtered.map(o => (
+              <button key={o.value} type="button" onClick={() => { onChange(o.value); setOpen(false); setQ('') }}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-white/[0.06] transition-colors"
+                style={{ color: value === o.value ? '#00F5FF' : 'var(--brand-text)' }}>
+                {o.label}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <p className="px-3 py-3 text-xs text-center" style={{ color: 'var(--brand-subtle)' }}>Nenhum projeto encontrado</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function PortalClientePage() {
@@ -593,9 +653,11 @@ export default function PortalClientePage() {
   }, [indProjects])
 
   const indProjetoOptions = useMemo(() =>
-    indProjects.map(p => ({ value: String(p.id), label: `${p.code ? `[${p.code}] ` : ''}${p.name}` }))
+    indProjects
+      .filter(p => !indCFilter || String(p.customer?.id) === indCFilter)
+      .map(p => ({ value: String(p.id), label: `${p.code ? `[${p.code}] ` : ''}${p.name}` }))
       .sort((a, b) => a.label.localeCompare(b.label)),
-    [indProjects]
+    [indProjects, indCFilter]
   )
 
   const indExecOptions = useMemo(() => {
@@ -749,21 +811,12 @@ export default function PortalClientePage() {
               )}
 
               {/* Filtro de projeto da aba Indicadores de Gestão */}
-              {!isCliente && activeTab === 'indicadores' && indProjetoOptions.length > 0 && (
-                <div className="relative">
-                  <select
-                    value={indPFilter}
-                    onChange={e => setIndPFilter(e.target.value)}
-                    className="appearance-none pl-3 pr-8 py-2.5 text-sm rounded-xl outline-none cursor-pointer font-medium"
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)', color: indPFilter ? 'var(--brand-primary)' : 'var(--brand-text)', minWidth: 180 }}
-                  >
-                    <option value="" style={{ background: '#161618' }}>Todos os projetos</option>
-                    {indProjetoOptions.map(p => (
-                      <option key={p.value} value={p.value} style={{ background: '#161618' }}>{p.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--brand-subtle)' }} />
-                </div>
+              {!isCliente && activeTab === 'indicadores' && (
+                <ProjectSearchSelect
+                  value={indPFilter}
+                  onChange={v => { setIndPFilter(v) }}
+                  options={indProjetoOptions}
+                />
               )}
 
             </div>
