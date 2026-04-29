@@ -31,6 +31,7 @@ interface ContractCard {
   kanban_status: string
   kanban_coordinator_id?: number
   kanban_coordinator?: string
+  executivo_conta_name?: string
   kanban_order: number
   status: string
   project_id?: number
@@ -55,6 +56,7 @@ interface ProjectCard {
   sustentacao_column?: string | null
   coordinator_ids?: number[]
   coordinators?: string[]
+  executivo_conta_name?: string
 }
 
 interface Coordinator { id: number; name: string }
@@ -1777,8 +1779,8 @@ function KanbanContent() {
   ].filter(Boolean))].sort() as string[]
 
   const allExecutivosKanban = [...new Set([
-    ...demandCards.flatMap(c => c.kanban_coordinator ? [c.kanban_coordinator] : []),
-    ...projectCards.flatMap(p => p.coordinators ?? []),
+    ...demandCards.flatMap(c => c.executivo_conta_name ? [c.executivo_conta_name] : []),
+    ...projectCards.flatMap(p => p.executivo_conta_name ? [p.executivo_conta_name] : []),
   ])].sort()
 
   const allProjectKanbanOptions = [...new Map(
@@ -1795,10 +1797,9 @@ function KanbanContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterCustomer])
 
-  const matchExecutivoKanban = (coordinator?: string | null, coordinators?: string[]): boolean => {
+  const matchExecutivoKanban = (executivo?: string | null): boolean => {
     if (filterExecutivos.length === 0) return true
-    const arr = coordinator ? [coordinator] : (coordinators ?? [])
-    return arr.some(e => filterExecutivos.includes(e))
+    return filterExecutivos.includes(executivo ?? '')
   }
 
   const matchProjectKanban = (projectName?: string | null): boolean =>
@@ -1815,7 +1816,7 @@ function KanbanContent() {
       : null
     return base
       .filter(c => matchFilter(c.customer_name, c.project_name))
-      .filter(c => matchExecutivoKanban((c as ContractCard).kanban_coordinator))
+      .filter(c => matchExecutivoKanban((c as ContractCard).executivo_conta_name))
       .filter(c => matchProjectKanban(c.project_name))
       .filter(c => !activeProjectIds || !(c as ContractCard).project_id)
       .sort((a, b) => (a.kanban_order ?? 0) - (b.kanban_order ?? 0))
@@ -1827,7 +1828,7 @@ function KanbanContent() {
       isActiveProject(p) &&
       (p.coordinator_ids ?? []).includes(coordId) &&
       matchFilter(p.customer_name, p.project_name) &&
-      matchExecutivoKanban(undefined, p.coordinators) &&
+      matchExecutivoKanban(p.executivo_conta_name) &&
       matchProjectKanban(p.project_name)
     )
 
@@ -1837,7 +1838,7 @@ function KanbanContent() {
     return projectCards
       .filter(p => p.status === targetStatus)
       .filter(p => matchFilter(p.customer_name, p.project_name))
-      .filter(p => matchExecutivoKanban(undefined, p.coordinators))
+      .filter(p => matchExecutivoKanban(p.executivo_conta_name))
       .filter(p => matchProjectKanban(p.project_name))
   }
 
