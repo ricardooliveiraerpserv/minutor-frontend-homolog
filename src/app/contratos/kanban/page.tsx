@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { List, Plus, ExternalLink, CheckCircle, AlertCircle, AlertTriangle, Clock, Users, Layers, PauseCircle, XCircle, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, MessageSquare, Trash2, Search } from 'lucide-react'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
 import { ContractMessages } from '@/components/shared/ContractMessages'
@@ -1708,6 +1709,8 @@ function KanbanContent() {
   const [editingContractData, setEditingContractData] = useState<any | null>(null)
   const [filterSearch,        setFilterSearch]        = useState('')
   const [filterCustomer,      setFilterCustomer]      = useState('')
+  const [filterExecutivos,    setFilterExecutivos]    = useState<string[]>([])
+  const [filterProjectNames,  setFilterProjectNames]  = useState<string[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -1773,6 +1776,34 @@ function KanbanContent() {
     ...Object.values(sustGroups).flat().map(c => c.customer_name),
   ].filter(Boolean))].sort() as string[]
 
+  const allExecutivosKanban = [...new Set([
+    ...demandCards.flatMap(c => c.kanban_coordinator ? [c.kanban_coordinator] : []),
+    ...projectCards.flatMap(p => p.coordinators ?? []),
+  ])].sort()
+
+  const allProjectKanbanOptions = [...new Map(
+    projectCards
+      .filter(p => !filterCustomer || p.customer_name === filterCustomer)
+      .map(p => [p.project_name, { id: p.project_name, name: p.project_name + (p.code ? ` (${p.code})` : '') }])
+  ).values()].sort((a, b) => a.name.localeCompare(b.name))
+
+  // Limpa projetos selecionados quando o cliente muda
+  useEffect(() => {
+    if (!filterCustomer || filterProjectNames.length === 0) return
+    const validNames = new Set(projectCards.filter(p => p.customer_name === filterCustomer).map(p => p.project_name))
+    setFilterProjectNames(prev => prev.filter(n => validNames.has(n)))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterCustomer])
+
+  const matchExecutivoKanban = (coordinator?: string | null, coordinators?: string[]): boolean => {
+    if (filterExecutivos.length === 0) return true
+    const arr = coordinator ? [coordinator] : (coordinators ?? [])
+    return arr.some(e => filterExecutivos.includes(e))
+  }
+
+  const matchProjectKanban = (projectName?: string | null): boolean =>
+    filterProjectNames.length === 0 || filterProjectNames.includes(projectName ?? '')
+
   // Contract cards per column
   const contractsInCol = (colId: string): (ContractCard | ProjectCard)[] => {
     const base = colId.startsWith('sust_')
@@ -1784,6 +1815,8 @@ function KanbanContent() {
       : null
     return base
       .filter(c => matchFilter(c.customer_name, c.project_name))
+      .filter(c => matchExecutivoKanban((c as ContractCard).kanban_coordinator))
+      .filter(c => matchProjectKanban(c.project_name))
       .filter(c => !activeProjectIds || !(c as ContractCard).project_id)
       .sort((a, b) => (a.kanban_order ?? 0) - (b.kanban_order ?? 0))
   }
@@ -1793,7 +1826,9 @@ function KanbanContent() {
     projectCards.filter(p =>
       isActiveProject(p) &&
       (p.coordinator_ids ?? []).includes(coordId) &&
-      matchFilter(p.customer_name, p.project_name)
+      matchFilter(p.customer_name, p.project_name) &&
+      matchExecutivoKanban(undefined, p.coordinators) &&
+      matchProjectKanban(p.project_name)
     )
 
   // Project cards in status columns
@@ -1802,6 +1837,8 @@ function KanbanContent() {
     return projectCards
       .filter(p => p.status === targetStatus)
       .filter(p => matchFilter(p.customer_name, p.project_name))
+      .filter(p => matchExecutivoKanban(undefined, p.coordinators))
+      .filter(p => matchProjectKanban(p.project_name))
   }
 
   const handleContractMove = async (cardId: number, card: ContractCard, fromCol: string, toCol: string, order = 0) => {
@@ -2099,8 +2136,24 @@ function KanbanContent() {
               {allCustomers.map(name => <option key={name} value={name}>{name}</option>)}
             </select>
           )}
-          {(filterSearch || filterCustomer) && (
-            <button onClick={() => { setFilterSearch(''); setFilterCustomer('') }}
+          <MultiSelect
+            value={filterProjectNames}
+            onChange={setFilterProjectNames}
+            options={allProjectKanbanOptions}
+            placeholder="Todos os projetos"
+            wide
+          />
+          {allExecutivosKanban.length > 0 && (
+            <MultiSelect
+              value={filterExecutivos}
+              onChange={setFilterExecutivos}
+              options={allExecutivosKanban.map(n => ({ id: n, name: n }))}
+              placeholder="Todos os executivos"
+              wide
+            />
+          )}
+          {(filterSearch || filterCustomer || filterExecutivos.length > 0 || filterProjectNames.length > 0) && (
+            <button onClick={() => { setFilterSearch(''); setFilterCustomer(''); setFilterExecutivos([]); setFilterProjectNames([]) }}
               className="text-xs px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
               style={{ color: 'var(--brand-subtle)' }}>
               Limpar
