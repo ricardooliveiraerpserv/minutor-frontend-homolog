@@ -40,6 +40,7 @@ function GeneralTab() {
   const [saving, setSaving] = useState(false)
   const [customers, setCustomers] = useState<{ id: number; name: string }[]>([])
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([])
+  const [users, setUsers] = useState<{ id: number; name: string }[]>([])
   const [movideskStatus, setMovideskStatus] = useState<MovideskStatus | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncOutput, setSyncOutput] = useState<string | null>(null)
@@ -54,11 +55,14 @@ function GeneralTab() {
   useEffect(() => {
     Promise.all([
       api.get<{ data: SystemSettings }>('/system-settings'),
-      api.get<{ data: { id: number; name: string }[] }>('/customers?pageSize=500'),
-    ]).then(([s, c]) => {
+      api.get<any>('/customers?per_page=500'),
+      api.get<any>('/users?per_page=500&type=consultor'),
+    ]).then(([s, c, u]) => {
       setSettings(s.data ?? s as unknown as SystemSettings)
-      const cArr = Array.isArray((c as any)?.items) ? (c as any).items : Array.isArray((c as any)?.data) ? (c as any).data : []
+      const cArr = Array.isArray(c?.items) ? c.items : Array.isArray(c?.data) ? c.data : []
       setCustomers(cArr)
+      const uArr = Array.isArray(u?.items) ? u.items : Array.isArray(u?.data) ? u.data : []
+      setUsers(uArr)
     }).catch((e) => toast.error('Erro ao carregar configurações: ' + (e instanceof ApiError ? e.message : String(e))))
       .finally(() => setLoading(false))
     loadMovideskStatus()
@@ -191,6 +195,18 @@ function GeneralTab() {
             >
               <option value="">Nenhum</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs text-zinc-400">Usuário padrão (fallback)</Label>
+            <p className="text-[11px] text-zinc-500 mb-1.5">Usado quando o autor do apontamento não existe no Minutor.</p>
+            <select
+              value={settings.movidesk_default_user_id ?? ''}
+              onChange={e => setSettings(s => ({ ...s, movidesk_default_user_id: Number(e.target.value) || undefined }))}
+              className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md h-9 px-3"
+            >
+              <option value="">Nenhum</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
         </div>

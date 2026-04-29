@@ -145,6 +145,7 @@ export interface SystemSettings {
   timesheet_retroactive_limit_days?: number
   movidesk_default_customer_id?: number
   movidesk_default_project_id?: number
+  movidesk_default_user_id?: number
   [key: string]: string | number | null | undefined
 }
 
