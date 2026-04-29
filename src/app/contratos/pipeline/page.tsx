@@ -1208,7 +1208,7 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
   onClose: () => void
   onDone: (updatedCard: RequestCard) => void
   onNovoProjeto: () => void
-  onSubprojeto: (projectId: number) => void
+  onSubprojeto: (projectId: number, subSeq: string) => void
 }) {
   const [step, setStep] = useState<'decision' | 'novo_projeto' | 'subprojeto'>('decision')
   const [loading, setLoading] = useState(false)
@@ -1233,6 +1233,7 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
   const [parentBalance, setParentBalance]               = useState<{ balance: number; allow_negative: boolean } | null>(null)
   const [parentBalanceLoading, setParentBalanceLoading] = useState(false)
   const [confirmNegative, setConfirmNegative]           = useState(false)
+  const [subSeq, setSubSeq]                             = useState('')
 
   useEffect(() => {
     if (step === 'novo_projeto' && serviceTypes.length === 0) {
@@ -1281,6 +1282,7 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
 
   const selectProject = (id: number) => {
     setSelectedProjectId(id)
+    setSubSeq('')
     setParentBalance(null)
     setParentBalanceLoading(true)
     api.get<{ general_hours_balance?: number; allow_negative_balance?: boolean; total_available_hours?: number; sold_hours?: number; consumed_hours?: number }>(`/projects/${id}`)
@@ -1294,6 +1296,7 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
 
   const handleSubprojetoAvancar = () => {
     if (!selectedProjectId) { toast.error('Selecione um projeto'); return }
+    if (!subSeq.trim()) { toast.error('Informe o número do subprojeto'); return }
     if (parentBalance && parentBalance.balance <= 0) {
       if (!parentBalance.allow_negative) {
         toast.error('Saldo insuficiente: este projeto não permite saldo negativo e já está zerado.')
@@ -1302,7 +1305,7 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
       setConfirmNegative(true)
       return
     }
-    onSubprojeto(selectedProjectId)
+    onSubprojeto(selectedProjectId, subSeq.trim().padStart(2, '0'))
   }
 
   const inputStyle = { background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }
@@ -1507,9 +1510,32 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
               </div>
             )}
 
+            {selectedProjectId && (
+              <div>
+                <label className="block text-xs font-semibold mb-1.5" style={labelStyle}>NÚMERO DO SUBPROJETO *</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono px-3 py-2 rounded-lg flex-shrink-0"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
+                    {projects.find(p => p.id === selectedProjectId)?.code ?? '—'}
+                    {subSeq.trim() ? `-${subSeq.trim().padStart(2, '0')}` : '-??'}
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={subSeq}
+                    onChange={e => setSubSeq(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                    placeholder="01"
+                    className="w-20 rounded-lg px-3 py-2 text-sm font-mono"
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-3 pt-2">
               <button onClick={() => setStep('decision')} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Voltar</button>
-              <button onClick={handleSubprojetoAvancar} disabled={!selectedProjectId || parentBalanceLoading}
+              <button onClick={handleSubprojetoAvancar} disabled={!selectedProjectId || parentBalanceLoading || !subSeq.trim()}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
                 style={{ background: 'rgba(139,92,246,0.2)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.35)' }}>
                 Avançar →
@@ -1541,7 +1567,7 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
               style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
               Cancelar
             </button>
-            <button onClick={() => { setConfirmNegative(false); onSubprojeto(selectedProjectId) }}
+            <button onClick={() => { setConfirmNegative(false); onSubprojeto(selectedProjectId, subSeq.trim().padStart(2, '0')) }}
               className="px-4 py-2 rounded-xl text-sm font-bold transition-colors"
               style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)' }}>
               Sim, continuar
@@ -3610,7 +3636,7 @@ function KanbanContent() {
   const [selectedRequest,      setSelectedRequest]      = useState<RequestCard | null>(null)
   const [planDecisionCard,     setPlanDecisionCard]     = useState<RequestCard | null>(null)
   const [contractCreateForReq, setContractCreateForReq] = useState<RequestCard | null>(null)
-  const [subprojetoForReq, setSubprojetoForReq] = useState<{ card: RequestCard; projectId: number } | null>(null)
+  const [subprojetoForReq, setSubprojetoForReq] = useState<{ card: RequestCard; projectId: number; subSeq: string } | null>(null)
   const [finalizeCard,         setFinalizeCard]         = useState<RequestCard | null>(null)
 
   const [selectedContract,      setSelectedContract]      = useState<ContractCard | null>(null)
@@ -4582,10 +4608,10 @@ function KanbanContent() {
             setPlanDecisionCard(null)
             setContractCreateForReq(card)
           }}
-          onSubprojeto={(projectId) => {
+          onSubprojeto={(projectId, subSeq) => {
             const card = planDecisionCard
             setPlanDecisionCard(null)
-            setSubprojetoForReq({ card, projectId })
+            setSubprojetoForReq({ card, projectId, subSeq })
           }}
         />
       )}
@@ -4622,6 +4648,7 @@ function KanbanContent() {
           initialCustomerId={subprojetoForReq.card.customer_id}
           initialProjectName={subprojetoForReq.card.project_name}
           initialParentProjectId={subprojetoForReq.projectId}
+          initialSubSeq={subprojetoForReq.subSeq}
           customerReadOnly
           excludeSustentacao
           title="Subprojeto — Novo Contrato"

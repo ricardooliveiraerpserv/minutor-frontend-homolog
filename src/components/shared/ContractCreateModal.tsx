@@ -62,6 +62,7 @@ interface Props {
   initialCustomerId?: number | string
   initialProjectName?: string
   initialParentProjectId?: number | string
+  initialSubSeq?: string
   title?: string
   customerReadOnly?: boolean
   excludeSustentacao?: boolean
@@ -78,7 +79,7 @@ const isSustentacaoName = (name: string) => {
 
 export function ContractCreateModal({
   onClose, onSuccess,
-  initialCustomerId, initialProjectName, initialParentProjectId,
+  initialCustomerId, initialProjectName, initialParentProjectId, initialSubSeq,
   title = 'Novo Contrato',
   customerReadOnly = false,
   excludeSustentacao = false,
@@ -99,6 +100,8 @@ export function ContractCreateModal({
     customer_id:       initialCustomerId       ? String(initialCustomerId)       : '',
     project_name:      initialProjectName      ?? '',
     parent_project_id: initialParentProjectId  ? String(initialParentProjectId)  : '',
+    is_subproject:     !!initialParentProjectId,
+    sub_seq:           initialSubSeq           ?? '',
   })
   const [contacts, setContacts] = useState<ContractContact[]>([])
   const [codeExists, setCodeExists]   = useState(false)
