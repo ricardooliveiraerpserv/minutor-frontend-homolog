@@ -140,7 +140,7 @@ function GeneralTab() {
   useEffect(() => {
     Promise.all([
       api.get<{ data: SystemSettings }>('/system-settings'),
-      api.get<any>('/customers?per_page=500'),
+      api.get<any>('/customers?pageSize=500'),
       api.get<any>('/users?per_page=500&type=consultor'),
     ]).then(([s, c, u]) => {
       setSettings(s.data ?? s as unknown as SystemSettings)
