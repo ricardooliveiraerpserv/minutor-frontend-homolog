@@ -2,7 +2,7 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
@@ -899,8 +899,6 @@ function ProjectEditByIdModal({ projectId, onClose, onSaved }: { projectId: numb
 
 export default function GestaoProjetosPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const editParam = searchParams.get('edit')
   const { user } = useAuth()
   const isAdmin = user?.type === 'admin'
   const isCoordenador = user?.type === 'coordenador'
@@ -954,16 +952,13 @@ export default function GestaoProjetosPage() {
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<number>>(new Set())
 
   // Modal de edição de projeto
-  const [editProjectId, setEditProjectId] = useState<number | null>(() => {
-    if (typeof window === 'undefined') return null
-    const p = new URLSearchParams(window.location.search).get('edit')
-    return p ? Number(p) : null
-  })
+  const [editProjectId, setEditProjectId] = useState<number | null>(null)
 
-  // Abre modal de edição quando param ?edit=ID chega via navegação
+  // Abre modal de edição se URL contém ?edit=ID
   useEffect(() => {
-    if (editParam) setEditProjectId(Number(editParam))
-  }, [editParam])
+    const p = new URLSearchParams(window.location.search).get('edit')
+    if (p) setEditProjectId(Number(p))
+  }, [])
 
   // Modal de alteração de status
   const [statusModal, setStatusModal] = useState<{ open: boolean; project: ProjectWithTeam | null; newStatus: string }>({ open: false, project: null, newStatus: '' })
