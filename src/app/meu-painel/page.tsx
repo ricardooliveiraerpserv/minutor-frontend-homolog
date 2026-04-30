@@ -2502,6 +2502,7 @@ export default function MeuPainelPage() {
                           { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
                           ...(ts.status === 'conflicted' && ts.origin !== 'webhook' ? [
                             { label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: () => setTsConflictItem(ts) },
+                            { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteTs(ts.id), danger: true },
                           ] : !locked ? [
                             { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEditTs(ts) },
                             { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteTs(ts.id), danger: true },
@@ -3289,6 +3290,7 @@ export default function MeuPainelPage() {
                                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
                                   ...(ts.status === 'conflicted' && ts.origin !== 'webhook' ? [
                                     { label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: () => setTsConflictItem(ts) },
+                                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteTs(ts.id), danger: true },
                                   ] : !locked && ['pending', 'rejected', 'adjustment_requested'].includes(ts.status) ? [
                                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEditTs(ts) },
                                     { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteTs(ts.id), danger: true },
@@ -3376,6 +3378,7 @@ export default function MeuPainelPage() {
                                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
                                   ...(ts.status === 'conflicted' && ts.origin !== 'webhook' ? [
                                     { label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: () => setTsConflictItem(ts) },
+                                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteTs(ts.id), danger: true },
                                   ] : !locked && ['pending', 'rejected', 'adjustment_requested'].includes(ts.status) ? [
                                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEditTs(ts) },
                                     { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteTs(ts.id), danger: true },
