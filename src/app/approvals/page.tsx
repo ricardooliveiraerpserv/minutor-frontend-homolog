@@ -927,7 +927,8 @@ export default function ApprovalsPage() {
 
       {/* ── Table ── */}
       <div className="rounded-xl border border-zinc-800 overflow-hidden">
-        <table className="w-full text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-max text-xs">
           <thead>
             <tr className="border-b border-zinc-800 bg-zinc-900">
               <th className="px-3 py-2.5 w-10"></th>
@@ -1088,6 +1089,7 @@ export default function ApprovalsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* ── Pagination ── */}
