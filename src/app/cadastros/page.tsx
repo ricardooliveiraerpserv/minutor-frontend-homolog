@@ -61,8 +61,6 @@ const TABS = [
   { id: 'groups',             label: 'Grupos de Consultor',   icon: UserCheck },
   { id: 'holidays',           label: 'Feriados',              icon: CalendarDays },
   { id: 'expense_categories', label: 'Categorias de Despesa', icon: Tag },
-  { id: 'expense_types',      label: 'Tipos de Despesa',      icon: Receipt },
-  { id: 'payment_methods',    label: 'Formas de Pagamento',   icon: CreditCard },
 ]
 
 // ─── TAB: CRUD (Tipos de Contrato e Serviço) ─────────────────────────────────
@@ -1383,8 +1381,6 @@ const TAB_PERMISSION: Record<string, string> = {
   groups:             'groups.manage',
   holidays:           'holidays.manage',
   expense_categories: 'expense_categories.manage',
-  expense_types:      'expense_types.manage',
-  payment_methods:    'payment_methods.manage',
 }
 
 function CadastrosContent() {
@@ -1421,8 +1417,6 @@ function CadastrosContent() {
           {activeTab === 'groups'             && <ConsultantGroupsTab />}
           {activeTab === 'holidays'           && <HolidaysTab />}
           {activeTab === 'expense_categories' && <IsActiveCrudTab endpoint="expense-categories" label="Categoria de Despesa" />}
-          {activeTab === 'expense_types'      && <IsActiveCrudTab endpoint="expense-types"      label="Tipo de Despesa" />}
-          {activeTab === 'payment_methods'    && <IsActiveCrudTab endpoint="payment-methods"    label="Forma de Pagamento" />}
         </div>
       </div>
     </AppLayout>

@@ -437,10 +437,6 @@ function ExpApproveModal({
             <ExpInfoRow icon={User} label="Colaborador" value={item.user?.name} />
             <ExpInfoRow icon={Building2} label="Cliente" value={(item.project as any)?.customer?.name} />
             <ExpInfoRow icon={FolderOpen} label="Projeto" value={item.project?.name} />
-            <ExpInfoRow icon={Tag} label="Tipo" value={EXP_TYPE_LABEL[item.expense_type ?? ''] ?? item.expense_type} />
-            {item.payment_method && (
-              <ExpInfoRow icon={CreditCard} label="Pagamento" value={PAYMENT_LABEL_MAP[item.payment_method] ?? item.payment_method} />
-            )}
             <ExpInfoRow icon={Paperclip} label="Comprovante" last>
               {item.receipt_url
                 ? <ReceiptLink url={item.receipt_url} />

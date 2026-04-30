@@ -18,7 +18,7 @@ const PAYMENT_METHODS = [
   { value: 'bank_transfer', label: 'Transferência' },
 ]
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 4
 
 function ProgressBar({ step }: { step: number }) {
   return (
@@ -35,7 +35,7 @@ function ProgressBar({ step }: { step: number }) {
 }
 
 function StepLabel({ step }: { step: number }) {
-  const labels = ['Projeto', 'Valor', 'Categoria', 'Pagamento', 'Comprovante']
+  const labels = ['Projeto', 'Valor', 'Categoria', 'Comprovante']
   return (
     <p style={{ fontSize: 11, color: 'var(--brand-subtle)', marginTop: 4, marginBottom: 0 }}>
       Etapa {step + 1} de {TOTAL_STEPS} — {labels[step]}
@@ -301,53 +301,8 @@ export default function MobileDespesa() {
           </div>
         )}
 
-        {/* Step 3: Pagamento */}
+        {/* Step 3: Comprovante */}
         {step === 3 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--brand-text)', margin: '0 0 4px' }}>Forma de pagamento</h2>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label style={{ fontSize: 12, color: 'var(--brand-subtle)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>Método</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {PAYMENT_METHODS.map(m => (
-                  <button key={m.value} onClick={() => setForm(f => ({ ...f, payment_method: m.value }))}
-                    style={{
-                      padding: '14px 16px', borderRadius: 12, textAlign: 'left', cursor: 'pointer', width: '100%',
-                      background: form.payment_method === m.value ? 'rgba(139,92,246,0.08)' : 'var(--brand-surface)',
-                      border: form.payment_method === m.value ? '1px solid rgba(139,92,246,0.4)' : '1px solid var(--brand-border)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    }}>
-                    <span style={{ fontSize: 15, fontWeight: form.payment_method === m.value ? 700 : 400, color: form.payment_method === m.value ? '#8B5CF6' : 'var(--brand-text)' }}>
-                      {m.label}
-                    </span>
-                    {form.payment_method === m.value && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#8B5CF6' }} />}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <label style={{ fontSize: 12, color: 'var(--brand-subtle)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>Já foi pago?</label>
-              <div style={{ display: 'flex', gap: 10 }}>
-                {[{ v: true, l: 'Sim, já paguei' }, { v: false, l: 'Não, reembolso' }].map(opt => (
-                  <button key={String(opt.v)} onClick={() => setForm(f => ({ ...f, is_paid: opt.v }))}
-                    style={{
-                      flex: 1, padding: '14px', borderRadius: 12, cursor: 'pointer', textAlign: 'center',
-                      background: form.is_paid === opt.v ? 'rgba(139,92,246,0.1)' : 'var(--brand-surface)',
-                      border: form.is_paid === opt.v ? '1px solid rgba(139,92,246,0.4)' : '1px solid var(--brand-border)',
-                      fontSize: 13, fontWeight: form.is_paid === opt.v ? 700 : 400,
-                      color: form.is_paid === opt.v ? '#8B5CF6' : 'var(--brand-muted)',
-                    }}>
-                    {opt.l}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Comprovante */}
-        {step === 4 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
               <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--brand-text)', margin: '0 0 4px' }}>Comprovante</h2>
@@ -387,7 +342,6 @@ export default function MobileDespesa() {
               <Row label="Valor" value={`R$ ${Number(form.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
               <Row label="Categoria" value={form.category_name} />
               <Row label="Data" value={new Date(form.expense_date + 'T12:00:00').toLocaleDateString('pt-BR')} />
-              <Row label="Pagamento" value={PAYMENT_METHODS.find(m => m.value === form.payment_method)?.label ?? '—'} />
               <Row label="Status" value={form.is_paid ? 'Já pago' : 'Aguardando reembolso'} />
             </div>
           </div>
@@ -396,7 +350,7 @@ export default function MobileDespesa() {
 
       {/* Bottom action */}
       <div style={{ padding: '12px 24px 40px', flexShrink: 0 }}>
-        {step < 4 && step !== 0 && (
+        {step < 3 && step !== 0 && (
           <button onClick={next} disabled={!canAdvance()}
             style={{
               width: '100%', padding: '16px', borderRadius: 14, fontSize: 16, fontWeight: 700,
@@ -409,7 +363,7 @@ export default function MobileDespesa() {
             Próximo
           </button>
         )}
-        {step === 4 && (
+        {step === 3 && (
           <button onClick={handleSave} disabled={saving}
             style={{
               width: '100%', padding: '16px', borderRadius: 14, fontSize: 16, fontWeight: 700,

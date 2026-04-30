@@ -3747,24 +3747,6 @@ export default function MeuPainelPage() {
                 className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <SearchSelectField label="Tipo" value={expForm.expense_type}
-                onChange={v => setExpForm(f => ({ ...f, expense_type: v || 'reimbursement' }))}
-                options={[
-                  { id: 'reimbursement', name: 'Reembolso' },
-                  { id: 'advance', name: 'Adiantamento' },
-                  { id: 'corporate_card', name: 'Cartão Corporativo' },
-                ]}
-                placeholder="Tipo..."
-              />
-
-              <SearchSelectField label="Forma de Pagamento" value={expForm.payment_method}
-                onChange={v => setExpForm(f => ({ ...f, payment_method: v }))}
-                options={pmOptions.map(pm => ({ id: pm.value, name: pm.label }))}
-                placeholder="Selecione..."
-              />
-            </div>
-
             {/* Receipt upload */}
             <div>
               <Label className="text-xs text-zinc-400">Comprovante</Label>
@@ -3863,10 +3845,6 @@ export default function MeuPainelPage() {
                     <InfoRowModal icon={Building2} label="Cliente" value={expViewItem.project.customer.name} />
                   )}
                   <InfoRowModal icon={FolderOpen} label="Projeto" value={expViewItem.project?.name} />
-                  <InfoRowModal icon={Tag} label="Tipo" value={EXP_TYPE_LABEL[expViewItem.expense_type] ?? expViewItem.expense_type} />
-                  {(expViewItem as any).payment_method && (
-                    <InfoRowModal icon={CreditCard} label="Pagamento" value={PAYMENT_LABEL_MAP[(expViewItem as any).payment_method] ?? (expViewItem as any).payment_method} />
-                  )}
                   <InfoRowModal icon={Paperclip} label="Comprovante" last>
                     {expViewItem.receipt_url
                       ? <ReceiptLinkInline url={expViewItem.receipt_url} label="Visualizar Comprovante" />

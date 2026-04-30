@@ -1003,36 +1003,6 @@ export default function ExpensesPage() {
                 <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs text-zinc-400">Tipo</Label>
-                  <div className="mt-1">
-                    <SearchSelect
-                      value={form.expense_type}
-                      onChange={v => setForm(f => ({ ...f, expense_type: v || 'reimbursement' }))}
-                      options={[{ id: 'reimbursement', name: 'Reembolso' }, { id: 'advance', name: 'Adiantamento' }]}
-                      placeholder="Tipo..."
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-xs text-zinc-400">Pagamento</Label>
-                  <div className="mt-1">
-                    <SearchSelect
-                      value={form.payment_method}
-                      onChange={v => setForm(f => ({ ...f, payment_method: v || 'pix' }))}
-                      options={[
-                        { id: 'pix', name: 'PIX' },
-                        { id: 'credit_card', name: 'Cartão Crédito' },
-                        { id: 'debit_card', name: 'Cartão Débito' },
-                        { id: 'cash', name: 'Dinheiro' },
-                        { id: 'bank_transfer', name: 'Transferência' },
-                      ]}
-                      placeholder="Pagamento..."
-                    />
-                  </div>
-                </div>
-              </div>
               {modal.item && (
                 <div className="flex items-center gap-2">
                   <button onClick={() => setForm(f => ({ ...f, charge_client: !f.charge_client }))}
