@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { api } from '@/lib/api'
+import { toast } from 'sonner'
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -1645,9 +1646,12 @@ export default function SustentacaoPage() {
             loading={loading}
             loadError={loadError}
             onSyncClientes={async () => {
-              await api.post('/sustentacao/sync-orgs', {})
-              const r = await api.get<{ rows: DebugClienteRow[] }>('/sustentacao/debug-clientes')
-              setDebugClientes(r)
+              const res = await api.post<{ success: boolean; message?: string }>('/sustentacao/sync-orgs', {})
+              toast.info(res?.message ?? 'Integração iniciada. Aguarde ~1 minuto e recarregue.')
+              setTimeout(async () => {
+                const r = await api.get<{ rows: DebugClienteRow[] }>('/sustentacao/debug-clientes')
+                setDebugClientes(r)
+              }, 60_000)
             }}
             onSyncResponsaveis={async () => {
               await api.post('/sustentacao/sync-agents', {})
