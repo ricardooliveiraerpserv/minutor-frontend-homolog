@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { api, ApiError, toRelativePath } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
+import { exportTimesheetsToExcel } from '@/lib/exportTimesheets'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -16,7 +17,7 @@ import {
   Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, TrendingDown, Minus, Eye,
   CalendarDays, RefreshCw, ChevronDown, ChevronUp, MoreVertical,
   AlertTriangle, Zap, Users, DollarSign, Target, Activity, Paperclip, Download,
-  Building2, FolderOpen, Tag, CreditCard, FileText, User,
+  Building2, FolderOpen, Tag, CreditCard, FileText, User, FileSpreadsheet,
 } from 'lucide-react'
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
@@ -1505,6 +1506,25 @@ export default function MeuPainelPage() {
   const hasTsFilters = !!(tsSearch || tsCustomer || tsProject || tsStatus || tsDateFrom || tsDateTo)
   const hasExpFilters = !!(expSearch || expCustomer || expProject || expStatus || expCategory || expDateFrom || expDateTo)
 
+  function exportTs() {
+    exportTimesheetsToExcel(
+      timesheets.map(ts => ({
+        date:           ts.date,
+        client:         ts.customer?.name ?? ts.project?.customer?.name ?? '',
+        project:        ts.project?.name ?? '',
+        ticket:         ts.ticket ?? '',
+        ticket_subject: ts.ticket_subject ?? '',
+        start_time:     ts.start_time,
+        end_time:       ts.end_time,
+        effort_hours:   ts.effort_hours,
+        effort_minutes: ts.effort_minutes,
+        observation:    ts.observation ?? '',
+        status_display: ts.status_display,
+      })),
+      'apontamentos'
+    )
+  }
+
   function clearTsFilters() {
     setTsSearch(''); setTsCustomer(''); setTsProject(''); setTsStatus(''); setTsDateFrom(''); setTsDateTo(''); setTsPage(1)
   }
@@ -2363,6 +2383,12 @@ export default function MeuPainelPage() {
               <button onClick={clearTsFilters}
                 className="flex items-center gap-1 h-9 px-3 text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded-lg hover:border-zinc-500 transition-colors shrink-0">
                 <X size={11} /> Limpar
+              </button>
+            )}
+            {timesheets.length > 0 && (
+              <button onClick={exportTs}
+                className="flex items-center gap-1 h-9 px-3 text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded-lg hover:border-zinc-500 transition-colors shrink-0">
+                <FileSpreadsheet size={13} /> Excel
               </button>
             )}
             <Button onClick={openCreateTs}

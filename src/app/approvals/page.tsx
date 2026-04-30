@@ -9,6 +9,7 @@ import {
   CheckSquare, Clock, Receipt, ChevronLeft, ChevronRight,
   Check, XCircle, X, Filter, ChevronDown, Eye, Pencil, RotateCcw,
   Paperclip, Download, Calendar, User, Building2, FolderOpen, Tag, CreditCard, FileText,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { RowMenu } from '@/components/ui/row-menu'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -16,6 +17,7 @@ import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { api, ApiError, toRelativePath } from '@/lib/api'
+import { exportTimesheetsToExcel } from '@/lib/exportTimesheets'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { toast } from 'sonner'
@@ -771,6 +773,25 @@ export default function ApprovalsPage() {
     finally { setAdjLoading(false) }
   }
 
+  function exportTs() {
+    exportTimesheetsToExcel(
+      tsItems.map(ts => ({
+        date:           ts.date,
+        user:           ts.user?.name ?? '',
+        client:         ts.project?.customer?.name ?? '',
+        project:        ts.project?.name ?? '',
+        ticket:         ts.ticket ?? '',
+        ticket_subject: ts.ticket_subject ?? '',
+        start_time:     ts.start_time ?? undefined,
+        end_time:       ts.end_time ?? undefined,
+        effort_minutes: ts.effort_minutes,
+        observation:    ts.observation ?? '',
+        status_display: ts.status_display ?? '',
+      })),
+      'apontamentos'
+    )
+  }
+
   // Bulk approve timesheets only
   const bulkApproveTs = async () => {
     if (!selected.length) return
@@ -967,6 +988,16 @@ export default function ApprovalsPage() {
           </button>
           <button onClick={() => setSelected([])} className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
             <X size={13} />
+          </button>
+        </div>
+      )}
+
+      {/* ── Export bar ── */}
+      {tab === 'timesheets' && tsItems.length > 0 && (
+        <div className="flex justify-end mb-2">
+          <button onClick={exportTs}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 transition-colors">
+            <FileSpreadsheet size={13} /> Exportar Excel
           </button>
         </div>
       )}

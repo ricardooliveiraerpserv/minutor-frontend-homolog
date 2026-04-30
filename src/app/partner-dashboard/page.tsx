@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
+import { exportTimesheetsToExcel } from '@/lib/exportTimesheets'
 import { TimesheetFormModal } from '@/components/ui/timesheet-form-modal'
 import { formatBRL, formatNumber } from '@/lib/format'
 import { useAuth } from '@/hooks/use-auth'
@@ -15,6 +16,7 @@ import type { Timesheet, Expense } from '@/types'
 import {
   Clock, DollarSign, Users, TrendingUp, RefreshCw, ChevronLeft, ChevronRight, Receipt,
   Eye, Pencil, Trash2, Plus, MoreVertical, BarChart2, AlertTriangle, Zap, Activity,
+  FileSpreadsheet,
 } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -705,6 +707,28 @@ export default function PartnerDashboardPage() {
                     <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
                       {timesheets.length} registro{timesheets.length !== 1 ? 's' : ''}
                     </span>
+                  )}
+                  {timesheets.length > 0 && (
+                    <button
+                      onClick={() => exportTimesheetsToExcel(
+                        timesheets.map(t => ({
+                          date:           t.date,
+                          user:           t.user?.name ?? '',
+                          client:         t.customer?.name ?? t.project?.customer?.name ?? '',
+                          project:        t.project?.name ?? '',
+                          ticket:         t.ticket ?? '',
+                          effort_minutes: t.effort_minutes,
+                          observation:    t.observation ?? '',
+                          status_display: t.status_display ?? '',
+                        })),
+                        'apontamentos'
+                      )}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                      style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}
+                    >
+                      <FileSpreadsheet size={12} />
+                      Excel
+                    </button>
                   )}
                   <button
                     onClick={() => setNewTsOpen(true)}
