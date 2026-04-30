@@ -2486,7 +2486,7 @@ export default function MeuPainelPage() {
                       <td className="px-4 py-3.5 w-10">
                         <RowMenu items={[
                           { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
-                          ...(!locked && ['pending', 'rejected', 'adjustment_requested'].includes(ts.status) ? [
+                          ...(!locked ? [
                             { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEditTs(ts) },
                             { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteTs(ts.id), danger: true },
                           ] : []),
