@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, AlertTriangle, X } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { SearchSelect } from '@/components/ui/search-select'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 
 interface SelectOption { id: number; name: string; service_type_code?: string | null }
 interface PaginatedResponse<T> { items: T[] }
@@ -54,6 +55,7 @@ export default function NewTimesheetPage() {
     is_billable_only: false,
   })
   const [saving, setSaving] = useState(false)
+  const [conflictData, setConflictData] = useState<{ date: string; start_time?: string; end_time?: string; customer_name?: string; project_name?: string } | null>(null)
   const [users,     setUsers]     = useState<SelectOption[]>([])
   const [customers, setCustomers] = useState<SelectOption[]>([])
   const [projects,  setProjects]  = useState<SelectOption[]>([])
@@ -154,8 +156,11 @@ export default function NewTimesheetPage() {
       toast.success('Apontamento criado com sucesso')
       router.push('/timesheets')
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Erro ao salvar'
-      toast.error(msg)
+      if (err instanceof ApiError && err.data?.code === 'TIMESHEET_CONFLICT' && err.data?.conflicting_timesheet) {
+        setConflictData(err.data.conflicting_timesheet as any)
+      } else {
+        toast.error(err instanceof ApiError ? err.message : 'Erro ao salvar')
+      }
     } finally {
       setSaving(false)
     }
@@ -315,6 +320,49 @@ export default function NewTimesheetPage() {
           </div>
         </form>
       </div>
+
+      {conflictData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800" style={{ background: 'rgba(239,68,68,0.08)' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.15)' }}>
+                <AlertTriangle size={16} className="text-red-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-red-400">Conflito de Horário</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">O horário conflita com o apontamento abaixo</p>
+              </div>
+              <button onClick={() => setConflictData(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-2.5">
+              <div className="rounded-xl p-3.5 space-y-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Data</span>
+                  <span className="text-zinc-200 font-medium">{conflictData.date}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Horário</span>
+                  <span className="text-zinc-200 font-medium font-mono">{conflictData.start_time ?? '—'} – {conflictData.end_time ?? '—'}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Cliente</span>
+                  <span className="text-zinc-200 font-medium">{conflictData.customer_name ?? '—'}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Projeto</span>
+                  <span className="text-zinc-200 font-medium">{conflictData.project_name ?? '—'}</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-zinc-600 text-center pt-1">Ajuste o horário para não sobrepor este apontamento.</p>
+            </div>
+            <div className="px-5 py-4 border-t border-zinc-800 flex justify-end">
+              <Button variant="outline" onClick={() => setConflictData(null)}>Entendido</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppLayout>
   )
 }

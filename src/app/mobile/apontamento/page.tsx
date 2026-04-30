@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, Search } from 'lucide-react'
+import { ArrowLeft, Check, Search, AlertTriangle, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { api, ApiError } from '@/lib/api'
@@ -44,6 +44,7 @@ export default function MobileApontamento() {
   const [projects, setProjects] = useState<Project[]>([])
   const [search, setSearch] = useState('')
   const [saving, setSaving] = useState(false)
+  const [conflictData, setConflictData] = useState<{ date: string; start_time?: string; end_time?: string; customer_name?: string; project_name?: string } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState({
@@ -119,7 +120,11 @@ export default function MobileApontamento() {
       toast.success('Apontamento lançado!')
       router.replace('/mobile')
     } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar')
+      if (e instanceof ApiError && e.data?.code === 'TIMESHEET_CONFLICT' && e.data?.conflicting_timesheet) {
+        setConflictData(e.data.conflicting_timesheet as any)
+      } else {
+        toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar')
+      }
     } finally {
       setSaving(false)
     }
@@ -372,6 +377,51 @@ export default function MobileApontamento() {
           </button>
         )}
       </div>
+
+      {conflictData && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', background: 'rgba(0,0,0,0.7)', padding: '0 16px',
+        }}>
+          <div style={{ background: '#18181b', borderRadius: 20, width: '100%', maxWidth: 380, overflow: 'hidden', boxShadow: '0 25px 60px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid #27272a', background: 'rgba(239,68,68,0.08)' }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AlertTriangle size={16} color="#f87171" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#f87171', margin: 0 }}>Conflito de Horário</p>
+                <p style={{ fontSize: 11, color: '#71717a', margin: '2px 0 0' }}>O horário conflita com o apontamento abaixo</p>
+              </div>
+              <button onClick={() => setConflictData(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#71717a' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ borderRadius: 12, padding: 14, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { label: 'Data',    value: conflictData.date },
+                  { label: 'Horário', value: `${conflictData.start_time ?? '—'} – ${conflictData.end_time ?? '—'}` },
+                  { label: 'Cliente', value: conflictData.customer_name ?? '—' },
+                  { label: 'Projeto', value: conflictData.project_name ?? '—' },
+                ].map(r => (
+                  <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                    <span style={{ color: '#71717a' }}>{r.label}</span>
+                    <span style={{ color: '#e4e4e7', fontWeight: 600 }}>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: '#52525b', textAlign: 'center', margin: 0 }}>Ajuste o horário para não sobrepor este apontamento.</p>
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #27272a', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setConflictData(null)} style={{
+                padding: '8px 20px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                color: 'var(--brand-text)', cursor: 'pointer',
+              }}>Entendido</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

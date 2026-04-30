@@ -1803,7 +1803,14 @@ export default function MeuPainelPage() {
           await api.delete(`/expenses/${id}`)
           toast.success('Despesa excluída')
           loadExpenses()
-        } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 404) {
+            setExpenses(prev => prev.filter(ex => ex.id !== id))
+            toast.success('Despesa excluída')
+          } else {
+            toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir')
+          }
+        }
       },
     })
   }
@@ -2434,8 +2441,8 @@ export default function MeuPainelPage() {
           )}
 
           {/* Table */}
-          <div className="rounded-xl border border-zinc-800 overflow-clip">
-            <table className="w-full text-xs">
+          <div className="rounded-xl border border-zinc-800 overflow-x-auto overflow-y-clip">
+            <table className="w-full min-w-max text-xs">
               <thead className="sticky z-10" style={{ top: stickyHeaderH }}>
                 <tr className="border-b border-zinc-800 bg-zinc-900">
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Data</th>
@@ -2618,8 +2625,8 @@ export default function MeuPainelPage() {
           )}
 
           {/* Table */}
-          <div className="rounded-xl border border-zinc-800 overflow-clip">
-            <table className="w-full text-xs">
+          <div className="rounded-xl border border-zinc-800 overflow-x-auto overflow-y-clip">
+            <table className="w-full min-w-max text-xs">
               <thead className="sticky z-10" style={{ top: stickyHeaderH }}>
                 <tr className="border-b border-zinc-800 bg-zinc-900">
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Data</th>
