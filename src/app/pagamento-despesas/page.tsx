@@ -281,16 +281,17 @@ export default function PagamentoDespesasPage() {
 
   // ── Revert approval ──
   const submitRevert = useCallback(async () => {
-    if (!revertTarget) return
+    if (!revertTarget || !revertReason.trim()) return
     setReverting(true)
     try {
-      await api.post(`/expenses/${revertTarget.id}/reject`, { reason: revertReason || 'Estorno de aprovação' })
+      await api.post(`/expenses/${revertTarget.id}/reverse-approval`, { reason: revertReason.trim() })
       setItems(prev => prev.filter(e => e.id !== revertTarget.id))
       toast.success('Aprovação estornada com sucesso.')
       setRevertTarget(null)
       setRevertReason('')
-    } catch {
-      toast.error('Erro ao estornar aprovação.')
+    } catch (err: any) {
+      const msg = err?.response?.data?.message
+      toast.error(msg ?? 'Erro ao estornar aprovação.')
     } finally {
       setReverting(false)
     }
@@ -588,13 +589,13 @@ export default function PagamentoDespesasPage() {
             {/* Motivo */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
-                Motivo do estorno
+                Motivo do estorno <span style={{ color: '#EF4444' }}>*</span>
               </label>
               <textarea
                 rows={3}
                 value={revertReason}
                 onChange={e => setRevertReason(e.target.value)}
-                placeholder="Descreva o motivo do estorno (opcional)..."
+                placeholder="Descreva o motivo do estorno..."
                 className="w-full rounded-xl px-3 py-2.5 text-sm resize-none outline-none"
                 style={{
                   background: 'rgba(255,255,255,0.04)',
@@ -615,7 +616,7 @@ export default function PagamentoDespesasPage() {
               </button>
               <button
                 onClick={submitRevert}
-                disabled={reverting}
+                disabled={reverting || !revertReason.trim()}
                 className="flex-1 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 style={{ background: 'rgba(249,115,22,0.15)', color: '#F97316', border: '1px solid rgba(249,115,22,0.3)' }}
               >

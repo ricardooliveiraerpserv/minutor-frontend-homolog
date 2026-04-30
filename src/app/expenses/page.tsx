@@ -15,7 +15,7 @@ import {
 import {
   Receipt, ChevronLeft, ChevronRight, Plus, Pencil, Trash2,
   X, Paperclip, Eye, Building2, FolderOpen, Tag,
-  CreditCard, FileText, Calendar, MoreVertical, CalendarDays, RefreshCw, DollarSign, AlertTriangle, Download,
+  CreditCard, FileText, Calendar, MoreVertical, CalendarDays, RefreshCw, DollarSign, AlertTriangle, Download, Undo2,
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { ExpenseViewModal } from '@/components/ui/expense-view-modal'
@@ -461,7 +461,10 @@ export default function ExpensesPage() {
   const [data, setData] = useState<PaginatedResponse<Expense> | null>(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; item?: Expense }>({ open: false })
-  const [paidBlockModal, setPaidBlockModal] = useState<{ open: boolean; expense?: Expense }>({ open: false })
+  const [paidBlockModal,   setPaidBlockModal]   = useState<{ open: boolean; expense?: Expense }>({ open: false })
+  const [revertTarget,     setRevertTarget]     = useState<Expense | null>(null)
+  const [revertReason,     setRevertReason]     = useState('')
+  const [reverting,        setReverting]        = useState(false)
   const [form, setForm] = useState({
     customer_id: '', project_id: '', expense_category_id: '', expense_date: '',
     description: '', amount: '', expense_type: 'reimbursement',
@@ -664,6 +667,23 @@ export default function ExpensesPage() {
     }
   }
 
+  async function submitRevert() {
+    if (!revertTarget || !revertReason.trim()) return
+    setReverting(true)
+    try {
+      await api.post(`/expenses/${revertTarget.id}/reverse-approval`, { reason: revertReason.trim() })
+      toast.success('Aprovação estornada com sucesso.')
+      setRevertTarget(null)
+      setRevertReason('')
+      load()
+    } catch (err: any) {
+      const msg = err?.response?.data?.message
+      toast.error(msg ?? 'Erro ao estornar aprovação.')
+    } finally {
+      setReverting(false)
+    }
+  }
+
   return (
     <AppLayout title="Despesas">
       <div className="max-w-7xl mx-auto">
@@ -849,6 +869,9 @@ export default function ExpensesPage() {
                         ] : []),
                         ...(canPay && (exp.status === 'approved' || exp.is_paid) ? [
                           { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
+                        ] : []),
+                        ...(canPay && exp.status === 'approved' ? [
+                          { label: 'Estornar Aprovação', icon: <Undo2 size={12} />, onClick: () => { setRevertTarget(exp); setRevertReason('') }, danger: true },
                         ] : []),
                       ]} />
                     </Td>
@@ -1088,6 +1111,61 @@ export default function ExpensesPage() {
           </div>
         </ModalOverlay>
       )}
+      {/* ── Modal Estornar Aprovação ── */}
+      {revertTarget && (
+        <ModalOverlay onClose={() => setRevertTarget(null)}>
+          <div className="p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
+                <Undo2 size={16} color="#F97316" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Estornar Aprovação</h3>
+                <p className="text-xs text-zinc-500">
+                  Despesa #{revertTarget.id} · {revertTarget.formatted_amount}
+                </p>
+              </div>
+            </div>
+            <div className="rounded-xl p-3 text-sm" style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)' }}>
+              <p style={{ color: '#F97316' }}>
+                Esta ação irá reverter a aprovação, retornando a despesa ao status <strong>pendente</strong>.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                Motivo do estorno <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={revertReason}
+                onChange={e => setRevertReason(e.target.value)}
+                placeholder="Descreva o motivo do estorno..."
+                className="w-full rounded-xl px-3 py-2.5 text-sm resize-none outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setRevertTarget(null)}
+                className="flex-1 py-2 rounded-xl text-sm font-semibold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={submitRevert}
+                disabled={reverting || !revertReason.trim()}
+                className="flex-1 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: 'rgba(249,115,22,0.15)', color: '#F97316', border: '1px solid rgba(249,115,22,0.3)' }}
+              >
+                {reverting
+                  ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  : <><Undo2 size={13} /> Confirmar Estorno</>
+                }
+              </button>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
     </AppLayout>
   )
 }
