@@ -1710,7 +1710,7 @@ function KanbanContent() {
   const [showNewContract,     setShowNewContract]     = useState(false)
   const [editingContractData, setEditingContractData] = useState<any | null>(null)
   const [filterSearch,        setFilterSearch]        = useState('')
-  const [filterCustomer,      setFilterCustomer]      = useState('')
+  const [filterCustomers,     setFilterCustomers]     = useState<string[]>([])
   const [filterExecutivos,    setFilterExecutivos]    = useState<string[]>([])
   const [filterProjectNames,  setFilterProjectNames]  = useState<string[]>([])
 
@@ -1764,7 +1764,7 @@ function KanbanContent() {
   const matchFilter = (customerName?: string | null, name?: string | null): boolean => {
     const cn = customerName ?? ''
     const nm = name ?? ''
-    if (filterCustomer && cn !== filterCustomer) return false
+    if (filterCustomers.length > 0 && !filterCustomers.includes(cn)) return false
     if (filterSearch) {
       const q = filterSearch.toLowerCase()
       return cn.toLowerCase().includes(q) || nm.toLowerCase().includes(q)
@@ -1785,17 +1785,17 @@ function KanbanContent() {
 
   const allProjectKanbanOptions = [...new Map(
     projectCards
-      .filter(p => !filterCustomer || p.customer_name === filterCustomer)
+      .filter(p => filterCustomers.length === 0 || filterCustomers.includes(p.customer_name))
       .map(p => [p.project_name, { id: p.project_name, name: p.project_name + (p.code ? ` (${p.code})` : '') }])
   ).values()].sort((a, b) => a.name.localeCompare(b.name))
 
   // Limpa projetos selecionados quando o cliente muda
   useEffect(() => {
-    if (!filterCustomer || filterProjectNames.length === 0) return
-    const validNames = new Set(projectCards.filter(p => p.customer_name === filterCustomer).map(p => p.project_name))
+    if (filterCustomers.length === 0 || filterProjectNames.length === 0) return
+    const validNames = new Set(projectCards.filter(p => filterCustomers.includes(p.customer_name)).map(p => p.project_name))
     setFilterProjectNames(prev => prev.filter(n => validNames.has(n)))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterCustomer])
+  }, [filterCustomers])
 
   const matchExecutivoKanban = (executivo?: string | null): boolean => {
     if (filterExecutivos.length === 0) return true
@@ -2127,15 +2127,13 @@ function KanbanContent() {
             )}
           </div>
           {allCustomers.length > 0 && (
-            <select
-              value={filterCustomer}
-              onChange={e => setFilterCustomer(e.target.value)}
-              className="py-1.5 px-2 rounded-lg text-xs outline-none"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: filterCustomer ? 'var(--brand-text)' : 'var(--brand-subtle)' }}
-            >
-              <option value="">Todos os clientes</option>
-              {allCustomers.map(name => <option key={name} value={name}>{name}</option>)}
-            </select>
+            <MultiSelect
+              value={filterCustomers}
+              onChange={setFilterCustomers}
+              options={allCustomers.map(n => ({ id: n, name: n }))}
+              placeholder="Todos os clientes"
+              wide
+            />
           )}
           <MultiSelect
             value={filterProjectNames}
@@ -2153,8 +2151,8 @@ function KanbanContent() {
               wide
             />
           )}
-          {(filterSearch || filterCustomer || filterExecutivos.length > 0 || filterProjectNames.length > 0) && (
-            <button onClick={() => { setFilterSearch(''); setFilterCustomer(''); setFilterExecutivos([]); setFilterProjectNames([]) }}
+          {(filterSearch || filterCustomers.length > 0 || filterExecutivos.length > 0 || filterProjectNames.length > 0) && (
+            <button onClick={() => { setFilterSearch(''); setFilterCustomers([]); setFilterExecutivos([]); setFilterProjectNames([]) }}
               className="text-xs px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
               style={{ color: 'var(--brand-subtle)' }}>
               Limpar
