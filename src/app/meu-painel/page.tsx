@@ -25,6 +25,17 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface ConflictingTs {
+  id: number
+  date: string
+  start_time?: string
+  end_time?: string
+  effort_hours?: string
+  customer_name?: string
+  project_name?: string
+  origin?: string | null
+}
+
 interface TimesheetItem {
   id: number
   project_id: number
@@ -42,6 +53,8 @@ interface TimesheetItem {
   status_display: string
   attachment_url?: string
   consultant_extra_pct?: number | null
+  origin?: string | null
+  conflicting_timesheets?: ConflictingTs[]
 }
 
 interface ExpenseItem {
@@ -1375,8 +1388,9 @@ export default function MeuPainelPage() {
   const [tsDateTo,   setTsDateTo]   = useState('')
   const [tsPage,     setTsPage]     = useState(1)
   const [tsHasNext,  setTsHasNext]  = useState(false)
-  const [tsModal,    setTsModal]    = useState<{ open: boolean; item?: TimesheetItem }>({ open: false })
-  const [tsViewItem, setTsViewItem] = useState<TimesheetItem | null>(null)
+  const [tsModal,       setTsModal]       = useState<{ open: boolean; item?: TimesheetItem }>({ open: false })
+  const [tsViewItem,    setTsViewItem]    = useState<TimesheetItem | null>(null)
+  const [tsConflictItem, setTsConflictItem] = useState<TimesheetItem | null>(null)
   const [tsForm,     setTsForm]     = useState({ ...EMPTY_TS })
   const [tsModeTotal, setTsModeTotal] = useState(false)
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; message: string; onConfirm: () => void } | null>(null)
@@ -2486,7 +2500,9 @@ export default function MeuPainelPage() {
                       <td className="px-4 py-3.5 w-10">
                         <RowMenu items={[
                           { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
-                          ...(!locked ? [
+                          ...(ts.status === 'conflicted' && ts.origin !== 'webhook' ? [
+                            { label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: () => setTsConflictItem(ts) },
+                          ] : !locked ? [
                             { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEditTs(ts) },
                             { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteTs(ts.id), danger: true },
                           ] : []),
@@ -3271,7 +3287,9 @@ export default function MeuPainelPage() {
                               <td className="px-2 py-2.5 w-10">
                                 <RowMenu items={[
                                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
-                                  ...(!locked && ['pending', 'rejected', 'adjustment_requested'].includes(ts.status) ? [
+                                  ...(ts.status === 'conflicted' && ts.origin !== 'webhook' ? [
+                                    { label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: () => setTsConflictItem(ts) },
+                                  ] : !locked && ['pending', 'rejected', 'adjustment_requested'].includes(ts.status) ? [
                                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEditTs(ts) },
                                     { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteTs(ts.id), danger: true },
                                   ] : []),
@@ -3356,7 +3374,9 @@ export default function MeuPainelPage() {
                               <td className="px-2 py-2.5 w-10">
                                 <RowMenu items={[
                                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
-                                  ...(!locked && ['pending', 'rejected', 'adjustment_requested'].includes(ts.status) ? [
+                                  ...(ts.status === 'conflicted' && ts.origin !== 'webhook' ? [
+                                    { label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: () => setTsConflictItem(ts) },
+                                  ] : !locked && ['pending', 'rejected', 'adjustment_requested'].includes(ts.status) ? [
                                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEditTs(ts) },
                                     { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => deleteTs(ts.id), danger: true },
                                   ] : []),
@@ -3985,6 +4005,111 @@ export default function MeuPainelPage() {
           </ModalOverlay>
         )
       })()}
+
+      {/* ── Modal de Conflito ─────────────────────────────────────────── */}
+      {tsConflictItem && (
+        <ModalOverlay onClose={() => setTsConflictItem(null)}>
+          <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800" style={{ background: 'rgba(249,115,22,0.08)' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(249,115,22,0.15)' }}>
+                <AlertTriangle size={16} className="text-orange-400" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-orange-400">Apontamento em Conflito</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">#{tsConflictItem.id} · {fmt(tsConflictItem.date)}</p>
+              </div>
+              <button onClick={() => setTsConflictItem(null)} className="ml-auto text-zinc-500 hover:text-zinc-300 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              {/* Apontamento atual */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2">Seu apontamento</p>
+                <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)' }}>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-500">Data</span>
+                    <span className="text-zinc-200 font-medium">{fmt(tsConflictItem.date)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-500">Cliente</span>
+                    <span className="text-zinc-200 font-medium">{tsConflictItem.customer?.name ?? tsConflictItem.project?.customer?.name ?? '—'}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-500">Projeto</span>
+                    <span className="text-zinc-200 font-medium">{tsConflictItem.project?.name ?? '—'}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-500">Horário</span>
+                    <span className="text-zinc-200 font-medium font-mono">{tsConflictItem.start_time} – {tsConflictItem.end_time}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-500">Total</span>
+                    <span className="text-zinc-200 font-bold font-mono">{tsConflictItem.effort_hours}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Apontamento(s) conflitante(s) */}
+              {(tsConflictItem.conflicting_timesheets ?? []).length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2">
+                    Conflita com {tsConflictItem.conflicting_timesheets!.length > 1 ? `${tsConflictItem.conflicting_timesheets!.length} apontamentos` : 'este apontamento'}
+                  </p>
+                  <div className="space-y-2">
+                    {tsConflictItem.conflicting_timesheets!.map(ct => (
+                      <div key={ct.id} className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-zinc-500">Data</span>
+                          <span className="text-zinc-200 font-medium">{fmt(ct.date)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-zinc-500">Cliente</span>
+                          <span className="text-zinc-200 font-medium">{ct.customer_name ?? '—'}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-zinc-500">Projeto</span>
+                          <span className="text-zinc-200 font-medium">{ct.project_name ?? '—'}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-zinc-500">Horário</span>
+                          <span className="text-zinc-200 font-medium font-mono">{ct.start_time ?? '—'} – {ct.end_time ?? '—'}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-zinc-500">Total</span>
+                          <span className="text-zinc-200 font-bold font-mono">{ct.effort_hours ?? '—'}</span>
+                        </div>
+                        {ct.origin === 'webhook' && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-zinc-500">Origem</span>
+                            <span className="text-cyan-400 font-medium">Integração Movidesk</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(tsConflictItem.conflicting_timesheets ?? []).length === 0 && (
+                <p className="text-xs text-zinc-500 text-center py-2">
+                  O apontamento que gerou o conflito foi removido ou alterado.
+                </p>
+              )}
+
+              <p className="text-[11px] text-zinc-600 text-center">
+                Para resolver, contate seu coordenador ou aguarde a revisão.
+              </p>
+            </div>
+
+            <div className="px-5 py-4 border-t border-zinc-800 flex justify-end">
+              <Button variant="outline" onClick={() => setTsConflictItem(null)}>Fechar</Button>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
 
     </AppLayout>
   )
