@@ -286,12 +286,17 @@ export default function PagamentoDespesasPage() {
     try {
       await api.post(`/expenses/${revertTarget.id}/reverse-approval`, { reason: revertReason.trim() })
       toast.success('Aprovação estornada com sucesso.')
-      setRevertTarget(null)
-      setRevertReason('')
     } catch (err: any) {
-      toast.error((err as any)?.message ?? 'Erro ao estornar aprovação.')
+      const msg: string = (err as any)?.message ?? ''
+      if (msg.toLowerCase().includes('aprovada')) {
+        toast.info('Despesa já havia sido estornada anteriormente.')
+      } else {
+        toast.error(msg || 'Erro ao estornar aprovação.')
+      }
     } finally {
       setReverting(false)
+      setRevertTarget(null)
+      setRevertReason('')
       fetchData()
     }
   }, [revertTarget, revertReason, fetchData])
