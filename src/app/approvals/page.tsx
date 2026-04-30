@@ -1003,10 +1003,9 @@ export default function ApprovalsPage() {
       )}
 
       {/* ── Table ── */}
-      <div className="rounded-xl border border-zinc-800 overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="rounded-xl border border-zinc-800 overflow-x-auto overflow-y-clip">
         <table className="w-full min-w-max text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="border-b border-zinc-800 bg-zinc-900">
               <th className="px-3 py-2.5 w-10"></th>
               {tab === 'timesheets' && (
@@ -1177,7 +1176,6 @@ export default function ApprovalsPage() {
             ))}
           </tbody>
         </table>
-        </div>
       </div>
 
       {/* ── Pagination ── */}

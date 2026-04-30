@@ -741,7 +741,7 @@ export default function PartnerDashboardPage() {
                 </div>
               </div>
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                   <tr style={{ borderBottom: '1px solid var(--brand-border)' }}>
                     {['Consultor', 'Data', 'Projeto', 'Horas', 'Status', ''].map((h, i) => (
                       <th key={i} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
