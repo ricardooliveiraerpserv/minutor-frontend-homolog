@@ -1226,16 +1226,14 @@ function TimesheetsPageContent() {
                   <Td muted className="hidden md:table-cell font-mono tabular-nums">{ts.end_time ?? '—'}</Td>
                   <Td muted className="hidden lg:table-cell font-mono">
                     {ts.ticket
-                      ? ts.ticket.length >= 5
-                        ? <a
-                            href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            className="hover:underline cursor-pointer"
-                            style={{ color: 'var(--brand-primary)', pointerEvents: 'auto' }}
-                          >#{ts.ticket}</a>
-                        : `#${ts.ticket}`
+                      ? <a
+                          href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="hover:underline cursor-pointer"
+                          style={{ color: 'var(--brand-primary)', pointerEvents: 'auto' }}
+                        >#{ts.ticket}</a>
                       : '—'}
                   </Td>
                   <Td right mono className="font-semibold" style={{ color: 'var(--brand-primary)' }}>

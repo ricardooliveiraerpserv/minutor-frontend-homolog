@@ -2441,7 +2441,9 @@ export default function MeuPainelPage() {
                         {ts.project?.name ?? '—'}
                       </td>
                       <td className="px-4 py-3.5 text-zinc-400 font-mono hidden lg:table-cell">
-                        {ts.ticket ?? <span className="text-zinc-700">—</span>}
+                        {ts.ticket
+                          ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">#{ts.ticket}</a>
+                          : <span className="text-zinc-700">—</span>}
                       </td>
                       <td className="px-4 py-3.5 text-zinc-400 hidden xl:table-cell max-w-[160px] truncate" title={ts.ticket_subject}>
                         {ts.ticket_subject ?? <span className="text-zinc-700">—</span>}
@@ -3959,7 +3961,9 @@ export default function MeuPainelPage() {
                   )}
                   <InfoRowModal icon={FolderOpen} label="Projeto" value={tsViewItem.project?.name} />
                   {tsViewItem.ticket && (
-                    <InfoRowModal icon={Tag} label="Ticket" value={`#${tsViewItem.ticket}`} />
+                    <InfoRowModal icon={Tag} label="Ticket">
+                      <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tsViewItem.ticket}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-cyan-400 hover:text-cyan-300">#{tsViewItem.ticket}</a>
+                    </InfoRowModal>
                   )}
                   <InfoRowModal icon={Paperclip} label="Anexo" last>
                     {tsViewItem.attachment_url

@@ -641,7 +641,7 @@ export default function FechamentoClientePage() {
                                 <Td muted className="text-xs tabular-nums whitespace-nowrap">{fmtDate(ts.data)}</Td>
                                 <Td className="text-xs">{ts.colaborador}</Td>
                                 <Td muted className="text-xs">{ts.solicitante ?? '—'}</Td>
-                                <Td muted className="text-xs">{ts.ticket ?? '—'}</Td>
+                                <Td muted className="text-xs">{ts.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:text-cyan-400">#{ts.ticket}</a> : '—'}</Td>
                                 <Td muted className="text-xs">{ts.titulo ?? '—'}</Td>
                                 <Td muted className="text-xs">{ts.observacao ?? '—'}</Td>
                                 <Td right className="tabular-nums text-xs font-medium">
@@ -763,7 +763,7 @@ export default function FechamentoClientePage() {
                                       <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{fmtDate(ts.data)}</td>
                                       <td className="px-3 py-2 text-xs text-gray-800">{ts.colaborador}</td>
                                       <td className="px-3 py-2 text-xs text-gray-500">{ts.solicitante ?? '—'}</td>
-                                      <td className="px-3 py-2 text-xs text-gray-500">{ts.ticket ?? '—'}</td>
+                                      <td className="px-3 py-2 text-xs text-gray-500">{ts.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:text-cyan-500">#{ts.ticket}</a> : '—'}</td>
                                       <td className="px-3 py-2 text-xs text-gray-500">{ts.titulo ?? '—'}</td>
                                       <td className="px-3 py-2 text-xs text-gray-500">{ts.observacao ?? '—'}</td>
                                       <td className="px-3 py-2 text-xs text-right font-medium text-gray-800 tabular-nums">

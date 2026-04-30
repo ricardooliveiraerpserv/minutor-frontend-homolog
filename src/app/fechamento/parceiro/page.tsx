@@ -872,7 +872,7 @@ export default function FechamentoParceiroPage() {
                                 {STATUS_LABELS[row.status] ?? row.status}
                               </Badge>
                             </Td>
-                            <Td className="text-xs">{row.ticket ?? '—'}</Td>
+                            <Td className="text-xs">{row.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${row.ticket}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">#{row.ticket}</a> : '—'}</Td>
                             <Td className="text-xs max-w-xs truncate">
                               <span title={row.observacao ?? ''}>{row.observacao ?? '—'}</span>
                             </Td>
@@ -1004,7 +1004,7 @@ export default function FechamentoParceiroPage() {
                                         <Td className="text-xs tabular-nums whitespace-nowrap">{new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR')}</Td>
                                         <Td className="text-xs">{r.projeto}</Td>
                                         <Td className="text-xs">{r.solicitante ?? '—'}</Td>
-                                        <Td className="text-xs tabular-nums">{r.ticket ?? '—'}</Td>
+                                        <Td className="text-xs tabular-nums">{r.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${r.ticket}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">#{r.ticket}</a> : '—'}</Td>
                                         <Td className="text-xs">{r.titulo ?? '—'}</Td>
                                         <Td className="text-xs">{r.observacao ?? '—'}</Td>
                                         <Td right className="tabular-nums text-xs">{r.horas.toFixed(2)}h</Td>

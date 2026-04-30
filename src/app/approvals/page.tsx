@@ -1062,12 +1062,10 @@ export default function ApprovalsPage() {
                 <td className="px-3 py-2.5 text-zinc-400 font-mono hidden md:table-cell">{ts.end_time ?? '—'}</td>
                 <td className="px-3 py-2.5 text-zinc-400 font-mono hidden lg:table-cell">
                   {ts.ticket
-                    ? ts.ticket.length >= 5
-                      ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()} className="hover:underline" style={{ color: '#22d3ee' }}>
-                          #{ts.ticket}
-                        </a>
-                      : `#${ts.ticket}`
+                    ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()} className="hover:underline" style={{ color: '#22d3ee' }}>
+                        #{ts.ticket}
+                      </a>
                     : '—'}
                 </td>
                 <td className="px-3 py-2.5 text-zinc-400 whitespace-nowrap hidden sm:table-cell">{fmtDateTime(ts.created_at)}</td>
