@@ -619,12 +619,12 @@ export default function SustentacaoProjetosPage() {
                         <div className="flex items-center gap-1">
                           <RowMenu items={[
                             { label: 'Visualizar',      icon: <Eye size={12} />,        onClick: () => setViewProject(p) },
-                            ...(isAdmin ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => router.push(`/gestao-projetos`) }] : []),
+                            ...(isAdmin ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => router.push(`/gestao-projetos?edit=${p.id}`) }] : []),
                             { label: 'Alterar Status',  icon: <Layers size={12} />,     onClick: () => setStatusModal({ project: p, newStatus: p.status }) },
                             { label: 'Custo',           icon: <DollarSign size={12} />, onClick: () => setCostProject(p) },
                             { label: 'Apontamentos',    icon: <Clock size={12} />,      onClick: () => router.push(`/timesheets?project_id=${p.id}`) },
                             { label: 'Despesas',        icon: <BarChart2 size={12} />,  onClick: () => router.push(`/expenses?project_id=${p.id}`) },
-                            { label: 'Aportes',         icon: <TrendingUp size={12} />, onClick: () => router.push(`/gestao-projetos`) },
+                            { label: 'Aportes',         icon: <TrendingUp size={12} />, onClick: () => router.push(`/gestao-projetos?edit=${p.id}`) },
                             { label: 'Selecionar Equipe', icon: <Users size={12} />,    onClick: () => openTeam(p) },
                             ...(isAdmin ? [{ label: 'Excluir', icon: <Trash2 size={12} className="text-red-400" />, onClick: () => setDeleteProject(p), danger: true }] : []),
                           ]} />
