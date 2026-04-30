@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import {
   CheckSquare, Clock, Receipt, ChevronLeft, ChevronRight,
   Check, XCircle, X, Filter, ChevronDown, Eye, Pencil, RotateCcw,
-  Paperclip, Download,
+  Paperclip, Download, Calendar, User, Building2, FolderOpen, Tag, CreditCard, FileText,
 } from 'lucide-react'
 import { RowMenu } from '@/components/ui/row-menu'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
@@ -19,7 +19,7 @@ import { api, ApiError, toRelativePath } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { toast } from 'sonner'
-import type { Timesheet } from '@/types'
+import type { Timesheet, Expense } from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -270,55 +270,6 @@ function StatusPills({ value, onChange, options }: {
   )
 }
 
-// ─── Modal: visualizar apontamento ───────────────────────────────────────────
-
-function TsViewModal({ item, onClose }: { item: TSItem; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-          <h3 className="text-sm font-semibold text-white">Apontamento</h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300"><X size={15} /></button>
-        </div>
-        <div className="px-5 py-4 space-y-3 text-xs">
-          <Row label="Colaborador"  value={item.user?.name} />
-          <Row label="Data"         value={fmt(item.date)} />
-          <Row label="Cliente"      value={item.project?.customer?.name} />
-          <Row label="Projeto"      value={item.project?.name} />
-          <Row label="Tempo" value={fmtMin(item.effort_minutes)} />
-          {item.consultant_extra_pct ? (() => {
-            const extraMin = Math.round(item.effort_minutes * (Number(item.consultant_extra_pct) / 100))
-            const totalMin = item.effort_minutes + extraMin
-            return (
-              <div className="flex justify-between items-center text-[11px]">
-                <span className="text-zinc-500">% extra cons</span>
-                <span style={{ color: '#22C55E' }}>+{Number(item.consultant_extra_pct)}% = {fmtMin(totalMin)}</span>
-              </div>
-            )
-          })() : null}
-          {item.ticket && <Row label="Ticket" value={`#${item.ticket}`} />}
-          {item.observation && (
-            <div>
-              <span className="text-zinc-500 block mb-1">Descrição</span>
-              <p className="text-zinc-200 bg-zinc-800 rounded-lg p-3 leading-relaxed">{item.observation}</p>
-            </div>
-          )}
-          <div>
-            <span className="text-zinc-500 block mb-1">Anexo</span>
-            {item.attachment_url
-              ? <ReceiptLink url={item.attachment_url} />
-              : <span className="text-zinc-600">Sem anexo</span>
-            }
-          </div>
-        </div>
-        <div className="px-5 py-3 border-t border-zinc-800 flex justify-end">
-          <Button variant="outline" onClick={onClose} className="h-8 text-xs border-zinc-700 text-zinc-300">Fechar</Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Receipt helpers ──────────────────────────────────────────────────────────
 
 async function fetchReceipt(url: string): Promise<{ blobUrl: string; filename: string }> {
@@ -378,10 +329,41 @@ async function openReceiptUrl(url: string) {
 
 // ─── Modal: visualizar / aprovar despesa ─────────────────────────────────────
 
+const EXP_STATUS_CONF: Record<string, { bg: string; color: string; label: string }> = {
+  pending:              { bg: 'rgba(234,179,8,0.12)',  color: '#EAB308', label: 'Pendente' },
+  approved:             { bg: 'rgba(34,197,94,0.12)',  color: '#22C55E', label: 'Aprovado' },
+  rejected:             { bg: 'rgba(239,68,68,0.12)',  color: '#EF4444', label: 'Rejeitado' },
+  adjustment_requested: { bg: 'rgba(249,115,22,0.12)', color: '#F97316', label: 'Ajuste Solicitado' },
+}
+const EXP_TYPE_LABEL: Record<string, string> = {
+  reimbursement: 'Reembolso', advance: 'Adiantamento', corporate_card: 'Cartão Corporativo',
+}
+const PAYMENT_LABEL_MAP: Record<string, string> = {
+  pix: 'PIX', credit_card: 'Cartão de Crédito', debit_card: 'Cartão de Débito',
+  cash: 'Dinheiro', bank_transfer: 'Transferência Bancária',
+}
+
+function ExpInfoRow({ icon: Icon, label, value, children, last }: {
+  icon: React.ElementType; label: string; value?: string | null
+  children?: React.ReactNode; last?: boolean
+}) {
+  return (
+    <div className={`flex items-start gap-3 px-4 py-3 ${!last ? 'border-b border-zinc-800' : ''}`}>
+      <span className="mt-0.5 shrink-0 p-1.5 rounded-lg bg-cyan-500/10 text-cyan-400">
+        <Icon size={11} />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] uppercase tracking-widest mb-0.5 text-zinc-500">{label}</p>
+        {children ?? <p className="text-xs font-medium text-zinc-200">{value ?? '—'}</p>}
+      </div>
+    </div>
+  )
+}
+
 function ExpApproveModal({
   item, onClose, onApprove, onReject, onRequestAdjustment, approving,
 }: {
-  item: ExpItem
+  item: Expense
   onClose: () => void
   onApprove: (chargeClient: boolean) => void
   onReject: () => void
@@ -393,6 +375,8 @@ function ExpApproveModal({
   const [mode,         setMode]         = useState<'approve' | 'adjust'>('approve')
   const [adjReason,    setAdjReason]    = useState('')
   const [adjSubmitted, setAdjSubmitted] = useState(false)
+
+  const sc = EXP_STATUS_CONF[item.status] ?? { bg: 'rgba(113,113,122,0.12)', color: '#71717A', label: item.status }
 
   const handleApprove = () => {
     setSubmitted(true)
@@ -407,111 +391,151 @@ function ExpApproveModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-          <h3 className="text-sm font-semibold text-white">Aprovação de Despesa</h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300"><X size={15} /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="relative w-full max-w-md rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <button onClick={onClose}
+          className="absolute top-3 right-3 z-10 p-1.5 rounded-lg hover:bg-white/5 transition-colors text-zinc-500">
+          <X size={14} />
+        </button>
+
+        {/* Header */}
+        <div className="px-5 pt-5 pb-4 flex items-start gap-3">
+          <div className="p-2.5 rounded-xl shrink-0" style={{ background: 'rgba(249,115,22,0.1)', color: '#F97316' }}>
+            <Receipt size={16} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-white">Detalhes da Despesa</h3>
+            <p className="text-[11px] mt-0.5 text-zinc-500">#{item.id} · {fmt(item.expense_date)}</p>
+          </div>
         </div>
 
-        <div className="px-5 py-4 space-y-3 text-xs">
-          <Row label="Colaborador"  value={item.user?.name} />
-          <Row label="Data"         value={fmt(item.expense_date)} />
-          <Row label="Cliente"      value={item.project?.customer?.name} />
-          <Row label="Projeto"      value={item.project?.name} />
-          <Row label="Categoria"    value={item.category?.name} />
-          <Row label="Valor"        value={fmtBRL(parseFloat(String(item.amount)) || 0)} highlight />
-          <div>
-            <span className="text-zinc-500 block mb-1">Descrição</span>
-            <p className="text-zinc-200 bg-zinc-800 rounded-lg p-3 leading-relaxed">{item.description || '—'}</p>
+        <div className="px-5 pb-5 space-y-4">
+          {/* Status + Categoria */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+              style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+            {item.category?.name && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Tag size={9} /> {item.category.name}
+              </span>
+            )}
           </div>
-          {item.receipt_url && <ReceiptLink url={item.receipt_url} />}
 
+          {/* Valor hero */}
+          <div className="rounded-xl px-4 py-4"
+            style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)' }}>
+            <p className="text-[10px] uppercase tracking-widest mb-1 text-zinc-500">Valor Total</p>
+            <p className="text-2xl font-bold" style={{ color: '#F97316' }}>{fmtBRL(Number(item.amount))}</p>
+          </div>
+
+          {/* Info card */}
+          <div className="rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800">
+            <ExpInfoRow icon={Calendar} label="Data" value={fmt(item.expense_date)} />
+            <ExpInfoRow icon={User} label="Colaborador" value={item.user?.name} />
+            <ExpInfoRow icon={Building2} label="Cliente" value={(item.project as any)?.customer?.name} />
+            <ExpInfoRow icon={FolderOpen} label="Projeto" value={item.project?.name} />
+            <ExpInfoRow icon={Tag} label="Tipo" value={EXP_TYPE_LABEL[item.expense_type ?? ''] ?? item.expense_type} />
+            {item.payment_method && (
+              <ExpInfoRow icon={CreditCard} label="Pagamento" value={PAYMENT_LABEL_MAP[item.payment_method] ?? item.payment_method} />
+            )}
+            <ExpInfoRow icon={Paperclip} label="Comprovante" last>
+              {item.receipt_url
+                ? <ReceiptLink url={item.receipt_url} />
+                : <span className="text-xs text-zinc-500">Sem comprovante</span>}
+            </ExpInfoRow>
+          </div>
+
+          {/* Descrição */}
+          {item.description && (
+            <div className="rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800">
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-zinc-800">
+                <FileText size={11} className="text-cyan-400" />
+                <span className="text-[10px] uppercase tracking-widest font-medium text-zinc-500">Descrição</span>
+              </div>
+              <p className="px-4 py-3 text-sm leading-relaxed text-zinc-400">{item.description}</p>
+            </div>
+          )}
+
+          {/* Cobrar do cliente */}
           {mode === 'approve' && (
-            <div className="pt-2 border-t border-zinc-800">
-              <Label className={`text-xs mb-2 block font-semibold ${submitted && chargeClient === null ? 'text-red-400' : 'text-zinc-300'}`}>
+            <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 px-4 py-3 space-y-3">
+              <p className={`text-xs font-semibold ${submitted && chargeClient === null ? 'text-red-400' : 'text-zinc-300'}`}>
                 Cobrar do cliente? *
-              </Label>
+              </p>
               <div className="flex gap-3">
                 <button type="button" onClick={() => setChargeClient(true)}
-                  className={`flex-1 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-                    chargeClient === true ? 'bg-green-600/20 border-green-500 text-green-300' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  className={`flex-1 py-2.5 rounded-xl border text-xs font-medium transition-all ${
+                    chargeClient === true ? 'bg-green-600/20 border-green-500 text-green-300' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
                   }`}>
                   Sim — cobrar do cliente
                 </button>
                 <button type="button" onClick={() => setChargeClient(false)}
-                  className={`flex-1 py-2.5 rounded-lg border text-xs font-medium transition-all ${
-                    chargeClient === false ? 'bg-orange-600/20 border-orange-500 text-orange-300' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  className={`flex-1 py-2.5 rounded-xl border text-xs font-medium transition-all ${
+                    chargeClient === false ? 'bg-orange-600/20 border-orange-500 text-orange-300' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
                   }`}>
                   Não — absorver internamente
                 </button>
               </div>
               {submitted && chargeClient === null && (
-                <p className="text-red-400 text-[11px] mt-1.5">Selecione uma opção antes de aprovar</p>
+                <p className="text-red-400 text-[11px]">Selecione uma opção antes de aprovar</p>
               )}
             </div>
           )}
 
+          {/* Solicitar ajuste */}
           {mode === 'adjust' && (
-            <div className="pt-2 border-t border-zinc-800">
-              <Label className={`text-xs mb-2 block font-semibold ${adjSubmitted && !adjReason.trim() ? 'text-red-400' : 'text-blue-300'}`}>
+            <div className="rounded-xl border border-blue-700/40 bg-blue-950/20 px-4 py-3 space-y-2">
+              <p className={`text-xs font-semibold ${adjSubmitted && !adjReason.trim() ? 'text-red-400' : 'text-blue-300'}`}>
                 O que precisa ser ajustado? *
-              </Label>
-              <textarea
-                autoFocus
-                value={adjReason}
-                onChange={e => setAdjReason(e.target.value)}
-                placeholder="Descreva o que o colaborador deve corrigir..."
-                rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-zinc-600"
-              />
+              </p>
+              <textarea autoFocus value={adjReason} onChange={e => setAdjReason(e.target.value)}
+                placeholder="Descreva o que o colaborador deve corrigir..." rows={3}
+                className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-zinc-600" />
               {adjSubmitted && !adjReason.trim() && (
-                <p className="text-red-400 text-[11px] mt-1">Informe o motivo do ajuste</p>
+                <p className="text-red-400 text-[11px]">Informe o motivo do ajuste</p>
               )}
             </div>
           )}
-        </div>
 
-        <div className="px-5 py-3 border-t border-zinc-800 flex gap-2 justify-end flex-wrap">
-          {mode === 'approve' ? (
-            <>
-              <Button variant="outline" onClick={onReject} disabled={approving}
-                className="h-8 text-xs border-red-700/50 text-red-400 hover:bg-red-400/10">
-                <XCircle size={12} className="mr-1" /> Rejeitar
-              </Button>
-              <Button variant="outline" onClick={() => setMode('adjust')} disabled={approving}
-                className="h-8 text-xs border-blue-700/50 text-blue-400 hover:bg-blue-400/10">
-                Solicitar Ajuste
-              </Button>
-              <Button variant="outline" onClick={onClose} disabled={approving}
-                className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
-              <Button onClick={handleApprove} disabled={approving}
-                className="h-8 text-xs bg-green-600 hover:bg-green-500 text-white">
-                <Check size={12} className="mr-1" />
-                {approving ? 'Aprovando...' : 'Aprovar'}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" onClick={() => { setMode('approve'); setAdjReason(''); setAdjSubmitted(false) }} disabled={approving}
-                className="h-8 text-xs border-zinc-700 text-zinc-300">Voltar</Button>
-              <Button onClick={handleAdjustment} disabled={approving}
-                className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
-                {approving ? 'Enviando...' : 'Enviar Solicitação'}
-              </Button>
-            </>
-          )}
+          {/* Botões */}
+          <div className="flex items-center gap-2 flex-wrap justify-end pt-1">
+            {mode === 'approve' ? (
+              <>
+                <button onClick={onReject} disabled={approving}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-red-700/50 text-red-400 hover:bg-red-400/10 disabled:opacity-50 transition-colors">
+                  <XCircle size={12} /> Rejeitar
+                </button>
+                <button onClick={() => setMode('adjust')} disabled={approving}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-blue-700/50 text-blue-400 hover:bg-blue-400/10 disabled:opacity-50 transition-colors">
+                  <RotateCcw size={12} /> Solicitar Ajuste
+                </button>
+                <button onClick={onClose} disabled={approving}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-zinc-700 text-zinc-300 hover:bg-white/5 disabled:opacity-50 transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={handleApprove} disabled={approving}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-green-600 hover:bg-green-500 text-white disabled:opacity-50 transition-colors">
+                  <Check size={12} /> {approving ? 'Aprovando...' : 'Aprovar'}
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => { setMode('approve'); setAdjReason(''); setAdjSubmitted(false) }} disabled={approving}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-zinc-700 text-zinc-300 hover:bg-white/5 disabled:opacity-50 transition-colors">
+                  Voltar
+                </button>
+                <button onClick={handleAdjustment} disabled={approving}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors">
+                  <RotateCcw size={12} /> {approving ? 'Enviando...' : 'Enviar Solicitação'}
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-function Row({ label, value, highlight }: { label: string; value?: string | null; highlight?: boolean }) {
-  return (
-    <div className="flex justify-between gap-2">
-      <span className="text-zinc-500 shrink-0">{label}</span>
-      <span className={`text-right font-medium ${highlight ? 'text-cyan-400' : 'text-zinc-200'}`}>{value || '—'}</span>
     </div>
   )
 }
@@ -587,9 +611,10 @@ export default function ApprovalsPage() {
   const [adjLoading,   setAdjLoading]   = useState(false)
 
   // View / approve-expense modals
-  const [tsView,        setTsView]       = useState<Timesheet | null>(null)
-  const [tsViewLoading, setTsViewLoading] = useState(false)
-  const [expApprove,   setExpApprove]   = useState<ExpItem | null>(null)
+  const [tsView,         setTsView]        = useState<Timesheet | null>(null)
+  const [tsViewLoading,  setTsViewLoading] = useState(false)
+  const [expApprove,     setExpApprove]    = useState<Expense | null>(null)
+  const [expApproveLoading, setExpApproveLoading] = useState(false)
 
   // Load support data
   useEffect(() => {
@@ -684,6 +709,17 @@ export default function ApprovalsPage() {
       setTsView(full)
     } catch { /* mantém dados parciais */ }
     finally { setTsViewLoading(false) }
+  }, [])
+
+  // Open expense approve modal (fetches full data)
+  const openExpApprove = useCallback(async (exp: ExpItem) => {
+    setExpApprove(exp as unknown as Expense)
+    setExpApproveLoading(true)
+    try {
+      const full = await api.get<Expense>(`/expenses/${exp.id}`)
+      setExpApprove(full)
+    } catch { /* mantém dados parciais */ }
+    finally { setExpApproveLoading(false) }
   }, [])
 
   // Approve timesheet (direct)
@@ -1080,8 +1116,8 @@ export default function ApprovalsPage() {
                 className="border-b border-zinc-800/60 hover:bg-zinc-800/40 transition-colors">
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
-                    { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setExpApprove(exp) },
-                    { label: 'Aprovar', icon: <Check size={12} />, onClick: () => setExpApprove(exp) },
+                    { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openExpApprove(exp) },
+                    { label: 'Aprovar', icon: <Check size={12} />, onClick: () => openExpApprove(exp) },
                     { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: exp.id, type: 'expense' }); setAdjReason('') } },
                     { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [exp.id] }); setRejectReason('') }, danger: true },
                     ...(exp.receipt_url ? [
