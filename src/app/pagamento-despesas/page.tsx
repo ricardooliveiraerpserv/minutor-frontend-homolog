@@ -281,10 +281,10 @@ export default function PagamentoDespesasPage() {
 
   // ── Revert approval ──
   const submitRevert = useCallback(async () => {
-    if (!revertTarget || !revertReason.trim()) return
+    if (!revertTarget) return
     setReverting(true)
     try {
-      await api.post(`/expenses/${revertTarget.id}/reverse-approval`, { reason: revertReason.trim() })
+      await api.post(`/expenses/${revertTarget.id}/reverse-approval`)
       toast.success('Aprovação estornada com sucesso.')
     } catch (err: any) {
       const msg: string = (err as any)?.message ?? ''
@@ -299,7 +299,7 @@ export default function PagamentoDespesasPage() {
       setRevertReason('')
       fetchData()
     }
-  }, [revertTarget, revertReason, fetchData])
+  }, [revertTarget, fetchData])
 
   // ── Selection ──
   const visibleIds  = useMemo(() => items.filter(e => !e.is_paid).map(e => e.id), [items])
@@ -499,15 +499,17 @@ export default function PagamentoDespesasPage() {
                             >
                               <Eye size={11} /> Ver
                             </button>
-                            {/* Estornar aprovação */}
-                            <button
-                              onClick={() => { setRevertTarget(exp); setRevertReason('') }}
-                              title="Estornar aprovação"
-                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                              style={{ background: 'rgba(249,115,22,0.10)', color: '#F97316' }}
-                            >
-                              <Undo2 size={11} /> Estornar
-                            </button>
+                            {/* Estornar aprovação — apenas se não estiver paga */}
+                            {!isPaid && (
+                              <button
+                                onClick={() => setRevertTarget(exp)}
+                                title="Estornar aprovação"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                                style={{ background: 'rgba(249,115,22,0.10)', color: '#F97316' }}
+                              >
+                                <Undo2 size={11} /> Estornar
+                              </button>
+                            )}
                             {/* Pagar / Desfazer */}
                             <button
                               disabled={isLoading}
@@ -586,27 +588,8 @@ export default function PagamentoDespesasPage() {
             <div className="rounded-xl p-3 text-sm space-y-1"
               style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)' }}>
               <p style={{ color: '#F97316' }}>
-                Esta ação irá reverter a aprovação da despesa, retornando-a ao status <strong>rejeitado</strong>.
+                Esta ação irá reverter a aprovação da despesa, retornando-a ao status <strong>pendente</strong>.
               </p>
-            </div>
-
-            {/* Motivo */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
-                Motivo do estorno <span style={{ color: '#EF4444' }}>*</span>
-              </label>
-              <textarea
-                rows={3}
-                value={revertReason}
-                onChange={e => setRevertReason(e.target.value)}
-                placeholder="Descreva o motivo do estorno..."
-                className="w-full rounded-xl px-3 py-2.5 text-sm resize-none outline-none"
-                style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid var(--brand-border)',
-                  color: 'var(--brand-text)',
-                }}
-              />
             </div>
 
             {/* Buttons */}
@@ -620,7 +603,7 @@ export default function PagamentoDespesasPage() {
               </button>
               <button
                 onClick={submitRevert}
-                disabled={reverting || !revertReason.trim()}
+                disabled={reverting}
                 className="flex-1 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 style={{ background: 'rgba(249,115,22,0.15)', color: '#F97316', border: '1px solid rgba(249,115,22,0.3)' }}
               >

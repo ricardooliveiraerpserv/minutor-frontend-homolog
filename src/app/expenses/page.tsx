@@ -668,10 +668,10 @@ export default function ExpensesPage() {
   }
 
   async function submitRevert() {
-    if (!revertTarget || !revertReason.trim()) return
+    if (!revertTarget) return
     setReverting(true)
     try {
-      await api.post(`/expenses/${revertTarget.id}/reverse-approval`, { reason: revertReason.trim() })
+      await api.post(`/expenses/${revertTarget.id}/reverse-approval`)
       toast.success('Aprovação estornada com sucesso.')
     } catch (err: any) {
       const msg: string = (err as any)?.message ?? ''
@@ -875,8 +875,8 @@ export default function ExpensesPage() {
                         ...(canPay && (exp.status === 'approved' || exp.is_paid) ? [
                           { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
                         ] : []),
-                        ...(canPay && exp.status === 'approved' ? [
-                          { label: 'Estornar Aprovação', icon: <Undo2 size={12} />, onClick: () => { setRevertTarget(exp); setRevertReason('') }, danger: true },
+                        ...(canPay && exp.status === 'approved' && !exp.is_paid ? [
+                          { label: 'Estornar Aprovação', icon: <Undo2 size={12} />, onClick: () => setRevertTarget(exp), danger: true },
                         ] : []),
                       ]} />
                     </Td>
@@ -1136,18 +1136,6 @@ export default function ExpensesPage() {
                 Esta ação irá reverter a aprovação, retornando a despesa ao status <strong>pendente</strong>.
               </p>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                Motivo do estorno <span className="text-red-400">*</span>
-              </label>
-              <textarea
-                rows={3}
-                value={revertReason}
-                onChange={e => setRevertReason(e.target.value)}
-                placeholder="Descreva o motivo do estorno..."
-                className="w-full rounded-xl px-3 py-2.5 text-sm resize-none outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-500"
-              />
-            </div>
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setRevertTarget(null)}
@@ -1157,7 +1145,7 @@ export default function ExpensesPage() {
               </button>
               <button
                 onClick={submitRevert}
-                disabled={reverting || !revertReason.trim()}
+                disabled={reverting}
                 className="flex-1 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 style={{ background: 'rgba(249,115,22,0.15)', color: '#F97316', border: '1px solid rgba(249,115,22,0.3)' }}
               >
