@@ -1396,8 +1396,6 @@ export default function MeuPainelPage() {
   const [tsModeTotal, setTsModeTotal] = useState(false)
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; message: string; onConfirm: () => void } | null>(null)
   const [tsSaving,   setTsSaving]   = useState(false)
-  const [tsFile,     setTsFile]     = useState<File | null>(null)
-  const tsFileRef = useRef<HTMLInputElement>(null)
 
   // ── Expense state ──────────────────────────────────────────────────────────
   const [expenses,    setExpenses]   = useState<ExpenseItem[]>([])
@@ -1607,7 +1605,6 @@ export default function MeuPainelPage() {
   const openCreateTs = () => {
     setTsForm({ ...EMPTY_TS, date: todayISO() })
     setTsModeTotal(false)
-    setTsFile(null)
     setTsModal({ open: true })
   }
 
@@ -1627,7 +1624,6 @@ export default function MeuPainelPage() {
       observation: item.observation ?? '',
       ticket:      item.ticket ?? '',
     })
-    setTsFile(null)
     setTsModal({ open: true, item })
   }
 
@@ -1649,52 +1645,20 @@ export default function MeuPainelPage() {
     }
     setTsSaving(true)
     try {
-      const token = localStorage.getItem('minutor_token')
-
-      if (tsFile) {
-        // Multipart: usa FormData para enviar o anexo
-        const fd = new FormData()
-        fd.append('project_id',  tsForm.project_id)
-        fd.append('date',        tsForm.date)
-        if (tsForm.observation) fd.append('observation', tsForm.observation)
-        if (tsForm.ticket)      fd.append('ticket',      tsForm.ticket)
-        if (hasTotal && !hasStart) {
-          fd.append('total_hours', hoursToHHMM(totalVal))
-        } else {
-          fd.append('start_time', tsForm.start_time)
-          fd.append('end_time',   tsForm.end_time)
-        }
-        fd.append('attachment', tsFile)
-
-        const url    = tsModal.item ? `/api/v1/timesheets/${tsModal.item.id}` : '/api/v1/timesheets'
-        if (tsModal.item) fd.append('_method', 'PUT')
-        const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          const details = err.details ?? err.errors
-          const detailMsg = Array.isArray(details) ? details.join('; ')
-            : typeof details === 'object' && details !== null
-              ? Object.values(details).flat().join('; ')
-              : undefined
-          throw new Error(detailMsg ?? err.detailMessage ?? err.message ?? 'Erro ao salvar')
-        }
-      } else {
-        const payload: Record<string, unknown> = {
-          project_id:  Number(tsForm.project_id),
-          date:        tsForm.date,
-          observation: tsForm.observation || undefined,
-          ticket:      tsForm.ticket      || undefined,
-        }
-        if (hasTotal && !hasStart) {
-          // Total informado sem início/fim — omite start/end para não falhar validação 'sometimes'
-          payload.total_hours = hoursToHHMM(totalVal)
-        } else {
-          payload.start_time = tsForm.start_time
-          payload.end_time   = tsForm.end_time
-        }
-        if (tsModal.item) await api.put(`/timesheets/${tsModal.item.id}`, payload)
-        else              await api.post('/timesheets', payload)
+      const payload: Record<string, unknown> = {
+        project_id:  Number(tsForm.project_id),
+        date:        tsForm.date,
+        observation: tsForm.observation || undefined,
+        ticket:      tsForm.ticket      || undefined,
       }
+      if (hasTotal && !hasStart) {
+        payload.total_hours = hoursToHHMM(totalVal)
+      } else {
+        payload.start_time = tsForm.start_time
+        payload.end_time   = tsForm.end_time
+      }
+      if (tsModal.item) await api.put(`/timesheets/${tsModal.item.id}`, payload)
+      else              await api.post('/timesheets', payload)
 
       toast.success(tsModal.item ? 'Apontamento atualizado' : 'Apontamento criado')
       setTsModal({ open: false })
@@ -3685,40 +3649,6 @@ export default function MeuPainelPage() {
                 </div>
               )
             })()}
-
-            {/* Attachment upload */}
-            <div>
-              <Label className="text-xs text-zinc-400">Anexo</Label>
-
-              {/* Anexo existente (modo edição) */}
-              {tsModal.item?.attachment_url && !tsFile && (
-                <div className="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700">
-                  <Paperclip size={12} className="text-green-400 shrink-0" />
-                  <span className="text-xs text-green-400 flex-1">Anexo enviado</span>
-                  <ReceiptLinkInline url={tsModal.item.attachment_url} />
-                  <button type="button" onClick={() => tsFileRef.current?.click()}
-                    className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors">
-                    Substituir
-                  </button>
-                </div>
-              )}
-
-              {/* Upload area */}
-              {(!tsModal.item?.attachment_url || tsFile) && (
-                <div
-                  onClick={() => tsFileRef.current?.click()}
-                  className="mt-1.5 border border-dashed border-zinc-700 rounded-lg p-4 cursor-pointer hover:border-zinc-500 transition-colors text-center">
-                  <span className="text-xs text-zinc-500">
-                    {tsFile
-                      ? <span className="text-blue-400">{tsFile.name}</span>
-                      : 'Clique para anexar arquivo (opcional)'}
-                  </span>
-                </div>
-              )}
-
-              <input ref={tsFileRef} type="file" accept="image/*,.pdf,.doc,.docx" className="hidden"
-                onChange={e => setTsFile(e.target.files?.[0] ?? null)} />
-            </div>
 
             <div className="flex gap-2 justify-end pt-2">
               <Button variant="outline" onClick={() => setTsModal({ open: false })}
