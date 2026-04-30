@@ -288,6 +288,35 @@ function GeneralTab() {
               placeholder="Buscar usuário..."
             />
           </div>
+
+          {/* Intervalos de varredura */}
+          <div className="pt-3 border-t border-zinc-800 space-y-3">
+            <p className="text-xs font-medium text-zinc-400">Intervalos de varredura automática</p>
+            {([
+              { label: 'Sync de organizações', key: 'movidesk_sync_orgs_interval_minutes' },
+              { label: 'Sync do Portal de Sustentação', key: 'movidesk_portal_sync_interval_minutes' },
+            ] as const).map(({ label, key }) => (
+              <div key={key}>
+                <Label className="text-xs text-zinc-500 block mb-1.5">{label}</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[5, 10, 15, 20, 30, 60].map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setSettings(s => ({ ...s, [key]: v }))}
+                      className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
+                        (settings[key] ?? 30) === v
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                      }`}
+                    >
+                      {v} min
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

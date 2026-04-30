@@ -145,10 +145,12 @@ export interface ConsultantGroup {
 }
 
 export interface SystemSettings {
-  timesheet_retroactive_limit_days?: number
-  movidesk_default_customer_id?: number
-  movidesk_default_project_id?: number
-  movidesk_default_user_id?: number
+  timesheet_retroactive_limit_days?:          number
+  movidesk_default_customer_id?:              number
+  movidesk_default_project_id?:              number
+  movidesk_default_user_id?:                  number
+  movidesk_sync_orgs_interval_minutes?:       number
+  movidesk_portal_sync_interval_minutes?:     number
   [key: string]: string | number | null | undefined
 }
 
