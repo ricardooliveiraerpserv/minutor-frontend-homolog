@@ -1646,12 +1646,13 @@ export default function SustentacaoPage() {
             loading={loading}
             loadError={loadError}
             onSyncClientes={async () => {
-              const res = await api.post<{ success: boolean; message?: string }>('/sustentacao/sync-orgs', {})
-              toast.info(res?.message ?? 'Integração iniciada. Aguarde ~1 minuto e recarregue.')
+              await api.post('/sustentacao/sync-orgs', {})
+              toast.success('Integração iniciada — aguarde ~1 minuto. A tabela será atualizada automaticamente.')
               setTimeout(async () => {
                 const r = await api.get<{ rows: DebugClienteRow[] }>('/sustentacao/debug-clientes')
                 setDebugClientes(r)
-              }, 60_000)
+                toast.info('Tabela de clientes atualizada.')
+              }, 90_000)
             }}
             onSyncResponsaveis={async () => {
               await api.post('/sustentacao/sync-agents', {})
