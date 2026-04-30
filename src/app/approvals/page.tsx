@@ -918,14 +918,12 @@ export default function ApprovalsPage() {
                 onChange={setUserId}
                 options={users}
               />
-              {!isCoordenador && (
               <SearchableSelect
                 label="Coordenador"
                 value={coordinatorId}
                 onChange={setCoordinatorId}
                 options={coordinators}
               />
-              )}
               <SearchableSelect
                 label="Executivo"
                 value={executiveId}

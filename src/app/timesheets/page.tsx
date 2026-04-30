@@ -668,15 +668,16 @@ function TimesheetsPageContent() {
     'timesheets',
     user?.id,
     {
-      projectId:       spProjectId,
-      page:            1,
-      status:          '',
-      origins:         [] as string[],
-      serviceTypeIds:  [] as string[],
-      contractTypeIds: [] as string[],
-      customerIds:     spCustomerId ? [spCustomerId] : [] as string[],
-      executiveIds:    [] as string[],
-      userIds:         [] as string[],
+      projectId:        spProjectId,
+      page:             1,
+      status:           '',
+      origins:          [] as string[],
+      serviceTypeIds:   [] as string[],
+      contractTypeIds:  [] as string[],
+      customerIds:      spCustomerId ? [spCustomerId] : [] as string[],
+      coordinatorIds:   [] as string[],
+      executiveIds:     [] as string[],
+      userIds:          [] as string[],
       startDate:       spStartDate,
       endDate:         spEndDate,
       refMonth:        null as number | null,
@@ -692,7 +693,7 @@ function TimesheetsPageContent() {
 
   const {
     projectId, page, status, origins, serviceTypeIds, contractTypeIds,
-    customerIds, executiveIds, userIds, startDate, endDate, refMonth, refYear,
+    customerIds, coordinatorIds, executiveIds, userIds, startDate, endDate, refMonth, refYear,
     filterMode, ticket, requester, ticketService, sortField, sortDir,
   } = filters
 
@@ -705,6 +706,7 @@ function TimesheetsPageContent() {
   const setServiceTypeIds = (v: string[])            => setFilter('serviceTypeIds', v)
   const setContractTypeIds= (v: string[])            => setFilter('contractTypeIds', v)
   const setCustomerIds    = (v: string[])            => setFilter('customerIds', v)
+  const setCoordinatorIds = (v: string[])            => setFilter('coordinatorIds', v)
   const setExecutiveIds   = (v: string[])            => setFilter('executiveIds', v)
   const setUserIds        = (v: string[])            => setFilter('userIds', v)
   const setStartDate      = (v: string)              => setFilter('startDate', v)
@@ -716,9 +718,10 @@ function TimesheetsPageContent() {
   const setRequester      = (v: string)              => setFilter('requester', v)
   const setTicketService  = (v: string)              => setFilter('ticketService', v)
   const [exporting, setExporting]     = useState(false)
-  const [customers, setCustomers]     = useState<SelectOption[]>([])
-  const [executives, setExecutives]   = useState<SelectOption[]>([])
-  const [consultants, setConsultants] = useState<SelectOption[]>([])
+  const [customers, setCustomers]       = useState<SelectOption[]>([])
+  const [coordinators, setCoordinators] = useState<SelectOption[]>([])
+  const [executives, setExecutives]     = useState<SelectOption[]>([])
+  const [consultants, setConsultants]   = useState<SelectOption[]>([])
   const [viewItem, setViewItem]       = useState<Timesheet | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -793,10 +796,12 @@ function TimesheetsPageContent() {
         api.get<any>(customerEndpoint),
         api.get<any>('/executives?pageSize=100'),
         api.get<any>('/users?pageSize=200&exclude_type=cliente'),
-      ]).then(([c, ex, us]) => {
+        api.get<any>('/users?pageSize=100&type=coordenador'),
+      ]).then(([c, ex, us, coords]) => {
         setCustomers(items(c))
         setExecutives(items(ex))
         setConsultants(items(us))
+        setCoordinators(items(coords))
       }).catch(() => {})
     }
   }, [isCliente, isAdmin, user?.customer_id])
@@ -809,6 +814,7 @@ function TimesheetsPageContent() {
     contractTypeIds.forEach(v => p.append('contract_type_id[]', v))
     if (isCliente && user?.customer_id) p.set('customer_id', String(user.customer_id))
     else customerIds.forEach(v => p.append('customer_id[]', v))
+    coordinatorIds.forEach(v => p.append('coordinator_id[]', v))
     executiveIds.forEach(v => p.append('executive_id[]', v))
     userIds.forEach(v => p.append('user_id[]', v))
     if (startDate)     p.set('start_date', startDate)
@@ -819,14 +825,14 @@ function TimesheetsPageContent() {
     if (projectId)     p.set('project_id', projectId)
     if (sortField)     p.set('order', sortDir === 'desc' ? `-${sortField}` : sortField)
     return p.toString()
-  }, [page, status, origins, serviceTypeIds, contractTypeIds, customerIds, executiveIds, userIds, projectId, startDate, endDate, ticket, requester, ticketService, sortField, sortDir, isCliente, user?.customer_id])
+  }, [page, status, origins, serviceTypeIds, contractTypeIds, customerIds, coordinatorIds, executiveIds, userIds, projectId, startDate, endDate, ticket, requester, ticketService, sortField, sortDir, isCliente, user?.customer_id])
 
   const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<Timesheet>>(
     `/timesheets?${params}`, [params]
   )
 
   const resetPage = useCallback(() => setPage(1), [])
-  const hasFilters = !!(status || origins.length || serviceTypeIds.length || contractTypeIds.length || customerIds.length || executiveIds.length || userIds.length || projectId || startDate || endDate || ticket || requester || ticketService)
+  const hasFilters = !!(status || origins.length || serviceTypeIds.length || contractTypeIds.length || customerIds.length || coordinatorIds.length || executiveIds.length || userIds.length || projectId || startDate || endDate || ticket || requester || ticketService)
 
   const clearFilters = useCallback(() => {
     clearPersistedFilters()
@@ -941,6 +947,14 @@ function TimesheetsPageContent() {
                   options={customers}
                   placeholder="Todos os clientes"
                 />
+                {coordinators.length > 0 && (
+                  <MultiSelect
+                    value={coordinatorIds}
+                    onChange={v => { setCoordinatorIds(v); resetPage() }}
+                    options={coordinators}
+                    placeholder="Todos os coordenadores"
+                  />
+                )}
                 {executives.length > 0 && (
                   <MultiSelect
                     value={executiveIds}

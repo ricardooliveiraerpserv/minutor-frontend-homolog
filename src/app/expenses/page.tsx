@@ -716,7 +716,7 @@ export default function ExpensesPage() {
               <MultiSelect value={customerIds}    onChange={v => { setCustomerIds(v);    setPage(1) }} options={customers}    placeholder="Todos os clientes"     />
               <SearchSelect value={projectId}     onChange={v => { setProjectId(v);     setPage(1) }} options={allProjects}  placeholder="Todos os projetos"     />
               <MultiSelect value={userIds}        onChange={v => { setUserIds(v);        setPage(1) }} options={consultants}  placeholder="Todos os consultores"  />
-              {!isCoordenador && <MultiSelect value={coordinatorIds} onChange={v => { setCoordinatorIds(v); setPage(1) }} options={coordinators} placeholder="Todos os coordenadores" />}
+              <MultiSelect value={coordinatorIds} onChange={v => { setCoordinatorIds(v); setPage(1) }} options={coordinators} placeholder="Todos os coordenadores" />
               <MultiSelect value={executiveIds}   onChange={v => { setExecutiveIds(v);   setPage(1) }} options={executives}   placeholder="Todos os executivos"   />
             </div>
           )}
