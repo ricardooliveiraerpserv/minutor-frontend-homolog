@@ -58,6 +58,8 @@ interface ExpItem {
   charge_client: boolean
   receipt_url?: string
   status: string
+  status_display?: string
+  is_paid?: boolean
 }
 
 interface Pagination {
@@ -950,12 +952,14 @@ export default function ApprovalsPage() {
               {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Título</th>}
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Descrição</th>
               {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Solicitante</th>}
+              {tab === 'expenses'    && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Categoria</th>}
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Tipo de Serviço</th>
               {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Contrato</th>}
               <th className="text-right px-3 py-2.5 text-zinc-500 font-medium">
                 {tab === 'timesheets' ? 'Tempo' : 'Valor'}
               </th>
-              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>}
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
+              {tab === 'expenses' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Pagamento</th>}
             </tr>
           </thead>
           <tbody>
@@ -1076,15 +1080,26 @@ export default function ApprovalsPage() {
                 <td className="px-3 py-2.5 text-zinc-200 font-medium">{exp.user?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-zinc-500 hidden md:table-cell">{exp.project?.customer?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-zinc-400 hidden lg:table-cell truncate max-w-[160px]">{exp.project?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{(exp.project as any)?.service_type?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 hidden lg:table-cell max-w-[200px]">
-                  {exp.description ? (
+                  <div className="flex items-center gap-1.5">
                     <span title={exp.description} className="block truncate text-zinc-400 cursor-default">
-                      {exp.description}
+                      {exp.description || '—'}
                     </span>
-                  ) : <span className="text-zinc-600">—</span>}
+                    {exp.receipt_url && <Paperclip size={10} className="shrink-0 text-zinc-600" />}
+                  </div>
                 </td>
+                <td className="px-3 py-2.5 text-zinc-500 hidden lg:table-cell truncate max-w-[120px]">{exp.category?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{(exp.project as any)?.service_type?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 text-right font-mono text-zinc-300">{fmtBRL(parseFloat(String(exp.amount)) || 0)}</td>
+                <td className="px-3 py-2.5">
+                  <TsStatusBadge status={exp.status} display={exp.status_display} />
+                </td>
+                <td className="px-3 py-2.5">
+                  {exp.is_paid
+                    ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-emerald-950/50 text-emerald-400 border-emerald-500/20">Pago</span>
+                    : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-amber-950/50 text-amber-400 border-amber-500/20">Em aberto</span>
+                  }
+                </td>
               </tr>
             ))}
           </tbody>
