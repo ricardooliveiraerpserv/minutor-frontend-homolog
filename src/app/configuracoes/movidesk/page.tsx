@@ -23,10 +23,14 @@ interface MovideskStatus {
 }
 
 interface SystemSettings {
-  movidesk_default_customer_id?: number | null
-  movidesk_default_project_id?:  number | null
-  movidesk_default_user_id?:     number | null
+  movidesk_default_customer_id?:          number | null
+  movidesk_default_project_id?:           number | null
+  movidesk_default_user_id?:              number | null
+  movidesk_sync_orgs_interval_minutes?:   number | null
+  movidesk_portal_sync_interval_minutes?: number | null
 }
+
+const INTERVAL_OPTIONS = [5, 10, 15, 20, 30, 60]
 
 interface SelectOption { id: number | string; name: string }
 
@@ -68,6 +72,8 @@ export default function MovideskIntegracaoPage() {
   const [defaultCustomer, setDefaultCustomer] = useState('')
   const [defaultProject,  setDefaultProject]  = useState('')
   const [defaultUser,     setDefaultUser]     = useState('')
+  const [syncOrgsInterval,   setSyncOrgsInterval]   = useState(30)
+  const [portalSyncInterval, setPortalSyncInterval] = useState(30)
   const [saving, setSaving] = useState(false)
 
   const loadStatus = useCallback(async () => {
@@ -96,6 +102,8 @@ export default function MovideskIntegracaoPage() {
       setDefaultCustomer(String(mv.movidesk_default_customer_id ?? ''))
       setDefaultProject(String(mv.movidesk_default_project_id ?? ''))
       setDefaultUser(String(mv.movidesk_default_user_id ?? ''))
+      setSyncOrgsInterval(mv.movidesk_sync_orgs_interval_minutes ?? 30)
+      setPortalSyncInterval(mv.movidesk_portal_sync_interval_minutes ?? 30)
     } catch {}
   }, [])
 
@@ -131,9 +139,11 @@ export default function MovideskIntegracaoPage() {
     setSaving(true)
     try {
       await api.put('/system-settings', {
-        movidesk_default_customer_id: defaultCustomer ? Number(defaultCustomer) : null,
-        movidesk_default_project_id:  defaultProject  ? Number(defaultProject)  : null,
-        movidesk_default_user_id:     defaultUser     ? Number(defaultUser)     : null,
+        movidesk_default_customer_id:          defaultCustomer ? Number(defaultCustomer) : null,
+        movidesk_default_project_id:           defaultProject  ? Number(defaultProject)  : null,
+        movidesk_default_user_id:              defaultUser     ? Number(defaultUser)     : null,
+        movidesk_sync_orgs_interval_minutes:   syncOrgsInterval,
+        movidesk_portal_sync_interval_minutes: portalSyncInterval,
       })
       toast.success('Configurações salvas')
     } catch { toast.error('Erro ao salvar configurações') }
@@ -291,6 +301,60 @@ export default function MovideskIntegracaoPage() {
             </div>
           </div>
 
+          {/* Intervalos de varredura automática */}
+          <div className="pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Intervalos de Varredura Automática</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--brand-muted)' }}>
+                  Sync de Organizações <span className="text-[10px]">(sync-orgs)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {INTERVAL_OPTIONS.map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setSyncOrgsInterval(v)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                      style={{
+                        background: syncOrgsInterval === v ? '#00F5FF' : 'var(--brand-bg)',
+                        color: syncOrgsInterval === v ? '#0A0A0B' : 'var(--brand-muted)',
+                        border: `1px solid ${syncOrgsInterval === v ? '#00F5FF' : 'var(--brand-border)'}`,
+                      }}>
+                      {v} min
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] mt-1.5" style={{ color: 'var(--brand-subtle)' }}>Popula CNPJ e customer_id nos tickets</p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--brand-muted)' }}>
+                  Sync do Portal de Sustentação <span className="text-[10px]">(portal-sync)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {INTERVAL_OPTIONS.map(v => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setPortalSyncInterval(v)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                      style={{
+                        background: portalSyncInterval === v ? '#00F5FF' : 'var(--brand-bg)',
+                        color: portalSyncInterval === v ? '#0A0A0B' : 'var(--brand-muted)',
+                        border: `1px solid ${portalSyncInterval === v ? '#00F5FF' : 'var(--brand-border)'}`,
+                      }}>
+                      {v} min
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] mt-1.5" style={{ color: 'var(--brand-subtle)' }}>Tickets dos últimos 90 dias com campos SLA</p>
+              </div>
+            </div>
+            <p className="text-[10px] mt-2" style={{ color: 'var(--brand-subtle)' }}>
+              Alteração aplicada no próximo reinício do scheduler. Valores menores aumentam atualidade dos dados mas consomem mais cota da API.
+            </p>
+          </div>
+
           <button
             onClick={handleSaveSettings}
             disabled={saving}
@@ -307,7 +371,7 @@ export default function MovideskIntegracaoPage() {
             <h2 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Sincronização Manual</h2>
           </div>
           <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
-            Dispara uma varredura imediata a partir da última sincronização (até 2h de janela). O cron automático já roda a cada 20 minutos em background.
+            Dispara uma varredura imediata a partir da última sincronização (até 2h de janela). O cron automático já roda em background no intervalo configurado acima.
           </p>
           <div className="flex items-start gap-3">
             <button
@@ -333,7 +397,7 @@ export default function MovideskIntegracaoPage() {
         <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.15)' }}>
           <Clock size={14} style={{ color: '#a78bfa', marginTop: 1, flexShrink: 0 }} />
           <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-            <strong style={{ color: '#a78bfa' }}>Varredura automática:</strong> roda a cada 20 minutos em background, buscando apontamentos da última janela sincronizada com 20 min de sobreposição para garantir que nenhum registro seja perdido. O webhook garante importação em tempo real assim que o ticket é atualizado no Movidesk.
+            <strong style={{ color: '#a78bfa' }}>Varredura automática:</strong> roda no intervalo configurado em background, buscando apontamentos da última janela sincronizada com sobreposição para garantir que nenhum registro seja perdido. O webhook garante importação em tempo real assim que o ticket é atualizado no Movidesk.
           </p>
         </div>
 
