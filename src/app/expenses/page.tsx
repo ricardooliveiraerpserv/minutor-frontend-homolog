@@ -671,7 +671,7 @@ export default function ExpensesPage() {
     if (!revertTarget) return
     setReverting(true)
     try {
-      await api.post(`/expenses/${revertTarget.id}/reverse-approval`)
+      await api.post(`/expenses/${revertTarget.id}/reverse-approval`, {})
       toast.success('Aprovação estornada com sucesso.')
     } catch (err: any) {
       const msg: string = (err as any)?.message ?? ''
