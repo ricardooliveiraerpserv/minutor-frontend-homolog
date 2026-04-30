@@ -329,16 +329,16 @@ export default function PartnerDashboardPage() {
 
   const openTimesheetModal = (id: number) => {
     setModalLoading(true)
-    api.get<Timesheet>(`/timesheets/${id}`)
-      .then(r => setViewTs(r))
+    api.get<any>(`/timesheets/${id}`)
+      .then(r => setViewTs(r?.data ?? r))
       .catch(() => toast.error('Erro ao carregar apontamento'))
       .finally(() => setModalLoading(false))
   }
 
   const openExpenseModal = (id: number) => {
     setModalLoading(true)
-    api.get<Expense>(`/expenses/${id}`)
-      .then(r => setViewExp(r))
+    api.get<any>(`/expenses/${id}`)
+      .then(r => setViewExp(r?.data ?? r))
       .catch(() => toast.error('Erro ao carregar despesa'))
       .finally(() => setModalLoading(false))
   }
