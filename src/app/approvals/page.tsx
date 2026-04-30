@@ -954,7 +954,7 @@ export default function ApprovalsPage() {
               <th className="text-right px-3 py-2.5 text-zinc-500 font-medium">
                 {tab === 'timesheets' ? 'Tempo' : 'Valor'}
               </th>
-              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Status</th>}
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>}
             </tr>
           </thead>
           <tbody>
@@ -1049,7 +1049,7 @@ export default function ApprovalsPage() {
                     )
                   })() : fmtMin(ts.effort_minutes)}
                 </td>
-                <td className="px-3 py-2.5 hidden xl:table-cell">
+                <td className="px-3 py-2.5">
                   <TsStatusBadge status={ts.status} display={ts.status_display} />
                 </td>
               </tr>
