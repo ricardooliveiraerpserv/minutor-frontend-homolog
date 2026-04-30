@@ -7,9 +7,10 @@ import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import { formatBRL } from '@/lib/format'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import { ExpenseViewModal } from '@/components/ui/expense-view-modal'
 import {
   DollarSign, CheckCircle2, Receipt, ChevronDown,
-  Search, X, Check, RotateCcw,
+  Search, X, Check, RotateCcw, Eye, Undo2,
 } from 'lucide-react'
 import {
   PageHeader, Table, Thead, Th, Tbody, Tr, Td,
@@ -194,6 +195,15 @@ export default function PagamentoDespesasPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [paying,   setPaying]   = useState<Set<number>>(new Set())
 
+  // ── View modal ──
+  const [viewExp,     setViewExp]     = useState<Expense | null>(null)
+  const [viewLoading, setViewLoading] = useState(false)
+
+  // ── Revert modal ──
+  const [revertTarget,  setRevertTarget]  = useState<Expense | null>(null)
+  const [revertReason,  setRevertReason]  = useState('')
+  const [reverting,     setReverting]     = useState(false)
+
   // Load consultants
   useEffect(() => {
     api.get<any>('/users?pageSize=200&exclude_type=cliente')
@@ -257,6 +267,34 @@ export default function PagamentoDespesasPage() {
     await Promise.all(ids.map(id => togglePaid(items.find(e => e.id === id)!, true)))
     setSelected(new Set())
   }, [selected, items, togglePaid])
+
+  // ── View ──
+  const openView = useCallback(async (exp: Expense) => {
+    setViewExp(exp)
+    setViewLoading(true)
+    try {
+      const r = await api.get<any>(`/expenses/${exp.id}`)
+      setViewExp(r?.data ?? r)
+    } catch { }
+    finally { setViewLoading(false) }
+  }, [])
+
+  // ── Revert approval ──
+  const submitRevert = useCallback(async () => {
+    if (!revertTarget) return
+    setReverting(true)
+    try {
+      await api.post(`/expenses/${revertTarget.id}/reject`, { reason: revertReason || 'Estorno de aprovação' })
+      setItems(prev => prev.filter(e => e.id !== revertTarget.id))
+      toast.success('Aprovação estornada com sucesso.')
+      setRevertTarget(null)
+      setRevertReason('')
+    } catch {
+      toast.error('Erro ao estornar aprovação.')
+    } finally {
+      setReverting(false)
+    }
+  }, [revertTarget, revertReason])
 
   // ── Selection ──
   const visibleIds  = useMemo(() => items.filter(e => !e.is_paid).map(e => e.id), [items])
@@ -396,7 +434,7 @@ export default function PagamentoDespesasPage() {
                     <Th>Categoria</Th>
                     <Th right>Valor</Th>
                     <Th>Status Pag.</Th>
-                    <Th right>Ação</Th>
+                    <Th right>Ações</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -446,23 +484,44 @@ export default function PagamentoDespesasPage() {
                           }
                         </Td>
                         <Td right>
-                          <button
-                            disabled={isLoading}
-                            onClick={() => togglePaid(exp)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
-                            style={isPaid
-                              ? { background: 'rgba(239,68,68,0.10)', color: '#EF4444' }
-                              : { background: 'rgba(16,185,129,0.10)', color: '#10B981' }
-                            }
-                          >
-                            {isLoading ? (
-                              <span className="w-3 h-3 border border-current rounded-full border-t-transparent animate-spin" />
-                            ) : isPaid ? (
-                              <><RotateCcw size={11} /> Desfazer</>
-                            ) : (
-                              <><CheckCircle2 size={11} /> Pagar</>
-                            )}
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Visualizar */}
+                            <button
+                              onClick={() => openView(exp)}
+                              title="Visualizar"
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                              style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}
+                            >
+                              <Eye size={11} /> Ver
+                            </button>
+                            {/* Estornar aprovação */}
+                            <button
+                              onClick={() => { setRevertTarget(exp); setRevertReason('') }}
+                              title="Estornar aprovação"
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                              style={{ background: 'rgba(249,115,22,0.10)', color: '#F97316' }}
+                            >
+                              <Undo2 size={11} /> Estornar
+                            </button>
+                            {/* Pagar / Desfazer */}
+                            <button
+                              disabled={isLoading}
+                              onClick={() => togglePaid(exp)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+                              style={isPaid
+                                ? { background: 'rgba(239,68,68,0.10)', color: '#EF4444' }
+                                : { background: 'rgba(16,185,129,0.10)', color: '#10B981' }
+                              }
+                            >
+                              {isLoading ? (
+                                <span className="w-3 h-3 border border-current rounded-full border-t-transparent animate-spin" />
+                              ) : isPaid ? (
+                                <><RotateCcw size={11} /> Desfazer</>
+                              ) : (
+                                <><CheckCircle2 size={11} /> Pagar</>
+                              )}
+                            </button>
+                          </div>
                         </Td>
                       </Tr>
                     )
@@ -483,6 +542,93 @@ export default function PagamentoDespesasPage() {
           </div>
         )}
       </div>
+
+      {/* ── Modal Visualizar ── */}
+      {viewExp && !viewLoading && (
+        <ExpenseViewModal expense={viewExp} onClose={() => setViewExp(null)} />
+      )}
+      {viewLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-10 h-10 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
+
+      {/* ── Modal Estornar Aprovação ── */}
+      {revertTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={e => { if (e.target === e.currentTarget) setRevertTarget(null) }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-5"
+            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(249,115,22,0.12)' }}>
+                <Undo2 size={16} color="#F97316" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>Estornar Aprovação</h3>
+                <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                  Despesa #{revertTarget.id} · {revertTarget.formatted_amount ?? fmtBRL(revertTarget.amount)}
+                </p>
+              </div>
+            </div>
+
+            {/* Info */}
+            <div className="rounded-xl p-3 text-sm space-y-1"
+              style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)' }}>
+              <p style={{ color: '#F97316' }}>
+                Esta ação irá reverter a aprovação da despesa, retornando-a ao status <strong>rejeitado</strong>.
+              </p>
+            </div>
+
+            {/* Motivo */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+                Motivo do estorno
+              </label>
+              <textarea
+                rows={3}
+                value={revertReason}
+                onChange={e => setRevertReason(e.target.value)}
+                placeholder="Descreva o motivo do estorno (opcional)..."
+                className="w-full rounded-xl px-3 py-2.5 text-sm resize-none outline-none"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid var(--brand-border)',
+                  color: 'var(--brand-text)',
+                }}
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setRevertTarget(null)}
+                className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={submitRevert}
+                disabled={reverting}
+                className="flex-1 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: 'rgba(249,115,22,0.15)', color: '#F97316', border: '1px solid rgba(249,115,22,0.3)' }}
+              >
+                {reverting
+                  ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  : <><Undo2 size={13} /> Confirmar Estorno</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </AppLayout>
   )
 }
