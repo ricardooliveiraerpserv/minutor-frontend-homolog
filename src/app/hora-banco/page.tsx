@@ -374,16 +374,15 @@ export default function HoraBancoPage() {
                 )}
 
                 {/* Histórico */}
-                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ border: '1px solid var(--brand-border)' }}>
                   <div className="px-4 py-3 border-b" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
                     <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Histórico de Fechamentos</p>
                   </div>
                   {history.length === 0 ? (
                     <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum fechamento registrado</p>
                   ) : (
-                    <div className="overflow-x-auto">
                       <table className="w-full text-xs" style={{ background: 'var(--brand-surface)' }}>
-                        <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--brand-border)' }}>
+                        <thead className="sticky top-0 z-10" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--brand-border)' }}>
                           <tr>
                             {['Mês', 'Previsto', 'Trabalhado', 'Saldo Mês', 'Saldo Ant.', 'Pago', 'Saldo Final', 'Status'].map(h => (
                               <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
@@ -396,7 +395,6 @@ export default function HoraBancoPage() {
                           ))}
                         </tbody>
                       </table>
-                    </div>
                   )}
                 </div>
 

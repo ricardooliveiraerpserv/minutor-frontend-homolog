@@ -801,14 +801,14 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 
                       {/* Tabela de custo por consultor */}
                       {cb.length > 0 && (
-                        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                        <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
                           <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}>
                             <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}>
                               <UserCheck size={11} />Custo por Consultor
                             </p>
                           </div>
                           <table className="w-full text-xs">
-                            <thead>
+                            <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-bg)' }}>
                               <tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>
                                 {['Consultor','Hs Total','Aprovadas','Pendentes','Taxa/h','Custo'].map(h => (
                                   <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>

@@ -2318,9 +2318,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     </div>
 
                     {/* Full table */}
-                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                    <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
                       <table className="w-full text-xs">
-                        <thead>
+                        <thead className="sticky top-0 z-10" style={{ background: 'rgba(0,0,0,0.25)' }}>
                           <tr style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid var(--brand-border)' }}>
                             {['#','Consultor','Total','Aprov.','Pend.','% do Total','Taxa/h','Custo'].map(h => (
                               <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
@@ -2501,10 +2501,10 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                         <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{hoursUsedPct.toFixed(1)}% das horas utilizadas</p>
                       </div>
                       {cb.length > 0 && (
-                        <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                        <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
                           <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}><p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}><UserCheck size={11} />Custo por Consultor</p></div>
                           <table className="w-full text-xs">
-                            <thead><tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>{['Consultor','Hs Total','Aprovadas','Pendentes','Taxa/h','Custo'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}</tr></thead>
+                            <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-bg)' }}><tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>{['Consultor','Hs Total','Aprovadas','Pendentes','Taxa/h','Custo'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}</tr></thead>
                             <tbody>
                               {cb.map((c, i) => (
                                 <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)' }}>
@@ -2831,9 +2831,9 @@ function ProjectExpensesModal({ projectId, projectName, onClose }: { projectId: 
                   </div>
                 </div>
                 <div className="px-5 pb-5">
-                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                  <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
                     <table className="w-full text-xs">
-                      <thead><tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--brand-border)' }}>
+                      <thead className="sticky top-0 z-10" style={{ background: 'rgba(0,0,0,0.2)' }}><tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--brand-border)' }}>
                         {['Data','Descrição','Categoria','Responsável','Valor','Status'].map(h => <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}
                       </tr></thead>
                       <tbody>
@@ -2948,9 +2948,9 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
                   <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)' }}><p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor Total</p><p className="text-lg font-bold" style={{ color: '#00F5FF' }}>{fmtBRL(totalV)}</p></div>
                 </div>
                 <div className="px-5 pb-5">
-                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                  <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
                     <table className="w-full text-xs">
-                      <thead><tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--brand-border)' }}>
+                      <thead className="sticky top-0 z-10" style={{ background: 'rgba(0,0,0,0.2)' }}><tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--brand-border)' }}>
                         {['Data','Horas','Valor/h','Total','Descrição',''].map(h => <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}
                       </tr></thead>
                       <tbody>
@@ -4293,9 +4293,9 @@ function KanbanContent() {
 
               {/* Tab: Projetos */}
               {listTab === 'projetos' && (
-                <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                       <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
                         <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>
                         <th className="text-left px-4 py-3 text-zinc-400 font-medium">Projeto</th>
@@ -4355,9 +4355,9 @@ function KanbanContent() {
 
               {/* Tab: Contratos */}
               {listTab === 'contratos' && (
-                <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                       <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
                         <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>
                         <th className="text-left px-4 py-3 text-zinc-400 font-medium">Projeto / Tipo</th>
@@ -4405,9 +4405,9 @@ function KanbanContent() {
 
               {/* Tab: Requisições */}
               {listTab === 'requisicoes' && (
-                <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                       <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
                         <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>
                         <th className="text-left px-4 py-3 text-zinc-400 font-medium">Projeto / Área</th>

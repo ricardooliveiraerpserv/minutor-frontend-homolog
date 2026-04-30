@@ -327,9 +327,9 @@ function DebugClientesTab({ rows, onSync }: { rows: DebugClienteRow[]; onSync: (
         </div>
       </div>
 
-      <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
               <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Organização Movidesk</th>
               <th className="text-center px-3 py-2.5 text-zinc-400 font-medium">Status</th>
@@ -464,9 +464,9 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
         </div>
       </div>
 
-      <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
               <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Nome Movidesk</th>
               <th className="text-center px-3 py-2.5 text-zinc-400 font-medium">Status</th>
@@ -664,7 +664,7 @@ function MultiSelect({ label, options, selected, onChange, placeholder = 'Buscar
 function DrillTicketTable({ tickets }: { tickets: QueueTicket[] }) {
   return (
     <table className="w-full text-xs">
-      <thead>
+      <thead className="sticky top-0 z-10" style={{ background: 'rgba(255,255,255,0.03)' }}>
         <tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'rgba(255,255,255,0.03)' }}>
           {['#', 'Título', 'Urgência', 'Status', 'Cliente', 'Responsável', 'SLA Solução'].map(h => (
             <th key={h} className="px-4 py-2 text-left font-medium text-zinc-500">{h}</th>

@@ -328,13 +328,12 @@ export default function FechadoPage() {
                 </div>
 
                 {(summary.contributed_hours_history?.length ?? 0) > 0 && (
-                  <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                  <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                     <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                       <h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Histórico de Aporte de Horas</h3>
                     </div>
-                    <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+                        <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
                           <tr>
                             {['Projeto', 'Horas', 'Valor/h', 'Total', 'Descrição', 'Data', 'Por'].map(col => (
                               <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
@@ -358,7 +357,6 @@ export default function FechadoPage() {
                           ))}
                         </tbody>
                       </table>
-                    </div>
                   </div>
                 )}
               </div>
@@ -374,7 +372,7 @@ export default function FechadoPage() {
         {activeTab === 'projects' && (
           <div className="space-y-4">
             <NoTrackingNotice />
-            <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="rounded-2xl overflow-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
               {loadingProjects ? (
                 <div className="p-10 text-center">
                   <div className="animate-pulse h-4 w-32 mx-auto rounded" style={{ background: 'var(--brand-border)' }} />
@@ -386,7 +384,7 @@ export default function FechadoPage() {
                 </div>
               ) : (
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                     <tr style={{ borderBottom: '1px solid var(--brand-border)' }}>
                       {['Código', 'Projeto', 'Status', 'Horas Base', 'Aportes', 'Total', 'Início'].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
@@ -426,7 +424,7 @@ export default function FechadoPage() {
 
         {/* ── DESPESAS ── */}
         {activeTab === 'expenses' && (
-          <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div className="rounded-2xl overflow-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
             {loadingExpenses ? (
               <div className="p-10 text-center">
                 <div className="animate-pulse h-4 w-32 mx-auto rounded" style={{ background: 'var(--brand-border)' }} />
@@ -438,7 +436,7 @@ export default function FechadoPage() {
               </div>
             ) : (
               <table className="w-full text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10" style={{ background: 'rgba(255,255,255,0.02)' }}>
                   <tr style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
                     {['Data', 'Projeto', 'Colaborador', 'Categoria', 'Descrição', 'Valor', 'Status'].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>

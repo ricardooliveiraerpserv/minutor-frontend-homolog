@@ -398,9 +398,9 @@ export default function ContratosPage() {
       </div>
 
       {/* ── Table ── */}
-      <div className="rounded-xl border" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
               <th className="w-10 px-2 py-3" />
               <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>

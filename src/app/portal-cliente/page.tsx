@@ -944,9 +944,9 @@ export default function PortalClientePage() {
                 </div>
               ) : (
                 /* ── Linear / table view ── */
-                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                <div className="rounded-2xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10" style={{ background: 'rgba(255,255,255,0.04)' }}>
                       <tr style={{ background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--brand-border)' }}>
                         <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Cliente</th>
                         <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Vendido</th>
@@ -1199,7 +1199,7 @@ export default function PortalClientePage() {
               )}
 
               {/* ── 4. Projetos ── */}
-              <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+              <div className="rounded-2xl border overflow-clip" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
                 <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                   <h2 className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Projetos</h2>
                 </div>
@@ -1212,7 +1212,7 @@ export default function PortalClientePage() {
                     return isPar ? allP.some(p => p.id === projectFilter) : allP.some(p => p.children.some(c => c.id === projectFilter))
                   })() ? (
                   <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                       <tr className="border-b" style={{ borderColor: 'var(--brand-border)' }}>
                         {['Projeto', 'Saldo', 'Consumo', 'Status'].map(h => (
                           <th key={h} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider"
@@ -1499,7 +1499,7 @@ export default function PortalClientePage() {
               </div>
 
               {/* Projetos */}
-              <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+              <div className="rounded-2xl border overflow-x-auto overflow-y-clip" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
                 <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                   <div className="flex items-center justify-between">
                     <h2 className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Projetos</h2>
@@ -1517,9 +1517,8 @@ export default function PortalClientePage() {
                     <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto encontrado</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
                     <table className="w-full text-sm">
-                      <thead>
+                      <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                         <tr style={{ borderBottom: '1px solid var(--brand-border)' }}>
                           {['Projeto', 'Cliente', 'Tipo', 'Saldo', '% Uso', 'Status'].map(col => (
                             <th key={col} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
@@ -1560,7 +1559,6 @@ export default function PortalClientePage() {
                         })}
                       </tbody>
                     </table>
-                  </div>
                 )}
               </div>
 

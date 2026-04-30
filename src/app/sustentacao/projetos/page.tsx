@@ -281,12 +281,12 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
                 <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{hoursUsedPct.toFixed(1)}% das horas utilizadas</p>
               </div>
               {summary.consultant_breakdown.length > 0 && (
-                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
                   <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}>
                     <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Por Consultor</p>
                   </div>
                   <table className="w-full text-xs">
-                    <thead><tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>
+                    <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-bg)' }}><tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>
                       {['Consultor', 'Hs', 'Aprov.', 'Pend.', 'Custo'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>
@@ -574,9 +574,9 @@ export default function SustentacaoProjetosPage() {
         {loading ? (
           <Skeleton />
         ) : (
-          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+          <div className="rounded-2xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                 <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
                   {[
                     { label: '',              w: 48 },

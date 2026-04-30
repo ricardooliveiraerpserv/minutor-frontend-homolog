@@ -341,7 +341,7 @@ export default function BankHoursFixedPage() {
 
   // Projects table (shared between Projetos and Sustentação)
   const ProjectsTable = ({ items, loading }: { items: ProjectItem[]; loading: boolean }) => (
-    <div className="rounded-2xl overflow-hidden mt-4" style={{ border: '1px solid var(--brand-border)' }}>
+    <div className="rounded-2xl overflow-x-auto overflow-y-clip mt-4" style={{ border: '1px solid var(--brand-border)' }}>
       {loading ? (
         <div className="p-6 space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -349,9 +349,8 @@ export default function BankHoursFixedPage() {
           ))}
         </div>
       ) : (
-        <div className="overflow-x-auto">
           <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
-            <thead style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
               <tr>
                 {['Código','Projeto','Status','Tipo','Horas Vendidas','Consumo','Saldo','Início'].map(col => (
                   <th key={col} className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${['Saldo','Horas Vendidas','Consumo'].includes(col) ? 'text-right' : 'text-left'}`} style={{ color: 'var(--brand-subtle)' }}>{col}</th>
@@ -396,7 +395,6 @@ export default function BankHoursFixedPage() {
               })}
             </tbody>
           </table>
-        </div>
       )}
     </div>
   )
@@ -555,13 +553,12 @@ export default function BankHoursFixedPage() {
 
                     {/* Histórico de Aporte */}
                     {(summary.contributed_hours_history?.length ?? 0) > 0 && (
-                      <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                      <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                         <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                           <h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Histórico de Aporte de Horas</h3>
                         </div>
-                        <div className="overflow-x-auto">
                           <table className="w-full text-sm">
-                            <thead style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+                            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
                               <tr>
                                 {['Projeto','Horas','Valor/h','Total','Descrição','Data','Por'].map(col => (
                                   <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
@@ -585,7 +582,6 @@ export default function BankHoursFixedPage() {
                               ))}
                             </tbody>
                           </table>
-                        </div>
                       </div>
                     )}
                   </>

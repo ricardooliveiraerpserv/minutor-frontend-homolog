@@ -745,7 +745,7 @@ export default function FechamentoClientePage() {
                                 </span>
                               </div>
                               <table className="w-full text-sm border-collapse">
-                                <thead>
+                                <thead className="sticky top-0 z-10" style={{ background: '#f5f3ff' }}>
                                   <tr style={{ background: '#f5f3ff', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                                     <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Data</th>
                                     <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Colaborador</th>
@@ -904,7 +904,7 @@ export default function FechamentoClientePage() {
                         </div>
                         <div className="px-10 py-6">
                           <table className="w-full text-sm border-collapse">
-                            <thead>
+                            <thead className="sticky top-0 z-10" style={{ background: '#f5f3ff' }}>
                               <tr style={{ background: '#f5f3ff' }}>
                                 <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Data</th>
                                 <th className="text-left px-3 py-2 text-xs font-semibold text-gray-600">Descrição</th>

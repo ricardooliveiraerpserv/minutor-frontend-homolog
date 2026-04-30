@@ -552,9 +552,9 @@ export function UserManagementTab() {
       )}
 
       {/* Tabela */}
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+      <div className="rounded-lg border border-zinc-800 overflow-clip">
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-zinc-900">
             <tr className="border-b border-zinc-800 bg-zinc-900">
               <th className="px-3 py-2.5 w-10"></th>
               <th className="px-3 py-2.5 w-8">

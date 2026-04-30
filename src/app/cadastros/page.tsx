@@ -142,9 +142,9 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
           <Plus size={13} /> Novo
         </Button>
       </div>
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+      <div className="rounded-lg border border-zinc-800 overflow-clip">
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-zinc-900">
             <tr className="border-b border-zinc-800 bg-zinc-900">
               <th className="px-3 py-2.5 w-10"></th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
@@ -319,9 +319,9 @@ function CustomersTab() {
           <Plus size={13} /> Novo
         </Button>
       </div>
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+      <div className="rounded-lg border border-zinc-800 overflow-clip">
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-zinc-900">
             <tr className="border-b border-zinc-800 bg-zinc-900">
               <th className="px-3 py-2.5 w-10"></th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
@@ -487,9 +487,9 @@ function ExecutivesTab() {
           <Plus size={13} /> Adicionar
         </Button>
       </div>
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+      <div className="rounded-lg border border-zinc-800 overflow-clip">
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-zinc-900">
             <tr className="border-b border-zinc-800 bg-zinc-900">
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">E-mail</th>
@@ -654,9 +654,9 @@ function ConsultantGroupsTab() {
         </Button>
       </div>
 
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+      <div className="rounded-lg border border-zinc-800 overflow-clip">
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-zinc-900">
             <tr className="border-b border-zinc-800 bg-zinc-900">
               <th className="px-3 py-2.5 w-10"></th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
@@ -918,9 +918,9 @@ function HolidaysTab() {
         </Button>
       </div>
 
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+      <div className="rounded-lg border border-zinc-800 overflow-clip">
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-zinc-900">
             <tr className="border-b border-zinc-800 bg-zinc-900">
               <th className="px-3 py-2.5 w-10"></th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Data</th>
@@ -1089,9 +1089,9 @@ function IsActiveCrudTab({ endpoint, label }: { endpoint: string; label: string 
           <Plus size={13} /> Novo
         </Button>
       </div>
-      <div className="rounded-lg border border-zinc-800 overflow-hidden">
+      <div className="rounded-lg border border-zinc-800 overflow-clip">
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-zinc-900">
             <tr className="border-b border-zinc-800 bg-zinc-900">
               <th className="px-3 py-2.5 w-10"></th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
@@ -1289,9 +1289,9 @@ function CustomerContactsTab() {
       )}
 
       {customerId && !loading && contacts.length > 0 && (
-        <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
           <table className="w-full text-xs">
-            <thead>
+            <thead className="sticky top-0 z-10" style={{ background: 'rgba(255,255,255,0.02)' }}>
               <tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
                 <th className="w-10" />
                 <th className="px-3 py-2.5 text-left font-medium text-zinc-400">Nome</th>

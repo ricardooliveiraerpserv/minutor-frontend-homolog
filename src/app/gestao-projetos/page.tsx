@@ -1431,9 +1431,9 @@ export default function GestaoProjetosPage() {
             <p className="text-sm">Nenhum projeto encontrado</p>
           </div>
         ) : (
-          <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+          <div className="rounded-2xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
             <table className="w-full text-left">
-              <thead>
+              <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                 <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
                   <th className="w-8 pl-2" />
                   <th className="w-1" />
@@ -1779,9 +1779,9 @@ export default function GestaoProjetosPage() {
                         <p className="text-lg font-bold tabular-nums" style={{ color: '#f59e0b' }}>{totalValor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                       </div>
                     </div>
-                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                    <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
                       <table className="w-full text-xs">
-                        <thead>
+                        <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                           <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
                             {['Data','Horas','Valor/h','Total','Descrição',''].map(h => (
                               <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
@@ -2163,14 +2163,14 @@ export default function GestaoProjetosPage() {
 
                           {/* Tabela de custo por consultor */}
                           {cb.length > 0 && (
-                            <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                            <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
                               <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}>
                                 <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}>
                                   <UserCheck size={11} />Custo por Consultor
                                 </p>
                               </div>
                               <table className="w-full text-xs">
-                                <thead>
+                                <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-bg)' }}>
                                   <tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>
                                     {['Consultor','Hs Total','Aprovadas','Pendentes','Taxa/h','Custo'].map(h => (
                                       <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
