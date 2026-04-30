@@ -285,17 +285,16 @@ export default function PagamentoDespesasPage() {
     setReverting(true)
     try {
       await api.post(`/expenses/${revertTarget.id}/reverse-approval`, { reason: revertReason.trim() })
-      setItems(prev => prev.filter(e => e.id !== revertTarget.id))
       toast.success('Aprovação estornada com sucesso.')
       setRevertTarget(null)
       setRevertReason('')
     } catch (err: any) {
-      const msg = err?.response?.data?.message
-      toast.error(msg ?? 'Erro ao estornar aprovação.')
+      toast.error((err as any)?.message ?? 'Erro ao estornar aprovação.')
     } finally {
       setReverting(false)
+      fetchData()
     }
-  }, [revertTarget, revertReason])
+  }, [revertTarget, revertReason, fetchData])
 
   // ── Selection ──
   const visibleIds  = useMemo(() => items.filter(e => !e.is_paid).map(e => e.id), [items])

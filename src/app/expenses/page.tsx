@@ -675,12 +675,11 @@ export default function ExpensesPage() {
       toast.success('Aprovação estornada com sucesso.')
       setRevertTarget(null)
       setRevertReason('')
-      load()
     } catch (err: any) {
-      const msg = err?.response?.data?.message
-      toast.error(msg ?? 'Erro ao estornar aprovação.')
+      toast.error(err?.message ?? 'Erro ao estornar aprovação.')
     } finally {
       setReverting(false)
+      load()
     }
   }
 
