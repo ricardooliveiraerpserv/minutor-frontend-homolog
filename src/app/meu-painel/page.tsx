@@ -1711,8 +1711,15 @@ export default function MeuPainelPage() {
         try {
           await api.delete(`/timesheets/${id}`)
           toast.success('Apontamento excluído')
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 404) {
+            toast.info('Apontamento já havia sido removido')
+          } else {
+            toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir')
+          }
+        } finally {
           loadTimesheets()
-        } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
+        }
       },
     })
   }
