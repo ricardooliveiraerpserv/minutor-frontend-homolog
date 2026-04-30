@@ -2055,7 +2055,7 @@ export default function MeuPainelPage() {
       {/* ── Sticky sub-header (period nav + tabs) ── */}
       <div ref={stickyHeaderRef} className="sticky top-0 z-20 -mx-8 px-8 bg-zinc-950 border-b border-zinc-800">
         {/* Header row */}
-        <div className="flex items-center justify-between pt-6 pb-4 gap-3 flex-wrap">
+        <div className="flex items-center justify-between py-3 gap-3 flex-wrap">
 
           {/* Period selector */}
           <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900 px-1.5 py-1">
@@ -2106,7 +2106,7 @@ export default function MeuPainelPage() {
           })}
         </div>
       </div>
-      <div className="mb-6" />
+      <div className="mt-5" />
 
       {/* ══════════════════════════════════════════════════════════════════════
           Tab: Total Geral
