@@ -705,8 +705,8 @@ export default function ApprovalsPage() {
     setTsView(ts as unknown as Timesheet)
     setTsViewLoading(true)
     try {
-      const full = await api.get<Timesheet>(`/timesheets/${ts.id}`)
-      setTsView(full)
+      const resp = await api.get<any>(`/timesheets/${ts.id}`)
+      setTsView(resp?.data ?? resp)
     } catch { /* mantém dados parciais */ }
     finally { setTsViewLoading(false) }
   }, [])
@@ -716,8 +716,8 @@ export default function ApprovalsPage() {
     setExpApprove(exp as unknown as Expense)
     setExpApproveLoading(true)
     try {
-      const full = await api.get<Expense>(`/expenses/${exp.id}`)
-      setExpApprove(full)
+      const resp = await api.get<any>(`/expenses/${exp.id}`)
+      setExpApprove(resp?.data ?? resp)
     } catch { /* mantém dados parciais */ }
     finally { setExpApproveLoading(false) }
   }, [])
