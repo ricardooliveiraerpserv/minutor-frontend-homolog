@@ -2591,12 +2591,13 @@ export default function MeuPainelPage() {
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden xl:table-cell">Tipo de Serviço</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Valor</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Status</th>
+                  <th className="text-left px-4 py-3 text-zinc-500 font-medium">Pagamento</th>
                   <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
               <tbody>
                 {expLoading ? (
-                  <TableSkeleton cols={8} />
+                  <TableSkeleton cols={9} />
                 ) : expenses.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-4 py-14 text-center text-zinc-600">
