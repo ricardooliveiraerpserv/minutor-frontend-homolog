@@ -13,11 +13,13 @@ import {
 import { RowMenu } from '@/components/ui/row-menu'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { api, ApiError, toRelativePath } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { toast } from 'sonner'
+import type { Timesheet } from '@/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -585,7 +587,8 @@ export default function ApprovalsPage() {
   const [adjLoading,   setAdjLoading]   = useState(false)
 
   // View / approve-expense modals
-  const [tsView,       setTsView]       = useState<TSItem | null>(null)
+  const [tsView,        setTsView]       = useState<Timesheet | null>(null)
+  const [tsViewLoading, setTsViewLoading] = useState(false)
   const [expApprove,   setExpApprove]   = useState<ExpItem | null>(null)
 
   // Load support data
@@ -671,6 +674,17 @@ export default function ApprovalsPage() {
   }
   const toggleOne = (id: number) =>
     setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
+
+  // Open timesheet view modal (fetches full data)
+  const openTsView = useCallback(async (ts: TSItem) => {
+    setTsView(ts as unknown as Timesheet)
+    setTsViewLoading(true)
+    try {
+      const full = await api.get<Timesheet>(`/timesheets/${ts.id}`)
+      setTsView(full)
+    } catch { /* mantém dados parciais */ }
+    finally { setTsViewLoading(false) }
+  }, [])
 
   // Approve timesheet (direct)
   const approveTs = async (id: number) => {
@@ -999,7 +1013,7 @@ export default function ApprovalsPage() {
                 }`}>
                 <td className="px-2 py-2.5 w-10" onClick={e => e.stopPropagation()}>
                   <RowMenu items={[
-                    { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsView(ts) },
+                    { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openTsView(ts) },
                     { label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTs(ts.id), disabled: actioning === ts.id },
                     { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: ts.id, type: 'timesheet' }); setAdjReason('') } },
                     { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }, danger: true },
@@ -1136,7 +1150,13 @@ export default function ApprovalsPage() {
       )}
 
       {/* ── Modal: visualizar apontamento ── */}
-      {tsView && <TsViewModal item={tsView} onClose={() => setTsView(null)} />}
+      {tsView && (
+        <TimesheetViewModal
+          ts={tsView}
+          onClose={() => setTsView(null)}
+          currentUser={user}
+        />
+      )}
 
       {/* ── Modal: aprovar despesa ── */}
       {expApprove && (
