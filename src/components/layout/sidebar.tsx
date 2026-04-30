@@ -150,9 +150,10 @@ const NAV: NavEntry[] = [
     label: 'Apontamentos & Despesas',
     icon: Clock,
     items: [
-      { label: 'Apontamentos', href: '/timesheets', icon: Clock },
-      { label: 'Despesas',     href: '/expenses',   icon: Receipt },
-      { label: 'Aprovações',   href: '/approvals',  icon: CheckSquare },
+      { label: 'Apontamentos',           href: '/timesheets',              icon: Clock },
+      { label: 'Despesas',               href: '/expenses',                icon: Receipt },
+      { label: 'Aprovações',             href: '/approvals',               icon: CheckSquare },
+      { label: 'Pagamento Consultores',  href: '/pagamento-consultores',   icon: DollarSign },
     ],
   },
   {
@@ -319,8 +320,9 @@ function SidebarInner({ user }: { user: User }) {
           label: 'Apontamentos & Despesas',
           icon: Clock,
           items: [
-            { label: 'Apontamentos', href: '/timesheets', icon: Clock },
-            { label: 'Despesas',     href: '/expenses',   icon: Receipt },
+            { label: 'Apontamentos',          href: '/timesheets',             icon: Clock },
+            { label: 'Despesas',              href: '/expenses',               icon: Receipt },
+            { label: 'Pagamento Consultores', href: '/pagamento-consultores',  icon: DollarSign },
           ],
         },
         { type: 'item', label: 'Kanban Contratos', href: '/contratos/kanban', icon: LayoutGrid, matchPaths: ['/contratos'] },

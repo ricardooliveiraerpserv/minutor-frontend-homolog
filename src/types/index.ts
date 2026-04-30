@@ -92,6 +92,9 @@ export interface Timesheet {
   client_extra_pct?: number | null
   consultant_extra_pct?: number | null
   movidesk_appointment_id?: number | null
+  is_paid?: boolean
+  paid_at?: string | null
+  paid_by?: number | null
   created_at: string
 }
 

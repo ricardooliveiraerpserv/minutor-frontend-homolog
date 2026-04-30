@@ -1287,15 +1287,18 @@ function TimesheetsPageContent() {
                     {ts.project?.contract_type_display ?? '—'}
                   </Td>
                   <Td>
-                    {ts.is_internal_action
-                      ? (
-                        <span className="inline-flex items-center gap-1 flex-wrap">
-                          <Badge variant="internal">Ação Interna</Badge>
-                          {ts.status === 'released' && <Badge variant="approved">Liberado</Badge>}
-                        </span>
-                      )
-                      : <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
-                    }
+                    <span className="inline-flex items-center gap-1 flex-wrap">
+                      {ts.is_internal_action
+                        ? (
+                          <>
+                            <Badge variant="internal">Ação Interna</Badge>
+                            {ts.status === 'released' && <Badge variant="approved">Liberado</Badge>}
+                          </>
+                        )
+                        : <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
+                      }
+                      {ts.is_paid && <Badge variant="success">Pago</Badge>}
+                    </span>
                   </Td>
                 </Tr>
               ))}
