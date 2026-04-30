@@ -19,7 +19,7 @@ export function toRelativePath(url: string): string {
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public data?: Record<string, unknown>) {
     super(message)
     this.name = 'ApiError'
   }
@@ -60,7 +60,7 @@ async function request<T>(
     const body = await res.json().catch(() => ({}))
     const details = body.details
     const detailsMsg = Array.isArray(details) ? details.join('; ') : (typeof details === 'string' ? details : undefined)
-    throw new ApiError(res.status, detailsMsg ?? body.detailMessage ?? body.message ?? `Erro ${res.status}`)
+    throw new ApiError(res.status, detailsMsg ?? body.detailMessage ?? body.message ?? `Erro ${res.status}`, body)
   }
 
   if (res.status === 204) return undefined as T

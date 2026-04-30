@@ -1391,6 +1391,7 @@ export default function MeuPainelPage() {
   const [tsModal,       setTsModal]       = useState<{ open: boolean; item?: TimesheetItem }>({ open: false })
   const [tsViewItem,    setTsViewItem]    = useState<TimesheetItem | null>(null)
   const [tsConflictItem, setTsConflictItem] = useState<TimesheetItem | null>(null)
+  const [tsEditConflict, setTsEditConflict] = useState<{ date: string; start_time?: string; end_time?: string; customer_name?: string; project_name?: string } | null>(null)
   const [tsForm,     setTsForm]     = useState({ ...EMPTY_TS })
   const [tsModeTotal, setTsModeTotal] = useState(false)
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; message: string; onConfirm: () => void } | null>(null)
@@ -1698,7 +1699,13 @@ export default function MeuPainelPage() {
       toast.success(tsModal.item ? 'Apontamento atualizado' : 'Apontamento criado')
       setTsModal({ open: false })
       loadTimesheets()
-    } catch (e: any) { toast.error(e instanceof ApiError ? e.message : (e?.message ?? 'Erro ao salvar')) }
+    } catch (e: any) {
+      if (e instanceof ApiError && e.data?.code === 'TIMESHEET_CONFLICT' && e.data?.conflicting_timesheet) {
+        setTsEditConflict(e.data.conflicting_timesheet as any)
+      } else {
+        toast.error(e instanceof ApiError ? e.message : (e?.message ?? 'Erro ao salvar'))
+      }
+    }
     finally     { setTsSaving(false) }
   }
 
@@ -4119,6 +4126,56 @@ export default function MeuPainelPage() {
 
             <div className="px-5 py-4 border-t border-zinc-800 flex justify-end">
               <Button variant="outline" onClick={() => setTsConflictItem(null)}>Fechar</Button>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {/* ── Modal de conflito ao salvar edição ────────────────────────── */}
+      {tsEditConflict && (
+        <ModalOverlay onClose={() => setTsEditConflict(null)}>
+          <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800" style={{ background: 'rgba(239,68,68,0.08)' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.15)' }}>
+                <AlertTriangle size={16} className="text-red-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-bold text-red-400">Conflito de Horário</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">O horário conflita com o apontamento abaixo</p>
+              </div>
+              <button onClick={() => setTsEditConflict(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-2.5">
+              <div className="rounded-xl p-3.5 space-y-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Data</span>
+                  <span className="text-zinc-200 font-medium">{fmt(tsEditConflict.date)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Horário</span>
+                  <span className="text-zinc-200 font-medium font-mono">
+                    {tsEditConflict.start_time ?? '—'} – {tsEditConflict.end_time ?? '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Cliente</span>
+                  <span className="text-zinc-200 font-medium">{tsEditConflict.customer_name ?? '—'}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Projeto</span>
+                  <span className="text-zinc-200 font-medium">{tsEditConflict.project_name ?? '—'}</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-zinc-600 text-center pt-1">
+                Ajuste o horário para não sobrepor este apontamento.
+              </p>
+            </div>
+
+            <div className="px-5 py-4 border-t border-zinc-800 flex justify-end">
+              <Button variant="outline" onClick={() => setTsEditConflict(null)}>Entendido</Button>
             </div>
           </div>
         </ModalOverlay>
