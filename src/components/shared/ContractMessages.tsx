@@ -98,6 +98,7 @@ function AttachmentChip({ att, messageId }: { att: Attachment; messageId: number
 
 export function ContractMessages({ contractId, userRole }: Props) {
   const isCliente = userRole === 'cliente'
+  const isAdmin   = userRole === 'admin'
 
   const [messages, setMessages]         = useState<ContractMessage[]>([])
   const [loading, setLoading]           = useState(true)
@@ -313,7 +314,7 @@ export function ContractMessages({ contractId, userRole }: Props) {
 
       {/* Input */}
       <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-        {!isCliente && (
+        {!isCliente && !isAdmin && (
           <div className="flex items-center gap-2 mb-2">
             <button onClick={() => setVisibility('internal')}
               className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-all"

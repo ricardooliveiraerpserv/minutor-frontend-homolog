@@ -101,6 +101,7 @@ function AttachmentChip({ att, messageId }: { att: Attachment; messageId: number
 
 export function ProjectMessages({ projectId, userRole }: Props) {
   const isCliente = userRole === 'cliente'
+  const isAdmin   = userRole === 'admin'
 
   const [messages, setMessages]           = useState<MessageWithAttachments[]>([])
   const [loading, setLoading]             = useState(true)
@@ -350,8 +351,8 @@ export function ProjectMessages({ projectId, userRole }: Props) {
 
       {/* Input area */}
       <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-        {/* Visibility toggle — hidden for clients */}
-        {!isCliente && (
+        {/* Visibility toggle — hidden for clients and admins (admins always post internal) */}
+        {!isCliente && !isAdmin && (
           <div className="flex items-center gap-2 mb-2">
             <button
               onClick={() => setVisibility('internal')}
