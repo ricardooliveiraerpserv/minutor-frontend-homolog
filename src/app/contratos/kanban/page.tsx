@@ -1994,6 +1994,18 @@ function KanbanContent() {
   }
 
   const handleProjectMove = async (cardId: number, toCol: string, currentCoordId?: number) => {
+    // Mover projeto sust de volta para fila de sustentação
+    if (toCol.startsWith('sust_')) {
+      const proj = projectCards.find(p => p.id === cardId)
+      if (!proj?.contract_id) return
+      setProjectCards(prev => prev.filter(p => p.id !== cardId))
+      try {
+        await api.patch(`/contracts/${proj.contract_id}/sustentacao-move`, { to_column: toCol })
+        toast.success('Projeto movido para fila de sustentação')
+        await load()
+      } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover'); load() }
+      return
+    }
     if (toCol.startsWith('coordinator:')) {
       const newCoordId = Number(toCol.split(':')[1])
       const card = projectCards.find(p => p.id === cardId)
@@ -2119,6 +2131,29 @@ function KanbanContent() {
   const getAvailableProjectCols = (card: ProjectCard, fromCol: string, currentCoordId?: number): { id: string; label: string }[] => {
     if (isConsultor || isCliente) return []
 
+    // Detecção de sustentação pelo tipo do projeto
+    const ctLower = card.contract_type?.toLowerCase() ?? ''
+    const svLower = card.service_type?.toLowerCase() ?? ''
+    const isCardSust = ctLower.includes('banco de horas') || ctLower.includes('on demand')
+      || ctLower.includes('cloud') || ctLower.includes('bizify')
+      || svLower.includes('on demand') || svLower.includes('cloud')
+      || svLower.includes('bizify') || svLower.includes('sustent')
+
+    // Deriva a coluna sust correspondente ao tipo do projeto
+    const matchedSustColForProject = (): { id: string; label: string } | null => {
+      if (ctLower.includes('bh fixo') || ctLower.includes('banco de horas fixo') || svLower.includes('bh fixo'))
+        return { id: 'sust_bh_fixo', label: 'BH Fixo' }
+      if (ctLower.includes('bh mensal') || ctLower.includes('banco de horas mensal') || svLower.includes('bh mensal'))
+        return { id: 'sust_bh_mensal', label: 'BH Mensal' }
+      if (ctLower.includes('on demand') || svLower.includes('on demand'))
+        return { id: 'sust_on_demand', label: 'On Demand' }
+      if (ctLower.includes('cloud') || svLower.includes('cloud'))
+        return { id: 'sust_cloud', label: 'Cloud' }
+      if (ctLower.includes('bizify') || svLower.includes('bizify'))
+        return { id: 'sust_bizify', label: 'Bizify' }
+      return null
+    }
+
     // Project card em coluna sust → só status terminais (encerrar/pausar/cancelar)
     if (fromCol.startsWith('sust_')) {
       return STATUS_PROJECT_COLUMNS
@@ -2130,15 +2165,32 @@ function KanbanContent() {
     const effectiveCoordId = currentCoordId ?? card.coordinator_ids?.[0]
 
     if (isStatusColCard) {
-      // De coluna terminal: reativar escolhendo um coordenador, ou mover para outro terminal
+      if (isCardSust) {
+        // Sust em terminal: reativar via coluna sust + outros terminais (sem coordenadores)
+        const sustCol = matchedSustColForProject()
+        return [
+          ...(sustCol ? [{ id: sustCol.id, label: `↩ ${sustCol.label}` }] : []),
+          ...STATUS_PROJECT_COLUMNS.filter(c => c.id !== fromCol).map(c => ({ id: c.id, label: c.label })),
+        ]
+      }
+      // Não-sust: reativar via coordenador
       return [
         ...coordinators.map(c => ({ id: `coordinator:${c.id}`, label: `↩ ${c.name}` })),
-        ...STATUS_PROJECT_COLUMNS
-          .filter(c => c.id !== fromCol)
-          .map(c => ({ id: c.id, label: c.label })),
+        ...STATUS_PROJECT_COLUMNS.filter(c => c.id !== fromCol).map(c => ({ id: c.id, label: c.label })),
       ]
     }
     if (effectiveCoordId !== undefined) {
+      if (isCardSust) {
+        // Sust em coluna de coordenador: mover para coluna sust ou encerrar/pausar (sem outros coordenadores)
+        const sustCol = matchedSustColForProject()
+        const sustOptions = sustCol
+          ? [sustCol]
+          : [...SUSTENTACAO_COLS.map(s => ({ id: s.id, label: s.label })), { id: BIZIFY_COL.id, label: BIZIFY_COL.label }]
+        return [
+          ...sustOptions,
+          ...STATUS_PROJECT_COLUMNS.map(c => ({ id: c.id, label: c.label })),
+        ]
+      }
       return [
         ...coordinators
           .filter(c => c.id !== effectiveCoordId)
