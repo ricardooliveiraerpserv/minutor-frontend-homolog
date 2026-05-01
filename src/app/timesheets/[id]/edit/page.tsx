@@ -203,7 +203,7 @@ export default function EditTimesheetPage() {
   useEffect(() => {
     if (!form.customer_id) { setProjects([]); return }
     let cancelled = false
-    const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open' })
+    const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open', include_investimento_comercial: 'true' })
     if (!isAdmin) qs.set('consultant_only', 'true')
     api.get<{ items: any[] }>(`/projects?${qs}`)
       .then(r => {
