@@ -2301,7 +2301,7 @@ function KanbanContent() {
                               {contractCards.map((card, idx) => {
                                 if (card.card_type === 'project') {
                                   const proj = card as ProjectCard
-                                  const projFromCol = PROJECT_STATUS_COL[proj.status] ?? ''
+                                  const projFromCol = col.id
                                   return (
                                     <ProjectKanbanCard key={`sp-${proj.id}`} card={proj} index={idx}
                                       onClick={() => setProjectAction({ card: proj, action: 'view' })}
