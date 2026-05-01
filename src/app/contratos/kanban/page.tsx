@@ -2030,9 +2030,6 @@ function KanbanContent() {
     // Colunas de status de projeto: movimentação apenas pelo Pipeline
     if (fromCol.startsWith('col_')) return []
 
-    // Projeto já gerado: nunca pode voltar para fases pré-projeto
-    if (card.project_id && (fromCol === 'novo' || fromCol === 'pronto')) return []
-
     if (fromCol.startsWith('sust_')) {
       if (!isSustAdmin) return []
       SUSTENTACAO_COLS.forEach(s => { if (s.id !== fromCol) cols.push({ id: s.id, label: s.label }) })
@@ -2051,8 +2048,11 @@ function KanbanContent() {
     }
 
     if (!isSustCoordenador) {
-      if (fromCol === 'novo') cols.push({ id: 'pronto', label: 'Pronto para Iniciar' })
-      if (fromCol === 'pronto') cols.push({ id: 'novo', label: 'Novo Contrato' })
+      // Navegação de volta só para cards sem projeto gerado
+      if (!card.project_id) {
+        if (fromCol === 'novo') cols.push({ id: 'pronto', label: 'Pronto para Iniciar' })
+        if (fromCol === 'pronto') cols.push({ id: 'novo', label: 'Novo Contrato' })
+      }
 
       if (card.kanban_status !== 'novo_projeto') {
         if (!isSustType && card.is_complete) {
@@ -2062,7 +2062,7 @@ function KanbanContent() {
     }
 
     // Sust cols para contratos detectados como sustentação (por categoria, tipo de contrato ou tipo de serviço)
-    if (isSustAdmin && !card.project_id && isSustType) {
+    if (isSustAdmin && isSustType) {
       SUSTENTACAO_COLS.forEach(s => cols.push({ id: s.id, label: s.label }))
       cols.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
     }
