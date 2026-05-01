@@ -2340,6 +2340,14 @@ function KanbanContent() {
                                       onMove={toCol => {
                                         if (toCol.startsWith('sust_') && proj.contract_id) {
                                           handleSustProjectCardMove(proj.id, proj.contract_id, col.id, toCol)
+                                        } else if (COL_TO_PROJECT_STATUS[toCol]) {
+                                          // Mover para status terminal/ativo: remove do grupo de sust otimisticamente
+                                          setSustGroups(prev => {
+                                            const next = { ...prev }
+                                            next[col.id] = (prev[col.id] ?? []).filter(c => c.id !== proj.id)
+                                            return next
+                                          })
+                                          handleProjectMove(proj.id, toCol, col.coordinatorId)
                                         } else {
                                           handleProjectMove(proj.id, toCol, col.coordinatorId)
                                         }
