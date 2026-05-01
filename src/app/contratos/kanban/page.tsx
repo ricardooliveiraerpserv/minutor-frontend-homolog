@@ -2119,11 +2119,11 @@ function KanbanContent() {
   const getAvailableProjectCols = (card: ProjectCard, fromCol: string, currentCoordId?: number): { id: string; label: string }[] => {
     if (isConsultor || isCliente) return []
 
-    // Project card dentro de coluna de sustentação → só mover entre sust cols
+    // Project card em coluna sust → só status terminais (encerrar/pausar/cancelar)
     if (fromCol.startsWith('sust_')) {
-      const otherSust = SUSTENTACAO_COLS.filter(s => s.id !== fromCol).map(s => ({ id: s.id, label: s.label }))
-      if (BIZIFY_COL.id !== fromCol) otherSust.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
-      return otherSust
+      return STATUS_PROJECT_COLUMNS
+        .filter(c => COL_TO_PROJECT_STATUS[c.id] !== card.status)
+        .map(c => ({ id: c.id, label: c.label }))
     }
 
     const isStatusColCard = !!COL_TO_PROJECT_STATUS[fromCol]
