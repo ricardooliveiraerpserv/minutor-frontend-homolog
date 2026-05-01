@@ -208,9 +208,11 @@ const PROJECT_STATUS_COL: Record<string, string> = {
 }
 
 const COL_TO_PROJECT_STATUS: Record<string, string> = {
-  col_pausado:   'paused',
-  col_cancelado: 'cancelled',
-  col_encerrado: 'finished',
+  col_pausado:        'paused',
+  col_cancelado:      'cancelled',
+  col_encerrado:      'finished',
+  col_awaiting_start: 'awaiting_start',
+  col_started:        'started',
 }
 
 const PRONTO_COLOR = '#eab308'
@@ -2029,7 +2031,17 @@ function KanbanContent() {
     if (isConsultor || isCliente) return []
     const isStatusColCard = !!COL_TO_PROJECT_STATUS[fromCol]
     const effectiveCoordId = currentCoordId ?? card.coordinator_ids?.[0]
-    if (!isStatusColCard && effectiveCoordId !== undefined) {
+    if (isStatusColCard) {
+      // De coluna terminal: pode reativar (Aguardando Início / Em Andamento) ou mover para outro terminal
+      return [
+        { id: 'col_awaiting_start', label: 'Aguardando Início' },
+        { id: 'col_started',        label: 'Em Andamento' },
+        ...STATUS_PROJECT_COLUMNS
+          .filter(c => c.id !== fromCol)
+          .map(c => ({ id: c.id, label: c.label })),
+      ]
+    }
+    if (effectiveCoordId !== undefined) {
       return [
         ...coordinators
           .filter(c => c.id !== effectiveCoordId)
@@ -2037,9 +2049,7 @@ function KanbanContent() {
         ...STATUS_PROJECT_COLUMNS.map(c => ({ id: c.id, label: c.label })),
       ]
     }
-    return STATUS_PROJECT_COLUMNS
-      .filter(c => c.id !== fromCol)
-      .map(c => ({ id: c.id, label: c.label }))
+    return STATUS_PROJECT_COLUMNS.map(c => ({ id: c.id, label: c.label }))
   }
 
   const isConsultor = user?.type === 'consultor'
