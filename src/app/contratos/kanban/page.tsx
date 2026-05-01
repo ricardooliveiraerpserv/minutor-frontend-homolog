@@ -1954,6 +1954,18 @@ function KanbanContent() {
       return
     }
 
+    // ── Cancel / pause (sem projeto)
+    if (toCol === 'contract_cancelado' || toCol === 'contract_pausado') {
+      const apiCol = toCol === 'contract_cancelado' ? 'cancelado' : 'pausado'
+      setDemandCards(prev => prev.filter(c => c.id !== cardId))
+      try {
+        await api.patch(`/contracts/${cardId}/kanban-move`, { to_column: apiCol, order })
+        toast.success(apiCol === 'cancelado' ? 'Contrato cancelado' : 'Contrato pausado')
+        await load()
+      } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover card'); load() }
+      return
+    }
+
     // ── Moving between fixed columns (novo ↔ pronto)
     const toKanbanStatus = toCol === 'pronto' ? 'inicio_autorizado' : 'backlog'
     setDemandCards(prev => prev.map(c =>
@@ -2027,6 +2039,26 @@ function KanbanContent() {
       || ctLower.includes('cloud') || ctLower.includes('bizify') || ctLower.includes('saas')
       || svLower.includes('cloud') || svLower.includes('bizify') || svLower.includes('sustent')
 
+    // Deriva a coluna de sustentação correspondente ao tipo do contrato
+    const matchingSustCol = (): { id: string; label: string } | null => {
+      if (ctLower.includes('bh fixo') || ctLower.includes('banco de horas fixo') || svLower.includes('bh fixo') || svLower.includes('bh_fixo'))
+        return { id: 'sust_bh_fixo', label: 'BH Fixo' }
+      if (ctLower.includes('bh mensal') || ctLower.includes('banco de horas mensal') || svLower.includes('bh mensal') || svLower.includes('bh_mensal'))
+        return { id: 'sust_bh_mensal', label: 'BH Mensal' }
+      if (ctLower.includes('on demand') || svLower.includes('on demand'))
+        return { id: 'sust_on_demand', label: 'On Demand' }
+      if (ctLower.includes('cloud') || svLower.includes('cloud'))
+        return { id: 'sust_cloud', label: 'Cloud' }
+      if (ctLower.includes('bizify') || svLower.includes('bizify'))
+        return { id: 'sust_bizify', label: 'Bizify' }
+      return null
+    }
+
+    const CANCEL_PAUSE = [
+      { id: 'contract_cancelado', label: '🚫 Cancelar' },
+      { id: 'contract_pausado',   label: '⏸ Pausar' },
+    ]
+
     // Colunas de status de projeto: movimentação apenas pelo Pipeline
     if (fromCol.startsWith('col_')) return []
 
@@ -2047,6 +2079,21 @@ function KanbanContent() {
       return cols
     }
 
+    // ── Sust card em pronto/novo: só a coluna correspondente ao tipo + cancelar/pausar
+    if (isSustType && (fromCol === 'pronto' || fromCol === 'novo')) {
+      if (isSustAdmin) {
+        const matched = matchingSustCol()
+        if (matched) {
+          cols.push(matched)
+        } else {
+          SUSTENTACAO_COLS.forEach(s => cols.push({ id: s.id, label: s.label }))
+          cols.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
+        }
+      }
+      cols.push(...CANCEL_PAUSE)
+      return cols
+    }
+
     if (!isSustCoordenador) {
       // Navegação de volta só para cards sem projeto gerado
       if (!card.project_id) {
@@ -2061,10 +2108,9 @@ function KanbanContent() {
       }
     }
 
-    // Sust cols para contratos detectados como sustentação (por categoria, tipo de contrato ou tipo de serviço)
-    if (isSustAdmin && isSustType) {
-      SUSTENTACAO_COLS.forEach(s => cols.push({ id: s.id, label: s.label }))
-      cols.push({ id: BIZIFY_COL.id, label: BIZIFY_COL.label })
+    // Cancelar/pausar disponível em pronto para qualquer tipo
+    if (fromCol === 'pronto') {
+      cols.push(...CANCEL_PAUSE)
     }
 
     return cols
