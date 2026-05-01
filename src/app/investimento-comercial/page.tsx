@@ -56,7 +56,7 @@ export default function InvestimentoComercialPage() {
 
   // ── Redirecionar se não for admin ────────────────────────────────────────
   useEffect(() => {
-    if (user && user.role !== 'admin') router.replace('/dashboard')
+    if (user && user.type !== 'admin') router.replace('/dashboard')
   }, [user, router])
 
   // ── Carregar dados ───────────────────────────────────────────────────────
