@@ -57,6 +57,8 @@ interface ProjectCard {
   coordinator_ids?: number[]
   coordinators?: string[]
   executivo_conta_name?: string
+  contract_type?: string
+  service_type?: string
 }
 
 interface Coordinator { id: number; name: string }
@@ -1338,6 +1340,11 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                 {card.contract_type}
               </span>
             )}
+            {card.service_type && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(34,197,94,0.10)', color: '#22c55e' }}>
+                {card.service_type}
+              </span>
+            )}
             {card.tipo_faturamento && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-muted)' }}>
                 {TIPO_LABEL[card.tipo_faturamento] ?? card.tipo_faturamento}
@@ -1476,6 +1483,20 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
               </div>
             </div>
           </div>
+          {(card.contract_type || card.service_type) && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {card.contract_type && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+                  {card.contract_type}
+                </span>
+              )}
+              {card.service_type && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(34,197,94,0.10)', color: '#22c55e' }}>
+                  {card.service_type}
+                </span>
+              )}
+            </div>
+          )}
           <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${color}20` }}>
             <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>
               {card.coordinators?.[0] ? `👤 ${card.coordinators[0]}` : ''}
