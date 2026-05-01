@@ -1720,7 +1720,10 @@ function KanbanContent() {
     setLoading(true)
     try {
       const r = await api.get<any>('/contracts/kanban')
-      setDemandCards(r.demand_cards ?? r.contracts ?? [])
+      const demandList = r.demand_cards ?? r.contracts ?? []
+      const demandIds  = new Set(demandList.map((c: any) => c.id))
+      const transitionExtra = (r.transition_cards ?? []).filter((c: any) => !demandIds.has(c.id))
+      setDemandCards([...demandList, ...transitionExtra])
       setProjectCards(r.project_cards ?? [])
       setCoordinators(r.coordinators ?? [])
       setSustGroups({
