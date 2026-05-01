@@ -1944,20 +1944,39 @@ function KanbanContent() {
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover card'); load() }
   }
 
+  const handleSustProjectCardMove = async (projectId: number, contractId: number, fromSustCol: string, toSustCol: string) => {
+    if (!isSustAdmin) { toast.error('Apenas admin ou coordenador de sustentação pode mover.'); return }
+    setSustGroups(prev => {
+      const next = { ...prev }
+      const card = prev[fromSustCol]?.find(c => c.id === projectId)
+      next[fromSustCol] = (prev[fromSustCol] ?? []).filter(c => c.id !== projectId)
+      if (card) next[toSustCol] = [...(prev[toSustCol] ?? []), { ...card, sustentacao_column: toSustCol }]
+      return next
+    })
+    try {
+      await api.patch(`/contracts/${contractId}/sustentacao-move`, { to_column: toSustCol })
+      await load()
+      toast.success('Card movido')
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao mover'); load() }
+  }
+
   const handleProjectMove = async (cardId: number, toCol: string, currentCoordId?: number) => {
     if (toCol.startsWith('coordinator:')) {
       const newCoordId = Number(toCol.split(':')[1])
       const card = projectCards.find(p => p.id === cardId)
       const fromCoordId = currentCoordId ?? card?.coordinator_ids?.[0]
+      const isTerminal = card && ['paused', 'cancelled', 'finished'].includes(card.status)
       setProjectCards(prev => prev.map(p => {
         if (p.id !== cardId) return p
         const ids = (p.coordinator_ids ?? []).filter(id => id !== fromCoordId)
         if (!ids.includes(newCoordId)) ids.push(newCoordId)
-        return { ...p, coordinator_ids: ids }
+        return { ...p, coordinator_ids: ids, ...(isTerminal ? { status: 'awaiting_start' } : {}) }
       }))
       try {
-        await api.patch(`/projects/${cardId}/kanban-move`, { coordinator_id: newCoordId, from_coordinator_id: fromCoordId })
-        toast.success('Coordenador atualizado')
+        const payload: any = { coordinator_id: newCoordId, from_coordinator_id: fromCoordId }
+        if (isTerminal) payload.status = 'awaiting_start'
+        await api.patch(`/projects/${cardId}/kanban-move`, payload)
+        toast.success(isTerminal ? 'Projeto reativado!' : 'Coordenador atualizado')
         await load()
       } catch (e: any) {
         const msg = e?.response?.data?.message ?? e?.message ?? 'Erro ao mover projeto'
@@ -2032,13 +2051,21 @@ function KanbanContent() {
 
   const getAvailableProjectCols = (card: ProjectCard, fromCol: string, currentCoordId?: number): { id: string; label: string }[] => {
     if (isConsultor || isCliente) return []
+
+    // Project card dentro de coluna de sustentação → mover entre colunas de sustentação
+    if (fromCol.startsWith('sust_')) {
+      return SUSTENTACAO_COLS
+        .filter(s => s.id !== fromCol)
+        .map(s => ({ id: s.id, label: s.label }))
+    }
+
     const isStatusColCard = !!COL_TO_PROJECT_STATUS[fromCol]
     const effectiveCoordId = currentCoordId ?? card.coordinator_ids?.[0]
+
     if (isStatusColCard) {
-      // De coluna terminal: pode reativar (Aguardando Início / Em Andamento) ou mover para outro terminal
+      // De coluna terminal: reativar escolhendo um coordenador, ou mover para outro terminal
       return [
-        { id: 'col_awaiting_start', label: 'Aguardando Início' },
-        { id: 'col_started',        label: 'Em Andamento' },
+        ...coordinators.map(c => ({ id: `coordinator:${c.id}`, label: `↩ ${c.name}` })),
         ...STATUS_PROJECT_COLUMNS
           .filter(c => c.id !== fromCol)
           .map(c => ({ id: c.id, label: c.label })),
@@ -2309,7 +2336,13 @@ function KanbanContent() {
                                     <ProjectKanbanCard key={`sp-${proj.id}`} card={proj} index={idx}
                                       onClick={() => setProjectAction({ card: proj, action: 'view' })}
                                       onAction={action => setProjectAction({ card: proj, action })}
-                                      onMove={toCol => handleProjectMove(proj.id, toCol, col.coordinatorId)}
+                                      onMove={toCol => {
+                                        if (toCol.startsWith('sust_') && proj.contract_id) {
+                                          handleSustProjectCardMove(proj.id, proj.contract_id, col.id, toCol)
+                                        } else {
+                                          handleProjectMove(proj.id, toCol, col.coordinatorId)
+                                        }
+                                      }}
                                       availableColumns={getAvailableProjectCols(proj, projFromCol, col.coordinatorId)}
                                     />
                                   )
