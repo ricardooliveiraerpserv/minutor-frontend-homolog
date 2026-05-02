@@ -5,10 +5,11 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
-import { Search, Users, X, Check, TrendingUp } from 'lucide-react'
+import { Search, Users, X, Check, TrendingUp, Clock } from 'lucide-react'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, Button, SkeletonTable, EmptyState } from '@/components/ds'
-import type { LucideIcon } from 'lucide-react'
+import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { toast } from 'sonner'
+import type { LucideIcon } from 'lucide-react'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,11 @@ interface ICProject {
   status: string
   customer: { id: number; name: string } | null
   consultants: Consultant[]
-  total_logged_hours?: number
+}
+
+interface HoursSummary {
+  project_id: number
+  total_hours: number
 }
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
@@ -40,15 +45,38 @@ const surfaceStyle = {
   border: '1px solid var(--brand-border)',
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function periodBounds(month: number, year: number): { start: string; end: string } {
+  const start = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastDay = new Date(year, month, 0).getDate()
+  const end = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  return { start, end }
+}
+
+function fmtHours(h: number): string {
+  if (h === 0) return '—'
+  const hh = Math.floor(h)
+  const mm = Math.round((h - hh) * 60)
+  return mm > 0 ? `${hh}h ${mm}m` : `${hh}h`
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function InvestimentoComercialPage() {
   const { user } = useAuth()
   const router   = useRouter()
 
+  const now = new Date()
+  const [filterMonth,  setFilterMonth]  = useState<number>(now.getMonth() + 1)
+  const [filterYear,   setFilterYear]   = useState<number>(now.getFullYear())
+  const [clientSearch, setClientSearch] = useState('')
+
   const [projects,   setProjects]   = useState<ICProject[]>([])
+  const [hoursMap,   setHoursMap]   = useState<Record<number, number>>({})
+  const [hoursLoading, setHoursLoading] = useState(false)
   const [loading,    setLoading]    = useState(true)
-  const [search,     setSearch]     = useState('')
+
   const [allUsers,   setAllUsers]   = useState<Consultant[]>([])
   const [modal,      setModal]      = useState<{ open: boolean; project: ICProject | null }>({ open: false, project: null })
   const [selected,   setSelected]   = useState<number[]>([])
@@ -60,23 +88,23 @@ export default function InvestimentoComercialPage() {
     if (user && user.type !== 'admin') router.replace('/dashboard')
   }, [user, router])
 
-  // ── Carregar dados ───────────────────────────────────────────────────────
+  // ── Carregar projetos + usuários ─────────────────────────────────────────
   useEffect(() => {
     let cancelled = false
 
     Promise.all([
-      api.get<{ items: any[]; data: any[] }>('/projects?only_investimento_comercial=true&pageSize=500&gestao=true&with_team=true'),
-      api.get<{ data: any[] }>('/users?exclude_type=cliente&pageSize=500'),
+      api.get<any>('/projects?only_investimento_comercial=true&pageSize=500&gestao=true&with_team=true'),
+      api.get<any>('/users?exclude_type=cliente&pageSize=500'),
     ])
       .then(([projRes, usersRes]) => {
         if (cancelled) return
 
         const rawProjects: any[] = projRes?.items ?? projRes?.data ?? []
         setProjects(rawProjects.map(p => ({
-          id:         p.id,
-          code:       p.code,
-          status:     p.status,
-          customer:   p.customer ?? null,
+          id:          p.id,
+          code:        p.code,
+          status:      p.status,
+          customer:    p.customer ?? null,
           consultants: p.consultants ?? [],
         })))
 
@@ -89,17 +117,33 @@ export default function InvestimentoComercialPage() {
     return () => { cancelled = true }
   }, [])
 
-  // ── Filtro de busca ──────────────────────────────────────────────────────
+  // ── Carregar horas do período ────────────────────────────────────────────
+  useEffect(() => {
+    if (!filterMonth || !filterYear) { setHoursMap({}); return }
+    let cancelled = false
+    setHoursLoading(true)
+    const { start, end } = periodBounds(filterMonth, filterYear)
+    api.get<HoursSummary[]>(`/projects/ic-summary?start_date=${start}&end_date=${end}`)
+      .then(rows => {
+        if (cancelled) return
+        const map: Record<number, number> = {}
+        rows.forEach(r => { map[r.project_id] = r.total_hours })
+        setHoursMap(map)
+      })
+      .catch(() => toast.error('Erro ao carregar horas'))
+      .finally(() => { if (!cancelled) setHoursLoading(false) })
+    return () => { cancelled = true }
+  }, [filterMonth, filterYear])
+
+  // ── Filtros ──────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    if (!search.trim()) return projects
-    const q = search.toLowerCase()
+    const q = clientSearch.toLowerCase()
     return projects.filter(p =>
-      p.customer?.name.toLowerCase().includes(q) ||
+      !q || p.customer?.name.toLowerCase().includes(q) ||
       p.consultants.some(c => c.name.toLowerCase().includes(q))
     )
-  }, [projects, search])
+  }, [projects, clientSearch])
 
-  // ── Usuários filtrados no modal ──────────────────────────────────────────
   const filteredUsers = useMemo(() => {
     const q = userSearch.toLowerCase()
     return allUsers.filter(u =>
@@ -107,7 +151,12 @@ export default function InvestimentoComercialPage() {
     )
   }, [allUsers, userSearch])
 
-  // ── Abrir modal ──────────────────────────────────────────────────────────
+  const totalHours = useMemo(
+    () => filtered.reduce((acc, p) => acc + (hoursMap[p.id] ?? 0), 0),
+    [filtered, hoursMap]
+  )
+
+  // ── Modal ────────────────────────────────────────────────────────────────
   function openModal(project: ICProject) {
     setModal({ open: true, project })
     setSelected(project.consultants.map(c => c.id))
@@ -124,7 +173,6 @@ export default function InvestimentoComercialPage() {
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  // ── Salvar equipe ────────────────────────────────────────────────────────
   async function saveTeam() {
     if (!modal.project) return
     setSaving(true)
@@ -152,27 +200,37 @@ export default function InvestimentoComercialPage() {
         subtitle="Projetos internos de investimento por cliente — não cobrados, refletidos no fechamento dos consultores"
       />
 
-      {/* Busca */}
-      <div className="mb-5 flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      {/* Filtros */}
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <div className="relative min-w-48 flex-1 max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
           <input
             type="text"
-            placeholder="Buscar por cliente ou consultor..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            placeholder="Filtrar por cliente ou consultor..."
+            value={clientSearch}
+            onChange={e => setClientSearch(e.target.value)}
             className="w-full pl-9 pr-3 h-9 rounded-xl text-xs outline-none"
             style={inputStyle}
           />
         </div>
-        <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+
+        <MonthYearPicker
+          month={filterMonth}
+          year={filterYear}
+          onChange={(m, y) => { if (m === 0) { setFilterMonth(0); setFilterYear(0) } else { setFilterMonth(m); setFilterYear(y) } }}
+        />
+
+        <span className="text-xs ml-auto" style={{ color: 'var(--brand-subtle)' }}>
           {filtered.length} cliente{filtered.length !== 1 ? 's' : ''}
+          {filterMonth > 0 && !hoursLoading && (
+            <span> · <span style={{ color: '#00F5FF' }}>{fmtHours(totalHours)}</span> total no período</span>
+          )}
         </span>
       </div>
 
       {/* Tabela */}
       {loading ? (
-        <SkeletonTable rows={8} cols={3} />
+        <SkeletonTable rows={8} cols={4} />
       ) : filtered.length === 0 ? (
         <EmptyState icon={TrendingUp as LucideIcon} title="Nenhum projeto encontrado" description="Ajuste a busca ou cadastre novos clientes." />
       ) : (
@@ -182,51 +240,65 @@ export default function InvestimentoComercialPage() {
               <Th>Cliente</Th>
               <Th>Código</Th>
               <Th>Consultores Alocados</Th>
+              <Th>
+                <span className="flex items-center gap-1">
+                  <Clock size={12} />
+                  {filterMonth > 0 ? 'Horas no Período' : 'Horas'}
+                </span>
+              </Th>
               <Th></Th>
             </Tr>
           </Thead>
           <Tbody>
-            {filtered.map(project => (
-              <Tr key={project.id}>
-                <Td>
-                  <span className="font-medium text-sm" style={{ color: 'var(--brand-text)' }}>
-                    {project.customer?.name ?? '—'}
-                  </span>
-                </Td>
-                <Td>
-                  <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}>
-                    {project.code}
-                  </span>
-                </Td>
-                <Td>
-                  {project.consultants.length === 0 ? (
-                    <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum alocado</span>
-                  ) : (
-                    <div className="flex flex-wrap gap-1">
-                      {project.consultants.slice(0, 4).map(c => (
-                        <span
-                          key={c.id}
-                          className="text-xs px-2 py-0.5 rounded-full"
-                          style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}
-                        >
-                          {c.name.split(' ')[0]}
-                        </span>
-                      ))}
-                      {project.consultants.length > 4 && (
-                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
-                          +{project.consultants.length - 4}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </Td>
-                <Td>
-                  <Button size="sm" variant="ghost" onClick={() => openModal(project)}>
-                    <Users size={13} className="mr-1" /> Gerenciar
-                  </Button>
-                </Td>
-              </Tr>
-            ))}
+            {filtered.map(project => {
+              const hours = hoursMap[project.id] ?? 0
+              return (
+                <Tr key={project.id}>
+                  <Td>
+                    <span className="font-medium text-sm" style={{ color: 'var(--brand-text)' }}>
+                      {project.customer?.name ?? '—'}
+                    </span>
+                  </Td>
+                  <Td>
+                    <span className="text-xs font-mono px-2 py-0.5 rounded" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}>
+                      {project.code}
+                    </span>
+                  </Td>
+                  <Td>
+                    {project.consultants.length === 0 ? (
+                      <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum alocado</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {project.consultants.slice(0, 4).map(c => (
+                          <span key={c.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}>
+                            {c.name.split(' ')[0]}
+                          </span>
+                        ))}
+                        {project.consultants.length > 4 && (
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
+                            +{project.consultants.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </Td>
+                  <Td>
+                    {hoursLoading ? (
+                      <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>…</span>
+                    ) : (
+                      <span className="text-sm font-semibold tabular-nums" style={{ color: hours > 0 ? '#00F5FF' : 'var(--brand-subtle)' }}>
+                        {fmtHours(hours)}
+                      </span>
+                    )}
+                  </Td>
+                  <Td>
+                    <Button size="sm" variant="ghost" onClick={() => openModal(project)}>
+                      <Users size={13} className="mr-1" /> Gerenciar
+                    </Button>
+                  </Td>
+                </Tr>
+              )
+            })}
           </Tbody>
         </Table>
       )}
@@ -235,8 +307,6 @@ export default function InvestimentoComercialPage() {
       {modal.open && modal.project && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
           <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-4" style={surfaceStyle}>
-
-            {/* Header */}
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-semibold" style={{ color: '#00F5FF' }}>Investimento Comercial</p>
@@ -249,7 +319,6 @@ export default function InvestimentoComercialPage() {
               </button>
             </div>
 
-            {/* Busca de consultores */}
             <div className="relative">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
               <input
@@ -262,25 +331,16 @@ export default function InvestimentoComercialPage() {
               />
             </div>
 
-            {/* Lista de consultores */}
             <div className="flex flex-col gap-1 max-h-72 overflow-y-auto">
               {filteredUsers.length === 0 ? (
                 <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum consultor encontrado</p>
               ) : filteredUsers.map(u => {
                 const checked = selected.includes(u.id)
                 return (
-                  <button
-                    key={u.id}
-                    onClick={() => toggleUser(u.id)}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors hover:bg-white/5"
-                  >
-                    <div
-                      className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors"
-                      style={{
-                        background: checked ? '#00F5FF' : 'transparent',
-                        border: checked ? 'none' : '1px solid var(--brand-border)',
-                      }}
-                    >
+                  <button key={u.id} onClick={() => toggleUser(u.id)}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors hover:bg-white/5">
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors"
+                      style={{ background: checked ? '#00F5FF' : 'transparent', border: checked ? 'none' : '1px solid var(--brand-border)' }}>
                       {checked && <Check size={12} style={{ color: '#0a0a0a' }} />}
                     </div>
                     <div className="min-w-0">
@@ -292,12 +352,10 @@ export default function InvestimentoComercialPage() {
               })}
             </div>
 
-            {/* Selecionados */}
             <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
               {selected.length} consultor{selected.length !== 1 ? 'es' : ''} selecionado{selected.length !== 1 ? 's' : ''}
             </p>
 
-            {/* Ações */}
             <div className="flex gap-2 pt-1">
               <Button variant="ghost" className="flex-1" onClick={closeModal}>Cancelar</Button>
               <Button variant="primary" className="flex-1" onClick={saveTeam} disabled={saving}>
