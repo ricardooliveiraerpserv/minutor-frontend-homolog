@@ -106,6 +106,21 @@ function isSustProject(p: SustProject): boolean {
   )
 }
 
+// Centraliza o cálculo de horas vendidas/consumidas por tipo de contrato.
+// BH Mensal: vendidas = accumulated_sold_hours + aportes; consumidas = initial_hours_consumed + novos apontamentos.
+function calcProjectHours(p: SustProject): { vendidas: number; consumed: number } {
+  const isBhMensal = (p.contract_type_display ?? p.contract_type?.name ?? '').toLowerCase().includes('mensal')
+  if (isBhMensal) {
+    const contributions = (p.total_available_hours ?? p.sold_hours ?? 0) - (p.sold_hours ?? 0)
+    const vendidas = (p.accumulated_sold_hours ?? p.sold_hours ?? 0) + contributions
+    const consumed = (p.initial_hours_consumed ?? 0) + (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
+    return { vendidas, consumed }
+  }
+  const vendidas = p.sold_hours ?? 0
+  const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
+  return { vendidas, consumed }
+}
+
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function Skeleton() {
@@ -121,8 +136,8 @@ function Skeleton() {
 // ─── View Project Modal ────────────────────────────────────────────────────────
 
 function ViewProjectModal({ project, onClose }: { project: SustProject; onClose: () => void }) {
-  const consumed = project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0)
-  const pct = project.sold_hours ? (consumed / project.sold_hours) * 100 : 0
+  const { vendidas, consumed } = calcProjectHours(project)
+  const pct = vendidas > 0 ? (consumed / vendidas) * 100 : 0
   const color = healthColor(pct)
   const hs = healthStyles[color]
   const ss = STATUS_STYLE[project.status] ?? { bg: 'rgba(161,161,170,0.12)', color: '#A1A1AA' }
@@ -157,11 +172,11 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
           <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
             <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--brand-subtle)' }}>Horas</p>
             <div className="grid grid-cols-3 gap-4 text-xs mb-3">
-              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Vendidas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{fmt(project.sold_hours)}h</p></div>
+              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Vendidas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{fmt(vendidas)}h</p></div>
               <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Consumidas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{fmt(consumed, 1)}h</p></div>
               <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (project.general_hours_balance ?? 0) < 0 ? '#ef4444' : 'var(--brand-text)' }}>{fmt(project.general_hours_balance, 1)}h</p></div>
             </div>
-            {project.sold_hours ? (
+            {vendidas > 0 ? (
               <>
                 <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--brand-border)' }}>
                   <div className="h-1.5 rounded-full" style={{ width: `${Math.min(pct, 100)}%`, background: hs.bar }} />
@@ -441,8 +456,8 @@ export default function SustentacaoProjetosPage() {
       if (activeTab !== 'all' && getTab(p) !== activeTab) return false
       if (statusFilter && p.status !== statusFilter) return false
       if (saudeFilter) {
-        const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
-        const pct = p.sold_hours ? (consumed / p.sold_hours) * 100 : 0
+        const { vendidas, consumed } = calcProjectHours(p)
+        const pct = vendidas > 0 ? (consumed / vendidas) * 100 : 0
         if (healthColor(pct) !== saudeFilter) return false
       }
       if (search) {
@@ -456,7 +471,7 @@ export default function SustentacaoProjetosPage() {
   const stats = useMemo(() => ({
     total:     filtered.length,
     ativos:    filtered.filter(p => ['active', 'started'].includes(p.status)).length,
-    vendidas:  filtered.reduce((s, p) => s + (p.sold_hours ?? 0), 0),
+    vendidas:  filtered.reduce((s, p) => s + calcProjectHours(p).vendidas, 0),
     saldo:     filtered.reduce((s, p) => s + (p.general_hours_balance ?? 0), 0),
   }), [filtered])
 
@@ -602,8 +617,8 @@ export default function SustentacaoProjetosPage() {
                     </td>
                   </tr>
                 ) : filtered.map(p => {
-                  const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
-                  const pct   = p.sold_hours ? (consumed / p.sold_hours) * 100 : 0
+                  const { vendidas: pVendidas, consumed } = calcProjectHours(p)
+                  const pct   = pVendidas > 0 ? (consumed / pVendidas) * 100 : 0
                   const color = healthColor(pct)
                   const hs    = healthStyles[color]
                   const saldo = p.general_hours_balance
@@ -662,11 +677,11 @@ export default function SustentacaoProjetosPage() {
                       </td>
 
                       {/* Hours sold */}
-                      <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmt(p.sold_hours)}</td>
+                      <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmt(pVendidas)}</td>
 
                       {/* Hours consumed */}
                       <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>
-                        {p.consumed_hours != null ? fmt(p.consumed_hours) : p.total_logged_minutes != null ? fmt(p.total_logged_minutes / 60, 1) : '—'}
+                        {fmt(consumed, 1)}
                       </td>
 
                       {/* Balance */}
@@ -682,7 +697,7 @@ export default function SustentacaoProjetosPage() {
                             <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, background: hs.bar }} />
                           </div>
                           <span className="text-xs tabular-nums w-9 text-center" style={{ color: hs.text }}>
-                            {p.sold_hours ? `${Math.round(pct)}%` : '—'}
+                            {pVendidas > 0 ? `${Math.round(pct)}%` : '—'}
                           </span>
                         </div>
                       </td>
