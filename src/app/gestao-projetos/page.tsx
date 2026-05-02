@@ -542,7 +542,7 @@ interface ProjectEditForm {
   start_date: string; expected_end_date: string
   sold_hours: string; project_value: string
   hourly_rate: string; additional_hourly_rate: string
-  initial_hours_balance: string; initial_hours_consumed: string; initial_cost: string
+  initial_hours_consumed: string; initial_cost: string
   consultant_hours: string; coordinator_hours: string
   parent_project_id: string
   service_type_id: string; contract_type_id: string
@@ -568,7 +568,6 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     project_value:                   d.project_value != null ? String(d.project_value) : '',
     hourly_rate:                     d.hourly_rate != null ? String(d.hourly_rate) : '',
     additional_hourly_rate:          d.additional_hourly_rate != null ? String(d.additional_hourly_rate) : '',
-    initial_hours_balance:           d.initial_hours_balance != null ? String(d.initial_hours_balance) : '',
     initial_hours_consumed:          d.initial_hours_consumed != null ? String(d.initial_hours_consumed) : '',
     initial_cost:                    d.initial_cost != null ? String(d.initial_cost) : '',
     consultant_hours:                d.consultant_hours != null ? String(d.consultant_hours) : '',
@@ -661,7 +660,6 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       if (form.sold_hours !== '')            payload.sold_hours                   = Number(form.sold_hours)
       if (form.consultant_hours !== '')      payload.consultant_hours             = Number(form.consultant_hours)
       if (form.coordinator_hours !== '')     payload.coordinator_hours            = Number(form.coordinator_hours)
-      if (form.initial_hours_balance !== '') payload.initial_hours_balance        = Number(form.initial_hours_balance)
       if (form.initial_hours_consumed !== '') payload.initial_hours_consumed      = Number(form.initial_hours_consumed)
       if (form.initial_cost !== '')          payload.initial_cost                 = Number(form.initial_cost)
       if (form.max_expense_per_consultant !== '') payload.max_expense_per_consultant = Number(form.max_expense_per_consultant)
@@ -771,7 +769,6 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
               <div className="grid grid-cols-2 gap-3 rounded-xl p-3" style={{ border: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
                 <div><label style={{ ...lStyle, marginBottom: 0 }}>Histórico do sistema anterior</label></div>
                 <div />
-                <div><label style={lStyle}>Saldo Inicial de Horas</label><input type="number" value={form.initial_hours_balance} onChange={setF('initial_hours_balance')} style={iStyle} placeholder="0" step="0.5" /></div>
                 <div><label style={lStyle}>HS Consumidas Iniciais</label><input type="number" value={form.initial_hours_consumed} onChange={setF('initial_hours_consumed')} style={iStyle} placeholder="0" step="0.5" /></div>
                 <div><label style={lStyle}>Custo Inicial (R$)</label><input type="number" value={form.initial_cost} onChange={setF('initial_cost')} style={iStyle} placeholder="0.00" step="0.01" /></div>
               </div>
@@ -1526,13 +1523,13 @@ export default function GestaoProjetosPage() {
                 const { project_info: pi, hours_summary: hs, cost_calculation: cc, consultant_breakdown: cb } = costSummary
                 const isPositive = cc.margin >= 0
                 const marginColor = isPositive ? '#22c55e' : '#ef4444'
-                const hoursIniciais = Math.abs(pi.initial_hours_balance ?? 0)
+                const hoursIniciais = (pi as any).initial_hours_consumed ?? Math.abs(pi.initial_hours_balance ?? 0)
                 const horasConsumidas = hoursIniciais + hs.total_logged_hours
                 const totalDisp = hs.total_available_hours ?? pi.total_available_hours ?? 0
                 const horasRestantes = Math.max(0, totalDisp - horasConsumidas)
                 const pctUso = totalDisp > 0 ? Math.min(100, (horasConsumidas / totalDisp) * 100) : 0
                 const hoursBarColor = pctUso >= 90 ? '#ef4444' : pctUso >= 70 ? '#f59e0b' : '#22c55e'
-                const showHistorico = (pi.initial_hours_balance ?? 0) !== 0 || (pi.initial_cost ?? 0) !== 0
+                const showHistorico = hoursIniciais !== 0 || (pi.initial_cost ?? 0) !== 0
                 const isOnDemand = cc.is_on_demand
                 return (
                   <div className="space-y-4">
@@ -1640,7 +1637,7 @@ export default function GestaoProjetosPage() {
                     {showHistorico && (
                       <div className="rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)' }}>
                         <p className="text-[9px] font-semibold uppercase tracking-wider w-full mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Saldo do sistema anterior</p>
-                        <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>Horas iniciais: <strong>{(pi.initial_hours_balance ?? 0) < 0 ? '-' : ''}{Math.abs(pi.initial_hours_balance ?? 0).toFixed(1)}h</strong></span>
+                        <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>HS consumidas iniciais: <strong>{hoursIniciais.toFixed(1)}h</strong></span>
                         <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>Custo inicial: <strong>{formatBRL(pi.initial_cost ?? 0)}</strong></span>
                       </div>
                     )}
@@ -2061,13 +2058,13 @@ export default function GestaoProjetosPage() {
                       const { project_info: pi, hours_summary: hs, cost_calculation: cc, consultant_breakdown: cb } = viewCostSummary
                       const isPositive = cc.margin >= 0
                       const marginColor = isPositive ? '#22c55e' : '#ef4444'
-                      const hoursIniciais = Math.abs(pi.initial_hours_balance ?? 0)
+                      const hoursIniciais = (pi as any).initial_hours_consumed ?? Math.abs(pi.initial_hours_balance ?? 0)
                       const horasConsumidas = hoursIniciais + hs.total_logged_hours
                       const totalDisp = hs.total_available_hours ?? pi.total_available_hours ?? 0
                       const horasRestantes = Math.max(0, totalDisp - horasConsumidas)
                       const pctUso = totalDisp > 0 ? Math.min(100, (horasConsumidas / totalDisp) * 100) : 0
                       const hoursBarColor = pctUso >= 90 ? '#ef4444' : pctUso >= 70 ? '#f59e0b' : '#22c55e'
-                      const showHistorico = (pi.initial_hours_balance ?? 0) !== 0 || (pi.initial_cost ?? 0) !== 0
+                      const showHistorico = hoursIniciais !== 0 || (pi.initial_cost ?? 0) !== 0
                       const isOnDemand = cc.is_on_demand
                       return (
                         <>
@@ -2175,7 +2172,7 @@ export default function GestaoProjetosPage() {
                           {showHistorico && (
                             <div className="rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-1" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)' }}>
                               <p className="text-[9px] font-semibold uppercase tracking-wider w-full mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Saldo do sistema anterior</p>
-                              <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>Horas iniciais: <strong>{(pi.initial_hours_balance ?? 0) < 0 ? '-' : ''}{Math.abs(pi.initial_hours_balance ?? 0).toFixed(1)}h</strong></span>
+                              <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>HS consumidas iniciais: <strong>{hoursIniciais.toFixed(1)}h</strong></span>
                               <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>Custo inicial: <strong>{fmtBRL(pi.initial_cost ?? 0)}</strong></span>
                             </div>
                           )}
@@ -2313,7 +2310,7 @@ export default function GestaoProjetosPage() {
                           {p.exceeded_hour_contribution != null && <Row label="Aporte Excedido" value={`${p.exceeded_hour_contribution}h`} />}
                           {p.consultant_hours != null && <Row label="Horas Consultores" value={`${p.consultant_hours}h`} />}
                           {p.coordinator_hours != null && <Row label="Horas Coordenadores" value={`${p.coordinator_hours}h`} />}
-                          {p.initial_hours_balance != null && <Row label="Saldo Inicial" value={`${p.initial_hours_balance}h`} />}
+                          {p.initial_hours_consumed != null && p.initial_hours_consumed > 0 && <Row label="HS Consumidas Iniciais" value={`${p.initial_hours_consumed}h`} />}
                           <Row label="% Consumido" value={<span style={{ color: hs.text }}>{totalAvail > 0 ? `${Math.round(pct)}%` : '—'}</span>} />
                         </div>
                       </div>
