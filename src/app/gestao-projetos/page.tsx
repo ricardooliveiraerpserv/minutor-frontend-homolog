@@ -34,6 +34,7 @@ interface ProjectFull extends ProjectWithTeam {
   additional_hourly_rate?: number | null
   initial_cost?: number | null
   initial_hours_balance?: number | null
+  initial_hours_consumed?: number | null
   exceeded_hour_contribution?: number | null
   consultant_hours?: number | null
   coordinator_hours?: number | null
@@ -102,6 +103,22 @@ const healthStyles = {
 function fmt(n: number | null | undefined, dec = 0) {
   if (n == null) return '—'
   return n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
+}
+
+function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours: number } {
+  const ctName = ((p as any).contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
+  const isOnDemand = ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand'
+  const isBhMensal = ctName.includes('mensal')
+  const contributions = ((p as any).total_available_hours ?? p.sold_hours ?? 0) - (p.sold_hours ?? 0)
+  const displaySold = isOnDemand
+    ? (p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0))
+    : isBhMensal
+      ? ((p as any).accumulated_sold_hours ?? p.sold_hours ?? 0) + contributions
+      : (p.sold_hours ?? 0)
+  const consumedHours = isBhMensal
+    ? ((p as any).initial_hours_consumed ?? 0) + (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
+    : (p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0))
+  return { displaySold, consumedHours }
 }
 
 const inputStyle = {
@@ -262,12 +279,20 @@ interface ProjectRowProps {
 }
 
 function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread }: ProjectRowProps) {
-  const consumedHours = project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0)
-  const isOnDemand = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase().includes('on demand')
-    || (project as any).tipo_faturamento === 'on_demand'
-  const displaySold  = isOnDemand ? consumedHours : (project.sold_hours ?? 0)
+  const ctName = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase()
+  const isOnDemand = ctName.includes('on demand') || (project as any).tipo_faturamento === 'on_demand'
+  const isBhMensal = ctName.includes('mensal')
+  const contributions = ((project as any).total_available_hours ?? project.sold_hours ?? 0) - (project.sold_hours ?? 0)
+  const displaySold = isOnDemand
+    ? (project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0))
+    : isBhMensal
+      ? ((project as any).accumulated_sold_hours ?? project.sold_hours ?? 0) + contributions
+      : (project.sold_hours ?? 0)
+  const consumedHours = isBhMensal
+    ? ((project as any).initial_hours_consumed ?? 0) + (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0)
+    : (project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0))
   const displaySaldo = isOnDemand ? 0 : (project.general_hours_balance ?? null)
-  const pct   = isOnDemand ? 100 : (project.sold_hours ? (consumedHours / project.sold_hours) * 100 : 0)
+  const pct = isOnDemand ? 100 : (displaySold > 0 ? (consumedHours / displaySold) * 100 : 0)
   const color = isOnDemand ? 'green' : healthColor(pct)
   const hs    = healthStyles[color]
 
@@ -409,17 +434,12 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
         {/* HS Vendidas */}
         <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>
-          {isOnDemand ? <span style={{ color: 'var(--brand-subtle)', fontSize: 11 }}>= consumo</span> : fmt(project.sold_hours)}
+          {isOnDemand ? <span style={{ color: 'var(--brand-subtle)', fontSize: 11 }}>= consumo</span> : fmt(displaySold)}
         </td>
 
         {/* HS Consumidas */}
         <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>
-          {project.consumed_hours != null
-            ? fmt(project.consumed_hours)
-            : project.total_logged_minutes != null
-              ? fmt(project.total_logged_minutes / 60, 1)
-              : '—'
-          }
+          {fmt(consumedHours, 1)}
         </td>
 
         {/* Saldo */}
@@ -441,7 +461,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                 />
               </div>
               <span className="text-xs tabular-nums w-9 text-center" style={{ color: hs.text }}>
-                {project.sold_hours ? `${Math.round(pct)}%` : '—'}
+                {displaySold > 0 ? `${Math.round(pct)}%` : '—'}
               </span>
             </div>
           )}
@@ -522,7 +542,7 @@ interface ProjectEditForm {
   start_date: string; expected_end_date: string
   sold_hours: string; project_value: string
   hourly_rate: string; additional_hourly_rate: string
-  initial_hours_balance: string; initial_cost: string
+  initial_hours_balance: string; initial_hours_consumed: string; initial_cost: string
   consultant_hours: string; coordinator_hours: string
   parent_project_id: string
   service_type_id: string; contract_type_id: string
@@ -549,6 +569,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     hourly_rate:                     d.hourly_rate != null ? String(d.hourly_rate) : '',
     additional_hourly_rate:          d.additional_hourly_rate != null ? String(d.additional_hourly_rate) : '',
     initial_hours_balance:           d.initial_hours_balance != null ? String(d.initial_hours_balance) : '',
+    initial_hours_consumed:          d.initial_hours_consumed != null ? String(d.initial_hours_consumed) : '',
     initial_cost:                    d.initial_cost != null ? String(d.initial_cost) : '',
     consultant_hours:                d.consultant_hours != null ? String(d.consultant_hours) : '',
     coordinator_hours:               d.coordinator_hours != null ? String(d.coordinator_hours) : '',
@@ -641,6 +662,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       if (form.consultant_hours !== '')      payload.consultant_hours             = Number(form.consultant_hours)
       if (form.coordinator_hours !== '')     payload.coordinator_hours            = Number(form.coordinator_hours)
       if (form.initial_hours_balance !== '') payload.initial_hours_balance        = Number(form.initial_hours_balance)
+      if (form.initial_hours_consumed !== '') payload.initial_hours_consumed      = Number(form.initial_hours_consumed)
       if (form.initial_cost !== '')          payload.initial_cost                 = Number(form.initial_cost)
       if (form.max_expense_per_consultant !== '') payload.max_expense_per_consultant = Number(form.max_expense_per_consultant)
       if (form.timesheet_retroactive_limit_days !== '') payload.timesheet_retroactive_limit_days = Number(form.timesheet_retroactive_limit_days)
@@ -750,6 +772,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 <div><label style={{ ...lStyle, marginBottom: 0 }}>Histórico do sistema anterior</label></div>
                 <div />
                 <div><label style={lStyle}>Saldo Inicial de Horas</label><input type="number" value={form.initial_hours_balance} onChange={setF('initial_hours_balance')} style={iStyle} placeholder="0" step="0.5" /></div>
+                <div><label style={lStyle}>HS Consumidas Iniciais</label><input type="number" value={form.initial_hours_consumed} onChange={setF('initial_hours_consumed')} style={iStyle} placeholder="0" step="0.5" /></div>
                 <div><label style={lStyle}>Custo Inicial (R$)</label><input type="number" value={form.initial_cost} onChange={setF('initial_cost')} style={iStyle} placeholder="0.00" step="0.01" /></div>
               </div>
 
@@ -1060,8 +1083,8 @@ export default function GestaoProjetosPage() {
       if (statusFilter && p.status !== statusFilter) return false
       if (clienteFilters.length > 0 && !clienteFilters.includes(String(p.customer_id))) return false
       if (saudeFilter) {
-        const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
-        const pct = p.sold_hours ? (consumed / p.sold_hours) * 100 : 0
+        const { displaySold, consumedHours } = calcProjHours(p)
+        const pct = displaySold > 0 ? (consumedHours / displaySold) * 100 : 0
         const color = healthColor(pct)
         if (color !== saudeFilter) return false
       }
@@ -1101,8 +1124,8 @@ export default function GestaoProjetosPage() {
       if (statusFilter && p.status !== statusFilter) return false
       if (clienteFilters.length > 0 && !clienteFilters.includes(String(p.customer_id))) return false
       if (saudeFilter) {
-        const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
-        const pct = p.sold_hours ? (consumed / p.sold_hours) * 100 : 0
+        const { displaySold, consumedHours } = calcProjHours(p)
+        const pct = displaySold > 0 ? (consumedHours / displaySold) * 100 : 0
         if (healthColor(pct) !== saudeFilter) return false
       }
       if (search) {
@@ -1123,14 +1146,10 @@ export default function GestaoProjetosPage() {
   // ── Métricas dos cards ──
   const stats = useMemo(() => {
     const ativos    = filtered.filter(p => ['active', 'started'].includes(p.status)).length
-    const vendidas  = filtered.reduce((s, p) => s + (p.sold_hours ?? 0), 0)
-    const consumidas = filtered.reduce((s, p) => {
-      if (p.consumed_hours != null) return s + p.consumed_hours
-      if (p.total_logged_minutes != null) return s + p.total_logged_minutes / 60
-      return s
-    }, 0)
+    const vendidas  = filtered.reduce((s, p) => s + calcProjHours(p).displaySold, 0)
+    const consumidas = filtered.reduce((s, p) => s + calcProjHours(p).consumedHours, 0)
     const saldo     = filtered.reduce((s, p) => s + (p.general_hours_balance ?? 0), 0)
-    const comPct    = filtered.filter(p => (p.sold_hours ?? 0) > 0)
+    const comPct    = filtered.filter(p => calcProjHours(p).displaySold > 0)
     const avgPct    = comPct.length
       ? comPct.reduce((s, p) => s + (p.balance_percentage ?? 0), 0) / comPct.length
       : 0
