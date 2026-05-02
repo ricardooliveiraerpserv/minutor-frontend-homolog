@@ -55,7 +55,7 @@ export interface Project {
   consumed_hours?: number
   total_logged_minutes?: number
   total_contributions_hours?: number
-  total_available_hours?: number
+  total_available_hours?: number | null
   hour_contribution?: number
   child_projects?: Project[]
   node_state?: 'ACTIVE' | 'DISABLED' | null
