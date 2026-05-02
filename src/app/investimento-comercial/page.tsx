@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import { Search, Users, X, Check, TrendingUp } from 'lucide-react'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, Button, SkeletonTable, EmptyState } from '@/components/ds'
+import type { LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -146,7 +147,7 @@ export default function InvestimentoComercialPage() {
   return (
     <AppLayout>
       <PageHeader
-        icon={<TrendingUp size={20} />}
+        icon={TrendingUp as LucideIcon}
         title="Investimento Comercial"
         subtitle="Projetos internos de investimento por cliente — não cobrados, refletidos no fechamento dos consultores"
       />
@@ -173,7 +174,7 @@ export default function InvestimentoComercialPage() {
       {loading ? (
         <SkeletonTable rows={8} cols={3} />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={<TrendingUp size={32} />} title="Nenhum projeto encontrado" description="Ajuste a busca ou cadastre novos clientes." />
+        <EmptyState icon={TrendingUp as LucideIcon} title="Nenhum projeto encontrado" description="Ajuste a busca ou cadastre novos clientes." />
       ) : (
         <Table>
           <Thead>
