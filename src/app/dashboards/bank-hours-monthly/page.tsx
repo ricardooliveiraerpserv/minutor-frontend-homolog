@@ -488,7 +488,7 @@ export default function BankHoursMonthlyPage() {
                                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                 >
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-text)' }}>{item.project?.code} — {item.project?.name}</td>
-                                  <td className="px-5 py-3 font-bold" style={{ color: '#00F5FF' }}>{(item.contributed_hours ?? item.difference ?? 0).toFixed(0)}h</td>
+                                  <td className="px-5 py-3 font-bold" style={{ color: '#00F5FF' }}>{Number(item.contributed_hours ?? item.difference ?? 0).toFixed(0)}h</td>
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.hourly_rate ?? null)}</td>
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.total_value ?? null)}</td>
                                   <td className="px-5 py-3 max-w-48 truncate" style={{ color: 'var(--brand-muted)' }}>{item.description || '—'}</td>
