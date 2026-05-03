@@ -1345,7 +1345,7 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                 {card.contract_type}
               </span>
             )}
-            {card.service_type && (
+            {card.service_type && card.service_type.toLowerCase() !== 'projeto' && card.service_type.toLowerCase() !== 'sustentação' && card.service_type.toLowerCase() !== 'sustentacao' && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(34,197,94,0.10)', color: '#22c55e' }}>
                 {card.service_type}
               </span>
@@ -2048,12 +2048,9 @@ function KanbanContent() {
   const getAvailableContractCols = (card: ContractCard, fromCol: string): { id: string; label: string }[] => {
     const cols: { id: string; label: string }[] = []
 
-    // Detecção de sustentação por categoria, tipo de contrato OU tipo de serviço
     const ctLower = card.contract_type?.toLowerCase() ?? ''
     const svLower = card.service_type?.toLowerCase() ?? ''
     const isSustType = card.categoria === 'sustentacao'
-      || ctLower.includes('banco de horas') || ctLower.includes('on demand')
-      || ctLower.includes('cloud') || ctLower.includes('bizify') || ctLower.includes('saas')
       || svLower.includes('cloud') || svLower.includes('bizify') || svLower.includes('sustent')
 
     // Deriva a coluna de sustentação correspondente ao tipo do contrato
