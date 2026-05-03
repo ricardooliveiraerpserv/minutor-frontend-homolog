@@ -793,7 +793,7 @@ export default function PortalClientePage() {
               )}
 
               {/* Filtro de projeto da aba Visão Executiva (single-mode) */}
-              {(activeTab === 'portal' || isCliente) && !isMultiMode && projectOptions.length > 0 && (
+              {activeTab === 'portal' && !isMultiMode && projectOptions.length > 0 && (
                 <div className="relative">
                   <select
                     value={projectFilter ?? ''}
@@ -811,7 +811,7 @@ export default function PortalClientePage() {
               )}
 
               {/* Filtro de projeto da aba Indicadores de Gestão */}
-              {!isCliente && activeTab === 'indicadores' && (
+              {activeTab === 'indicadores' && (
                 <ProjectSearchSelect
                   value={indPFilter}
                   onChange={v => { setIndPFilter(v) }}
@@ -823,7 +823,7 @@ export default function PortalClientePage() {
           </div>
 
           {/* ── Tabs ── */}
-          {!isCliente && (
+          {(
             <div className="flex gap-1 p-1 rounded-2xl" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
               {([
                 { key: 'portal', label: 'Visão Executiva' },
@@ -842,7 +842,7 @@ export default function PortalClientePage() {
           )}
 
           {/* ── Portal tab content ── */}
-          {(activeTab === 'portal' || isCliente) && <>
+          {activeTab === 'portal' && <>
 
           {/* Health pills + view toggle — só em multi-mode dentro da aba portal */}
           {isMultiMode && (
@@ -1394,7 +1394,7 @@ export default function PortalClientePage() {
           </> /* end portal tab */}
 
           {/* ── Indicadores tab content ── */}
-          {activeTab === 'indicadores' && !isCliente && (
+          {activeTab === 'indicadores' && (
             <div className="space-y-6">
 
               {/* Filters row */}
