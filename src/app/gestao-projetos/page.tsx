@@ -1025,21 +1025,41 @@ export default function GestaoProjetosPage() {
       saudeFilter:        '',
       filterContractType: '',
       filterServiceTypes: [] as string[],
+      filterCoordinators: [] as string[],
+      filterExecutives:   [] as string[],
     },
   )
-  const { search, statusFilter, clienteFilters, saudeFilter, filterContractType, filterServiceTypes } = flt
+  const { search, statusFilter, clienteFilters, saudeFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives } = flt
   const setSearch             = (v: string)   => setFilter('search', v)
   const setStatus             = (v: string)   => setFilter('statusFilter', v)
   const setCliente            = (v: string[]) => setFilter('clienteFilters', v)
   const setSaude              = (v: string)   => setFilter('saudeFilter', v)
   const setFilterContractType = (v: string)   => setFilter('filterContractType', v)
   const setFilterServiceType  = (v: string[]) => setFilter('filterServiceTypes', v)
+  const setFilterCoordinators = (v: string[]) => setFilter('filterCoordinators', v)
+  const setFilterExecutives   = (v: string[]) => setFilter('filterExecutives', v)
+
+  const clearAllFilters = () => {
+    setSearch('')
+    setStatus('')
+    setCliente([])
+    setSaude('')
+    setFilterContractType('')
+    setFilterServiceType([])
+    setFilterCoordinators([])
+    setFilterExecutives([])
+  }
+
+  const hasActiveFilters = !!(search || statusFilter || clienteFilters.length || saudeFilter || filterContractType || filterServiceTypes.length || filterCoordinators.length || filterExecutives.length)
 
   const [projects, setProjects]   = useState<ProjectWithTeam[]>([])
   const [loading, setLoading]     = useState(true)
   const [refreshKey, setRefreshKey] = useState(0)
   const [expanded, setExpanded]   = useState<Set<number>>(new Set())
   const [serviceTypes, setServiceTypes] = useState<{ id: number; name: string }[]>([])
+  const [coordinatorsList, setCoordinatorsList] = useState<{ id: string; name: string }[]>([])
+  const [executivesList, setExecutivesList]     = useState<{ id: string; name: string }[]>([])
+  const [customerExecutiveMap, setCustomerExecutiveMap] = useState<Record<number, number>>({})
   const [multiContratual, setMultiContratual] = useState(false)
   const [rows, setRows] = useState<TreeRow[]>([])
   const [allCustomers, setAllCustomers] = useState<{ id: string; name: string }[]>([])
@@ -1088,6 +1108,12 @@ export default function GestaoProjetosPage() {
   useEffect(() => {
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
     api.get<any>('/service-types?pageSize=100').then(r => setServiceTypes(items(r))).catch(() => {})
+    api.get<any>('/users?type=coordenador&coordinator_type=projetos&pageSize=200')
+      .then(r => setCoordinatorsList(items(r).map((u: any) => ({ id: String(u.id), name: u.name }))))
+      .catch(() => {})
+    api.get<any>('/executives?pageSize=200')
+      .then(r => setExecutivesList(items(r).map((e: any) => ({ id: String(e.id), name: e.name }))))
+      .catch(() => {})
   }, [])
 
   const PROJECT_STATUSES = [
@@ -1141,6 +1167,9 @@ export default function GestaoProjetosPage() {
     api.get<any>('/customers?pageSize=500').then(r => {
       const items: any[] = Array.isArray(r?.items) ? r.items : []
       setAllCustomers(items.map((c: any) => ({ id: String(c.id), name: c.name })))
+      const map: Record<number, number> = {}
+      items.forEach((c: any) => { if (c.executive_id) map[c.id] = c.executive_id })
+      setCustomerExecutiveMap(map)
     }).catch(() => {})
   }, [])
 
@@ -1177,6 +1206,14 @@ export default function GestaoProjetosPage() {
       }
       if (statusFilter && p.status !== statusFilter) return false
       if (clienteFilters.length > 0 && !clienteFilters.includes(String(p.customer_id))) return false
+      if (filterCoordinators.length > 0) {
+        const coords = (p as ProjectWithTeam).coordinators ?? []
+        if (!coords.some(c => filterCoordinators.includes(String(c.id)))) return false
+      }
+      if (filterExecutives.length > 0) {
+        const execId = customerExecutiveMap[p.customer_id]
+        if (!execId || !filterExecutives.includes(String(execId))) return false
+      }
       if (saudeFilter) {
         const { displaySold, consumedHours } = calcProjHours(p)
         const pct = displaySold > 0 ? (consumedHours / displaySold) * 100 : 0
@@ -1193,7 +1230,7 @@ export default function GestaoProjetosPage() {
       }
       return true
     })
-  }, [projects, search, statusFilter, clienteFilters, saudeFilter, filterContractType, filterServiceTypes])
+  }, [projects, search, statusFilter, clienteFilters, saudeFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, customerExecutiveMap])
 
   const toggleTree = (row: TreeRow) => {
     setRows(prev => {
@@ -1218,6 +1255,14 @@ export default function GestaoProjetosPage() {
     const filteredParents = parentRows.filter(p => {
       if (statusFilter && p.status !== statusFilter) return false
       if (clienteFilters.length > 0 && !clienteFilters.includes(String(p.customer_id))) return false
+      if (filterCoordinators.length > 0) {
+        const coords = (p as ProjectWithTeam).coordinators ?? []
+        if (!coords.some(c => filterCoordinators.includes(String(c.id)))) return false
+      }
+      if (filterExecutives.length > 0) {
+        const execId = customerExecutiveMap[p.customer_id]
+        if (!execId || !filterExecutives.includes(String(execId))) return false
+      }
       if (saudeFilter) {
         const { displaySold, consumedHours } = calcProjHours(p)
         const pct = displaySold > 0 ? (consumedHours / displaySold) * 100 : 0
@@ -1236,7 +1281,7 @@ export default function GestaoProjetosPage() {
       if (live._isExpanded) result.push(...rows.filter(r => r._parentId === live.id && r._level > 0))
     }
     return result
-  }, [rows, multiContratual, statusFilter, clienteFilters, saudeFilter, search])
+  }, [rows, multiContratual, statusFilter, clienteFilters, saudeFilter, search, filterCoordinators, filterExecutives, customerExecutiveMap])
 
   // ── Métricas dos cards ──
   const stats = useMemo(() => {
@@ -1484,6 +1529,22 @@ export default function GestaoProjetosPage() {
             placeholder="Todos os serviços"
             options={serviceTypes.map(s => ({ id: String(s.id), name: s.name }))}
           />
+          {isAdmin && coordinatorsList.length > 0 && (
+            <MultiSelect
+              value={filterCoordinators}
+              onChange={v => setFilterCoordinators(v)}
+              options={coordinatorsList}
+              placeholder="Todos os coordenadores"
+            />
+          )}
+          {isAdmin && executivesList.length > 0 && (
+            <MultiSelect
+              value={filterExecutives}
+              onChange={v => setFilterExecutives(v)}
+              options={executivesList}
+              placeholder="Todos os executivos"
+            />
+          )}
           {/* Filtro de Saúde — button group colorido */}
           <div className="flex items-center gap-0.5 bg-zinc-800/70 border border-zinc-700/50 rounded-full p-1">
             {([
@@ -1499,6 +1560,15 @@ export default function GestaoProjetosPage() {
               </button>
             ))}
           </div>
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+              style={{ background: 'rgba(239,68,68,0.10)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}
+            >
+              <X size={12} /> Limpar filtros
+            </button>
+          )}
         </div>
 
         {/* Linha 2: Multi-contratual + pills de tipo de contrato */}
