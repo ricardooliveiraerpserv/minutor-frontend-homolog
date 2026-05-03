@@ -129,6 +129,7 @@ function GeneralTab() {
   const [movideskStatus, setMovideskStatus] = useState<MovideskStatus | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncOutput, setSyncOutput] = useState<string | null>(null)
+  const [importingSince, setImportingSince] = useState(false)
 
   const loadMovideskStatus = useCallback(async () => {
     try {
@@ -195,6 +196,25 @@ function GeneralTab() {
     }
   }
 
+  const historyImport = async () => {
+    const since = settings.movidesk_import_start_date
+    if (!since) {
+      toast.error('Defina a "Data início da importação" antes de importar histórico.')
+      return
+    }
+    setImportingSince(true)
+    setSyncOutput(null)
+    try {
+      const r = await api.post<{ success: boolean; message: string }>('/movidesk/history-import', { since })
+      setSyncOutput(r.message)
+      toast.success('Importação histórica enfileirada!')
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao enfileirar importação')
+    } finally {
+      setImportingSince(false)
+    }
+  }
+
   if (loading) return <div className="space-y-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}</div>
 
   return (
@@ -250,6 +270,16 @@ function GeneralTab() {
               <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
               {syncing ? 'Sincronizando...' : 'Sincronizar agora'}
             </Button>
+            {settings.movidesk_import_start_date && (
+              <Button
+                onClick={historyImport}
+                disabled={importingSince || !movideskStatus?.token_configured}
+                className="w-full h-8 text-xs gap-1.5 bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-40"
+              >
+                <RefreshCw size={12} className={importingSince ? 'animate-spin' : ''} />
+                {importingSince ? 'Enfileirando...' : `Importar histórico desde ${settings.movidesk_import_start_date}`}
+              </Button>
+            )}
             {syncOutput && (
               <pre className="rounded-lg bg-zinc-950 border border-zinc-800 p-3 text-[10px] text-zinc-400 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
                 {syncOutput}
