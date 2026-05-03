@@ -153,6 +153,7 @@ export interface SystemSettings {
   movidesk_default_user_id?:                  number
   movidesk_sync_orgs_interval_minutes?:       number
   movidesk_portal_sync_interval_minutes?:     number
+  movidesk_import_start_date?:                string | null
   [key: string]: string | number | null | undefined
 }
 

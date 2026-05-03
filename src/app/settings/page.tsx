@@ -141,7 +141,7 @@ function GeneralTab() {
     Promise.all([
       api.get<{ data: SystemSettings }>('/system-settings'),
       api.get<any>('/customers?pageSize=500'),
-      api.get<any>('/users?per_page=500&type=consultor'),
+      api.get<any>('/users?pageSize=500&exclude_type=cliente'),
     ]).then(([s, c, u]) => {
       setSettings(s.data ?? s as unknown as SystemSettings)
       const cArr = Array.isArray(c?.items) ? c.items : Array.isArray(c?.data) ? c.data : []
@@ -287,6 +287,29 @@ function GeneralTab() {
               onChange={id => setSettings(s => ({ ...s, movidesk_default_user_id: id }))}
               placeholder="Buscar usuário..."
             />
+          </div>
+
+          {/* Data início importação */}
+          <div className="pt-3 border-t border-zinc-800">
+            <Label className="text-xs text-zinc-400 block mb-1.5">Data início da importação</Label>
+            <p className="text-[11px] text-zinc-500 mb-1.5">Apontamentos com data anterior a esta serão ignorados na importação.</p>
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={settings.movidesk_import_start_date ?? ''}
+                onChange={e => setSettings(s => ({ ...s, movidesk_import_start_date: e.target.value || null }))}
+                className="bg-zinc-800 border-zinc-700 text-white h-9 w-44 text-xs"
+              />
+              {settings.movidesk_import_start_date && (
+                <button
+                  type="button"
+                  onClick={() => setSettings(s => ({ ...s, movidesk_import_start_date: null }))}
+                  className="text-[11px] text-zinc-500 hover:text-zinc-200 flex items-center gap-1"
+                >
+                  <X size={11} /> Limpar
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Intervalos de varredura */}
