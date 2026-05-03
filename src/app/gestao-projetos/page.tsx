@@ -1514,8 +1514,8 @@ export default function GestaoProjetosPage() {
             <p className="text-sm">Nenhum projeto encontrado</p>
           </div>
         ) : (
-          <div className="rounded-2xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
-            <table className="w-full text-left">
+          <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ border: '1px solid var(--brand-border)' }}>
+            <table className="w-full min-w-[1100px] text-left">
               <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                 <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
                   <th className="w-8 pl-2" />
