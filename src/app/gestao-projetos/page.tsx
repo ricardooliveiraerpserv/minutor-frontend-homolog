@@ -100,9 +100,15 @@ const healthStyles = {
   red:    { bar: '#ef4444', badge: 'rgba(239,68,68,0.12)',  text: '#fca5a5' },
 }
 
-function fmt(n: number | null | undefined, dec = 0) {
-  if (n == null) return '—'
-  return n.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec })
+function fmt(n: number | string | null | undefined, dec = 0) {
+  if (n == null || n === '') return '—'
+  const num = typeof n === 'string' ? parseFloat(n) : n
+  if (isNaN(num)) return '—'
+  const fixed = Math.abs(num).toFixed(dec)
+  const [intPart, decPart] = fixed.split('.')
+  const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  const result = decPart !== undefined ? `${intFormatted},${decPart}` : intFormatted
+  return num < 0 ? `-${result}` : result
 }
 
 function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours: number } {
@@ -116,7 +122,7 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
       ? ((p as any).accumulated_sold_hours ?? p.sold_hours ?? 0) + contributions
       : (p.sold_hours ?? 0)
   const consumedHours = isBhMensal
-    ? ((p as any).initial_hours_consumed ?? 0) + (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
+    ? (Number((p as any).initial_hours_consumed) || 0) + (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
     : (p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0))
   return { displaySold, consumedHours }
 }
@@ -289,7 +295,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
       ? ((project as any).accumulated_sold_hours ?? project.sold_hours ?? 0) + contributions
       : (project.sold_hours ?? 0)
   const consumedHours = isBhMensal
-    ? ((project as any).initial_hours_consumed ?? 0) + (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0)
+    ? (Number((project as any).initial_hours_consumed) || 0) + (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0)
     : (project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0))
   const displaySaldo = isOnDemand ? 0 : (project.general_hours_balance ?? null)
   const pct = isOnDemand ? 100 : (displaySold > 0 ? (consumedHours / displaySold) * 100 : 0)
@@ -1558,7 +1564,7 @@ export default function GestaoProjetosPage() {
                 const { project_info: pi, hours_summary: hs, cost_calculation: cc, consultant_breakdown: cb } = costSummary
                 const isPositive = cc.margin >= 0
                 const marginColor = isPositive ? '#22c55e' : '#ef4444'
-                const hoursIniciais = (pi as any).initial_hours_consumed ?? Math.abs(pi.initial_hours_balance ?? 0)
+                const hoursIniciais = Number((pi as any).initial_hours_consumed) || Math.abs(Number(pi.initial_hours_balance) || 0)
                 const horasConsumidas = hoursIniciais + hs.total_logged_hours
                 const totalDisp = hs.total_available_hours ?? pi.total_available_hours ?? 0
                 const horasRestantes = Math.max(0, totalDisp - horasConsumidas)
@@ -2093,7 +2099,7 @@ export default function GestaoProjetosPage() {
                       const { project_info: pi, hours_summary: hs, cost_calculation: cc, consultant_breakdown: cb } = viewCostSummary
                       const isPositive = cc.margin >= 0
                       const marginColor = isPositive ? '#22c55e' : '#ef4444'
-                      const hoursIniciais = (pi as any).initial_hours_consumed ?? Math.abs(pi.initial_hours_balance ?? 0)
+                      const hoursIniciais = Number((pi as any).initial_hours_consumed) || Math.abs(Number(pi.initial_hours_balance) || 0)
                       const horasConsumidas = hoursIniciais + hs.total_logged_hours
                       const totalDisp = hs.total_available_hours ?? pi.total_available_hours ?? 0
                       const horasRestantes = Math.max(0, totalDisp - horasConsumidas)
