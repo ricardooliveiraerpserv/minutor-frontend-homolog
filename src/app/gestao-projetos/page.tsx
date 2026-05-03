@@ -593,7 +593,13 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     expected_end_date:               d.expected_end_date?.slice(0, 10) ?? '',
     encerramento_date:               (d as any).encerramento_date?.slice(0, 10) ?? '',
     sold_hours:                      d.sold_hours != null ? String(d.sold_hours) : '',
-    project_value:                   d.project_value != null ? String(d.project_value) : '',
+    project_value:                   (() => {
+      const pv = d.project_value ?? 0
+      const hr = Number(d.hourly_rate ?? 0)
+      const hs = Number(d.sold_hours ?? 0)
+      if ((!pv || pv === 0) && hr > 0 && hs > 0) return String(+(hr * hs).toFixed(2))
+      return pv != null ? String(pv) : ''
+    })(),
     hourly_rate:                     d.hourly_rate != null ? String(d.hourly_rate) : '',
     additional_hourly_rate:          d.additional_hourly_rate != null ? String(d.additional_hourly_rate) : '',
     initial_hours_consumed:          d.initial_hours_consumed != null ? String(d.initial_hours_consumed) : '',
