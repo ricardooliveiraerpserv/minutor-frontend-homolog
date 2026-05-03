@@ -524,12 +524,13 @@ function ListProjectActionMenu({ onAction }: { onAction: (action: string) => voi
           style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           {PROJECT_MENU_ITEMS.map(item => {
             const Icon = item.icon
+            const isDanger = (item as any).danger
             return (
               <button key={item.action}
                 onClick={e => { e.stopPropagation(); setOpen(false); onAction(item.action) }}
                 className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
-                style={{ color: 'var(--brand-text)' }}>
-                <Icon size={13} style={{ color: 'var(--brand-subtle)' }} />
+                style={{ color: isDanger ? '#f87171' : 'var(--brand-text)' }}>
+                <Icon size={13} style={{ color: isDanger ? '#f87171' : 'var(--brand-subtle)' }} />
                 {item.label}
               </button>
             )
@@ -560,6 +561,7 @@ const PROJECT_MENU_ITEMS = [
   { action: 'expenses',   label: 'Despesas',          icon: BarChart2,     clientVisible: false },
   { action: 'aportes',    label: 'Aportes',           icon: TrendingUp,    clientVisible: false },
   { action: 'team',       label: 'Selecionar Equipe', icon: Users,         clientVisible: false },
+  { action: 'delete',     label: 'Excluir',           icon: Trash2,        clientVisible: false, danger: true },
 ] as const
 
 function endDateStyle(dateStr: string): { color: string; bg: string; label: string } {
