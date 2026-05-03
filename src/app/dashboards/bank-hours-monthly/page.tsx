@@ -191,7 +191,7 @@ export default function BankHoursMonthlyPage() {
 
   useEffect(() => {
     if (!user) return  // aguarda autenticação antes de buscar projetos
-    const params = new URLSearchParams({ pageSize: '1000', contract_type_code: 'monthly_hours' })
+    const params = new URLSearchParams({ pageSize: '1000', contract_type_code: 'monthly_hours', parent_projects_only: 'true' })
     if (selectedCustomer) params.set('customer_id', String(selectedCustomer))
     else if (isCliente && user.customer_id) params.set('customer_id', String(user.customer_id))
     api.get<any>(`/projects?${params}`).then(r => {

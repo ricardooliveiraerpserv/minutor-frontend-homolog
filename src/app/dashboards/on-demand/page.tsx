@@ -123,7 +123,7 @@ export default function OnDemandPage() {
   // Load projects filtered by customer + contract type
   useEffect(() => {
     if (!user) return  // aguarda autenticação antes de buscar projetos
-    const params = new URLSearchParams({ pageSize: '1000', contract_type_code: 'on_demand' })
+    const params = new URLSearchParams({ pageSize: '1000', contract_type_code: 'on_demand', parent_projects_only: 'true' })
     if (selectedCustomer) params.set('customer_id', String(selectedCustomer))
     else if (isCliente && user.customer_id) params.set('customer_id', String(user.customer_id))
     api.get<any>(`/projects?${params}`)

@@ -268,7 +268,7 @@ export default function BankHoursFixedPage() {
   // Projects list
   useEffect(() => {
     if (!user) return  // aguarda autenticação antes de buscar projetos
-    const params = new URLSearchParams({ pageSize: '1000', contract_type_code: 'fixed_hours' })
+    const params = new URLSearchParams({ pageSize: '1000', contract_type_code: 'fixed_hours', parent_projects_only: 'true' })
     if (selectedCustomer) params.set('customer_id', String(selectedCustomer))
     else if (isCliente && user.customer_id) params.set('customer_id', String(user.customer_id))
     api.get<any>(`/projects?${params}`).then(r => setProjects(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
