@@ -630,7 +630,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   const [optCoordinators,    setOptCoordinators]    = useState<{id:number;name:string}[]>([])
   const [optConsultants,     setOptConsultants]     = useState<{id:number;name:string}[]>([])
   const [optGroups,          setOptGroups]          = useState<{id:number;name:string}[]>([])
-  const [optParentProjects,  setOptParentProjects]  = useState<{id:number;name:string}[]>([])
+  const [optParentProjects,  setOptParentProjects]  = useState<{id:number;name:string;hourly_rate?:number|null}[]>([])
   const [teamSearch,         setTeamSearch]         = useState('')
   const [teamTab,            setTeamTab]            = useState<'coord'|'consult'|'group'>('coord')
 
@@ -654,7 +654,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       const qs = new URLSearchParams({ pageSize: '200', parent_projects_only: 'true', customer_id: String(customerId), exclude_id: String(project.id) })
       api.get<any>(`/projects?${qs}`).then(r => {
         const list = items(r)
-        setOptParentProjects(list.map((p: any) => ({ id: p.id, name: `${p.code} - ${p.name}` })))
+        setOptParentProjects(list.map((p: any) => ({ id: p.id, name: `${p.code} - ${p.name}`, hourly_rate: p.hourly_rate ?? null })))
       }).catch(() => {})
     }
   }, [])
@@ -787,7 +787,20 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
               </div>
               <div>
                 <label style={lStyle}>Projeto Pai (Subprojeto)</label>
-                <select value={form.parent_project_id} onChange={setF('parent_project_id')} style={iStyle}>
+                <select value={form.parent_project_id} onChange={e => {
+                  const parentId = e.target.value
+                  const parent = optParentProjects.find(p => String(p.id) === parentId)
+                  setForm(prev => {
+                    const hr = parent?.hourly_rate ? Number(parent.hourly_rate) : prev.hourly_rate !== '' ? Number(prev.hourly_rate) : 0
+                    const hs = Number(prev.sold_hours)
+                    return {
+                      ...prev,
+                      parent_project_id: parentId,
+                      hourly_rate: parent?.hourly_rate ? String(parent.hourly_rate) : prev.hourly_rate,
+                      project_value: hr > 0 && hs > 0 ? String(+(hr * hs).toFixed(2)) : prev.project_value,
+                    }
+                  })
+                }} style={iStyle}>
                   <option value="">Nenhum</option>
                   {optParentProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
