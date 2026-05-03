@@ -1158,7 +1158,12 @@ export default function GestaoProjetosPage() {
     setContribLoading(true)
     try {
       const r = await api.get<{ items: HourContribution[] }>(`/projects/${projectId}/hour-contributions`)
-      setContributions((r.items ?? []).map(c => ({ ...c, total_value: c.contributed_hours * c.hourly_rate })))
+      setContributions((r.items ?? []).map(c => ({
+        ...c,
+        contributed_hours: Number(c.contributed_hours),
+        hourly_rate: Number(c.hourly_rate),
+        total_value: Number(c.contributed_hours) * Number(c.hourly_rate),
+      })))
     } catch { toast.error('Erro ao carregar aportes') }
     finally { setContribLoading(false) }
   }

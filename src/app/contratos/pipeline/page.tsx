@@ -2900,7 +2900,12 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
   const load = () => {
     setLoading(true)
     api.get<any>(`/projects/${projectId}/hour-contributions`)
-      .then(r => setItems((r?.items ?? r?.data ?? r ?? []).map((c: HourContrib) => ({ ...c, total_value: c.contributed_hours * c.hourly_rate }))))
+      .then(r => setItems((r?.items ?? r?.data ?? r ?? []).map((c: HourContrib) => ({
+        ...c,
+        contributed_hours: Number(c.contributed_hours),
+        hourly_rate: Number(c.hourly_rate),
+        total_value: Number(c.contributed_hours) * Number(c.hourly_rate),
+      }))))
       .catch(() => toast.error('Erro ao carregar aportes'))
       .finally(() => setLoading(false))
   }
