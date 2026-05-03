@@ -74,6 +74,7 @@ export default function MovideskIntegracaoPage() {
   const [defaultUser,     setDefaultUser]     = useState('')
   const [syncOrgsInterval,   setSyncOrgsInterval]   = useState(30)
   const [portalSyncInterval, setPortalSyncInterval] = useState(30)
+  const [importStartDate,    setImportStartDate]    = useState('')
   const [saving, setSaving] = useState(false)
 
   const loadStatus = useCallback(async () => {
@@ -104,6 +105,7 @@ export default function MovideskIntegracaoPage() {
       setDefaultUser(String(mv.movidesk_default_user_id ?? ''))
       setSyncOrgsInterval(mv.movidesk_sync_orgs_interval_minutes ?? 30)
       setPortalSyncInterval(mv.movidesk_portal_sync_interval_minutes ?? 30)
+      setImportStartDate((mv as any).movidesk_import_start_date ?? '')
     } catch {}
   }, [])
 
@@ -144,6 +146,7 @@ export default function MovideskIntegracaoPage() {
         movidesk_default_user_id:              defaultUser     ? Number(defaultUser)     : null,
         movidesk_sync_orgs_interval_minutes:   syncOrgsInterval,
         movidesk_portal_sync_interval_minutes: portalSyncInterval,
+        movidesk_import_start_date:            importStartDate || null,
       })
       toast.success('Configurações salvas')
     } catch { toast.error('Erro ao salvar configurações') }
@@ -298,6 +301,33 @@ export default function MovideskIntegracaoPage() {
                 fullWidth
               />
               <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Usado quando o cliente não tem projeto de sustentação ativo</p>
+            </div>
+          </div>
+
+          {/* Data início importação */}
+          <div className="pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Filtro de Data de Apontamento</p>
+            <div className="flex items-start gap-4">
+              <div>
+                <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--brand-muted)' }}>Data Início da Importação</label>
+                <input
+                  type="date"
+                  value={importStartDate}
+                  onChange={e => setImportStartDate(e.target.value)}
+                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', borderRadius: '0.625rem', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', color: 'var(--brand-text)', outline: 'none' }}
+                />
+                <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Apontamentos com data anterior a esta serão ignorados na importação. Deixe em branco para importar tudo.</p>
+              </div>
+              {importStartDate && (
+                <button
+                  type="button"
+                  onClick={() => setImportStartDate('')}
+                  className="mt-6 text-xs px-3 py-1.5 rounded-lg"
+                  style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
+                >
+                  Limpar
+                </button>
+              )}
             </div>
           </div>
 
