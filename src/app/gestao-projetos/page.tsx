@@ -791,10 +791,34 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
               {/* Financeiro */}
               <SecTitle>Financeiro</SecTitle>
               <div className="grid grid-cols-2 gap-3">
-                <div><label style={lStyle}>Valor do Projeto (R$)</label><input type="number" value={form.project_value} onChange={setF('project_value')} style={iStyle} placeholder="0.00" step="0.01" /></div>
-                <div><label style={lStyle}>Valor da Hora (R$)</label><input type="number" value={form.hourly_rate} onChange={setF('hourly_rate')} style={iStyle} placeholder="0.00" step="0.01" /></div>
+                <div><label style={lStyle}>Valor do Projeto (R$)</label><input type="number" value={form.project_value} onChange={e => {
+                  const pv = e.target.value
+                  const hrs = Number(form.sold_hours)
+                  setForm(prev => ({
+                    ...prev,
+                    project_value: pv,
+                    hourly_rate: hrs > 0 && pv !== '' ? String(+(Number(pv) / hrs).toFixed(2)) : prev.hourly_rate,
+                  }))
+                }} style={iStyle} placeholder="0.00" step="0.01" /></div>
+                <div><label style={lStyle}>Valor da Hora (R$)</label><input type="number" value={form.hourly_rate} onChange={e => {
+                  const hr = e.target.value
+                  const hrs = Number(form.sold_hours)
+                  setForm(prev => ({
+                    ...prev,
+                    hourly_rate: hr,
+                    project_value: hrs > 0 && hr !== '' ? String(+(Number(hr) * hrs).toFixed(2)) : prev.project_value,
+                  }))
+                }} style={iStyle} placeholder="0.00" step="0.01" /></div>
                 <div><label style={lStyle}>Hora Adicional (R$)</label><input type="number" value={form.additional_hourly_rate} onChange={setF('additional_hourly_rate')} style={iStyle} placeholder="0.00" step="0.01" /></div>
-                <div><label style={lStyle}>Horas Contratadas</label><input type="number" value={form.sold_hours} onChange={setF('sold_hours')} style={iStyle} placeholder="0" step="1" /></div>
+                <div><label style={lStyle}>Horas Contratadas</label><input type="number" value={form.sold_hours} onChange={e => {
+                  const hrs = e.target.value
+                  const hr = Number(form.hourly_rate)
+                  setForm(prev => ({
+                    ...prev,
+                    sold_hours: hrs,
+                    project_value: hr > 0 && hrs !== '' ? String(+(hr * Number(hrs)).toFixed(2)) : prev.project_value,
+                  }))
+                }} style={iStyle} placeholder="0" step="1" /></div>
                 <div><label style={lStyle}>% Horas Coordenador</label><input type="number" value={form.coordinator_hours} onChange={setF('coordinator_hours')} style={iStyle} placeholder="0" step="1" min="0" max="100" /></div>
                 <div><label style={lStyle}>Horas Consultor</label><input type="number" value={form.consultant_hours} onChange={setF('consultant_hours')} style={iStyle} placeholder="0" step="1" /></div>
               </div>
