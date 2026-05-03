@@ -432,6 +432,11 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
           {project.service_type?.name ?? '—'}
         </td>
 
+        {/* Horas Mensais */}
+        <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>
+          {isBhMensal ? fmt(project.sold_hours ?? 0) : <span style={{ color: 'var(--brand-subtle)', fontSize: 11 }}>—</span>}
+        </td>
+
         {/* HS Vendidas */}
         <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>
           {isOnDemand ? (
@@ -446,12 +451,12 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
           )}
         </td>
 
-        {/* Total Contratadas */}
+        {/* Total Contratadas = acumulado + aporte */}
         <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>
           {isOnDemand ? (
             <span style={{ color: 'var(--brand-subtle)', fontSize: 11 }}>—</span>
           ) : (
-            fmt((project.sold_hours ?? 0) + contributions, 1)
+            fmt(displaySold + contributions, 1)
           )}
         </td>
 
@@ -513,7 +518,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
       {expanded && teamCount > 0 && (
         <tr style={{ background: 'rgba(0,0,0,0.2)' }}>
           <td /><td />
-          <td colSpan={10} className="py-3 px-4">
+          <td colSpan={11} className="py-3 px-4">
             <div className="flex flex-wrap gap-4">
               {(project.coordinators ?? []).length > 0 && (
                 <div>
@@ -1480,6 +1485,7 @@ export default function GestaoProjetosPage() {
                   <th className="py-3 pr-4 text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Cliente</th>
                   <th className="py-3 pr-4 text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Tipo Contrato</th>
                   <th className="py-3 pr-4 text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Tipo Serviço</th>
+                  <th className="py-3 px-4 text-xs font-semibold text-center" style={{ color: 'var(--brand-muted)' }}>Hs Mensais</th>
                   <th className="py-3 px-4 text-xs font-semibold text-center" style={{ color: 'var(--brand-muted)' }}>HS Vendidas</th>
                   <th className="py-3 px-4 text-xs font-semibold text-center" style={{ color: 'var(--brand-muted)' }}>Total Cont.</th>
                   <th className="py-3 px-4 text-xs font-semibold text-center" style={{ color: 'var(--brand-muted)' }}>HS Consumidas</th>
