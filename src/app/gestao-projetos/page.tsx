@@ -646,12 +646,18 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       api.get<any>('/service-types?pageSize=100'),
       api.get<any>('/contract-types?pageSize=100'),
       api.get<any>('/users?type=coordenador&coordinator_type=projetos&pageSize=200'),
+      api.get<any>('/users?type=admin&pageSize=200'),
       api.get<any>('/users?type=consultor&pageSize=200'),
       api.get<any>('/consultant-groups?pageSize=100&active=1'),
-    ]).then(([st, ct, coords, consults, grps]) => {
+    ]).then(([st, ct, coords, admins, consults, grps]) => {
       if (st.status === 'fulfilled')      setOptServiceTypes(items(st.value))
       if (ct.status === 'fulfilled')      setOptContractTypes(items(ct.value))
-      if (coords.status === 'fulfilled')  setOptCoordinators(items(coords.value))
+      if (coords.status === 'fulfilled' || admins.status === 'fulfilled') {
+        const coordList = coords.status === 'fulfilled' ? items(coords.value) : []
+        const adminList = admins.status === 'fulfilled' ? items(admins.value) : []
+        const merged = [...coordList, ...adminList.filter((a: any) => !coordList.some((c: any) => c.id === a.id))]
+        setOptCoordinators(merged)
+      }
       if (consults.status === 'fulfilled') setOptConsultants(items(consults.value))
       if (grps.status === 'fulfilled')    setOptGroups(items(grps.value))
     })

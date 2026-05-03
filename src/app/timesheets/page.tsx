@@ -797,11 +797,14 @@ function TimesheetsPageContent() {
         api.get<any>('/executives?pageSize=100'),
         api.get<any>('/users?pageSize=200&exclude_type=cliente'),
         api.get<any>('/users?pageSize=100&type=coordenador'),
-      ]).then(([c, ex, us, coords]) => {
+        api.get<any>('/users?pageSize=100&type=admin'),
+      ]).then(([c, ex, us, coords, admins]) => {
         setCustomers(items(c))
         setExecutives(items(ex))
         setConsultants(items(us))
-        setCoordinators(items(coords))
+        const coordList = items(coords)
+        const adminList = items(admins)
+        setCoordinators([...coordList, ...adminList.filter((a: any) => !coordList.some((c: any) => c.id === a.id))])
       }).catch(() => {})
     }
   }, [isCliente, isAdmin, user?.customer_id])

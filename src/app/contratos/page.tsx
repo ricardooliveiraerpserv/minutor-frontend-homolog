@@ -192,7 +192,15 @@ export default function ContratosPage() {
   // Load master data
   useEffect(() => {
     api.get<any>('/customers?pageSize=500').then(r => setCustomers(r?.items ?? r ?? [])).catch(() => {})
-    api.get<any>('/users?type=coordenador&pageSize=500').then(r => setCoordinators((r?.items ?? r ?? []).map((u: any) => ({ id: u.id, name: u.name })))).catch(() => {})
+    Promise.allSettled([
+      api.get<any>('/users?type=coordenador&pageSize=500'),
+      api.get<any>('/users?type=admin&pageSize=500'),
+    ]).then(([coords, admins]) => {
+      const coordList = coords.status === 'fulfilled' ? (coords.value?.items ?? coords.value ?? []) : []
+      const adminList = admins.status === 'fulfilled' ? (admins.value?.items ?? admins.value ?? []) : []
+      const merged = [...coordList, ...adminList.filter((a: any) => !coordList.some((c: any) => c.id === a.id))]
+      setCoordinators(merged.map((u: any) => ({ id: u.id, name: u.name })))
+    }).catch(() => {})
   }, [])
 
   const loadContracts = useCallback(async () => {
