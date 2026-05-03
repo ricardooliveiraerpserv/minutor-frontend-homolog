@@ -1334,7 +1334,6 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
               const ctL = card.contract_type?.toLowerCase() ?? ''
               const effectivelySust = card.categoria === 'sustentacao'
                 || svL.includes('sustent') || svL.includes('cloud') || svL.includes('bizify')
-                || ctL.includes('banco de horas') || ctL.includes('on demand') || ctL.includes('cloud') || ctL.includes('bizify') || ctL.includes('saas')
               return (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>
                   {effectivelySust ? 'Sustentação' : 'Projeto'}
