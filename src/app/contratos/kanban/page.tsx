@@ -187,11 +187,17 @@ const PROJECT_MENU_ITEMS = [
 ]
 
 const CONTRACT_MENU_ITEMS = [
-  { action: 'view',   label: 'Visualizar', icon: Eye },
-  { action: 'edit',   label: 'Editar',     icon: Pencil },
-  { action: 'chat',   label: 'Chat',       icon: MessageSquare },
-  { action: 'delete', label: 'Excluir',    icon: Trash2 },
-  { action: 'log',   label: 'Histórico',  icon: Clock },
+  { action: 'view',       label: 'Visualizar',       icon: Eye },
+  { action: 'edit',       label: 'Editar',            icon: Pencil },
+  { action: 'chat',       label: 'Chat',              icon: MessageSquare },
+  { action: 'log',        label: 'Histórico',         icon: Clock },
+  { action: 'status',     label: 'Alterar Status',    icon: Layers },
+  { action: 'cost',       label: 'Custo',             icon: DollarSign },
+  { action: 'timesheets', label: 'Apontamentos',      icon: Clock },
+  { action: 'expenses',   label: 'Despesas',          icon: BarChart2 },
+  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp },
+  { action: 'team',       label: 'Selecionar Equipe', icon: Users },
+  { action: 'delete',     label: 'Excluir',           icon: Trash2, danger: true },
 ]
 
 const STATUS_LABEL: Record<string, string> = {
@@ -1311,12 +1317,13 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                       style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                       {CONTRACT_MENU_ITEMS.map(item => {
                         const Icon = item.icon
+                        const isDanger = (item as any).danger
                         return (
                           <button key={item.action}
                             onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
                             className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
-                            style={{ color: 'var(--brand-text)' }}>
-                            <Icon size={13} style={{ color: 'var(--brand-subtle)' }} />
+                            style={{ color: isDanger ? '#ef4444' : 'var(--brand-text)' }}>
+                            <Icon size={13} style={{ color: isDanger ? '#ef4444' : 'var(--brand-subtle)' }} />
                             {item.label}
                           </button>
                         )
@@ -2578,6 +2585,18 @@ function KanbanContent() {
             .then(c => { setEditingContractData(c); setShowNewContract(true) })
             .catch(() => toast.error('Erro ao carregar contrato'))
           close()
+          return null
+        }
+        if (['status', 'cost', 'timesheets', 'expenses', 'aportes', 'team'].includes(action)) {
+          if (!card.project_id) {
+            toast.error('Contrato sem projeto vinculado')
+            close()
+            return null
+          }
+          const projCard = projectCards.find(p => p.id === card.project_id)
+            ?? ({ id: card.project_id, project_name: card.project_name ?? '', customer_name: card.customer_name, status: 'awaiting_start' } as ProjectCard)
+          close()
+          setProjectAction({ card: projCard, action })
           return null
         }
         if (action === 'delete') {
