@@ -1144,14 +1144,17 @@ export default function GestaoProjetosPage() {
     }).catch(() => {})
   }, [])
 
+  // União: clientes dos projetos carregados + todos da API (sem duplicatas)
   const clientes = useMemo(() => {
     const seen = new Set<string>()
-    return projects
+    const fromProjects = projects
       .filter(p => p.customer?.name)
       .map(p => ({ id: String(p.customer_id), name: p.customer!.name }))
+    const merged = [...fromProjects, ...allCustomers]
+    return merged
       .filter(c => { if (seen.has(c.id)) return false; seen.add(c.id); return true })
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [projects])
+  }, [projects, allCustomers])
 
   const availableContractTypes = useMemo(() => {
     const seen = new Set<string>()
@@ -1459,7 +1462,7 @@ export default function GestaoProjetosPage() {
           <MultiSelect
             value={clienteFilters}
             onChange={v => setCliente(v)}
-            options={allCustomers}
+            options={clientes}
             placeholder="Todos os clientes"
           />
           <SimpleSelect
