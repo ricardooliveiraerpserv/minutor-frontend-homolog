@@ -349,12 +349,12 @@ export function ContractCreateModal({
         limite_despesa:        form.limite_despesa ? Number(form.limite_despesa) : null,
         architect_id:          form.architect_id ? Number(form.architect_id) : null,
         tipo_alocacao:         form.tipo_alocacao,
-        horas_contratadas:     isOnDemand ? 0 : Number(form.horas_contratadas),
+        horas_contratadas:     isOnDemand ? 0 : Math.round(Number(form.horas_contratadas) || 0),
         valor_projeto:         form.valor_projeto ? Number(form.valor_projeto) : null,
         valor_hora:            form.valor_hora ? Number(form.valor_hora) : null,
         hora_adicional:        form.hora_adicional ? Number(form.hora_adicional) : null,
         pct_horas_coordenador: form.pct_horas_coordenador ? Number(form.pct_horas_coordenador) : null,
-        horas_consultor:       form.horas_consultor ? Number(form.horas_consultor) : null,
+        horas_consultor:       form.horas_consultor ? Math.round(Number(form.horas_consultor)) : null,
         expectativa_inicio:    form.expectativa_inicio || null,
         condicao_pagamento:    form.condicao_pagamento || null,
         executivo_conta_id:    form.executivo_conta_id ? Number(form.executivo_conta_id) : null,
@@ -367,7 +367,12 @@ export function ContractCreateModal({
       toast.success('Contrato criado com sucesso')
       onSuccess(contract.id)
     } catch (e: any) {
-      toast.error(e?.message ?? 'Erro ao salvar contrato')
+      if (e?.data?.errors) {
+        const msgs = Object.values(e.data.errors as Record<string, string[]>).flat()
+        toast.error(msgs.join(' | '))
+      } else {
+        toast.error(e?.message ?? 'Erro ao salvar contrato')
+      }
     } finally {
       setSaving(false)
     }
