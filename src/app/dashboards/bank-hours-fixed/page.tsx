@@ -260,10 +260,10 @@ export default function BankHoursFixedPage() {
 
   // Customers
   useEffect(() => {
-    if (!isAdmin) return
-    api.get<any>('/customers?pageSize=100&has_contract_type_name=Banco+de+Horas+Fixo').then(r => setCustomers(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
+    if (!user || user.type !== 'admin') return
+    api.get<any>('/customers?pageSize=500&has_contract_type_name=Banco+de+Horas+Fixo').then(r => setCustomers(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
     api.get<any>('/executives?pageSize=100').then(r => setExecutives(Array.isArray(r?.items) ? r.items : [])).catch(() => {})
-  }, [isAdmin])
+  }, [user])
 
   // Projects list
   useEffect(() => {

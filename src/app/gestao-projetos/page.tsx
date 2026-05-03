@@ -1042,6 +1042,7 @@ export default function GestaoProjetosPage() {
   const [serviceTypes, setServiceTypes] = useState<{ id: number; name: string }[]>([])
   const [multiContratual, setMultiContratual] = useState(false)
   const [rows, setRows] = useState<TreeRow[]>([])
+  const [allCustomers, setAllCustomers] = useState<{ id: string; name: string }[]>([])
 
   // Modal de custos
   const [costProject, setCostProject]   = useState<ProjectWithTeam | null>(null)
@@ -1135,6 +1136,13 @@ export default function GestaoProjetosPage() {
       .catch(() => toast.error('Erro ao carregar projetos'))
       .finally(() => setLoading(false))
   }, [multiContratual, refreshKey])
+
+  useEffect(() => {
+    api.get<any>('/customers?pageSize=500').then(r => {
+      const items: any[] = Array.isArray(r?.items) ? r.items : []
+      setAllCustomers(items.map((c: any) => ({ id: String(c.id), name: c.name })))
+    }).catch(() => {})
+  }, [])
 
   const clientes = useMemo(() => {
     const seen = new Set<string>()
@@ -1451,7 +1459,7 @@ export default function GestaoProjetosPage() {
           <MultiSelect
             value={clienteFilters}
             onChange={v => setCliente(v)}
-            options={clientes.map(c => ({ id: c.id, name: c.name }))}
+            options={allCustomers}
             placeholder="Todos os clientes"
           />
           <SimpleSelect
