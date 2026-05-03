@@ -562,7 +562,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
 interface ProjectEditForm {
   name: string; description: string; status: string
-  start_date: string; expected_end_date: string
+  start_date: string; expected_end_date: string; encerramento_date: string
   sold_hours: string; project_value: string
   hourly_rate: string; additional_hourly_rate: string
   initial_hours_consumed: string; initial_cost: string
@@ -587,6 +587,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     status:                          d.status ?? 'awaiting_start',
     start_date:                      d.start_date?.slice(0, 10) ?? '',
     expected_end_date:               d.expected_end_date?.slice(0, 10) ?? '',
+    encerramento_date:               (d as any).encerramento_date?.slice(0, 10) ?? '',
     sold_hours:                      d.sold_hours != null ? String(d.sold_hours) : '',
     project_value:                   d.project_value != null ? String(d.project_value) : '',
     hourly_rate:                     d.hourly_rate != null ? String(d.hourly_rate) : '',
@@ -662,6 +663,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
         status:               form.status,
         start_date:           form.start_date || null,
         expected_end_date:    form.expected_end_date || null,
+        encerramento_date:    form.encerramento_date || null,
         allow_manual_timesheets: form.allow_manual_timesheets,
         allow_negative_balance:  form.allow_negative_balance,
         cobra_despesa_cliente:   form.cobra_despesa_cliente,
@@ -753,7 +755,10 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 </div>
                 <div><label style={lStyle}>Data de Início</label><input type="date" value={form.start_date} onChange={setF('start_date')} style={iStyle} /></div>
               </div>
-              <div><label style={lStyle}>Data de Conclusão</label><input type="date" value={form.expected_end_date} onChange={setF('expected_end_date')} style={iStyle} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label style={lStyle}>Data de Conclusão</label><input type="date" value={form.expected_end_date} onChange={setF('expected_end_date')} style={iStyle} /></div>
+                <div><label style={lStyle}>Data de Encerramento BH</label><input type="date" value={form.encerramento_date} onChange={setF('encerramento_date')} style={iStyle} /></div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label style={lStyle}>Tipo de Contrato</label>
