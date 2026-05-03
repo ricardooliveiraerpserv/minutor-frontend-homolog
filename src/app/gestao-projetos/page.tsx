@@ -122,7 +122,10 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
       ? ((p as any).accumulated_sold_hours ?? p.sold_hours ?? 0) + contributions
       : (p.sold_hours ?? 0)
   // gestaoMode já inclui initial_hours_consumed em consumed_hours — não somar de novo
-  const consumedHours = p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
+  // Para sub-projetos filhos (sem consumed_hours), somar initial_hours_consumed ao fallback
+  const consumedHours = p.consumed_hours != null
+    ? p.consumed_hours
+    : (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0) + ((p as any).initial_hours_consumed ?? 0)
   return { displaySold, consumedHours }
 }
 
@@ -294,7 +297,10 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
       ? ((project as any).accumulated_sold_hours ?? project.sold_hours ?? 0) + contributions
       : (project.sold_hours ?? 0)
   // gestaoMode já inclui initial_hours_consumed em consumed_hours — não somar de novo
-  const consumedHours = project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0)
+  // Para sub-projetos filhos (sem consumed_hours), somar initial_hours_consumed ao fallback
+  const consumedHours = project.consumed_hours != null
+    ? project.consumed_hours
+    : (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0) + ((project as any).initial_hours_consumed ?? 0)
   const displaySaldo = isOnDemand ? 0 : (project.general_hours_balance ?? null)
   const pct = isOnDemand ? 100 : (displaySold > 0 ? (consumedHours / displaySold) * 100 : 0)
   const color = isOnDemand ? 'green' : healthColor(pct)
