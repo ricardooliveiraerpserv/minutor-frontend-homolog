@@ -262,17 +262,30 @@ export function ContractCreateModal({
   // ── Number mask helpers ────────────────────────────────────────────────────
 
   const fmtBRInput = (v: string, field: string): string => {
-    if (focusedField === field || !v) return v
+    if (!v) return v
+    if (focusedField === field) {
+      // Durante digitação: exibe com vírgula como separador decimal
+      return v.replace('.', ',')
+    }
     const n = parseFloat(v)
     if (isNaN(n)) return v
     return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
   const parseBRInput = (v: string): string => {
-    const hasBoth = v.includes('.') && v.includes(',')
-    const s = hasBoth ? v.replace(/\./g, '').replace(',', '.') : v.includes(',') ? v.replace(',', '.') : v
-    const n = parseFloat(s)
-    return isNaN(n) ? '' : String(n)
+    const trimmed = v.trim()
+    if (!trimmed) return ''
+    // Detecta se usuário ainda está digitando a parte decimal (termina com , ou .)
+    const trailingDecimal = trimmed.endsWith(',') || trimmed.endsWith('.')
+    const hasBoth = trimmed.includes('.') && trimmed.includes(',')
+    const s = hasBoth
+      ? trimmed.replace(/\./g, '').replace(',', '.')
+      : trimmed.includes(',') ? trimmed.replace(',', '.') : trimmed
+    const cleaned = trailingDecimal ? s.replace(/[.,]$/, '') : s
+    const n = parseFloat(cleaned)
+    if (isNaN(n)) return ''
+    // Preserva o ponto para permitir continuar digitando decimais
+    return trailingDecimal ? String(n) + '.' : String(n)
   }
 
   // When extraOnChange is provided it is responsible for calling setForm (it receives the raw value).
