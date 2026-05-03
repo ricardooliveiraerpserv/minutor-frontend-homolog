@@ -139,6 +139,18 @@ export function ContractCreateModal({
       .then(r => {
         const balance = r.general_hours_balance ?? ((r.sold_hours ?? 0) - (r.consumed_hours ?? 0))
         setParentBalance({ balance, allow_negative: r.allow_negative_balance ?? false })
+        // Auto-preenche valor_hora com o do projeto pai
+        if (r.hourly_rate) {
+          const hr = Number(r.hourly_rate)
+          setForm(f => {
+            const hs = Number(f.horas_contratadas)
+            return {
+              ...f,
+              valor_hora: String(hr),
+              valor_projeto: hs > 0 ? String(+(hr * hs).toFixed(2)) : f.valor_projeto,
+            }
+          })
+        }
       })
       .catch(() => setParentBalance(null))
       .finally(() => setParentBalanceLoading(false))
