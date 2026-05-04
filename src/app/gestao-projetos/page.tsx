@@ -1316,7 +1316,7 @@ export default function GestaoProjetosPage() {
   useEffect(() => {
     setLoading(true)
     const qs = new URLSearchParams({ pageSize: '200', gestao: 'true' })
-    if (multiContratual) qs.set('parent_projects_only', 'true')
+    if (multiContratual) { qs.set('parent_projects_only', 'true'); qs.set('with_children_only', 'true') }
     api.get<PaginatedResponse<ProjectWithTeam>>(`/projects?${qs}`)
       .then(res => {
         const items = res.items ?? []
