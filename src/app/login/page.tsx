@@ -182,25 +182,21 @@ export default function LoginPage() {
         }}>
 
           {/* ── Cabeçalho de marca ── */}
-          <div style={{ padding: '32px 40px 28px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ padding: '36px 40px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
 
-            {/* 1. ERPServ — empresa */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+            {/* ERPServ — logo centralizado */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
               <Image
                 src="/logo.png"
                 alt="ERPServ"
-                width={80}
-                height={28}
-                style={{ objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.7 }}
+                width={96}
+                height={32}
+                style={{ objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.75 }}
               />
-              <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.10)' }} />
-              <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.30)', letterSpacing: '0.03em' }}>
-                ERPServ Consultoria
-              </span>
             </div>
 
-            {/* 2. Minutor — produto */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+            {/* Minutor — produto */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
               <div style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 9, background: 'rgba(0,212,232,0.07)', border: '1px solid rgba(0,212,232,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <MinutorIcon size={19} />
               </div>
@@ -209,23 +205,11 @@ export default function LoginPage() {
                   Minutor
                 </h1>
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.38)', fontWeight: 400, letterSpacing: 0 }}>
-                  Plataforma de gestão de horas
+                  Controle de horas e contratos em um só lugar
                 </p>
               </div>
             </div>
 
-            {/* 3. Linha de valor */}
-            <p style={{ margin: '0 0 16px', fontSize: 13, color: 'rgba(255,255,255,0.28)', lineHeight: 1.5, fontWeight: 400 }}>
-              Controle de horas, contratos e operações em um único lugar.
-            </p>
-
-            {/* 4. Badge */}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 4, background: 'rgba(0,212,232,0.04)', border: '1px solid rgba(0,212,232,0.10)' }}>
-              <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#00D4E8', opacity: 0.6 }} />
-              <span style={{ fontSize: 10, fontWeight: 500, color: 'rgba(0,212,232,0.55)', letterSpacing: '0.04em' }}>
-                Gestão operacional ERPServ
-              </span>
-            </div>
           </div>
 
           {/* ── Formulário ── */}
