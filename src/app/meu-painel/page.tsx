@@ -3747,7 +3747,7 @@ export default function MeuPainelPage() {
 
             <div>
               <Label className="text-xs text-zinc-400">Data *</Label>
-              <Input type="date" value={expForm.expense_date} max={todayISO()}
+              <Input type="date" value={expForm.expense_date}
                 onChange={e => setExpForm(f => ({ ...f, expense_date: e.target.value }))}
                 className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
             </div>
