@@ -241,9 +241,9 @@ function uniqueCardId(card: AnyCard): string {
 // ─── Contract Card ────────────────────────────────────────────────────────────
 
 function ContractKanbanCard({
-  card, index, canDrag, onClick, onAction, onMove, availableColumns, isNew,
+  card, index, canDrag, onClick, onAction, onMove, availableColumns, isNew, canWrite,
 }: { card: ContractCard; index: number; canDrag: boolean; onClick: () => void; onAction?: (action: string) => void
-    onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isNew?: boolean }) {
+    onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isNew?: boolean; canWrite?: boolean }) {
   const isIncomplete = !card.is_complete
   const isTransition = card.kanban_status === 'inicio_autorizado'
   const [menuOpen, setMenuOpen] = useState(false)
@@ -316,7 +316,7 @@ function ContractKanbanCard({
                   {menuOpen && (
                     <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
                       style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                      {CONTRACT_MENU_ITEMS.map(item => {
+                      {CONTRACT_MENU_ITEMS.filter(item => !item.adminOnly || canWrite).map(item => {
                         const Icon = item.icon
                         return (
                           <button key={item.action}
@@ -466,7 +466,7 @@ function RequestKanbanCard({ card, onView }: { card: RequestCard; onView?: (e: R
 
 // ─── List view action menu ────────────────────────────────────────────────────
 
-function ListActionMenu({ card, onAction }: { card: ContractCard; onAction: (action: string) => void }) {
+function ListActionMenu({ card, onAction, canWrite }: { card: ContractCard; onAction: (action: string) => void; canWrite?: boolean }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -485,7 +485,7 @@ function ListActionMenu({ card, onAction }: { card: ContractCard; onAction: (act
       {open && (
         <div className="absolute right-0 top-7 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
           style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-          {CONTRACT_MENU_ITEMS.map(item => {
+          {CONTRACT_MENU_ITEMS.filter(item => !item.adminOnly || canWrite).map(item => {
             const Icon = item.icon
             return (
               <button key={item.action}
@@ -503,7 +503,7 @@ function ListActionMenu({ card, onAction }: { card: ContractCard; onAction: (act
   )
 }
 
-function ListProjectActionMenu({ onAction }: { onAction: (action: string) => void }) {
+function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: string) => void; canWrite?: boolean }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -522,7 +522,7 @@ function ListProjectActionMenu({ onAction }: { onAction: (action: string) => voi
       {open && (
         <div className="absolute right-0 top-7 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
           style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-          {PROJECT_MENU_ITEMS.map(item => {
+          {PROJECT_MENU_ITEMS.filter(item => !item.adminOnly || canWrite).map(item => {
             const Icon = item.icon
             const isDanger = (item as any).danger
             return (
@@ -545,24 +545,24 @@ function ListProjectActionMenu({ onAction }: { onAction: (action: string) => voi
 
 const CONTRACT_MENU_ITEMS = [
   { action: 'view',    label: 'Visualizar', icon: Eye },
-  { action: 'edit',    label: 'Editar',     icon: Pencil },
+  { action: 'edit',    label: 'Editar',     icon: Pencil,    adminOnly: true },
   { action: 'chat',    label: 'Chat',       icon: MessageSquare },
   { action: 'log',     label: 'Histórico',  icon: Clock },
-  { action: 'delete',  label: 'Excluir',    icon: Trash2 },
-] as const
+  { action: 'delete',  label: 'Excluir',    icon: Trash2,    adminOnly: true },
+]
 
 const PROJECT_MENU_ITEMS = [
   { action: 'view',       label: 'Visualizar',       icon: Eye,           clientVisible: false },
-  { action: 'edit',       label: 'Editar',            icon: Pencil,        clientVisible: false },
+  { action: 'edit',       label: 'Editar',            icon: Pencil,        clientVisible: false, adminOnly: true },
   { action: 'chat',       label: 'Chat',              icon: MessageSquare, clientVisible: true  },
   { action: 'status',     label: 'Alterar Status',    icon: Layers,        clientVisible: false },
   { action: 'cost',       label: 'Custo',             icon: DollarSign,    clientVisible: false },
   { action: 'timesheets', label: 'Apontamentos',      icon: Clock,         clientVisible: false },
   { action: 'expenses',   label: 'Despesas',          icon: BarChart2,     clientVisible: false },
-  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp,    clientVisible: false },
+  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp,    clientVisible: false, adminOnly: true },
   { action: 'team',       label: 'Selecionar Equipe', icon: Users,         clientVisible: false },
-  { action: 'delete',     label: 'Excluir',           icon: Trash2,        clientVisible: false, danger: true },
-] as const
+  { action: 'delete',     label: 'Excluir',           icon: Trash2,        clientVisible: false, danger: true, adminOnly: true },
+]
 
 function endDateStyle(dateStr: string): { color: string; bg: string; label: string } {
   const diff = Math.floor((new Date(dateStr).getTime() - Date.now()) / 86400000)
@@ -573,9 +573,9 @@ function endDateStyle(dateStr: string): { color: string; bg: string; label: stri
 }
 
 function ProjectKanbanCard({
-  card, index, canDrag, onClick, onAction, onMove, availableColumns, isCliente, hasUnread, isNew,
+  card, index, canDrag, onClick, onAction, onMove, availableColumns, isCliente, hasUnread, isNew, canWrite,
 }: { card: ProjectCard; index: number; canDrag: boolean; onClick: () => void; onAction: (action: string) => void
-    onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isCliente?: boolean; hasUnread?: boolean; isNew?: boolean }) {
+    onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isCliente?: boolean; hasUnread?: boolean; isNew?: boolean; canWrite?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -642,7 +642,7 @@ function ProjectKanbanCard({
                 {menuOpen && (
                   <div className="absolute right-0 top-6 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
                     style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    {PROJECT_MENU_ITEMS.filter(item => !isCliente || item.clientVisible).map(item => {
+                    {PROJECT_MENU_ITEMS.filter(item => (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite)).map(item => {
                       const Icon = item.icon
                       return (
                         <button
@@ -3458,7 +3458,7 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
 // ─── Column Component ─────────────────────────────────────────────────────────
 
 function KanbanColumn({
-  col, contractCards, projectCards, requestCards = [], canDrag, canDrop, isCliente, unreadContractIds, newProjectIds, newContractIds,
+  col, contractCards, projectCards, requestCards = [], canDrag, canDrop, isCliente, canWrite, unreadContractIds, newProjectIds, newContractIds,
   onContractClick, onProjectClick, onRequestClick, onRequestView, onProjectAction, onContractAction,
   onContractMove, onProjectMove, getContractCols, getProjectCols,
 }: {
@@ -3469,6 +3469,7 @@ function KanbanColumn({
   canDrag: boolean
   canDrop: boolean
   isCliente?: boolean
+  canWrite?: boolean
   unreadContractIds?: number[]
   newProjectIds?: Set<number>
   newContractIds?: Set<number>
@@ -3604,6 +3605,7 @@ function KanbanColumn({
                   onAction={onContractAction ? action => onContractAction(card, action) : undefined}
                   onMove={onContractMove ? toCol => onContractMove(card, toCol) : undefined}
                   availableColumns={getContractCols ? getContractCols(card, fromCol) : undefined}
+                  canWrite={canWrite}
                 />
               )
             })}
@@ -3619,6 +3621,7 @@ function KanbanColumn({
                   onAction={action => onProjectAction?.(card, action)}
                   onMove={onProjectMove ? toCol => onProjectMove(card, toCol) : undefined}
                   availableColumns={getProjectCols ? getProjectCols(card, fromCol) : undefined}
+                  canWrite={canWrite}
                 />
               )
             })}
@@ -3651,6 +3654,7 @@ function PhaseSeparator({ label, icon }: { label: string; icon: React.ReactNode 
 function KanbanContent() {
   const router = useRouter()
   const { user } = useAuth()
+  const canWrite = user?.type === 'admin' || user?.type === 'administrativo'
 
   const [demandCards,     setDemandCards]     = useState<ContractCard[]>([])
   const [transitionCards, setTransitionCards] = useState<ContractCard[]>([])
@@ -4368,7 +4372,7 @@ function KanbanContent() {
                             </td>
                             {!isCliente && (
                               <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
-                                <ListProjectActionMenu onAction={action => setProjectAction({ card: p, action })} />
+                                <ListProjectActionMenu onAction={action => setProjectAction({ card: p, action })} canWrite={canWrite} />
                               </td>
                             )}
                           </tr>
@@ -4419,7 +4423,7 @@ function KanbanContent() {
                           </td>
                           {!isCliente && (
                             <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
-                              <ListActionMenu card={c} onAction={action => setContractAction({ card: c, action })} />
+                              <ListActionMenu card={c} onAction={action => setContractAction({ card: c, action })} canWrite={canWrite} />
                             </td>
                           )}
                         </tr>
@@ -4505,6 +4509,7 @@ function KanbanContent() {
                   canDrag={colCanDrag(col.id)}
                   canDrop={colCanDrop(col.id)}
                   isCliente={isCliente}
+                  canWrite={canWrite}
                   unreadContractIds={unreadContractIds}
                   onContractClick={setSelectedContract}
                   onContractAction={(card, action) => setContractAction({ card, action })}

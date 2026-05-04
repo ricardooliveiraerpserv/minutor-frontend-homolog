@@ -397,7 +397,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
               { label: 'Custo',             icon: <DollarSign  size={12} />, onClick: () => onMenuAction('costs',      project) },
               { label: 'Apontamentos',      icon: <Clock       size={12} />, onClick: () => onMenuAction('timesheets', project) },
               { label: 'Despesas',          icon: <BarChart2   size={12} />, onClick: () => onMenuAction('expenses',   project) },
-              { label: 'Aportes',           icon: <TrendingUp  size={12} />, onClick: () => onMenuAction('aportes',    project) },
+              ...(canEdit ? [{ label: 'Aportes', icon: <TrendingUp size={12} />, onClick: () => onMenuAction('aportes', project) }] : []),
               { label: 'Selecionar Equipe', icon: <Users       size={12} />, onClick: () => onMenuAction('team',       project) },
               ...(onDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} className="text-red-400" />, onClick: () => onDelete(project), danger: true }] : []),
             ]} />
@@ -1155,9 +1155,11 @@ export default function GestaoProjetosPage() {
   const isCoordenador = user?.type === 'coordenador'
   const isCliente = user?.type === 'cliente'
   const ep = user?.extra_permissions ?? []
-  const canEdit = !isCliente
+  const isAdministrativo = user?.type === 'administrativo'
+  const canWrite = isAdmin || isAdministrativo
+  const canEdit = canWrite
   const canChangeStatus = !isCliente
-  const canDelete = isAdmin || isCoordenador
+  const canDelete = canWrite
 
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'gestao_projetos',

@@ -175,29 +175,29 @@ function endDateStyle(dateStr: string): { color: string; bg: string; label: stri
 
 const PROJECT_MENU_ITEMS = [
   { action: 'view',       label: 'Visualizar',       icon: Eye },
-  { action: 'edit',       label: 'Editar',            icon: Pencil },
+  { action: 'edit',       label: 'Editar',            icon: Pencil,     adminOnly: true },
   { action: 'chat',       label: 'Chat',              icon: MessageSquare },
   { action: 'status',     label: 'Alterar Status',    icon: Layers },
   { action: 'cost',       label: 'Custo',             icon: DollarSign },
   { action: 'timesheets', label: 'Apontamentos',      icon: Clock },
   { action: 'expenses',   label: 'Despesas',          icon: BarChart2 },
-  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp },
+  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp, adminOnly: true },
   { action: 'team',       label: 'Selecionar Equipe', icon: Users },
-  { action: 'delete',     label: 'Excluir',           icon: Trash2,     danger: true },
+  { action: 'delete',     label: 'Excluir',           icon: Trash2,     danger: true, adminOnly: true },
 ]
 
 const CONTRACT_MENU_ITEMS = [
   { action: 'view',       label: 'Visualizar',       icon: Eye },
-  { action: 'edit',       label: 'Editar',            icon: Pencil },
+  { action: 'edit',       label: 'Editar',            icon: Pencil,     adminOnly: true },
   { action: 'chat',       label: 'Chat',              icon: MessageSquare },
   { action: 'log',        label: 'Histórico',         icon: Clock },
   { action: 'status',     label: 'Alterar Status',    icon: Layers },
   { action: 'cost',       label: 'Custo',             icon: DollarSign },
   { action: 'timesheets', label: 'Apontamentos',      icon: Clock },
   { action: 'expenses',   label: 'Despesas',          icon: BarChart2 },
-  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp },
+  { action: 'aportes',    label: 'Aportes',           icon: TrendingUp, adminOnly: true },
   { action: 'team',       label: 'Selecionar Equipe', icon: Users },
-  { action: 'delete',     label: 'Excluir',           icon: Trash2, danger: true },
+  { action: 'delete',     label: 'Excluir',           icon: Trash2,     danger: true, adminOnly: true },
 ]
 
 const STATUS_LABEL: Record<string, string> = {
@@ -1256,9 +1256,9 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
   )
 }
 
-function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableColumns }: {
+function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableColumns, canWrite }: {
   card: ContractCard; index: number; onClick: () => void; onAction?: (action: string) => void
-  onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]
+  onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; canWrite?: boolean
 }) {
   const badge = statusBadge(card)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -1315,7 +1315,7 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                   {menuOpen && (
                     <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
                       style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                      {CONTRACT_MENU_ITEMS.map(item => {
+                      {CONTRACT_MENU_ITEMS.filter(item => !item.adminOnly || canWrite).map(item => {
                         const Icon = item.icon
                         const isDanger = (item as any).danger
                         return (
@@ -1412,9 +1412,9 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
 
 // ─── Project Card (for status columns) ───────────────────────────────────────
 
-function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableColumns }: {
+function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableColumns, canWrite }: {
   card: ProjectCard; index: number; onClick: () => void; onAction: (action: string) => void
-  onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]
+  onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; canWrite?: boolean
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -1477,7 +1477,7 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
                 {menuOpen && (
                   <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
                     style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    {PROJECT_MENU_ITEMS.map(item => {
+                    {PROJECT_MENU_ITEMS.filter(item => !item.adminOnly || canWrite).map(item => {
                       const Icon = item.icon
                       const isDanger = (item as any).danger
                       return (
@@ -1771,6 +1771,8 @@ function KanbanContent() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const canWrite = user?.type === 'admin' || user?.type === 'administrativo'
 
   const isSustAdmin = user?.type === 'admin' ||
     (user?.type === 'coordenador' && (user as any).coordinator_type === 'sustentacao')
@@ -2478,6 +2480,7 @@ function KanbanContent() {
                                         }
                                       }}
                                       availableColumns={getAvailableProjectCols(proj, projFromCol, col.coordinatorId)}
+                                      canWrite={canWrite}
                                     />
                                   )
                                 }
@@ -2489,6 +2492,7 @@ function KanbanContent() {
                                     onAction={action => setContractAction({ card: cc, action })}
                                     onMove={toCol => handleContractMove(cc.id, cc, fromCol, toCol)}
                                     availableColumns={getAvailableContractCols(cc, fromCol)}
+                                    canWrite={canWrite}
                                   />
                                 )
                               })}
@@ -2500,6 +2504,7 @@ function KanbanContent() {
                                     onAction={action => setProjectAction({ card: proj, action })}
                                     onMove={toCol => handleProjectMove(proj.id, toCol, col.coordinatorId)}
                                     availableColumns={getAvailableProjectCols(proj, fromCol, col.coordinatorId)}
+                                    canWrite={canWrite}
                                   />
                                 )
                               })}
@@ -2511,6 +2516,7 @@ function KanbanContent() {
                                     onAction={action => setProjectAction({ card: proj, action })}
                                     onMove={toCol => handleProjectMove(proj.id, toCol)}
                                     availableColumns={getAvailableProjectCols(proj, fromCol)}
+                                    canWrite={canWrite}
                                   />
                                 )
                               })}
