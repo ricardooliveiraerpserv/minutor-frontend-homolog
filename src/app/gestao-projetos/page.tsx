@@ -122,7 +122,7 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
     ? (p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0))
     : isBhMensal
       ? ((p as any).accumulated_sold_hours ?? p.sold_hours ?? 0) + contributions
-      : (p.sold_hours ?? 0)
+      : ((p as any).total_available_hours ?? p.sold_hours ?? 0)
   // gestaoMode já inclui initial_hours_consumed em consumed_hours — não somar de novo
   // Para sub-projetos filhos (sem consumed_hours), somar initial_hours_consumed ao fallback
   const consumedHours = p.consumed_hours != null
@@ -318,7 +318,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
     ? (project.consumed_hours ?? (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0))
     : isBhMensal
       ? ((project as any).accumulated_sold_hours ?? project.sold_hours ?? 0) + contributions
-      : (project.sold_hours ?? 0)
+      : ((project as any).total_available_hours ?? project.sold_hours ?? 0)
   // gestaoMode já inclui initial_hours_consumed em consumed_hours — não somar de novo
   // Para sub-projetos filhos (sem consumed_hours), somar initial_hours_consumed ao fallback
   const consumedHours = project.consumed_hours != null
@@ -500,7 +500,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
           {isOnDemand ? (
             <span style={{ color: 'var(--brand-subtle)', fontSize: 11 }}>—</span>
           ) : (
-            fmt(displaySold + contributions, 1)
+            fmt(displaySold, 1)
           )}
         </td>
 
