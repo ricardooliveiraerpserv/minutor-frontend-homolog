@@ -235,8 +235,6 @@ function CustomersTab() {
   const [search, setSearch] = useState('')
   const [filterExecutive, setFilterExecutive] = useState('')
   const [executives, setExecutives] = useState<Executive[]>([])
-  const [page, setPage] = useState(1)
-  const [hasNext, setHasNext] = useState(false)
   const [modal, setModal] = useState<{ open: boolean; item?: CustomerFull }>({ open: false })
   const [form, setForm] = useState({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, executive_id: '' })
   const [saving, setSaving] = useState(false)
@@ -253,15 +251,14 @@ function CustomersTab() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const p = new URLSearchParams({ page: String(page), per_page: '15' })
+      const p = new URLSearchParams({ pageSize: '500' })
       if (search) p.set('search', search)
       if (filterExecutive) p.set('executive_id', filterExecutive)
       const r = await api.get<{ items?: CustomerFull[]; data?: CustomerFull[]; hasNext?: boolean; meta?: { last_page: number } }>(`/customers?${p}`)
       setItems(Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : [])
-      setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar clientes') }
     finally { setLoading(false) }
-  }, [page, search, filterExecutive])
+  }, [search, filterExecutive])
 
   useEffect(() => { load() }, [load])
 
@@ -307,10 +304,10 @@ function CustomersTab() {
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-48">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-          <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
+          <Input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar cliente..." className="pl-8 bg-zinc-800 border-zinc-700 text-white h-8 text-xs" />
         </div>
-        <select value={filterExecutive} onChange={e => { setFilterExecutive(e.target.value); setPage(1) }}
+        <select value={filterExecutive} onChange={e => setFilterExecutive(e.target.value)}
           className="px-3 py-1.5 rounded-lg text-xs outline-none appearance-none bg-zinc-800 border border-zinc-700 text-zinc-300 min-w-36">
           <option value="">Todos os executivos</option>
           {executives.map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
@@ -354,13 +351,6 @@ function CustomersTab() {
           </tbody>
         </table>
       </div>
-      {(page > 1 || hasNext) && (
-        <div className="flex items-center justify-end gap-2 mt-3">
-          <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="p-1 text-zinc-500 hover:text-zinc-200 disabled:opacity-30"><ChevronLeft size={14} /></button>
-          <span className="text-xs text-zinc-500">Página {page}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={!hasNext} className="p-1 text-zinc-500 hover:text-zinc-200 disabled:opacity-30"><ChevronRight size={14} /></button>
-        </div>
-      )}
       {modal.open && (
         <ModalOverlay onClose={() => setModal({ open: false })}>
           <div className="p-5">
