@@ -3565,6 +3565,7 @@ function KanbanColumn({
             style={{
               minHeight: 80,
               maxHeight: 'calc(100vh - 220px)',
+              paddingBottom: 20,
               background: snap.isDraggingOver
                 ? isTransition ? 'rgba(234,179,8,0.05)' : isProject ? 'rgba(99,102,241,0.05)' : isClientCol ? 'rgba(20,184,166,0.06)' : 'rgba(255,255,255,0.03)'
                 : 'transparent',
