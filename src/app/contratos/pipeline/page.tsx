@@ -3523,7 +3523,7 @@ function KanbanColumn({
 
   return (
     <div
-      className="flex flex-col rounded-2xl shrink-0"
+      className="flex flex-col rounded-2xl shrink-0 h-full"
       style={{ width: 264, background: bg, border: `1px solid ${borderColor}` }}
     >
       <div className="px-4 py-3 shrink-0 border-b" style={{ borderColor }}>
@@ -3561,10 +3561,9 @@ function KanbanColumn({
           <div
             ref={prov.innerRef}
             {...prov.droppableProps}
-            className="overflow-y-auto p-3 space-y-2.5 transition-colors"
+            className="flex-1 overflow-y-auto p-3 space-y-2.5 transition-colors"
             style={{
               minHeight: 80,
-              maxHeight: 'calc(100vh - 300px)',
               background: snap.isDraggingOver
                 ? isTransition ? 'rgba(234,179,8,0.05)' : isProject ? 'rgba(99,102,241,0.05)' : isClientCol ? 'rgba(20,184,166,0.06)' : 'rgba(255,255,255,0.03)'
                 : 'transparent',
@@ -4491,7 +4490,7 @@ function KanbanContent() {
         {/* Board */}
         {viewMode === 'kanban' && <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex-1 overflow-x-auto overflow-y-hidden">
-            <div className="flex gap-3 p-4 h-full items-start" style={{ minWidth: `${boardMinWidth}px` }}>
+            <div className="flex gap-3 p-4 h-full items-stretch" style={{ minWidth: `${boardMinWidth}px` }}>
 
               {/* ── Demand Phase ── */}
               {visibleDemandCols.map(col => (
