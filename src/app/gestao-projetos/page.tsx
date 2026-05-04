@@ -12,6 +12,7 @@ import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
 import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
+import { ProjectDataModal } from '@/components/shared/ProjectDataModal'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { PageHeader } from '@/components/ds'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -1525,6 +1526,7 @@ export default function GestaoProjetosPage() {
   const [viewCostSummary, setViewCostSummary] = useState<CostSummary | null>(null)
   const [viewCostLoading, setViewCostLoading] = useState(false)
   const [messagesProject, setMessagesProject] = useState<ProjectWithTeam | null>(null)
+  const [dataModal, setDataModal] = useState<{ project: ProjectWithTeam; tab: 'timesheets' | 'expenses' } | null>(null)
 
   // Auto-open messages modal when ?messages=PROJECT_ID is in URL
   useEffect(() => {
@@ -1550,8 +1552,8 @@ export default function GestaoProjetosPage() {
       return
     }
     if (action === 'messages') { setMessagesProject(project); return }
-    if (action === 'timesheets') { router.push(`/timesheets?project_id=${project.id}`); return }
-    if (action === 'expenses')   { router.push(`/expenses?project_id=${project.id}`);   return }
+    if (action === 'timesheets') { setDataModal({ project, tab: 'timesheets' }); return }
+    if (action === 'expenses')   { setDataModal({ project, tab: 'expenses'   }); return }
     if (action === 'costs') {
       setCostProject(project)
       setCostSummary(null)
@@ -2487,8 +2489,8 @@ export default function GestaoProjetosPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { setViewProject(null); setViewProjectFull(null); router.push(`/timesheets?project_id=${base.id}`) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><Clock size={11} /> Apontamentos</button>
-                  <button onClick={() => { setViewProject(null); setViewProjectFull(null); router.push(`/expenses?project_id=${base.id}`) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><BarChart2 size={11} /> Despesas</button>
+                  <button onClick={() => { setViewProject(null); setViewProjectFull(null); setDataModal({ project: base, tab: 'timesheets' }) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><Clock size={11} /> Apontamentos</button>
+                  <button onClick={() => { setViewProject(null); setViewProjectFull(null); setDataModal({ project: base, tab: 'expenses' }) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><BarChart2 size={11} /> Despesas</button>
                   <button onClick={() => { setViewProject(null); setMessagesProject(base) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><MessageCircle size={11} /> Mensagens</button>
                   {canEdit && (
                     <button onClick={() => { setViewProject(null); setEditProjectId(p.id) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}><Edit2 size={11} /> Editar</button>
@@ -3162,6 +3164,15 @@ export default function GestaoProjetosPage() {
             </>)}
           </div>
         </div>
+      )}
+
+      {dataModal && (
+        <ProjectDataModal
+          projectId={dataModal.project.id}
+          projectName={dataModal.project.name}
+          initialTab={dataModal.tab}
+          onClose={() => setDataModal(null)}
+        />
       )}
 
     </AppLayout>

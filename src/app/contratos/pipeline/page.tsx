@@ -11,6 +11,7 @@ import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRig
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
+import { ProjectDataModal } from '@/components/shared/ProjectDataModal'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { MultiSelect } from '@/components/ui/multi-select'
 
@@ -4781,8 +4782,8 @@ function KanbanContent() {
         if (action === 'edit')       return <ProjectEditByIdModal projectId={card.id} onClose={close} onSaved={close} />
         if (action === 'status')     return <ProjectStatusModal projectId={card.id} projectName={card.project_name} currentStatus={card.status} onClose={close} onSaved={st => { setProjectCards(prev => prev.map(p => p.id === card.id ? { ...p, status: st } : p)); close() }} />
         if (action === 'cost')       return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="consultants" />
-        if (action === 'timesheets') return <ProjectViewModal projectId={card.id} onClose={close} userRole={userRole} initialTab="timesheets" />
-        if (action === 'expenses')   return <ProjectExpensesModal projectId={card.id} projectName={card.project_name} onClose={close} />
+        if (action === 'timesheets') return <ProjectDataModal projectId={card.id} projectName={card.project_name} initialTab="timesheets" onClose={close} />
+        if (action === 'expenses')   return <ProjectDataModal projectId={card.id} projectName={card.project_name} initialTab="expenses"   onClose={close} />
         if (action === 'aportes')    return <ProjectAportesModal projectId={card.id} projectName={card.project_name} onClose={close} />
         if (action === 'team')       return <ProjectTeamModal projectId={card.id} projectName={card.project_name} onClose={close} onSaved={close} />
         if (action === 'chat')       return <ProjectDetailModal card={card} onClose={() => { close(); if (card.contract_id) setUnreadContractIds(prev => prev.filter(id => id !== card.contract_id)) }} userRole={userRole} initialTab="chat" />
