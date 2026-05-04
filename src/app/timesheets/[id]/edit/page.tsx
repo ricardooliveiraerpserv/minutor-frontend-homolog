@@ -142,8 +142,9 @@ export default function EditTimesheetPage() {
   const [loadingData, setLoadingData] = useState(false)
   const [initialized, setInitialized] = useState(false)
 
-  // Load customers and consultants once
+  // Load customers and consultants — depends on canActAsUser resolved from auth
   useEffect(() => {
+    if (!user) return
     setLoadingData(true)
     const customerEndpoint = isAdmin ? '/customers?pageSize=500' : '/customers/user-linked?pageSize=500'
     const calls: Promise<any>[] = [api.get<any>(customerEndpoint)]
@@ -157,7 +158,7 @@ export default function EditTimesheetPage() {
       .catch(() => {})
       .finally(() => setLoadingData(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [user?.type])
 
   // Ensure the timesheet's user is always available in the dropdown (even if not in the paged list)
   useEffect(() => {
