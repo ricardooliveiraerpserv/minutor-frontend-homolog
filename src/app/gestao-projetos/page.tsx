@@ -692,16 +692,18 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   }, [])
 
   const handleCustomerChange = (newCustomerId: string) => {
-    setForm(prev => ({ ...prev, customer_id: newCustomerId, parent_project_id: '' }))
-    if (newCustomerId) {
-      const qs = new URLSearchParams({ pageSize: '200', parent_projects_only: 'true', customer_id: newCustomerId, exclude_id: String(project.id) })
-      api.get<any>(`/projects?${qs}`).then(r => {
-        const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-        setOptParentProjects(list.map((p: any) => ({ id: p.id, name: `${p.code} - ${p.name}`, hourly_rate: p.hourly_rate ?? null })))
-      }).catch(() => {})
-    } else {
-      setOptParentProjects([])
-    }
+    setForm(prev => ({ ...prev, customer_id: newCustomerId, parent_project_id: '', code: '' }))
+    if (!newCustomerId) { setOptParentProjects([]); return }
+    // Gera próximo código automaticamente
+    api.get<any>(`/projects/next-code?customer_id=${newCustomerId}`)
+      .then(r => { if (r?.code) setForm(prev => ({ ...prev, code: r.code })) })
+      .catch(() => {})
+    // Recarrega projetos-pai do novo cliente
+    const qs = new URLSearchParams({ pageSize: '200', parent_projects_only: 'true', customer_id: newCustomerId, exclude_id: String(project.id) })
+    api.get<any>(`/projects?${qs}`).then(r => {
+      const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+      setOptParentProjects(list.map((p: any) => ({ id: p.id, name: `${p.code} - ${p.name}`, hourly_rate: p.hourly_rate ?? null })))
+    }).catch(() => {})
   }
 
   const toggleId = (ids: number[], id: number) => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]
@@ -805,15 +807,30 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
               <div><label style={lStyle}>Nome do Projeto *</label><input value={form.name} onChange={setF('name')} style={iStyle} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label style={lStyle}>Código do Projeto</label>
-                  <input value={form.code} onChange={setF('code')} style={iStyle} placeholder={d.code} />
+                  <label style={lStyle}>Cliente</label>
+                  <SearchSelect
+                    value={form.customer_id}
+                    onChange={handleCustomerChange}
+                    options={optCustomers}
+                    placeholder="Selecione o cliente..."
+                  />
                 </div>
                 <div>
-                  <label style={lStyle}>Cliente</label>
-                  <select value={form.customer_id} onChange={e => handleCustomerChange(e.target.value)} style={iStyle}>
-                    <option value="">Selecione...</option>
-                    {optCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <label style={lStyle}>Código do Projeto</label>
+                  <div className="relative">
+                    <input
+                      value={form.code}
+                      readOnly
+                      style={{ ...iStyle, background: 'rgba(255,255,255,0.04)', cursor: 'default', fontFamily: 'monospace' }}
+                      placeholder={d.code}
+                    />
+                    {form.customer_id && !form.code && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: 'var(--brand-subtle)' }}>gerando…</span>
+                    )}
+                  </div>
+                  <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>
+                    Atual: <span className="font-mono">{d.code}</span> · gerado ao trocar cliente
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
