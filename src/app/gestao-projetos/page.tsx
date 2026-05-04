@@ -605,7 +605,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
 interface ProjectEditForm {
   name: string; description: string; status: string
-  code: string; customer_id: string
+  code_seq: string; code_year: string; customer_id: string
   start_date: string; expected_end_date: string; encerramento_date: string
   sold_hours: string; project_value: string
   hourly_rate: string; additional_hourly_rate: string
@@ -625,9 +625,15 @@ interface ProjectEditForm {
 
 function ProjectInlineEditModal({ project, onClose, onSaved }: { project: ProjectFull; onClose: () => void; onSaved: () => void }) {
   const d = project as any
+  // Parse existing code: PREFIX001-26 → seq='001', year='26'
+  const parsedCode = useMemo(() => {
+    const m = (d.code ?? '').match(/^[A-Za-z]+(\d+)-(\d+)/)
+    return { seq: m?.[1] ?? '', year: m?.[2] ?? String(new Date().getFullYear()).slice(-2) }
+  }, [])
   const [form, setForm] = useState<ProjectEditForm>({
     name:                            d.name ?? '',
-    code:                            d.code ?? '',
+    code_seq:                        parsedCode.seq,
+    code_year:                       parsedCode.year,
     customer_id:                     d.customer_id ? String(d.customer_id) : '',
     description:                     d.description ?? '',
     status:                          d.status ?? 'awaiting_start',
@@ -673,7 +679,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   const [optConsultants,     setOptConsultants]     = useState<{id:number;name:string}[]>([])
   const [optGroups,          setOptGroups]          = useState<{id:number;name:string}[]>([])
   const [optParentProjects,  setOptParentProjects]  = useState<{id:number;name:string;hourly_rate?:number|null}[]>([])
-  const [optCustomers,       setOptCustomers]       = useState<{id:number;name:string}[]>([])
+  const [optCustomers,       setOptCustomers]       = useState<{id:number;name:string;code_prefix?:string|null}[]>([])
   const [teamSearch,         setTeamSearch]         = useState('')
   const [teamTab,            setTeamTab]            = useState<'coord'|'consult'|'group'>('coord')
 
@@ -698,7 +704,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       }
       if (consults.status === 'fulfilled') setOptConsultants(items(consults.value))
       if (grps.status === 'fulfilled')    setOptGroups(items(grps.value))
-      if (custs.status === 'fulfilled')   setOptCustomers(items(custs.value).map((c: any) => ({ id: c.id, name: c.name })))
+      if (custs.status === 'fulfilled')   setOptCustomers(items(custs.value).map((c: any) => ({ id: c.id, name: c.name, code_prefix: c.code_prefix ?? null })))
     })
     const customerId = d.customer_id
     if (customerId) {
@@ -710,13 +716,31 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     }
   }, [])
 
+  const [codeExists,   setCodeExists]   = useState(false)
+  const [codeChecking, setCodeChecking] = useState(false)
+
+  const selectedCustomerObj = useMemo(() => optCustomers.find(c => String(c.id) === form.customer_id), [optCustomers, form.customer_id])
+  // Use prefix from selected customer, or fall back to original code prefix
+  const codePrefix  = selectedCustomerObj?.code_prefix?.toUpperCase() ?? (d.code ?? '').match(/^([A-Za-z]+)/)?.[1]?.toUpperCase() ?? ''
+  const codePreview = useMemo(() => {
+    if (!codePrefix || !form.code_seq.trim()) return ''
+    return `${codePrefix}${form.code_seq.padStart(3, '0')}-${form.code_year}`
+  }, [codePrefix, form.code_seq, form.code_year])
+
+  const checkCodeExists = useCallback(async () => {
+    if (!codePreview || codePreview === d.code) { setCodeExists(false); return }
+    setCodeChecking(true)
+    try {
+      const r = await api.get<any>(`/projects?code=${encodeURIComponent(codePreview)}`)
+      setCodeExists((r?.total ?? 0) > 0)
+    } catch { setCodeExists(false) }
+    finally { setCodeChecking(false) }
+  }, [codePreview])
+
   const handleCustomerChange = (newCustomerId: string) => {
-    setForm(prev => ({ ...prev, customer_id: newCustomerId, parent_project_id: '', code: '' }))
+    setForm(prev => ({ ...prev, customer_id: newCustomerId, parent_project_id: '', code_seq: '', code_year: parsedCode.year }))
+    setCodeExists(false)
     if (!newCustomerId) { setOptParentProjects([]); return }
-    // Gera próximo código automaticamente
-    api.get<any>(`/projects/next-code?customer_id=${newCustomerId}`)
-      .then(r => { if (r?.code) setForm(prev => ({ ...prev, code: r.code })) })
-      .catch(() => {})
     // Recarrega projetos-pai do novo cliente
     const qs = new URLSearchParams({ pageSize: '200', parent_projects_only: 'true', customer_id: newCustomerId, exclude_id: String(project.id) })
     api.get<any>(`/projects?${qs}`).then(r => {
@@ -750,7 +774,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
         consultant_group_ids: form.consultant_group_ids,
       }
       if (form.customer_id)              payload.customer_id = Number(form.customer_id)
-      if (form.code.trim())              payload.code        = form.code.trim()
+      if (codePreview && codePreview !== d.code) payload.code = codePreview
       if (form.service_type_id)              payload.service_type_id              = Number(form.service_type_id)
       if (form.contract_type_id)             payload.contract_type_id             = Number(form.contract_type_id)
       if (form.parent_project_id)            payload.parent_project_id            = Number(form.parent_project_id)
@@ -824,34 +848,64 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
               {/* Identificação */}
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
               <div><label style={lStyle}>Nome do Projeto *</label><input value={form.name} onChange={setF('name')} style={iStyle} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label style={lStyle}>Cliente</label>
-                  <SearchSelect
-                    value={form.customer_id}
-                    onChange={handleCustomerChange}
-                    options={optCustomers}
-                    placeholder="Selecione o cliente..."
-                    portal
-                  />
-                </div>
-                <div>
-                  <label style={lStyle}>Código do Projeto</label>
-                  <div className="relative">
-                    <input
-                      value={form.code}
-                      readOnly
-                      style={{ ...iStyle, background: 'rgba(255,255,255,0.04)', cursor: 'default', fontFamily: 'monospace' }}
-                      placeholder={d.code}
-                    />
-                    {form.customer_id && !form.code && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: 'var(--brand-subtle)' }}>gerando…</span>
+              {/* Cliente */}
+              <div>
+                <label style={lStyle}>Cliente</label>
+                <select value={form.customer_id} onChange={e => handleCustomerChange(e.target.value)} style={iStyle}>
+                  <option value="">Selecione...</option>
+                  {optCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+
+              {/* Código do Projeto — builder */}
+              <div>
+                <label style={lStyle}>Código do Projeto</label>
+                {codePrefix ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="px-3 py-2 rounded-lg text-sm font-mono tracking-widest text-center select-none"
+                        style={{ ...iStyle, width: 'auto', minWidth: '4.5rem', opacity: 0.5 }}>
+                        {codePrefix}
+                      </div>
+                      <input type="text" maxLength={3} placeholder="001"
+                        value={form.code_seq}
+                        onChange={e => { setForm(f => ({ ...f, code_seq: e.target.value.replace(/\D/g, '').slice(0, 3) })); setCodeExists(false) }}
+                        onBlur={checkCodeExists}
+                        className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
+                        style={{ ...iStyle, width: '5rem' }} />
+                      <span className="text-sm font-mono" style={{ color: 'var(--brand-muted)' }}>-</span>
+                      <input type="text" maxLength={2} placeholder="26"
+                        value={form.code_year}
+                        onChange={e => setForm(f => ({ ...f, code_year: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
+                        onBlur={checkCodeExists}
+                        className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
+                        style={{ ...iStyle, width: '4rem' }} />
+                      {codePreview && (
+                        <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
+                          {codePreview}
+                        </span>
+                      )}
+                    </div>
+                    {codeChecking && <p className="text-[11px]" style={{ color: 'var(--brand-muted)' }}>Verificando código...</p>}
+                    {codeExists && !codeChecking && (
+                      <p className="text-[11px] text-red-400">⚠ Código <span className="font-mono font-semibold">{codePreview}</span> já existe em outro projeto.</p>
+                    )}
+                    {!form.code_seq && (
+                      <p className="text-[11px] italic" style={{ color: 'var(--brand-subtle)' }}>Atual: <span className="font-mono">{d.code}</span> — deixe vazio para manter</p>
                     )}
                   </div>
-                  <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>
-                    Atual: <span className="font-mono">{d.code}</span> · gerado ao trocar cliente
-                  </p>
-                </div>
+                ) : form.customer_id ? (
+                  <div className="flex items-center gap-3 px-3 py-2 rounded-lg" style={iStyle}>
+                    <span className="text-xs italic flex-1" style={{ color: '#F59E0B' }}>Cliente sem prefixo configurado</span>
+                    <a href="/cadastros?tab=customers" target="_blank" rel="noreferrer"
+                      className="text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0"
+                      style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+                      Configurar prefixo
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-xs italic" style={{ color: 'var(--brand-subtle)' }}>Selecione um cliente para editar o código</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
