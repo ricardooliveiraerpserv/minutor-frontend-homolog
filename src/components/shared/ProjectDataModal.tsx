@@ -52,6 +52,13 @@ function fmtBRL(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+function fmtHours(effortHours: string, effortMinutes: number) {
+  const h = parseFloat(effortHours) || 0
+  const m = effortMinutes || 0
+  const total = h + m / 60
+  return `${total.toFixed(2)}h`
+}
+
 function defaultStart() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
@@ -103,7 +110,7 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
       const rows = timesheets.map(t => ({
         'Data': fmtDate(t.date),
         'Colaborador': t.user?.name ?? '—',
-        'Horas': parseFloat(t.effort_hours) || 0,
+        'Horas': (parseFloat(t.effort_hours) || 0) + (t.effort_minutes || 0) / 60,
         'Observação': t.observation ?? '',
         'Status': t.status_display,
       }))
@@ -244,7 +251,7 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
                           <tr key={ts.id} style={{ borderBottom: '1px solid var(--brand-border)' }}>
                             <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{fmtDate(ts.date)}</td>
                             <td className="px-3 py-2.5" style={{ color: 'var(--brand-text)' }}>{ts.user?.name ?? '—'}</td>
-                            <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: '#00F5FF' }}>{ts.effort_hours}h</td>
+                            <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: '#00F5FF' }}>{fmtHours(ts.effort_hours, ts.effort_minutes)}</td>
                             <td className="px-3 py-2.5 max-w-[200px] truncate" style={{ color: 'var(--brand-muted)' }}>{ts.observation ?? '—'}</td>
                             <td className="px-3 py-2.5">
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap" style={{ background: `${c}18`, color: c }}>
