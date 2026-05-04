@@ -1501,28 +1501,33 @@ export default function GestaoProjetosPage() {
 
   const executeBulkAlloc = async () => {
     setBulkAllocSaving(true)
+    let ok = 0; let skipped = 0
     try {
-      const projectIds = [...selectedProjectIds]
-      for (const projectId of projectIds) {
+      for (const projectId of selectedProjectIds) {
         const project = projects.find(p => p.id === projectId)
-        let consultantIds: number[]
-        if (bulkAllocMode === 'replace') {
-          consultantIds = [...bulkAllocConsIds]
-        } else {
-          const existing = new Set((project?.consultants ?? []).map((c: any) => c.id))
-          bulkAllocConsIds.forEach(id => existing.add(id))
-          consultantIds = [...existing]
-        }
-        await api.put(`/projects/${projectId}`, {
-          consultant_ids: consultantIds,
-          consultant_group_ids: [...bulkAllocGrpIds],
-        })
+        if (project?.status === 'finished' || project?.status === 'cancelled') { skipped++; continue }
+        try {
+          let consultantIds: number[]
+          if (bulkAllocMode === 'replace') {
+            consultantIds = [...bulkAllocConsIds]
+          } else {
+            const existing = new Set((project?.consultants ?? []).map((c: any) => c.id))
+            bulkAllocConsIds.forEach(id => existing.add(id))
+            consultantIds = [...existing]
+          }
+          await api.put(`/projects/${projectId}`, {
+            consultant_ids: consultantIds,
+            consultant_group_ids: [...bulkAllocGrpIds],
+          })
+          ok++
+        } catch { skipped++ }
       }
-      toast.success(`Equipe atualizada em ${projectIds.length} projeto(s)`)
+      if (ok > 0) toast.success(`Equipe atualizada em ${ok} projeto(s)${skipped > 0 ? ` · ${skipped} ignorado(s)` : ''}`)
+      else toast.warning(`Nenhum projeto foi atualizado (${skipped} ignorado(s) — finalizados ou cancelados)`)
       setBulkAllocOpen(false)
       setSelectedProjectIds(new Set())
       setRefreshKey(k => k + 1)
-    } catch { toast.error('Erro ao alocar equipe') }
+    } catch { toast.error('Erro inesperado ao alocar equipe') }
     finally { setBulkAllocSaving(false) }
   }
 
@@ -1543,27 +1548,33 @@ export default function GestaoProjetosPage() {
     if (byResTab === 'consultor' && !byResConsId) { toast.error('Selecione um consultor'); return }
     if (byResTab === 'grupo' && !byResGroupId)    { toast.error('Selecione um grupo'); return }
     setByResSaving(true)
+    let ok = 0; let skipped = 0
     try {
       for (const projectId of byResProjIds) {
         const project = projects.find(p => p.id === projectId)
-        if (byResTab === 'consultor' && byResConsId) {
-          let consultantIds: number[]
-          if (byResMode === 'replace') {
-            consultantIds = [byResConsId]
-          } else {
-            const existing = new Set((project?.consultants ?? []).map((c: any) => c.id))
-            existing.add(byResConsId)
-            consultantIds = [...existing]
+        if (project?.status === 'finished' || project?.status === 'cancelled') { skipped++; continue }
+        try {
+          if (byResTab === 'consultor' && byResConsId) {
+            let consultantIds: number[]
+            if (byResMode === 'replace') {
+              consultantIds = [byResConsId]
+            } else {
+              const existing = new Set((project?.consultants ?? []).map((c: any) => c.id))
+              existing.add(byResConsId)
+              consultantIds = [...existing]
+            }
+            await api.put(`/projects/${projectId}`, { consultant_ids: consultantIds })
+          } else if (byResTab === 'grupo' && byResGroupId) {
+            await api.put(`/projects/${projectId}`, { consultant_group_ids: [byResGroupId] })
           }
-          await api.put(`/projects/${projectId}`, { consultant_ids: consultantIds })
-        } else if (byResTab === 'grupo' && byResGroupId) {
-          await api.put(`/projects/${projectId}`, { consultant_group_ids: [byResGroupId] })
-        }
+          ok++
+        } catch { skipped++ }
       }
-      toast.success(`Recurso alocado em ${byResProjIds.size} projeto(s)`)
+      if (ok > 0) toast.success(`Recurso alocado em ${ok} projeto(s)${skipped > 0 ? ` · ${skipped} ignorado(s)` : ''}`)
+      else toast.warning(`Nenhum projeto foi atualizado (${skipped} ignorado(s) — finalizados ou cancelados)`)
       setByResOpen(false)
       setRefreshKey(k => k + 1)
-    } catch { toast.error('Erro ao alocar recurso') }
+    } catch { toast.error('Erro inesperado ao alocar recurso') }
     finally { setByResSaving(false) }
   }
 
