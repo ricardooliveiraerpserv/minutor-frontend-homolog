@@ -1171,13 +1171,21 @@ function TimesheetsPageContent() {
                     />
                   </Th>
                 )}
+                {(isAdmin || isCoordenador) && (
+                  <Th sortable active={sortField === 'user.name'} dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
+                )}
                 <Th sortable active={sortField === 'date'}          dir={sortDir} onClick={() => handleSort('date')}>Data</Th>
                 <Th className="hidden md:table-cell">Início</Th>
                 <Th className="hidden md:table-cell">Fim</Th>
                 <Th className="hidden lg:table-cell">Ticket #</Th>
                 <Th right sortable active={sortField === 'effort_hours'} dir={sortDir} onClick={() => handleSort('effort_hours')}>Tempo</Th>
                 <Th className="hidden sm:table-cell">Origem</Th>
-                <Th sortable active={sortField === 'user.name'}     dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
+                {!(isAdmin || isCoordenador) && (
+                  <Th sortable active={sortField === 'user.name'} dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
+                )}
+                {(isAdmin || isCoordenador) && (
+                  <Th sortable active={sortField === 'customer.name'} dir={sortDir} onClick={() => handleSort('customer.name')}>Cliente</Th>
+                )}
                 <Th sortable active={sortField === 'project.name'}  dir={sortDir} onClick={() => handleSort('project.name')}>Projeto</Th>
                 <Th className="hidden lg:table-cell">Título</Th>
                 <Th className="hidden xl:table-cell">Descrição</Th>
@@ -1224,6 +1232,9 @@ function TimesheetsPageContent() {
                       />
                     </Td>
                   )}
+                  {(isAdmin || isCoordenador) && (
+                    <Td muted>{ts.user?.name ?? '—'}</Td>
+                  )}
                   <Td className="whitespace-nowrap font-medium">{formatDate(ts.date)}</Td>
                   <Td muted className="hidden md:table-cell font-mono tabular-nums">{ts.start_time ?? '—'}</Td>
                   <Td muted className="hidden md:table-cell font-mono tabular-nums">{ts.end_time ?? '—'}</Td>
@@ -1264,7 +1275,12 @@ function TimesheetsPageContent() {
                       consultantExtraPct={ts.consultant_extra_pct}
                     />
                   </Td>
-                  <Td muted>{ts.user?.name ?? '—'}</Td>
+                  {!(isAdmin || isCoordenador) && (
+                    <Td muted>{ts.user?.name ?? '—'}</Td>
+                  )}
+                  {(isAdmin || isCoordenador) && (
+                    <Td muted>{ts.customer?.name ?? ts.project?.customer?.name ?? '—'}</Td>
+                  )}
                   <Td className="max-w-[160px]">
                     <button
                       onClick={() => openView(ts)}
