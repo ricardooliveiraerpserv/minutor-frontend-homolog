@@ -273,6 +273,8 @@ export default function UsersPage() {
   const [selectedIds,    setSelectedIds]    = useState<Set<number>>(new Set())
   const [resending,      setResending]      = useState<number | null>(null)
   const [bulkResending,  setBulkResending]  = useState(false)
+  const [bulkDeleting,   setBulkDeleting]   = useState(false)
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
   const [resendPwd,      setResendPwd]      = useState('')
   const [resendingModal, setResendingModal] = useState(false)
 
@@ -469,6 +471,18 @@ export default function UsersPage() {
     finally { setBulkResending(false) }
   }
 
+  const bulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    setBulkDeleting(true)
+    try {
+      const r = await api.delete<{ message: string }>('/users', { ids: [...selectedIds] })
+      toast.success(r.message)
+      setSelectedIds(new Set())
+      load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir usuários') }
+    finally { setBulkDeleting(false); setBulkDeleteConfirm(false) }
+  }
+
   const toggleSelect = (id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -563,6 +577,17 @@ export default function UsersPage() {
             <Mail size={12} />
             {bulkResending ? 'Enviando...' : 'Reenviar boas-vindas'}
           </button>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={() => setBulkDeleteConfirm(true)}
+              disabled={bulkDeleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={12} />
+              {bulkDeleting ? 'Excluindo...' : 'Excluir'}
+            </button>
+          )}
           <button type="button" onClick={() => setSelectedIds(new Set())} className="ml-auto text-zinc-500 hover:text-zinc-300">
             <X size={13} />
           </button>
@@ -1148,6 +1173,13 @@ export default function UsersPage() {
         message="Deseja excluir este usuário? Esta ação não pode ser desfeita."
         onClose={() => setDeleteConfirm({ open: false })}
         onConfirm={confirmDelete}
+      />
+
+      <ConfirmDeleteModal
+        open={bulkDeleteConfirm}
+        message={`Deseja excluir ${selectedIds.size} usuário(s) selecionado(s)? Esta ação não pode ser desfeita.`}
+        onClose={() => setBulkDeleteConfirm(false)}
+        onConfirm={bulkDelete}
       />
     </AppLayout>
   )
