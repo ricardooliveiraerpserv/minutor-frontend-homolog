@@ -3545,17 +3545,18 @@ export default function MeuPainelPage() {
               {tsModal.item ? 'Editar Apontamento' : 'Novo Apontamento'}
             </h3>
 
-            <SelectField label="Cliente" value={tsForm.customer_id}
-              onChange={v => setTsForm(f => ({ ...f, customer_id: v, project_id: '' }))}>
-              <option value="">Selecione o cliente...</option>
-              {consultantCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </SelectField>
+            <SearchSelectField label="Cliente" value={tsForm.customer_id}
+              onChange={v => setTsForm(f => ({ ...f, customer_id: v, project_id: '' }))}
+              options={consultantCustomers}
+              placeholder="Selecione o cliente..."
+            />
 
-            <SelectField label="Projeto" value={tsForm.project_id}
-              onChange={v => setTsForm(f => ({ ...f, project_id: v }))} required>
-              <option value="">Selecione o projeto...</option>
-              {tsProjectOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </SelectField>
+            <SearchSelectField label="Projeto" value={tsForm.project_id}
+              onChange={v => setTsForm(f => ({ ...f, project_id: v }))}
+              options={tsProjectOptions}
+              placeholder={tsForm.customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'}
+              required
+            />
 
             {(() => {
               const selProj = projects.find(p => p.id === Number(tsForm.project_id))
