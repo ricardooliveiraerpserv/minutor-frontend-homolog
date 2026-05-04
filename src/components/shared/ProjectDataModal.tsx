@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, Clock, BarChart2, Download, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, Clock, BarChart2, Download } from 'lucide-react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
@@ -52,21 +52,25 @@ function fmtBRL(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-export function ProjectDataModal({ projectId, projectName, initialTab = 'timesheets', onClose }: Props) {
+function defaultStart() {
   const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+}
+
+function defaultEnd() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+export function ProjectDataModal({ projectId, projectName, initialTab = 'timesheets', onClose }: Props) {
   const [tab, setTab] = useState<'timesheets' | 'expenses'>(initialTab)
-  const [month, setMonth] = useState(now.getMonth() + 1)
-  const [year, setYear] = useState(now.getFullYear())
+  const [startDate, setStartDate] = useState(defaultStart)
+  const [endDate, setEndDate] = useState(defaultEnd)
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([])
   const [loading, setLoading] = useState(false)
 
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`
-  const lastDay = new Date(year, month, 0).getDate()
-  const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`
-  const monthLabel = new Date(year, month - 1).toLocaleString('pt-BR', { month: 'long', year: 'numeric' })
-
   const fetchData = useCallback(async () => {
+    if (!startDate || !endDate) return
     setLoading(true)
     try {
       if (tab === 'timesheets') {
@@ -91,26 +95,29 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  function prevMonth() {
-    if (month === 1) { setMonth(12); setYear(y => y - 1) } else setMonth(m => m - 1)
-  }
-  function nextMonth() {
-    if (month === 12) { setMonth(1); setYear(y => y + 1) } else setMonth(m => m + 1)
-  }
-
   function exportExcel() {
+    const safeName = projectName.replace(/\s+/g, '_').replace(/[[\]]/g, '')
+    const period = `${startDate}_${endDate}`
+
     if (tab === 'timesheets') {
       const rows = timesheets.map(t => ({
         'Data': fmtDate(t.date),
         'Colaborador': t.user?.name ?? '—',
-        'Horas': t.effort_hours,
+        'Horas': parseFloat(t.effort_hours) || 0,
         'Observação': t.observation ?? '',
         'Status': t.status_display,
       }))
+      rows.push({ 'Data': '', 'Colaborador': 'TOTAL', 'Horas': totalHours, 'Observação': '', 'Status': '' })
+
       const ws = XLSX.utils.json_to_sheet(rows)
+      // Bold the total row
+      const totalRowIdx = rows.length // 1-based header + rows (header is row 1)
+      const totalCell = `C${totalRowIdx + 1}` // +1 for header
+      if (ws[totalCell]) ws[totalCell].s = { font: { bold: true } }
+
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, 'Apontamentos')
-      XLSX.writeFile(wb, `apontamentos-${projectName.replace(/\s+/g, '_')}-${year}-${String(month).padStart(2, '0')}.xlsx`)
+      XLSX.writeFile(wb, `apontamentos-${safeName}-${period}.xlsx`)
     } else {
       const rows = expenses.map(e => ({
         'Data': fmtDate(e.expense_date),
@@ -120,10 +127,12 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
         'Valor (R$)': e.amount,
         'Status': e.status_display ?? e.status,
       }))
+      rows.push({ 'Data': '', 'Descrição': 'TOTAL', 'Categoria': '', 'Responsável': '', 'Valor (R$)': totalExpenses, 'Status': '' })
+
       const ws = XLSX.utils.json_to_sheet(rows)
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, 'Despesas')
-      XLSX.writeFile(wb, `despesas-${projectName.replace(/\s+/g, '_')}-${year}-${String(month).padStart(2, '0')}.xlsx`)
+      XLSX.writeFile(wb, `despesas-${safeName}-${period}.xlsx`)
     }
   }
 
@@ -157,8 +166,8 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
         </div>
 
         {/* Tabs + Period */}
-        <div className="flex items-center justify-between px-6 py-3 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'rgba(0,0,0,0.2)' }}>
+        <div className="flex items-center justify-between gap-4 px-6 py-3 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="flex gap-1 p-1 rounded-xl shrink-0" style={{ background: 'rgba(0,0,0,0.2)' }}>
             {(['timesheets', 'expenses'] as const).map(t => (
               <button
                 key={t}
@@ -174,15 +183,26 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={prevMonth} className="p-1 rounded-lg hover:bg-white/5">
-              <ChevronLeft size={14} style={{ color: 'var(--brand-muted)' }} />
-            </button>
-            <span className="text-xs font-medium min-w-[120px] text-center capitalize" style={{ color: 'var(--brand-text)' }}>
-              {monthLabel}
-            </span>
-            <button onClick={nextMonth} className="p-1 rounded-lg hover:bg-white/5">
-              <ChevronRight size={14} style={{ color: 'var(--brand-muted)' }} />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <label className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: 'var(--brand-subtle)' }}>Início</label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="rounded-lg px-2 py-1.5 text-xs"
+                style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
+              <label className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: 'var(--brand-subtle)' }}>Fim</label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="rounded-lg px-2 py-1.5 text-xs"
+                style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+              />
+            </div>
           </div>
         </div>
 
@@ -221,7 +241,7 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
                       {timesheets.map((ts, i) => {
                         const c = STATUS_COLOR[ts.status] ?? '#94a3b8'
                         return (
-                          <tr key={ts.id} style={{ borderBottom: i < timesheets.length - 1 ? '1px solid var(--brand-border)' : undefined }}>
+                          <tr key={ts.id} style={{ borderBottom: '1px solid var(--brand-border)' }}>
                             <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{fmtDate(ts.date)}</td>
                             <td className="px-3 py-2.5" style={{ color: 'var(--brand-text)' }}>{ts.user?.name ?? '—'}</td>
                             <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: '#00F5FF' }}>{ts.effort_hours}h</td>
@@ -234,6 +254,12 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
                           </tr>
                         )
                       })}
+                      <tr style={{ background: 'rgba(0,245,255,0.04)', borderTop: '1px solid rgba(0,245,255,0.2)' }}>
+                        <td className="px-3 py-2.5" />
+                        <td className="px-3 py-2.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total</td>
+                        <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: '#00F5FF' }}>{totalHours.toFixed(1)}h</td>
+                        <td colSpan={2} />
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -268,7 +294,7 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
                       {expenses.map((e, i) => {
                         const c = STATUS_COLOR[e.status] ?? '#94a3b8'
                         return (
-                          <tr key={e.id} style={{ borderBottom: i < expenses.length - 1 ? '1px solid var(--brand-border)' : undefined }}>
+                          <tr key={e.id} style={{ borderBottom: '1px solid var(--brand-border)' }}>
                             <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{fmtDate(e.expense_date)}</td>
                             <td className="px-3 py-2.5 max-w-[150px] truncate" style={{ color: 'var(--brand-text)' }}>{e.description}</td>
                             <td className="px-3 py-2.5" style={{ color: 'var(--brand-muted)' }}>{e.category?.name ?? '—'}</td>
@@ -282,6 +308,13 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
                           </tr>
                         )
                       })}
+                      <tr style={{ background: 'rgba(0,245,255,0.04)', borderTop: '1px solid rgba(0,245,255,0.2)' }}>
+                        <td className="px-3 py-2.5" />
+                        <td className="px-3 py-2.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total</td>
+                        <td colSpan={2} />
+                        <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: '#00F5FF' }}>{fmtBRL(totalExpenses)}</td>
+                        <td />
+                      </tr>
                     </tbody>
                   </table>
                 </div>
