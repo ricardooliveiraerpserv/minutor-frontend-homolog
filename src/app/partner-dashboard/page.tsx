@@ -2,6 +2,7 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { exportTimesheetsToExcel } from '@/lib/exportTimesheets'
@@ -112,52 +113,70 @@ function RowMenu({ isOwn, onView, onEdit, onDelete }: {
   onDelete?: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
-    const handler = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
+    const handler = (e: MouseEvent) => {
+      if (!menuRef.current?.contains(e.target as Node) && !btnRef.current?.contains(e.target as Node))
+        setOpen(false)
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    }
+    setOpen(v => !v)
+  }
+
+  const menu = open ? createPortal(
+    <div
+      ref={menuRef}
+      className="fixed z-[9999] w-44 rounded-xl py-1 shadow-2xl"
+      style={{ top: pos.top, right: pos.right, background: '#1a1a1e', border: '1px solid var(--brand-border)' }}
+    >
+      <button onClick={() => { setOpen(false); onView() }}
+        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.06]"
+        style={{ color: 'var(--brand-text)' }}>
+        <Eye size={14} style={{ color: 'var(--brand-subtle)' }} /> Visualizar
+      </button>
+      {isOwn && (
+        <>
+          <button onClick={() => { setOpen(false); onEdit() }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.06]"
+            style={{ color: 'var(--brand-text)' }}>
+            <Pencil size={14} style={{ color: 'var(--brand-subtle)' }} /> Editar
+          </button>
+          {onDelete && (
+            <button onClick={() => { setOpen(false); onDelete() }}
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-red-500/10"
+              style={{ color: '#f87171' }}>
+              <Trash2 size={14} /> Excluir
+            </button>
+          )}
+        </>
+      )}
+    </div>,
+    document.body
+  ) : null
+
   return (
-    <div ref={ref} className="relative flex justify-end">
+    <div className="relative flex justify-end">
       <button
-        onClick={() => setOpen(v => !v)}
+        ref={btnRef}
+        onClick={toggle}
         className="p-1.5 rounded-lg transition-colors hover:bg-white/[0.08]"
         style={{ color: 'var(--brand-subtle)' }}
       >
         <MoreVertical size={15} />
       </button>
-      {open && (
-        <div
-          className="absolute right-0 top-8 z-50 w-44 rounded-xl py-1 shadow-2xl"
-          style={{ background: '#1a1a1e', border: '1px solid var(--brand-border)' }}
-        >
-          <button onClick={() => { setOpen(false); onView() }}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.06]"
-            style={{ color: 'var(--brand-text)' }}>
-            <Eye size={14} style={{ color: 'var(--brand-subtle)' }} /> Visualizar
-          </button>
-          {isOwn && (
-            <>
-              <button onClick={() => { setOpen(false); onEdit() }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.06]"
-                style={{ color: 'var(--brand-text)' }}>
-                <Pencil size={14} style={{ color: 'var(--brand-subtle)' }} /> Editar
-              </button>
-              {onDelete && (
-                <button onClick={() => { setOpen(false); onDelete() }}
-                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-red-500/10"
-                  style={{ color: '#f87171' }}>
-                  <Trash2 size={14} /> Excluir
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      )}
+      {menu}
     </div>
   )
 }
