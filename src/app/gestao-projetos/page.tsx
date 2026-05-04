@@ -586,6 +586,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
 interface ProjectEditForm {
   name: string; description: string; status: string
+  code: string; customer_id: string
   start_date: string; expected_end_date: string; encerramento_date: string
   sold_hours: string; project_value: string
   hourly_rate: string; additional_hourly_rate: string
@@ -607,6 +608,8 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   const d = project as any
   const [form, setForm] = useState<ProjectEditForm>({
     name:                            d.name ?? '',
+    code:                            d.code ?? '',
+    customer_id:                     d.customer_id ? String(d.customer_id) : '',
     description:                     d.description ?? '',
     status:                          d.status ?? 'awaiting_start',
     start_date:                      d.start_date?.slice(0, 10) ?? '',
@@ -651,6 +654,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   const [optConsultants,     setOptConsultants]     = useState<{id:number;name:string}[]>([])
   const [optGroups,          setOptGroups]          = useState<{id:number;name:string}[]>([])
   const [optParentProjects,  setOptParentProjects]  = useState<{id:number;name:string;hourly_rate?:number|null}[]>([])
+  const [optCustomers,       setOptCustomers]       = useState<{id:number;name:string}[]>([])
   const [teamSearch,         setTeamSearch]         = useState('')
   const [teamTab,            setTeamTab]            = useState<'coord'|'consult'|'group'>('coord')
 
@@ -663,7 +667,8 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       api.get<any>('/users?type=admin&pageSize=200'),
       api.get<any>('/users?type=consultor&pageSize=200'),
       api.get<any>('/consultant-groups?pageSize=100&active=1'),
-    ]).then(([st, ct, coords, admins, consults, grps]) => {
+      api.get<any>('/customers?pageSize=500'),
+    ]).then(([st, ct, coords, admins, consults, grps, custs]) => {
       if (st.status === 'fulfilled')      setOptServiceTypes(items(st.value))
       if (ct.status === 'fulfilled')      setOptContractTypes(items(ct.value))
       if (coords.status === 'fulfilled' || admins.status === 'fulfilled') {
@@ -674,6 +679,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       }
       if (consults.status === 'fulfilled') setOptConsultants(items(consults.value))
       if (grps.status === 'fulfilled')    setOptGroups(items(grps.value))
+      if (custs.status === 'fulfilled')   setOptCustomers(items(custs.value).map((c: any) => ({ id: c.id, name: c.name })))
     })
     const customerId = d.customer_id
     if (customerId) {
@@ -684,6 +690,19 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       }).catch(() => {})
     }
   }, [])
+
+  const handleCustomerChange = (newCustomerId: string) => {
+    setForm(prev => ({ ...prev, customer_id: newCustomerId, parent_project_id: '' }))
+    if (newCustomerId) {
+      const qs = new URLSearchParams({ pageSize: '200', parent_projects_only: 'true', customer_id: newCustomerId, exclude_id: String(project.id) })
+      api.get<any>(`/projects?${qs}`).then(r => {
+        const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+        setOptParentProjects(list.map((p: any) => ({ id: p.id, name: `${p.code} - ${p.name}`, hourly_rate: p.hourly_rate ?? null })))
+      }).catch(() => {})
+    } else {
+      setOptParentProjects([])
+    }
+  }
 
   const toggleId = (ids: number[], id: number) => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]
   const setF = (key: keyof ProjectEditForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -709,6 +728,8 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
         consultant_ids:       form.consultant_ids,
         consultant_group_ids: form.consultant_group_ids,
       }
+      if (form.customer_id)              payload.customer_id = Number(form.customer_id)
+      if (form.code.trim())              payload.code        = form.code.trim()
       if (form.service_type_id)              payload.service_type_id              = Number(form.service_type_id)
       if (form.contract_type_id)             payload.contract_type_id             = Number(form.contract_type_id)
       if (form.parent_project_id)            payload.parent_project_id            = Number(form.parent_project_id)
@@ -782,6 +803,19 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
               {/* Identificação */}
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
               <div><label style={lStyle}>Nome do Projeto *</label><input value={form.name} onChange={setF('name')} style={iStyle} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label style={lStyle}>Código do Projeto</label>
+                  <input value={form.code} onChange={setF('code')} style={iStyle} placeholder={d.code} />
+                </div>
+                <div>
+                  <label style={lStyle}>Cliente</label>
+                  <select value={form.customer_id} onChange={e => handleCustomerChange(e.target.value)} style={iStyle}>
+                    <option value="">Selecione...</option>
+                    {optCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label style={lStyle}>Status</label>
