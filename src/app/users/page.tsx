@@ -34,6 +34,7 @@ interface UserItem {
   guaranteed_hours?: number | null
   customer_id?: number | null
   partner_id?: number | null
+  partner?: { id: number; name: string } | null
   is_executive?: boolean
   type?: string | null
   extra_permissions?: string[]
@@ -611,6 +612,9 @@ export default function UsersPage() {
               <th className="px-3 py-2.5 w-10"></th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">E-mail</th>
+              {filterRole === 'parceiro_admin' && (
+                <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Empresa</th>
+              )}
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Perfil</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
             </tr>
@@ -640,11 +644,23 @@ export default function UsersPage() {
                 </td>
                 <td className="px-3 py-2.5 text-zinc-200 font-medium">{user.name}</td>
                 <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell">{user.email}</td>
+                {filterRole === 'parceiro_admin' && (
+                  <td className="px-3 py-2.5 hidden sm:table-cell">
+                    {user.partner?.name
+                      ? <span className="text-xs font-medium text-zinc-200">{user.partner.name}</span>
+                      : <span className="text-xs text-zinc-600">—</span>}
+                  </td>
+                )}
                 <td className="px-3 py-2.5 hidden sm:table-cell">
                   <div className="flex flex-wrap gap-1 items-center">
                     {user.type && (
                       <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/20">
                         {PROFILE_OPTIONS.find(o => resolveTypeForBackend(o.value) === user.type)?.label ?? user.type}
+                      </Badge>
+                    )}
+                    {user.type === 'parceiro_admin' && user.is_executive && (
+                      <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/20">
+                        Parceiro ADM
                       </Badge>
                     )}
                     {user.consultant_type && (
@@ -666,6 +682,21 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Legenda parceiro */}
+      {filterRole === 'parceiro_admin' && !loading && users.length > 0 && (
+        <div className="flex items-center gap-4 mt-3 px-1">
+          <span className="text-[11px] text-zinc-500">Legenda:</span>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">Parceiro</span>
+            <span className="text-[11px] text-zinc-500">Consultor vinculado ao parceiro</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">Parceiro ADM</span>
+            <span className="text-[11px] text-zinc-500">Administrador da empresa parceira</span>
+          </div>
+        </div>
+      )}
 
       {/* Paginação */}
       {(page > 1 || hasNext) && (
