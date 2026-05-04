@@ -202,6 +202,11 @@ function TableSkeleton() {
   )
 }
 
+function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
+  if (!active) return <span className="ml-1 text-zinc-700">↕</span>
+  return <span className="ml-1 text-blue-400">{dir === 'asc' ? '↑' : '↓'}</span>
+}
+
 // ─── Initial form state ────────────────────────────────────────────────────────
 
 const EMPTY_FORM = {
@@ -245,12 +250,20 @@ export default function UsersPage() {
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'users',
     authUser?.id,
-    { search: '', filterEnabled: '', filterRole: '', page: 1 },
+    { search: '', filterEnabled: '', filterRole: '', filterPartner: '', sort: 'name', sortDir: 'asc' as 'asc' | 'desc', page: 1 },
   )
-  const { search, filterEnabled, filterRole, page } = flt
+  const { search, filterEnabled, filterRole, filterPartner, sort, sortDir, page } = flt
   const setSearch        = (v: string) => setFilter('search', v)
   const setFilterEnabled = (v: string) => setFilter('filterEnabled', v)
-  const setFilterRole    = (v: string) => setFilter('filterRole', v)
+  const setFilterRole    = (v: string) => { setFilter({ filterRole: v, filterPartner: '', page: 1 } as any) }
+  const setFilterPartner = (v: string) => setFilter('filterPartner', v)
+  const setSort = (field: string) => {
+    if (sort === field) {
+      setFilter('sortDir', (sortDir === 'asc' ? 'desc' : 'asc') as any)
+    } else {
+      setFilter({ sort: field, sortDir: 'asc' } as any)
+    }
+  }
   const setPage          = (v: number) => setFilter('page', v)
   const [viewUser,        setViewUser]        = useState<UserItem | null>(null)
   const [rateHistory,     setRateHistory]     = useState<any[]>([])
@@ -291,10 +304,12 @@ export default function UsersPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const p = new URLSearchParams({ page: String(page), per_page: '15' })
-      if (search)       p.set('search', search)
-      if (filterEnabled)p.set('enabled', filterEnabled)
-      if (filterRole)   p.set('role', filterRole)
+      const p = new URLSearchParams({ page: String(page), pageSize: '100' })
+      if (search)        p.set('search', search)
+      if (filterEnabled) p.set('enabled', filterEnabled)
+      if (filterRole)    p.set('role', filterRole)
+      if (filterPartner) p.set('partner_id', filterPartner)
+      p.set('order', sortDir === 'desc' ? `-${sort}` : sort)
       const r = await api.get<{ items?: UserItem[]; data?: UserItem[]; hasNext?: boolean; meta?: { last_page: number } }>(`/users?${p}`)
       const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setUsers(list)
@@ -302,7 +317,7 @@ export default function UsersPage() {
       setHasNext(!!(r?.hasNext || (r?.meta && page < r.meta.last_page)))
     } catch { toast.error('Erro ao carregar usuários') }
     finally   { setLoading(false) }
-  }, [page, search, filterEnabled, filterRole])
+  }, [page, search, filterEnabled, filterRole, filterPartner, sort, sortDir])
 
   useEffect(() => { load() }, [load])
 
@@ -548,7 +563,7 @@ export default function UsersPage() {
         <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
           {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin'], ['administrativo', 'Adm']] as const).map(([val, label]) => (
             <button key={val} type="button"
-              onClick={() => { setFilterRole(val); setPage(1) }}
+              onClick={() => setFilterRole(val)}
               className={`px-3 py-1.5 font-medium transition-colors whitespace-nowrap ${
                 filterRole === val
                   ? 'bg-blue-600 text-white'
@@ -558,6 +573,15 @@ export default function UsersPage() {
             </button>
           ))}
         </div>
+        {filterRole === 'parceiro_admin' && partners.length > 0 && (
+          <select
+            value={filterPartner}
+            onChange={e => { setFilterPartner(e.target.value); setPage(1) }}
+            className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-md h-8 px-2">
+            <option value="">Todas as empresas</option>
+            {partners.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+          </select>
+        )}
         {canCreate && (
         <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5">
           <Plus size={13} /> Novo
@@ -610,10 +634,16 @@ export default function UsersPage() {
                 </th>
               )}
               <th className="px-3 py-2.5 w-10"></th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">E-mail</th>
+              <th onClick={() => { setSort('name'); setPage(1) }} className="text-left px-3 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-300 select-none">
+                Nome<SortIcon active={sort === 'name'} dir={sortDir as 'asc' | 'desc'} />
+              </th>
+              <th onClick={() => { setSort('email'); setPage(1) }} className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell cursor-pointer hover:text-zinc-300 select-none">
+                E-mail<SortIcon active={sort === 'email'} dir={sortDir as 'asc' | 'desc'} />
+              </th>
               {filterRole === 'parceiro_admin' && (
-                <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Empresa</th>
+                <th onClick={() => { setSort('partner_name'); setPage(1) }} className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell cursor-pointer hover:text-zinc-300 select-none">
+                  Empresa<SortIcon active={sort === 'partner_name'} dir={sortDir as 'asc' | 'desc'} />
+                </th>
               )}
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Perfil</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
