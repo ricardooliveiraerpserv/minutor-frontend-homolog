@@ -171,6 +171,7 @@ function SearchSelect({ value, onChange, options, placeholder, portal = false }:
 
   const dropdown = (
     <div
+      onMouseDown={e => e.stopPropagation()}
       className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl overflow-hidden"
       style={portal
         ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width, minWidth: 220, zIndex: 9999 }
