@@ -174,7 +174,7 @@ function SearchSelect({ value, onChange, options, placeholder, portal = false }:
       className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl overflow-hidden"
       style={portal
         ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width, minWidth: 220, zIndex: 9999 }
-        : { position: 'absolute', top: '100%', marginTop: 4, left: 0, minWidth: '100%', minWidth: '220px', zIndex: 50 }
+        : { position: 'absolute', top: '100%', marginTop: 4, left: 0, minWidth: '220px', zIndex: 50 }
       }
     >
       <div className="p-2 border-b border-zinc-700">
