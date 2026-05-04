@@ -606,7 +606,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
 interface ProjectEditForm {
   name: string; description: string; status: string
-  code_seq: string; code_year: string; customer_id: string
+  code_seq: string; code_year: string; code_suffix: string; customer_id: string
   start_date: string; expected_end_date: string; encerramento_date: string
   sold_hours: string; project_value: string
   hourly_rate: string; additional_hourly_rate: string
@@ -626,15 +626,20 @@ interface ProjectEditForm {
 
 function ProjectInlineEditModal({ project, onClose, onSaved }: { project: ProjectFull; onClose: () => void; onSaved: () => void }) {
   const d = project as any
-  // Parse existing code: PREFIX001-26 → seq='001', year='26'
+  // Parse existing code: PREFIX001-26 → seq='001', year='26'; PREFIX001-26-01 → suffix='01'
   const parsedCode = useMemo(() => {
-    const m = (d.code ?? '').match(/^[A-Za-z]+(\d+)-(\d+)/)
-    return { seq: m?.[1] ?? '', year: m?.[2] ?? String(new Date().getFullYear()).slice(-2) }
+    const m = (d.code ?? '').match(/^[A-Za-z]+(\d+)-(\d+)(?:-(\d+))?/)
+    return {
+      seq:    m?.[1] ?? '',
+      year:   m?.[2] ?? String(new Date().getFullYear()).slice(-2),
+      suffix: m?.[3] ?? '',
+    }
   }, [])
   const [form, setForm] = useState<ProjectEditForm>({
     name:                            d.name ?? '',
     code_seq:                        parsedCode.seq,
     code_year:                       parsedCode.year,
+    code_suffix:                     parsedCode.suffix,
     customer_id:                     d.customer_id ? String(d.customer_id) : '',
     description:                     d.description ?? '',
     status:                          d.status ?? 'awaiting_start',
@@ -725,8 +730,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   const codePrefix  = selectedCustomerObj?.code_prefix?.toUpperCase() ?? (d.code ?? '').match(/^([A-Za-z]+)/)?.[1]?.toUpperCase() ?? ''
   const codePreview = useMemo(() => {
     if (!codePrefix || !form.code_seq.trim()) return ''
-    return `${codePrefix}${form.code_seq.padStart(3, '0')}-${form.code_year}`
-  }, [codePrefix, form.code_seq, form.code_year])
+    const base = `${codePrefix}${form.code_seq.padStart(3, '0')}-${form.code_year}`
+    return form.code_suffix ? `${base}-${form.code_suffix}` : base
+  }, [codePrefix, form.code_seq, form.code_year, form.code_suffix])
 
   const checkCodeExists = useCallback(async () => {
     if (!codePreview || codePreview === d.code) { setCodeExists(false); return }
@@ -739,7 +745,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   }, [codePreview])
 
   const handleCustomerChange = (newCustomerId: string) => {
-    setForm(prev => ({ ...prev, customer_id: newCustomerId, parent_project_id: '', code_seq: '', code_year: parsedCode.year }))
+    setForm(prev => ({ ...prev, customer_id: newCustomerId, parent_project_id: '', code_seq: '', code_year: parsedCode.year, code_suffix: '' }))
     setCodeExists(false)
     if (!newCustomerId) { setOptParentProjects([]); return }
     // Recarrega projetos-pai do novo cliente
@@ -885,6 +891,15 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                         onBlur={checkCodeExists}
                         className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
                         style={{ ...iStyle, width: '4rem' }} />
+                      {form.code_suffix && (
+                        <>
+                          <span className="text-sm font-mono" style={{ color: 'var(--brand-muted)' }}>-</span>
+                          <div className="px-3 py-2 rounded-lg text-sm font-mono text-center select-none"
+                            style={{ ...iStyle, width: '4rem', opacity: 0.5 }}>
+                            {form.code_suffix}
+                          </div>
+                        </>
+                      )}
                       {codePreview && (
                         <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
                           {codePreview}
