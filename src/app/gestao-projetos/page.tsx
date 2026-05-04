@@ -1,7 +1,8 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
@@ -137,16 +138,26 @@ const inputStyle = {
 
 // ─── SearchSelect ─────────────────────────────────────────────────────────────
 
-function SearchSelect({ value, onChange, options, placeholder }: {
+function SearchSelect({ value, onChange, options, placeholder, portal = false }: {
   value: string; onChange: (v: string) => void
   options: { id: number | string; name: string }[]; placeholder: string
+  portal?: boolean
 }) {
   const [open,  setOpen]  = useState(false)
   const [query, setQuery] = useState('')
+  const [pos,   setPos]   = useState({ top: 0, left: 0, width: 0 })
   const ref      = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const selected = options.find(o => String(o.id) === value)
   const filtered = options.filter(o => o.name.toLowerCase().includes(query.toLowerCase()))
+
+  const openDropdown = useCallback(() => {
+    if (portal && ref.current) {
+      const r = ref.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left, width: r.width })
+    }
+    setOpen(true)
+  }, [portal])
 
   useEffect(() => {
     if (!open) return
@@ -158,33 +169,41 @@ function SearchSelect({ value, onChange, options, placeholder }: {
 
   const select = (id: string) => { onChange(id); setOpen(false) }
 
+  const dropdown = (
+    <div
+      className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl overflow-hidden"
+      style={portal
+        ? { position: 'fixed', top: pos.top, left: pos.left, width: pos.width, minWidth: 220, zIndex: 9999 }
+        : { position: 'absolute', top: '100%', marginTop: 4, left: 0, minWidth: '100%', minWidth: '220px', zIndex: 50 }
+      }
+    >
+      <div className="p-2 border-b border-zinc-700">
+        <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar..."
+          className="w-full h-7 px-2 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded outline-none placeholder:text-zinc-600 focus:border-zinc-500" />
+      </div>
+      <div className="max-h-52 overflow-y-auto py-0.5">
+        <button type="button" onClick={() => select('')}
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${!value ? 'text-cyan-400 bg-zinc-800' : 'text-zinc-400 hover:bg-zinc-800'}`}>{placeholder}</button>
+        {filtered.length === 0
+          ? <p className="px-3 py-2 text-xs text-zinc-600 italic">Nenhum resultado</p>
+          : filtered.map(o => (
+            <button key={o.id} type="button" onClick={() => select(String(o.id))}
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${String(o.id) === value ? 'text-cyan-400 bg-zinc-800' : 'text-zinc-200 hover:bg-zinc-800'}`}>
+              {o.name}
+            </button>
+          ))}
+      </div>
+    </div>
+  )
+
   return (
     <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen(o => !o)}
-        className={`h-8 flex items-center justify-between gap-1 px-2 text-xs bg-zinc-800 border border-zinc-700 rounded-md outline-none hover:border-zinc-500 transition-colors whitespace-nowrap ${selected ? 'text-zinc-200' : 'text-zinc-500'}`}>
+      <button type="button" onClick={() => open ? setOpen(false) : openDropdown()}
+        className={`w-full h-8 flex items-center justify-between gap-1 px-2 text-xs bg-zinc-800 border border-zinc-700 rounded-md outline-none hover:border-zinc-500 transition-colors ${selected ? 'text-zinc-200' : 'text-zinc-500'}`}>
         <span className="truncate">{selected ? selected.name : placeholder}</span>
         <ChevronRight size={12} className="rotate-90 shrink-0 text-zinc-500" />
       </button>
-      {open && (
-        <div className="absolute top-full mt-1 left-0 z-50 min-w-full min-w-52 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl overflow-hidden">
-          <div className="p-2 border-b border-zinc-700">
-            <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar..."
-              className="w-full h-7 px-2 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded outline-none placeholder:text-zinc-600 focus:border-zinc-500" />
-          </div>
-          <div className="max-h-52 overflow-y-auto py-0.5">
-            <button type="button" onClick={() => select('')}
-              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${!value ? 'text-cyan-400 bg-zinc-800' : 'text-zinc-400 hover:bg-zinc-800'}`}>{placeholder}</button>
-            {filtered.length === 0
-              ? <p className="px-3 py-2 text-xs text-zinc-600 italic">Nenhum resultado</p>
-              : filtered.map(o => (
-                <button key={o.id} type="button" onClick={() => select(String(o.id))}
-                  className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${String(o.id) === value ? 'text-cyan-400 bg-zinc-800' : 'text-zinc-200 hover:bg-zinc-800'}`}>
-                  {o.name}
-                </button>
-              ))}
-          </div>
-        </div>
-      )}
+      {open && (portal ? createPortal(dropdown, document.body) : dropdown)}
     </div>
   )
 }
@@ -813,6 +832,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                     onChange={handleCustomerChange}
                     options={optCustomers}
                     placeholder="Selecione o cliente..."
+                    portal
                   />
                 </div>
                 <div>
