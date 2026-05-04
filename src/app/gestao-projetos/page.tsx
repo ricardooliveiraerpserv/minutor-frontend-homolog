@@ -9,7 +9,7 @@ import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { Project, PaginatedResponse, HourContribution } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check } from 'lucide-react'
+import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { PageHeader } from '@/components/ds'
@@ -284,9 +284,11 @@ interface ProjectRowProps {
   treeRow?: TreeRow
   onTreeToggle?: () => void
   hasUnread?: boolean
+  isSelected?: boolean
+  onSelect?: (id: number) => void
 }
 
-function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread }: ProjectRowProps) {
+function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect }: ProjectRowProps) {
   const ctName = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (project as any).tipo_faturamento === 'on_demand'
   const isBhMensal = ctName.includes('mensal')
@@ -353,6 +355,18 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
         }}
         onClick={treeRow ? (treeRow._hasChildren ? onTreeToggle : undefined) : onToggle}
       >
+        {/* Checkbox de seleção */}
+        {onSelect && (
+          <td className="py-2 pl-3 pr-0 w-8" onClick={e => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={!!isSelected}
+              onChange={() => onSelect(project.id)}
+              className="w-4 h-4 rounded accent-cyan-400 cursor-pointer"
+            />
+          </td>
+        )}
+
         {/* Menu de ações */}
         <td className="py-2 pl-2 pr-1" style={{ width: 60 }} onClick={e => e.stopPropagation()}>
           <div className="flex items-center gap-1">
@@ -1105,6 +1119,31 @@ export default function GestaoProjetosPage() {
       .catch(() => {})
   }, [user])
 
+  // ── Seleção de projetos em massa ──────────────────────────────────────────
+  const [selectedProjectIds, setSelectedProjectIds] = useState<Set<number>>(new Set())
+  const toggleProjectSelect = (id: number) =>
+    setSelectedProjectIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+
+  // Modal A — alocar em massa (seleciona projetos → escolhe recursos)
+  const [bulkAllocOpen,     setBulkAllocOpen]     = useState(false)
+  const [bulkAllocTab,      setBulkAllocTab]       = useState<'consultores' | 'grupos'>('consultores')
+  const [bulkAllocMode,     setBulkAllocMode]      = useState<'add' | 'replace'>('add')
+  const [bulkAllocConsIds,  setBulkAllocConsIds]   = useState<Set<number>>(new Set())
+  const [bulkAllocGrpIds,   setBulkAllocGrpIds]    = useState<Set<number>>(new Set())
+  const [bulkAllocSearch,   setBulkAllocSearch]    = useState('')
+  const [bulkAllocSaving,   setBulkAllocSaving]    = useState(false)
+
+  // Modal B — alocar por recurso (escolhe recurso → seleciona projetos)
+  const [byResOpen,     setByResOpen]     = useState(false)
+  const [byResTab,      setByResTab]      = useState<'consultor' | 'grupo'>('consultor')
+  const [byResConsId,   setByResConsId]   = useState<number | null>(null)
+  const [byResGroupId,  setByResGroupId]  = useState<number | null>(null)
+  const [byResProjIds,  setByResProjIds]  = useState<Set<number>>(new Set())
+  const [byResMode,     setByResMode]     = useState<'add' | 'replace'>('add')
+  const [byResSearch,   setByResSearch]   = useState('')
+  const [byResStep,     setByResStep]     = useState<1 | 2>(1)
+  const [byResSaving,   setByResSaving]   = useState(false)
+
   useEffect(() => {
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
     api.get<any>('/service-types?pageSize=100').then(r => setServiceTypes(items(r))).catch(() => {})
@@ -1441,6 +1480,93 @@ export default function GestaoProjetosPage() {
     finally { setTeamSaving(false) }
   }
 
+  const ensureTeamData = async () => {
+    const promises: Promise<void>[] = []
+    if (allConsultants.length === 0)
+      promises.push(api.get<{ items: { id: number; name: string }[] }>('/users?exclude_type=cliente&pageSize=200').then(r => setAllConsultants(r.items ?? [])))
+    if (consultantGroups.length === 0)
+      promises.push(api.get<any>('/consultant-groups?pageSize=200').then(r => setConsultantGroups(r.data ?? r.items ?? [])))
+    await Promise.all(promises)
+  }
+
+  const openBulkAlloc = async () => {
+    setBulkAllocConsIds(new Set())
+    setBulkAllocGrpIds(new Set())
+    setBulkAllocSearch('')
+    setBulkAllocTab('consultores')
+    setBulkAllocMode('add')
+    setBulkAllocOpen(true)
+    await ensureTeamData()
+  }
+
+  const executeBulkAlloc = async () => {
+    setBulkAllocSaving(true)
+    try {
+      const projectIds = [...selectedProjectIds]
+      for (const projectId of projectIds) {
+        const project = projects.find(p => p.id === projectId)
+        let consultantIds: number[]
+        if (bulkAllocMode === 'replace') {
+          consultantIds = [...bulkAllocConsIds]
+        } else {
+          const existing = new Set((project?.consultants ?? []).map((c: any) => c.id))
+          bulkAllocConsIds.forEach(id => existing.add(id))
+          consultantIds = [...existing]
+        }
+        await api.put(`/projects/${projectId}`, {
+          consultant_ids: consultantIds,
+          consultant_group_ids: [...bulkAllocGrpIds],
+        })
+      }
+      toast.success(`Equipe atualizada em ${projectIds.length} projeto(s)`)
+      setBulkAllocOpen(false)
+      setSelectedProjectIds(new Set())
+      setRefreshKey(k => k + 1)
+    } catch { toast.error('Erro ao alocar equipe') }
+    finally { setBulkAllocSaving(false) }
+  }
+
+  const openByRes = async () => {
+    setByResConsId(null)
+    setByResGroupId(null)
+    setByResProjIds(new Set())
+    setByResSearch('')
+    setByResTab('consultor')
+    setByResMode('add')
+    setByResStep(1)
+    setByResOpen(true)
+    await ensureTeamData()
+  }
+
+  const executeByRes = async () => {
+    if (byResProjIds.size === 0) { toast.error('Selecione ao menos um projeto'); return }
+    if (byResTab === 'consultor' && !byResConsId) { toast.error('Selecione um consultor'); return }
+    if (byResTab === 'grupo' && !byResGroupId)    { toast.error('Selecione um grupo'); return }
+    setByResSaving(true)
+    try {
+      for (const projectId of byResProjIds) {
+        const project = projects.find(p => p.id === projectId)
+        if (byResTab === 'consultor' && byResConsId) {
+          let consultantIds: number[]
+          if (byResMode === 'replace') {
+            consultantIds = [byResConsId]
+          } else {
+            const existing = new Set((project?.consultants ?? []).map((c: any) => c.id))
+            existing.add(byResConsId)
+            consultantIds = [...existing]
+          }
+          await api.put(`/projects/${projectId}`, { consultant_ids: consultantIds })
+        } else if (byResTab === 'grupo' && byResGroupId) {
+          await api.put(`/projects/${projectId}`, { consultant_group_ids: [byResGroupId] })
+        }
+      }
+      toast.success(`Recurso alocado em ${byResProjIds.size} projeto(s)`)
+      setByResOpen(false)
+      setRefreshKey(k => k + 1)
+    } catch { toast.error('Erro ao alocar recurso') }
+    finally { setByResSaving(false) }
+  }
+
   const toggleExpand = (id: number) =>
     setExpanded(prev => {
       const next = new Set(prev)
@@ -1569,6 +1695,13 @@ export default function GestaoProjetosPage() {
               <X size={12} /> Limpar filtros
             </button>
           )}
+          <button
+            onClick={openByRes}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ml-auto"
+            style={{ background: 'rgba(0,245,255,0.06)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.18)' }}
+          >
+            <UserPlus size={13} /> Alocar por Recurso
+          </button>
         </div>
 
         {/* Linha 2: Multi-contratual + pills de tipo de contrato */}
@@ -1620,10 +1753,40 @@ export default function GestaoProjetosPage() {
             <p className="text-sm">Nenhum projeto encontrado</p>
           </div>
         ) : (
+          <>
+          {/* ── Barra de ação em massa ── */}
+          {selectedProjectIds.size > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl mb-3 text-sm"
+              style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid rgba(0,245,255,0.2)' }}>
+              <span className="font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                {selectedProjectIds.size} projeto(s) selecionado(s)
+              </span>
+              <button onClick={openBulkAlloc}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors hover:opacity-90"
+                style={{ background: 'rgba(0,245,255,0.12)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.25)' }}>
+                <UserPlus size={13} /> Alocar Equipe
+              </button>
+              <button onClick={() => setSelectedProjectIds(new Set())}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/5"
+                style={{ color: 'var(--brand-subtle)' }}>
+                <X size={12} /> Limpar seleção
+              </button>
+            </div>
+          )}
           <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ border: '1px solid var(--brand-border)' }}>
             <table className="w-full min-w-[1100px] text-left">
               <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                 <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
+                  <th className="w-8 pl-3">
+                    <input type="checkbox"
+                      className="w-4 h-4 rounded accent-cyan-400 cursor-pointer"
+                      checked={selectedProjectIds.size > 0 && (multiContratual ? filteredRows : filtered).every(p => selectedProjectIds.has(p.id))}
+                      onChange={e => {
+                        const all = (multiContratual ? filteredRows : filtered).map(p => p.id)
+                        setSelectedProjectIds(e.target.checked ? new Set(all) : new Set())
+                      }}
+                    />
+                  </th>
                   <th className="w-8 pl-2" />
                   <th className="w-1" />
                   <th className="py-3 pr-4 pl-2 text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Projeto</th>
@@ -1657,12 +1820,15 @@ export default function GestaoProjetosPage() {
                       hasUnread={unreadProjectIds.has(project.id)}
                       treeRow={tr}
                       onTreeToggle={tr ? () => toggleTree(tr) : undefined}
+                      isSelected={selectedProjectIds.has(project.id)}
+                      onSelect={toggleProjectSelect}
                     />
                   )
                 })}
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {/* ── Legenda ── */}
@@ -2605,6 +2771,252 @@ export default function GestaoProjetosPage() {
                 <Trash2 size={14} /> {deleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal A: Alocar Equipe em Massa ── */}
+      {bulkAllocOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+          <div className="flex flex-col rounded-2xl w-full max-w-md max-h-[80vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Alocação em Massa</p>
+                <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{selectedProjectIds.size} projeto(s) selecionado(s)</h2>
+              </div>
+              <button onClick={() => setBulkAllocOpen(false)} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            </div>
+
+            {/* Modo: adicionar ou substituir */}
+            <div className="flex gap-2 px-6 pt-4 shrink-0">
+              {(['add', 'replace'] as const).map(m => (
+                <button key={m} onClick={() => setBulkAllocMode(m)}
+                  className="flex-1 py-2 rounded-lg text-xs font-semibold transition-colors"
+                  style={bulkAllocMode === m
+                    ? { background: 'rgba(0,245,255,0.12)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.3)' }
+                    : { background: 'transparent', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
+                  {m === 'add' ? '+ Adicionar à equipe' : '↺ Substituir equipe'}
+                </button>
+              ))}
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b mt-4 shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              {(['consultores', 'grupos'] as const).map(tab => (
+                <button key={tab} onClick={() => setBulkAllocTab(tab)}
+                  className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${bulkAllocTab === tab ? 'border-b-2 border-cyan-400 text-cyan-400' : 'text-zinc-400 hover:text-zinc-200'}`}
+                  style={{ marginBottom: -1 }}>
+                  {tab === 'consultores' ? `Consultores (${bulkAllocConsIds.size})` : `Grupos (${bulkAllocGrpIds.size})`}
+                </button>
+              ))}
+            </div>
+
+            {/* Busca */}
+            <div className="px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+                <input value={bulkAllocSearch} onChange={e => setBulkAllocSearch(e.target.value)}
+                  placeholder="Buscar..."
+                  className="w-full pl-8 pr-3 py-2 rounded-lg text-xs outline-none"
+                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+              </div>
+            </div>
+
+            {/* Lista */}
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              {bulkAllocTab === 'consultores' && allConsultants
+                .filter(c => c.name.toLowerCase().includes(bulkAllocSearch.toLowerCase()))
+                .map(c => (
+                  <label key={c.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                    <input type="checkbox" checked={bulkAllocConsIds.has(c.id)}
+                      onChange={() => setBulkAllocConsIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })}
+                      className="w-4 h-4 rounded accent-cyan-400" />
+                    <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
+                  </label>
+                ))}
+              {bulkAllocTab === 'grupos' && consultantGroups
+                .filter(g => g.name.toLowerCase().includes(bulkAllocSearch.toLowerCase()))
+                .map(g => (
+                  <label key={g.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                    <input type="checkbox" checked={bulkAllocGrpIds.has(g.id)}
+                      onChange={() => setBulkAllocGrpIds(prev => { const n = new Set(prev); n.has(g.id) ? n.delete(g.id) : n.add(g.id); return n })}
+                      className="w-4 h-4 rounded accent-cyan-400" />
+                    <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{g.name}</span>
+                  </label>
+                ))}
+            </div>
+
+            <div className="flex justify-between items-center px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
+              <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                {bulkAllocConsIds.size} consultor(es) · {bulkAllocGrpIds.size} grupo(s)
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => setBulkAllocOpen(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors"
+                  style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+                <button onClick={executeBulkAlloc} disabled={bulkAllocSaving || (bulkAllocConsIds.size === 0 && bulkAllocGrpIds.size === 0)}
+                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
+                  style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}>
+                  {bulkAllocSaving ? 'Salvando...' : 'Alocar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal B: Alocar por Recurso ── */}
+      {byResOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+          <div className="flex flex-col rounded-2xl w-full max-w-lg max-h-[85vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>
+                  Alocar por Recurso — Passo {byResStep}/2
+                </p>
+                <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>
+                  {byResStep === 1 ? 'Selecione o recurso' : 'Selecione os projetos'}
+                </h2>
+              </div>
+              <button onClick={() => setByResOpen(false)} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            </div>
+
+            {/* ── Step 1: escolher recurso ── */}
+            {byResStep === 1 && (<>
+              <div className="flex border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+                {(['consultor', 'grupo'] as const).map(tab => (
+                  <button key={tab} onClick={() => { setByResTab(tab); setByResConsId(null); setByResGroupId(null) }}
+                    className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${byResTab === tab ? 'border-b-2 border-cyan-400 text-cyan-400' : 'text-zinc-400 hover:text-zinc-200'}`}
+                    style={{ marginBottom: -1 }}>
+                    {tab === 'consultor' ? 'Consultor' : 'Grupo de Consultores'}
+                  </button>
+                ))}
+              </div>
+              <div className="px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+                  <input value={byResSearch} onChange={e => setByResSearch(e.target.value)}
+                    placeholder="Buscar..."
+                    className="w-full pl-8 pr-3 py-2 rounded-lg text-xs outline-none"
+                    style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 py-3">
+                {byResTab === 'consultor' && allConsultants
+                  .filter(c => c.name.toLowerCase().includes(byResSearch.toLowerCase()))
+                  .map(c => (
+                    <label key={c.id} className="flex items-center gap-3 py-2.5 px-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                      <input type="radio" name="byres-cons" checked={byResConsId === c.id}
+                        onChange={() => setByResConsId(c.id)}
+                        className="w-4 h-4 accent-cyan-400" />
+                      <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
+                    </label>
+                  ))}
+                {byResTab === 'grupo' && consultantGroups
+                  .filter(g => g.name.toLowerCase().includes(byResSearch.toLowerCase()))
+                  .map(g => (
+                    <label key={g.id} className="flex items-center gap-3 py-2.5 px-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                      <input type="radio" name="byres-grp" checked={byResGroupId === g.id}
+                        onChange={() => setByResGroupId(g.id)}
+                        className="w-4 h-4 accent-cyan-400" />
+                      <div>
+                        <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{g.name}</span>
+                        <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>grupo completo</span>
+                      </div>
+                    </label>
+                  ))}
+              </div>
+              <div className="flex justify-end gap-2 px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
+                <button onClick={() => setByResOpen(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors"
+                  style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+                <button
+                  disabled={byResTab === 'consultor' ? !byResConsId : !byResGroupId}
+                  onClick={() => { setByResSearch(''); setByResStep(2) }}
+                  className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-40"
+                  style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}>
+                  Próximo →
+                </button>
+              </div>
+            </>)}
+
+            {/* ── Step 2: escolher projetos ── */}
+            {byResStep === 2 && (<>
+              {/* Modo */}
+              <div className="flex gap-2 px-6 pt-4 shrink-0">
+                {(['add', 'replace'] as const).map(m => (
+                  <button key={m} onClick={() => setByResMode(m)}
+                    className="flex-1 py-2 rounded-lg text-xs font-semibold transition-colors"
+                    style={byResMode === m
+                      ? { background: 'rgba(0,245,255,0.12)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.3)' }
+                      : { background: 'transparent', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
+                    {m === 'add' ? '+ Adicionar à equipe' : '↺ Substituir equipe'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Recurso selecionado */}
+              <div className="mx-6 mt-3 px-3 py-2 rounded-lg text-xs shrink-0 flex items-center justify-between"
+                style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid rgba(0,245,255,0.15)', color: 'var(--brand-primary)' }}>
+                <span>
+                  {byResTab === 'consultor'
+                    ? allConsultants.find(c => c.id === byResConsId)?.name
+                    : consultantGroups.find(g => g.id === byResGroupId)?.name}
+                </span>
+                <button onClick={() => { setByResStep(1); setByResSearch('') }} className="text-[11px] underline opacity-70 hover:opacity-100">Trocar</button>
+              </div>
+
+              {/* Busca projetos */}
+              <div className="px-4 py-3 border-b mt-3 shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+                    <input value={byResSearch} onChange={e => setByResSearch(e.target.value)}
+                      placeholder="Buscar projeto..."
+                      className="w-full pl-8 pr-3 py-2 rounded-lg text-xs outline-none"
+                      style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+                  </div>
+                  <button onClick={() => {
+                    const all = filtered.map(p => p.id)
+                    setByResProjIds(byResProjIds.size === all.length ? new Set() : new Set(all))
+                  }} className="text-xs px-2 py-1.5 rounded-lg whitespace-nowrap"
+                    style={{ color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
+                    {byResProjIds.size === filtered.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista de projetos */}
+              <div className="flex-1 overflow-y-auto px-4 py-3">
+                {filtered
+                  .filter(p => !byResSearch || p.name.toLowerCase().includes(byResSearch.toLowerCase()) || (p.code ?? '').toLowerCase().includes(byResSearch.toLowerCase()))
+                  .map(p => (
+                    <label key={p.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                      <input type="checkbox" checked={byResProjIds.has(p.id)}
+                        onChange={() => setByResProjIds(prev => { const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n })}
+                        className="w-4 h-4 rounded accent-cyan-400" />
+                      <div>
+                        <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{p.name}</span>
+                        <span className="ml-2 font-mono text-[11px]" style={{ color: 'var(--brand-subtle)' }}>{p.code}</span>
+                      </div>
+                    </label>
+                  ))}
+              </div>
+
+              <div className="flex justify-between items-center px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
+                <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{byResProjIds.size} projeto(s)</span>
+                <div className="flex gap-2">
+                  <button onClick={() => { setByResStep(1); setByResSearch('') }}
+                    className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors"
+                    style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>← Voltar</button>
+                  <button onClick={executeByRes} disabled={byResSaving || byResProjIds.size === 0}
+                    className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
+                    style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}>
+                    {byResSaving ? 'Alocando...' : 'Alocar'}
+                  </button>
+                </div>
+              </div>
+            </>)}
           </div>
         </div>
       )}
