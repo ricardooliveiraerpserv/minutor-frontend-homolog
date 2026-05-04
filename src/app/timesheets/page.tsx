@@ -726,6 +726,24 @@ function TimesheetsPageContent() {
   const [viewLoading, setViewLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [extraPctModalData, setExtraPctModalData] = useState<{ ids: number[]; ts?: Timesheet } | null>(null)
+  const [reprocessing, setReprocessing] = useState(false)
+  const [reprocessResult, setReprocessResult] = useState<string | null>(null)
+
+  const handleReprocessMovidesk = async (ids?: number[]) => {
+    setReprocessing(true)
+    setReprocessResult(null)
+    try {
+      const body = ids && ids.length > 0 ? { ids } : {}
+      const res = await api.post<{ message: string; updated: number; skipped: number; errors: number }>('/timesheets/reprocess-movidesk', body)
+      setReprocessResult(res.message)
+      if (res.updated > 0) refetch()
+    } catch {
+      setReprocessResult('Erro ao reprocessar. Tente novamente.')
+    } finally {
+      setReprocessing(false)
+      setTimeout(() => setReprocessResult(null), 6000)
+    }
+  }
 
   // ── New timesheet modal ──────────────────────────────────────────────────
   const [newModalOpen, setNewModalOpen] = useState(false)
@@ -902,6 +920,11 @@ function TimesheetsPageContent() {
               <Button variant="secondary" size="sm" icon={FileSpreadsheet} onClick={handleExport} loading={exporting}>
                 {exporting ? 'Exportando...' : 'Excel'}
               </Button>
+              {(isAdmin || isCoordenador) && (
+                <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => handleReprocessMovidesk()} loading={reprocessing}>
+                  {reprocessing ? 'Reprocessando...' : 'Reprocessar'}
+                </Button>
+              )}
               {!isCliente && (
                 <Button variant="primary" size="sm" icon={Plus} onClick={() => setNewModalOpen(true)}>Novo</Button>
               )}
@@ -1371,6 +1394,14 @@ function TimesheetsPageContent() {
         currentUser={user}
       />
 
+      {/* Reprocess result toast */}
+      {reprocessResult && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm px-4 py-3 rounded-xl text-xs shadow-2xl"
+          style={{ background: '#18181B', border: '1px solid #3f3f46', color: '#e4e4e7' }}>
+          {reprocessResult}
+        </div>
+      )}
+
       {/* Bulk action bar */}
       {(isAdmin || isCoordenador) && selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl"
@@ -1384,6 +1415,14 @@ function TimesheetsPageContent() {
             style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
           >
             <TrendingUp size={11} /> % Extras
+          </button>
+          <button
+            onClick={() => handleReprocessMovidesk(Array.from(selectedIds))}
+            disabled={reprocessing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
+            style={{ background: '#3f3f46', color: '#e4e4e7' }}
+          >
+            <RefreshCw size={11} className={reprocessing ? 'animate-spin' : ''} /> Reprocessar Movidesk
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
