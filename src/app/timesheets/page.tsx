@@ -1171,6 +1171,7 @@ function TimesheetsPageContent() {
                     />
                   </Th>
                 )}
+                <Th>Status</Th>
                 {(isAdmin || isCoordenador) && (
                   <Th sortable active={sortField === 'user.name'} dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
                 )}
@@ -1192,7 +1193,6 @@ function TimesheetsPageContent() {
                 <Th className="hidden xl:table-cell">Solicitante</Th>
                 <Th className="hidden xl:table-cell">Tipo de Serviço</Th>
                 <Th className="hidden xl:table-cell">Contrato</Th>
-                <Th>Status</Th>
               </tr>
             </Thead>
             <Tbody>
@@ -1232,6 +1232,20 @@ function TimesheetsPageContent() {
                       />
                     </Td>
                   )}
+                  <Td>
+                    <span className="inline-flex items-center gap-1 flex-wrap">
+                      {ts.is_internal_action
+                        ? (
+                          <>
+                            <Badge variant="internal">Ação Interna</Badge>
+                            {ts.status === 'released' && <Badge variant="approved">Liberado</Badge>}
+                          </>
+                        )
+                        : <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
+                      }
+                      {ts.is_paid && <Badge variant="success">Pago</Badge>}
+                    </span>
+                  </Td>
                   {(isAdmin || isCoordenador) && (
                     <Td muted>{ts.user?.name ?? '—'}</Td>
                   )}
@@ -1316,20 +1330,6 @@ function TimesheetsPageContent() {
                   </Td>
                   <Td muted className="hidden xl:table-cell truncate max-w-[140px]">
                     {ts.project?.contract_type_display ?? '—'}
-                  </Td>
-                  <Td>
-                    <span className="inline-flex items-center gap-1 flex-wrap">
-                      {ts.is_internal_action
-                        ? (
-                          <>
-                            <Badge variant="internal">Ação Interna</Badge>
-                            {ts.status === 'released' && <Badge variant="approved">Liberado</Badge>}
-                          </>
-                        )
-                        : <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
-                      }
-                      {ts.is_paid && <Badge variant="success">Pago</Badge>}
-                    </span>
                   </Td>
                 </Tr>
               ))}
