@@ -52,11 +52,16 @@ function fmtBRL(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+function parseEffortToDecimal(effortHours: string, effortMinutes: number): number {
+  if (effortHours.includes(':')) {
+    const [hStr, mStr] = effortHours.split(':')
+    return parseInt(hStr, 10) + parseInt(mStr || '0', 10) / 60
+  }
+  return (parseFloat(effortHours) || 0) + (effortMinutes || 0) / 60
+}
+
 function fmtHours(effortHours: string, effortMinutes: number) {
-  const h = parseFloat(effortHours) || 0
-  const m = effortMinutes || 0
-  const total = h + m / 60
-  return `${total.toFixed(2)}h`
+  return `${parseEffortToDecimal(effortHours, effortMinutes).toFixed(2)}h`
 }
 
 function defaultStart() {
@@ -110,7 +115,7 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
       const rows = timesheets.map(t => ({
         'Data': fmtDate(t.date),
         'Colaborador': t.user?.name ?? '—',
-        'Horas': (parseFloat(t.effort_hours) || 0) + (t.effort_minutes || 0) / 60,
+        'Horas': parseEffortToDecimal(t.effort_hours, t.effort_minutes),
         'Observação': t.observation ?? '',
         'Status': t.status_display,
       }))
@@ -143,11 +148,7 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
     }
   }
 
-  const totalHours = timesheets.reduce((s, t) => {
-    const h = parseFloat(t.effort_hours) || 0
-    const m = (t.effort_minutes || 0) / 60
-    return s + h + m
-  }, 0)
+  const totalHours = timesheets.reduce((s, t) => s + parseEffortToDecimal(t.effort_hours, t.effort_minutes), 0)
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0)
   const activeCount = tab === 'timesheets' ? timesheets.length : expenses.length
 
