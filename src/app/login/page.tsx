@@ -163,72 +163,91 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#080B12', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#07090F', position: 'relative', overflow: 'hidden' }}>
 
-      {/* Glow atmosférico — fundo */}
+      {/* Glow sutil — sem gradientes pesados */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        <div style={{ position: 'absolute', top: '-10%', left: '-15%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(29,78,216,0.18) 0%, transparent 70%)', filter: 'blur(60px)' }} />
-        <div style={{ position: 'absolute', bottom: '-10%', right: '-15%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(79,70,229,0.15) 0%, transparent 70%)', filter: 'blur(60px)' }} />
-        <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(0,245,255,0.04) 0%, transparent 65%)', filter: 'blur(30px)' }} />
+        <div style={{ position: 'absolute', top: '-5%', left: '50%', transform: 'translateX(-50%)', width: 700, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(0,212,232,0.05) 0%, transparent 65%)', filter: 'blur(60px)' }} />
       </div>
 
       {/* Card */}
-      <div style={{ animation: 'fadeUp 0.4s ease both', width: '100%', maxWidth: 420, padding: '0 20px', position: 'relative' }}>
+      <div style={{ animation: 'fadeUp 0.45s ease both', width: '100%', maxWidth: 460, padding: '0 20px', position: 'relative' }}>
         <div style={{
           borderRadius: 20,
-          padding: '44px 40px 36px',
-          background: 'rgba(18,20,28,0.85)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          backdropFilter: 'blur(20px)',
-          boxShadow: '0 24px 60px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06)',
+          background: 'rgba(13,15,22,0.92)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          backdropFilter: 'blur(24px)',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.05)',
+          overflow: 'hidden',
         }}>
 
-          {/* Header — CENTRALIZADO */}
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-              <MinutorIcon size={52} />
+          {/* ── Cabeçalho de marca ── */}
+          <div style={{ padding: '36px 40px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+
+            {/* 1. ERPServ — marca mãe */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+              <Image
+                src="/logo.png"
+                alt="ERPServ"
+                width={88}
+                height={30}
+                style={{ objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.92 }}
+              />
+              <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.12)' }} />
+              <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.38)', letterSpacing: '0.04em' }}>
+                ERPServ Consultoria
+              </span>
             </div>
-            <h1 style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#FFFFFF', lineHeight: 1 }}>
-              Minutor
-            </h1>
-            <p style={{ margin: '8px 0 0', fontSize: 14, color: '#00D4E8', letterSpacing: '0.02em', fontWeight: 400 }}>
-              Gestão de Projetos e Serviços
+
+            {/* 2. Minutor — produto */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+              <div style={{ flexShrink: 0, width: 40, height: 40, borderRadius: 10, background: 'rgba(0,212,232,0.08)', border: '1px solid rgba(0,212,232,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <MinutorIcon size={22} />
+              </div>
+              <div>
+                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.01em', color: '#FFFFFF', lineHeight: 1.1 }}>
+                  Minutor
+                </h1>
+                <p style={{ margin: '3px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.42)', fontWeight: 400, letterSpacing: 0 }}>
+                  Plataforma de apontamento e gestão de horas
+                </p>
+              </div>
+            </div>
+
+            {/* 3. Descrição */}
+            <p style={{ margin: '16px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.3)', lineHeight: 1.6, fontWeight: 400 }}>
+              Sistema desenvolvido pela ERPServ para controle de horas, gestão de contratos e acompanhamento operacional de projetos.
             </p>
+
+            {/* 4. Badge */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 16, padding: '5px 10px', borderRadius: 6, background: 'rgba(0,212,232,0.06)', border: '1px solid rgba(0,212,232,0.14)' }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#00D4E8', opacity: 0.8 }} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(0,212,232,0.75)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                Plataforma oficial ERPServ
+              </span>
+            </div>
           </div>
 
-          {/* Divider com accent central */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: 28 }}>
-            <div style={{ flex: 1, height: 1, background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.1))' }} />
-            <div style={{ width: 28, height: 2, borderRadius: 2, background: '#00D4E8', margin: '0 10px', opacity: 0.7 }} />
-            <div style={{ flex: 1, height: 1, background: 'linear-gradient(to left, transparent, rgba(255,255,255,0.1))' }} />
+          {/* ── Formulário ── */}
+          <div style={{ padding: '32px 40px 36px' }}>
+            <p style={{ margin: '0 0 24px', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.01em' }}>
+              Acesse sua conta
+            </p>
+            <Suspense fallback={null}>
+              <LoginForm />
+            </Suspense>
           </div>
-
-          {/* Form */}
-          <Suspense fallback={null}>
-            <LoginForm />
-          </Suspense>
         </div>
 
-        {/* Rodapé — ERPServ */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 28, opacity: 0.38 }}>
-          <Image
-            src="/logo.png"
-            alt="ERPServ"
-            width={72}
-            height={28}
-            style={{ objectFit: 'contain', filter: 'grayscale(1) invert(1) brightness(10)' }}
-          />
-          <div style={{ width: 1, height: 28, background: 'rgba(255,255,255,0.25)' }} />
-          <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.8)', lineHeight: 1.4 }}>
-            Uma solução{' '}
-            <span style={{ color: '#00D4E8', fontWeight: 600 }}>erpserv.</span>
-          </p>
-        </div>
+        {/* Rodapé discreto */}
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.02em' }}>
+          © {new Date().getFullYear()} ERPServ Consultoria · Todos os direitos reservados
+        </p>
       </div>
 
       <style>{`
         @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(16px); }
+          from { opacity: 0; transform: translateY(18px); }
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes spin {
