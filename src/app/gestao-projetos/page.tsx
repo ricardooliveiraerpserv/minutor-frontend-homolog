@@ -755,6 +755,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error('Nome obrigatório'); return }
+    if (codeExists) { toast.error('Código já existe em outro projeto. Altere o código antes de salvar.'); return }
     setSaving(true)
     try {
       const payload: Record<string, unknown> = {
@@ -794,7 +795,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       await api.put(`/projects/${project.id}`, payload)
       toast.success('Projeto atualizado')
       onSaved()
-    } catch { toast.error('Erro ao salvar projeto') }
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar projeto') }
     finally { setSaving(false) }
   }
 
@@ -851,10 +852,13 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
               {/* Cliente */}
               <div>
                 <label style={lStyle}>Cliente</label>
-                <select value={form.customer_id} onChange={e => handleCustomerChange(e.target.value)} style={iStyle}>
-                  <option value="">Selecione...</option>
-                  {optCustomers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                <SearchSelect
+                  value={form.customer_id}
+                  onChange={handleCustomerChange}
+                  options={optCustomers}
+                  placeholder="Selecione o cliente..."
+                  portal={true}
+                />
               </div>
 
               {/* Código do Projeto — builder */}
