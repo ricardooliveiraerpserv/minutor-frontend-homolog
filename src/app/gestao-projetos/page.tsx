@@ -1034,7 +1034,7 @@ export default function GestaoProjetosPage() {
     user?.id,
     {
       search:             '',
-      statusFilter:       '',
+      statusFilters:      [] as string[],
       clienteFilters:     [] as string[],
       saudeFilter:        '',
       filterContractType: '',
@@ -1043,9 +1043,9 @@ export default function GestaoProjetosPage() {
       filterExecutives:   [] as string[],
     },
   )
-  const { search, statusFilter, clienteFilters, saudeFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives } = flt
+  const { search, statusFilters, clienteFilters, saudeFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives } = flt
   const setSearch             = (v: string)   => setFilter('search', v)
-  const setStatus             = (v: string)   => setFilter('statusFilter', v)
+  const setStatus             = (v: string[]) => setFilter('statusFilters', v)
   const setCliente            = (v: string[]) => setFilter('clienteFilters', v)
   const setSaude              = (v: string)   => setFilter('saudeFilter', v)
   const setFilterContractType = (v: string)   => setFilter('filterContractType', v)
@@ -1055,7 +1055,7 @@ export default function GestaoProjetosPage() {
 
   const clearAllFilters = () => {
     setSearch('')
-    setStatus('')
+    setStatus([])
     setCliente([])
     setSaude('')
     setFilterContractType('')
@@ -1064,7 +1064,7 @@ export default function GestaoProjetosPage() {
     setFilterExecutives([])
   }
 
-  const hasActiveFilters = !!(search || statusFilter || clienteFilters.length || saudeFilter || filterContractType || filterServiceTypes.length || filterCoordinators.length || filterExecutives.length)
+  const hasActiveFilters = !!(search || statusFilters.length || clienteFilters.length || saudeFilter || filterContractType || filterServiceTypes.length || filterCoordinators.length || filterExecutives.length)
 
   const [projects, setProjects]   = useState<ProjectWithTeam[]>([])
   const [loading, setLoading]     = useState(true)
@@ -1243,7 +1243,7 @@ export default function GestaoProjetosPage() {
         const stId = (p as any).service_type_id ?? (p as any).service_type?.id
         if (!filterServiceTypes.includes(String(stId))) return false
       }
-      if (statusFilter && p.status !== statusFilter) return false
+      if (statusFilters.length > 0 && !statusFilters.includes(p.status ?? '')) return false
       if (clienteFilters.length > 0 && !clienteFilters.includes(String(p.customer_id))) return false
       if (filterCoordinators.length > 0) {
         const coords = (p as ProjectWithTeam).coordinators ?? []
@@ -1269,7 +1269,7 @@ export default function GestaoProjetosPage() {
       }
       return true
     })
-  }, [projects, search, statusFilter, clienteFilters, saudeFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, customerExecutiveMap])
+  }, [projects, search, statusFilters, clienteFilters, saudeFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, customerExecutiveMap])
 
   const toggleTree = (row: TreeRow) => {
     setRows(prev => {
@@ -1292,7 +1292,7 @@ export default function GestaoProjetosPage() {
     if (!multiContratual) return [] as TreeRow[]
     const parentRows = rows.filter(r => r._level === 0)
     const filteredParents = parentRows.filter(p => {
-      if (statusFilter && p.status !== statusFilter) return false
+      if (statusFilters.length > 0 && !statusFilters.includes(p.status ?? '')) return false
       if (clienteFilters.length > 0 && !clienteFilters.includes(String(p.customer_id))) return false
       if (filterCoordinators.length > 0) {
         const coords = (p as ProjectWithTeam).coordinators ?? []
@@ -1320,7 +1320,7 @@ export default function GestaoProjetosPage() {
       if (live._isExpanded) result.push(...rows.filter(r => r._parentId === live.id && r._level > 0))
     }
     return result
-  }, [rows, multiContratual, statusFilter, clienteFilters, saudeFilter, search, filterCoordinators, filterExecutives, customerExecutiveMap])
+  }, [rows, multiContratual, statusFilters, clienteFilters, saudeFilter, search, filterCoordinators, filterExecutives, customerExecutiveMap])
 
   // ── Métricas dos cards ──
   const stats = useMemo(() => {
@@ -1647,17 +1647,17 @@ export default function GestaoProjetosPage() {
             options={clientes}
             placeholder="Todos os clientes"
           />
-          <SimpleSelect
-            value={statusFilter}
+          <MultiSelect
+            value={statusFilters}
             onChange={v => setStatus(v)}
             placeholder="Todos os status"
             options={[
-              { id: 'started',       name: 'Em Andamento' },
-              { id: 'active',        name: 'Ativo' },
-              { id: 'awaiting_start',name: 'Aguardando Início' },
-              { id: 'paused',        name: 'Pausado' },
-              { id: 'finished',      name: 'Finalizado' },
-              { id: 'cancelled',     name: 'Cancelado' },
+              { id: 'started',        name: 'Em Andamento' },
+              { id: 'active',         name: 'Ativo' },
+              { id: 'awaiting_start', name: 'Aguardando Início' },
+              { id: 'paused',         name: 'Pausado' },
+              { id: 'finished',       name: 'Finalizado' },
+              { id: 'cancelled',      name: 'Cancelado' },
             ]}
           />
           <MultiSelect
