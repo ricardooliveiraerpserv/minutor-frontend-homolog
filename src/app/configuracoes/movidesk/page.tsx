@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import { SearchSelect } from '@/components/ui/search-select'
 import {
   Webhook, CheckCircle2, XCircle, Clock, RefreshCw, Copy, Check,
-  AlertTriangle, Zap, Database, Settings, PlayCircle,
+  AlertTriangle, Zap, Database, Settings, PlayCircle, Link2, Search,
 } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -28,6 +28,22 @@ interface SystemSettings {
   movidesk_default_user_id?:              number | null
   movidesk_sync_orgs_interval_minutes?:   number | null
   movidesk_portal_sync_interval_minutes?: number | null
+}
+
+interface OrgRow {
+  org_id: number
+  org_name: string
+  cnpj: string | null
+  customer_id: number | null
+  customer_name: string
+  linked_project_id: number | null
+  linked_project_name: string | null
+  sust_project_id: number | null
+  sust_project_name: string | null
+  project_id: number | null
+  project_name: string
+  project_source: 'manual' | 'sustentacao' | null
+  is_active_proj: boolean | null
 }
 
 const INTERVAL_OPTIONS = [5, 10, 15, 20, 30, 60]
@@ -76,6 +92,34 @@ export default function MovideskIntegracaoPage() {
   const [portalSyncInterval, setPortalSyncInterval] = useState(30)
   const [importStartDate,    setImportStartDate]    = useState('')
   const [saving, setSaving] = useState(false)
+  const [orgs, setOrgs] = useState<OrgRow[]>([])
+  const [orgsLoading, setOrgsLoading] = useState(false)
+  const [orgSearch, setOrgSearch] = useState('')
+  const [editingOrgId, setEditingOrgId] = useState<number | null>(null)
+  const [editingProjectId, setEditingProjectId] = useState('')
+  const [savingOrg, setSavingOrg] = useState(false)
+
+  const loadOrgs = useCallback(async () => {
+    setOrgsLoading(true)
+    try {
+      const r = await api.get<any>('/movidesk/debug-orgs')
+      setOrgs(r?.orgs ?? [])
+    } catch {} finally { setOrgsLoading(false) }
+  }, [])
+
+  const handleSaveOrgProject = async (orgId: number) => {
+    setSavingOrg(true)
+    try {
+      await api.post('/movidesk/link-org-project', {
+        org_id: orgId,
+        project_id: editingProjectId ? Number(editingProjectId) : null,
+      })
+      toast.success('Projeto vinculado à organização')
+      setEditingOrgId(null)
+      loadOrgs()
+    } catch { toast.error('Erro ao vincular projeto') }
+    finally { setSavingOrg(false) }
+  }
 
   const loadStatus = useCallback(async () => {
     setStatusLoading(true)
@@ -109,7 +153,7 @@ export default function MovideskIntegracaoPage() {
     } catch {}
   }, [])
 
-  useEffect(() => { loadStatus(); loadSettings() }, [loadStatus, loadSettings])
+  useEffect(() => { loadStatus(); loadSettings(); loadOrgs() }, [loadStatus, loadSettings, loadOrgs])
 
   const copyWebhook = () => {
     navigator.clipboard.writeText(WEBHOOK_URL).then(() => {
@@ -392,6 +436,97 @@ export default function MovideskIntegracaoPage() {
             style={{ background: '#00F5FF', color: '#0A0A0B' }}>
             {saving ? 'Salvando...' : 'Salvar Padrões'}
           </button>
+        </div>
+
+        {/* Mapeamento org → projeto */}
+        <div className="rounded-2xl p-5 space-y-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Link2 size={16} style={{ color: '#00F5FF' }} />
+              <h2 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Projeto por Organização Movidesk</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              {orgs.length > 0 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: orgs.filter(o => !o.project_id).length > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)', color: orgs.filter(o => !o.project_id).length > 0 ? '#ef4444' : '#22c55e' }}>
+                  {orgs.filter(o => !o.project_id).length} sem projeto
+                </span>
+              )}
+              <button onClick={loadOrgs} className="p-1.5 rounded-lg hover:bg-white/[0.06]" title="Recarregar">
+                <RefreshCw size={13} style={{ color: 'var(--brand-subtle)' }} className={orgsLoading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+            Configure qual projeto recebe os apontamentos de cada empresa. Prioridade: vínculo manual → projeto de sustentação → projeto padrão global.
+          </p>
+
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+            <input
+              value={orgSearch}
+              onChange={e => setOrgSearch(e.target.value)}
+              placeholder="Buscar organização..."
+              className="w-full pl-8 pr-3 py-2 rounded-xl text-xs outline-none"
+              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+            />
+          </div>
+
+          <div className="space-y-1 max-h-96 overflow-y-auto pr-1">
+            {orgsLoading && <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>}
+            {!orgsLoading && orgs.filter(o =>
+              !orgSearch || o.org_name.toLowerCase().includes(orgSearch.toLowerCase()) || (o.customer_name ?? '').toLowerCase().includes(orgSearch.toLowerCase())
+            ).map(org => (
+              <div key={org.org_id} className="rounded-xl px-3 py-2.5 transition-colors" style={{ background: 'var(--brand-bg)', border: `1px solid ${!org.project_id ? 'rgba(239,68,68,0.3)' : 'var(--brand-border)'}` }}>
+                {editingOrgId === org.org_id ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>{org.org_name}</p>
+                    <SearchSelect
+                      value={editingProjectId}
+                      onChange={setEditingProjectId}
+                      options={projects}
+                      placeholder="Selecionar projeto (deixe vazio para remover)"
+                      fullWidth
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => handleSaveOrgProject(org.org_id)} disabled={savingOrg}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-50"
+                        style={{ background: '#00F5FF', color: '#0A0A0B' }}>
+                        {savingOrg ? 'Salvando...' : 'Salvar'}
+                      </button>
+                      <button onClick={() => setEditingOrgId(null)}
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors hover:bg-white/[0.06]"
+                        style={{ color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate" style={{ color: 'var(--brand-text)' }}>{org.org_name}</p>
+                      <p className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }}>{org.customer_name}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {org.project_id ? (
+                        <div>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: org.project_source === 'manual' ? 'rgba(0,245,255,0.12)' : 'rgba(167,139,250,0.12)', color: org.project_source === 'manual' ? '#00F5FF' : '#a78bfa' }}>
+                            {org.project_source === 'manual' ? 'Manual' : 'Sustentação'}
+                          </span>
+                          <p className="text-[10px] mt-0.5 truncate max-w-[160px]" style={{ color: 'var(--brand-muted)' }}>{org.project_name}</p>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>Sem projeto</span>
+                      )}
+                    </div>
+                    <button onClick={() => { setEditingOrgId(org.org_id); setEditingProjectId(String(org.linked_project_id ?? '')) }}
+                      className="ml-1 p-1.5 rounded-lg hover:bg-white/[0.06] shrink-0" title="Editar projeto">
+                      <Settings size={12} style={{ color: 'var(--brand-subtle)' }} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Sync manual */}
