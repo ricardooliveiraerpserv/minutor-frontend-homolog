@@ -2454,7 +2454,7 @@ export default function MeuPainelPage() {
           {/* Table */}
           <div className="rounded-xl border border-zinc-800 overflow-x-auto overflow-y-clip">
             <table className="w-full min-w-max text-xs">
-              <thead className="sticky z-10" style={{ top: stickyHeaderH }}>
+              <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-900">
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Data</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
@@ -2638,7 +2638,7 @@ export default function MeuPainelPage() {
           {/* Table */}
           <div className="rounded-xl border border-zinc-800 overflow-x-auto overflow-y-clip">
             <table className="w-full min-w-max text-xs">
-              <thead className="sticky z-10" style={{ top: stickyHeaderH }}>
+              <thead>
                 <tr className="border-b border-zinc-800 bg-zinc-900">
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium">Data</th>
                   <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
