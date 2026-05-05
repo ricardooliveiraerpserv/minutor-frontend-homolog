@@ -1082,9 +1082,15 @@ function StatusBadge({ status, display, reason }: { status: string; display?: st
       {STATUS_LABELS[status] ?? display ?? status}
     </Badge>
   )
-  return hasReason
-    ? <span title={reason!} className="cursor-help">{badge}</span>
-    : badge
+  if (!hasReason) return badge
+  return (
+    <span className="relative group/reason inline-flex">
+      {badge}
+      <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 hidden group-hover/reason:block bg-zinc-800 border border-zinc-700 text-zinc-200 text-[10px] rounded px-2 py-1 shadow-lg whitespace-nowrap max-w-[240px] truncate">
+        {reason}
+      </span>
+    </span>
+  )
 }
 
 // ─── RowMenu ──────────────────────────────────────────────────────────────────
