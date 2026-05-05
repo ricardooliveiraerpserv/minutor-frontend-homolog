@@ -3524,7 +3524,7 @@ function KanbanColumn({
   return (
     <div
       className="flex flex-col rounded-2xl shrink-0 overflow-hidden"
-      style={{ width: 264, maxHeight: 'calc(100vh - 310px)', background: bg, border: `1px solid ${borderColor}` }}
+      style={{ width: 264, background: bg, border: `1px solid ${borderColor}` }}
     >
       <div className="px-4 py-3 shrink-0 border-b" style={{ borderColor }}>
         <div className="flex items-center justify-between">
@@ -4135,7 +4135,7 @@ function KanbanContent() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div>
@@ -4489,8 +4489,8 @@ function KanbanContent() {
 
         {/* Board */}
         {viewMode === 'kanban' && <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex-1 overflow-x-auto overflow-y-hidden">
-            <div className="flex gap-3 p-4 h-full items-start" style={{ minWidth: `${boardMinWidth}px` }}>
+          <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0">
+            <div className="flex gap-3 p-4 h-full items-stretch" style={{ minWidth: `${boardMinWidth}px` }}>
 
               {/* ── Demand Phase ── */}
               {visibleDemandCols.map(col => (
