@@ -4,7 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import { exportTimesheetsToExcel } from '@/lib/exportTimesheets'
 import { TimesheetFormModal } from '@/components/ui/timesheet-form-modal'
 import { formatBRL, formatNumber } from '@/lib/format'
@@ -438,7 +438,7 @@ export default function PartnerDashboardPage() {
         setTimesheets(prev => prev.filter(t => t.id !== id))
         toast.success('Apontamento excluído')
       })
-      .catch(() => toast.error('Erro ao excluir apontamento'))
+      .catch((e) => toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir apontamento'))
   }
 
   const pricingLabel = data?.partner.pricing_type === 'fixed'

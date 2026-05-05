@@ -423,8 +423,8 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
       await api.delete(`/timesheets/${id}`)
       toast.success('Apontamento excluído')
       onDeleted()
-    } catch {
-      toast.error('Erro ao excluir')
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir')
     } finally { setDeleting(false) }
   }
 
