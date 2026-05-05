@@ -290,6 +290,7 @@ export default function UsersPage() {
   const [resending,      setResending]      = useState<number | null>(null)
   const [bulkResending,  setBulkResending]  = useState(false)
   const [bulkDeleting,   setBulkDeleting]   = useState(false)
+  const [bulkSustLoading, setBulkSustLoading] = useState(false)
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
   const [resendPwd,      setResendPwd]      = useState('')
   const [resendingModal, setResendingModal] = useState(false)
@@ -505,6 +506,18 @@ export default function UsersPage() {
     finally { setBulkDeleting(false); setBulkDeleteConfirm(false) }
   }
 
+  const bulkSetSustentacao = async (value: boolean) => {
+    if (selectedIds.size === 0) return
+    setBulkSustLoading(true)
+    try {
+      await Promise.all([...selectedIds].map(id => api.put(`/users/${id}`, { can_timesheet_sustentacao: value })))
+      toast.success(`Sustentação ${value ? 'liberada' : 'bloqueada'} para ${selectedIds.size} usuário(s)`)
+      setSelectedIds(new Set())
+      load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar usuários') }
+    finally { setBulkSustLoading(false) }
+  }
+
   const toggleSelect = (id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -608,6 +621,28 @@ export default function UsersPage() {
             <Mail size={12} />
             {bulkResending ? 'Enviando...' : 'Reenviar boas-vindas'}
           </button>
+          {canEdit && (
+            <>
+              <button
+                type="button"
+                onClick={() => bulkSetSustentacao(true)}
+                disabled={bulkSustLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                <Check size={12} />
+                {bulkSustLoading ? 'Salvando...' : 'Liberar sustentação'}
+              </button>
+              <button
+                type="button"
+                onClick={() => bulkSetSustentacao(false)}
+                disabled={bulkSustLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-700/50 hover:bg-zinc-700 text-zinc-400 border border-zinc-600/50 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                <X size={12} />
+                {bulkSustLoading ? 'Salvando...' : 'Bloquear sustentação'}
+              </button>
+            </>
+          )}
           {canDelete && (
             <button
               type="button"
@@ -652,12 +687,13 @@ export default function UsersPage() {
                 </th>
               )}
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Perfil</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Sustentação</th>
               <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
             {loading ? <TableSkeleton /> : users.length === 0 ? (
-              <tr><td colSpan={canResetPwd ? 6 : 5} className="px-3 py-8 text-center text-zinc-500">Nenhum usuário encontrado</td></tr>
+              <tr><td colSpan={canResetPwd ? 7 : 6} className="px-3 py-8 text-center text-zinc-500">Nenhum usuário encontrado</td></tr>
             ) : users.map(user => (
               <tr key={user.id} className={`border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors ${selectedIds.has(user.id) ? 'bg-cyan-500/5' : ''}`}>
                 {canResetPwd && (
@@ -705,6 +741,13 @@ export default function UsersPage() {
                       </span>
                     )}
                   </div>
+                </td>
+                <td className="px-3 py-2.5 hidden lg:table-cell">
+                  {(user.type === 'consultor' || user.type === 'parceiro_admin') ? (
+                    user.can_timesheet_sustentacao
+                      ? <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400"><Check size={10} />Liberado</span>
+                      : <span className="text-[10px] text-zinc-600">Bloqueado</span>
+                  ) : <span className="text-[10px] text-zinc-700">—</span>}
                 </td>
                 <td className="px-3 py-2.5">
                   <Badge variant="outline" className={`text-[10px] border ${user.enabled
