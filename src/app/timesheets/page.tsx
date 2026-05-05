@@ -12,7 +12,7 @@ import {
   Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
   Trash2, X, Globe, Webhook, MoreVertical, Eye, Search, ChevronDown,
   Paperclip, Calendar, Building2, FolderOpen, Ticket, Hash,
-  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign, TrendingUp,
+  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign, TrendingUp, RotateCcw,
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
@@ -410,8 +410,8 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
 
 interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }
 
-function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseRelease }: {
-  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseRelease?: () => void
+function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseRelease, onReverseRejection }: {
+  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -435,6 +435,7 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
         { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } },
         ...(onRelease ? [{ label: 'Liberar', icon: <CheckCircle size={12} />, onClick: onRelease }] : []),
         ...(onReverseRelease ? [{ label: 'Estornar liberação', icon: <X size={12} />, onClick: onReverseRelease }] : []),
+        ...(onReverseRejection ? [{ label: 'Estornar rejeição', icon: <RotateCcw size={12} />, onClick: onReverseRejection }] : []),
         ...(onExtraPct ? [{ label: '% Extras', icon: <TrendingUp size={12} />, onClick: onExtraPct }] : []),
         { label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true },
       ]
@@ -728,6 +729,9 @@ function TimesheetsPageContent() {
   const [extraPctModalData, setExtraPctModalData] = useState<{ ids: number[]; ts?: Timesheet } | null>(null)
   const [reprocessing, setReprocessing] = useState(false)
   const [reprocessResult, setReprocessResult] = useState<string | null>(null)
+  const [reverseRejectionModal, setReverseRejectionModal] = useState<{ open: boolean; tsId?: number }>({ open: false })
+  const [reverseRejectionReason, setReverseRejectionReason] = useState('')
+  const [reverseRejecting, setReverseRejecting] = useState(false)
 
   const handleReprocessMovidesk = async (ids?: number[]) => {
     setReprocessing(true)
@@ -905,6 +909,20 @@ function TimesheetsPageContent() {
     } catch {
       toast.error('Erro ao estornar liberação')
     }
+  }
+
+  const confirmReverseRejection = async () => {
+    if (!reverseRejectionModal.tsId || !reverseRejectionReason.trim()) return
+    setReverseRejecting(true)
+    try {
+      await api.post(`/timesheets/${reverseRejectionModal.tsId}/reverse-rejection`, { reason: reverseRejectionReason.trim() })
+      toast.success('Rejeição estornada — apontamento voltou para Pendente')
+      setReverseRejectionModal({ open: false })
+      setReverseRejectionReason('')
+      refetch()
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao estornar rejeição')
+    } finally { setReverseRejecting(false) }
   }
 
   return (
@@ -1236,6 +1254,7 @@ function TimesheetsPageContent() {
                       onExtraPct={(isAdmin || isCoordenador) ? () => setExtraPctModalData({ ids: [ts.id], ts }) : undefined}
                       onRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'internal' ? () => handleRelease(ts.id) : undefined}
                       onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
+                      onReverseRejection={(isAdmin || isCoordenador) && (ts.status === 'rejected' || ts.status === 'adjustment_requested') ? () => { setReverseRejectionModal({ open: true, tsId: ts.id }); setReverseRejectionReason('') } : undefined}
                     />
                   </Td>
                   {(isAdmin || isCoordenador) && (
@@ -1455,6 +1474,40 @@ function TimesheetsPageContent() {
           onClose={() => setExtraPctModalData(null)}
           onSaved={() => { refetch(); setSelectedIds(new Set()) }}
         />
+      )}
+
+      {/* Modal estornar rejeição */}
+      {reverseRejectionModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-sm shadow-xl p-5 space-y-4">
+            <div className="flex items-center gap-2">
+              <RotateCcw size={15} className="text-amber-400" />
+              <h3 className="text-sm font-semibold text-white">Estornar rejeição</h3>
+            </div>
+            <p className="text-xs text-zinc-400">O apontamento voltará para <span className="text-white font-medium">Pendente</span>. Informe o motivo do estorno:</p>
+            <textarea
+              value={reverseRejectionReason}
+              onChange={e => setReverseRejectionReason(e.target.value)}
+              placeholder="Motivo do estorno..."
+              rows={3}
+              className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md px-3 py-2 resize-none outline-none focus:border-zinc-500"
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setReverseRejectionModal({ open: false })}
+                className="px-3 py-1.5 text-xs text-zinc-400 border border-zinc-700 rounded-md hover:text-zinc-200">
+                Cancelar
+              </button>
+              <button
+                onClick={confirmReverseRejection}
+                disabled={reverseRejecting || !reverseRejectionReason.trim()}
+                className="px-3 py-1.5 text-xs bg-amber-600/80 hover:bg-amber-600 text-white rounded-md disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <RotateCcw size={11} />
+                {reverseRejecting ? 'Estornando...' : 'Confirmar estorno'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )
