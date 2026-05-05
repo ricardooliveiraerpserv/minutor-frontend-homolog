@@ -824,8 +824,8 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       if (form.timesheet_retroactive_limit_days !== '') payload.timesheet_retroactive_limit_days = Number(form.timesheet_retroactive_limit_days)
       await api.put(`/projects/${project.id}`, payload)
       // Salva allow_manual_timesheet por consultor (pivô separado)
-      const initialManual = new Set((d.consultants ?? []).filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => c.id))
-      const allIds = new Set([...form.consultant_ids, ...Array.from(initialManual)])
+      const initialManual = new Set<number>((d.consultants ?? []).filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => Number(c.id)))
+      const allIds = new Set<number>([...form.consultant_ids, ...Array.from(initialManual)])
       await Promise.allSettled(
         Array.from(allIds).filter(id => manualTimesheetIds.has(id) !== initialManual.has(id)).map(id =>
           api.put(`/projects/${project.id}/consultants/${id}/manual-timesheet`, { allow: manualTimesheetIds.has(id) })
