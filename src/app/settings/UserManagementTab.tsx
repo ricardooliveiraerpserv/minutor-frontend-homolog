@@ -32,6 +32,7 @@ interface UserItem {
   customer_id?: number | null
   partner_id?: number | null
   is_executive?: boolean
+  can_timesheet_sustentacao?: boolean
   type?: string | null
   extra_permissions?: string[] | null
 }
@@ -257,6 +258,7 @@ const EMPTY_FORM = {
   bank_hours_start_date: '',
   guaranteed_hours: '',
   is_partner_adm: false,
+  can_timesheet_sustentacao: false,
   customer_id: '' as number | '',
   partner_id:  '' as number | '',
   extra_permissions: [] as string[],
@@ -367,6 +369,7 @@ export function UserManagementTab() {
       bank_hours_start_date: item.bank_hours_start_date ?? '',
       guaranteed_hours: item.guaranteed_hours != null ? String(item.guaranteed_hours) : '',
       is_partner_adm: item.is_executive ?? false,
+      can_timesheet_sustentacao: item.can_timesheet_sustentacao ?? false,
       customer_id: item.customer_id ?? '',
       partner_id:  item.partner_id  ?? '',
       extra_permissions: item.extra_permissions ?? [],
@@ -391,6 +394,9 @@ export function UserManagementTab() {
       if (form.daily_hours) payload.daily_hours = parseFloat(form.daily_hours)
       if (form.profiles.includes('consultor') && form.consultant_type) payload.consultant_type = form.consultant_type
       if (form.profiles.includes('coordenador')) payload.coordinator_type = form.coordinator_type || null
+      if (form.profiles.includes('consultor') || form.profiles.includes('parceiro_adm')) {
+        payload.can_timesheet_sustentacao = form.can_timesheet_sustentacao
+      }
       payload.bank_hours_start_date = (form.profiles.includes('consultor') || form.profiles.includes('parceiro_adm')) && form.bank_hours_start_date
         ? form.bank_hours_start_date
         : null
@@ -792,6 +798,13 @@ export function UserManagementTab() {
                       onChange={() => setForm(f => ({ ...f, is_partner_adm: !f.is_partner_adm }))}
                       label="É administrador do parceiro" />
                   </div>
+                )}
+                {(isConsultor || isParceiroAdm) && (
+                  <Toggle
+                    value={form.can_timesheet_sustentacao}
+                    onChange={() => setForm(f => ({ ...f, can_timesheet_sustentacao: !f.can_timesheet_sustentacao }))}
+                    label="Pode apontar manualmente em sustentação"
+                  />
                 )}
                 {/* Permissões adicionais — só para perfis não-admin */}
                 {form.profiles.length > 0 && !form.profiles.includes('administrator') && (() => {

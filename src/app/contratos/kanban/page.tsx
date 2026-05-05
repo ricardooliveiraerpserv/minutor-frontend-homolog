@@ -1060,7 +1060,6 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 <div><label style={lStyle}>Valor Máx. por Consultor (R$)</label><input type="number" value={form.max_expense_per_consultant} onChange={setF('max_expense_per_consultant')} style={iStyle} placeholder="Ilimitado" min="0" step="0.01" /><p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Vazio = ilimitado</p></div>
                 <div><label style={lStyle}>Prazo para Lançamento (dias)</label><input type="number" value={form.timesheet_retroactive_limit_days} onChange={setF('timesheet_retroactive_limit_days')} style={iStyle} placeholder="Padrão global" min="0" max="365" /></div>
               </div>
-              <Toggle2 checked={form.allow_manual_timesheets} onChange={v => setForm(p => ({ ...p, allow_manual_timesheets: v }))} label="Apontamentos manuais permitidos" />
               <Toggle2 checked={form.allow_negative_balance} onChange={v => setForm(p => ({ ...p, allow_negative_balance: v }))} label="Permitir saldo negativo de horas" />
             </div>
 
