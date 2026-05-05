@@ -698,6 +698,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     consultant_group_ids:            (d.consultant_groups ?? []).map((g: any) => g.id),
   })
   const [saving, setSaving] = useState(false)
+  const [manualTimesheetIds, setManualTimesheetIds] = useState<Set<number>>(
+    () => new Set((d.consultants ?? []).filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => c.id))
+  )
 
   const [optServiceTypes,    setOptServiceTypes]    = useState<{id:number;name:string}[]>([])
   const [optContractTypes,   setOptContractTypes]   = useState<{id:number;name:string}[]>([])
@@ -820,6 +823,14 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       if (form.max_expense_per_consultant !== '') payload.max_expense_per_consultant = Number(form.max_expense_per_consultant)
       if (form.timesheet_retroactive_limit_days !== '') payload.timesheet_retroactive_limit_days = Number(form.timesheet_retroactive_limit_days)
       await api.put(`/projects/${project.id}`, payload)
+      // Salva allow_manual_timesheet por consultor (pivô separado)
+      const initialManual = new Set((d.consultants ?? []).filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => c.id))
+      const allIds = new Set([...form.consultant_ids, ...Array.from(initialManual)])
+      await Promise.allSettled(
+        Array.from(allIds).filter(id => manualTimesheetIds.has(id) !== initialManual.has(id)).map(id =>
+          api.put(`/projects/${project.id}/consultants/${id}/manual-timesheet`, { allow: manualTimesheetIds.has(id) })
+        )
+      )
       toast.success('Projeto atualizado')
       onSaved()
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar projeto') }
@@ -1125,15 +1136,27 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 })}
                 {teamTab === 'consult' && filteredConsults.map(c => {
                   const sel = form.consultant_ids.includes(c.id)
+                  const allowManual = manualTimesheetIds.has(c.id)
                   return (
-                    <button key={c.id} onClick={() => setForm(p => ({ ...p, consultant_ids: toggleId(p.consultant_ids, c.id) }))}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
-                      style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
-                        {sel && <Check size={10} style={{ color: '#a78bfa' }} />}
-                      </div>
-                      <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--brand-text)' }}>{c.name}</span>
-                    </button>
+                    <div key={c.id} className="flex items-center gap-2">
+                      <button onClick={() => setForm(p => ({ ...p, consultant_ids: toggleId(p.consultant_ids, c.id) }))}
+                        className="flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+                        style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
+                        <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
+                          {sel && <Check size={10} style={{ color: '#a78bfa' }} />}
+                        </div>
+                        <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--brand-text)' }}>{c.name}</span>
+                      </button>
+                      {sel && (
+                        <button
+                          title={allowManual ? 'Bloquear apontamento manual neste projeto' : 'Liberar apontamento manual neste projeto'}
+                          onClick={() => setManualTimesheetIds(prev => { const s = new Set(prev); allowManual ? s.delete(c.id) : s.add(c.id); return s })}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors"
+                          style={{ background: allowManual ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${allowManual ? 'rgba(34,197,94,0.4)' : 'var(--brand-border)'}`, color: allowManual ? '#22c55e' : 'var(--brand-subtle)' }}>
+                          <Clock size={12} />
+                        </button>
+                      )}
+                    </div>
                   )
                 })}
                 {teamTab === 'group' && filteredGroups.map(g => {
@@ -1663,11 +1686,18 @@ export default function GestaoProjetosPage() {
       })
       toast.success('Equipe atualizada')
       setTeamProject(null)
-      // Atualiza localmente
       setProjects(prev => prev.map(p => p.id === teamProject.id
         ? { ...p, consultants: allConsultants.filter(c => selectedIds.has(c.id)).map(c => ({ ...c, email: '' })) }
         : p
       ))
+      if (viewProject?.id === teamProject.id) {
+        setViewProjectFull(null)
+        setViewProjectLoading(true)
+        api.get<ProjectFull>(`/projects/${teamProject.id}`)
+          .then(r => setViewProjectFull(r))
+          .catch(() => {})
+          .finally(() => setViewProjectLoading(false))
+      }
     } catch { toast.error('Erro ao salvar equipe') }
     finally { setTeamSaving(false) }
   }
@@ -2238,7 +2268,7 @@ export default function GestaoProjetosPage() {
 
       {/* ── Modal de Equipe ── */}
       {teamProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className="flex flex-col rounded-2xl w-full max-w-md max-h-[80vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
               <div>
@@ -2298,7 +2328,7 @@ export default function GestaoProjetosPage() {
 
       {/* ── Modal de Aportes ── */}
       {aportesProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
           <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[90vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
               <div>
@@ -2548,11 +2578,11 @@ export default function GestaoProjetosPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => { setViewProject(null); setViewProjectFull(null); setDataModal({ project: base, tab: 'timesheets' }) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><Clock size={11} /> Apontamentos</button>
-                  <button onClick={() => { setViewProject(null); setViewProjectFull(null); setDataModal({ project: base, tab: 'expenses' }) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><BarChart2 size={11} /> Despesas</button>
-                  <button onClick={() => { setViewProject(null); setMessagesProject(base) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><MessageCircle size={11} /> Mensagens</button>
+                  <button onClick={() => { setDataModal({ project: base, tab: 'timesheets' }) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><Clock size={11} /> Apontamentos</button>
+                  <button onClick={() => { setDataModal({ project: base, tab: 'expenses' }) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><BarChart2 size={11} /> Despesas</button>
+                  <button onClick={() => { setMessagesProject(base) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><MessageCircle size={11} /> Mensagens</button>
                   {canEdit && (
-                    <button onClick={() => { setViewProject(null); setEditProjectId(p.id) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}><Edit2 size={11} /> Editar</button>
+                    <button onClick={() => { setEditProjectId(p.id) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}><Edit2 size={11} /> Editar</button>
                   )}
                   <button onClick={() => { setViewProject(null); setViewProjectFull(null) }} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
                 </div>
@@ -2903,8 +2933,8 @@ export default function GestaoProjetosPage() {
               {/* Footer */}
               <div className="flex items-center justify-between px-6 py-3 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
                 <div className="flex gap-2">
-                  <button onClick={() => { setViewProject(null); handleMenuAction('aportes', base) }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><TrendingUp size={11} /> Aportes</button>
-                  <button onClick={() => { setViewProject(null); handleMenuAction('team', base) }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><Users size={11} /> Equipe</button>
+                  <button onClick={() => { handleMenuAction('aportes', base) }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><TrendingUp size={11} /> Aportes</button>
+                  <button onClick={() => { handleMenuAction('team', base) }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}><Users size={11} /> Equipe</button>
                 </div>
                 <button onClick={() => { setViewProject(null); setViewProjectFull(null) }} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
               </div>
@@ -2915,7 +2945,7 @@ export default function GestaoProjetosPage() {
 
       {/* ── Modal de Mensagens ── */}
       {messagesProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
           <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[85vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
             <div className="flex items-center justify-between px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
               <div>
@@ -2936,7 +2966,18 @@ export default function GestaoProjetosPage() {
         <ProjectEditByIdModal
           projectId={editProjectId}
           onClose={() => setEditProjectId(null)}
-          onSaved={() => { setEditProjectId(null); setRefreshKey(k => k + 1) }}
+          onSaved={() => {
+            setEditProjectId(null)
+            setRefreshKey(k => k + 1)
+            if (viewProject) {
+              setViewProjectFull(null)
+              setViewProjectLoading(true)
+              api.get<ProjectFull>(`/projects/${viewProject.id}`)
+                .then(r => setViewProjectFull(r))
+                .catch(() => {})
+                .finally(() => setViewProjectLoading(false))
+            }
+          }}
         />
       )}
 
