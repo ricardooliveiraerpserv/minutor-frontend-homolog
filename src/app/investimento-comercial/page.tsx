@@ -436,7 +436,7 @@ export default function InvestimentoComercialPage() {
     <AppLayout>
       <PageHeader
         icon={TrendingUp as LucideIcon}
-        title="Investimento Comercial"
+        title="Investimento Interno"
         subtitle="Projetos internos por cliente — não cobrados, refletidos no fechamento dos consultores"
       />
 
@@ -526,7 +526,7 @@ export default function InvestimentoComercialPage() {
             <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-4" style={surfaceStyle}>
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-semibold" style={{ color: '#00F5FF' }}>Investimento Comercial</p>
+                  <p className="text-xs font-semibold" style={{ color: '#00F5FF' }}>Investimento Interno</p>
                   <h2 className="text-base font-bold mt-0.5" style={{ color: 'var(--brand-text)' }}>{modal.project!.customer?.name ?? '—'}</h2>
                 </div>
                 <button onClick={closeModal} className="p-1 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>

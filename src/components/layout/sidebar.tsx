@@ -132,7 +132,7 @@ const NAV: NavEntry[] = [
       { label: 'Gestão de Projetos',       href: '/gestao-projetos',          icon: Layers },
       { label: 'Kanban Contratos',         href: '/contratos/kanban',         icon: LayoutGrid },
       { label: 'Demandas e Projetos',      href: '/contratos/pipeline',       icon: Layers },
-      { label: 'Investimento Comercial',   href: '/investimento-comercial',   icon: TrendingUp },
+      { label: 'Investimento Interno',      href: '/investimento-comercial',   icon: TrendingUp },
       { label: 'Visão Executiva',          href: '/portal-cliente',           icon: Building2 },
     ],
   },
