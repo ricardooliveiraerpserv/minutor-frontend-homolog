@@ -824,8 +824,11 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       if (form.timesheet_retroactive_limit_days !== '') payload.timesheet_retroactive_limit_days = Number(form.timesheet_retroactive_limit_days)
       await api.put(`/projects/${project.id}`, payload)
       // Salva allow_manual_timesheet por consultor (pivô separado)
-      const initialManual = new Set<number>((d.consultants ?? []).filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => Number(c.id)))
-      const allIds = new Set<number>([...form.consultant_ids, ...Array.from(initialManual)])
+      const directInitial: any[] = d.consultants ?? []
+      const groupInitial: any[] = (d.consultant_groups ?? []).flatMap((g: any) => g.consultants ?? [])
+      const allInitialConsultants = [...directInitial, ...groupInitial].filter((c, i, arr) => arr.findIndex((x: any) => x.id === c.id) === i)
+      const initialManual = new Set<number>(allInitialConsultants.filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => Number(c.id)))
+      const allIds = new Set<number>([...allInitialConsultants.map((c: any) => Number(c.id)), ...Array.from(initialManual)])
       await Promise.allSettled(
         Array.from(allIds).filter(id => manualTimesheetIds.has(id) !== initialManual.has(id)).map(id =>
           api.put(`/projects/${project.id}/consultants/${id}/manual-timesheet`, { allow: manualTimesheetIds.has(id) })
@@ -1116,27 +1119,33 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                   </button>
                 ))}
               </div>
-              {teamTab === 'consult' && (d.consultants ?? []).length > 0 && (
-                <div className="mb-2 rounded-xl p-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: 'var(--brand-subtle)' }}>Apontamento manual — consultores no projeto</p>
-                  {(d.consultants as any[]).map((c: any) => {
-                    const allowManual = manualTimesheetIds.has(c.id)
-                    return (
-                      <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-white/5">
-                        <span className="text-xs" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
-                        <button
-                          title={allowManual ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
-                          onClick={() => setManualTimesheetIds(prev => { const s = new Set(prev); allowManual ? s.delete(c.id) : s.add(c.id); return s })}
-                          className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
-                          style={{ background: allowManual ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${allowManual ? 'rgba(34,197,94,0.4)' : 'var(--brand-border)'}`, color: allowManual ? '#22c55e' : 'var(--brand-subtle)' }}>
-                          <Clock size={10} />
-                          {allowManual ? 'Liberado' : 'Bloqueado'}
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+              {teamTab === 'consult' && (() => {
+                const directConsultants: any[] = d.consultants ?? []
+                const groupConsultants: any[] = (d.consultant_groups ?? []).flatMap((g: any) => g.consultants ?? [])
+                const allProjectConsultants = [...directConsultants, ...groupConsultants].filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i)
+                if (allProjectConsultants.length === 0) return null
+                return (
+                  <div className="mb-2 rounded-xl p-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: 'var(--brand-subtle)' }}>Apontamento manual — consultores no projeto</p>
+                    {allProjectConsultants.map((c: any) => {
+                      const allowManual = manualTimesheetIds.has(c.id)
+                      return (
+                        <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-white/5">
+                          <span className="text-xs" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
+                          <button
+                            title={allowManual ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
+                            onClick={() => setManualTimesheetIds(prev => { const s = new Set(prev); allowManual ? s.delete(c.id) : s.add(c.id); return s })}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
+                            style={{ background: allowManual ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${allowManual ? 'rgba(34,197,94,0.4)' : 'var(--brand-border)'}`, color: allowManual ? '#22c55e' : 'var(--brand-subtle)' }}>
+                            <Clock size={10} />
+                            {allowManual ? 'Liberado' : 'Bloqueado'}
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
               <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)}
                 placeholder="Buscar..."
                 className="w-full text-xs px-3 py-2 rounded-xl outline-none mb-2"
