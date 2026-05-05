@@ -1067,7 +1067,8 @@ function TableSkeleton({ cols }: { cols: number }) {
   )
 }
 
-function StatusBadge({ status, display }: { status: string; display?: string }) {
+function StatusBadge({ status, display, reason }: { status: string; display?: string; reason?: string | null }) {
+  const hasReason = !!reason && (status === 'rejected' || status === 'adjustment_requested')
   if (status === 'approved') {
     return (
       <span className="inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full border bg-green-500/15 text-green-400 border-green-500/25">
@@ -1077,7 +1078,11 @@ function StatusBadge({ status, display }: { status: string; display?: string }) 
     )
   }
   return (
-    <Badge variant="outline" className={`text-[10px] font-medium border ${STATUS_COLORS[status] ?? 'text-zinc-400 border-zinc-700'}`}>
+    <Badge
+      variant="outline"
+      className={`text-[10px] font-medium border ${STATUS_COLORS[status] ?? 'text-zinc-400 border-zinc-700'} ${hasReason ? 'cursor-help' : ''}`}
+      title={hasReason ? reason! : undefined}
+    >
       {STATUS_LABELS[status] ?? display ?? status}
     </Badge>
   )
@@ -2321,7 +2326,7 @@ export default function MeuPainelPage() {
                             <span className="text-xs font-mono font-semibold text-zinc-300">
                               {ts.effort_hours}
                             </span>
-                            <StatusBadge status={ts.status} display={ts.status_display} />
+                            <StatusBadge status={ts.status} display={ts.status_display} reason={ts.rejection_reason} />
                           </div>
                         </div>
                       ))
@@ -2524,7 +2529,7 @@ export default function MeuPainelPage() {
                         {ts.observation ?? <span className="text-zinc-700">—</span>}
                       </td>
                       <td className="px-4 py-3.5">
-                        <StatusBadge status={ts.status} display={ts.status_display} />
+                        <StatusBadge status={ts.status} display={ts.status_display} reason={ts.rejection_reason} />
                       </td>
                       <td className="px-4 py-3.5 w-10">
                         <RowMenu items={[
