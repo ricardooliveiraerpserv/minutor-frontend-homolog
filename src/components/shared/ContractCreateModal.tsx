@@ -164,7 +164,11 @@ export function ContractCreateModal({
     api.get<any>(`/projects?customer_id=${form.customer_id}&per_page=200&parent_projects_only=true`)
       .then(r => {
         const list: any[] = r?.items ?? (Array.isArray(r) ? r : [])
-        setParentProjects(list.map((p: any) => ({ id: p.id, name: p.code ? `[${p.code}] ${p.name}` : p.name, code_prefix: p.code ?? null })))
+        setParentProjects(
+          list
+            .filter((p: any) => !p.parent_project_id)
+            .map((p: any) => ({ id: p.id, name: p.code ? `[${p.code}] ${p.name}` : p.name, code_prefix: p.code ?? null }))
+        )
       })
       .catch(() => setParentProjects([]))
   }, [form.customer_id])
