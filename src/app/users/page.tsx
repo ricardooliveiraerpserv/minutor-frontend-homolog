@@ -38,6 +38,7 @@ interface UserItem {
   is_executive?: boolean
   type?: string | null
   extra_permissions?: string[]
+  can_timesheet_sustentacao?: boolean
   created_at: string
 }
 
@@ -227,6 +228,7 @@ const EMPTY_FORM = {
   customer_id: '' as number | '',
   partner_id: '' as number | '',
   extra_permissions: [] as string[],
+  can_timesheet_sustentacao: false,
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -351,7 +353,8 @@ export default function UsersPage() {
       is_partner_adm:       item.is_executive ?? false,
       customer_id:          item.customer_id ?? '',
       partner_id:           item.partner_id  ?? '',
-      extra_permissions:    item.extra_permissions ?? [],
+      extra_permissions:          item.extra_permissions ?? [],
+      can_timesheet_sustentacao:  item.can_timesheet_sustentacao ?? false,
     })
     setModal({ open: true, item })
   }
@@ -385,6 +388,9 @@ export default function UsersPage() {
       if (form.profiles.includes('coordenador')) {
         payload.coordinator_type  = form.coordinator_type || null
         payload.extra_permissions = form.extra_permissions
+      }
+      if (form.profiles.includes('consultor') || form.profiles.includes('parceiro_adm')) {
+        payload.can_timesheet_sustentacao = form.can_timesheet_sustentacao
       }
       if (!modal.item && form.password) payload.password = form.password
 
@@ -1034,6 +1040,15 @@ export default function UsersPage() {
                       label="É administrador do parceiro"
                     />
                   </div>
+                )}
+
+                {/* ── Sustentação: apontamento manual ── */}
+                {(isConsultor || isParceiroAdm) && (
+                  <Toggle
+                    value={form.can_timesheet_sustentacao}
+                    onChange={() => setForm(f => ({ ...f, can_timesheet_sustentacao: !f.can_timesheet_sustentacao }))}
+                    label="Pode apontar manualmente em sustentação"
+                  />
                 )}
 
                 {/* ── Ativo ── */}
