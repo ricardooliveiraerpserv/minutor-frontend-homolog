@@ -17,6 +17,7 @@ import type { LucideIcon } from 'lucide-react'
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface Consultant { id: number; name: string; email: string }
+interface ConsultantGroup { id: number; name: string; users: Consultant[] }
 
 interface ICProject {
   id: number; code: string; status: string
@@ -106,6 +107,7 @@ export default function InvestimentoComercialPage() {
   const [hoursLoading, setHoursLoading] = useState(false)
   const [loading,      setLoading]      = useState(true)
   const [allUsers,     setAllUsers]     = useState<Consultant[]>([])
+  const [groups,       setGroups]       = useState<ConsultantGroup[]>([])
   const [modal,        setModal]        = useState<{ open: boolean; project: ICProject | null }>({ open: false, project: null })
   const [selected,     setSelected]     = useState<number[]>([])
   const [userSearch,   setUserSearch]   = useState('')
@@ -125,11 +127,19 @@ export default function InvestimentoComercialPage() {
     Promise.all([
       api.get<any>('/projects?only_investimento_comercial=true&pageSize=500&gestao=true&with_team=true'),
       api.get<any>('/users?exclude_type=cliente&pageSize=500'),
-    ]).then(([projRes, usersRes]) => {
+      api.get<any>('/consultant-groups?pageSize=200&with_users=true'),
+    ]).then(([projRes, usersRes, groupsRes]) => {
       if (cancelled) return
       const rawProjects: any[] = projRes?.items ?? projRes?.data ?? []
       setProjects(rawProjects.map(p => ({ id: p.id, code: p.code, status: p.status, customer: p.customer ?? null, consultants: p.consultants ?? [] })))
-      setAllUsers((usersRes?.data ?? []).map((u: any) => ({ id: u.id, name: u.name, email: u.email })))
+      const rawUsers: any[] = usersRes?.items ?? usersRes?.data ?? []
+      setAllUsers(rawUsers.map((u: any) => ({ id: u.id, name: u.name, email: u.email })))
+      const rawGroups: any[] = groupsRes?.data ?? groupsRes?.items ?? []
+      setGroups(rawGroups.map((g: any) => ({
+        id: g.id,
+        name: g.name,
+        users: (g.users ?? g.consultants ?? []).map((u: any) => ({ id: u.id, name: u.name, email: u.email })),
+      })))
     }).catch(() => toast.error('Erro ao carregar dados'))
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -480,51 +490,112 @@ export default function InvestimentoComercialPage() {
       {activeTab === 'detalhe'     && renderDetalhe()}
 
       {/* Modal gerenciar equipe */}
-      {modal.open && modal.project && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-4" style={surfaceStyle}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold" style={{ color: '#00F5FF' }}>Investimento Comercial</p>
-                <h2 className="text-base font-bold mt-0.5" style={{ color: 'var(--brand-text)' }}>{modal.project.customer?.name ?? '—'}</h2>
+      {modal.open && modal.project && (() => {
+        const groupUserIds = new Set(groups.flatMap(g => g.users.map(u => u.id)))
+        const ungrouped = filteredUsers.filter(u => !groupUserIds.has(u.id))
+        const filteredGroups = groups.filter(g =>
+          !userSearch || g.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+          g.users.some(u => u.name.toLowerCase().includes(userSearch.toLowerCase()))
+        )
+
+        function UserRow({ u }: { u: Consultant }) {
+          const checked = selected.includes(u.id)
+          return (
+            <button onClick={() => toggleUser(u.id)}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-colors hover:bg-white/5 w-full">
+              <div className="w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors"
+                style={{ background: checked ? '#00F5FF' : 'transparent', border: checked ? 'none' : '1px solid var(--brand-border)' }}>
+                {checked && <Check size={10} style={{ color: '#0a0a0a' }} />}
               </div>
-              <button onClick={closeModal} className="p-1 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
-            </div>
-            <div className="relative">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
-              <input type="text" placeholder="Buscar consultor..." value={userSearch}
-                onChange={e => setUserSearch(e.target.value)}
-                className="w-full pl-9 pr-3 h-9 rounded-xl text-xs outline-none" style={inputStyle} />
-            </div>
-            <div className="flex flex-col gap-1 max-h-72 overflow-y-auto">
-              {filteredUsers.length === 0
-                ? <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum consultor encontrado</p>
-                : filteredUsers.map(u => {
-                    const checked = selected.includes(u.id)
-                    return (
-                      <button key={u.id} onClick={() => toggleUser(u.id)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors hover:bg-white/5">
-                        <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors"
-                          style={{ background: checked ? '#00F5FF' : 'transparent', border: checked ? 'none' : '1px solid var(--brand-border)' }}>
-                          {checked && <Check size={12} style={{ color: '#0a0a0a' }} />}
+              <div className="min-w-0">
+                <p className="text-xs font-medium leading-tight truncate" style={{ color: 'var(--brand-text)' }}>{u.name}</p>
+              </div>
+            </button>
+          )
+        }
+
+        function toggleGroup(g: ConsultantGroup) {
+          const ids = g.users.map(u => u.id)
+          const allChecked = ids.every(id => selected.includes(id))
+          if (allChecked) setSelected(prev => prev.filter(id => !ids.includes(id)))
+          else setSelected(prev => [...new Set([...prev, ...ids])])
+        }
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+            <div className="w-full max-w-md rounded-2xl p-6 flex flex-col gap-4" style={surfaceStyle}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: '#00F5FF' }}>Investimento Comercial</p>
+                  <h2 className="text-base font-bold mt-0.5" style={{ color: 'var(--brand-text)' }}>{modal.project!.customer?.name ?? '—'}</h2>
+                </div>
+                <button onClick={closeModal} className="p-1 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+              </div>
+
+              <div className="relative">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+                <input type="text" placeholder="Buscar consultor ou grupo..." value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 h-9 rounded-xl text-xs outline-none" style={inputStyle} />
+              </div>
+
+              <div className="flex flex-col gap-1 max-h-80 overflow-y-auto pr-0.5">
+                {filteredGroups.length === 0 && ungrouped.length === 0 && (
+                  <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum consultor encontrado</p>
+                )}
+
+                {/* Grupos */}
+                {filteredGroups.map(g => {
+                  const visibleUsers = userSearch
+                    ? g.users.filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()))
+                    : g.users
+                  if (visibleUsers.length === 0) return null
+                  const allChecked = g.users.every(u => selected.includes(u.id))
+                  const someChecked = g.users.some(u => selected.includes(u.id))
+                  return (
+                    <div key={g.id} className="mb-1">
+                      <button onClick={() => toggleGroup(g)}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors">
+                        <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
+                          style={{
+                            background: allChecked ? '#00F5FF' : someChecked ? 'rgba(0,245,255,0.3)' : 'transparent',
+                            border: allChecked ? 'none' : '1px solid var(--brand-border)',
+                          }}>
+                          {allChecked && <Check size={10} style={{ color: '#0a0a0a' }} />}
+                          {someChecked && !allChecked && <div className="w-2 h-0.5 rounded" style={{ background: '#00F5FF' }} />}
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium leading-tight truncate" style={{ color: 'var(--brand-text)' }}>{u.name}</p>
-                          <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>{u.email}</p>
-                        </div>
+                        <span className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>{g.name}</span>
+                        <span className="ml-auto text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{g.users.length}</span>
                       </button>
-                    )
-                  })
-              }
-            </div>
-            <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{selected.length} consultor{selected.length !== 1 ? 'es' : ''} selecionado{selected.length !== 1 ? 's' : ''}</p>
-            <div className="flex gap-2 pt-1">
-              <Button variant="ghost" className="flex-1" onClick={closeModal}>Cancelar</Button>
-              <Button variant="primary" className="flex-1" onClick={saveTeam} disabled={saving}>{saving ? 'Salvando…' : 'Salvar Equipe'}</Button>
+                      <div className="ml-4 border-l pl-2" style={{ borderColor: 'var(--brand-border)' }}>
+                        {visibleUsers.map(u => <UserRow key={u.id} u={u} />)}
+                      </div>
+                    </div>
+                  )
+                })}
+
+                {/* Sem grupo */}
+                {ungrouped.length > 0 && (
+                  <div className="mb-1">
+                    {filteredGroups.length > 0 && (
+                      <p className="px-3 py-1 text-[10px] uppercase tracking-widest" style={{ color: 'var(--brand-subtle)' }}>Sem grupo</p>
+                    )}
+                    {ungrouped.map(u => <UserRow key={u.id} u={u} />)}
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                {selected.length} consultor{selected.length !== 1 ? 'es' : ''} selecionado{selected.length !== 1 ? 's' : ''}
+              </p>
+              <div className="flex gap-2 pt-1">
+                <Button variant="ghost" className="flex-1" onClick={closeModal}>Cancelar</Button>
+                <Button variant="primary" className="flex-1" onClick={saveTeam} disabled={saving}>{saving ? 'Salvando…' : 'Salvar Equipe'}</Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </AppLayout>
   )
 }
