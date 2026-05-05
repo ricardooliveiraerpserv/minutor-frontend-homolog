@@ -8,6 +8,15 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 export const metadata: Metadata = {
   title: 'Minutor',
   description: 'Gestão de horas e despesas',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Minutor',
+  },
+  other: {
+    'apple-touch-icon': '/apple-touch-icon.png',
+    'mobile-web-app-capable': 'yes',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

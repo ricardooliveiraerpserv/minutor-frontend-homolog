@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect } from 'react'
 import type { Viewport } from 'next'
 
 export const viewport: Viewport = {
@@ -9,6 +12,12 @@ export const viewport: Viewport = {
 }
 
 export default function MobileLayout({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    }
+  }, [])
+
   return (
     <div style={{
       minHeight: '100dvh',
