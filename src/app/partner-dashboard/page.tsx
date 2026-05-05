@@ -260,6 +260,73 @@ export default function PartnerDashboardPage() {
   const [expLoading, setExpLoading]     = useState(false)
   const [expLoaded,  setExpLoaded]      = useState(false)
 
+  // ── Expense create modal ──
+  const [expModal,      setExpModal]      = useState(false)
+  const [expSaving,     setExpSaving]     = useState(false)
+  const [expTeam,       setExpTeam]       = useState<{ id: number; name: string }[]>([])
+  const [expCustomers,  setExpCustomers]  = useState<{ id: number; name: string }[]>([])
+  const [expProjects,   setExpProjects]   = useState<{ id: number; name: string }[]>([])
+  const [expCategories, setExpCategories] = useState<{ id: number; name: string }[]>([])
+  const [expForm, setExpForm] = useState({
+    user_id: '', customer_id: '', project_id: '', expense_category_id: '',
+    expense_date: new Date().toISOString().split('T')[0],
+    description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix',
+  })
+
+  const openExpCreate = async () => {
+    setExpForm({
+      user_id: '', customer_id: '', project_id: '', expense_category_id: '',
+      expense_date: new Date().toISOString().split('T')[0],
+      description: '', amount: '', expense_type: 'reimbursement', payment_method: 'pix',
+    })
+    setExpModal(true)
+    try {
+      const [team, cats, custs] = await Promise.all([
+        api.get<any>('/users?pageSize=200&exclude_type=cliente&partner_only=true'),
+        api.get<any>('/expense-categories?pageSize=100'),
+        api.get<any>('/customers?pageSize=200&active_only=true'),
+      ])
+      setExpTeam(team?.items ?? [])
+      setExpCategories(Array.isArray(cats?.items) ? cats.items : Array.isArray(cats?.data) ? cats.data : [])
+      setExpCustomers(custs?.items ?? custs?.data ?? [])
+    } catch { /* silencioso */ }
+  }
+
+  useEffect(() => {
+    if (!expModal || !expForm.customer_id) { setExpProjects([]); return }
+    const qs = new URLSearchParams({ pageSize: '200', customer_id: expForm.customer_id, status: 'open' })
+    api.get<any>(`/projects?${qs}`)
+      .then(p => setExpProjects(p?.items ?? []))
+      .catch(() => {})
+  }, [expModal, expForm.customer_id])
+
+  const saveExpense = async () => {
+    if (!expForm.user_id || !expForm.project_id || !expForm.expense_category_id || !expForm.description || !expForm.amount || !expForm.expense_date) {
+      toast.error('Preencha todos os campos obrigatórios')
+      return
+    }
+    setExpSaving(true)
+    try {
+      await api.post('/expenses', {
+        user_id: Number(expForm.user_id),
+        project_id: Number(expForm.project_id),
+        expense_category_id: Number(expForm.expense_category_id),
+        expense_date: expForm.expense_date,
+        description: expForm.description,
+        amount: Number(expForm.amount),
+        expense_type: expForm.expense_type,
+        payment_method: expForm.payment_method,
+      })
+      toast.success('Despesa criada')
+      setExpModal(false)
+      loadExpenses()
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao criar despesa')
+    } finally {
+      setExpSaving(false)
+    }
+  }
+
   // ── Indicadores evolution state ──
   const [evoData,    setEvoData]        = useState<{ label: string; horas: number; receita: number }[]>([])
   const [evoLoading, setEvoLoading]     = useState(false)
@@ -842,11 +909,20 @@ export default function PartnerDashboardPage() {
             <div style={{ background: 'var(--brand-surface)' }}>
               <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-border)' }}>
                 <h2 className="text-sm font-semibold text-white">Despesas da Equipe</h2>
-                {!expLoading && (
-                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
-                    {expenses.length} registro{expenses.length !== 1 ? 's' : ''}
-                  </span>
-                )}
+                <div className="flex items-center gap-3">
+                  {!expLoading && (
+                    <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                      {expenses.length} registro{expenses.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  <button
+                    onClick={openExpCreate}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                    style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.2)' }}
+                  >
+                    <Plus size={12} /> Nova
+                  </button>
+                </div>
               </div>
               <table className="w-full text-sm">
                 <thead>
@@ -1176,6 +1252,141 @@ export default function PartnerDashboardPage() {
             ? () => { setViewExp(null); router.push(`/expenses`) }
             : undefined}
         />
+      )}
+
+      {/* ── Create Expense Modal ── */}
+      {expModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-full max-w-md rounded-2xl shadow-2xl" style={{ background: '#18181b', border: '1px solid var(--brand-border)' }}>
+            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-border)' }}>
+              <h3 className="text-sm font-semibold text-white">Nova Despesa</h3>
+              <button onClick={() => setExpModal(false)} className="text-zinc-500 hover:text-white transition-colors text-lg leading-none">×</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand-subtle)' }}>Consultor *</label>
+                <select
+                  value={expForm.user_id}
+                  onChange={e => setExpForm(f => ({ ...f, user_id: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                >
+                  <option value="">Selecione...</option>
+                  {expTeam.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand-subtle)' }}>Cliente *</label>
+                <select
+                  value={expForm.customer_id}
+                  onChange={e => setExpForm(f => ({ ...f, customer_id: e.target.value, project_id: '' }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                >
+                  <option value="">Selecione...</option>
+                  {expCustomers.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand-subtle)' }}>Projeto *</label>
+                <select
+                  value={expForm.project_id}
+                  onChange={e => setExpForm(f => ({ ...f, project_id: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                  disabled={!expForm.customer_id}
+                >
+                  <option value="">{expForm.customer_id ? 'Selecione...' : 'Selecione um cliente primeiro'}</option>
+                  {expProjects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand-subtle)' }}>Categoria *</label>
+                <select
+                  value={expForm.expense_category_id}
+                  onChange={e => setExpForm(f => ({ ...f, expense_category_id: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                >
+                  <option value="">Selecione...</option>
+                  {expCategories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand-subtle)' }}>Data *</label>
+                  <input
+                    type="date"
+                    value={expForm.expense_date}
+                    onChange={e => setExpForm(f => ({ ...f, expense_date: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor (R$) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    placeholder="0,00"
+                    value={expForm.amount}
+                    onChange={e => setExpForm(f => ({ ...f, amount: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand-subtle)' }}>Descrição *</label>
+                <input
+                  type="text"
+                  placeholder="Descreva a despesa..."
+                  value={expForm.description}
+                  onChange={e => setExpForm(f => ({ ...f, description: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand-subtle)' }}>Tipo</label>
+                  <select
+                    value={expForm.expense_type}
+                    onChange={e => setExpForm(f => ({ ...f, expense_type: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                  >
+                    <option value="reimbursement">Reembolso</option>
+                    <option value="advance">Adiantamento</option>
+                    <option value="direct">Pagamento Direto</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand-subtle)' }}>Pagamento</label>
+                  <select
+                    value={expForm.payment_method}
+                    onChange={e => setExpForm(f => ({ ...f, payment_method: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                  >
+                    <option value="pix">Pix</option>
+                    <option value="transfer">Transferência</option>
+                    <option value="cash">Dinheiro</option>
+                    <option value="credit_card">Cartão Crédito</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: 'var(--brand-border)' }}>
+              <button
+                onClick={() => setExpModal(false)}
+                className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={saveExpense}
+                disabled={expSaving}
+                className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                style={{ background: 'rgba(0,245,255,0.15)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)' }}
+              >
+                {expSaving ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AppLayout>
   )
