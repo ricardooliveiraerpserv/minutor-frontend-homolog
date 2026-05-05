@@ -1264,11 +1264,13 @@ function TimesheetsPageContent() {
                             {ts.status === 'released' && <Badge variant="approved">Liberado</Badge>}
                           </>
                         )
-                        : <Badge
-                            variant={ts.status}
-                            title={(ts.status === 'rejected' || ts.status === 'adjustment_requested') && ts.rejection_reason ? ts.rejection_reason : undefined}
-                            className={(ts.status === 'rejected' || ts.status === 'adjustment_requested') && ts.rejection_reason ? 'cursor-help' : undefined}
-                          >{ts.status_display ?? ts.status}</Badge>
+                        : (() => {
+                            const hasReason = ts.rejection_reason && (ts.status === 'rejected' || ts.status === 'adjustment_requested')
+                            const badge = <Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge>
+                            return hasReason
+                              ? <span title={ts.rejection_reason} className="cursor-help">{badge}</span>
+                              : badge
+                          })()
                       }
                       {ts.is_paid && <Badge variant="success">Pago</Badge>}
                     </span>

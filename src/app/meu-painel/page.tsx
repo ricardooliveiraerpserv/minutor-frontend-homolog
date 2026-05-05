@@ -1077,15 +1077,14 @@ function StatusBadge({ status, display, reason }: { status: string; display?: st
       </span>
     )
   }
-  return (
-    <Badge
-      variant="outline"
-      className={`text-[10px] font-medium border ${STATUS_COLORS[status] ?? 'text-zinc-400 border-zinc-700'} ${hasReason ? 'cursor-help' : ''}`}
-      title={hasReason ? reason! : undefined}
-    >
+  const badge = (
+    <Badge variant="outline" className={`text-[10px] font-medium border ${STATUS_COLORS[status] ?? 'text-zinc-400 border-zinc-700'}`}>
       {STATUS_LABELS[status] ?? display ?? status}
     </Badge>
   )
+  return hasReason
+    ? <span title={reason!} className="cursor-help">{badge}</span>
+    : badge
 }
 
 // ─── RowMenu ──────────────────────────────────────────────────────────────────
