@@ -16,7 +16,7 @@ import {
   ChevronLeft, ChevronRight, Plus, Pencil, Trash2, X, Lock,
   Clock, Receipt, BarChart2, LayoutDashboard, TrendingUp, TrendingDown, Minus, Eye,
   CalendarDays, RefreshCw, ChevronDown, ChevronUp, MoreVertical,
-  AlertTriangle, Zap, Users, DollarSign, Target, Activity, Paperclip, Download,
+  AlertTriangle, AlertCircle, Zap, Users, DollarSign, Target, Activity, Paperclip, Download,
   Building2, FolderOpen, Tag, CreditCard, FileText, User, FileSpreadsheet,
 } from 'lucide-react'
 import {
@@ -56,6 +56,7 @@ interface TimesheetItem {
   consultant_extra_pct?: number | null
   origin?: string | null
   conflicting_timesheets?: ConflictingTs[]
+  rejection_reason?: string | null
 }
 
 interface ExpenseItem {
@@ -3336,6 +3337,11 @@ export default function MeuPainelPage() {
                                   ts.status === 'rejected' ? 'bg-red-500/15 text-red-400' :
                                   'bg-zinc-500/15 text-zinc-400'
                                 }`}>{ts.status_display}</span>
+                                {ts.rejection_reason && ['rejected', 'adjustment_requested'].includes(ts.status) && (
+                                  <p className="text-[10px] mt-0.5 text-red-400 truncate max-w-[140px] mx-auto" title={ts.rejection_reason}>
+                                    {ts.rejection_reason}
+                                  </p>
+                                )}
                               </td>
                             </tr>
                           )
@@ -3426,6 +3432,11 @@ export default function MeuPainelPage() {
                                   ts.status === 'rejected' ? 'bg-red-500/15 text-red-400' :
                                   'bg-zinc-500/15 text-zinc-400'
                                 }`}>{ts.status_display}</span>
+                                {ts.rejection_reason && ['rejected', 'adjustment_requested'].includes(ts.status) && (
+                                  <p className="text-[10px] mt-0.5 text-red-400 truncate max-w-[140px] mx-auto" title={ts.rejection_reason}>
+                                    {ts.rejection_reason}
+                                  </p>
+                                )}
                               </td>
                             </tr>
                           )
@@ -3984,6 +3995,23 @@ export default function MeuPainelPage() {
                     </div>
                     <p className="px-4 py-3 text-sm leading-relaxed" style={{ color: 'var(--brand-muted)' }}>
                       {tsViewItem.observation}
+                    </p>
+                  </div>
+                )}
+
+                {/* Motivo da rejeição / ajuste */}
+                {tsViewItem.rejection_reason && ['rejected', 'adjustment_requested'].includes(tsViewItem.status) && (
+                  <div className="rounded-xl overflow-hidden"
+                    style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                    <div className="flex items-center gap-2 px-4 py-2.5"
+                      style={{ borderBottom: '1px solid rgba(239,68,68,0.2)' }}>
+                      <AlertCircle size={11} style={{ color: '#EF4444' }} />
+                      <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: '#EF4444' }}>
+                        {tsViewItem.status === 'adjustment_requested' ? 'Motivo do Ajuste' : 'Motivo da Rejeição'}
+                      </span>
+                    </div>
+                    <p className="px-4 py-3 text-sm leading-relaxed" style={{ color: '#FCA5A5' }}>
+                      {tsViewItem.rejection_reason}
                     </p>
                   </div>
                 )}

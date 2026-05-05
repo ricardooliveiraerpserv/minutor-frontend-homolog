@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   X, Clock, Pencil, Calendar, User, Building2, FolderOpen,
-  Ticket, Hash, Paperclip, FileText, CheckCircle, Globe, Webhook, DollarSign, TrendingUp,
+  Ticket, Hash, Paperclip, FileText, CheckCircle, Globe, Webhook, DollarSign, TrendingUp, AlertCircle,
 } from 'lucide-react'
 import { Badge } from '@/components/ds'
 import type { Timesheet } from '@/types'
@@ -116,8 +116,12 @@ export function TimesheetViewModal({
                 <DollarSign size={11} /> Somente Faturável
               </span>
             )}
-            {ts.rejection_reason && (
-              <span className="text-xs" style={{ color: 'var(--brand-danger)' }}>{ts.rejection_reason}</span>
+            {ts.rejection_reason && ['rejected', 'adjustment_requested'].includes(ts.status) && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.25)' }}>
+                <AlertCircle size={11} />
+                {ts.status === 'adjustment_requested' ? 'Ajuste:' : 'Motivo:'} {ts.rejection_reason}
+              </span>
             )}
           </div>
 
