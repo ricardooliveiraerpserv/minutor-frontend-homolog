@@ -1,4 +1,4 @@
-const CACHE = 'minutor-v1'
+const CACHE = 'minutor-v2'
 
 // Recursos estáticos para cache offline
 const STATIC = [
