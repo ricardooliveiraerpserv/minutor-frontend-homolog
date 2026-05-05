@@ -1116,6 +1116,27 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                   </button>
                 ))}
               </div>
+              {teamTab === 'consult' && (d.consultants ?? []).length > 0 && (
+                <div className="mb-2 rounded-xl p-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: 'var(--brand-subtle)' }}>Apontamento manual — consultores no projeto</p>
+                  {(d.consultants as any[]).map((c: any) => {
+                    const allowManual = manualTimesheetIds.has(c.id)
+                    return (
+                      <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-white/5">
+                        <span className="text-xs" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
+                        <button
+                          title={allowManual ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
+                          onClick={() => setManualTimesheetIds(prev => { const s = new Set(prev); allowManual ? s.delete(c.id) : s.add(c.id); return s })}
+                          className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
+                          style={{ background: allowManual ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${allowManual ? 'rgba(34,197,94,0.4)' : 'var(--brand-border)'}`, color: allowManual ? '#22c55e' : 'var(--brand-subtle)' }}>
+                          <Clock size={10} />
+                          {allowManual ? 'Liberado' : 'Bloqueado'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
               <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)}
                 placeholder="Buscar..."
                 className="w-full text-xs px-3 py-2 rounded-xl outline-none mb-2"
@@ -1136,27 +1157,15 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 })}
                 {teamTab === 'consult' && filteredConsults.map(c => {
                   const sel = form.consultant_ids.includes(c.id)
-                  const allowManual = manualTimesheetIds.has(c.id)
                   return (
-                    <div key={c.id} className="flex items-center gap-2">
-                      <button onClick={() => setForm(p => ({ ...p, consultant_ids: toggleId(p.consultant_ids, c.id) }))}
-                        className="flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
-                        style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
-                        <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
-                          {sel && <Check size={10} style={{ color: '#a78bfa' }} />}
-                        </div>
-                        <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--brand-text)' }}>{c.name}</span>
-                      </button>
-                      {sel && (
-                        <button
-                          title={allowManual ? 'Bloquear apontamento manual neste projeto' : 'Liberar apontamento manual neste projeto'}
-                          onClick={() => setManualTimesheetIds(prev => { const s = new Set(prev); allowManual ? s.delete(c.id) : s.add(c.id); return s })}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors"
-                          style={{ background: allowManual ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${allowManual ? 'rgba(34,197,94,0.4)' : 'var(--brand-border)'}`, color: allowManual ? '#22c55e' : 'var(--brand-subtle)' }}>
-                          <Clock size={12} />
-                        </button>
-                      )}
-                    </div>
+                    <button key={c.id} onClick={() => setForm(p => ({ ...p, consultant_ids: toggleId(p.consultant_ids, c.id) }))}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+                      style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
+                      <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
+                        {sel && <Check size={10} style={{ color: '#a78bfa' }} />}
+                      </div>
+                      <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--brand-text)' }}>{c.name}</span>
+                    </button>
                   )
                 })}
                 {teamTab === 'group' && filteredGroups.map(g => {
