@@ -20,7 +20,7 @@ import { RowMenu } from '@/components/ui/row-menu'
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 interface ProjectWithTeam extends Project {
-  consultants?: { id: number; name: string; email: string }[]
+  consultants?: { id: number; name: string; email: string; pivot?: { allow_manual_timesheet: boolean } }[]
   coordinators?: { id: number; name: string; email: string }[]
   child_projects?: ProjectWithTeam[]
   service_type?: { id: number; name: string } | null
@@ -307,9 +307,10 @@ interface ProjectRowProps {
   hasUnread?: boolean
   isSelected?: boolean
   onSelect?: (id: number) => void
+  onConsultantManualToggle?: (userId: number, allow: boolean) => void
 }
 
-function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect }: ProjectRowProps) {
+function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect, onConsultantManualToggle }: ProjectRowProps) {
   const ctName = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (project as any).tipo_faturamento === 'on_demand'
   const isBhMensal = ctName.includes('mensal')
@@ -585,12 +586,31 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                     Consultores
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {project.consultants!.map(u => (
-                      <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium"
-                        style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}>
-                        {u.name}
-                      </span>
-                    ))}
+                    {project.consultants!.map(u => {
+                      const allowManual = u.pivot?.allow_manual_timesheet ?? false
+                      return (
+                        <div key={u.id} className="relative group/manual flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium"
+                          style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}>
+                          <span>{u.name}</span>
+                          {canEdit && onConsultantManualToggle && (
+                            <button
+                              onClick={e => { e.stopPropagation(); onConsultantManualToggle(u.id, !allowManual) }}
+                              title={allowManual ? 'Bloquear apontamento manual neste projeto' : 'Liberar apontamento manual neste projeto'}
+                              className="ml-1 w-4 h-4 rounded flex items-center justify-center transition-colors"
+                              style={{
+                                background: allowManual ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)',
+                                color: allowManual ? '#22c55e' : 'var(--brand-subtle)',
+                              }}
+                            >
+                              <Clock size={10} />
+                            </button>
+                          )}
+                          {!canEdit && allowManual && (
+                            <span style={{ color: '#22c55e' }}><Clock size={10} /></span>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -1325,6 +1345,31 @@ export default function GestaoProjetosPage() {
     finally { setStatusSaving(false) }
   }
 
+  const handleConsultantManualToggle = useCallback(async (projectId: number, userId: number, allow: boolean) => {
+    try {
+      await api.put(`/projects/${projectId}/consultants/${userId}/manual-timesheet`, { allow })
+      setProjects(prev => prev.map(p => {
+        if (p.id !== projectId) return p
+        return {
+          ...p,
+          consultants: (p.consultants ?? []).map(c =>
+            c.id === userId ? { ...c, pivot: { allow_manual_timesheet: allow } } : c
+          ),
+        }
+      }))
+      setRows(prev => prev.map(r => {
+        if (r.id !== projectId) return r
+        return {
+          ...r,
+          consultants: (r.consultants ?? []).map(c =>
+            c.id === userId ? { ...c, pivot: { allow_manual_timesheet: allow } } : c
+          ),
+        }
+      }))
+      toast.success(allow ? 'Apontamento manual liberado' : 'Apontamento manual bloqueado')
+    } catch { toast.error('Erro ao atualizar permissão') }
+  }, [])
+
   // Modal de aportes
   const [aportesProject, setAportesProject]   = useState<ProjectWithTeam | null>(null)
   const [contributions, setContributions]     = useState<HourContribution[]>([])
@@ -1980,6 +2025,7 @@ export default function GestaoProjetosPage() {
                       onTreeToggle={tr ? () => toggleTree(tr) : undefined}
                       isSelected={selectedProjectIds.has(project.id)}
                       onSelect={toggleProjectSelect}
+                      onConsultantManualToggle={canEdit ? (userId, allow) => handleConsultantManualToggle(project.id, userId, allow) : undefined}
                     />
                   )
                 })}
