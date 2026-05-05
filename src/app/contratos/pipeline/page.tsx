@@ -3014,36 +3014,50 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
 // ─── ProjectTeamModal ──────────────────────────────────────────────────────────
 
 function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projectId: number; projectName: string; onClose: () => void; onSaved: () => void }) {
-  const [consultants, setConsultants] = useState<{ id: number; name: string }[]>([])
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [allConsultants,   setAllConsultants]   = useState<{ id: number; name: string }[]>([])
+  const [allGroups,        setAllGroups]        = useState<{ id: number; name: string }[]>([])
+  const [selectedIds,      setSelectedIds]      = useState<Set<number>>(new Set())
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<number>>(new Set())
+  const [manualIds,        setManualIds]        = useState<Set<number>>(new Set())
+  const [projectConsultants, setProjectConsultants] = useState<any[]>([])
+  const [tab,    setTab]    = useState<'consult' | 'group'>('consult')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [saving,  setSaving]  = useState(false)
 
   useEffect(() => {
     Promise.all([
       api.get<any>(`/projects/${projectId}`),
       api.get<any>('/users?type=consultor&pageSize=200'),
-    ]).then(([proj, usrs]) => {
-      setConsultants(usrs?.items ?? usrs?.data ?? [])
-      const ids = (proj?.consultants ?? []).map((c: { id: number }) => c.id)
-      setSelectedIds(new Set(ids))
+      api.get<any>('/consultant-groups?pageSize=100&active=1'),
+    ]).then(([proj, usrs, grps]) => {
+      setAllConsultants(usrs?.items ?? usrs?.data ?? [])
+      setAllGroups(Array.isArray(grps?.items) ? grps.items : Array.isArray(grps?.data) ? grps.data : [])
+      const direct: any[] = proj?.consultants ?? []
+      const viaGroup: any[] = (proj?.consultant_groups ?? []).flatMap((g: any) => g.consultants ?? [])
+      const allInProject = [...direct, ...viaGroup].filter((c, i, a) => a.findIndex((x: any) => x.id === c.id) === i)
+      setSelectedIds(new Set(direct.map((c: any) => c.id)))
+      setSelectedGroupIds(new Set((proj?.consultant_groups ?? []).map((g: any) => g.id)))
+      setProjectConsultants(allInProject)
+      setManualIds(new Set(allInProject.filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => Number(c.id))))
     }).catch(() => toast.error('Erro ao carregar equipe'))
     .finally(() => setLoading(false))
   }, [projectId])
 
-  const filtered = consultants.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
-
-  const toggle = (id: number) => setSelectedIds(prev => {
-    const next = new Set(prev)
-    if (next.has(id)) next.delete(id); else next.add(id)
-    return next
-  })
+  const toggleSet = (s: Set<number>, id: number) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n }
+  const filteredConsults = allConsultants.filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+  const filteredGroups   = allGroups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      await api.put(`/projects/${projectId}`, { consultant_ids: Array.from(selectedIds) })
+      await api.put(`/projects/${projectId}`, { consultant_ids: Array.from(selectedIds), consultant_group_ids: Array.from(selectedGroupIds) })
+      const initialManual = new Set<number>(projectConsultants.filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => Number(c.id)))
+      await Promise.allSettled(
+        projectConsultants.map((c: any) => Number(c.id)).filter(id => manualIds.has(id) !== initialManual.has(id)).map(id =>
+          api.put(`/projects/${projectId}/consultants/${id}/manual-timesheet`, { allow: manualIds.has(id) })
+        )
+      )
       toast.success('Equipe atualizada')
       onSaved()
     } catch { toast.error('Erro ao salvar equipe') }
@@ -3052,36 +3066,73 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
-      <div className="flex flex-col w-full max-w-lg rounded-2xl max-h-[80vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      <div className="flex flex-col w-full max-w-lg rounded-2xl max-h-[85vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
           <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Selecionar Equipe</p><h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
-        <div className="px-5 pt-4 shrink-0">
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar consultor..."
-            className="w-full text-sm px-3 py-2 rounded-xl outline-none"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
-          />
-          <p className="text-[10px] mt-2 mb-1" style={{ color: 'var(--brand-subtle)' }}>{selectedIds.size} consultor(es) selecionado(s)</p>
-        </div>
         {loading ? <div className="flex-1 flex items-center justify-center py-10"><p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p></div> : (
-          <div className="flex-1 overflow-y-auto px-5 pb-4">
-            <div className="space-y-1 mt-2">
-              {filtered.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => toggle(c.id)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors hover:bg-white/5"
-                  style={{ background: selectedIds.has(c.id) ? 'rgba(139,92,246,0.08)' : 'transparent', border: `1px solid ${selectedIds.has(c.id) ? 'rgba(139,92,246,0.3)' : 'transparent'}` }}
-                >
-                  <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: selectedIds.has(c.id) ? 'rgba(139,92,246,0.3)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
-                    {selectedIds.has(c.id) && <Check size={11} style={{ color: '#a78bfa' }} />}
-                  </div>
-                  <span className="text-sm" style={{ color: selectedIds.has(c.id) ? '#a78bfa' : 'var(--brand-text)' }}>{c.name}</span>
+          <div className="flex flex-col flex-1 overflow-hidden px-5 pt-4">
+            {projectConsultants.length > 0 && (
+              <div className="mb-3 rounded-xl p-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}>
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-1.5 px-1" style={{ color: 'var(--brand-subtle)' }}>Apontamento manual — consultores no projeto</p>
+                {projectConsultants.map((c: any) => {
+                  const allow = manualIds.has(c.id)
+                  return (
+                    <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-white/5">
+                      <span className="text-xs" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
+                      <button onClick={() => setManualIds(prev => toggleSet(prev, c.id))}
+                        title={allow ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
+                        style={{ background: allow ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${allow ? 'rgba(34,197,94,0.4)' : 'var(--brand-border)'}`, color: allow ? '#22c55e' : 'var(--brand-subtle)' }}>
+                        <Clock size={10} />{allow ? 'Liberado' : 'Bloqueado'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            <div className="flex gap-1 mb-2 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              {([['consult','Consultores',selectedIds.size],['group','Grupos',selectedGroupIds.size]] as const).map(([id,label,count]) => (
+                <button key={id} onClick={() => { setTab(id); setSearch('') }}
+                  className="px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap"
+                  style={{ color: tab === id ? '#00F5FF' : 'var(--brand-subtle)', borderBottom: tab === id ? '2px solid #00F5FF' : '2px solid transparent', marginBottom: '-1px' }}>
+                  {label}{count > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>{count}</span>}
                 </button>
               ))}
+            </div>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
+              className="w-full text-xs px-3 py-2 rounded-xl outline-none mb-2 shrink-0"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+            <div className="flex-1 overflow-y-auto space-y-1 rounded-xl p-2" style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--brand-border)' }}>
+              {tab === 'consult' && filteredConsults.map(c => {
+                const sel = selectedIds.has(c.id)
+                return (
+                  <button key={c.id} onClick={() => setSelectedIds(prev => toggleSet(prev, c.id))}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+                    style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
+                      {sel && <Check size={10} style={{ color: '#a78bfa' }} />}
+                    </div>
+                    <span className="text-xs" style={{ color: sel ? '#a78bfa' : 'var(--brand-text)' }}>{c.name}</span>
+                  </button>
+                )
+              })}
+              {tab === 'group' && filteredGroups.map(g => {
+                const sel = selectedGroupIds.has(g.id)
+                return (
+                  <button key={g.id} onClick={() => setSelectedGroupIds(prev => toggleSet(prev, g.id))}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+                    style={{ background: sel ? 'rgba(245,158,11,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(245,158,11,0.25)' : 'transparent'}` }}>
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
+                      {sel && <Check size={10} style={{ color: '#f59e0b' }} />}
+                    </div>
+                    <span className="text-xs" style={{ color: sel ? '#f59e0b' : 'var(--brand-text)' }}>{g.name}</span>
+                  </button>
+                )
+              })}
+              {tab === 'consult' && filteredConsults.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>}
+              {tab === 'group'   && filteredGroups.length   === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>}
             </div>
           </div>
         )}
