@@ -376,9 +376,25 @@ function SidebarInner({ user }: { user: User }) {
       return nav
     }
     if (isConsultor) {
-      const allowed = new Set(['/dashboard', '/meu-painel'])
-      if (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update')) allowed.add('/gestao-projetos')
-      return NAV.filter(e => e.type === 'item' && allowed.has(e.href))
+      const baseNav: NavEntry[] = [
+        { type: 'item', label: 'Início',     href: '/dashboard',  icon: Home },
+        { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
+      ]
+      if (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update'))
+        baseNav.push({ type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers })
+
+      // Itens extras concedidos por grupos de permissão
+      const hasAnyUserPerm = ['users.view_all','users.create','users.update','users.reset_password'].some(p => ep.includes(p))
+      if (ep.includes('timesheets.approve') || ep.includes('hours.view_all'))
+        baseNav.push({ type: 'item', label: 'Apontamentos', href: '/timesheets', icon: Clock })
+      if (ep.includes('approvals.view') || ep.includes('approvals.manage'))
+        baseNav.push({ type: 'item', label: 'Aprovações', href: '/approvals', icon: CheckSquare })
+      if (hasAnyUserPerm)
+        baseNav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
+      if (ep.includes('settings.view'))
+        baseNav.push({ type: 'item', label: 'Configurações', href: '/settings', icon: Settings })
+
+      return baseNav
     }
     if (isParceiroAdmin) {
       if (isParceiroGestor) {
