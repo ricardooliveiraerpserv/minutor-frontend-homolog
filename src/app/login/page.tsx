@@ -161,9 +161,20 @@ function LoginForm() {
   )
 }
 
+const IS_HOMOLOG = process.env.NEXT_PUBLIC_APP_ENV === 'homolog'
+
 export default function LoginPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#07090F', position: 'relative', overflow: 'hidden' }}>
+
+      {/* Faixa HOMOLOG */}
+      {IS_HOMOLOG && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, background: '#DC2626', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 0' }}>
+          <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.25em', color: '#fff', textTransform: 'uppercase', fontFamily: 'monospace' }}>
+            ⚠ AMBIENTE DE HOMOLOGAÇÃO — NÃO USE DADOS REAIS ⚠
+          </span>
+        </div>
+      )}
 
       {/* Glow sutil — sem gradientes pesados */}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
