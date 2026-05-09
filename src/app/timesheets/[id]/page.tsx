@@ -18,8 +18,7 @@ function AttachmentLink({ url }: { url: string }) {
   const open = async () => {
     setLoading(true)
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('minutor_token') : null
-      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      const res = await fetch(url, { credentials: 'same-origin' })
       if (!res.ok) { alert('Anexo não encontrado no servidor'); return }
       const blob = await res.blob()
       const blobUrl = URL.createObjectURL(blob)

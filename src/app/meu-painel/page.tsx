@@ -588,8 +588,7 @@ function periodBounds(year: number, month: number): { startDate: string; endDate
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 async function fetchAndOpenFile(url: string, download = false) {
-  const token = localStorage.getItem('minutor_token')
-  const res = await fetch(toRelativePath(url), { headers: { Authorization: `Bearer ${token ?? ''}` } })
+  const res = await fetch(toRelativePath(url), { credentials: 'same-origin' })
   if (!res.ok) throw new Error('not_found')
   const blob = await res.blob()
   const cd = res.headers.get('content-disposition') ?? ''
@@ -1774,7 +1773,6 @@ export default function MeuPainelPage() {
     if (!expForm.amount)      { toast.error('Informe o valor'); return }
     setExpSaving(true)
     try {
-      const token = localStorage.getItem('minutor_token')
       const fd = new FormData()
       fd.append('project_id',          expForm.project_id)
       fd.append('expense_category_id', expForm.expense_category_id)
@@ -1790,7 +1788,7 @@ export default function MeuPainelPage() {
       const method = 'POST'
       if (expModal.item) fd.append('_method', 'PUT')
 
-      const res = await fetch(url, { method, headers: { Authorization: `Bearer ${token}` }, body: fd })
+      const res = await fetch(url, { method, credentials: 'same-origin', body: fd })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         const details = err.details ?? err.errors

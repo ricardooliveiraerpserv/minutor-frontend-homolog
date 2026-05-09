@@ -20,14 +20,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const loadUser = useCallback(async () => {
-    const token = localStorage.getItem('minutor_token')
-    if (!token) { setLoading(false); return }
+    // Sem checagem prévia de token: o cookie httpOnly não é legível por JS.
+    // Pedimos /user; se não houver sessão, backend devolve 401 e api.ts limpa o cookie.
     try {
       const data = await api.get<{ user: any }>('/user')
       setUser(data.user)
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
-        localStorage.removeItem('minutor_token')
         setUser(null)
       }
     } finally {
@@ -46,11 +45,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadUser])
 
   const login = async (email: string, password: string) => {
-    const data = await api.post<any>('/auth/login', {
-      email: email.toLowerCase().trim(),
-      password,
+    // Rota interna do Next: chama backend, recebe token e seta cookie httpOnly.
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
     })
-    localStorage.setItem('minutor_token', data.token ?? data.access_token)
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      throw new ApiError(res.status, data.message ?? 'Erro ao autenticar', data)
+    }
     const user: User = data.user
     setUser(user)
     return { user, requiresPasswordChange: data.requires_password_change === true }
@@ -58,12 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await api.post('/auth/logout', {})
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
     } catch (e) {
-      // Falha de revogação não impede o logout local — mas registra para investigação.
-      console.error('[auth] Falha ao revogar token no backend:', e)
+      console.error('[auth] Falha ao limpar sessão:', e)
     }
-    localStorage.removeItem('minutor_token')
     setUser(null)
   }
 

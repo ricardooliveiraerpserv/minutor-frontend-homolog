@@ -29,27 +29,31 @@ async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = typeof window !== 'undefined'
-    ? localStorage.getItem('minutor_token')
-    : null
-
+  // Auth: o cookie httpOnly minutor_token é enviado pelo browser; o middleware
+  // Next.js (src/middleware.ts) injeta o header Authorization server-side.
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   }
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers })
+  const res = await fetch(`${API_URL}${path}`, {
+    credentials: 'same-origin',
+    ...options,
+    headers,
+  })
 
   if (res.status === 401) {
     const body = await res.json().catch(() => ({}))
     const message = body.message ?? 'Não autenticado'
 
-    // No endpoint de login o 401 é credencial errada — não redireciona nem limpa token
+    // No endpoint de login o 401 é credencial errada — não redireciona
     const isLoginEndpoint = path === '/auth/login'
     if (!isLoginEndpoint && typeof window !== 'undefined') {
-      localStorage.removeItem('minutor_token')
+      // Limpa cookie via rota interna e manda pra tela de login
+      try {
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      } catch { /* segue mesmo se falhar */ }
       window.location.href = '/login'
     }
 

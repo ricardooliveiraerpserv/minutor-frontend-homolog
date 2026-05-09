@@ -983,10 +983,8 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
   const hasReq = !!card.contract_request_id
 
   const fetchAttachmentBlob = async (msgId: number, attId: number) => {
-    const token = localStorage.getItem('minutor_token') ?? ''
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1'
-    const res = await fetch(`${baseUrl}/req-messages/${msgId}/attachments/${attId}/download`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await fetch(`/api/v1/req-messages/${msgId}/attachments/${attId}/download`, {
+      credentials: 'same-origin',
     })
     if (!res.ok) throw new Error()
     return res.blob()
@@ -3219,14 +3217,12 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
     if ((!text && files.length === 0) || sending) return
     setSending(true)
     try {
-      const token = localStorage.getItem('minutor_token') ?? ''
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1'
       const fd = new FormData()
       fd.append('message', text)
       files.forEach(f => fd.append('files[]', f))
-      const res = await fetch(`${baseUrl}/contract-requests/${card.id}/messages`, {
+      const res = await fetch(`/api/v1/contract-requests/${card.id}/messages`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'same-origin',
         body: fd,
       })
       if (!res.ok) throw new Error()
@@ -3240,10 +3236,8 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
 
   const downloadAttachment = async (msgId: number, att: ReqAttachment) => {
     try {
-      const token = localStorage.getItem('minutor_token') ?? ''
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1'
-      const res = await fetch(`${baseUrl}/req-messages/${msgId}/attachments/${att.id}/download`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`/api/v1/req-messages/${msgId}/attachments/${att.id}/download`, {
+        credentials: 'same-origin',
       })
       if (!res.ok) throw new Error()
       const blob = await res.blob()
@@ -3403,9 +3397,7 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
                             <button
                               onClick={async () => {
                                 try {
-                                  const token = localStorage.getItem('minutor_token') ?? ''
-                                  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1'
-                                  const res = await fetch(`${baseUrl}/req-messages/${msg.id}/attachments/${att.id}/download`, { headers: { Authorization: `Bearer ${token}` } })
+                                  const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download`, { credentials: 'same-origin' })
                                   if (!res.ok) throw new Error()
                                   const blob = await res.blob()
                                   window.open(URL.createObjectURL(blob), '_blank')

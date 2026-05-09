@@ -297,9 +297,8 @@ export default function ContratosPage() {
   // ─── Attachment helpers (view modal) ─────────────────────────────────────
 
   const downloadAttachment = async (contractId: number, att: ContractAttachment) => {
-    const token = localStorage.getItem('minutor_token')
     const res = await fetch(`/api/v1/contracts/${contractId}/attachments/${att.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
     })
     if (!res.ok) { toast.error('Erro ao baixar arquivo'); return }
     const blob = await res.blob()

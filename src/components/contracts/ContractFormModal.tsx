@@ -382,7 +382,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
           fd.append('type', type)
           await fetch(`/api/v1/contracts/${contract.id}/attachments`, {
             method: 'POST',
-            headers: { Authorization: `Bearer ${localStorage.getItem('minutor_token')}` },
+            credentials: 'same-origin',
             body: fd,
           })
         }
@@ -402,9 +402,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
   // ─── Attachment helpers ───────────────────────────────────────────────────
 
   const downloadAttachment = async (contractId: number, att: ContractAttachment) => {
-    const token = localStorage.getItem('minutor_token')
     const res = await fetch(`/api/v1/contracts/${contractId}/attachments/${att.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
     })
     if (!res.ok) { toast.error('Erro ao baixar arquivo'); return }
     const blob = await res.blob()

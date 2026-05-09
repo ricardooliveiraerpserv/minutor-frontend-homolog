@@ -61,13 +61,10 @@ function getInitials(name: string) {
 }
 
 function AttachmentChip({ att, messageId }: { att: Attachment; messageId: number }) {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? ''
-
   const handleDownload = async () => {
     try {
-      const token = localStorage.getItem('minutor_token') ?? ''
-      const res = await fetch(`${baseUrl}/contract-messages/${messageId}/attachments/${att.id}/download`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`/api/v1/contract-messages/${messageId}/attachments/${att.id}/download`, {
+        credentials: 'same-origin',
       })
       if (!res.ok) throw new Error()
       const blob = await res.blob()
@@ -204,15 +201,13 @@ export function ContractMessages({ contractId, userRole }: Props) {
     if (sending) return
     setSending(true)
     try {
-      const authToken = localStorage.getItem('minutor_token') ?? ''
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? ''
       const fd = new FormData()
       if (text) fd.append('message', text)
       fd.append('visibility', isCliente ? 'client' : visibility)
       files.forEach(f => fd.append('files[]', f))
-      const res = await fetch(`${baseUrl}/contracts/${contractId}/messages`, {
+      const res = await fetch(`/api/v1/contracts/${contractId}/messages`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: 'same-origin',
         body: fd,
       })
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err?.message ?? 'Erro') }

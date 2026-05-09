@@ -25,8 +25,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 
 async function fetchAndOpenFile(url: string, download = false) {
-  const token = localStorage.getItem('minutor_token')
-  const res = await fetch(toRelativePath(url), { headers: { Authorization: `Bearer ${token ?? ''}` } })
+  const res = await fetch(toRelativePath(url), { credentials: 'same-origin' })
   if (!res.ok) throw new Error('not_found')
   const blob = await res.blob()
   const cd = res.headers.get('content-disposition') ?? ''
@@ -636,9 +635,8 @@ export default function ExpensesPage() {
       if (receipt) fd.append('receipt', receipt)
       if (modal.item) fd.append('_method', 'PUT')
 
-      const token = localStorage.getItem('minutor_token')
       const url = modal.item ? `/api/v1/expenses/${modal.item.id}` : '/api/v1/expenses'
-      const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, body: fd })
+      const res = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' }, credentials: 'same-origin', body: fd })
       if (!res.ok) { const b = await res.json().catch(() => ({})); throw new ApiError(res.status, b.message ?? 'Erro ao salvar') }
 
       toast.success(modal.item ? 'Despesa atualizada' : 'Despesa criada')

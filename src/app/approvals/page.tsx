@@ -275,8 +275,7 @@ function StatusPills({ value, onChange, options }: {
 // ─── Receipt helpers ──────────────────────────────────────────────────────────
 
 async function fetchReceipt(url: string): Promise<{ blobUrl: string; filename: string }> {
-  const token = localStorage.getItem('minutor_token')
-  const res = await fetch(toRelativePath(url), { headers: { Authorization: `Bearer ${token ?? ''}` } })
+  const res = await fetch(toRelativePath(url), { credentials: 'same-origin' })
   if (!res.ok) throw new Error('not_found')
   const blob = await res.blob()
   const cd = res.headers.get('content-disposition') ?? ''

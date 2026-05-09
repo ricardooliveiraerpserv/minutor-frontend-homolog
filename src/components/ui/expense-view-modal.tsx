@@ -40,8 +40,7 @@ const PAYMENT_LABEL_MAP: Record<string, string> = {
 }
 
 async function fetchAndOpenFile(url: string, download = false) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('minutor_token') : null
-  const res = await fetch(toRelativePath(url), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  const res = await fetch(toRelativePath(url), { credentials: 'same-origin' })
   if (!res.ok) throw new Error('not_found')
   const blob = await res.blob()
   const cd = res.headers.get('content-disposition') ?? ''

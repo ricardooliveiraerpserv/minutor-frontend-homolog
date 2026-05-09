@@ -62,12 +62,11 @@ function isImage(mime?: string) {
 }
 
 function AttachmentChip({ att, messageId }: { att: Attachment; messageId: number }) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('minutor_token') : ''
-  const downloadUrl = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/messages/${messageId}/attachments/${att.id}/download`
+  const downloadUrl = `/api/v1/messages/${messageId}/attachments/${att.id}/download`
 
   const handleDownload = async () => {
     try {
-      const res = await fetch(downloadUrl, { headers: { Authorization: `Bearer ${token}` } })
+      const res = await fetch(downloadUrl, { credentials: 'same-origin' })
       if (!res.ok) throw new Error()
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -215,16 +214,14 @@ export function ProjectMessages({ projectId, userRole }: Props) {
     setSending(true)
 
     try {
-      const authToken = localStorage.getItem('minutor_token') ?? ''
       const fd = new FormData()
       if (text) fd.append('message', text)
       fd.append('visibility', isCliente ? 'client' : visibility)
       files.forEach(f => fd.append('files[]', f))
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? ''
-      const res = await fetch(`${apiBase}/projects/${projectId}/messages`, {
+      const res = await fetch(`/api/v1/projects/${projectId}/messages`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${authToken}` },
+        credentials: 'same-origin',
         body: fd,
       })
 

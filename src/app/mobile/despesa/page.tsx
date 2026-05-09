@@ -125,10 +125,10 @@ export default function MobileDespesa() {
       fd.append('charge_client', '0')
       if (receipt) fd.append('receipt', receipt)
 
-      const token = typeof window !== 'undefined' ? localStorage.getItem('minutor_token') : null
       const res = await fetch('/api/v1/expenses', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token ?? ''}`, Accept: 'application/json' },
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
         body: fd,
       })
       if (!res.ok) {
