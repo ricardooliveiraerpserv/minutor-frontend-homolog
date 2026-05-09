@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ds'
 import type { Timesheet } from '@/types'
+import { sanitizeHtml } from '@/lib/sanitize'
 
 function formatDate(d: string | null | undefined) {
   if (!d) return '—'
@@ -203,7 +204,7 @@ export function TimesheetViewModal({
               </div>
               <div className="px-4 py-3 text-xs leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg"
                 style={{ color: 'var(--brand-muted)' }}
-                dangerouslySetInnerHTML={{ __html: ts.observation }} />
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(ts.observation) }} />
             </div>
           )}
 

@@ -57,7 +57,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const logout = async () => {
-    try { await api.post('/auth/logout', {}) } catch { /* ignora */ }
+    try {
+      await api.post('/auth/logout', {})
+    } catch (e) {
+      // Falha de revogação não impede o logout local — mas registra para investigação.
+      console.error('[auth] Falha ao revogar token no backend:', e)
+    }
     localStorage.removeItem('minutor_token')
     setUser(null)
   }

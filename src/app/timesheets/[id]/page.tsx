@@ -11,6 +11,7 @@ import {
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useState } from 'react'
+import { sanitizeHtml } from '@/lib/sanitize'
 
 function AttachmentLink({ url }: { url: string }) {
   const [loading, setLoading] = useState(false)
@@ -222,7 +223,7 @@ export default function TimesheetDetailPage() {
                 <div
                   className="px-6 py-4 text-sm leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
                   style={{ color: 'var(--brand-muted)' }}
-                  dangerouslySetInnerHTML={{ __html: ts.observation }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(ts.observation) }}
                 />
               </div>
             )}

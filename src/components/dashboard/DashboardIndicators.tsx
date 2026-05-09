@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { X, Eye, ArrowLeft, Clock, Calendar, User, FolderOpen, Ticket, Globe, Webhook, Building2, Hash, FileText, CheckCircle, Paperclip } from 'lucide-react'
 import { api } from '@/lib/api'
+import { sanitizeHtml } from '@/lib/sanitize'
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -393,7 +394,7 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
                   </div>
                   <div className="px-4 py-3 text-sm leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg"
                     style={{ color: 'var(--brand-muted)' }}
-                    dangerouslySetInnerHTML={{ __html: ts.observation }} />
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(ts.observation) }} />
                 </div>
               )}
               {ts.reviewedBy && (

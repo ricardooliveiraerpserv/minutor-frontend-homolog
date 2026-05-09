@@ -984,7 +984,7 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
 
   const fetchAttachmentBlob = async (msgId: number, attId: number) => {
     const token = localStorage.getItem('minutor_token') ?? ''
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://minutor-backend.onrender.com/api/v1'
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1'
     const res = await fetch(`${baseUrl}/req-messages/${msgId}/attachments/${attId}/download`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -3220,7 +3220,7 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
     setSending(true)
     try {
       const token = localStorage.getItem('minutor_token') ?? ''
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://minutor-backend.onrender.com/api/v1'
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1'
       const fd = new FormData()
       fd.append('message', text)
       files.forEach(f => fd.append('files[]', f))
@@ -3241,7 +3241,7 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
   const downloadAttachment = async (msgId: number, att: ReqAttachment) => {
     try {
       const token = localStorage.getItem('minutor_token') ?? ''
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://minutor-backend.onrender.com/api/v1'
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1'
       const res = await fetch(`${baseUrl}/req-messages/${msgId}/attachments/${att.id}/download`, {
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -3404,7 +3404,7 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
                               onClick={async () => {
                                 try {
                                   const token = localStorage.getItem('minutor_token') ?? ''
-                                  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://minutor-backend.onrender.com/api/v1'
+                                  const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '/api/v1'
                                   const res = await fetch(`${baseUrl}/req-messages/${msg.id}/attachments/${att.id}/download`, { headers: { Authorization: `Bearer ${token}` } })
                                   if (!res.ok) throw new Error()
                                   const blob = await res.blob()
