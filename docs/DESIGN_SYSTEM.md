@@ -88,26 +88,57 @@ Sempre que tocar um componente:
 ## Utility classes (`.ds-*`)
 
 ```tsx
-// Card
-<div className="ds-card p-4">…</div>
+// Card + slots
+<div className="ds-card ds-card-pad">
+  <p className="ds-card-header">TOTAL DE SERVIÇOS</p>
+  <h3 className="ds-card-title">R$ 12.345,00</h3>
+  <p className="ds-card-sub">vs R$ 10.000 mês anterior</p>
+</div>
 
 // Botões
 <button className="ds-btn-primary">Salvar</button>
 <button className="ds-btn-secondary">Cancelar</button>
+<button className="ds-btn-ghost">Mais opções</button>
 
 // Input
 <input className="ds-input" />
 
-// Status pills
-<span className="ds-status-success">Aprovado</span>
-<span className="ds-status-warning">Pendente</span>
-<span className="ds-status-danger">Rejeitado</span>
+// Status pills (combinar .ds-status com a variante)
+<span className="ds-status ds-status-success">Aprovado</span>
+<span className="ds-status ds-status-warning">Pendente</span>
+<span className="ds-status ds-status-danger">Rejeitado</span>
+<span className="ds-status ds-status-info">Em análise</span>
+
+// Tabela
+<table className="ds-table">
+  <thead><tr><th>Cliente</th><th>Saldo</th></tr></thead>
+  <tbody>
+    <tr><td>Acme</td><td>R$ 100</td></tr>
+  </tbody>
+</table>
 
 // Filtro selecionado
 <button className="ds-filter-active">Hoje</button>
 
-// Linha de tabela com hover
+// Linha de tabela com hover (avulso)
 <tr className="ds-row-hover">…</tr>
+
+// Tab
+<button className={active ? 'ds-tab-active' : 'ds-tab-inactive'}>…</button>
+
+// Link
+<Link className="ds-link" href="/x">Ver tudo</Link>
+
+// Sidebar
+<aside className="sidebar">
+  <Link className={`sidebar-item ${active && 'sidebar-item-active'}`}>Início</Link>
+</aside>
+
+// Kanban (opt-in alias do que hoje é inline)
+<div className={`ds-kanban-column ${isDraggingOver && 'ds-kanban-column-active'}`}>
+  <p className="ds-kanban-column-header">Backlog</p>
+  …
+</div>
 ```
 
 Implementação em `src/app/globals.css` (seção "Design system utilities").

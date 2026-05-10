@@ -379,6 +379,26 @@ tr.row--pausado:hover {
   border-radius: 12px;
   box-shadow: var(--brand-card-shadow);
 }
+/* Padding opt-in — .ds-card base não força padding pra evitar regressão
+ * em componentes que já espaçam internamente. Use .ds-card.ds-card-pad
+ * (ou .ds-card-pad isolado) quando quiser o padrão 16px. */
+.ds-card-pad { padding: 16px; }
+
+.ds-card-header {
+  font-size: 14px;
+  color: var(--text-light);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.ds-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+.ds-card-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
 
 .ds-row-hover:hover {
   background: var(--surface-hover);
@@ -425,6 +445,25 @@ tr.row--pausado:hover {
   border-color: var(--text-light);
 }
 
+.ds-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+}
+.ds-btn-ghost:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
 .ds-input {
   background: var(--surface);
   color: var(--text);
@@ -438,6 +477,18 @@ tr.row--pausado:hover {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--primary-soft);
+}
+
+/* Forma base do badge — combine com .ds-status-{success,warning,danger,info} */
+.ds-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
 }
 
 .ds-status-success {
@@ -676,13 +727,58 @@ html:not(.dark) [class*="rounded-2xl"][class*="bg-zinc-9"]:not([class*="shadow"]
   box-shadow: var(--brand-card-shadow);
 }
 
-/* Hover sutil em linhas de tabelas — só quando explicitamente opt-in
- * via .ds-table (evita afetar TODA tabela do app, ex: Recharts). */
-html:not(.dark) .ds-table tr:hover {
-  background: var(--surface-hover);
+/* ── Tabela DS — opt-in via class .ds-table no <table> ─────
+ * Não força em <table> global pra preservar Recharts/grids. */
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ds-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-light);
+  padding: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ds-table td {
+  padding: 14px 12px;
+  color: var(--text);
+  font-size: 14px;
 }
 .ds-table tr {
   border-bottom: 1px solid var(--border);
+}
+html:not(.dark) .ds-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+
+/* ── Kanban semantic utilities (opt-in) ────────────────────
+ * Alias do que já é feito inline no kanban atual; pronto pra
+ * refator quando bater nesse arquivo. */
+.ds-kanban-column {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: var(--brand-card-shadow);
+}
+.ds-kanban-column-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.ds-kanban-column-active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+
+/* ── Sidebar container (complementa .sidebar-item / -active) ── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
 }
 
 /* Cinzas Tailwind lavados — força com !important pra vencer estilos
