@@ -421,3 +421,50 @@ tr.row--pausado:hover {
   color: var(--primary);
   border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
 }
+
+/* ── Light-mode legacy override layer ─────────────────────────
+ * Páginas antigas usam classes Tailwind escuras hardcoded
+ * (`bg-zinc-900`, `border-zinc-800`, `text-white`...) — no light
+ * mode elas ficam ilegíveis. Aqui mapeamos pra tokens semânticos
+ * SEM tocar os componentes. No dark, regras desligam — paleta
+ * original preservada.
+ *
+ * Especificidade: `html:not(.dark) .x` = 0,2,0 vence Tailwind utility
+ * (0,1,0). Sem !important — componentes podem ainda override por
+ * estilo inline ou classe mais específica.
+ *
+ * NÃO substitui refator pra tokens — quando tocar um componente,
+ * refatore mesmo assim (regra do design system). Esta camada é
+ * só rede de segurança pra componentes ainda não refatorados.
+ */
+html:not(.dark) .bg-zinc-950 { background-color: var(--bg); }
+html:not(.dark) .bg-zinc-900 { background-color: var(--surface); }
+html:not(.dark) .bg-zinc-800 { background-color: var(--surface-hover); }
+html:not(.dark) .hover\:bg-zinc-800:hover { background-color: var(--surface-hover); }
+html:not(.dark) .hover\:bg-zinc-700:hover { background-color: var(--surface-hover); }
+
+html:not(.dark) .border-zinc-950,
+html:not(.dark) .border-zinc-900,
+html:not(.dark) .border-zinc-800,
+html:not(.dark) .border-zinc-700 { border-color: var(--border); }
+html:not(.dark) .hover\:border-zinc-600:hover,
+html:not(.dark) .hover\:border-zinc-500:hover { border-color: var(--primary); }
+
+html:not(.dark) .text-white,
+html:not(.dark) .text-zinc-100,
+html:not(.dark) .text-zinc-200 { color: var(--text); }
+html:not(.dark) .text-zinc-300,
+html:not(.dark) .text-zinc-400 { color: var(--text-muted); }
+html:not(.dark) .text-zinc-500,
+html:not(.dark) .text-zinc-600 { color: var(--text-light); }
+html:not(.dark) .hover\:text-zinc-200:hover,
+html:not(.dark) .hover\:text-zinc-300:hover { color: var(--text); }
+
+/* Variantes com opacidade comuns — `bg-zinc-800/70`, `bg-zinc-900/60` etc.
+ * Cobre o caso "barra de tabs" / "card semitransparente". Usa surface
+ * sólido (sem opacidade) — diferença visual mínima no light, ganho de
+ * legibilidade grande. */
+html:not(.dark) [class*="bg-zinc-900/"],
+html:not(.dark) [class*="bg-zinc-800/"] { background-color: var(--surface-hover); }
+html:not(.dark) [class*="border-zinc-800/"],
+html:not(.dark) [class*="border-zinc-700/"] { border-color: var(--border); }
