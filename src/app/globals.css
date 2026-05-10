@@ -182,6 +182,14 @@
   --warning-bg:    #FEF3C7;
   --danger-bg:     #FEE2E2;
   --primary-fg:    #FFFFFF;   /* texto sobre primary */
+
+  /* Status TEXT — tons densos pra leitura em fundo claro.
+   * Diferentes de --success/--warning/--danger (que são pra accents/ícones/bg)
+   * porque texto precisa de mais peso de cor pra ser legível. */
+  --text-success: #166534;
+  --text-warning: #92400E;
+  --text-danger:  #991B1B;
+  --text-info:    #0369A1;
 }
 
 .dark {
@@ -224,6 +232,12 @@
   --warning-bg:    rgba(245, 158, 11, 0.15);
   --danger-bg:     rgba(239, 68, 68, 0.15);
   --primary-fg:    #0A0A0B;   /* texto sobre primary cyan */
+
+  /* Status TEXT — no dark mantém os tons vibrantes (já legíveis em #0A0A0B) */
+  --text-success: var(--brand-success);
+  --text-warning: var(--brand-warning);
+  --text-danger:  var(--brand-danger);
+  --text-info:    var(--brand-primary);
 }
 
 /* ── Light mode polish ───────────────────────────────────────
@@ -486,6 +500,54 @@ html:not(.dark) .text-cyan-300,
 html:not(.dark) .text-cyan-400,
 html:not(.dark) .text-cyan-500 { color: var(--primary); }
 html:not(.dark) .text-cyan-600 { color: var(--primary-hover); }
+
+/* Cinzas Tailwind lavados (#94A3B8/#9CA3AF…) usados como TEXTO no light
+ * ferem legibilidade. Re-mapeia para tokens densos. */
+html:not(.dark) .text-gray-300,
+html:not(.dark) .text-slate-300,
+html:not(.dark) .text-neutral-300,
+html:not(.dark) .text-stone-300 { color: var(--text-light); }
+html:not(.dark) .text-gray-400,
+html:not(.dark) .text-slate-400,
+html:not(.dark) .text-neutral-400,
+html:not(.dark) .text-stone-400,
+html:not(.dark) .text-gray-500,
+html:not(.dark) .text-slate-500,
+html:not(.dark) .text-neutral-500,
+html:not(.dark) .text-stone-500 { color: var(--text-muted); }
+html:not(.dark) .text-gray-600,
+html:not(.dark) .text-slate-600,
+html:not(.dark) .text-neutral-600,
+html:not(.dark) .text-stone-600,
+html:not(.dark) .text-gray-700,
+html:not(.dark) .text-slate-700,
+html:not(.dark) .text-neutral-700,
+html:not(.dark) .text-stone-700 { color: var(--text); }
+
+/* Status text (text-{red,green,amber,yellow,orange,blue}-{400..600}) —
+ * tons vibrantes do dark ficam apagados em fundo branco. Mapeia pros tokens
+ * densos --text-{success,warning,danger,info}. */
+html:not(.dark) .text-red-400,
+html:not(.dark) .text-red-500,
+html:not(.dark) .text-red-600,
+html:not(.dark) .text-rose-400,
+html:not(.dark) .text-rose-500 { color: var(--text-danger); }
+html:not(.dark) .text-green-400,
+html:not(.dark) .text-green-500,
+html:not(.dark) .text-green-600,
+html:not(.dark) .text-emerald-400,
+html:not(.dark) .text-emerald-500 { color: var(--text-success); }
+html:not(.dark) .text-amber-400,
+html:not(.dark) .text-amber-500,
+html:not(.dark) .text-amber-600,
+html:not(.dark) .text-yellow-400,
+html:not(.dark) .text-yellow-500,
+html:not(.dark) .text-orange-400,
+html:not(.dark) .text-orange-500 { color: var(--text-warning); }
+html:not(.dark) .text-blue-400,
+html:not(.dark) .text-blue-500,
+html:not(.dark) .text-sky-400,
+html:not(.dark) .text-sky-500 { color: var(--text-info); }
 
 /* Variantes com opacidade comuns — `bg-zinc-800/70`, `bg-zinc-900/60` etc.
  * Cobre o caso "barra de tabs" / "card semitransparente". Usa surface
