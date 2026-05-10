@@ -350,6 +350,7 @@ tr.row--pausado:hover {
 
 .ds-card {
   background: var(--surface);
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: var(--brand-card-shadow);
@@ -417,18 +418,18 @@ tr.row--pausado:hover {
 
 .ds-status-success {
   background: var(--success-bg);
-  color: var(--success);
-  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+  color: var(--text-success);
+  border: 1px solid var(--success);
 }
 .ds-status-warning {
   background: var(--warning-bg);
-  color: var(--warning);
-  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+  color: var(--text-warning);
+  border: 1px solid var(--warning);
 }
 .ds-status-danger {
   background: var(--danger-bg);
-  color: var(--danger);
-  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  color: var(--text-danger);
+  border: 1px solid var(--danger);
 }
 
 .ds-filter-active {
@@ -487,13 +488,13 @@ html:not(.dark) .hover\:border-zinc-500:hover { border-color: var(--primary); }
 
 html:not(.dark) .text-white,
 html:not(.dark) .text-zinc-100,
-html:not(.dark) .text-zinc-200 { color: var(--text); }
+html:not(.dark) .text-zinc-200 { color: var(--text) !important; }
 html:not(.dark) .text-zinc-300,
-html:not(.dark) .text-zinc-400 { color: var(--text-muted); }
+html:not(.dark) .text-zinc-400 { color: var(--text-muted) !important; }
 html:not(.dark) .text-zinc-500,
-html:not(.dark) .text-zinc-600 { color: var(--text-light); }
+html:not(.dark) .text-zinc-600 { color: var(--text-light) !important; }
 html:not(.dark) .hover\:text-zinc-200:hover,
-html:not(.dark) .hover\:text-zinc-300:hover { color: var(--text); }
+html:not(.dark) .hover\:text-zinc-300:hover { color: var(--text) !important; }
 
 /* Cyan vibrante do dark é ilegível em fundo branco — força tom denso */
 html:not(.dark) .text-cyan-300,
@@ -501,28 +502,44 @@ html:not(.dark) .text-cyan-400,
 html:not(.dark) .text-cyan-500 { color: var(--primary); }
 html:not(.dark) .text-cyan-600 { color: var(--primary-hover); }
 
-/* Cinzas Tailwind lavados (#94A3B8/#9CA3AF…) usados como TEXTO no light
- * ferem legibilidade. Re-mapeia para tokens densos. */
-html:not(.dark) .text-gray-300,
-html:not(.dark) .text-slate-300,
-html:not(.dark) .text-neutral-300,
-html:not(.dark) .text-stone-300 { color: var(--text-light); }
-html:not(.dark) .text-gray-400,
-html:not(.dark) .text-slate-400,
-html:not(.dark) .text-neutral-400,
-html:not(.dark) .text-stone-400,
-html:not(.dark) .text-gray-500,
-html:not(.dark) .text-slate-500,
-html:not(.dark) .text-neutral-500,
-html:not(.dark) .text-stone-500 { color: var(--text-muted); }
-html:not(.dark) .text-gray-600,
-html:not(.dark) .text-slate-600,
-html:not(.dark) .text-neutral-600,
-html:not(.dark) .text-stone-600,
-html:not(.dark) .text-gray-700,
-html:not(.dark) .text-slate-700,
-html:not(.dark) .text-neutral-700,
-html:not(.dark) .text-stone-700 { color: var(--text); }
+/* Cinzas Tailwind lavados — força com !important pra vencer estilos
+ * inline e classes Tailwind que estavam silenciosamente sobrepondo.
+ * Ordem importa: regra genérica primeiro (fallback muted), regras
+ * específicas dos tons escuros depois (text). */
+html:not(.dark) [class*="text-gray-"],
+html:not(.dark) [class*="text-slate-"],
+html:not(.dark) [class*="text-neutral-"],
+html:not(.dark) [class*="text-stone-"] {
+  color: var(--text-muted) !important;
+}
+html:not(.dark) [class*="text-gray-300"],
+html:not(.dark) [class*="text-slate-300"],
+html:not(.dark) [class*="text-neutral-300"],
+html:not(.dark) [class*="text-stone-300"] {
+  color: var(--text-light) !important;
+}
+html:not(.dark) [class*="text-gray-700"],
+html:not(.dark) [class*="text-gray-800"],
+html:not(.dark) [class*="text-gray-900"],
+html:not(.dark) [class*="text-slate-700"],
+html:not(.dark) [class*="text-slate-800"],
+html:not(.dark) [class*="text-slate-900"],
+html:not(.dark) [class*="text-neutral-700"],
+html:not(.dark) [class*="text-neutral-800"],
+html:not(.dark) [class*="text-neutral-900"],
+html:not(.dark) [class*="text-stone-700"],
+html:not(.dark) [class*="text-stone-800"],
+html:not(.dark) [class*="text-stone-900"] {
+  color: var(--text) !important;
+}
+
+/* Títulos — força preto denso no light pra fim do efeito "lavado" */
+html:not(.dark) h1,
+html:not(.dark) h2,
+html:not(.dark) h3,
+html:not(.dark) h4 {
+  color: var(--text) !important;
+}
 
 /* Status text (text-{red,green,amber,yellow,orange,blue}-{400..600}) —
  * tons vibrantes do dark ficam apagados em fundo branco. Mapeia pros tokens
