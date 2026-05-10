@@ -602,6 +602,63 @@ html:not(.dark) [class*="to-sky-"] {
   --tw-gradient-to: var(--primary-soft) !important;
 }
 
+/* ── States Tailwind (hover/focus) com cyan vazando no light ─── */
+html:not(.dark) [class*="hover:bg-cyan-"],
+html:not(.dark) [class*="hover:bg-sky-"],
+html:not(.dark) [class*="hover:bg-blue-"] {
+  background-color: var(--primary-soft) !important;
+}
+html:not(.dark) [class*="hover:text-cyan-"],
+html:not(.dark) [class*="hover:text-sky-"],
+html:not(.dark) [class*="hover:text-blue-"] {
+  color: var(--primary) !important;
+}
+html:not(.dark) [class*="hover:border-cyan-"],
+html:not(.dark) [class*="hover:border-sky-"],
+html:not(.dark) [class*="hover:border-blue-"] {
+  border-color: var(--primary) !important;
+}
+html:not(.dark) [class*="focus:ring-cyan-"],
+html:not(.dark) [class*="focus:ring-sky-"],
+html:not(.dark) [class*="focus:ring-blue-"] {
+  --tw-ring-color: var(--primary) !important;
+}
+html:not(.dark) [class*="focus:border-cyan-"],
+html:not(.dark) [class*="focus:border-sky-"],
+html:not(.dark) [class*="focus:border-blue-"] {
+  border-color: var(--primary) !important;
+}
+
+/* ── Atributos de estado (Radix Tabs / Listbox / Accordion etc) ──
+ * Componentes do Radix usam data-state="active" e aria-selected="true"
+ * para o item selecionado. Força usar primary no light. */
+html:not(.dark) [data-state="active"],
+html:not(.dark) [aria-selected="true"] {
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* ── Inline style com hexes do cyan vibrante (não passam pelo Tailwind) ──
+ * Cobre style={{ color: '#06B6D4' }} e variantes do cyan antigo.
+ * Selector é estrito ("color: #..." e "border-color: #...") pra não
+ * afetar background hex. */
+html:not(.dark) [style*="color: #00F5FF"],
+html:not(.dark) [style*="color: #06B6D4"],
+html:not(.dark) [style*="color: #22D3EE"],
+html:not(.dark) [style*="color: #0891B2"],
+html:not(.dark) [style*="color:#00F5FF"],
+html:not(.dark) [style*="color:#06B6D4"],
+html:not(.dark) [style*="color:#22D3EE"],
+html:not(.dark) [style*="color:#0891B2"] {
+  color: var(--primary) !important;
+}
+html:not(.dark) [style*="border-color: #00F5FF"],
+html:not(.dark) [style*="border-color: #06B6D4"],
+html:not(.dark) [style*="border-color: #22D3EE"],
+html:not(.dark) [style*="border-color: #0891B2"] {
+  border-color: var(--primary) !important;
+}
+
 /* Cinzas Tailwind lavados — força com !important pra vencer estilos
  * inline e classes Tailwind que estavam silenciosamente sobrepondo.
  * Ordem importa: regra genérica primeiro (fallback muted), regras
