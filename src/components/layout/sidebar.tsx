@@ -187,12 +187,12 @@ const NAV: NavEntry[] = [
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const base = 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[15px] transition-all duration-150 outline-none select-none'
+// Base usa .sidebar-item (cor/hover via tokens) — funciona nos 2 temas.
+// Active aplica .sidebar-item-active (primary-soft + primary).
+const base = 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[15px] outline-none select-none sidebar-item'
 
-function itemStyle(active: boolean): React.CSSProperties {
-  return active
-    ? { color: '#00F5FF', background: 'rgba(0,245,255,0.08)' }
-    : { color: '#A1A1AA' }
+function itemClass(active: boolean): string {
+  return active ? 'sidebar-item-active' : ''
 }
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
@@ -452,12 +452,12 @@ function SidebarInner({ user }: { user: User }) {
             <>
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                style={{ background: 'rgba(0,245,255,0.15)', color: '#00F5FF' }}
+                style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
               >
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-white truncate leading-tight">{user.name}</p>
+                <p className="text-xs font-semibold truncate leading-tight" style={{ color: 'var(--text)' }}>{user.name}</p>
                 <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
                   {isParceiroGestor ? 'Parceiro Gestor' : isParceiroAdmin ? 'Parceiro' : 'Consultor'}
                 </p>
@@ -467,7 +467,7 @@ function SidebarInner({ user }: { user: User }) {
           {collapsed && (
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold mx-auto"
-              style={{ background: 'rgba(0,245,255,0.15)', color: '#00F5FF' }}
+              style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
             >
               {initials}
             </div>
@@ -486,8 +486,7 @@ function SidebarInner({ user }: { user: User }) {
               <Link
                 key={entry.href}
                 href={entry.href}
-                className={cn(base, !active && 'hover:bg-white/[0.04] hover:text-[#FAFAFA]')}
-                style={itemStyle(active)}
+                className={cn(base, itemClass(active))}
               >
                 <Icon size={17} className="shrink-0" />
                 {!collapsed && <span className="font-medium">{entry.label}</span>}
@@ -520,8 +519,7 @@ function SidebarInner({ user }: { user: User }) {
                     <Link
                       key={sub.href}
                       href={sub.href}
-                      className={cn(base, !subActive && 'hover:bg-white/[0.04] hover:text-[#FAFAFA]')}
-                      style={itemStyle(subActive)}
+                      className={cn(base, itemClass(subActive))}
                     >
                       <SubIcon size={17} className="shrink-0" />
                     </Link>
@@ -541,8 +539,8 @@ function SidebarInner({ user }: { user: User }) {
             <div key={group.label}>
               <button
                 onClick={() => toggleGroup(group.label)}
-                className={cn('w-full', base, !active && 'hover:bg-white/[0.04] hover:text-[#FAFAFA]')}
-                style={active ? { color: '#FAFAFA' } : { color: '#A1A1AA' }}
+                className={cn('w-full', base)}
+                style={active ? { color: 'var(--text)' } : undefined}
               >
                 <GroupIcon size={17} className="shrink-0" />
                 <span className="flex-1 text-left font-medium">{group.label}</span>
@@ -561,13 +559,9 @@ function SidebarInner({ user }: { user: User }) {
                         key={sub.href}
                         href={sub.href}
                         className={cn(
-                          'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium transition-all duration-150',
-                          !subActive && 'hover:bg-white/[0.04] hover:text-[#FAFAFA]'
+                          'flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm font-medium sidebar-item',
+                          subActive && 'sidebar-item-active'
                         )}
-                        style={subActive
-                          ? { color: '#00F5FF', background: 'rgba(0,245,255,0.08)' }
-                          : { color: '#71717A' }
-                        }
                       >
                         <SubIcon size={14} className="shrink-0" />
                         <span>{sub.label}</span>
@@ -598,8 +592,10 @@ function SidebarInner({ user }: { user: User }) {
       {/* ── Collapse toggle ── */}
       <button
         onClick={() => setCollapsed(c => !c)}
-        className="flex items-center justify-center h-10 border-t transition-colors hover:bg-white/[0.04]"
-        style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-subtle)' }}
+        className="flex items-center justify-center h-10 border-t transition-colors"
+        style={{ borderColor: 'var(--brand-border)', color: 'var(--text-muted)' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
       >
         {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>

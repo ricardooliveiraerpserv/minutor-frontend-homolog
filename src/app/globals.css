@@ -494,6 +494,24 @@ tr.row--pausado:hover {
   color: var(--text);
 }
 
+/* ── Sidebar items (light + dark) ──────────────────────────
+ * Hover/active funcionam pros dois temas via tokens. Substitui
+ * o "hover:bg-white/[0.04]" que era invisível no light. */
+.sidebar-item {
+  color: var(--text-muted);
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.sidebar-item-active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 500;
+}
+
 /* Linha/card selecionado — bg primary-soft + barra lateral primary.
  * Dois sinais (cor + borda) atendem regra "não usar só cor". */
 .ds-row-selected {
@@ -555,8 +573,34 @@ html:not(.dark) .hover\:text-zinc-300:hover { color: var(--text) !important; }
 /* Cyan vibrante do dark é ilegível em fundo branco — força tom denso */
 html:not(.dark) .text-cyan-300,
 html:not(.dark) .text-cyan-400,
-html:not(.dark) .text-cyan-500 { color: var(--primary); }
-html:not(.dark) .text-cyan-600 { color: var(--primary-hover); }
+html:not(.dark) .text-cyan-500 { color: var(--primary) !important; }
+html:not(.dark) .text-cyan-600 { color: var(--primary-hover) !important; }
+
+/* Border / ring / bg cyan-sky-blue → primary (light only).
+ * Cobre kanban borders, ring focus, badge backgrounds e demais accents
+ * que ficavam com cyan claro lavado em fundo branco. */
+html:not(.dark) [class*="border-cyan-"],
+html:not(.dark) [class*="border-sky-"],
+html:not(.dark) [class*="border-blue-"] {
+  border-color: var(--primary) !important;
+}
+html:not(.dark) [class*="ring-cyan-"],
+html:not(.dark) [class*="ring-sky-"],
+html:not(.dark) [class*="ring-blue-"] {
+  --tw-ring-color: var(--primary) !important;
+}
+html:not(.dark) [class*="bg-cyan-"],
+html:not(.dark) [class*="bg-sky-"],
+html:not(.dark) [class*="bg-blue-"] {
+  background-color: var(--primary-soft) !important;
+}
+html:not(.dark) [class*="from-cyan-"],
+html:not(.dark) [class*="to-cyan-"],
+html:not(.dark) [class*="from-sky-"],
+html:not(.dark) [class*="to-sky-"] {
+  --tw-gradient-from: var(--primary-soft) !important;
+  --tw-gradient-to: var(--primary-soft) !important;
+}
 
 /* Cinzas Tailwind lavados — força com !important pra vencer estilos
  * inline e classes Tailwind que estavam silenciosamente sobrepondo.
