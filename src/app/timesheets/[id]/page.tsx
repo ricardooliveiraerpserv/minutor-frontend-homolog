@@ -12,6 +12,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useState } from 'react'
 import { sanitizeHtml } from '@/lib/sanitize'
+import { useAuth } from '@/hooks/use-auth'
+import { TimesheetLogsList, type TimesheetLog } from '@/components/timesheet/TimesheetLogsList'
 
 function AttachmentLink({ url }: { url: string }) {
   const [loading, setLoading] = useState(false)
@@ -101,8 +103,15 @@ function OriginChip({ origin }: { origin?: string }) {
 export default function TimesheetDetailPage() {
   const params = useParams()
   const id = params.id as string
+  const { user } = useAuth()
   const { data: raw, loading, error } = useApiQuery<{ success: boolean; data: Timesheet }>(`/timesheets/${id}`)
   const ts = raw?.data ?? (raw as unknown as Timesheet | null)
+
+  const canSeeLogs = user?.type === 'admin' || user?.type === 'coordenador'
+  const { data: logsResp, loading: logsLoading } = useApiQuery<{ data: TimesheetLog[] }>(
+    canSeeLogs ? `/timesheets/${id}/logs?per_page=50` : null,
+  )
+  const logs = logsResp?.data ?? []
 
   return (
     <AppLayout title="Apontamento">
@@ -236,6 +245,19 @@ export default function TimesheetDetailPage() {
                 <CheckCircle size={13} style={{ color: 'var(--brand-primary)' }} />
                 Revisado por <strong style={{ color: 'var(--brand-muted)' }}>{ts.reviewedBy.name}</strong>
                 {ts.reviewed_at && ` em ${formatDate(ts.reviewed_at.slice(0, 10))}`}
+              </div>
+            )}
+
+            {/* Histórico de alterações (admin/coord) */}
+            {canSeeLogs && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <FileText size={14} style={{ color: 'var(--brand-primary)' }} />
+                  <h2 className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>
+                    Histórico de alterações
+                  </h2>
+                </div>
+                <TimesheetLogsList logs={logs} loading={logsLoading} empty="Sem alterações registradas até agora." />
               </div>
             )}
           </div>

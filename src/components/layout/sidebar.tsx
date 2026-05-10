@@ -100,6 +100,7 @@ const NAV_COORDINATOR: NavEntry[] = [
       { label: 'Apontamentos', href: '/timesheets', icon: Clock },
       { label: 'Despesas',     href: '/expenses',   icon: Receipt },
       { label: 'Aprovações',   href: '/approvals',  icon: CheckSquare },
+      { label: 'Auditoria',    href: '/auditoria/apontamentos', icon: FileText },
     ],
   },
 ]
@@ -152,6 +153,7 @@ const NAV: NavEntry[] = [
       { label: 'Apontamentos', href: '/timesheets', icon: Clock },
       { label: 'Despesas',     href: '/expenses',   icon: Receipt },
       { label: 'Aprovações',   href: '/approvals',  icon: CheckSquare },
+      { label: 'Auditoria',    href: '/auditoria/apontamentos', icon: FileText },
     ],
   },
   {
