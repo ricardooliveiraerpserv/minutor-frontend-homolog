@@ -45,33 +45,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import type { LucideIcon } from 'lucide-react'
 import type { User } from '@/types'
 
-// ─── Logo SVG ────────────────────────────────────────────────────────────────
-// 4 barras verticais em Electric Cyan, alturas: 40% | 70% | 100% | 60%
-function MinutorIcon({ size = 28 }: { size?: number }) {
-  const bars = [
-    { x: 0,    h: 0.45, y: 0.55 },
-    { x: 0.28, h: 0.75, y: 0.25 },
-    { x: 0.56, h: 1.00, y: 0.00 },
-    { x: 0.84, h: 0.60, y: 0.40 },
-  ]
-  const w = size * 0.72
-  const barW = w * 0.18
-  return (
-    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
-      {bars.map((b, i) => (
-        <rect
-          key={i}
-          x={b.x * 28 * 0.9 + 2}
-          y={b.y * 20 + 4}
-          width={4.2}
-          height={b.h * 20}
-          rx={1.6}
-          fill="#00F5FF"
-        />
-      ))}
-    </svg>
-  )
-}
+import { MinutorIcon } from '@/components/branding/MinutorIcon'
 
 // ─── Nav config ──────────────────────────────────────────────────────────────
 
@@ -462,7 +436,7 @@ function SidebarInner({ user }: { user: User }) {
       >
         <MinutorIcon size={34} />
         {!collapsed && (
-          <span className="font-bold text-[20px] tracking-tight" style={{ color: '#FAFAFA' }}>
+          <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>
             Minutor
           </span>
         )}
