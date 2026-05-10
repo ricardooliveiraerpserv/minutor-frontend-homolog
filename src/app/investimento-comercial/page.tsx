@@ -581,17 +581,17 @@ export default function InvestimentoComercialPage() {
         )}
       </div>
 
-      {/* Abas */}
+      {/* Abas — ativo: fundo primary sólido + texto branco (contraste máximo) */}
       <div className="flex gap-1 mb-4 flex-wrap">
         {TABS.map(tab => {
           const Icon = tab.icon
           const active = activeTab === tab.id
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
               style={active
-                ? { background: 'rgba(0,245,255,0.12)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.25)' }
-                : { background: 'transparent', color: 'var(--brand-subtle)', border: '1px solid transparent' }
+                ? { background: 'var(--primary)', color: 'var(--primary-fg)', border: '1px solid var(--primary)' }
+                : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--brand-border)' }
               }>
               <Icon size={12} /> {tab.label}
             </button>
@@ -613,10 +613,10 @@ export default function InvestimentoComercialPage() {
             const active = categoriaFilter === opt.id
             return (
               <button key={opt.id} onClick={() => setCategoriaFilter(opt.id)}
-                className="px-2.5 py-1 rounded-md text-[11px] transition-colors"
+                className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
                 style={active
-                  ? { background: 'rgba(0,245,255,0.12)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.25)' }
-                  : { background: 'transparent', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
+                  ? { background: 'var(--primary)', color: 'var(--primary-fg)', border: '1px solid var(--primary)' }
+                  : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--brand-border)' }}>
                 {opt.label}
               </button>
             )

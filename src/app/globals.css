@@ -145,7 +145,7 @@
   /* ── PRIMARY (ação — cyan denso) ─────────────────── */
   --brand-primary:        #0E7490;   /* texto/ação real em fundo branco */
   --brand-primary-strong: #0C5F73;   /* hover ainda mais denso */
-  --brand-primary-dim:    #E0F2FE;   /* bg/badge soft */
+  --brand-primary-dim:    #BAE6FD;   /* bg/badge soft — sky-200, peso real */
 
   /* ── Semantic — light (tons de border/accent) ────── */
   --brand-success:  #22C55E;
@@ -746,6 +746,20 @@ html:not(.dark) [style*="border-color: #00F5FF"],
 html:not(.dark) [style*="border-color: #06B6D4"],
 html:not(.dark) [style*="border-color: #22D3EE"],
 html:not(.dark) [style*="border-color: #0891B2"] {
+  border-color: var(--primary) !important;
+}
+
+/* Inline rgba(0,245,255,X) — usado em ~120 lugares como bg de chips/tabs/
+ * badges. No light esse cyan vibrante a 6-15% fica lavado em fundo branco.
+ * Promove pra var(--primary-soft) (sky-200, mais saturado) automaticamente. */
+html:not(.dark) [style*="background: 'rgba(0,245,255"],
+html:not(.dark) [style*="background:'rgba(0,245,255"],
+html:not(.dark) [style*="background: rgba(0,245,255"] {
+  background-color: var(--primary-soft) !important;
+}
+html:not(.dark) [style*="border: '1px solid rgba(0,245,255"],
+html:not(.dark) [style*="border:'1px solid rgba(0,245,255"],
+html:not(.dark) [style*="border: 1px solid rgba(0,245,255"] {
   border-color: var(--primary) !important;
 }
 
