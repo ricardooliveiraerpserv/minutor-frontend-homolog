@@ -518,6 +518,44 @@ tr.row--pausado:hover {
   border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
+/* ── BG + foreground em par (opt-in) ───────────────────────
+ * Garante contraste correto sem precisar lembrar do color manual.
+ * Use estes em vez de bg-cyan-100/text-cyan-500 (que produz texto
+ * pastel sobre fundo pastel — ilegível). */
+.ds-bg-primary {
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+.ds-bg-primary-soft {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+.ds-bg-success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+.ds-bg-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.ds-bg-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.ds-bg-info {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+/* ── Cards com destaque via BORDA (não fundo colorido) ────
+ * Padrão: card branco + barra lateral colorida. Evita o anti-pattern
+ * "fundo colorido pastel + texto da mesma cor = ilegível". */
+.ds-card-highlight-primary { border-left: 4px solid var(--primary); }
+.ds-card-highlight-success { border-left: 4px solid var(--success-border); }
+.ds-card-highlight-warning { border-left: 4px solid var(--warning-border); }
+.ds-card-highlight-danger  { border-left: 4px solid var(--danger-border); }
+.ds-card-highlight-info    { border-left: 4px solid var(--info-border); }
+
 /* Link semântico — opt-in (não força em todos os <a>, evita regressão
  * em Next/Link que tem cor própria). */
 .ds-link {
@@ -548,19 +586,20 @@ tr.row--pausado:hover {
 /* ── Sidebar items (light + dark) ──────────────────────────
  * Hover/active funcionam pros dois temas via tokens. Substitui
  * o "hover:bg-white/[0.04]" que era invisível no light. */
+/* Sidebar item normal: usa --text (preto denso) em vez de --text-muted
+ * pra dar peso real no light. Hover/active mantêm padrão design system. */
 .sidebar-item {
-  color: var(--text-muted);
+  color: var(--text);
   background: transparent;
   transition: background 0.15s, color 0.15s;
 }
 .sidebar-item:hover {
   background: var(--surface-hover);
-  color: var(--text);
 }
 .sidebar-item-active {
   background: var(--primary-soft);
   color: var(--primary);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 /* Linha/card selecionado — bg primary-soft + barra lateral primary.

@@ -32,7 +32,19 @@ Detecção automática: o workflow `.github/workflows/design-system-check.yml` a
   // ruim
   <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>aprovado</span>
   ```
+- **Bg pastel + texto da mesma cor** (anti-pattern de contraste):
+  ```tsx
+  // ruim — pastel sobre pastel = ilegível
+  <div className="bg-cyan-100 text-cyan-500">…</div>
+  <div className="bg-green-100 text-green-500">…</div>
+  // bom — par garantido pelo design system
+  <div className="ds-bg-primary-soft">…</div>
+  <div className="ds-bg-success">…</div>
+  ```
+- **Card com fundo colorido pra "decorar"** — use `.ds-card-highlight-{primary,success,warning,danger,info}` (destaque vai na borda lateral, não no fundo).
 - **Misturar cor de marca** com cinza neutro pra "atalhar" estado.
+
+> **Regra de ouro:** cor não define UI — **contraste define UI**. Sempre par bg+fg pensado.
 
 ### ✅ Obrigatório
 
@@ -116,6 +128,18 @@ Sempre que tocar um componente:
     <tr><td>Acme</td><td>R$ 100</td></tr>
   </tbody>
 </table>
+
+// BG + foreground em par (substitui bg-cyan-100/text-cyan-500 e similares)
+<div className="ds-bg-primary px-3 py-2 rounded">CTA cyan denso + texto branco</div>
+<div className="ds-bg-primary-soft px-3 py-2 rounded">badge cyan claro + texto cyan denso</div>
+<div className="ds-bg-success px-3 py-2 rounded">aprovado: verde claro + verde escuro</div>
+<div className="ds-bg-warning px-3 py-2 rounded">pendente: amarelo claro + laranja escuro</div>
+<div className="ds-bg-danger px-3 py-2 rounded">erro: vermelho claro + vermelho escuro</div>
+<div className="ds-bg-info px-3 py-2 rounded">info: azul claro + azul escuro</div>
+
+// Card com destaque via BORDA (não fundo colorido)
+<div className="ds-card ds-card-highlight-primary ds-card-pad">…</div>
+<div className="ds-card ds-card-highlight-warning ds-card-pad">…</div>
 
 // Filtro selecionado
 <button className="ds-filter-active">Hoje</button>
