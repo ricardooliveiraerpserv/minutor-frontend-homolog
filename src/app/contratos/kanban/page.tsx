@@ -1337,11 +1337,14 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
           {...prov.draggableProps}
           {...prov.dragHandleProps}
           onClick={onClick}
-          className="rounded-xl p-3 cursor-pointer select-none transition-all group"
+          className="kanban-card rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
-            background: snap.isDragging ? 'rgba(0,245,255,0.06)' : 'var(--brand-surface)',
-            border: `1px solid ${snap.isDragging ? 'rgba(0,245,255,0.35)' : 'var(--brand-border)'}`,
-            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.4)' : 'none',
+            background: 'var(--brand-surface)',
+            border: `1px solid var(--brand-border)`,
+            // Borda lateral colorida pelo status do contrato (Incompleto/Pronto/Projeto Ativo)
+            borderLeft: `3px solid ${badge.color}`,
+            boxShadow: snap.isDragging ? 'var(--brand-card-shadow-md)' : 'var(--brand-card-shadow)',
+            opacity: snap.isDragging ? 0.85 : 1,
             ...prov.draggableProps.style,
           }}
         >
@@ -1363,21 +1366,23 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                 <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
-                    className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
-                    style={{ color: 'var(--brand-subtle)' }}
+                    className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ color: 'var(--brand-subtle)', background: 'transparent' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <MoreVertical size={12} />
                   </button>
                   {menuOpen && (
-                    <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
-                      style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                    <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden"
+                      style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', boxShadow: 'var(--brand-card-shadow-md)' }}>
                       {CONTRACT_MENU_ITEMS.filter(item => !item.adminOnly || canWrite).map(item => {
                         const Icon = item.icon
                         const isDanger = (item as any).danger
                         return (
                           <button key={item.action}
                             onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
+                            className="ds-row-hover w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors"
                             style={{ color: isDanger ? '#ef4444' : 'var(--brand-text)' }}>
                             <Icon size={13} style={{ color: isDanger ? '#ef4444' : 'var(--brand-subtle)' }} />
                             {item.label}
@@ -1414,7 +1419,7 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
               </span>
             )}
             {card.tipo_faturamento && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-muted)' }}>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
                 {TIPO_LABEL[card.tipo_faturamento] ?? card.tipo_faturamento}
               </span>
             )}
@@ -1432,13 +1437,15 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
             <div className="flex items-center gap-1">
               {onAction && (
                 <button onClick={e => { e.stopPropagation(); onAction('chat') }}
-                  className="p-1 rounded-md hover:bg-white/10 transition-colors" title="Abrir Chat"
-                  style={{ color: 'var(--brand-subtle)' }}>
+                  className="p-1 rounded-md transition-colors" title="Abrir Chat"
+                  style={{ color: 'var(--brand-subtle)', background: 'transparent' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                   <MessageSquare size={11} />
                 </button>
               )}
               {card.project_code && (
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'var(--brand-bg)', color: 'var(--brand-primary)' }}>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                   {card.project_code}
                 </span>
               )}
@@ -1502,11 +1509,14 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
           {...prov.draggableProps}
           {...prov.dragHandleProps}
           onClick={onClick}
-          className="rounded-xl p-3 cursor-pointer select-none transition-all group"
+          className="kanban-card rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
-            background: snap.isDragging ? `${color}0A` : 'var(--brand-surface)',
-            border: `1px solid ${snap.isDragging ? color : `${color}40`}`,
-            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.4)' : 'none',
+            background: 'var(--brand-surface)',
+            border: `1px solid var(--brand-border)`,
+            // Borda lateral colorida pelo status do projeto
+            borderLeft: `3px solid ${color}`,
+            boxShadow: snap.isDragging ? 'var(--brand-card-shadow-md)' : 'var(--brand-card-shadow)',
+            opacity: snap.isDragging ? 0.85 : 1,
             ...prov.draggableProps.style,
           }}
         >
@@ -1525,21 +1535,23 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
               <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
                 <button
                   onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
-                  className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
-                  style={{ color: 'var(--brand-subtle)' }}
+                  className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ color: 'var(--brand-subtle)', background: 'transparent' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <MoreVertical size={12} />
                 </button>
                 {menuOpen && (
-                  <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
-                    style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                  <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden"
+                    style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', boxShadow: 'var(--brand-card-shadow-md)' }}>
                     {PROJECT_MENU_ITEMS.filter(item => !item.adminOnly || canWrite).map(item => {
                       const Icon = item.icon
                       const isDanger = (item as any).danger
                       return (
                         <button key={item.action}
                           onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
+                          className="ds-row-hover w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors"
                           style={{ color: isDanger ? '#ef4444' : 'var(--brand-text)' }}>
                           <Icon size={13} style={{ color: isDanger ? '#ef4444' : 'var(--brand-subtle)' }} />
                           {item.label}
@@ -1572,8 +1584,10 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
             <div className="flex items-center gap-1">
               {onAction && (
                 <button onClick={e => { e.stopPropagation(); onAction('chat') }}
-                  className="p-1 rounded-md hover:bg-white/10 transition-colors" title="Abrir Chat"
-                  style={{ color: 'var(--brand-subtle)' }}>
+                  className="p-1 rounded-md transition-colors" title="Abrir Chat"
+                  style={{ color: 'var(--brand-subtle)', background: 'transparent' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                   <MessageSquare size={11} />
                 </button>
               )}
@@ -2586,8 +2600,12 @@ function KanbanContent() {
                               })}
                               {prov.placeholder}
                               {totalCards === 0 && !snap.isDraggingOver && (
-                                <p className="text-center text-xs py-6" style={{ color: 'var(--brand-subtle)' }}>
-                                  {isCoord ? 'Nenhum projeto alocado' : (isSust || isBizify) ? 'Sem contratos nesta categoria' : 'Vazio'}
+                                <p className="text-center text-xs py-6" style={{ color: 'var(--text-light)' }}>
+                                  {isCoord
+                                    ? 'Nenhum projeto alocado por aqui ainda'
+                                    : (isSust || isBizify)
+                                      ? 'Sem contratos nesta categoria'
+                                      : 'Arraste cards para esta coluna'}
                                 </p>
                               )}
                             </div>

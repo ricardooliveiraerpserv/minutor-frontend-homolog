@@ -422,6 +422,19 @@ tr.row--pausado:hover {
   border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
+/* ── Kanban card hover ─────────────────────────────────────────
+ * Elevação leve no hover. Light usa sombra (--brand-card-shadow-md);
+ * dark usa ring cyan sutil (já que sombras são desativadas no dark).
+ */
+.kanban-card { will-change: transform, box-shadow; }
+.kanban-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--brand-card-shadow-md);
+}
+.dark .kanban-card:hover {
+  box-shadow: 0 0 0 1px rgba(0, 245, 255, 0.18), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
 /* ── Light-mode legacy override layer ─────────────────────────
  * Páginas antigas usam classes Tailwind escuras hardcoded
  * (`bg-zinc-900`, `border-zinc-800`, `text-white`...) — no light
