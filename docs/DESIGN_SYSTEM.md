@@ -67,10 +67,11 @@ Sempre que tocar um componente:
 
 | Token | Uso |
 |---|---|
-| `--primary` | CTA principal, link ativo, logo |
+| `--primary` | CTA principal, link ativo, ícones de ação |
 | `--primary-hover` | hover do primary |
 | `--primary-soft` | seleção/highlight leve, filtro ativo |
 | `--primary-fg` | cor de texto **sobre** `--primary` (branco no light, preto no dark) |
+| `--brand-logo` | **identidade da marca** (cor do logo). Independente do `--primary` — permite evoluir UI e marca em separado. Use só no logo/marca, nunca em UI. |
 
 ### Status (semânticas)
 

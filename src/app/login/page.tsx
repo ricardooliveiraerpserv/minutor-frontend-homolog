@@ -8,11 +8,11 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { ApiError } from '@/lib/api'
 
-// Splash escuro fixo (tela de login não segue o tema light) — força cor cyan vibrante.
+// Splash escuro fixo (tela de login não segue o tema light) — variant splash.
 import { MinutorIcon as SharedMinutorIcon } from '@/components/branding/MinutorIcon'
 
 function MinutorIcon({ size = 52 }: { size?: number }) {
-  return <SharedMinutorIcon size={size} color="#00F5FF" />
+  return <SharedMinutorIcon size={size} variant="splash" />
 }
 
 function LoginForm() {

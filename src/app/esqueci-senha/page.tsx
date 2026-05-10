@@ -5,11 +5,11 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { api, ApiError } from '@/lib/api'
 
-// Splash escuro fixo — força cor cyan vibrante.
+// Splash escuro fixo — variant splash.
 import { MinutorIcon as SharedMinutorIcon } from '@/components/branding/MinutorIcon'
 
 function MinutorIcon({ size = 19 }: { size?: number }) {
-  return <SharedMinutorIcon size={size} color="#00F5FF" />
+  return <SharedMinutorIcon size={size} variant="splash" />
 }
 
 const inputBase: React.CSSProperties = {

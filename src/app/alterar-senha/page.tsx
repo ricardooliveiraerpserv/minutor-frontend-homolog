@@ -7,11 +7,11 @@ import { Eye, EyeOff } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 
-// Splash escuro fixo — força cor cyan vibrante.
+// Splash escuro fixo — variant splash.
 import { MinutorIcon as SharedMinutorIcon } from '@/components/branding/MinutorIcon'
 
 function MinutorIcon({ size = 19 }: { size?: number }) {
-  return <SharedMinutorIcon size={size} color="#00F5FF" />
+  return <SharedMinutorIcon size={size} variant="splash" />
 }
 
 const inputBase: React.CSSProperties = {

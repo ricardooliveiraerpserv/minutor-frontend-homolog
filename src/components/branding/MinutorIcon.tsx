@@ -1,14 +1,24 @@
 /**
  * Logo símbolo do Minutor — 4 barras verticais.
  *
- * Por padrão usa `var(--primary)` (theme-aware): cyan vibrante (#00F5FF) no
- * dark, cyan reforçado (#06B6D4) no light. Permite passar `color` explícita
- * quando o componente é usado em fundo escuro fixo (ex: splash de login).
+ * Cor controlada pelo token `--brand-logo` (definido em globals.css):
+ *   - light: #06B6D4 (cyan reforçado)
+ *   - dark:  #00F5FF (Electric Cyan)
+ *
+ * O token é INDEPENDENTE de `--primary` (UI). Mudar paleta de UI
+ * não afeta marca; rebrand de cor não afeta UI.
+ *
+ * Variantes:
+ *   - "default" (padrão) — usa `var(--brand-logo)`. Adapta ao tema do app.
+ *   - "splash"           — força cyan vibrante (#00F5FF). Para fundos
+ *                          escuros fixos onde o app não segue o tema
+ *                          (ex: tela de login).
  */
+type Variant = 'default' | 'splash'
+
 interface Props {
   size?: number
-  /** Sobrescreve a cor das barras. Default: `var(--primary)`. */
-  color?: string
+  variant?: Variant
   className?: string
 }
 
@@ -19,7 +29,10 @@ const BARS = [
   { x: 0.84, h: 0.60, y: 0.40 },
 ] as const
 
-export function MinutorIcon({ size = 28, color = 'var(--primary)', className }: Props) {
+const SPLASH_COLOR = '#00F5FF'
+
+export function MinutorIcon({ size = 28, variant = 'default', className }: Props) {
+  const fill = variant === 'splash' ? SPLASH_COLOR : 'var(--brand-logo)'
   return (
     <svg
       width={size}
@@ -38,7 +51,7 @@ export function MinutorIcon({ size = 28, color = 'var(--primary)', className }: 
           width={4.2}
           height={b.h * 20}
           rx={1.6}
-          fill={color}
+          fill={fill}
         />
       ))}
     </svg>
