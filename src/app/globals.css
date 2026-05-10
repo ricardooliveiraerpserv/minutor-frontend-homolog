@@ -117,27 +117,62 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-/* ── Brand tokens ────────────────────────────────────────────── */
+/* ── Brand tokens ─────────────────────────────────────────────
+ * :root = light, .dark sobrescreve.
+ * next-themes aplica class="dark" no <html> conforme escolha do usuário.
+ * Cores semânticas (success/warning/danger/purple) ajustadas por tema.
+ * Primary (cyan) tom diferente por tema para preservar contraste.
+ */
 :root {
-  /* Structure */
-  --brand-bg:       #0A0A0B;   /* Deep Space — fundo principal */
-  --brand-surface:  #161618;   /* Elevated Black — sidebar, cards */
-  --brand-border:   #27272A;   /* Steel Gray — divisores, inputs */
+  /* Structure — light */
+  --brand-bg:       #F8FAFC;
+  --brand-surface:  #FFFFFF;
+  --brand-border:   #E2E8F0;
 
-  /* Identity */
-  --brand-primary:  #00F5FF;   /* Electric Cyan — ativo, CTA, logo */
+  /* Identity — cyan mais escuro no light (≈4.5:1 vs branco) */
+  --brand-primary:  #0891B2;
+  --brand-primary-dim: rgba(6, 182, 212, 0.10);
+
+  /* Text — light */
+  --brand-text:     #0F172A;
+  --brand-muted:    #475569;
+  --brand-subtle:   #94A3B8;
+
+  /* Semantic — light */
+  --brand-success:  #16A34A;
+  --brand-warning:  #D97706;
+  --brand-danger:   #DC2626;
+  --brand-purple:   #7C3AED;
+
+  /* Scrollbar */
+  --scrollbar-thumb:        #CBD5E1;
+  --scrollbar-thumb-hover:  #94A3B8;
+}
+
+.dark {
+  /* Structure — dark (paleta original) */
+  --brand-bg:       #0A0A0B;
+  --brand-surface:  #161618;
+  --brand-border:   #27272A;
+
+  /* Identity — Electric Cyan original */
+  --brand-primary:  #00F5FF;
   --brand-primary-dim: rgba(0, 245, 255, 0.10);
 
-  /* Text */
-  --brand-text:     #FAFAFA;   /* Texto forte — títulos, valores */
-  --brand-muted:    #A1A1AA;   /* Texto fraco secundário */
-  --brand-subtle:   #71717A;   /* Texto fraco — legendas, IDs */
+  /* Text — dark */
+  --brand-text:     #FAFAFA;
+  --brand-muted:    #A1A1AA;
+  --brand-subtle:   #71717A;
 
-  /* Semantic */
-  --brand-success:  #10B981;   /* Verde — aprovado, saldo positivo */
-  --brand-warning:  #F59E0B;   /* Âmbar — atenção, prazo */
-  --brand-danger:   #EF4444;   /* Vermelho — erro, excedido */
-  --brand-purple:   #8B5CF6;   /* Roxo — dev/ADVPL */
+  /* Semantic — dark */
+  --brand-success:  #10B981;
+  --brand-warning:  #F59E0B;
+  --brand-danger:   #EF4444;
+  --brand-purple:   #8B5CF6;
+
+  /* Scrollbar */
+  --scrollbar-thumb:        #2A2A2E;
+  --scrollbar-thumb-hover:  #3A3A3E;
 }
 
 @layer base {
@@ -147,6 +182,7 @@
   body {
     background-color: var(--brand-bg);
     color: var(--brand-text);
+    transition: background-color 0.15s ease, color 0.15s ease;
     @apply font-sans;
   }
   html {
@@ -169,11 +205,11 @@ svg.recharts-surface > g > rect:first-child {
   fill: transparent !important;
 }
 
-/* ── Scrollbar ───────────────────────────────────────────────── */
+/* ── Scrollbar — adapta ao tema ──────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2a2a2e; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #3a3a3e; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
 /* ── Number input — remove spinners (setas) ──────────────────── */
 input[type=number]::-webkit-inner-spin-button,

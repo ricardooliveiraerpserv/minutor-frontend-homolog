@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import { secureUrl, api } from '@/lib/api'
 import { useState, useEffect, useRef } from 'react'
+import { ThemeToggle } from './ThemeToggle'
 
 interface HeaderProps {
   title?: string
@@ -94,6 +95,9 @@ export function Header({ title, actions }: HeaderProps) {
 
       <div className="flex items-center gap-2">
         {actions}
+
+        {/* Theme toggle — sun/moon */}
+        <ThemeToggle />
 
         {/* Bell notification — visible for all logged-in users; content scoped server-side */}
         {user && (
