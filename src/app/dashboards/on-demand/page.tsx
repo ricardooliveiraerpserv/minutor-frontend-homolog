@@ -41,7 +41,7 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
     <button
       onClick={onClick}
       className="px-5 py-2.5 text-sm font-semibold rounded-xl transition-all"
-      style={active ? { background: 'var(--brand-primary)', color: '#0A0A0B' } : { color: 'var(--brand-muted)' }}
+      style={active ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' } : { color: 'var(--brand-muted)' }}
     >
       {label}
     </button>

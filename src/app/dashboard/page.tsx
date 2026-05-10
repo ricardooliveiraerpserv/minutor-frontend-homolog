@@ -265,12 +265,15 @@ export default function DashboardPage() {
               <Link href="/approvals" className="flex-1">
                 <div
                   className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98] w-full"
-                  style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+                  style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
                 >
                   <CheckSquare size={15} />
                   Revisar aprovações
                   {!loading && (adminPendingTs + adminPendingExp) > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-black/20">
+                    <span
+                      className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                      style={{ background: 'rgba(255,255,255,0.22)', color: 'var(--primary-fg)' }}
+                    >
                       {adminPendingTs + adminPendingExp}
                     </span>
                   )}
@@ -461,7 +464,7 @@ export default function DashboardPage() {
               <Link href="/meu-painel" className="flex-1">
                 <div
                   className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98] w-full"
-                  style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+                  style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
                 >
                   <Plus size={15} />
                   Apontar horas
@@ -538,7 +541,7 @@ export default function DashboardPage() {
                   <Link href="/meu-painel">
                     <div
                       className="text-xs font-semibold px-3 py-1.5 rounded-lg shrink-0 transition-colors hover:opacity-90 cursor-pointer"
-                      style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+                      style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
                     >
                       Lançar agora
                     </div>

@@ -309,7 +309,7 @@ function RequisicoesContent() {
           <button
             onClick={() => router.push('/portal-cliente/nova-requisicao')}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-            style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+            style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
           >
             <Plus size={14} /> Nova Requisição
           </button>

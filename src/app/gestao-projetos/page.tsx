@@ -970,7 +970,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                     <span className="text-xs italic flex-1" style={{ color: '#F59E0B' }}>Cliente sem prefixo configurado</span>
                     <a href="/cadastros?tab=customers" target="_blank" rel="noreferrer"
                       className="text-xs font-semibold px-2.5 py-1 rounded-lg shrink-0"
-                      style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+                      style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
                       Configurar prefixo
                     </a>
                   </div>
@@ -2007,7 +2007,7 @@ export default function GestaoProjetosPage() {
             onClick={() => { setMultiContratual(v => !v) }}
             className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap"
             style={multiContratual
-              ? { background: 'var(--brand-primary)', color: '#0A0A0B', boxShadow: '0 0 12px rgba(0,245,255,0.35)' }
+              ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)', boxShadow: '0 0 12px rgba(0,245,255,0.35)' }
               : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.25)' }}
           >
             ⬡ Multi-contratual
@@ -2020,7 +2020,7 @@ export default function GestaoProjetosPage() {
               onClick={() => { setFilterContractType(''); setMultiContratual(false) }}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={!filterContractType && !multiContratual
-                ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                 : { color: 'var(--brand-muted)' }}
             >
               Todos
@@ -2031,7 +2031,7 @@ export default function GestaoProjetosPage() {
                 onClick={() => { setFilterContractType(String(ct.id)); setMultiContratual(false) }}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                 style={filterContractType === String(ct.id)
-                  ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                  ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                   : { color: 'var(--brand-muted)' }}
               >
                 {ct.name}
@@ -2596,7 +2596,7 @@ export default function GestaoProjetosPage() {
               </button>
               <button onClick={handleChangeStatus} disabled={statusSaving || statusModal.newStatus === statusModal.project.status}
                 className="px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-                style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+                style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
                 {statusSaving ? 'Salvando...' : 'Confirmar'}
               </button>
             </div>

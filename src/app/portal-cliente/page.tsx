@@ -832,7 +832,7 @@ export default function PortalClientePage() {
                 <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
                   className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
                   style={activeTab === tab.key
-                    ? { background: '#00F5FF', color: '#0A0A0B' }
+                    ? { background: '#00F5FF', color: 'var(--primary-fg)' }
                     : { color: 'var(--brand-muted)', background: 'transparent' }
                   }>
                   {tab.label}
@@ -876,11 +876,11 @@ export default function PortalClientePage() {
               )}
               <div className="flex items-center rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
                 <button type="button" onClick={() => setViewMode('card')} className="p-2.5 transition-all"
-                  style={viewMode === 'card' ? { background: 'var(--brand-primary)', color: '#0A0A0B' } : { background: 'rgba(255,255,255,0.04)', color: 'var(--brand-subtle)' }}>
+                  style={viewMode === 'card' ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' } : { background: 'rgba(255,255,255,0.04)', color: 'var(--brand-subtle)' }}>
                   <LayoutGrid size={15} />
                 </button>
                 <button type="button" onClick={() => setViewMode('linear')} className="p-2.5 transition-all"
-                  style={viewMode === 'linear' ? { background: 'var(--brand-primary)', color: '#0A0A0B' } : { background: 'rgba(255,255,255,0.04)', color: 'var(--brand-subtle)' }}>
+                  style={viewMode === 'linear' ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' } : { background: 'rgba(255,255,255,0.04)', color: 'var(--brand-subtle)' }}>
                   <List size={15} />
                 </button>
               </div>
@@ -1414,7 +1414,7 @@ export default function PortalClientePage() {
                       <button key={btn.key} type="button" onClick={() => setIndStatusFilter(btn.key)}
                         className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                         style={active
-                          ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                          ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                           : { color: 'var(--brand-muted)', background: 'transparent' }
                         }>
                         {btn.label}

@@ -918,7 +918,7 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
           )}
           <button onClick={() => { window.location.href = '/contratos' }}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-            style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+            style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
             <ExternalLink size={13} /> Ver Contrato
           </button>
         </div>

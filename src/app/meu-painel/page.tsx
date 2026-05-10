@@ -3711,7 +3711,7 @@ export default function MeuPainelPage() {
                     onClick={() => setTsModeTotal(i === 1)}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={active
-                      ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                      ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                       : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }
                     }>{label}</button>
                 )

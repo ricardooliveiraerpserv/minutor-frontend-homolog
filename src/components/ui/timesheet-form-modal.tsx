@@ -350,7 +350,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                   <button key={label} type="button" onClick={() => setUseTotal(i === 1)}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={active
-                      ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                      ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                       : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }
                     }>{label}</button>
                 )
@@ -437,7 +437,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
             </button>
             <button onClick={save} disabled={saving || !form.project_id}
               className="h-8 px-4 text-xs rounded-lg font-semibold disabled:opacity-40 transition-all"
-              style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+              style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>

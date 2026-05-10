@@ -399,7 +399,7 @@ export function ProjectMessages({ projectId, userRole }: Props) {
             disabled={(!input.trim() && files.length === 0) || sending}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-all shrink-0"
             style={(input.trim() || files.length > 0)
-              ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+              ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
               : { background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}
           >
             <Send size={15} />

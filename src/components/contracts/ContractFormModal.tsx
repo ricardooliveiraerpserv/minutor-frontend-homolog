@@ -565,7 +565,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                     <span className="text-xs text-amber-400 italic flex-1">Cliente sem prefixo configurado</span>
                     <a href="/cadastros?tab=customers" target="_blank" rel="noreferrer"
                       className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors hover:opacity-80 shrink-0"
-                      style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+                      style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
                       Configurar prefixo
                     </a>
                   </div>

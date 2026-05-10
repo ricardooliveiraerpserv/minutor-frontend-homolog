@@ -408,7 +408,7 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
           </button>
           <button onClick={save} disabled={saving}
             className="px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-40 transition-all"
-            style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+            style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
             {saving ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
@@ -1159,7 +1159,7 @@ function TimesheetsPageContent() {
               onClick={() => { setContractTypeIds([]); resetPage() }}
               className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
               style={contractTypeIds.length === 0
-                ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                 : { color: 'var(--brand-muted)', background: 'transparent' }
               }>
               Total Geral
@@ -1169,7 +1169,7 @@ function TimesheetsPageContent() {
                 onClick={() => { setContractTypeIds([String(ct.id)]); resetPage() }}
                 className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
                 style={contractTypeIds.includes(String(ct.id))
-                  ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                  ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                   : { color: 'var(--brand-muted)', background: 'transparent' }
                 }>
                 {ct.name}
@@ -1187,7 +1187,7 @@ function TimesheetsPageContent() {
               className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={status === s.value
 
-                ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                 : { color: 'var(--brand-muted)', background: 'transparent' }
               }
             >
@@ -1494,7 +1494,7 @@ function TimesheetsPageContent() {
           <button
             onClick={() => setExtraPctModalData({ ids: Array.from(selectedIds) })}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-            style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+            style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
           >
             <TrendingUp size={11} /> % Extras
           </button>

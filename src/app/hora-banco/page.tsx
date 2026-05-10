@@ -120,7 +120,7 @@ function CurrentMonthCard({
               onClick={() => onClose()}
               disabled={closing}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90 disabled:opacity-40"
-              style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+              style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
             >
               <Lock size={11} />
               {closing ? 'Fechando...' : 'Fechar Mês'}

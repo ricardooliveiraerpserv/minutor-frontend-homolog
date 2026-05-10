@@ -433,7 +433,7 @@ export default function MovideskIntegracaoPage() {
             onClick={handleSaveSettings}
             disabled={saving}
             className="px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
-            style={{ background: '#00F5FF', color: '#0A0A0B' }}>
+            style={{ background: '#00F5FF', color: 'var(--primary-fg)' }}>
             {saving ? 'Salvando...' : 'Salvar Padrões'}
           </button>
         </div>
@@ -490,7 +490,7 @@ export default function MovideskIntegracaoPage() {
                     <div className="flex gap-2">
                       <button onClick={() => handleSaveOrgProject(org.org_id)} disabled={savingOrg}
                         className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-50"
-                        style={{ background: '#00F5FF', color: '#0A0A0B' }}>
+                        style={{ background: '#00F5FF', color: 'var(--primary-fg)' }}>
                         {savingOrg ? 'Salvando...' : 'Salvar'}
                       </button>
                       <button onClick={() => setEditingOrgId(null)}

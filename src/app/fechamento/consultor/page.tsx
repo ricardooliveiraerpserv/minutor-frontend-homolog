@@ -835,7 +835,7 @@ export default function FechamentoConsultorPage() {
               <button
                 onClick={() => reportIframeRef.current?.contentWindow?.print()}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+                style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
               >
                 <Printer size={12} /> Imprimir
               </button>

@@ -220,7 +220,7 @@ export function Badge({
 const BTN_VARIANTS = {
   primary: {
     background: 'var(--brand-primary)',
-    color: '#0A0A0B',
+    color: 'var(--primary-fg)',
     border: 'none',
     fontWeight: 700,
   },
@@ -393,7 +393,7 @@ export function Pagination({
         </button>
         <span
           className="px-3 py-1.5 rounded-lg text-xs font-bold min-w-[36px] text-center"
-          style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+          style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
         >
           {page}
         </span>

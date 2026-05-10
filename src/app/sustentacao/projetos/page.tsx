@@ -562,7 +562,7 @@ export default function SustentacaoProjetosPage() {
                 onClick={() => setStatusFilter(opt.id)}
                 className="px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
                 style={statusFilter === opt.id
-                  ? { background: '#00F5FF', color: '#0A0A0B' }
+                  ? { background: '#00F5FF', color: 'var(--primary-fg)' }
                   : { color: '#71717A' }}>
                 {opt.label}
               </button>
@@ -748,7 +748,7 @@ export default function SustentacaoProjetosPage() {
                 style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
               <button onClick={handleChangeStatus} disabled={statusSaving || statusModal.newStatus === statusModal.project.status}
                 className="px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-                style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+                style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
                 {statusSaving ? 'Salvando...' : 'Confirmar'}
               </button>
             </div>

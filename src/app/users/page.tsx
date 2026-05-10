@@ -1278,7 +1278,7 @@ export default function UsersPage() {
                 )}
                 <button onClick={() => setViewUser(null)}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                  style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+                  style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
                   Fechar
                 </button>
               </div>

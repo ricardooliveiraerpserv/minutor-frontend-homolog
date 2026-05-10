@@ -87,7 +87,7 @@ function SectionTitle({ number, title }: { number: string; title: string }) {
   return (
     <div className="flex items-center gap-3 mb-4">
       <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-        style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+        style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
         {number}
       </div>
       <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{title}</p>
@@ -119,7 +119,7 @@ function SuccessScreen({ onNew, onList, onClose }: { onNew: () => void; onList: 
           Nova Requisição
         </button>
         <button onClick={onList} className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-          style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>
+          style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
           Ver Minhas Requisições
         </button>
       </div>
@@ -230,7 +230,7 @@ function NovaRequisicaoContent() {
                 <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(0,245,255,0.25)' }}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                      style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}>C</div>
+                      style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>C</div>
                     <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Cliente</p>
                   </div>
                   <Label required>Selecione o Cliente</Label>
@@ -378,7 +378,7 @@ function NovaRequisicaoContent() {
                   onClick={handleSubmit}
                   disabled={!isValid || saving}
                   className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
-                  style={{ background: 'var(--brand-primary)', color: '#0A0A0B' }}
+                  style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
                 >
                   <Send size={15} />
                   {saving ? 'Enviando...' : 'Enviar Requisição'}

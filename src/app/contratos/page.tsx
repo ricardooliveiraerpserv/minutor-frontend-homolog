@@ -683,7 +683,7 @@ export default function ContratosPage() {
                           color: sel ? 'var(--brand-primary)' : 'var(--brand-text)',
                         }}>
                         <span className="w-4 h-4 rounded flex items-center justify-center shrink-0 text-[10px] font-bold"
-                          style={{ background: sel ? 'var(--brand-primary)' : 'transparent', border: `1px solid ${sel ? 'var(--brand-primary)' : 'var(--brand-border)'}`, color: '#0A0A0B' }}>
+                          style={{ background: sel ? 'var(--brand-primary)' : 'transparent', border: `1px solid ${sel ? 'var(--brand-primary)' : 'var(--brand-border)'}`, color: 'var(--primary-fg)' }}>
                           {sel ? '✓' : ''}
                         </span>
                         {u.name}
@@ -703,7 +703,7 @@ export default function ContratosPage() {
               </button>
               <button onClick={confirmGenerateProject} disabled={generating}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
-                style={{ background: '#eab308', color: '#0A0A0B' }}>
+                style={{ background: '#eab308', color: 'var(--primary-fg)' }}>
                 <Rocket size={14} />
                 {generating ? 'Gerando...' : 'Confirmar e Gerar'}
               </button>

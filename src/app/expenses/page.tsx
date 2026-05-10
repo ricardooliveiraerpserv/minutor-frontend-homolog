@@ -798,7 +798,7 @@ export default function ExpensesPage() {
               onClick={() => { setContractTypeId(''); setPage(1) }}
               className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
               style={!contractTypeId
-                ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                 : { color: 'var(--brand-muted)', background: 'transparent' }
               }>
               Total Geral
@@ -808,7 +808,7 @@ export default function ExpensesPage() {
                 onClick={() => { setContractTypeId(String(ct.id)); setPage(1) }}
                 className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
                 style={contractTypeId === String(ct.id)
-                  ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                  ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                   : { color: 'var(--brand-muted)', background: 'transparent' }
                 }>
                 {ct.name}
@@ -832,7 +832,7 @@ export default function ExpensesPage() {
                 <button key={s.value} onClick={() => { setStatus(s.value); setPage(1) }}
                   className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
                   style={status === s.value
-                    ? { background: 'var(--brand-primary)', color: '#0A0A0B' }
+                    ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
                     : { color: 'var(--brand-muted)', background: 'transparent' }
                   }>
                   {s.label}
