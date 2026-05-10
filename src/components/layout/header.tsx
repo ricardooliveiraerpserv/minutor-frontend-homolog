@@ -195,7 +195,12 @@ export function Header({ title, actions }: HeaderProps) {
             <span className="flex items-center gap-2">
               <Avatar className="w-6 h-6">
                 <AvatarImage src={secureUrl(user?.profile_photo_url)} />
-                <AvatarFallback className="text-xs bg-blue-600 text-white">{initials}</AvatarFallback>
+                <AvatarFallback
+                  className="text-xs"
+                  style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
+                >
+                  {initials}
+                </AvatarFallback>
               </Avatar>
               <span className="text-xs text-zinc-700 dark:text-zinc-300 max-w-[120px] truncate">
                 {user?.name}

@@ -2152,21 +2152,30 @@ export default function MeuPainelPage() {
     <AppLayout title="Meu Painel">
 
       {/* ── Sticky sub-header (period nav + tabs) ── */}
-      <div ref={stickyHeaderRef} className="sticky top-0 z-20 -mx-8 px-8 bg-zinc-950 border-b border-zinc-800">
+      <div
+        ref={stickyHeaderRef}
+        className="sticky top-0 z-20 -mx-8 px-8 border-b"
+        style={{ background: 'var(--bg)', borderColor: 'var(--brand-border)' }}
+      >
         {/* Header row */}
         <div className="flex items-center justify-between py-3 gap-3 flex-wrap">
 
           {/* Period selector */}
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-900 px-1.5 py-1">
+          <div
+            className="flex items-center gap-1 rounded-lg border px-1.5 py-1"
+            style={{ background: 'var(--surface)', borderColor: 'var(--brand-border)' }}
+          >
             <button onClick={prevMonth}
-              className="p-1.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-colors">
+              className="p-1.5 rounded transition-colors"
+              style={{ color: 'var(--text-muted)' }}>
               <ChevronLeft size={14} />
             </button>
-            <span className="text-sm font-semibold text-white min-w-[148px] text-center select-none">
+            <span className="text-sm font-semibold min-w-[148px] text-center select-none" style={{ color: 'var(--text)' }}>
               {MONTHS[month]} {year}
             </span>
             <button onClick={nextMonth} disabled={isAtCurrentMonth}
-              className={`p-1.5 rounded transition-colors ${isAtCurrentMonth ? 'text-zinc-700 cursor-not-allowed' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'}`}>
+              className="p-1.5 rounded transition-colors"
+              style={{ color: isAtCurrentMonth ? 'var(--text-light)' : 'var(--text-muted)', cursor: isAtCurrentMonth ? 'not-allowed' : 'pointer' }}>
               <ChevronRight size={14} />
             </button>
           </div>
@@ -2174,12 +2183,16 @@ export default function MeuPainelPage() {
           {/* Quick add */}
           <div className="flex items-center gap-2">
             <Button onClick={openCreateTs}
-              className="bg-blue-600 hover:bg-blue-500 text-white h-9 px-4 text-xs gap-2">
+              className="h-9 px-4 text-xs gap-2"
+              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--primary)')}>
               <Clock size={13} />
               Apontamento
             </Button>
             <Button onClick={openCreateExp} variant="outline"
-              className="border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 h-9 px-4 text-xs gap-2">
+              className="h-9 px-4 text-xs gap-2"
+              style={{ borderColor: 'var(--brand-border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
               <Receipt size={13} />
               Despesa
             </Button>
@@ -2187,17 +2200,18 @@ export default function MeuPainelPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-0.5 border-b border-zinc-800">
+        <div className="flex gap-0.5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           {TABS.map(tab => {
             const Icon = tab.icon
             const active = validTab === tab.id
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
-                  active
-                    ? 'border-blue-500 text-white'
-                    : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'
-                }`}>
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px"
+                style={{
+                  borderColor: active ? 'var(--primary)' : 'transparent',
+                  color: active ? 'var(--text)' : 'var(--text-muted)',
+                  fontWeight: active ? 600 : 500,
+                }}>
                 <Icon size={14} />
                 {tab.label}
               </button>

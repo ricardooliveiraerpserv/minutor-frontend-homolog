@@ -75,25 +75,36 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
 
           {/* ── Faixa de identidade ── */}
           {displayName && (
-            <div className={`shrink-0 flex items-center gap-3 px-6 py-2 border-b ${
-              isCliente
-                ? 'border-[#00F5FF]/20 bg-gradient-to-r from-[#00F5FF]/10 to-transparent'
-                : 'border-zinc-800 bg-zinc-900/60'
-            }`}>
-              <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${
-                isCliente ? 'bg-[#00F5FF]/15' : 'bg-zinc-700/60'
-              }`}>
+            <div
+              className="shrink-0 flex items-center gap-3 px-6 py-2 border-b"
+              style={{
+                borderColor: isCliente
+                  ? 'color-mix(in srgb, var(--primary) 25%, transparent)'
+                  : 'var(--brand-border)',
+                background: isCliente
+                  ? 'linear-gradient(to right, var(--primary-soft), transparent)'
+                  : 'var(--surface)',
+              }}
+            >
+              <div
+                className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+                style={{ background: 'var(--primary-soft)' }}
+              >
                 {isCliente
-                  ? <Building2 size={13} className="text-[#00F5FF]" />
-                  : <User size={13} className="text-zinc-400" />}
+                  ? <Building2 size={13} style={{ color: 'var(--primary)' }} />
+                  : <User size={13} style={{ color: 'var(--primary)' }} />}
               </div>
-              <span className={`text-sm font-bold truncate ${
-                isCliente ? 'text-[#00F5FF]' : 'text-white'
-              }`}>
+              <span
+                className="text-sm font-bold truncate"
+                style={{ color: isCliente ? 'var(--primary)' : 'var(--text)' }}
+              >
                 {displayName}
               </span>
               {!isCliente && (
-                <span className="text-[10px] uppercase tracking-wider text-zinc-600 font-medium shrink-0">
+                <span
+                  className="text-[10px] uppercase tracking-wider font-semibold shrink-0"
+                  style={{ color: 'var(--text-muted)', letterSpacing: '0.12em' }}
+                >
                   {user.type === 'admin' ? 'Admin'
                     : user.type === 'administrativo' ? 'Administrativo'
                     : user.type === 'coordenador' ? 'Coordenador'
