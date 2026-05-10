@@ -4,6 +4,19 @@ Guia rápido para padronizar a UI. Tokens e classes vivem em `src/app/globals.cs
 
 ---
 
+## 🚨 Regra obrigatória
+
+**Toda alteração em componente existente DEVE migrar o uso de cores tocadas para tokens do DS.** PRs que introduzirem cores hardcoded ou classes Tailwind dark-only não devem ser aprovados.
+
+Aplicação:
+- Componentes **novos** → 100% tokens do DS desde o primeiro commit.
+- Componentes **existentes** → migração progressiva: ao tocar para qualquer outro motivo, refatore as cores afetadas.
+- Reviewer rejeita PR que introduza `#xxxxxx`, `rgba(...)`, `bg-zinc-9XX`, `border-zinc-7/8XX`, `text-zinc-XXX` (entre outras famílias `neutral|slate|gray`).
+
+Detecção automática: o workflow `.github/workflows/design-system-check.yml` adiciona warnings inline em PRs que violem a regra. Warnings **não bloqueiam o merge** — servem como guia para o reviewer.
+
+---
+
 ## Regras
 
 ### ❌ Proibido
