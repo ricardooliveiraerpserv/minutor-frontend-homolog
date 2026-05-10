@@ -979,56 +979,136 @@ function HeroTotal({
   expTotal?: number
   expPaid?: number
 }) {
-  const isPos       = variation !== null && variation >= 0
-  const hasExpenses = expTotal !== undefined && expPaid !== undefined
-  const expAllTotal = hasExpenses ? (expTotal! + expPaid!) : 0
+  const isPos        = variation !== null && variation >= 0
+  const hasExpenses  = expTotal !== undefined && expPaid !== undefined
+  const expAllTotal  = hasExpenses ? (expTotal! + expPaid!) : 0
+  const hasServices  = total !== null && total > 0
+  const hasExpData   = hasExpenses && expAllTotal > 0
+  const grandTotal   = (hasServices ? total! : 0) + (hasExpData ? expAllTotal : 0)
+  const showGrand    = hasServices && hasExpData
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-5 flex items-center gap-8">
-      {/* ESQUERDA — contexto */}
-      <div className="flex flex-col gap-2 min-w-[120px]">
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">Total Serviços</span>
-        <span className="text-[12px] text-zinc-400 font-medium">{period}</span>
-        {variation !== null && (
-          <div className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border w-fit ${
-            isPos
-              ? 'bg-green-500/10 border-green-500/20 text-green-400'
-              : 'bg-red-500/10 border-red-500/20 text-red-400'
-          }`}>
-            {isPos ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-            {isPos ? '+' : ''}{variation.toFixed(1)}% vs {prevLabel}
-          </div>
+    <div
+      className="ds-card px-6 py-6 flex flex-col gap-5"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+    >
+      {/* ── Linha 1: contexto + valor principal alinhados à esquerda ── */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <span
+            className="text-[10px] font-bold uppercase tracking-[0.14em]"
+            style={{ color: 'var(--text-light)' }}
+          >
+            {showGrand ? 'Total do Período' : 'Total de Serviços'}
+          </span>
+          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>· {period}</span>
+          {variation !== null && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style={{
+                background: isPos ? 'var(--success-bg)' : 'var(--danger-bg)',
+                color:      isPos ? 'var(--success)'    : 'var(--danger)',
+              }}
+            >
+              {isPos ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+              {isPos ? '+' : ''}{variation.toFixed(1)}% vs {prevLabel}
+            </span>
+          )}
+        </div>
+
+        <div
+          className="text-[42px] font-extrabold leading-none tracking-tight"
+          style={{ color: 'var(--primary)' }}
+        >
+          {showGrand
+            ? formatBRL(grandTotal)
+            : hasServices
+              ? formatBRL(total!)
+              : hasExpData
+                ? formatBRL(expAllTotal)
+                : '—'}
+        </div>
+
+        {!hasServices && !hasExpData && (
+          <span className="text-[12px] mt-1" style={{ color: 'var(--text-light)' }}>
+            Sem movimentação no período
+          </span>
         )}
       </div>
 
-      {/* VALOR — destaque */}
-      <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8 flex-1">
-        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
-          {total !== null ? formatBRL(total) : '—'}
-        </div>
-        <span className="text-[11px] text-zinc-600 mt-1">total de serviços no período</span>
-      </div>
+      {/* ── Linha 2: breakdown serviços + despesas (composição interna) ── */}
+      {(hasServices || hasExpData) && (
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-4"
+          style={{ borderTop: '1px solid var(--border)' }}
+        >
+          {/* Serviços */}
+          <div className="flex flex-col gap-1">
+            <span
+              className="text-[10px] font-bold uppercase tracking-wider"
+              style={{ color: 'var(--text-light)' }}
+            >
+              Serviços
+            </span>
+            <span className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+              {hasServices ? formatBRL(total!) : '—'}
+            </span>
+            <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+              total no período
+            </span>
+          </div>
 
-      {/* DESPESAS — caixa laranja */}
-      {hasExpenses && (
-        <div className="ml-auto rounded-xl border border-orange-500/20 bg-orange-500/5 px-5 py-4 min-w-[180px] flex flex-col gap-3">
-          <p className="text-[9px] uppercase tracking-wider text-orange-400 font-bold">Despesas no Mês</p>
-          <div>
-            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Total no Mês</p>
-            <p className="text-base font-bold text-white">{expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}</p>
-          </div>
-          <div className="flex gap-4">
-            <div>
-              <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Valor Pago</p>
-              <p className="text-sm font-bold text-emerald-400">{expPaid! > 0 ? formatBRL(expPaid!) : '—'}</p>
-              <p className="text-[9px] mt-0.5 text-zinc-600">já reembolsado</p>
+          {/* Despesas — total */}
+          {hasExpData && (
+            <div className="flex flex-col gap-1">
+              <span
+                className="text-[10px] font-bold uppercase tracking-wider"
+                style={{ color: 'var(--warning)' }}
+              >
+                Despesas
+              </span>
+              <span className="text-lg font-bold" style={{ color: 'var(--text)' }}>
+                {formatBRL(expAllTotal)}
+              </span>
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                total no mês
+              </span>
             </div>
-            <div>
-              <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">A Receber</p>
-              <p className="text-sm font-bold text-amber-400">{expTotal! > 0 ? formatBRL(expTotal!) : '—'}</p>
-              <p className="text-[9px] mt-0.5 text-zinc-600">em aberto</p>
+          )}
+
+          {/* Despesas — pago / a receber */}
+          {hasExpData && (
+            <div className="flex gap-6">
+              <div className="flex flex-col gap-1">
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider"
+                  style={{ color: 'var(--text-light)' }}
+                >
+                  Reembolsado
+                </span>
+                <span className="text-base font-bold" style={{ color: 'var(--success)' }}>
+                  {expPaid! > 0 ? formatBRL(expPaid!) : '—'}
+                </span>
+                <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  já pago
+                </span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider"
+                  style={{ color: 'var(--text-light)' }}
+                >
+                  A Receber
+                </span>
+                <span className="text-base font-bold" style={{ color: 'var(--warning)' }}>
+                  {expTotal! > 0 ? formatBRL(expTotal!) : '—'}
+                </span>
+                <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  em aberto
+                </span>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
