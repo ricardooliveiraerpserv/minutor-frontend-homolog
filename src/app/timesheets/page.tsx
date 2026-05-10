@@ -17,6 +17,7 @@ import {
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
 import { TimesheetFormModal } from '@/components/ui/timesheet-form-modal'
+import { TimesheetLogsModal } from '@/components/timesheet/TimesheetLogsModal'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { Label } from '@/components/ui/label'
@@ -420,8 +421,8 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
 
 interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }
 
-function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseRelease, onReverseRejection }: {
-  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void
+function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseRelease, onReverseRejection, onShowLogs }: {
+  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void; onShowLogs?: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -443,6 +444,7 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
     : [
         { label: 'Visualizar', icon: <Eye size={12} />, onClick: onView },
         { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } },
+        ...(onShowLogs ? [{ label: 'Ver histórico', icon: <FileText size={12} />, onClick: onShowLogs }] : []),
         ...(onRelease ? [{ label: 'Liberar', icon: <CheckCircle size={12} />, onClick: onRelease }] : []),
         ...(onReverseRelease ? [{ label: 'Estornar liberação', icon: <X size={12} />, onClick: onReverseRelease }] : []),
         ...(onReverseRejection ? [{ label: 'Estornar rejeição', icon: <RotateCcw size={12} />, onClick: onReverseRejection }] : []),
@@ -746,6 +748,7 @@ function TimesheetsPageContent() {
   const [reverseRejectionModal, setReverseRejectionModal] = useState<{ open: boolean; tsId?: number }>({ open: false })
   const [reverseRejectionReason, setReverseRejectionReason] = useState('')
   const [reverseRejecting, setReverseRejecting] = useState(false)
+  const [logsModalTsId, setLogsModalTsId] = useState<number | null>(null)
 
   const handleReprocessMovidesk = async (ids?: number[]) => {
     setReprocessing(true)
@@ -1294,6 +1297,7 @@ function TimesheetsPageContent() {
                       onView={() => openView(ts)}
                       onDeleted={refetch}
                       viewOnly={isCliente}
+                      onShowLogs={(isAdmin || isCoordenador) ? () => setLogsModalTsId(ts.id) : undefined}
                       onExtraPct={(isAdmin || isCoordenador) ? () => setExtraPctModalData({ ids: [ts.id], ts }) : undefined}
                       onRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'internal' ? () => handleRelease(ts.id) : undefined}
                       onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
@@ -1522,6 +1526,13 @@ function TimesheetsPageContent() {
           onSaved={() => { refetch(); setSelectedIds(new Set()) }}
         />
       )}
+
+      {/* Modal de histórico de alterações */}
+      <TimesheetLogsModal
+        timesheetId={logsModalTsId}
+        onClose={() => setLogsModalTsId(null)}
+      />
+
 
       {/* Modal estornar rejeição */}
       {reverseRejectionModal.open && (
