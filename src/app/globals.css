@@ -124,19 +124,20 @@
  * Primary (cyan) tom diferente por tema para preservar contraste.
  */
 :root {
-  /* Structure — light */
-  --brand-bg:       #F8FAFC;
+  /* Structure — light (mais contraste de fundo) */
+  --brand-bg:       #F1F5F9;
   --brand-surface:  #FFFFFF;
-  --brand-border:   #E2E8F0;
+  --brand-border:   #CBD5E1;
 
-  /* Identity — cyan mais escuro no light (≈4.5:1 vs branco) */
-  --brand-primary:  #0891B2;
-  --brand-primary-dim: rgba(6, 182, 212, 0.10);
+  /* Identity — cyan reforçado (#06B6D4) com tom mais escuro pra botões fortes */
+  --brand-primary:        #06B6D4;
+  --brand-primary-strong: #0E7490;
+  --brand-primary-dim:    rgba(6, 182, 212, 0.14);
 
-  /* Text — light */
+  /* Text — light com contraste reforçado nos secundários */
   --brand-text:     #0F172A;
-  --brand-muted:    #475569;
-  --brand-subtle:   #94A3B8;
+  --brand-muted:    #334155;
+  --brand-subtle:   #64748B;
 
   /* Semantic — light */
   --brand-success:  #16A34A;
@@ -144,20 +145,26 @@
   --brand-danger:   #DC2626;
   --brand-purple:   #7C3AED;
 
+  /* Elevation & dividers — só ativos no light */
+  --brand-card-shadow:    0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.04);
+  --brand-card-shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.06), 0 2px 4px -2px rgb(15 23 42 / 0.04);
+  --brand-table-divider:  rgba(15, 23, 42, 0.06);
+
   /* Scrollbar */
   --scrollbar-thumb:        #CBD5E1;
   --scrollbar-thumb-hover:  #94A3B8;
 }
 
 .dark {
-  /* Structure — dark (paleta original) */
+  /* Structure — dark (paleta original preservada) */
   --brand-bg:       #0A0A0B;
   --brand-surface:  #161618;
   --brand-border:   #27272A;
 
   /* Identity — Electric Cyan original */
-  --brand-primary:  #00F5FF;
-  --brand-primary-dim: rgba(0, 245, 255, 0.10);
+  --brand-primary:        #00F5FF;
+  --brand-primary-strong: #00F5FF;
+  --brand-primary-dim:    rgba(0, 245, 255, 0.10);
 
   /* Text — dark */
   --brand-text:     #FAFAFA;
@@ -170,9 +177,33 @@
   --brand-danger:   #EF4444;
   --brand-purple:   #8B5CF6;
 
+  /* Sem sombra no dark — visual flat preservado */
+  --brand-card-shadow:    none;
+  --brand-card-shadow-md: none;
+  --brand-table-divider:  var(--brand-border);
+
   /* Scrollbar */
   --scrollbar-thumb:        #2A2A2E;
   --scrollbar-thumb-hover:  #3A3A3E;
+}
+
+/* ── Light mode polish ───────────────────────────────────────
+ * Regras escopadas que só fazem efeito quando :root tem o tema light
+ * (i.e. quando NÃO tem class="dark" no <html>).
+ */
+
+/* Cards (elementos com brand-surface no inline style) ganham
+ * elevação leve no light. No dark, --brand-card-shadow=none = no-op.
+ * Restringido a elementos com border-radius (cards reais, não chips). */
+[class*="rounded-"][style*="brand-surface"],
+[class*="rounded-xl"][style*="brand-surface"],
+[class*="rounded-2xl"][style*="brand-surface"] {
+  box-shadow: var(--brand-card-shadow);
+}
+
+/* Tabela: divisor sutil entre linhas — adapta cor por tema */
+tbody tr + tr > td {
+  border-top: 1px solid var(--brand-table-divider);
 }
 
 @layer base {
