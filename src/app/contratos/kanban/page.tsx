@@ -2432,29 +2432,32 @@ function KanbanContent() {
                           style={{ background: isSust ? SUST_COLOR : isBizify ? BIZIFY_COLOR : 'var(--brand-border)', opacity: (isSust || isBizify) ? 0.5 : 0.4 }} />
                       )}
 
-                      {/* Column */}
+                      {/* Column — fundo unificado (var(--surface)); diferenciação
+                           de categoria fica na borda colorida + cor do header.
+                           Sombra leve só ativa no light (--brand-card-shadow=none no dark). */}
                       <div className="flex flex-col rounded-2xl shrink-0 h-full" style={{
                         width: 264,
-                        background: isStatusCol ? `${col.color}05`
-                          : isSust   ? `${col.color}04`
-                          : isBizify ? `${BIZIFY_COLOR}04`
-                          : isCoord  ? 'rgba(0,245,255,0.02)'
-                          : isPronto ? `${PRONTO_COLOR}05`
-                          : 'rgba(255,255,255,0.02)',
+                        background: 'var(--surface)',
                         border: `1px solid ${borderColor}`,
+                        boxShadow: 'var(--brand-card-shadow)',
                       }}>
-                        {/* Header */}
-                        <div className="px-4 py-3 shrink-0 border-b" style={{ borderColor }}>
+                        {/* Header — tom levemente diferente (--bg) pra separar do corpo */}
+                        <div
+                          className="px-4 py-3 shrink-0 border-b rounded-t-2xl"
+                          style={{ borderColor, background: 'var(--bg)' }}
+                        >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               {col.emoji && <span className="text-base">{col.emoji}</span>}
                               {isStatusCol && col.id === 'col_pausado'   && <PauseCircle size={13} style={{ color: col.color }} />}
                               {isStatusCol && col.id === 'col_cancelado' && <XCircle size={13} style={{ color: col.color }} />}
                               {isStatusCol && col.id === 'col_encerrado' && <CheckCircle size={13} style={{ color: col.color }} />}
-                              <p className="text-sm font-semibold" style={{ color: headerColor }}>{col.label}</p>
+                              <p className="text-sm font-semibold" style={{ color: headerColor, fontWeight: 600 }}>{col.label}</p>
                             </div>
-                            <span className="text-xs font-bold px-1.5 py-0.5 rounded-full"
-                              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
+                            <span
+                              className="text-xs font-bold px-2 py-0.5 rounded-full"
+                              style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+                            >
                               {totalCards}
                             </span>
                           </div>
@@ -2507,9 +2510,14 @@ function KanbanContent() {
                               style={{
                                 minHeight: 80,
                                 maxHeight: 'calc(100vh - 220px)',
+                                // Drop target ativo: bg primary-soft + (interno) borda destacada.
+                                // Fora do drop: transparente (mostra a coluna).
                                 background: snap.isDraggingOver
-                                  ? isStatusCol ? `${col.color}08` : (isSust || isBizify) ? `${col.color}08` : isCoord ? 'rgba(0,245,255,0.05)' : 'rgba(255,255,255,0.03)'
+                                  ? isStatusCol ? `${col.color}12` : (isSust || isBizify) ? `${col.color}12` : 'var(--primary-soft)'
                                   : 'transparent',
+                                boxShadow: snap.isDraggingOver
+                                  ? `inset 0 0 0 2px var(--primary)`
+                                  : undefined,
                               }}
                             >
                               {contractCards.map((card, idx) => {
