@@ -127,12 +127,13 @@
   /* Structure — light (mais contraste de fundo) */
   --brand-bg:       #F1F5F9;
   --brand-surface:  #FFFFFF;
-  --brand-border:   #CBD5E1;
+  --brand-border:   #E2E8F0;
 
-  /* Identity — cyan reforçado (#06B6D4) com tom mais escuro pra botões fortes */
-  --brand-primary:        #06B6D4;
-  --brand-primary-strong: #0E7490;
-  --brand-primary-dim:    rgba(6, 182, 212, 0.14);
+  /* Identity — cyan DENSO no light. Cyan vibrante (#00F5FF/#06B6D4) é
+   * legível só em fundo escuro. Em fundo branco precisa de mais peso. */
+  --brand-primary:        #0891B2;   /* cyan denso, legível em #FFF */
+  --brand-primary-strong: #0E7490;   /* hover, ainda mais escuro */
+  --brand-primary-dim:    #E0F2FE;   /* sólido — badge/selected bg */
 
   /* Text — light com contraste reforçado nos secundários */
   --brand-text:     #0F172A;
@@ -422,6 +423,13 @@ tr.row--pausado:hover {
   border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
+/* Linha/card selecionado — bg primary-soft + barra lateral primary.
+ * Dois sinais (cor + borda) atendem regra "não usar só cor". */
+.ds-row-selected {
+  background: var(--primary-soft);
+  border-left: 3px solid var(--primary);
+}
+
 /* ── Kanban card hover ─────────────────────────────────────────
  * Elevação leve no hover. Light usa sombra (--brand-card-shadow-md);
  * dark usa ring cyan sutil (já que sombras são desativadas no dark).
@@ -472,6 +480,12 @@ html:not(.dark) .text-zinc-500,
 html:not(.dark) .text-zinc-600 { color: var(--text-light); }
 html:not(.dark) .hover\:text-zinc-200:hover,
 html:not(.dark) .hover\:text-zinc-300:hover { color: var(--text); }
+
+/* Cyan vibrante do dark é ilegível em fundo branco — força tom denso */
+html:not(.dark) .text-cyan-300,
+html:not(.dark) .text-cyan-400,
+html:not(.dark) .text-cyan-500 { color: var(--primary); }
+html:not(.dark) .text-cyan-600 { color: var(--primary-hover); }
 
 /* Variantes com opacidade comuns — `bg-zinc-800/70`, `bg-zinc-900/60` etc.
  * Cobre o caso "barra de tabs" / "card semitransparente". Usa surface
