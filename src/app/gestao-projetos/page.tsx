@@ -370,8 +370,8 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
       {(project as any).has_open_period && (
         <tr style={{ height: 0 }}>
           <td colSpan={20} style={{ padding: 0, height: 0 }}>
-            <div style={{ background: 'rgba(251,191,36,0.12)', borderTop: '2px solid rgba(251,191,36,0.6)', display: 'flex', alignItems: 'center', gap: 6, padding: '3px 12px', fontSize: 11, color: '#FBBF24', fontWeight: 600 }}>
-              <span style={{ animation: 'pulse 1.5s infinite' }}>⚠</span> MÊS ABERTO — apontamentos permitidos em competência fechada
+            <div style={{ background: 'rgba(249,115,22,0.16)', borderTop: '2px solid #F97316', display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', fontSize: 11, color: '#9A3412', fontWeight: 700, letterSpacing: '0.02em' }}>
+              <span style={{ animation: 'pulse 1.5s infinite', color: '#F97316' }}>⚠</span> MÊS ABERTO — apontamentos permitidos em competência fechada
             </div>
           </td>
         </tr>
@@ -379,14 +379,14 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
       <tr
         className={`border-b transition-all cursor-pointer ${statusRowClass} ${childRowClass}`.trim()}
         style={{
-          borderColor: (project as any).has_open_period ? 'rgba(251,191,36,0.4)' : 'var(--brand-border)',
+          borderColor: (project as any).has_open_period ? 'rgba(249,115,22,0.45)' : 'var(--brand-border)',
           background: (project as any).has_open_period
-            ? 'rgba(251,191,36,0.06)'
+            ? 'rgba(249,115,22,0.06)'
             : isActive ? rowBg : !statusRowClass ? rowBg : undefined,
           borderLeft: (project as any).has_open_period
-            ? '4px solid rgba(251,191,36,0.7)'
+            ? '4px solid #F97316'
             : isActive ? rowBorderLeft : !statusRowClass ? rowBorderLeft : undefined,
-          boxShadow: (project as any).has_open_period ? '0 0 0 1px rgba(251,191,36,0.15) inset' : rowBoxShadow,
+          boxShadow: (project as any).has_open_period ? '0 0 0 1px rgba(249,115,22,0.18) inset' : rowBoxShadow,
           opacity: !statusRowClass ? rowOpacity : undefined,
         }}
         onClick={treeRow ? (treeRow._hasChildren ? onTreeToggle : undefined) : onToggle}
