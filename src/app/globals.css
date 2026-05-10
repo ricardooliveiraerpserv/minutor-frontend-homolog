@@ -659,6 +659,32 @@ html:not(.dark) [style*="border-color: #0891B2"] {
   border-color: var(--primary) !important;
 }
 
+/* ── Cards vanilla — profundidade no light ─────────────────
+ * Componentes legacy usam "rounded-{xl,2xl} bg-zinc-9XX border ..."
+ * direto. O override de bg/border já vira branco/cinza claro, mas
+ * a falta de sombra deixa o card "lavado" — sem profundidade vs body.
+ *
+ * Aplica --brand-card-shadow APENAS em cards que:
+ *  (a) tenham rounded-{xl,2xl} (= são cards estruturais)
+ *  (b) NÃO tenham className com "shadow" (preserva tooltips/modais
+ *      que já configuram sombra explícita; evita duplicar)
+ *
+ * No dark, --brand-card-shadow=none — regra é no-op.
+ */
+html:not(.dark) [class*="rounded-xl"][class*="bg-zinc-9"]:not([class*="shadow"]),
+html:not(.dark) [class*="rounded-2xl"][class*="bg-zinc-9"]:not([class*="shadow"]) {
+  box-shadow: var(--brand-card-shadow);
+}
+
+/* Hover sutil em linhas de tabelas — só quando explicitamente opt-in
+ * via .ds-table (evita afetar TODA tabela do app, ex: Recharts). */
+html:not(.dark) .ds-table tr:hover {
+  background: var(--surface-hover);
+}
+.ds-table tr {
+  border-bottom: 1px solid var(--border);
+}
+
 /* Cinzas Tailwind lavados — força com !important pra vencer estilos
  * inline e classes Tailwind que estavam silenciosamente sobrepondo.
  * Ordem importa: regra genérica primeiro (fallback muted), regras
