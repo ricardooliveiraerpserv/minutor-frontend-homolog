@@ -117,40 +117,46 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
-/* ── Brand tokens ─────────────────────────────────────────────
- * :root = light, .dark sobrescreve.
- * next-themes aplica class="dark" no <html> conforme escolha do usuário.
- * Cores semânticas (success/warning/danger/purple) ajustadas por tema.
- * Primary (cyan) tom diferente por tema para preservar contraste.
+/* ── Design tokens — sistema definitivo por PAPEL ───────────
+ * Cada cor tem uma função; nada de uso arbitrário. Tema define
+ * valores; componentes usam tokens semânticos (não --brand-*).
+ *
+ * NEUTRO (estrutura) → bg/surface/text/border
+ * PRIMARY  (ação)    → botões, links, tabs ativas, destaque
+ * SUCCESS  (positivo)→ aprovado, concluído, saudável
+ * WARNING  (atenção) → pendente, aguardando, revisão
+ * DANGER   (erro)    → erro, crítico, SLA estourado
+ * INFO     (neutro)  → indicadores, dados informativos
+ *
+ * Cada cor de estado tem 3 vertentes:
+ *   --X         → conteúdo/texto (denso, contraste em fundo claro)
+ *   --X-border  → contorno/ícone (vibrante, mais visível)
+ *   --X-bg      → fundo (claro, sutil)
  */
 :root {
-  /* Structure — light (mais contraste de fundo) */
-  --brand-bg:       #F1F5F9;
+  /* ── NEUTRO ──────────────────────────────────────── */
+  --brand-bg:       #F8FAFC;   /* leve diferença vs --surface */
   --brand-surface:  #FFFFFF;
   --brand-border:   #E2E8F0;
-
-  /* Identity — cyan DENSO no light. Cyan vibrante (#00F5FF/#06B6D4) é
-   * legível só em fundo escuro. Em fundo branco precisa de mais peso. */
-  --brand-primary:        #0891B2;   /* cyan denso, legível em #FFF */
-  --brand-primary-strong: #0E7490;   /* hover, ainda mais escuro */
-  --brand-primary-dim:    #E0F2FE;   /* sólido — badge/selected bg */
-
-  /* Text — light com contraste reforçado nos secundários */
   --brand-text:     #0F172A;
   --brand-muted:    #334155;
   --brand-subtle:   #64748B;
 
-  /* Semantic — light */
-  --brand-success:  #16A34A;
-  --brand-warning:  #D97706;
-  --brand-danger:   #DC2626;
+  /* ── PRIMARY (ação — cyan denso) ─────────────────── */
+  --brand-primary:        #0E7490;   /* texto/ação real em fundo branco */
+  --brand-primary-strong: #0C5F73;   /* hover ainda mais denso */
+  --brand-primary-dim:    #E0F2FE;   /* bg/badge soft */
+
+  /* ── Semantic — light (tons de border/accent) ────── */
+  --brand-success:  #22C55E;
+  --brand-warning:  #F59E0B;
+  --brand-danger:   #EF4444;
   --brand-purple:   #7C3AED;
 
-  /* Brand identity — independente do --primary (UI). Permite que a marca
-     evolua sem mudar paleta de UI e vice-versa. */
+  /* ── Marca (identidade independente de UI) ───────── */
   --brand-logo: #06B6D4;
 
-  /* Elevation & dividers — só ativos no light */
+  /* ── Elevation & dividers — só ativos no light ──── */
   --brand-card-shadow:    0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.04);
   --brand-card-shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.06), 0 2px 4px -2px rgb(15 23 42 / 0.04);
   --brand-table-divider:  rgba(15, 23, 42, 0.06);
@@ -159,65 +165,74 @@
   --scrollbar-thumb:        #CBD5E1;
   --scrollbar-thumb-hover:  #94A3B8;
 
-  /* ── Semantic aliases (design tokens públicos) ──────────────
-   * Use estes nomes em components novos. Continuam funcionando
-   * porque apontam pras --brand-* (que são a fonte de verdade).
-   */
-  --bg:           var(--brand-bg);
-  --surface:      var(--brand-surface);
-  --text:         var(--brand-text);
-  --text-muted:   var(--brand-muted);
-  --text-light:   var(--brand-subtle);
-  --border:       var(--brand-border);
-  --primary:      var(--brand-primary);
+  /* ══ Tokens públicos (use estes em componentes) ══════ */
+
+  /* NEUTRO */
+  --bg:            var(--brand-bg);
+  --surface:       var(--brand-surface);
+  --surface-hover: #F1F5F9;
+  --text:          var(--brand-text);
+  --text-muted:    var(--brand-muted);
+  --text-light:    var(--brand-subtle);
+  --border:        var(--brand-border);
+
+  /* PRIMARY */
+  --primary:       var(--brand-primary);
   --primary-hover: var(--brand-primary-strong);
-  --primary-soft: var(--brand-primary-dim);
-  --success:      var(--brand-success);
-  --warning:      var(--brand-warning);
-  --danger:       var(--brand-danger);
+  --primary-soft:  var(--brand-primary-dim);
+  --primary-fg:    #FFFFFF;
 
-  /* ── Tokens novos (cor por tema) — light ────────────────── */
-  --surface-hover: #F8FAFC;
-  --success-bg:    #DCFCE7;
-  --warning-bg:    #FEF3C7;
-  --danger-bg:     #FEE2E2;
-  --primary-fg:    #FFFFFF;   /* texto sobre primary */
+  /* SUCCESS */
+  --success:        #166534;          /* texto/conteúdo (denso) */
+  --success-border: #22C55E;          /* contorno/ícone */
+  --success-bg:     #DCFCE7;
 
-  /* Status TEXT — tons densos pra leitura em fundo claro.
-   * Diferentes de --success/--warning/--danger (que são pra accents/ícones/bg)
-   * porque texto precisa de mais peso de cor pra ser legível. */
-  --text-success: #166534;
-  --text-warning: #92400E;
-  --text-danger:  #991B1B;
-  --text-info:    #0369A1;
+  /* WARNING */
+  --warning:        #92400E;
+  --warning-border: #F59E0B;
+  --warning-bg:     #FEF3C7;
+
+  /* DANGER */
+  --danger:         #991B1B;
+  --danger-border:  #EF4444;
+  --danger-bg:      #FEE2E2;
+
+  /* INFO */
+  --info:           #0369A1;
+  --info-border:    #0EA5E9;
+  --info-bg:        #E0F2FE;
+
+  /* Aliases retrocompat (usar --success/etc em código novo) */
+  --text-success: var(--success);
+  --text-warning: var(--warning);
+  --text-danger:  var(--danger);
+  --text-info:    var(--info);
 }
 
 .dark {
-  /* Structure — dark (paleta original preservada) */
+  /* ── NEUTRO — dark (paleta original) ──────────────── */
   --brand-bg:       #0A0A0B;
   --brand-surface:  #161618;
   --brand-border:   #27272A;
-
-  /* Identity — Electric Cyan original */
-  --brand-primary:        #00F5FF;
-  --brand-primary-strong: #00F5FF;
-  --brand-primary-dim:    rgba(0, 245, 255, 0.10);
-
-  /* Text — dark */
   --brand-text:     #FAFAFA;
   --brand-muted:    #A1A1AA;
   --brand-subtle:   #71717A;
 
-  /* Semantic — dark */
+  /* ── PRIMARY — Electric Cyan (legível em fundo escuro) ── */
+  --brand-primary:        #00F5FF;
+  --brand-primary-strong: #00F5FF;
+  --brand-primary-dim:    rgba(0, 245, 255, 0.10);
+
+  /* ── Semantic — dark (tons vibrantes pra fundo escuro) ── */
   --brand-success:  #10B981;
   --brand-warning:  #F59E0B;
   --brand-danger:   #EF4444;
   --brand-purple:   #8B5CF6;
 
-  /* Brand identity — Electric Cyan vibrante no dark (independente do primary) */
+  /* Marca preserva Electric Cyan no dark */
   --brand-logo: #00F5FF;
 
-  /* Sem sombra no dark — visual flat preservado */
+  /* Sem sombra — visual flat preservado */
   --brand-card-shadow:    none;
   --brand-card-shadow-md: none;
   --brand-table-divider:  var(--brand-border);
@@ -226,18 +241,27 @@
   --scrollbar-thumb:        #2A2A2E;
   --scrollbar-thumb-hover:  #3A3A3E;
 
-  /* ── Tokens novos (cor por tema) — dark ─────────────────── */
+  /* ══ Tokens públicos — dark ══════════════════════════ */
   --surface-hover: #1F1F23;
-  --success-bg:    rgba(34, 197, 94, 0.15);
-  --warning-bg:    rgba(245, 158, 11, 0.15);
-  --danger-bg:     rgba(239, 68, 68, 0.15);
-  --primary-fg:    #0A0A0B;   /* texto sobre primary cyan */
+  --primary-fg:    #0A0A0B;   /* texto sobre cyan vibrante */
 
-  /* Status TEXT — no dark mantém os tons vibrantes (já legíveis em #0A0A0B) */
-  --text-success: var(--brand-success);
-  --text-warning: var(--brand-warning);
-  --text-danger:  var(--brand-danger);
-  --text-info:    var(--brand-primary);
+  /* No dark, texto/border/bg de status apontam todos pros tons vibrantes
+   * (já legíveis em #0A0A0B). Estrutura igual ao light, valores trocados. */
+  --success:        var(--brand-success);
+  --success-border: var(--brand-success);
+  --success-bg:     rgba(34, 197, 94, 0.15);
+
+  --warning:        var(--brand-warning);
+  --warning-border: var(--brand-warning);
+  --warning-bg:     rgba(245, 158, 11, 0.15);
+
+  --danger:         var(--brand-danger);
+  --danger-border:  var(--brand-danger);
+  --danger-bg:      rgba(239, 68, 68, 0.15);
+
+  --info:           var(--brand-primary);
+  --info-border:    var(--brand-primary);
+  --info-bg:        rgba(0, 245, 255, 0.10);
 }
 
 /* ── Light mode polish ───────────────────────────────────────
@@ -418,24 +442,56 @@ tr.row--pausado:hover {
 
 .ds-status-success {
   background: var(--success-bg);
-  color: var(--text-success);
-  border: 1px solid var(--success);
+  color: var(--success);
+  border: 1px solid var(--success-border);
 }
 .ds-status-warning {
   background: var(--warning-bg);
-  color: var(--text-warning);
-  border: 1px solid var(--warning);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
 }
 .ds-status-danger {
   background: var(--danger-bg);
-  color: var(--text-danger);
-  border: 1px solid var(--danger);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+.ds-status-info {
+  background: var(--info-bg);
+  color: var(--info);
+  border: 1px solid var(--info-border);
 }
 
 .ds-filter-active {
   background: var(--primary-soft);
   color: var(--primary);
   border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+/* Link semântico — opt-in (não força em todos os <a>, evita regressão
+ * em Next/Link que tem cor própria). */
+.ds-link {
+  color: var(--primary);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.ds-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+/* Tab ativa — bg igual ao inativo, separação por cor + border-bottom + peso */
+.ds-tab-active {
+  border-bottom: 2px solid var(--primary);
+  color: var(--text);
+  font-weight: 600;
+}
+.ds-tab-inactive {
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.ds-tab-inactive:hover {
+  color: var(--text);
 }
 
 /* Linha/card selecionado — bg primary-soft + barra lateral primary.
