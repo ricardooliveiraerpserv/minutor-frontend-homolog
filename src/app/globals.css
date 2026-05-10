@@ -153,6 +153,30 @@
   /* Scrollbar */
   --scrollbar-thumb:        #CBD5E1;
   --scrollbar-thumb-hover:  #94A3B8;
+
+  /* ── Semantic aliases (design tokens públicos) ──────────────
+   * Use estes nomes em components novos. Continuam funcionando
+   * porque apontam pras --brand-* (que são a fonte de verdade).
+   */
+  --bg:           var(--brand-bg);
+  --surface:      var(--brand-surface);
+  --text:         var(--brand-text);
+  --text-muted:   var(--brand-muted);
+  --text-light:   var(--brand-subtle);
+  --border:       var(--brand-border);
+  --primary:      var(--brand-primary);
+  --primary-hover: var(--brand-primary-strong);
+  --primary-soft: var(--brand-primary-dim);
+  --success:      var(--brand-success);
+  --warning:      var(--brand-warning);
+  --danger:       var(--brand-danger);
+
+  /* ── Tokens novos (cor por tema) — light ────────────────── */
+  --surface-hover: #F8FAFC;
+  --success-bg:    #DCFCE7;
+  --warning-bg:    #FEF3C7;
+  --danger-bg:     #FEE2E2;
+  --primary-fg:    #FFFFFF;   /* texto sobre primary */
 }
 
 .dark {
@@ -185,6 +209,13 @@
   /* Scrollbar */
   --scrollbar-thumb:        #2A2A2E;
   --scrollbar-thumb-hover:  #3A3A3E;
+
+  /* ── Tokens novos (cor por tema) — dark ─────────────────── */
+  --surface-hover: #1F1F23;
+  --success-bg:    rgba(34, 197, 94, 0.15);
+  --warning-bg:    rgba(245, 158, 11, 0.15);
+  --danger-bg:     rgba(239, 68, 68, 0.15);
+  --primary-fg:    #0A0A0B;   /* texto sobre primary cyan */
 }
 
 /* ── Light mode polish ───────────────────────────────────────
@@ -287,4 +318,99 @@ tr.row--encerrado:hover,
 tr.row--pausado:hover {
   opacity: 1 !important;
   filter: none !important;
+}
+
+/* ── Design system utilities ─────────────────────────────────
+ * Classes opcionais pra padronizar componentes novos. Quem quiser
+ * usar substitui o inline style. Refactor incremental — não força
+ * mudança em componentes existentes.
+ */
+
+.ds-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--brand-card-shadow);
+}
+
+.ds-row-hover:hover {
+  background: var(--surface-hover);
+}
+
+.ds-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--primary);
+  color: var(--primary-fg);
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+.ds-btn-primary:hover {
+  background: var(--primary-hover);
+}
+.ds-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ds-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+.ds-btn-secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--text-light);
+}
+
+.ds-input {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ds-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+
+.ds-status-success {
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+}
+.ds-status-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
+}
+.ds-status-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+.ds-filter-active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
 }
