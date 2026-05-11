@@ -1068,7 +1068,7 @@ export default function PartnerDashboardPage() {
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
                                   <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                                    <div className="h-full rounded-full" style={{ width: `${c.participation}%`, background: '#00F5FF' }} />
+                                    <div className="h-full rounded-full" style={{ width: `${c.participation}%`, background: 'var(--primary)' }} />
                                   </div>
                                   <span className="text-xs tabular-nums font-medium text-white min-w-[36px] text-right">{c.participation.toFixed(1)}%</span>
                                 </div>

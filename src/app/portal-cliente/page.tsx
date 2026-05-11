@@ -832,7 +832,7 @@ export default function PortalClientePage() {
                 <button key={tab.key} type="button" onClick={() => setActiveTab(tab.key)}
                   className="px-5 py-2 rounded-xl text-sm font-semibold transition-all"
                   style={activeTab === tab.key
-                    ? { background: '#00F5FF', color: 'var(--primary-fg)' }
+                    ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
                     : { color: 'var(--brand-muted)', background: 'transparent' }
                   }>
                   {tab.label}
@@ -1628,7 +1628,7 @@ export default function PortalClientePage() {
                     </ResponsiveContainer>
                     <div className="flex items-center gap-4 mt-3 justify-end">
                       <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--brand-subtle)' }}>
-                        <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#00F5FF' }} /> Coordenador
+                        <span className="w-3 h-3 rounded-sm inline-block" style={{ background: 'var(--primary)' }} /> Coordenador
                       </span>
                       <span className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--brand-subtle)' }}>
                         <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#a78bfa' }} /> Consultor

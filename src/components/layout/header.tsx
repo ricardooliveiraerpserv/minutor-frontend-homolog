@@ -111,7 +111,7 @@ export function Header({ title, actions }: HeaderProps) {
               {unread > 0 && (
                 <span
                   className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center pointer-events-none"
-                  style={{ background: '#00F5FF', color: 'var(--primary-fg)' }}
+                  style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
                 >
                   {unread > 9 ? '9+' : unread}
                 </span>

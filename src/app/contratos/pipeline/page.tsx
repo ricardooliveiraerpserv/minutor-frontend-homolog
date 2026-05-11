@@ -702,7 +702,7 @@ function ProjectKanbanCard({
                 style={{ color: hasUnread ? 'var(--text)' : 'var(--text-muted)' }}>
                 <MessageSquare size={11} />
                 {hasUnread && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: '#00F5FF' }} />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: 'var(--primary)' }} />
                 )}
               </button>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>

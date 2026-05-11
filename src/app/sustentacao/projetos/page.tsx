@@ -562,7 +562,7 @@ export default function SustentacaoProjetosPage() {
                 onClick={() => setStatusFilter(opt.id)}
                 className="px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
                 style={statusFilter === opt.id
-                  ? { background: '#00F5FF', color: 'var(--primary-fg)' }
+                  ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
                   : { color: '#71717A' }}>
                 {opt.label}
               </button>
@@ -651,7 +651,7 @@ export default function SustentacaoProjetosPage() {
                           >
                             <MessageCircle size={13} />
                             {hasUnread && (
-                              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: '#00F5FF', boxShadow: '0 0 6px rgba(0,245,255,0.8)' }} />
+                              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: 'var(--primary)', boxShadow: '0 0 6px rgba(0,245,255,0.8)' }} />
                             )}
                           </button>
                         </div>
