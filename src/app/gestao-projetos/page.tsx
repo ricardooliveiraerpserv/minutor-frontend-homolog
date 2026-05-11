@@ -414,7 +414,13 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
               { label: 'Apont. & Despesas', icon: <Clock       size={12} />, onClick: () => onMenuAction('timesheets', project) },
               ...(canEdit ? [{ label: 'Aportes', icon: <TrendingUp size={12} />, onClick: () => onMenuAction('aportes', project) }] : []),
               { label: 'Selecionar Equipe', icon: <Users       size={12} />, onClick: () => onMenuAction('team',       project) },
-              { label: 'Abrir Mês',        icon: <CalendarPlus size={12} />, onClick: () => onMenuAction('open-period', project) },
+              {
+                label: (project as any).has_open_period ? 'Fechar Mês' : 'Abrir Mês',
+                icon: (project as any).has_open_period
+                  ? <CalendarOff size={12} />
+                  : <CalendarPlus size={12} />,
+                onClick: () => onMenuAction('open-period', project),
+              },
               ...(canDetach && project.parent_project_id ? [{ label: 'Desvincular do pai', icon: <Layers size={12} />, onClick: () => onMenuAction('detach-parent', project) }] : []),
               ...(canDetach && !project.parent_project_id ? [{ label: 'Vincular como filho', icon: <Layers size={12} />, onClick: () => onMenuAction('attach-parent', project) }] : []),
               ...(onDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} className="text-red-400" />, onClick: () => onDelete(project), danger: true }] : []),
@@ -3492,7 +3498,13 @@ export default function GestaoProjetosPage() {
         <OpenPeriodModal
           project={openPeriodProject}
           onClose={() => setOpenPeriodProject(null)}
-          onRefresh={() => setRefreshKey(k => k + 1)}
+          onRefresh={(hasOpen: boolean) => {
+            // Update otimista — mantém UI consistente sem esperar refetch
+            setProjects(prev => prev.map(p =>
+              p.id === openPeriodProject.id ? { ...p, has_open_period: hasOpen } as ProjectWithTeam : p
+            ))
+            setRefreshKey(k => k + 1)
+          }}
         />
       )}
 
@@ -3505,7 +3517,7 @@ export default function GestaoProjetosPage() {
 function OpenPeriodModal({ project, onClose, onRefresh }: {
   project: ProjectWithTeam
   onClose: () => void
-  onRefresh: () => void
+  onRefresh: (hasOpen: boolean) => void
 }) {
   const now = new Date()
   const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -3522,6 +3534,13 @@ function OpenPeriodModal({ project, onClose, onRefresh }: {
       .catch(() => {})
   }, [project.id])
 
+  // ESC fecha o modal
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
   const fmtMonth = (ym: string) => {
     const [y, m] = ym.split('-')
     return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
@@ -3532,9 +3551,8 @@ function OpenPeriodModal({ project, onClose, onRefresh }: {
     try {
       await api.post(`/projects/${project.id}/open-period`, { year_month: yearMonth })
       toast.success(`Mês ${fmtMonth(yearMonth)} aberto para este projeto.`)
-      const r = await api.get<{ data: { id: number; year_month: string }[] }>(`/projects/${project.id}/open-periods`)
-      setOpenPeriods(r.data ?? [])
-      onRefresh()
+      onRefresh(true)         // optimistic: tem mês aberto agora
+      onClose()               // fecha modal automaticamente
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao abrir período')
     } finally { setSaving(false) }
@@ -3545,14 +3563,12 @@ function OpenPeriodModal({ project, onClose, onRefresh }: {
     try {
       const r = await api.post<{ count: number }>(`/projects/${project.id}/close-periods`, {})
       toast.success(`${r.count} período(s) fechado(s).`)
-      setOpenPeriods([])
-      onRefresh()
+      onRefresh(false)        // optimistic: não há mais meses abertos
+      onClose()               // fecha modal automaticamente
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao fechar períodos')
     } finally { setClosing(false) }
   }
-
-  const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
   // Gera opções: últimos 12 meses antes do atual
   const monthOptions: { value: string; label: string }[] = []
@@ -3562,45 +3578,62 @@ function OpenPeriodModal({ project, onClose, onRefresh }: {
     monthOptions.push({ value: val, label: fmtMonth(val) })
   }
 
+  const hasOpenPeriods = openPeriods.length > 0
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75">
-      <div className="relative w-full max-w-md rounded-xl shadow-2xl bg-zinc-900 border border-zinc-800">
-        <button onClick={onClose} className="absolute top-3 right-3 p-1 text-zinc-500 hover:text-zinc-300"><X size={14} /></button>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.55)' }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-md rounded-xl"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--brand-card-shadow-md)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <button onClick={onClose} className="absolute top-3 right-3 p-1 transition-colors" style={{ color: 'var(--text-muted)' }}><X size={14} /></button>
         <div className="p-5">
           <div className="flex items-center gap-2 mb-1">
-            <CalendarPlus size={14} style={{ color: '#FBBF24' }} />
-            <h3 className="text-sm font-semibold text-white">Períodos Abertos</h3>
+            <CalendarPlus size={14} style={{ color: '#F97316' }} />
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Períodos Abertos</h3>
           </div>
-          <p className="text-xs text-zinc-500 mb-4">{project.name} — permite apontamentos em meses com competência fechada</p>
+          <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+            <strong>{project.name}</strong> — permite apontamentos em meses com competência fechada
+          </p>
 
-          {openPeriods.length > 0 && (
+          {hasOpenPeriods && (
             <div className="mb-4 space-y-1.5">
-              <p className="text-xs text-zinc-400 font-medium">Meses atualmente abertos:</p>
+              <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Meses atualmente abertos:</p>
               {openPeriods.map(p => (
-                <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', color: '#FBBF24' }}>
-                  <CalendarPlus size={11} />
+                <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
+                  style={{ background: 'rgba(249,115,22,0.10)', border: '1px solid #F97316', color: '#9A3412', fontWeight: 600 }}>
+                  <CalendarPlus size={11} style={{ color: '#F97316' }} />
                   {fmtMonth(p.year_month)}
                 </div>
               ))}
+              {/* Ação primária quando há mês aberto: FECHAR (era a opção "secundária" antes) */}
               <button
                 onClick={handleCloseAll}
                 disabled={closing}
-                className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-                style={{ background: 'rgba(239,68,68,0.1)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.3)' }}
+                className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                style={{ background: 'var(--danger)', color: 'var(--primary-fg)', border: '1px solid var(--danger)' }}
               >
-                <CalendarOff size={11} />
-                {closing ? 'Fechando...' : 'Fechar todos os meses anteriores'}
+                <CalendarOff size={12} />
+                {closing ? 'Fechando...' : 'Fechar mês(es) aberto(s)'}
               </button>
             </div>
           )}
 
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-zinc-400 mb-1 block">Abrir mês:</label>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                {hasOpenPeriods ? 'Ou abrir outro mês:' : 'Abrir mês:'}
+              </label>
               <select
                 value={yearMonth}
                 onChange={e => setYearMonth(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-xs bg-zinc-800 border border-zinc-700 text-white outline-none"
+                className="w-full px-3 py-2 rounded-lg text-xs outline-none"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
               >
                 {monthOptions.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -3608,12 +3641,18 @@ function OpenPeriodModal({ project, onClose, onRefresh }: {
               </select>
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs border border-zinc-700 text-zinc-300">Cancelar</button>
+              <button onClick={onClose}
+                className="px-3 py-1.5 rounded-lg text-xs"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
+                Cancelar
+              </button>
               <button
                 onClick={handleOpen}
                 disabled={saving}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
-                style={{ background: 'rgba(251,191,36,0.15)', color: '#FBBF24', border: '1px solid rgba(251,191,36,0.3)' }}
+                style={hasOpenPeriods
+                  ? { background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }
+                  : { background: '#F97316', color: '#FFFFFF', border: '1px solid #F97316' }}
               >
                 {saving ? 'Abrindo...' : 'Abrir Mês'}
               </button>
