@@ -1131,7 +1131,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 ] as const).map(([id, label, count]) => (
                   <button key={id} onClick={() => { setTeamTab(id); setTeamSearch('') }}
                     className="px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap"
-                    style={{ color: teamTab === id ? '#00F5FF' : 'var(--brand-subtle)', borderBottom: teamTab === id ? '2px solid #00F5FF' : '2px solid transparent', marginBottom: '-1px' }}>
+                    style={{ color: teamTab === id ? 'var(--text)' : 'var(--text-muted)', borderBottom: teamTab === id ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: '-1px' }}>
                     {label}{count > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>{count}</span>}
                   </button>
                 ))}
@@ -2681,7 +2681,7 @@ export default function GestaoProjetosPage() {
                     }
                   }}
                     className="px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap"
-                    style={{ color: viewProjectTab === t ? '#00F5FF' : 'var(--brand-subtle)', borderBottom: viewProjectTab === t ? '2px solid #00F5FF' : '2px solid transparent', marginBottom: '-1px' }}>
+                    style={{ color: viewProjectTab === t ? 'var(--text)' : 'var(--text-muted)', borderBottom: viewProjectTab === t ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: '-1px' }}>
                     {t === 'overview' ? 'Visão Geral' : 'Custo'}
                   </button>
                 ))}

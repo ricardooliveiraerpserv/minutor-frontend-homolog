@@ -266,7 +266,7 @@ export function ProjectMessages({ projectId, userRole }: Props) {
             key={msg.id}
             className="flex gap-2.5 items-start rounded-lg px-3 py-2"
             style={msg.is_mentioned
-              ? { background: 'rgba(0,245,255,0.04)', borderLeft: '2px solid #00F5FF' }
+              ? { background: 'rgba(0,245,255,0.04)', borderLeft: '2px solid var(--primary)' }
               : {}}
           >
             <div
@@ -378,7 +378,7 @@ export function ProjectMessages({ projectId, userRole }: Props) {
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-all shrink-0"
             title="Adicionar anexos"
-            style={{ background: files.length > 0 ? 'rgba(0,245,255,0.08)' : 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: files.length > 0 ? '#00F5FF' : 'var(--brand-subtle)' }}
+            style={{ background: files.length > 0 ? 'rgba(0,245,255,0.08)' : 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: files.length > 0 ? 'var(--text)' : 'var(--text-muted)' }}
           >
             <Paperclip size={15} />
           </button>

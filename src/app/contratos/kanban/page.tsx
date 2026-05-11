@@ -436,7 +436,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className="px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap"
-                style={{ color: tab === t.id ? '#00F5FF' : 'var(--brand-subtle)', borderBottom: tab === t.id ? '2px solid #00F5FF' : '2px solid transparent', marginBottom: '-1px' }}>
+                style={{ color: tab === t.id ? 'var(--text)' : 'var(--text-muted)', borderBottom: tab === t.id ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: '-1px' }}>
                 {t.label}
               </button>
             ))}
@@ -1069,7 +1069,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 {([['coord','Coordenadores',form.coordinator_ids.length],['consult','Consultores',form.consultant_ids.length],['group','Grupos',form.consultant_group_ids.length]] as const).map(([id,label,count]) => (
                   <button key={id} onClick={() => { setTeamTab(id); setTeamSearch('') }}
                     className="px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap"
-                    style={{ color: teamTab === id ? '#00F5FF' : 'var(--brand-subtle)', borderBottom: teamTab === id ? '2px solid #00F5FF' : '2px solid transparent', marginBottom: '-1px' }}>
+                    style={{ color: teamTab === id ? 'var(--text)' : 'var(--text-muted)', borderBottom: teamTab === id ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: '-1px' }}>
                     {label}{count > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>{count}</span>}
                   </button>
                 ))}
@@ -1261,7 +1261,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
               {([['consult','Consultores',selectedIds.size],['group','Grupos',selectedGroupIds.size]] as const).map(([id,label,count]) => (
                 <button key={id} onClick={() => { setTab(id); setSearch('') }}
                   className="px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap"
-                  style={{ color: tab === id ? '#00F5FF' : 'var(--brand-subtle)', borderBottom: tab === id ? '2px solid #00F5FF' : '2px solid transparent', marginBottom: '-1px' }}>
+                  style={{ color: tab === id ? 'var(--text)' : 'var(--text-muted)', borderBottom: tab === id ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: '-1px' }}>
                   {label}{count > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>{count}</span>}
                 </button>
               ))}

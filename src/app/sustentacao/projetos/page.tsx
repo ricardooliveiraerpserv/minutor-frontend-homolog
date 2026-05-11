@@ -520,15 +520,15 @@ export default function SustentacaoProjetosPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className="px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
                 style={{
-                  color: active ? '#00F5FF' : 'var(--brand-subtle)',
-                  borderBottom: active ? '2px solid #00F5FF' : '2px solid transparent',
+                  color: active ? 'var(--text)' : 'var(--text-muted)',
+                  borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent',
                   marginBottom: '-1px',
                 }}
               >
                 {tab.label}
                 <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
                   background: active ? 'rgba(0,245,255,0.12)' : 'rgba(255,255,255,0.06)',
-                  color: active ? '#00F5FF' : 'var(--brand-subtle)',
+                  color: active ? 'var(--text)' : 'var(--text-muted)',
                 }}>
                   {count}
                 </span>

@@ -387,8 +387,8 @@ export default function RelatorioApontamentosPage() {
                     key={mode} type="button" onClick={() => setFilterMode(mode)}
                     className="px-3 py-1.5 font-medium transition-colors"
                     style={{
-                      background: filterMode === mode ? 'rgba(0,245,255,0.12)' : 'transparent',
-                      color:      filterMode === mode ? 'var(--brand-primary)' : 'var(--brand-subtle)',
+                      background: filterMode === mode ? 'var(--primary)' : 'transparent',
+                      color:      filterMode === mode ? 'var(--primary-fg)' : 'var(--text-muted)',
                     }}
                   >
                     {mode === 'month' ? 'Mês/Ano' : 'Período'}

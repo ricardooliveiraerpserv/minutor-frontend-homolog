@@ -454,7 +454,7 @@ export function ContractCreateModal({
             return (
               <button key={t} onClick={() => setActiveTab(realIdx)}
                 className="px-4 py-2.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0"
-                style={{ color: activeTab === realIdx ? '#00F5FF' : '#71717a', borderBottom: activeTab === realIdx ? '2px solid #00F5FF' : '2px solid transparent' }}>
+                style={{ color: activeTab === realIdx ? 'var(--text)' : 'var(--text-muted)', borderBottom: activeTab === realIdx ? '2px solid var(--primary)' : '2px solid transparent' }}>
                 {t}
               </button>
             )

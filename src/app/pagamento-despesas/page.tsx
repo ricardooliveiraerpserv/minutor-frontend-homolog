@@ -399,7 +399,7 @@ export default function PagamentoDespesasPage() {
                   className="px-4 py-2 font-medium transition-colors"
                   style={{
                     background: paidFilter === val ? 'rgba(0,245,255,0.12)' : 'transparent',
-                    color: paidFilter === val ? '#00F5FF' : '#71717a',
+                    color: paidFilter === val ? 'var(--text)' : 'var(--text-muted)',
                   }}
                 >
                   {lbl}

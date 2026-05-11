@@ -43,15 +43,15 @@ const FIELD_LABELS: Record<string, string> = {
 }
 
 const SOURCE_LABEL: Record<string, { label: string; color: string }> = {
-  manual:        { label: 'Manual',          color: 'rgba(0,245,255,0.12)' },
-  movidesk_sync: { label: 'Sync Movidesk',   color: 'rgba(139,92,246,0.12)' },
-  system:        { label: 'Sistema',         color: 'rgba(255,255,255,0.06)' },
+  manual:        { label: 'Manual',          color: 'var(--primary-soft)' },
+  movidesk_sync: { label: 'Sync Movidesk',   color: 'rgba(139,92,246,0.18)' },
+  system:        { label: 'Sistema',         color: 'var(--surface-hover)' },
 }
 
 const ACTION_LABEL: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  updated:  { label: 'Atualizado', icon: Pencil,   color: '#00F5FF' },
-  deleted:  { label: 'Excluído',   icon: Trash2,   color: '#EF4444' },
-  restored: { label: 'Restaurado', icon: RotateCcw, color: '#10B981' },
+  updated:  { label: 'Atualizado', icon: Pencil,    color: 'var(--primary)' },
+  deleted:  { label: 'Excluído',   icon: Trash2,    color: 'var(--danger)' },
+  restored: { label: 'Restaurado', icon: RotateCcw, color: 'var(--success)' },
 }
 
 function fmtDateTime(iso: string): string {
@@ -117,14 +117,14 @@ export function TimesheetLogsList({ logs, loading, empty = 'Nenhum log encontrad
               <div className="flex items-center gap-2">
                 <span
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
-                  style={{ background: 'rgba(0,245,255,0.06)', color: action.color, border: `1px solid ${action.color}33` }}
+                  style={{ background: 'var(--primary-soft)', color: action.color, border: `1px solid ${action.color}` }}
                 >
                   <ActionIcon size={11} />
                   {action.label}
                 </span>
                 <span
                   className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-                  style={{ background: source.color, color: 'var(--brand-muted)' }}
+                  style={{ background: source.color, color: 'var(--text-muted)' }}
                 >
                   {log.source === 'movidesk_sync' && <Webhook size={11} />}
                   {source.label}

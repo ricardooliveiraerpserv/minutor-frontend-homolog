@@ -699,7 +699,7 @@ function ProjectKanbanCard({
             <div className="flex items-center gap-1">
               <button onClick={e => { e.stopPropagation(); onAction('chat') }}
                 className="relative p-1 rounded-md hover:bg-white/10 transition-colors" title="Abrir Chat"
-                style={{ color: hasUnread ? '#00F5FF' : 'var(--brand-subtle)' }}>
+                style={{ color: hasUnread ? 'var(--text)' : 'var(--text-muted)' }}>
                 <MessageSquare size={11} />
                 {hasUnread && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: '#00F5FF' }} />
@@ -2091,7 +2091,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className="px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap"
-                style={{ color: tab === t.id ? '#00F5FF' : 'var(--brand-subtle)', borderBottom: tab === t.id ? '2px solid #00F5FF' : '2px solid transparent', marginBottom: '-1px' }}
+                style={{ color: tab === t.id ? 'var(--text)' : 'var(--text-muted)', borderBottom: tab === t.id ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: '-1px' }}
               >{t.label}</button>
             ))}
           </div>
@@ -3094,7 +3094,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
               {([['consult','Consultores',selectedIds.size],['group','Grupos',selectedGroupIds.size]] as const).map(([id,label,count]) => (
                 <button key={id} onClick={() => { setTab(id); setSearch('') }}
                   className="px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap"
-                  style={{ color: tab === id ? '#00F5FF' : 'var(--brand-subtle)', borderBottom: tab === id ? '2px solid #00F5FF' : '2px solid transparent', marginBottom: '-1px' }}>
+                  style={{ color: tab === id ? 'var(--text)' : 'var(--text-muted)', borderBottom: tab === id ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: '-1px' }}>
                   {label}{count > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>{count}</span>}
                 </button>
               ))}

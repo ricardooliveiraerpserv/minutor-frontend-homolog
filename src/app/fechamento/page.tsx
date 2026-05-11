@@ -653,17 +653,21 @@ export default function FechamentoPage() {
 
         {/* Tab bar */}
         <div className="flex gap-1 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => handleTabChange(t.id)}
-              className="px-5 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap"
-              style={{
-                color: tab === t.id ? '#00F5FF' : 'var(--brand-subtle)',
-                borderBottom: tab === t.id ? '2px solid #00F5FF' : '2px solid transparent',
-                marginBottom: '-1px',
-              }}>
-              {t.label}
-            </button>
-          ))}
+          {TABS.map(t => {
+            const active = tab === t.id
+            return (
+              <button key={t.id} onClick={() => handleTabChange(t.id)}
+                className="px-5 py-2.5 text-xs transition-colors whitespace-nowrap"
+                style={{
+                  color: active ? 'var(--text)' : 'var(--text-muted)',
+                  borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent',
+                  fontWeight: active ? 600 : 500,
+                  marginBottom: '-1px',
+                }}>
+                {t.label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Conteúdo */}

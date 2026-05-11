@@ -551,8 +551,8 @@ function DiagnosticoTab({
             onClick={() => setSub(id)}
             className="px-4 py-2 text-sm font-medium transition-colors"
             style={{
-              color: sub === id ? '#00F5FF' : '#71717a',
-              borderBottom: sub === id ? '2px solid #00F5FF' : '2px solid transparent',
+              color: sub === id ? 'var(--text)' : 'var(--text-muted)',
+              borderBottom: sub === id ? '2px solid var(--primary)' : '2px solid transparent',
               marginBottom: -1,
             }}>
             {label}
@@ -906,7 +906,7 @@ export default function SustentacaoPage() {
             {(['month', 'period'] as const).map((mode) => (
               <button key={mode} onClick={() => setFilterMode(mode)}
                 className="px-3 py-1.5 font-medium transition-colors flex items-center gap-1.5"
-                style={{ background: filterMode === mode ? 'rgba(0,245,255,0.12)' : 'transparent', color: filterMode === mode ? CYAN : '#71717a' }}>
+                style={{ background: filterMode === mode ? 'var(--primary)' : 'transparent', color: filterMode === mode ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
                 {mode === 'month' ? 'Mês/Ano' : 'Período'}
               </button>
             ))}
@@ -942,8 +942,12 @@ export default function SustentacaoPage() {
           const active = tab === t.id
           return (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium whitespace-nowrap border-b-2 transition-colors"
-              style={{ borderColor: active ? CYAN : 'transparent', color: active ? CYAN : '#71717a' }}>
+              className="flex items-center gap-1.5 px-3 py-2 text-xs whitespace-nowrap border-b-2 transition-colors"
+              style={{
+                borderColor: active ? 'var(--primary)' : 'transparent',
+                color: active ? 'var(--text)' : 'var(--text-muted)',
+                fontWeight: active ? 600 : 500,
+              }}>
               <Icon size={13} />
               {t.label}
             </button>

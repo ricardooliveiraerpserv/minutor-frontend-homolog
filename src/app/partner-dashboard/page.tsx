@@ -674,9 +674,10 @@ export default function PartnerDashboardPage() {
                   onClick={() => setActiveTab(tab.key)}
                   className="flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-colors border-b-2"
                   style={{
-                    color: active ? '#00F5FF' : 'var(--brand-subtle)',
-                    borderColor: active ? '#00F5FF' : 'transparent',
-                    background: active ? 'rgba(0,245,255,0.04)' : 'transparent',
+                    color: active ? 'var(--text)' : 'var(--text-muted)',
+                    borderColor: active ? 'var(--primary)' : 'transparent',
+                    background: active ? 'var(--primary-soft)' : 'transparent',
+                    fontWeight: active ? 600 : 500,
                   }}
                 >
                   <Icon size={14} />

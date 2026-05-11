@@ -464,7 +464,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
           {TABS.map((t, i) => (
             <button key={t} onClick={() => setActiveTab(i)}
               className="px-4 py-2.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0"
-              style={{ color: activeTab === i ? '#00F5FF' : '#71717a', borderBottom: activeTab === i ? '2px solid #00F5FF' : '2px solid transparent' }}>
+              style={{ color: activeTab === i ? 'var(--text)' : 'var(--text-muted)', borderBottom: activeTab === i ? '2px solid var(--primary)' : '2px solid transparent' }}>
               {t}
             </button>
           ))}
@@ -962,7 +962,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                   {(['proposta', 'contrato', 'logo'] as const).map(t => (
                     <button key={t} onClick={() => setSelectedAttachType(t)}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                      style={{ background: selectedAttachType === t ? 'rgba(0,245,255,0.15)' : 'transparent', border: '1px solid var(--brand-border)', color: selectedAttachType === t ? '#00F5FF' : '#71717a' }}>
+                      style={{ background: selectedAttachType === t ? 'rgba(0,245,255,0.15)' : 'transparent', border: '1px solid var(--brand-border)', color: selectedAttachType === t ? 'var(--text)' : 'var(--text-muted)' }}>
                       {ATTACHMENT_TYPE_LABEL[t]}
                     </button>
                   ))}
