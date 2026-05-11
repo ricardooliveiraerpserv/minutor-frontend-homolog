@@ -283,8 +283,7 @@ function SidebarInner({ user }: { user: User }) {
       // Pra clientes: além de 'customers.manage' (pacote completo), permissões
       // granulares (create/update/delete) também liberam o menu — concedidas
       // via PermissionGroup ou extra_permissions.
-      const hasCustomersAccess = has('customers.manage') ||
-        ['customers.create', 'customers.update', 'customers.delete'].some(p => ep.includes(p))
+      const hasCustomersAccess = ['customers.view', 'customers.create', 'customers.update', 'customers.delete', 'customers.manage'].some(p => ep.includes(p))
       const cadastrosItems: { label: string; href: string; icon: typeof Users }[] = []
       if (has('contracts.manage'))          cadastrosItems.push({ label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',          icon: FileType })
       if (has('services.manage'))           cadastrosItems.push({ label: 'Tipos de Serviço',      href: '/cadastros?tab=services',           icon: Wrench })

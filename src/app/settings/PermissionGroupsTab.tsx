@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
@@ -64,6 +64,96 @@ const ACTION_LABELS: Record<string, string> = {
   'bank_hours_fixed.view': 'Ver Banco de Horas Fixo',
   'bank_hours_monthly.view': 'Ver Banco de Horas Mensal',
   'on_demand.view': 'Ver On Demand',
+}
+
+// Dropdown com busca por texto — substitui <select> nativo quando a lista
+// é grande (200+ users). Mostra só o nome (sem email).
+function UserSearchSelect({ users, value, onChange }: {
+  users: UserOption[]
+  value: string
+  onChange: (v: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const selected = users.find(u => String(u.id) === value)
+  const filtered = users.filter(u => u.name.toLowerCase().includes(query.toLowerCase()))
+
+  useEffect(() => {
+    if (!open) return
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  useEffect(() => {
+    if (open) { setQuery(''); setTimeout(() => inputRef.current?.focus(), 50) }
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative flex-1">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-2 px-2 py-1 rounded text-xs text-left outline-none"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          color: selected ? 'var(--text)' : 'var(--text-light)',
+          height: 28,
+        }}
+      >
+        <span className="truncate">{selected ? selected.name : 'Adicionar usuário...'}</span>
+        <ChevronDown size={11} style={{ color: 'var(--text-muted)' }} />
+      </button>
+      {open && (
+        <div
+          className="absolute top-full mt-1 left-0 z-[300] w-full min-w-72 rounded-lg overflow-hidden"
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--brand-card-shadow-md)',
+          }}
+        >
+          <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Buscar usuário..."
+              className="w-full bg-transparent text-xs outline-none px-1 py-0.5"
+              style={{ color: 'var(--text)' }}
+            />
+          </div>
+          <div className="max-h-56 overflow-y-auto">
+            {filtered.length === 0
+              ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum usuário</p>
+              : filtered.map(u => {
+                  const isSelected = String(u.id) === value
+                  return (
+                    <button key={u.id} type="button"
+                      onClick={() => { onChange(String(u.id)); setOpen(false) }}
+                      className="w-full text-left px-3 py-1.5 text-xs transition-colors"
+                      style={{
+                        color: isSelected ? 'var(--primary)' : 'var(--text)',
+                        background: isSelected ? 'var(--primary-soft)' : 'transparent',
+                        fontWeight: isSelected ? 600 : 400,
+                      }}
+                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-hover)' }}
+                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+                    >
+                      {u.name}
+                    </button>
+                  )
+                })
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function permLabel(perm: string): string {
@@ -326,18 +416,11 @@ export function PermissionGroupsTab() {
                       </div>
 
                       <div className="flex gap-2">
-                        <select
+                        <UserSearchSelect
+                          users={allUsers.filter(u => !groupUsers.some(gu => gu.id === u.id))}
                           value={addUserId}
-                          onChange={e => setAddUserId(e.target.value)}
-                          className="flex-1 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-white"
-                        >
-                          <option value="">Adicionar usuário...</option>
-                          {allUsers
-                            .filter(u => !groupUsers.some(gu => gu.id === u.id))
-                            .map(u => (
-                              <option key={u.id} value={u.id}>{u.name} — {u.email}</option>
-                            ))}
-                        </select>
+                          onChange={setAddUserId}
+                        />
                         <Button
                           size="sm"
                           disabled={!addUserId}
@@ -410,18 +493,22 @@ export function PermissionGroupsTab() {
                     const expanded = expandedCats.has(cat.category)
                     const selected = cat.permissions.filter(p => form.permissions.includes(p)).length
                     const allSel   = selected === cat.permissions.length
+                    const hasAny   = selected > 0
 
                     return (
                       <div key={cat.category}>
                         <div
-                          className="flex items-center gap-2 py-1 cursor-pointer select-none"
+                          className="flex items-center gap-2 py-1 cursor-pointer select-none rounded transition-colors"
+                          style={hasAny ? { background: 'var(--primary-soft)', paddingLeft: 6, paddingRight: 6 } : undefined}
                           onClick={() => toggleExpand(cat.category)}
                         >
-                          {expanded ? <ChevronDown size={12} className="text-zinc-500 shrink-0" /> : <ChevronRight size={12} className="text-zinc-500 shrink-0" />}
-                          <span className="text-xs font-medium text-zinc-300 flex-1">
+                          {expanded
+                            ? <ChevronDown size={12} className="shrink-0" style={{ color: hasAny ? 'var(--primary)' : 'var(--text-light)' }} />
+                            : <ChevronRight size={12} className="shrink-0" style={{ color: hasAny ? 'var(--primary)' : 'var(--text-light)' }} />}
+                          <span className="text-xs flex-1" style={{ color: hasAny ? 'var(--primary)' : 'var(--text-muted)', fontWeight: hasAny ? 600 : 500 }}>
                             {CATEGORY_LABELS[cat.category] ?? cat.category}
                           </span>
-                          <span className="text-xs text-zinc-500">{selected}/{cat.permissions.length}</span>
+                          <span className="text-xs" style={{ color: hasAny ? 'var(--primary)' : 'var(--text-light)', fontWeight: hasAny ? 600 : 400 }}>{selected}/{cat.permissions.length}</span>
                           <button
                             onClick={e => { e.stopPropagation(); toggleCatAll(cat) }}
                             className={`text-xs px-1.5 py-0.5 rounded transition-colors ${allSel ? 'text-blue-400 hover:text-blue-300' : 'text-zinc-500 hover:text-zinc-300'}`}
