@@ -214,7 +214,7 @@ export default function MovideskIntegracaoPage() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(0,245,255,0.10)', border: '1px solid rgba(0,245,255,0.2)' }}>
-            <Webhook size={22} style={{ color: '#00F5FF' }} />
+            <Webhook size={22} style={{ color: 'var(--primary)' }} />
           </div>
           <div>
             <h1 className="text-xl font-bold" style={{ color: 'var(--brand-text)' }}>Integração Movidesk</h1>
@@ -237,7 +237,7 @@ export default function MovideskIntegracaoPage() {
             label="Última Varredura"
             value={status?.last_sync_human ?? '—'}
             icon={Clock}
-            color="#00F5FF"
+            color="var(--primary)"
           />
           <KpiCard
             label="Hoje"
@@ -269,7 +269,7 @@ export default function MovideskIntegracaoPage() {
         {/* Webhook */}
         <div className="rounded-2xl p-5 space-y-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           <div className="flex items-center gap-2">
-            <Webhook size={16} style={{ color: '#00F5FF' }} />
+            <Webhook size={16} style={{ color: 'var(--primary)' }} />
             <h2 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Configuração do Webhook</h2>
           </div>
 
@@ -287,7 +287,7 @@ export default function MovideskIntegracaoPage() {
           </div>
 
           <div className="rounded-xl p-3 text-xs space-y-1.5" style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.12)' }}>
-            <p className="font-semibold" style={{ color: '#00F5FF' }}>Configuração no Movidesk</p>
+            <p className="font-semibold" style={{ color: 'var(--primary)' }}>Configuração no Movidesk</p>
             <ol className="space-y-1 list-decimal list-inside" style={{ color: 'var(--brand-muted)' }}>
               <li>Acesse <strong>Configurações → API</strong> e gere um token de integração</li>
               <li>Configure <code className="font-mono bg-white/[0.08] px-1 rounded">MOVIDESK_API_TOKEN</code> no servidor com esse token</li>
@@ -391,9 +391,9 @@ export default function MovideskIntegracaoPage() {
                       onClick={() => setSyncOrgsInterval(v)}
                       className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
                       style={{
-                        background: syncOrgsInterval === v ? '#00F5FF' : 'var(--brand-bg)',
-                        color: syncOrgsInterval === v ? '#0A0A0B' : 'var(--brand-muted)',
-                        border: `1px solid ${syncOrgsInterval === v ? '#00F5FF' : 'var(--brand-border)'}`,
+                        background: syncOrgsInterval === v ? 'var(--primary)' : 'var(--brand-bg)',
+                        color: syncOrgsInterval === v ? 'var(--primary-fg)' : 'var(--brand-muted)',
+                        border: `1px solid ${syncOrgsInterval === v ? 'var(--primary)' : 'var(--brand-border)'}`,
                       }}>
                       {v} min
                     </button>
@@ -413,9 +413,9 @@ export default function MovideskIntegracaoPage() {
                       onClick={() => setPortalSyncInterval(v)}
                       className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
                       style={{
-                        background: portalSyncInterval === v ? '#00F5FF' : 'var(--brand-bg)',
-                        color: portalSyncInterval === v ? '#0A0A0B' : 'var(--brand-muted)',
-                        border: `1px solid ${portalSyncInterval === v ? '#00F5FF' : 'var(--brand-border)'}`,
+                        background: portalSyncInterval === v ? 'var(--primary)' : 'var(--brand-bg)',
+                        color: portalSyncInterval === v ? 'var(--primary-fg)' : 'var(--brand-muted)',
+                        border: `1px solid ${portalSyncInterval === v ? 'var(--primary)' : 'var(--brand-border)'}`,
                       }}>
                       {v} min
                     </button>
@@ -433,7 +433,7 @@ export default function MovideskIntegracaoPage() {
             onClick={handleSaveSettings}
             disabled={saving}
             className="px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
-            style={{ background: '#00F5FF', color: 'var(--primary-fg)' }}>
+            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
             {saving ? 'Salvando...' : 'Salvar Padrões'}
           </button>
         </div>
@@ -442,7 +442,7 @@ export default function MovideskIntegracaoPage() {
         <div className="rounded-2xl p-5 space-y-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Link2 size={16} style={{ color: '#00F5FF' }} />
+              <Link2 size={16} style={{ color: 'var(--primary)' }} />
               <h2 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Projeto por Organização Movidesk</h2>
             </div>
             <div className="flex items-center gap-2">
@@ -490,7 +490,7 @@ export default function MovideskIntegracaoPage() {
                     <div className="flex gap-2">
                       <button onClick={() => handleSaveOrgProject(org.org_id)} disabled={savingOrg}
                         className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors disabled:opacity-50"
-                        style={{ background: '#00F5FF', color: 'var(--primary-fg)' }}>
+                        style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
                         {savingOrg ? 'Salvando...' : 'Salvar'}
                       </button>
                       <button onClick={() => setEditingOrgId(null)}
@@ -509,7 +509,7 @@ export default function MovideskIntegracaoPage() {
                     <div className="text-right shrink-0">
                       {org.project_id ? (
                         <div>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: org.project_source === 'manual' ? 'rgba(0,245,255,0.12)' : 'rgba(167,139,250,0.12)', color: org.project_source === 'manual' ? '#00F5FF' : '#a78bfa' }}>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: org.project_source === 'manual' ? 'var(--primary-soft)' : 'rgba(167,139,250,0.18)', color: org.project_source === 'manual' ? 'var(--primary)' : '#7C3AED' }}>
                             {org.project_source === 'manual' ? 'Manual' : 'Sustentação'}
                           </span>
                           <p className="text-[10px] mt-0.5 truncate max-w-[160px]" style={{ color: 'var(--brand-muted)' }}>{org.project_name}</p>
