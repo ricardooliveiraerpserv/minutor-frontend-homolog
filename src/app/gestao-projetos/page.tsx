@@ -3534,8 +3534,12 @@ function OpenPeriodModal({ project, onClose, onRefresh }: {
   const [closing, setClosing]         = useState(false)
 
   useEffect(() => {
-    api.get<{ data: { id: number; year_month: string }[] }>(`/projects/${project.id}/open-periods`)
-      .then(r => setOpenPeriods(r.data ?? []))
+    // Parsing defensivo: API pode retornar { data: [...] } ou [...] direto
+    api.get<any>(`/projects/${project.id}/open-periods`)
+      .then(r => {
+        const list = Array.isArray(r) ? r : (Array.isArray(r?.data) ? r.data : [])
+        setOpenPeriods(list)
+      })
       .catch(() => {})
   }, [project.id])
 
@@ -3583,7 +3587,10 @@ function OpenPeriodModal({ project, onClose, onRefresh }: {
     monthOptions.push({ value: val, label: fmtMonth(val) })
   }
 
-  const hasOpenPeriods = openPeriods.length > 0
+  // Considera tanto a lista detalhada quanto o flag do projeto.
+  // Garante botão "Fechar" mesmo se /open-periods retornar vazio mas
+  // o backend listou o projeto com has_open_period=true.
+  const hasOpenPeriods = openPeriods.length > 0 || (project as any).has_open_period === true
 
   return (
     <div
@@ -3609,13 +3616,19 @@ function OpenPeriodModal({ project, onClose, onRefresh }: {
           {hasOpenPeriods && (
             <div className="mb-4 space-y-1.5">
               <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Meses atualmente abertos:</p>
-              {openPeriods.map(p => (
+              {openPeriods.length > 0 ? openPeriods.map(p => (
                 <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
                   style={{ background: 'rgba(249,115,22,0.10)', border: '1px solid #F97316', color: '#9A3412', fontWeight: 600 }}>
                   <CalendarPlus size={11} style={{ color: '#F97316' }} />
                   {fmtMonth(p.year_month)}
                 </div>
-              ))}
+              )) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
+                  style={{ background: 'rgba(249,115,22,0.10)', border: '1px solid #F97316', color: '#9A3412', fontWeight: 600 }}>
+                  <CalendarPlus size={11} style={{ color: '#F97316' }} />
+                  Há mês(es) aberto(s) neste projeto
+                </div>
+              )}
               {/* Ação primária quando há mês aberto: FECHAR (era a opção "secundária" antes) */}
               <button
                 onClick={handleCloseAll}
