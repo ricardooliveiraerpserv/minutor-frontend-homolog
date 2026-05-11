@@ -3541,7 +3541,7 @@ function KanbanColumn({
     : isProject
     ? 'rgba(99,102,241,0.25)'
     : isClientCol
-    ? 'rgba(20,184,166,0.35)'
+    ? '#14B8A6'
     : 'var(--brand-border)'
 
   const headerColor = isTransition
@@ -3551,7 +3551,7 @@ function KanbanColumn({
     : isProject
     ? '#818cf8'
     : isClientCol
-    ? '#2dd4bf'
+    ? '#0F766E'
     : 'var(--brand-text)'
 
   const bg = isTransition
@@ -3574,11 +3574,11 @@ function KanbanColumn({
           <div className="flex items-center gap-2">
             {isTransition && <Rocket size={13} style={{ color: '#eab308' }} />}
             {isProject && <FolderKanban size={13} style={{ color: '#818cf8' }} />}
-            {isClientCol && !isTransition && !isProject && <Layers size={13} style={{ color: '#2dd4bf' }} />}
+            {isClientCol && !isTransition && !isProject && <Layers size={13} style={{ color: '#0F766E' }} />}
             {!isTransition && !isProject && !isClientCol && <Layers size={13} style={{ color: 'var(--brand-subtle)' }} />}
             <p className="text-sm font-semibold" style={{ color: headerColor }}>{col.label}</p>
             {isClientCol && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(20,184,166,0.15)', color: '#2dd4bf', border: '1px solid rgba(20,184,166,0.35)' }}>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: '#CCFBF1', color: '#0F766E', border: '1px solid #14B8A6' }}>
                 C
               </span>
             )}
@@ -3608,7 +3608,7 @@ function KanbanColumn({
             style={{
               minHeight: 80,
               background: snap.isDraggingOver
-                ? isTransition ? 'rgba(234,179,8,0.05)' : isProject ? 'rgba(99,102,241,0.05)' : isClientCol ? 'rgba(20,184,166,0.06)' : 'rgba(255,255,255,0.03)'
+                ? isTransition ? 'rgba(234,179,8,0.05)' : isProject ? 'rgba(99,102,241,0.05)' : isClientCol ? '#CCFBF1' : 'rgba(255,255,255,0.03)'
                 : 'transparent',
             }}
           >
