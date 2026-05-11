@@ -12,11 +12,12 @@ import {
   Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
   Trash2, X, Globe, Webhook, MoreVertical, Eye, Search, ChevronDown,
   Paperclip, Calendar, Building2, FolderOpen, Ticket, Hash,
-  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign, TrendingUp, RotateCcw,
+  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign, TrendingUp, RotateCcw, AlertTriangle,
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
 import { TimesheetFormModal } from '@/components/ui/timesheet-form-modal'
+import { TimesheetConflictModal, type ConflictTimesheet } from '@/components/timesheet/TimesheetConflictModal'
 import { TimesheetLogsModal } from '@/components/timesheet/TimesheetLogsModal'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
@@ -421,8 +422,8 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
 
 interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }
 
-function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseRelease, onReverseRejection, onShowLogs }: {
-  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void; onShowLogs?: () => void
+function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseRelease, onReverseRejection, onShowLogs, onShowConflict }: {
+  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void; onShowLogs?: () => void; onShowConflict?: () => void
 }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -444,6 +445,7 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
     : [
         { label: 'Visualizar', icon: <Eye size={12} />, onClick: onView },
         { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } },
+        ...(onShowConflict ? [{ label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: onShowConflict }] : []),
         ...(onShowLogs ? [{ label: 'Ver histórico', icon: <FileText size={12} />, onClick: onShowLogs }] : []),
         ...(onRelease ? [{ label: 'Liberar', icon: <CheckCircle size={12} />, onClick: onRelease }] : []),
         ...(onReverseRelease ? [{ label: 'Estornar liberação', icon: <X size={12} />, onClick: onReverseRelease }] : []),
@@ -749,6 +751,7 @@ function TimesheetsPageContent() {
   const [reverseRejectionReason, setReverseRejectionReason] = useState('')
   const [reverseRejecting, setReverseRejecting] = useState(false)
   const [logsModalTsId, setLogsModalTsId] = useState<number | null>(null)
+  const [conflictItem, setConflictItem]   = useState<ConflictTimesheet | null>(null)
 
   const handleReprocessMovidesk = async (ids?: number[]) => {
     setReprocessing(true)
@@ -1298,6 +1301,7 @@ function TimesheetsPageContent() {
                       onDeleted={refetch}
                       viewOnly={isCliente}
                       onShowLogs={(isAdmin || isCoordenador) ? () => setLogsModalTsId(ts.id) : undefined}
+                      onShowConflict={ts.status === 'conflicted' ? () => setConflictItem(ts as unknown as ConflictTimesheet) : undefined}
                       onExtraPct={(isAdmin || isCoordenador) ? () => setExtraPctModalData({ ids: [ts.id], ts }) : undefined}
                       onRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'internal' ? () => handleRelease(ts.id) : undefined}
                       onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
@@ -1532,6 +1536,14 @@ function TimesheetsPageContent() {
         timesheetId={logsModalTsId}
         onClose={() => setLogsModalTsId(null)}
       />
+
+      {/* Modal de conflito (mostra apontamentos sobrepostos) */}
+      {conflictItem && (
+        <TimesheetConflictModal
+          timesheet={conflictItem}
+          onClose={() => setConflictItem(null)}
+        />
+      )}
 
 
       {/* Modal estornar rejeição */}

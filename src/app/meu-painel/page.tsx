@@ -23,6 +23,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ReferenceLine, Cell,
 } from 'recharts'
+import { TimesheetConflictModal, type ConflictTimesheet } from '@/components/timesheet/TimesheetConflictModal'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -4140,109 +4141,12 @@ export default function MeuPainelPage() {
         )
       })()}
 
-      {/* ── Modal de Conflito ─────────────────────────────────────────── */}
+      {/* ── Modal de Conflito (componente compartilhado) ─────────── */}
       {tsConflictItem && (
-        <ModalOverlay onClose={() => setTsConflictItem(null)}>
-          <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800" style={{ background: 'rgba(249,115,22,0.08)' }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(249,115,22,0.15)' }}>
-                <AlertTriangle size={16} className="text-orange-400" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-orange-400">Apontamento em Conflito</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">#{tsConflictItem.id} · {fmt(tsConflictItem.date)}</p>
-              </div>
-              <button onClick={() => setTsConflictItem(null)} className="ml-auto text-zinc-500 hover:text-zinc-300 transition-colors">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="px-5 py-4 space-y-4">
-              {/* Apontamento atual */}
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2">Seu apontamento</p>
-                <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)' }}>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-zinc-500">Data</span>
-                    <span className="text-zinc-200 font-medium">{fmt(tsConflictItem.date)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-zinc-500">Cliente</span>
-                    <span className="text-zinc-200 font-medium">{tsConflictItem.customer?.name ?? tsConflictItem.project?.customer?.name ?? '—'}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-zinc-500">Projeto</span>
-                    <span className="text-zinc-200 font-medium">{tsConflictItem.project?.name ?? '—'}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-zinc-500">Horário</span>
-                    <span className="text-zinc-200 font-medium font-mono">{tsConflictItem.start_time} – {tsConflictItem.end_time}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-zinc-500">Total</span>
-                    <span className="text-zinc-200 font-bold font-mono">{tsConflictItem.effort_hours}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Apontamento(s) conflitante(s) */}
-              {(tsConflictItem.conflicting_timesheets ?? []).length > 0 && (
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                    Conflita com {tsConflictItem.conflicting_timesheets!.length > 1 ? `${tsConflictItem.conflicting_timesheets!.length} apontamentos` : 'este apontamento'}
-                  </p>
-                  <div className="space-y-2">
-                    {tsConflictItem.conflicting_timesheets!.map(ct => (
-                      <div key={ct.id} className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-zinc-500">Data</span>
-                          <span className="text-zinc-200 font-medium">{fmt(ct.date)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-zinc-500">Cliente</span>
-                          <span className="text-zinc-200 font-medium">{ct.customer_name ?? '—'}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-zinc-500">Projeto</span>
-                          <span className="text-zinc-200 font-medium">{ct.project_name ?? '—'}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-zinc-500">Horário</span>
-                          <span className="text-zinc-200 font-medium font-mono">{ct.start_time ?? '—'} – {ct.end_time ?? '—'}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-zinc-500">Total</span>
-                          <span className="text-zinc-200 font-bold font-mono">{ct.effort_hours ?? '—'}</span>
-                        </div>
-                        {ct.origin === 'webhook' && (
-                          <div className="flex justify-between text-xs">
-                            <span className="text-zinc-500">Origem</span>
-                            <span className="text-cyan-400 font-medium">Integração Movidesk</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {(tsConflictItem.conflicting_timesheets ?? []).length === 0 && (
-                <p className="text-xs text-zinc-500 text-center py-2">
-                  O apontamento que gerou o conflito foi removido ou alterado.
-                </p>
-              )}
-
-              <p className="text-[11px] text-zinc-600 text-center">
-                Para resolver, contate seu coordenador ou aguarde a revisão.
-              </p>
-            </div>
-
-            <div className="px-5 py-4 border-t border-zinc-800 flex justify-end">
-              <Button variant="outline" onClick={() => setTsConflictItem(null)}>Fechar</Button>
-            </div>
-          </div>
-        </ModalOverlay>
+        <TimesheetConflictModal
+          timesheet={tsConflictItem as unknown as ConflictTimesheet}
+          onClose={() => setTsConflictItem(null)}
+        />
       )}
 
       {/* ── Modal de conflito ao salvar edição ────────────────────────── */}
