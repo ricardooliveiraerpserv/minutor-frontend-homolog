@@ -97,8 +97,8 @@ const NAV_CLIENTE: NavEntry[] = [
 ]
 
 const NAV: NavEntry[] = [
-  { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
   { type: 'item', label: 'Meu Painel',            href: '/meu-painel',      icon: LayoutDashboard },
+  { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
   {
     type: 'group',
     label: 'Projetos',
@@ -259,7 +259,10 @@ function SidebarInner({ user }: { user: User }) {
         })
       }
 
-      // Portal de Sustentação + Meu Painel — somente para coordenadores do tipo "sustentacao"
+      // Meu Painel — primeiro item para TODOS os coordenadores
+      nav.unshift({ type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard })
+
+      // Portal de Sustentação — somente para coordenadores do tipo "sustentacao"
       if (user?.coordinator_type === 'sustentacao') {
         nav.splice(1, 0, {
           type: 'group',
@@ -269,7 +272,6 @@ function SidebarInner({ user }: { user: User }) {
             { label: 'Portal', href: '/sustentacao', icon: Headphones, exactMatch: true },
           ],
         })
-        nav.splice(1, 0, { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard })
       }
 
 
@@ -370,8 +372,8 @@ function SidebarInner({ user }: { user: User }) {
     }
     if (isConsultor) {
       const baseNav: NavEntry[] = [
-        { type: 'item', label: 'Início',     href: '/dashboard',  icon: Home },
         { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
+        { type: 'item', label: 'Início',     href: '/dashboard',  icon: Home },
       ]
       if (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update'))
         baseNav.push({ type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers })
@@ -397,8 +399,8 @@ function SidebarInner({ user }: { user: User }) {
       }
       // Parceiro simples: meu painel + apontamentos + despesas
       return [
-        { type: 'item', label: 'Início',     href: '/dashboard',  icon: Home },
         { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
+        { type: 'item', label: 'Início',     href: '/dashboard',  icon: Home },
         {
           type: 'group',
           label: 'Apontamentos & Despesas',
