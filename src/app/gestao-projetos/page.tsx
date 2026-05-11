@@ -3499,9 +3499,14 @@ export default function GestaoProjetosPage() {
           project={openPeriodProject}
           onClose={() => setOpenPeriodProject(null)}
           onRefresh={(hasOpen: boolean) => {
-            // Update otimista — mantém UI consistente sem esperar refetch
+            // Update otimista em AMBOS os estados:
+            //   - projects (usado em filtered → modo flat)
+            //   - rows (usado em filteredRows → modo multi-contratual)
             setProjects(prev => prev.map(p =>
               p.id === openPeriodProject.id ? { ...p, has_open_period: hasOpen } as ProjectWithTeam : p
+            ))
+            setRows(prev => prev.map(r =>
+              r.id === openPeriodProject.id ? { ...r, has_open_period: hasOpen } as TreeRow : r
             ))
             setRefreshKey(k => k + 1)
           }}
