@@ -13,6 +13,7 @@ import { Users, Plus, Pencil, Trash2, X, Search, Download } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
+import { useAuth } from '@/hooks/use-auth'
 import type { CustomerFull, Executive } from '@/types'
 
 function ActiveBadge({ active }: { active: boolean }) {
@@ -47,6 +48,13 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 }
 
 export default function ClientesPage() {
+  const { user, hasPermission } = useAuth()
+  // Admin tem tudo; senão exige permissão explícita
+  const isAdmin = user?.type === 'admin'
+  const canCreate = isAdmin || hasPermission('customers.create') || hasPermission('customers.manage')
+  const canUpdate = isAdmin || hasPermission('customers.update') || hasPermission('customers.manage')
+  const canDelete = isAdmin || hasPermission('customers.delete') || hasPermission('customers.manage')
+
   const [items, setItems] = useState<CustomerFull[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -184,9 +192,11 @@ export default function ClientesPage() {
           <Button onClick={exportExcel} disabled={filtered.length === 0} variant="outline" className="border-zinc-700 text-zinc-300 h-8 text-xs gap-1.5">
             <Download size={13} /> Exportar
           </Button>
-          <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5">
-            <Plus size={13} /> Novo
-          </Button>
+          {canCreate && (
+            <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5">
+              <Plus size={13} /> Novo
+            </Button>
+          )}
         </div>
 
         <div className="rounded-lg border border-zinc-800 overflow-clip">
@@ -208,10 +218,12 @@ export default function ClientesPage() {
               ) : filtered.map(item => (
                 <tr key={item.id} className="border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors">
                   <td className="px-2 py-2.5 w-10">
-                    <RowMenu items={[
-                      { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                      { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: deleting === item.id },
-                    ]} />
+                    {(canUpdate || canDelete) && (
+                      <RowMenu items={[
+                        ...(canUpdate ? [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }] : []),
+                        ...(canDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: deleting === item.id }] : []),
+                      ]} />
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-zinc-200">{item.name}</td>
                   <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell">{item.company_name || '—'}</td>
