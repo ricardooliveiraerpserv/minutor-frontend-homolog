@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -129,6 +129,101 @@ function FieldSelect({ label, value, onChange, options, placeholder }: {
         {placeholder && <option value="">{placeholder}</option>}
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
+    </div>
+  )
+}
+
+// FieldSearchSelect — versão com busca por texto. Usar quando a lista
+// tem 20+ opções (ex: empresas). Lista nativa fica impraticável.
+function FieldSearchSelect({ label, value, onChange, options, placeholder }: {
+  label: string
+  value: string | number
+  onChange: (v: string) => void
+  options: { value: string | number; label: string }[]
+  placeholder?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const selected = options.find(o => String(o.value) === String(value))
+  const filtered = options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
+
+  useEffect(() => {
+    if (!open) return
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  useEffect(() => {
+    if (open) { setQuery(''); setTimeout(() => inputRef.current?.focus(), 50) }
+  }, [open])
+
+  return (
+    <div>
+      <Label className="text-xs text-zinc-400">{label}</Label>
+      <div ref={ref} className="relative mt-1">
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          className="w-full flex items-center justify-between gap-2 px-3 h-9 rounded-md text-xs outline-none text-left"
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            color: selected ? 'var(--text)' : 'var(--text-light)',
+          }}
+        >
+          <span className="truncate">{selected ? selected.label : (placeholder ?? 'Selecione...')}</span>
+          <ChevronDown size={12} style={{ color: 'var(--text-muted)' }} />
+        </button>
+        {open && (
+          <div
+            className="absolute top-full mt-1 left-0 z-[200] w-full min-w-56 rounded-xl overflow-hidden"
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--border)',
+              boxShadow: 'var(--brand-card-shadow-md)',
+            }}
+          >
+            <div className="p-2 border-b flex items-center gap-2" style={{ borderColor: 'var(--border)' }}>
+              <Search size={12} style={{ color: 'var(--text-muted)' }} />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Buscar..."
+                className="w-full bg-transparent text-xs outline-none"
+                style={{ color: 'var(--text)' }}
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto">
+              {filtered.length === 0
+                ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>
+                : filtered.map(o => {
+                    const isSelected = String(o.value) === String(value)
+                    return (
+                      <button key={o.value} type="button"
+                        onClick={() => { onChange(String(o.value)); setOpen(false) }}
+                        className="w-full text-left px-3 py-2 text-xs transition-colors"
+                        style={{
+                          color: isSelected ? 'var(--primary)' : 'var(--text)',
+                          background: isSelected ? 'var(--primary-soft)' : 'transparent',
+                          fontWeight: isSelected ? 600 : 400,
+                        }}
+                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-hover)' }}
+                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+                      >
+                        {o.label}
+                      </button>
+                    )
+                  })
+              }
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -966,9 +1061,9 @@ export default function UsersPage() {
                   </div>
                 )}
 
-                {/* ── Cliente: seleciona empresa ── */}
+                {/* ── Cliente: seleciona empresa (com busca por texto) ── */}
                 {isCliente && (
-                  <FieldSelect
+                  <FieldSearchSelect
                     label="Empresa *"
                     value={form.customer_id}
                     onChange={v => setForm(f => ({ ...f, customer_id: v === '' ? '' : Number(v) }))}
