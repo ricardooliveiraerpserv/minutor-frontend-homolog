@@ -296,7 +296,7 @@ function RelatorioBtn({ userId, printingUser, onClick }: {
       onClick={onClick}
       disabled={loading}
       title="Gerar relatório individual"
-      className="inline-flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 disabled:opacity-50 transition-colors"
+      className="inline-flex items-center gap-1 text-xs disabled:opacity-50 transition-colors ds-link"
     >
       {loading ? <RefreshCw size={13} className="animate-spin" /> : <Printer size={13} />}
       Relatório
@@ -667,10 +667,10 @@ export default function FechamentoConsultorPage() {
                   <Td right className="font-mono text-zinc-200">{formatBRL(r.total)}</Td>
                 </Tr>
               ))}
-              <Tr className="border-t-2 border-violet-500 bg-violet-950/20">
-                <Td className="font-bold text-violet-300">Total Geral</Td>
-                <Td right className="text-violet-400">{todos.length}</Td>
-                <Td right className="font-bold text-violet-300 text-base">{formatBRL(t.total_geral)}</Td>
+              <Tr style={{ borderTop: '2px solid #7C3AED', background: 'rgba(124,58,237,0.06)' }}>
+                <Td style={{ color: '#6D28D9', fontWeight: 700 }}>Total Geral</Td>
+                <Td right style={{ color: '#6D28D9', fontWeight: 600 }}>{todos.length}</Td>
+                <Td right className="text-base" style={{ color: '#6D28D9', fontWeight: 700 }}>{formatBRL(t.total_geral)}</Td>
               </Tr>
             </Tbody>
           </Table>
@@ -742,67 +742,129 @@ export default function FechamentoConsultorPage() {
         />
 
         {/* Summary cards */}
-        {data && !loading && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Horistas',       value: data.totais.total_horistas,   count: data.horistas.length,    hl: false },
-              { label: 'Banco de Horas', value: data.totais.total_banco_horas, count: data.banco_horas.length, hl: false },
-              { label: 'Fixo',           value: data.totais.total_fixos,       count: data.fixos.length,       hl: false },
-              { label: 'Total Geral',    value: data.totais.total_geral,       count: data.horistas.length + data.banco_horas.length + data.fixos.length, hl: true },
-            ].map(card => (
-              <div key={card.label} className={`rounded-lg p-4 border ${card.hl ? 'bg-violet-950/40 border-violet-700' : 'bg-zinc-800/40 border-zinc-700'}`}>
-                <div className="text-xs text-zinc-400 mb-1">{card.label}</div>
-                <div className={`text-lg font-bold ${card.hl ? 'text-violet-300' : 'text-zinc-100'}`}>{formatBRL(card.value)}</div>
-                <div className="text-xs text-zinc-500 mt-0.5">{card.count} consultor{card.count !== 1 ? 'es' : ''}</div>
+        {data && !loading && (() => {
+          const totalCount = data.horistas.length + data.banco_horas.length + data.fixos.length
+          const totalValor = data.totais.total_geral
+          const breakdown = [
+            { key: 'horistas',  label: 'Horistas',      valor: data.totais.total_horistas,    count: data.horistas.length },
+            { key: 'bh',        label: 'Banco de Horas', valor: data.totais.total_banco_horas, count: data.banco_horas.length },
+            { key: 'fixo',      label: 'Fixo',          valor: data.totais.total_fixos,       count: data.fixos.length },
+          ]
+          const pct = (v: number) => totalValor > 0 ? Math.round((v / totalValor) * 100) : 0
+          const maior = breakdown.reduce((a, b) => b.valor > a.valor ? b : a)
+          const mediaPorConsultor = totalCount > 0 ? totalValor / totalCount : 0
+
+          return (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              {/* Cards menores (3 vínculos) — neutros via tokens */}
+              <div className="grid grid-cols-3 lg:col-span-2 gap-3">
+                {breakdown.map(b => (
+                  <div key={b.key} className="rounded-xl p-4 border" style={{
+                    background: 'var(--surface)',
+                    borderColor: 'var(--border)',
+                    boxShadow: 'var(--brand-card-shadow)',
+                  }}>
+                    <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{b.label}</div>
+                    <div className="text-lg font-bold" style={{ color: 'var(--text)' }}>{formatBRL(b.valor)}</div>
+                    <div className="flex items-center justify-between text-xs mt-1">
+                      <span style={{ color: 'var(--text-light)' }}>{b.count} consultor{b.count !== 1 ? 'es' : ''}</span>
+                      <span className="font-semibold" style={{ color: 'var(--primary)' }}>{pct(b.valor)}%</span>
+                    </div>
+                    {/* Barra de % */}
+                    <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-hover)' }}>
+                      <div className="h-full rounded-full transition-all" style={{
+                        width: `${pct(b.valor)}%`,
+                        background: 'var(--primary)',
+                      }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+
+              {/* Card destaque — Total Geral roxo sólido + breakdown rápido */}
+              <div className="rounded-xl p-5 relative overflow-hidden" style={{
+                background: 'linear-gradient(135deg, #6D28D9 0%, #7C3AED 60%, #8B5CF6 100%)',
+                color: '#FFFFFF',
+                boxShadow: '0 4px 14px rgba(124, 58, 237, 0.25)',
+              }}>
+                <div className="text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">Total Geral</div>
+                <div className="text-3xl font-bold tracking-tight">{formatBRL(totalValor)}</div>
+                <div className="text-xs opacity-85 mt-1 mb-3">
+                  {totalCount} consultor{totalCount !== 1 ? 'es' : ''} · {maior.label} lidera ({pct(maior.valor)}%)
+                </div>
+                <div className="pt-3 border-t flex items-center justify-between text-xs" style={{ borderColor: 'rgba(255,255,255,0.20)' }}>
+                  <div>
+                    <div className="opacity-75">Média/consultor</div>
+                    <div className="font-bold mt-0.5">{formatBRL(mediaPorConsultor)}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="opacity-75">Tipos com movimento</div>
+                    <div className="font-bold mt-0.5">{breakdown.filter(b => b.count > 0).length} de {breakdown.length}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Tabs */}
-        <div className="border-b border-zinc-700 flex gap-1">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                tab === t.key
-                  ? 'border-violet-500 text-violet-400'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="border-b flex gap-1" style={{ borderColor: 'var(--border)' }}>
+          {TABS.map(t => {
+            const active = tab === t.key
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className="px-4 py-2 text-sm border-b-2 transition-colors"
+                style={{
+                  borderColor: active ? 'var(--primary)' : 'transparent',
+                  color: active ? 'var(--text)' : 'var(--text-muted)',
+                  fontWeight: active ? 600 : 500,
+                  marginBottom: '-1px',
+                }}
+              >
+                {t.label}
+              </button>
+            )
+          })}
         </div>
 
         {/* Filtros */}
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex rounded-lg overflow-hidden border border-zinc-700 text-xs font-medium">
+          <div className="flex rounded-lg overflow-hidden border text-xs font-semibold" style={{ borderColor: 'var(--border)' }}>
             <button
               onClick={() => setApenasComMovimento(true)}
-              className={`px-3 py-1.5 transition-colors ${apenasComMovimento ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+              className="px-3 py-1.5 transition-colors"
+              style={apenasComMovimento
+                ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                : { background: 'var(--surface)', color: 'var(--text-muted)' }}
             >
               Com movimentos
             </button>
             <button
               onClick={() => setApenasComMovimento(false)}
-              className={`px-3 py-1.5 transition-colors ${!apenasComMovimento ? 'bg-violet-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'}`}
+              className="px-3 py-1.5 transition-colors"
+              style={!apenasComMovimento
+                ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                : { background: 'var(--surface)', color: 'var(--text-muted)' }}
             >
               Todos
             </button>
           </div>
           <div className="relative flex-1 min-w-[180px] max-w-xs">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
             <input
               type="text"
               placeholder="Buscar consultor..."
               value={filterNome}
               onChange={e => setFilterNome(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 rounded-lg pl-8 pr-7 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-violet-500 placeholder-zinc-500"
+              className="w-full rounded-lg pl-8 pr-7 py-1.5 text-xs focus:outline-none ds-input"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
             {filterNome && (
-              <button onClick={() => setFilterNome('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+              <button onClick={() => setFilterNome('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 transition-colors"
+                style={{ color: 'var(--text-muted)' }}>
                 <X size={12} />
               </button>
             )}
