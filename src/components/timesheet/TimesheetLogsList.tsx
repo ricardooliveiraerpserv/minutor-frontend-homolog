@@ -9,7 +9,7 @@ export interface TimesheetLog {
   changed_by: { id: number; name: string } | null
   source: 'manual' | 'movidesk_sync' | 'system' | string
   action: 'updated' | 'deleted' | 'restored' | string
-  changes: Record<string, { old: unknown; new: unknown }>
+  changes: Record<string, { old: unknown; new: unknown; old_label?: string | null; new_label?: string | null }>
   created_at: string
   timesheet?: {
     id: number
@@ -160,21 +160,27 @@ export function TimesheetLogsList({ logs, loading, empty = 'Nenhum log encontrad
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(log.changes).map(([field, diff]) => (
-                      <tr key={field} style={{ borderTop: '1px solid var(--brand-border)' }}>
-                        <td className="px-3 py-2 font-medium" style={{ color: 'var(--brand-text)' }}>{fieldLabel(field)}</td>
-                        <td className="px-3 py-2" style={{ color: 'var(--brand-muted)' }}>
-                          <code className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.08)' }}>
-                            {fmtValue(diff.old)}
-                          </code>
-                        </td>
-                        <td className="px-3 py-2" style={{ color: 'var(--brand-muted)' }}>
-                          <code className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(16,185,129,0.08)' }}>
-                            {fmtValue(diff.new)}
-                          </code>
-                        </td>
-                      </tr>
-                    ))}
+                    {Object.entries(log.changes).map(([field, diff]) => {
+                      // Se o backend resolveu label (campos FK como project/customer/user),
+                      // mostra o nome humano em vez do ID cru.
+                      const oldDisplay = diff.old_label ?? fmtValue(diff.old)
+                      const newDisplay = diff.new_label ?? fmtValue(diff.new)
+                      return (
+                        <tr key={field} style={{ borderTop: '1px solid var(--brand-border)' }}>
+                          <td className="px-3 py-2 font-medium" style={{ color: 'var(--brand-text)' }}>{fieldLabel(field)}</td>
+                          <td className="px-3 py-2" style={{ color: 'var(--brand-muted)' }}>
+                            <code className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.08)' }}>
+                              {oldDisplay}
+                            </code>
+                          </td>
+                          <td className="px-3 py-2" style={{ color: 'var(--brand-muted)' }}>
+                            <code className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(16,185,129,0.08)' }}>
+                              {newDisplay}
+                            </code>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
