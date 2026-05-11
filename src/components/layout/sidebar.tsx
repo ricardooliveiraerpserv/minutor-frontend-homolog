@@ -222,13 +222,20 @@ function SidebarInner({ user }: { user: User }) {
   const ep: string[] = (user as any)?.permissions ?? user?.extra_permissions ?? []
 
   // Para clientes: carrega os códigos de tipo de contrato dos seus projetos
+  // PRINCIPAIS (sem parent_project_id). Filhos herdam o item do menu via parent
+  // — não deveriam expor entrada extra no menu.
   const [clienteContractCodes, setClienteContractCodes] = useState<Set<string>>(new Set())
   useEffect(() => {
     if (!isCliente || !user?.customer_id) return
     api.get<any>(`/projects?customer_id=${user.customer_id}&pageSize=200`)
       .then(r => {
         const items: any[] = Array.isArray(r?.items) ? r.items : []
-        const codes = new Set(items.map(p => p.contract_type?.code).filter(Boolean) as string[])
+        const codes = new Set(
+          items
+            .filter(p => !p.parent_project_id)            // só projetos principais
+            .map(p => p.contract_type?.code)
+            .filter(Boolean) as string[]
+        )
         setClienteContractCodes(codes)
       })
       .catch(() => {})
