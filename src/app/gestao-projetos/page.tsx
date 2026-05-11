@@ -3508,7 +3508,9 @@ export default function GestaoProjetosPage() {
             setRows(prev => prev.map(r =>
               r.id === openPeriodProject.id ? { ...r, has_open_period: hasOpen } as TreeRow : r
             ))
-            setRefreshKey(k => k + 1)
+            // NÃO dispara refetch imediato — backend tem eventual consistency
+            // e responder antes de processar a mudança sobrescrevia o otimista.
+            // Resposta 200 do POST já confirmou; otimista é confiável.
           }}
         />
       )}
