@@ -667,7 +667,7 @@ export default function FechamentoConsultorPage() {
                   <Td right className="font-mono text-zinc-200">{formatBRL(r.total)}</Td>
                 </Tr>
               ))}
-              <Tr style={{ borderTop: '2px solid #7C3AED', background: 'rgba(124,58,237,0.06)' }}>
+              <Tr className="border-t-2 border-[#7C3AED]" baseBackground="rgba(124,58,237,0.06)">
                 <Td style={{ color: '#6D28D9', fontWeight: 700 }}>Total Geral</Td>
                 <Td right style={{ color: '#6D28D9', fontWeight: 600 }}>{todos.length}</Td>
                 <Td right className="text-base" style={{ color: '#6D28D9', fontWeight: 700 }}>{formatBRL(t.total_geral)}</Td>
