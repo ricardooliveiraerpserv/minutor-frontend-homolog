@@ -62,11 +62,29 @@ function fmtDateTime(iso: string): string {
   } catch { return iso }
 }
 
+// Formata valores brutos do log de forma amigável.
+// Datetime "2026-05-11 14:48:48" → "11/05/2026 14:48"
+// Data "2026-05-11" → "11/05/2026"
+// Hora "14:48:48" → "14:48"
 function fmtValue(value: unknown): string {
   if (value === null || value === undefined) return '∅'
   if (typeof value === 'boolean') return value ? 'sim' : 'não'
   if (typeof value === 'object') return JSON.stringify(value)
-  return String(value)
+  const s = String(value)
+
+  // datetime ISO-like: YYYY-MM-DD HH:MM[:SS] (com ou sem T no meio)
+  const dt = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/)
+  if (dt) return `${dt[3]}/${dt[2]}/${dt[1]} ${dt[4]}:${dt[5]}`
+
+  // data isolada: YYYY-MM-DD
+  const d = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (d) return `${d[3]}/${d[2]}/${d[1]}`
+
+  // hora isolada com segundos: HH:MM:SS
+  const t = s.match(/^(\d{2}):(\d{2}):\d{2}$/)
+  if (t) return `${t[1]}:${t[2]}`
+
+  return s
 }
 
 function fieldLabel(field: string): string {
