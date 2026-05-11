@@ -71,34 +71,57 @@ function SearchSelect({ value, onChange, options, placeholder, disabled }: {
         disabled={disabled}
         onClick={() => !disabled && setOpen(o => !o)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm outline-none text-left disabled:opacity-50"
-        style={{ background: '#1c1c1e', border: '1px solid #3f3f46', color: selected ? '#fff' : '#71717A' }}
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          color: selected ? 'var(--text)' : 'var(--text-light)',
+        }}
       >
         <span className="truncate text-sm">{selected ? selected.name : placeholder}</span>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="#71717A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}/>
+        </svg>
       </button>
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-[200] w-full min-w-56 rounded-xl shadow-2xl overflow-hidden"
-          style={{ background: '#1c1c1e', border: '1px solid #3f3f46' }}>
-          <div className="p-2 border-b" style={{ borderColor: '#3f3f46' }}>
+        <div
+          className="absolute top-full mt-1 left-0 z-[200] w-full min-w-56 rounded-xl overflow-hidden"
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--brand-card-shadow-md)',
+          }}
+        >
+          <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
             <input
               ref={inputRef}
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Buscar..."
-              className="w-full bg-transparent text-sm text-white outline-none px-2 py-1 placeholder-zinc-500"
+              className="w-full bg-transparent text-sm outline-none px-2 py-1"
+              style={{ color: 'var(--text)' }}
             />
           </div>
           <div className="max-h-48 overflow-y-auto">
             {filtered.length === 0
-              ? <p className="px-3 py-2 text-xs text-zinc-500">Nenhum resultado</p>
-              : filtered.map(o => (
-                  <button key={o.id} type="button"
-                    onClick={() => { onChange(String(o.id)); setOpen(false) }}
-                    className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-white/5"
-                    style={{ color: String(o.id) === value ? '#00F5FF' : '#d4d4d8' }}>
-                    {o.name}
-                  </button>
-                ))
+              ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>
+              : filtered.map(o => {
+                  const isSelected = String(o.id) === value
+                  return (
+                    <button key={o.id} type="button"
+                      onClick={() => { onChange(String(o.id)); setOpen(false) }}
+                      className="w-full text-left px-3 py-2 text-sm transition-colors"
+                      style={{
+                        color: isSelected ? 'var(--primary)' : 'var(--text)',
+                        background: isSelected ? 'var(--primary-soft)' : 'transparent',
+                        fontWeight: isSelected ? 600 : 400,
+                      }}
+                      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'var(--surface-hover)' }}
+                      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
+                    >
+                      {o.name}
+                    </button>
+                  )
+                })
             }
           </div>
         </div>
@@ -272,15 +295,26 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300 z-10">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.55)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="relative rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--brand-card-shadow-md)',
+        }}
+      >
+        <button onClick={onClose} className="absolute top-3 right-3 z-10 transition-colors"
+          style={{ color: 'var(--text-muted)' }}>
           <X size={16} />
         </button>
 
         <div className="p-5">
-          <h3 className="text-sm font-semibold text-white mb-4">Novo Apontamento</h3>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text)' }}>Novo Apontamento</h3>
           <div className="space-y-3">
 
             {/* Usuário (admin + coordenador) */}
@@ -339,7 +373,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               <Label className="text-xs text-zinc-400">Data *</Label>
               <input type="date" value={form.date}
                 onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
+                className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
             </div>
 
             {/* Toggle Horário / Total de Horas */}
@@ -364,19 +398,19 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                   <Label className="text-xs text-zinc-400">Início *</Label>
                   <input type="time" value={form.start_time}
                     onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
                 <div>
                   <Label className="text-xs text-zinc-400">Fim {timeDriver === 'end' ? '*' : ''}</Label>
                   <input type="time" value={form.end_time}
                     onChange={e => { setTimeDriver('end'); setForm(f => ({ ...f, end_time: e.target.value })) }}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
                 <div>
                   <Label className="text-xs text-zinc-400">Total {timeDriver === 'total' ? '*' : ''}</Label>
                   <input type="text" inputMode="numeric" value={form.total_hours} placeholder="ex: 2:30"
                     onChange={e => { const v = e.target.value.replace(/[^\d:]/g, ''); setTimeDriver('total'); setForm(f => ({ ...f, total_hours: v })) }}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600" />
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
               </div>
             )}
@@ -392,7 +426,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                   <Label className="text-xs text-zinc-400">Total de Horas *</Label>
                   <input type="text" inputMode="numeric" value={form.total_hours} placeholder="ex: 2:30"
                     onChange={e => { const v = e.target.value.replace(/[^\d:]/g, ''); setForm(f => ({ ...f, total_hours: v })) }}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600" />
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
               </>
             )}
@@ -403,7 +437,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                 <Label className="text-xs text-zinc-400">Ticket</Label>
                 <input type="number" value={form.ticket} placeholder="Ex: 12345"
                   onChange={e => setForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
-                  className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                  className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
               </div>
             )}
 
@@ -413,7 +448,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               <textarea value={form.observation} rows={3}
                 placeholder="Descreva as atividades realizadas..."
                 onChange={e => setForm(f => ({ ...f, observation: e.target.value }))}
-                className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 resize-none" />
+                className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none resize-none"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
             </div>
 
             {/* Somente faturável (admin, apontando para outro usuário) */}
@@ -432,7 +468,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
 
           <div className="flex gap-2 mt-5 justify-end">
             <button onClick={onClose}
-              className="h-8 px-3 text-xs rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors">
+              className="h-8 px-3 text-xs rounded-lg transition-colors"
+              style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
               Cancelar
             </button>
             <button onClick={save} disabled={saving || !form.project_id}
@@ -445,44 +482,50 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       </div>
 
       {conflictData && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800" style={{ background: 'rgba(239,68,68,0.08)' }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.15)' }}>
-                <AlertTriangle size={16} className="text-red-400" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center backdrop-blur-sm px-4"
+          style={{ background: 'rgba(0,0,0,0.55)' }}>
+          <div className="rounded-2xl w-full max-w-sm overflow-hidden"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--brand-card-shadow-md)' }}>
+            <div className="flex items-center gap-3 px-5 py-4 border-b"
+              style={{ background: 'var(--danger-bg)', borderColor: 'var(--danger-border)' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: 'var(--danger-border)' }}>
+                <AlertTriangle size={16} style={{ color: '#fff' }} />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-red-400">Conflito de Horário</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">O horário conflita com o apontamento abaixo</p>
+                <p className="text-sm font-bold" style={{ color: 'var(--danger)' }}>Conflito de Horário</p>
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>O horário conflita com o apontamento abaixo</p>
               </div>
-              <button onClick={() => setConflictData(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+              <button onClick={() => setConflictData(null)} className="transition-colors" style={{ color: 'var(--text-muted)' }}>
                 <X size={18} />
               </button>
             </div>
             <div className="px-5 py-4 space-y-2.5">
-              <div className="rounded-xl p-3.5 space-y-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <div className="rounded-xl p-3.5 space-y-2"
+                style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Data</span>
-                  <span className="text-zinc-200 font-medium">{conflictData.date}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Data</span>
+                  <span className="font-medium" style={{ color: 'var(--text)' }}>{conflictData.date}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Horário</span>
-                  <span className="text-zinc-200 font-medium font-mono">{conflictData.start_time ?? '—'} – {conflictData.end_time ?? '—'}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Horário</span>
+                  <span className="font-medium font-mono" style={{ color: 'var(--text)' }}>{conflictData.start_time ?? '—'} – {conflictData.end_time ?? '—'}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Cliente</span>
-                  <span className="text-zinc-200 font-medium">{conflictData.customer_name ?? '—'}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Cliente</span>
+                  <span className="font-medium" style={{ color: 'var(--text)' }}>{conflictData.customer_name ?? '—'}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Projeto</span>
-                  <span className="text-zinc-200 font-medium">{conflictData.project_name ?? '—'}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Projeto</span>
+                  <span className="font-medium" style={{ color: 'var(--text)' }}>{conflictData.project_name ?? '—'}</span>
                 </div>
               </div>
-              <p className="text-[11px] text-zinc-600 text-center pt-1">Ajuste o horário para não sobrepor este apontamento.</p>
+              <p className="text-[11px] text-center pt-1" style={{ color: 'var(--text-light)' }}>Ajuste o horário para não sobrepor este apontamento.</p>
             </div>
-            <div className="px-5 py-4 border-t border-zinc-800 flex justify-end">
+            <div className="px-5 py-4 border-t flex justify-end" style={{ borderColor: 'var(--border)' }}>
               <button onClick={() => setConflictData(null)}
-                className="h-8 px-4 text-xs rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors font-semibold">
+                className="h-8 px-4 text-xs rounded-lg transition-colors font-semibold"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
                 Entendido
               </button>
             </div>
