@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -79,6 +80,7 @@ const EMPTY_FORM = { name: '', description: '', permissions: [] as string[] }
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function PermissionGroupsTab() {
+  const { refreshUser } = useAuth()
   const [groups, setGroups]               = useState<PermissionGroup[]>([])
   const [loading, setLoading]             = useState(true)
   const [showModal, setShowModal]         = useState(false)
@@ -143,6 +145,8 @@ export function PermissionGroupsTab() {
       }
       setShowModal(false)
       load()
+      // Reload do user logado pra refletir mudanças no próprio grupo se for o caso
+      refreshUser().catch(() => {})
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao salvar')
     } finally {
@@ -156,6 +160,7 @@ export function PermissionGroupsTab() {
       await api.delete(`/permission-groups/${g.id}`)
       toast.success('Grupo excluído')
       load()
+      refreshUser().catch(() => {})
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao excluir')
     }
@@ -215,6 +220,7 @@ export function PermissionGroupsTab() {
       const r = await api.get<{ items: GroupUser[] }>(`/permission-groups/${groupId}/users`)
       setGroupUsers(r.items ?? [])
       load()
+      refreshUser().catch(() => {})
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao adicionar')
     }
@@ -225,6 +231,7 @@ export function PermissionGroupsTab() {
       await api.delete(`/permission-groups/${groupId}/users/${userId}`)
       setGroupUsers(u => u.filter(x => x.id !== userId))
       load()
+      refreshUser().catch(() => {})
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao remover')
     }
