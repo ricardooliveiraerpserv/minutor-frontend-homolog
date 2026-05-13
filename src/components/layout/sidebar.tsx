@@ -107,6 +107,7 @@ const NAV: NavEntry[] = [
     icon: FolderOpen,
     items: [
       { label: 'Gestão de Projetos',       href: '/gestao-projetos',          icon: Layers },
+      { label: 'Kanban Projetos',          href: '/projetos/kanban',          icon: LayoutGrid },
       { label: 'Kanban Contratos',         href: '/contratos/kanban',         icon: LayoutGrid },
       { label: 'Demandas e Projetos',      href: '/contratos/pipeline',       icon: Layers },
       { label: 'Investimento Interno',      href: '/investimento-comercial',   icon: TrendingUp },
@@ -253,6 +254,7 @@ function SidebarInner({ user }: { user: User }) {
           icon: FolderOpen,
           items: [
             { label: 'Gestão de Projetos',  href: '/gestao-projetos',    icon: Layers },
+            { label: 'Kanban Projetos',     href: '/projetos/kanban',    icon: LayoutGrid },
             { label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: LayoutGrid },
           ],
         })
