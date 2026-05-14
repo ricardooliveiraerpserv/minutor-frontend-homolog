@@ -156,6 +156,7 @@ const TRANSITION_COL: Column = {
 }
 
 const PROJECT_COLS: Column[] = [
+  { id: 'proj_backlog',        label: 'Backlog',             phase: 'project', projectStatuses: ['backlog'],         color: '#94a3b8' },
   { id: 'em_andamento',        label: 'Em Andamento',        phase: 'project', projectStatuses: ['awaiting_start', 'started'] },
   { id: 'liberado_para_testes',label: 'Liberado p/ Testes',  phase: 'project', projectStatuses: ['liberado_para_testes'] },
   { id: 'encerrado',           label: 'Encerrado',           phase: 'project', projectStatuses: ['finished'],   color: '#22c55e' },
@@ -165,6 +166,7 @@ const PROJECT_COLS: Column[] = [
 
 const PROJECT_STATUS_TO_COL: Record<string, string> = {
   awaiting_start:       'em_andamento',
+  backlog:              'proj_backlog',
   started:              'em_andamento',
   liberado_para_testes: 'liberado_para_testes',
   paused:               'pausado',
@@ -173,6 +175,7 @@ const PROJECT_STATUS_TO_COL: Record<string, string> = {
 }
 
 const PROJECT_COL_TO_STATUS: Record<string, string> = {
+  proj_backlog:         'backlog',
   em_andamento:         'started',
   liberado_para_testes: 'liberado_para_testes',
   pausado:              'paused',
@@ -190,6 +193,7 @@ const TIPO_LABEL: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   awaiting_start:       'Aguardando',
+  backlog:              'Backlog',
   started:              'Em Andamento',
   liberado_para_testes: 'Em Testes',
   finished:             'Encerrado',
