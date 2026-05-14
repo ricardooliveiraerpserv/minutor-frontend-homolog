@@ -1,15 +1,14 @@
 'use client'
 
 import { useApiQuery } from './use-query'
-import type { KanbanStage } from '@/lib/types/project-stage'
+import type { ProjectStatus } from '@/lib/types/project-stage'
 
 export interface ProjectKanbanItem {
   id: number
   name: string
   code: string | null
-  status: string
+  status: ProjectStatus
   status_display?: string
-  kanban_stage: KanbanStage | null
   customer?: { id: number; name: string } | null
   sold_hours?: number | string | null
   consumed_hours?: number | string | null
@@ -24,9 +23,11 @@ interface Response {
 }
 
 export function useProjectsForKanban() {
-  // pageSize alto para evitar paginação; modo gestão é mais leve no backend
+  // pageSize alto para evitar paginação; modo gestão é mais leve no backend.
+  // Conjunto consumido: pipeline (incluindo backlog) + terminais (pra completar
+  // as colunas Encerrado/Pausado/Cancelado visualmente).
   const { data, loading, error, refetch } = useApiQuery<Response>(
-    `/projects?gestao=true&pageSize=200&with_team=true`
+    `/projects?gestao=true&pageSize=300&with_team=true`
   )
 
   return {

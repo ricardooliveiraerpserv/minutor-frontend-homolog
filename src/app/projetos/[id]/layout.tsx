@@ -17,7 +17,6 @@ interface ProjectResponse {
   consumed_hours?: number | string | null
   general_hours_balance?: number | string | null
   expected_end_date?: string | null
-  kanban_stage?: string | null
 }
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {

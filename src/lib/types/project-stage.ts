@@ -69,12 +69,30 @@ export interface DeliveryEvent {
   created_at: string
 }
 
-export const KANBAN_STAGES = [
+/**
+ * Lifecycle real do projeto (espelha App\Models\Project::STATUS_*).
+ * Toda projeção visual deriva daqui — ver projectWorkflow.ts e ADR 0002 do backend.
+ */
+export type ProjectStatus =
+  | 'awaiting_start'
+  | 'backlog'
+  | 'started'
+  | 'liberado_para_testes'
+  | 'finished'
+  | 'paused'
+  | 'cancelled'
+
+/**
+ * Colunas do Kanban Operacional /projetos/kanban.
+ * `awaiting_start` é pré-kanban (sem coord ainda) — não aparece em coluna.
+ */
+export const OPERATIONAL_COLUMNS = [
   'backlog',
-  'planning',
   'execution',
   'homologation',
   'closed',
+  'paused',
+  'cancelled',
 ] as const
 
-export type KanbanStage = (typeof KANBAN_STAGES)[number]
+export type OperationalColumn = (typeof OPERATIONAL_COLUMNS)[number]

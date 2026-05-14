@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
-import type { KanbanStage } from '@/lib/types/project-stage'
+import type { OperationalColumn } from '@/lib/types/project-stage'
+import { OPERATIONAL_COLUMNS } from '@/lib/types/project-stage'
+import {
+  COLUMN_LABEL,
+  COLUMN_TO_STATUS,
+  getOperationalColumn,
+} from '@/lib/utils/project-workflow'
 import type { ProjectKanbanItem } from '@/hooks/use-projects-for-kanban'
 import { ProjectKanbanCard } from './project-kanban-card'
 
@@ -12,14 +18,6 @@ interface Props {
   projects: ProjectKanbanItem[]
   onChanged: () => void
 }
-
-const COLUMNS: { stage: KanbanStage; label: string }[] = [
-  { stage: 'backlog', label: 'Backlog' },
-  { stage: 'planning', label: 'Planejamento' },
-  { stage: 'execution', label: 'Execução' },
-  { stage: 'homologation', label: 'Homologação' },
-  { stage: 'closed', label: 'Encerrado' },
-]
 
 function n(v: unknown): number {
   const x = Number(v)
@@ -32,29 +30,31 @@ export function ProjectsKanbanBoard({ projects, onChanged }: Props) {
   useEffect(() => { setLocal(projects) }, [projects])
 
   const byColumn = useMemo(() => {
-    const map: Record<KanbanStage, ProjectKanbanItem[]> = {
-      backlog: [], planning: [], execution: [], homologation: [], closed: [],
+    const map: Record<OperationalColumn, ProjectKanbanItem[]> = {
+      backlog: [], execution: [], homologation: [], closed: [], paused: [], cancelled: [],
     }
     local.forEach(p => {
-      const k = (p.kanban_stage ?? 'backlog') as KanbanStage
-      ;(map[k] ?? map.backlog).push(p)
+      const col = getOperationalColumn(p.status)
+      if (col) map[col].push(p)
+      // status `awaiting_start` (sem coord ainda) fica fora — não está no pipeline operacional
     })
     return map
   }, [local])
 
   const totals = useMemo(() => {
-    const map: Record<KanbanStage, { count: number; sold: number; consumed: number }> = {
-      backlog: { count: 0, sold: 0, consumed: 0 },
-      planning: { count: 0, sold: 0, consumed: 0 },
-      execution: { count: 0, sold: 0, consumed: 0 },
+    const map: Record<OperationalColumn, { count: number; sold: number; consumed: number }> = {
+      backlog:      { count: 0, sold: 0, consumed: 0 },
+      execution:    { count: 0, sold: 0, consumed: 0 },
       homologation: { count: 0, sold: 0, consumed: 0 },
-      closed: { count: 0, sold: 0, consumed: 0 },
+      closed:       { count: 0, sold: 0, consumed: 0 },
+      paused:       { count: 0, sold: 0, consumed: 0 },
+      cancelled:    { count: 0, sold: 0, consumed: 0 },
     }
-    COLUMNS.forEach(({ stage }) => {
-      const items = byColumn[stage]
-      map[stage].count = items.length
-      map[stage].sold = items.reduce((s, p) => s + n(p.sold_hours), 0)
-      map[stage].consumed = items.reduce((s, p) => s + n(p.consumed_hours), 0)
+    OPERATIONAL_COLUMNS.forEach(col => {
+      const items = byColumn[col]
+      map[col].count = items.length
+      map[col].sold = items.reduce((s, p) => s + n(p.sold_hours), 0)
+      map[col].consumed = items.reduce((s, p) => s + n(p.consumed_hours), 0)
     })
     return map
   }, [byColumn])
@@ -62,18 +62,21 @@ export function ProjectsKanbanBoard({ projects, onChanged }: Props) {
   async function handleDragEnd(result: DropResult) {
     const { destination, source, draggableId } = result
     if (!destination) return
-    if (destination.droppableId === source.droppableId) return // sem reorder por agora
+    if (destination.droppableId === source.droppableId) return
 
     const movedId = Number(draggableId)
     const moved = local.find(p => p.id === movedId)
     if (!moved) return
-    const newStage = destination.droppableId as KanbanStage
 
-    // Otimismo
-    setLocal(prev => prev.map(p => p.id === movedId ? { ...p, kanban_stage: newStage } : p))
+    const targetColumn = destination.droppableId as OperationalColumn
+    const newStatus = COLUMN_TO_STATUS[targetColumn]
+
+    // Optimismo: atualiza status no local imediatamente
+    setLocal(prev => prev.map(p => p.id === movedId ? { ...p, status: newStatus } : p))
 
     try {
-      await api.patch(`/projects/${movedId}`, { kanban_stage: newStage })
+      // PATCH /projects/{id}/status — endpoint dedicado (rota existente projects.update-status)
+      await api.patch(`/projects/${movedId}/status`, { status: newStatus })
       onChanged()
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao mover projeto')
@@ -85,15 +88,15 @@ export function ProjectsKanbanBoard({ projects, onChanged }: Props) {
     <DragDropContext onDragEnd={handleDragEnd}>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(5, minmax(260px, 1fr))',
+        gridTemplateColumns: `repeat(${OPERATIONAL_COLUMNS.length}, minmax(240px, 1fr))`,
         gap: 12,
         overflowX: 'auto',
       }}>
-        {COLUMNS.map(col => {
-          const items = byColumn[col.stage]
-          const t = totals[col.stage]
+        {OPERATIONAL_COLUMNS.map(col => {
+          const items = byColumn[col]
+          const t = totals[col]
           return (
-            <Droppable droppableId={col.stage} key={col.stage}>
+            <Droppable droppableId={col} key={col}>
               {(provided, snapshot) => (
                 <div
                   ref={provided.innerRef}
@@ -114,7 +117,7 @@ export function ProjectsKanbanBoard({ projects, onChanged }: Props) {
                       fontSize: 11, color: 'var(--text-muted)',
                       textTransform: 'uppercase', letterSpacing: '.04em',
                     }}>
-                      <span style={{ fontWeight: 600 }}>{col.label}</span>
+                      <span style={{ fontWeight: 600 }}>{COLUMN_LABEL[col]}</span>
                       <span style={{ opacity: .6 }}>{t.count}</span>
                     </div>
                     {t.sold > 0 && (
