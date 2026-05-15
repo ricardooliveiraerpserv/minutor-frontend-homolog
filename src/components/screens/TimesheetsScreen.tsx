@@ -848,18 +848,48 @@ function TimesheetsPageContent({ scope, embedded }: { scope?: 'sustentacao'; emb
         api.get<any>('/users?pageSize=200&exclude_type=cliente'),
         api.get<any>('/users?pageSize=100&type=coordenador'),
         api.get<any>('/users?pageSize=100&type=admin'),
-        api.get<any>('/projects?minimal=true&pageSize=2000'),
-      ]).then(([c, ex, us, coords, admins, projs]) => {
+      ]).then(([c, ex, us, coords, admins]) => {
         setCustomers(items(c))
         setExecutives(items(ex))
         setConsultants(items(us))
-        setProjectsList(items(projs))
         const coordList = items(coords)
         const adminList = items(admins)
         setCoordinators([...coordList, ...adminList.filter((a: any) => !coordList.some((c: any) => c.id === a.id))])
       }).catch(() => {})
     }
   }, [isCliente, isAdmin, user?.customer_id])
+
+  // Projetos do dropdown — refetch quando o filtro de cliente muda.
+  // Sem cliente selecionado: traz todos. Com 1+ clientes: traz só os daquele(s) cliente(s).
+  useEffect(() => {
+    if (isCliente) return
+    const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+    const params = new URLSearchParams({ minimal: 'true', pageSize: '2000' })
+    if (customerIds.length === 1) {
+      params.set('customer_id', String(customerIds[0]))
+    }
+    api.get<any>(`/projects?${params.toString()}`)
+      .then(r => {
+        let list: any[] = items(r)
+        // Se múltiplos clientes selecionados, filtra client-side por customer_id retornado pelo BE.
+        // BE minimal não retorna customer_id, então este caminho exige um endpoint mais rico — por
+        // ora, com múltiplos clientes mostramos todos e o usuário refina pela busca.
+        if (customerIds.length > 1) {
+          // mantém a lista completa; user busca pelo nome
+        }
+        setProjectsList(list)
+      })
+      .catch(() => {})
+  }, [isCliente, customerIds])
+
+  // Limpa seleção de projetos quando o cliente muda (evita IDs órfãos).
+  useEffect(() => {
+    if (projectIds.length > 0) {
+      setProjectIds([])
+      setPage(1)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerIds.join(',')])
 
   const params = useMemo(() => {
     const p = new URLSearchParams({ page: String(page), pageSize: '100' })
