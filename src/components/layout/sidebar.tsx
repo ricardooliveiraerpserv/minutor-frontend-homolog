@@ -69,9 +69,14 @@ type NavGroup = {
 }
 type NavEntry = NavItem | NavGroup
 
+// Meus Cards e Capacidade ainda em desenvolvimento — só DEV1
+const IS_DEV1 = process.env.NEXT_PUBLIC_APP_ENV === 'dev'
+
 const NAV_COORDINATOR: NavEntry[] = [
-  { type: 'item', label: 'Meus Cards', href: '/meus-cards', icon: Inbox },
-  { type: 'item', label: 'Capacidade', href: '/capacidade', icon: Users },
+  ...(IS_DEV1 ? [
+    { type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox },
+    { type: 'item' as const, label: 'Capacidade', href: '/capacidade', icon: Users },
+  ] : []),
   {
     type: 'group',
     label: 'Apontamentos & Despesas',
@@ -89,8 +94,10 @@ const NAV_COORDINATOR: NavEntry[] = [
 const NAV: NavEntry[] = [
   { type: 'item', label: 'Meu Painel',            href: '/meu-painel',      icon: LayoutDashboard },
   { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
-  { type: 'item', label: 'Meus Cards',            href: '/meus-cards',      icon: Inbox },
-  { type: 'item', label: 'Capacidade',            href: '/capacidade',      icon: Users },
+  ...(IS_DEV1 ? [
+    { type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox },
+    { type: 'item' as const, label: 'Capacidade', href: '/capacidade', icon: Users },
+  ] : []),
   {
     type: 'group',
     label: 'Projetos',
@@ -387,7 +394,7 @@ function SidebarInner({ user }: { user: User }) {
       const baseNav: NavEntry[] = [
         { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
         { type: 'item', label: 'Início',     href: '/dashboard',  icon: Home },
-        { type: 'item', label: 'Meus Cards', href: '/meus-cards', icon: Inbox },
+        ...(IS_DEV1 ? [{ type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox }] : []),
       ]
       if (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update'))
         baseNav.push({ type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers })
