@@ -21,10 +21,12 @@ import {
 } from '@/lib/exportRelatorioApontamentos'
 
 type FilterMode = 'month' | 'period'
+type DateField  = 'date' | 'created_at'
 type StatusKey  = 'pending' | 'approved'
 
-interface Customer { id: number; name: string }
-interface Project  { id: number; name: string }
+interface Customer    { id: number; name: string }
+interface Project     { id: number; name: string }
+interface ServiceType { id: number; name: string }
 
 interface TicketSummaryRow {
   ticket: string
@@ -95,7 +97,10 @@ export default function RelatorioApontamentosPage() {
   const [customerId, setCustomerId] = useState<string | number>('')
   const [projects,   setProjects]   = useState<Project[]>([])
   const [projectIds, setProjectIds] = useState<string[]>([])
+  const [serviceTypes,    setServiceTypes]    = useState<ServiceType[]>([])
+  const [serviceTypeIds,  setServiceTypeIds]  = useState<string[]>([])
 
+  const [dateField,  setDateField]  = useState<DateField>('date')
   const [filterMode, setFilterMode] = useState<FilterMode>('month')
   const [refMonth,   setRefMonth]   = useState<number | null>(today.getMonth() + 1)
   const [refYear,    setRefYear]    = useState<number | null>(today.getFullYear())
@@ -129,6 +134,16 @@ export default function RelatorioApontamentosPage() {
         setCustomers(list.map(c => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name)))
       })
       .catch(() => toast.error('Erro ao carregar clientes'))
+  }, [])
+
+  // ── Load service types
+  useEffect(() => {
+    api.get<any>('/service-types?pageSize=100')
+      .then(r => {
+        const list: any[] = Array.isArray(r) ? r : r?.items ?? r?.data ?? []
+        setServiceTypes(list.map(s => ({ id: s.id, name: s.name })).sort((a, b) => a.name.localeCompare(b.name)))
+      })
+      .catch(() => setServiceTypes([]))
   }, [])
 
   // ── Load projects do cliente selecionado
@@ -194,15 +209,19 @@ export default function RelatorioApontamentosPage() {
       p.set('start_date',  startDate)
       p.set('end_date',    endDate)
       p.set('pageSize',    '2000')
+      if (dateField === 'created_at') p.set('date_field', 'created_at')
       statuses.forEach(s => p.append('status[]', s))
       projectIds.forEach(id => p.append('project_id[]', id))
+      serviceTypeIds.forEach(id => p.append('service_type_id[]', id))
 
       const summaryParams = new URLSearchParams()
       summaryParams.set('customer_id', String(customerId))
       summaryParams.set('start_date',  startDate)
       summaryParams.set('end_date',    endDate)
+      if (dateField === 'created_at') summaryParams.set('date_field', 'created_at')
       statuses.forEach(s => summaryParams.append('status[]', s))
       projectIds.forEach(id => summaryParams.append('project_id[]', id))
+      serviceTypeIds.forEach(id => summaryParams.append('service_type_id[]', id))
 
       const [r, sumR] = await Promise.all([
         api.get<any>(`/timesheets?${p}`),
@@ -376,6 +395,40 @@ export default function RelatorioApontamentosPage() {
               fullWidth
               disabled={!customerId || projects.length === 0}
             />
+          </div>
+
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+              Tipo de Serviço
+            </label>
+            <MultiSelect
+              value={serviceTypeIds}
+              onChange={setServiceTypeIds}
+              options={serviceTypes}
+              placeholder={serviceTypes.length === 0 ? 'Carregando...' : 'Todos os tipos'}
+              fullWidth
+              disabled={serviceTypes.length === 0}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+              Filtrar por
+            </label>
+            <div className="flex rounded-lg border overflow-hidden text-xs h-9" style={{ borderColor: 'var(--brand-border)' }}>
+              {(['date', 'created_at'] as const).map(f => (
+                <button
+                  key={f} type="button" onClick={() => setDateField(f)}
+                  className="flex-1 px-3 font-medium transition-colors"
+                  style={{
+                    background: dateField === f ? 'var(--primary)' : 'transparent',
+                    color:      dateField === f ? 'var(--primary-fg)' : 'var(--text-muted)',
+                  }}
+                >
+                  {f === 'date' ? 'Data do apontamento' : 'Data de inclusão'}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div>
