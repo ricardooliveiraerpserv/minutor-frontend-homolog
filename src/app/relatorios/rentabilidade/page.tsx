@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, Fragment } from 'react'
+import { useEffect, useMemo, useState, useCallback, Fragment } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable, Button } from '@/components/ds'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
@@ -8,7 +8,8 @@ import { SearchSelect } from '@/components/ui/search-select'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 
 interface Row {
@@ -54,6 +55,7 @@ export default function RentabilidadePage() {
   const [visao, setVisao] = useState<'consultor' | 'projeto' | 'clientes'>('consultor')
   const [clientesRows, setClientesRows] = useState<ClienteRow[]>([])
   const [clientesLoading, setClientesLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [soMinutor, setSoMinutor] = useState(false)
 
   const monthsToFetch = useMemo(() => {
@@ -92,12 +94,12 @@ export default function RentabilidadePage() {
   }, [monthsToFetch])
 
   // Aba Clientes: busca a rentabilidade-por-cliente + recebido Keruak (M+1).
-  // Período: agrega por CNPJ (soma horas/receita/custo/recebido).
-  useEffect(() => {
-    if (visao !== 'clientes') return
-    setClientesLoading(true)
-    Promise.all(monthsToFetch.map(ym =>
-      api.get<{ data: { rows: ClienteRow[] } }>(`/relatorios/rentabilidade/clientes/${ym}`)
+  // refresh=true → ?refresh=1 (botão "Atualizar Keruak": ignora o cache de 3h).
+  const loadClientes = useCallback((refresh = false) => {
+    if (refresh) setRefreshing(true); else setClientesLoading(true)
+    const qs = refresh ? '?refresh=1' : ''
+    return Promise.all(monthsToFetch.map(ym =>
+      api.get<{ data: { rows: ClienteRow[] } }>(`/relatorios/rentabilidade/clientes/${ym}${qs}`)
         .then(r => r?.data?.rows ?? []).catch(() => [] as ClienteRow[])
     )).then(results => {
       const all = results.flat()
@@ -121,8 +123,10 @@ export default function RentabilidadePage() {
           margem_real, margem_real_pct: recebido > 0 ? Math.round(margem_real / recebido * 1000) / 10 : null,
         }
       }))
-    }).finally(() => setClientesLoading(false))
-  }, [visao, monthsToFetch])
+    }).finally(() => { setClientesLoading(false); setRefreshing(false) })
+  }, [monthsToFetch])
+
+  useEffect(() => { if (visao === 'clientes') void loadClientes(false) }, [visao, loadClientes])
 
   // Opções dos filtros (distintos, derivados das linhas carregadas).
   const optClientes = useMemo(() => {
@@ -367,6 +371,12 @@ export default function RentabilidadePage() {
                   <span className="text-xs" style={{ color: 'var(--text-light)' }}>→</span>
                   <MonthYearPicker month={toM} year={toY} onChange={(m, y) => { setToM(m); setToY(y) }} placeholder="Até" />
                 </>
+              )}
+              {visao === 'clientes' && (
+                <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing}
+                  onClick={() => loadClientes(true).then(() => toast.success('Recebimentos do Keruak atualizados'))}>
+                  {refreshing ? 'Atualizando…' : 'Atualizar Keruak'}
+                </Button>
               )}
               <Button variant="ghost" size="sm" icon={Download} onClick={exportExcel} disabled={(visao === 'clientes' ? clientesFiltered : filtered).length === 0}>Excel</Button>
               <Button variant="ghost" size="sm" icon={FileText} onClick={exportPdf} disabled={(visao === 'clientes' ? clientesFiltered : filtered).length === 0}>PDF</Button>
