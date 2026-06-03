@@ -578,7 +578,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
             <span style={{ color: 'var(--text-light)', fontSize: 11 }}>= consumo</span>
           ) : (
             <div className="flex flex-col items-center leading-tight">
-              <span>{fmt(displaySold)}</span>
+              <span>{fmt(displaySold, Number.isInteger(displaySold) ? 0 : 1)}</span>
               {(project.vendidas_aporte_hours ?? 0) > 0 && (
                 <>
                   <span style={{ fontSize: 10, color: 'var(--text-light)' }}>Projeto {fmt(project.vendidas_projeto_hours ?? 0, 1)}</span>
@@ -2618,7 +2618,7 @@ export default function GestaoProjetosPage() {
           <SummaryCard
             icon={<Clock size={15} color="var(--primary)" />}
             label="Horas Vendidas"
-            value={fmt(stats.vendidas)}
+            value={fmt(stats.vendidas, Number.isInteger(stats.vendidas) ? 0 : 1)}
             sub="horas contratadas"
           />
           <SummaryCard
