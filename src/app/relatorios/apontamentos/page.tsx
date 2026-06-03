@@ -27,7 +27,7 @@ type DateField  = 'date' | 'created_at'
 type StatusKey  = 'pending' | 'approved'
 
 interface Customer    { id: number; name: string }
-interface Project     { id: number; name: string }
+interface Project     { id: number; name: string; parent_project_id?: number | null }
 interface ServiceType { id: number; name: string }
 
 interface TicketSummaryRow {
@@ -149,7 +149,7 @@ export default function RelatorioApontamentosPage() {
     api.get<any>(`/projects?customer_id=${customerId}&pageSize=500`)
       .then(r => {
         const list: any[] = Array.isArray(r) ? r : r?.items ?? r?.data ?? []
-        setProjects(list.map(p => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name)))
+        setProjects(list.map(p => ({ id: p.id, name: p.name, parent_project_id: p.parent_project_id ?? null })))
       })
       .catch(() => setProjects([]))
     setProjectIds([])
@@ -178,6 +178,27 @@ export default function RelatorioApontamentosPage() {
     () => customers.find(c => String(c.id) === String(customerId))?.name ?? '',
     [customers, customerId],
   )
+
+  // Opções do seletor de projetos em árvore: filho aparece sob o pai com "↳".
+  const projectOptions = useMemo(() => {
+    const ids = new Set(projects.map(p => p.id))
+    const byParent = new Map<number | null, Project[]>()
+    for (const p of projects) {
+      const key = p.parent_project_id && ids.has(p.parent_project_id) ? p.parent_project_id : null
+      const arr = byParent.get(key) ?? []
+      arr.push(p); byParent.set(key, arr)
+    }
+    const sortName = (a: Project, b: Project) => a.name.localeCompare(b.name, 'pt-BR')
+    const out: { id: number; name: string }[] = []
+    const walk = (parentId: number | null, depth: number) => {
+      for (const p of (byParent.get(parentId) ?? []).sort(sortName)) {
+        out.push({ id: p.id, name: depth > 0 ? `${'   '.repeat(depth - 1)}↳ ${p.name}` : p.name })
+        walk(p.id, depth + 1)
+      }
+    }
+    walk(null, 0)
+    return out
+  }, [projects])
 
   // Regra especial VEDAMOTORS: coluna "Título" do relatório vira "TICKET ERPSERV".
   // Quando o ticket bate o padrão (5 dígitos), mantém o título original.
@@ -443,7 +464,7 @@ export default function RelatorioApontamentosPage() {
             <MultiSelect
               value={projectIds}
               onChange={setProjectIds}
-              options={projects}
+              options={projectOptions}
               placeholder={projects.length === 0 ? 'Selecione um cliente' : 'Todos os projetos'}
               fullWidth
               disabled={!customerId || projects.length === 0}
