@@ -43,6 +43,7 @@ export function AuditoriaApontamentosScreen({ scope, embedded }: AuditoriaAponta
   const [filters, setFilters] = useState({
     source:        '',
     action:        '',
+    user_id:       '',
     customer_id:   '',
     project_id:    '',
     incl_start:    '',
@@ -52,11 +53,17 @@ export function AuditoriaApontamentosScreen({ scope, embedded }: AuditoriaAponta
     page:          1,
   })
 
-  // ── Listas de cliente e projeto (com busca) ──
+  // ── Listas de cliente, projeto e consultor (com busca) ──
   const { data: customersRaw } = useApiQuery<unknown>('/customers?pageSize=500', [])
   const customers = useMemo(
     () => asList(customersRaw).map((c: any) => ({ id: c.id, name: c.name })),
     [customersRaw],
+  )
+
+  const { data: usersRaw } = useApiQuery<unknown>('/users?pageSize=500&exclude_type=cliente', [])
+  const consultants = useMemo(
+    () => asList(usersRaw).map((u: any) => ({ id: u.id, name: u.full_name || u.name })),
+    [usersRaw],
   )
 
   const projectsPath = useMemo(() => {
@@ -77,6 +84,7 @@ export function AuditoriaApontamentosScreen({ scope, embedded }: AuditoriaAponta
     if (scope)                 p.set('scope', scope)
     if (filters.source)        p.set('source',        filters.source)
     if (filters.action)        p.set('action',        filters.action)
+    if (filters.user_id)       p.set('user_id',       filters.user_id)
     if (filters.customer_id)   p.set('customer_id',   filters.customer_id)
     if (filters.project_id)    p.set('project_id',    filters.project_id)
     if (filters.incl_start)    p.set('incl_start',    filters.incl_start)
@@ -133,6 +141,10 @@ export function AuditoriaApontamentosScreen({ scope, embedded }: AuditoriaAponta
             value={filters.action} onChange={e => update('action', e.target.value)}>
             {ACTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
           </select>
+        ))}
+        {filterField('Consultor', (
+          <SearchSelect fullWidth placeholder="Todos os consultores"
+            value={filters.user_id} onChange={v => update('user_id', v)} options={consultants} />
         ))}
         {filterField('Cliente', (
           <SearchSelect fullWidth placeholder="Todos os clientes"
