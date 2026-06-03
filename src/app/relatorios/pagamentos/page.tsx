@@ -6,6 +6,7 @@ import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable,
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
+import { useTableSort } from '@/hooks/use-table-sort'
 import { DollarSign, Users, Download, FileText, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
@@ -105,6 +106,9 @@ export default function PagamentosPage() {
     return true
   }), [rows, tipo, vinculo, contrato, busca, comMovimento])
 
+  // Ordenação por colunas (client-side, sobre as linhas filtradas).
+  const { sorted, thProps } = useTableSort(filtered)
+
   const total = useMemo(() => filtered.reduce((s, r) => s + (r.valor || 0), 0), [filtered])
 
   const limpar = () => { setTipo('todos'); setVinculo('todos'); setContrato('todos'); setBusca(''); setComMovimento(true) }
@@ -117,7 +121,7 @@ export default function PagamentosPage() {
   const periodoLabel = monthsToFetch.length === 1 ? monthsToFetch[0] : `${monthsToFetch[0]}_a_${monthsToFetch[monthsToFetch.length - 1]}`
 
   const exportExcel = () => {
-    const data = filtered.map(r => ({
+    const data = sorted.map(r => ({
       Nome: r.nome,
       Tipo: r.tipo === 'parceiro' ? 'Parceiro' : 'Consultor',
       Empresa: r.empresa,
@@ -137,7 +141,7 @@ export default function PagamentosPage() {
   }
 
   const exportPdf = () => {
-    const linhas = filtered.map(r => `
+    const linhas = sorted.map(r => `
       <tr>
         <td>${r.nome}</td>
         <td>${r.tipo === 'parceiro' ? 'Parceiro' : 'Consultor'}</td>
@@ -256,16 +260,16 @@ export default function PagamentosPage() {
           <Table>
             <Thead>
               <tr>
-                <Th>Nome</Th>
-                <Th>Tipo</Th>
-                <Th>Empresa</Th>
-                <Th>Contratação</Th>
-                <Th>Contrato</Th>
-                <Th right>Valor</Th>
+                <Th {...thProps('nome')}>Nome</Th>
+                <Th {...thProps('tipo')}>Tipo</Th>
+                <Th {...thProps('empresa')}>Empresa</Th>
+                <Th {...thProps('vinculo_label')}>Contratação</Th>
+                <Th {...thProps('contract_type_label')}>Contrato</Th>
+                <Th right {...thProps('valor')}>Valor</Th>
               </tr>
             </Thead>
             <Tbody>
-              {filtered.map((r, i) => (
+              {sorted.map((r, i) => (
                 <Tr key={i}>
                   <Td className="font-medium" style={{ color: 'var(--text)' }}>{r.nome}</Td>
                   <Td>
