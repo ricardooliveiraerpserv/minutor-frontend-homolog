@@ -196,7 +196,9 @@ const NAV: NavEntry[] = [
     label: 'Relatórios',
     icon: FileText,
     items: [
-      { label: 'Apontamentos', href: '/relatorios/apontamentos', icon: Clock },
+      { label: 'Apontamentos',  href: '/relatorios/apontamentos',  icon: Clock },
+      { label: 'Pagamentos',    href: '/relatorios/pagamentos',    icon: DollarSign },
+      { label: 'Rentabilidade', href: '/relatorios/rentabilidade', icon: TrendingUp },
     ],
   },
   // 🧪 Features experimentais — só em DEV1 (escondidas em homolog/prod)
