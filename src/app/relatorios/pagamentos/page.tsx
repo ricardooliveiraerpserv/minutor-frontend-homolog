@@ -6,7 +6,7 @@ import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable,
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import { DollarSign, Users, Download, FileText } from 'lucide-react'
+import { DollarSign, Users, Download, FileText, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 interface Row {
@@ -48,6 +48,11 @@ export default function PagamentosPage() {
   const now = new Date()
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear]   = useState(now.getFullYear())
+  const [mode, setMode]   = useState<'mes' | 'periodo'>('mes')
+  const [fromM, setFromM] = useState(now.getMonth() + 1)
+  const [fromY, setFromY] = useState(now.getFullYear())
+  const [toM, setToM]     = useState(now.getMonth() + 1)
+  const [toY, setToY]     = useState(now.getFullYear())
   const [rows, setRows]   = useState<Row[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -57,15 +62,39 @@ export default function PagamentosPage() {
   const [busca, setBusca]       = useState('')
   const [comMovimento, setComMovimento] = useState(true)
 
-  const yearMonth = `${year}-${String(month).padStart(2, '0')}`
+  const monthsToFetch = useMemo(() => {
+    if (mode === 'mes') return [`${year}-${String(month).padStart(2, '0')}`]
+    const out: string[] = []
+    let y = fromY, m = fromM, guard = 0
+    while ((y < toY || (y === toY && m <= toM)) && guard++ < 48) {
+      out.push(`${y}-${String(m).padStart(2, '0')}`)
+      m++; if (m > 12) { m = 1; y++ }
+    }
+    return out.length ? out : [`${fromY}-${String(fromM).padStart(2, '0')}`]
+  }, [mode, month, year, fromM, fromY, toM, toY])
 
   useEffect(() => {
     setLoading(true)
-    api.get<{ data: { rows: Row[] } }>(`/relatorios/pagamentos/${yearMonth}`)
-      .then(r => setRows(r?.data?.rows ?? []))
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false))
-  }, [yearMonth])
+    Promise.all(monthsToFetch.map(ym =>
+      api.get<{ data: { rows: Row[] } }>(`/relatorios/pagamentos/${ym}`)
+        .then(r => r?.data?.rows ?? []).catch(() => [] as Row[])
+    )).then(results => {
+      const all = results.flat()
+      if (monthsToFetch.length === 1) { setRows(all); return }
+      // Período: agrega por pessoa (tipo + empresa + nome) somando o valor a pagar.
+      const map = new Map<string, Row>()
+      for (const r of all) {
+        const k = `${r.tipo}:${r.empresa}:${r.nome}`
+        const e = map.get(k)
+        if (!e) map.set(k, { ...r })
+        else {
+          e.valor += (r.valor || 0)
+          if (r.envio_em && (!e.envio_em || r.envio_em > e.envio_em)) e.envio_em = r.envio_em
+        }
+      }
+      setRows([...map.values()].map(r => ({ ...r, valor: Math.round(r.valor * 100) / 100 })))
+    }).finally(() => setLoading(false))
+  }, [monthsToFetch])
 
   const filtered = useMemo(() => rows.filter(r => {
     if (comMovimento && r.valor === 0) return false
@@ -78,7 +107,14 @@ export default function PagamentosPage() {
 
   const total = useMemo(() => filtered.reduce((s, r) => s + (r.valor || 0), 0), [filtered])
 
-  const fmtMes = () => new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  const limpar = () => { setTipo('todos'); setVinculo('todos'); setContrato('todos'); setBusca(''); setComMovimento(true) }
+  const hasFiltros = tipo !== 'todos' || vinculo !== 'todos' || contrato !== 'todos' || busca.trim() !== '' || !comMovimento
+
+  const fmtYm = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) }
+  const fmtMes = () => monthsToFetch.length === 1
+    ? new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    : `${fmtYm(monthsToFetch[0])} – ${fmtYm(monthsToFetch[monthsToFetch.length - 1])}`
+  const periodoLabel = monthsToFetch.length === 1 ? monthsToFetch[0] : `${monthsToFetch[0]}_a_${monthsToFetch[monthsToFetch.length - 1]}`
 
   const exportExcel = () => {
     const data = filtered.map(r => ({
@@ -97,7 +133,7 @@ export default function PagamentosPage() {
     }
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Pagamentos')
-    XLSX.writeFile(wb, `pagamentos_${yearMonth}.xlsx`)
+    XLSX.writeFile(wb, `pagamentos_${periodoLabel}.xlsx`)
   }
 
   const exportPdf = () => {
@@ -136,8 +172,24 @@ export default function PagamentosPage() {
           title="Pagamentos"
           subtitle="Pagamentos de consultores e parceiros por mês"
           actions={
-            <div className="flex items-center gap-2">
-              <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y) }} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                {(['mes', 'periodo'] as const).map((mo, i) => (
+                  <button key={mo} onClick={() => setMode(mo)} className="px-3 py-1.5 text-xs font-medium transition-colors"
+                    style={{ background: mode === mo ? 'var(--primary)' : 'transparent', color: mode === mo ? 'var(--primary-fg)' : 'var(--text-muted)', borderLeft: i > 0 ? '1px solid var(--border)' : undefined }}>
+                    {mo === 'mes' ? 'Mês/Ano' : 'Período'}
+                  </button>
+                ))}
+              </div>
+              {mode === 'mes' ? (
+                <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y) }} />
+              ) : (
+                <>
+                  <MonthYearPicker month={fromM} year={fromY} onChange={(m, y) => { setFromM(m); setFromY(y) }} placeholder="De" />
+                  <span className="text-xs" style={{ color: 'var(--text-light)' }}>→</span>
+                  <MonthYearPicker month={toM} year={toY} onChange={(m, y) => { setToM(m); setToY(y) }} placeholder="Até" />
+                </>
+              )}
               <Button variant="ghost" size="sm" icon={Download} onClick={exportExcel} disabled={filtered.length === 0}>Excel</Button>
               <Button variant="ghost" size="sm" icon={FileText} onClick={exportPdf} disabled={filtered.length === 0}>PDF</Button>
             </div>
@@ -185,6 +237,7 @@ export default function PagamentosPage() {
               className="w-full px-3 py-2 rounded-xl text-xs outline-none"
               style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
+          <Button variant="ghost" size="sm" icon={X} onClick={limpar} disabled={!hasFiltros}>Limpar</Button>
         </div>
 
         {/* Total */}

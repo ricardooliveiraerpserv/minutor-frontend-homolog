@@ -8,7 +8,7 @@ import { SearchSelect } from '@/components/ui/search-select'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import { TrendingUp, Download, FileText } from 'lucide-react'
+import { TrendingUp, Download, FileText, X } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 interface Row {
@@ -25,6 +25,11 @@ export default function RentabilidadePage() {
   const now = new Date()
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear]   = useState(now.getFullYear())
+  const [mode, setMode]   = useState<'mes' | 'periodo'>('mes')
+  const [fromM, setFromM] = useState(now.getMonth() + 1)
+  const [fromY, setFromY] = useState(now.getFullYear())
+  const [toM, setToM]     = useState(now.getMonth() + 1)
+  const [toY, setToY]     = useState(now.getFullYear())
   const [rows, setRows]   = useState<Row[]>([])
   const [loading, setLoading] = useState(false)
   const [busca, setBusca] = useState('')
@@ -33,15 +38,40 @@ export default function RentabilidadePage() {
   const [fProjeto, setFProjeto]     = useState('')
   const [fConsultor, setFConsultor] = useState('')
 
-  const yearMonth = `${year}-${String(month).padStart(2, '0')}`
+  const monthsToFetch = useMemo(() => {
+    if (mode === 'mes') return [`${year}-${String(month).padStart(2, '0')}`]
+    const out: string[] = []
+    let y = fromY, m = fromM, guard = 0
+    while ((y < toY || (y === toY && m <= toM)) && guard++ < 48) {
+      out.push(`${y}-${String(m).padStart(2, '0')}`)
+      m++; if (m > 12) { m = 1; y++ }
+    }
+    return out.length ? out : [`${fromY}-${String(fromM).padStart(2, '0')}`]
+  }, [mode, month, year, fromM, fromY, toM, toY])
 
   useEffect(() => {
     setLoading(true)
-    api.get<{ data: { rows: Row[] } }>(`/relatorios/rentabilidade/${yearMonth}`)
-      .then(r => setRows(r?.data?.rows ?? []))
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false))
-  }, [yearMonth])
+    Promise.all(monthsToFetch.map(ym =>
+      api.get<{ data: { rows: Row[] } }>(`/relatorios/rentabilidade/${ym}`)
+        .then(r => r?.data?.rows ?? []).catch(() => [] as Row[])
+    )).then(results => {
+      const all = results.flat()
+      if (monthsToFetch.length === 1) { setRows(all); return }
+      // Período: agrega por consultor × projeto somando horas/receita/custo.
+      const map = new Map<string, Row>()
+      for (const r of all) {
+        const k = `${r.user_id}:${r.project_id}`
+        const e = map.get(k)
+        if (!e) map.set(k, { ...r })
+        else { e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.valor_hora_projeto = r.valor_hora_projeto; e.valor_hora_consultor = r.valor_hora_consultor }
+      }
+      setRows([...map.values()].map(r => {
+        const horas = Math.round(r.horas * 100) / 100, receita = Math.round(r.receita * 100) / 100, custo = Math.round(r.custo * 100) / 100
+        const margem = Math.round((receita - custo) * 100) / 100
+        return { ...r, horas, receita, custo, margem, margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null }
+      }))
+    }).finally(() => setLoading(false))
+  }, [monthsToFetch])
 
   // Opções dos filtros (distintos, derivados das linhas carregadas).
   const optClientes = useMemo(() => {
@@ -81,7 +111,14 @@ export default function RentabilidadePage() {
     return { receita, custo, horas, margem: receita - custo, pct: receita > 0 ? (receita - custo) / receita * 100 : null }
   }, [filtered])
 
-  const fmtMes = () => new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true) }
+  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita)
+
+  const fmtYm = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) }
+  const fmtMes = () => monthsToFetch.length === 1
+    ? new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    : `${fmtYm(monthsToFetch[0])} – ${fmtYm(monthsToFetch[monthsToFetch.length - 1])}`
+  const periodoLabel = monthsToFetch.length === 1 ? monthsToFetch[0] : `${monthsToFetch[0]}_a_${monthsToFetch[monthsToFetch.length - 1]}`
 
   const exportExcel = () => {
     const data = sorted.map(r => ({
@@ -92,7 +129,7 @@ export default function RentabilidadePage() {
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Rentabilidade')
-    XLSX.writeFile(wb, `rentabilidade_${yearMonth}.xlsx`)
+    XLSX.writeFile(wb, `rentabilidade_${periodoLabel}.xlsx`)
   }
 
   const exportPdf = () => {
@@ -129,8 +166,24 @@ export default function RentabilidadePage() {
           title="Rentabilidade"
           subtitle="Receita, custo e margem por consultor × projeto"
           actions={
-            <div className="flex items-center gap-2">
-              <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y) }} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                {(['mes', 'periodo'] as const).map((mo, i) => (
+                  <button key={mo} onClick={() => setMode(mo)} className="px-3 py-1.5 text-xs font-medium transition-colors"
+                    style={{ background: mode === mo ? 'var(--primary)' : 'transparent', color: mode === mo ? 'var(--primary-fg)' : 'var(--text-muted)', borderLeft: i > 0 ? '1px solid var(--border)' : undefined }}>
+                    {mo === 'mes' ? 'Mês/Ano' : 'Período'}
+                  </button>
+                ))}
+              </div>
+              {mode === 'mes' ? (
+                <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y) }} />
+              ) : (
+                <>
+                  <MonthYearPicker month={fromM} year={fromY} onChange={(m, y) => { setFromM(m); setFromY(y) }} placeholder="De" />
+                  <span className="text-xs" style={{ color: 'var(--text-light)' }}>→</span>
+                  <MonthYearPicker month={toM} year={toY} onChange={(m, y) => { setToM(m); setToY(y) }} placeholder="Até" />
+                </>
+              )}
               <Button variant="ghost" size="sm" icon={Download} onClick={exportExcel} disabled={filtered.length === 0}>Excel</Button>
               <Button variant="ghost" size="sm" icon={FileText} onClick={exportPdf} disabled={filtered.length === 0}>PDF</Button>
             </div>
@@ -157,6 +210,7 @@ export default function RentabilidadePage() {
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..."
             className="flex-1 min-w-[160px] px-3 py-2 rounded-xl text-xs outline-none"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          <Button variant="ghost" size="sm" icon={X} onClick={limpar} disabled={!hasFiltros}>Limpar</Button>
         </div>
 
         {/* Cards de total */}
