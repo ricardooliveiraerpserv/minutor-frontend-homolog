@@ -1435,11 +1435,8 @@ function InlineTimesheetsTable({ rows, loading, variant = 'maintenance', onRowCl
 }
 
 function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loading: boolean }) {
-  const fmtH = (mins: number) => {
-    const h = Math.floor(mins / 60)
-    const m = Math.abs(mins % 60)
-    return `${h}:${String(m).padStart(2, '0')}`
-  }
+  // Apuração em horas DECIMAIS (não HH:MM) — ex.: 44h42min = 44,70h → "44.70h".
+  const fmtH = (mins: number) => `${((mins ?? 0) / 60).toFixed(2)}h`
   if (!loading && rows.length === 0) return null
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>

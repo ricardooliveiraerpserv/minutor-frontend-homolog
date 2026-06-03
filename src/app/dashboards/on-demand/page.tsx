@@ -672,11 +672,8 @@ function InlineTimesheetsTable({ rows, loading, onReverseApproved, onReverseSucc
 }
 
 function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loading: boolean }) {
-  const fmtHHMM = (mins: number) => {
-    const h = Math.floor(mins / 60)
-    const m = Math.abs(mins % 60)
-    return `${h}:${String(m).padStart(2, '0')}`
-  }
+  // Apuração em horas DECIMAIS (não HH:MM) — ex.: 44h42min = 44,70h → "44.70h".
+  const fmtHoras = (mins: number) => `${((mins ?? 0) / 60).toFixed(2)}h`
   if (!loading && rows.length === 0) return null
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
@@ -706,16 +703,16 @@ function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loading: boo
                   </td>
                   <td className="px-4 py-2" style={{ color: 'var(--text)' }}>{tk.title ?? '—'}</td>
                   <td className="px-4 py-2" style={{ color: 'var(--text-muted)' }}>{tk.requester ?? '—'}</td>
-                  <td className="px-4 py-2 text-right font-mono">{fmtHHMM(tk.period_minutes)}</td>
-                  <td className="px-4 py-2 text-right font-mono" style={{ color: 'var(--text-muted)' }}>{fmtHHMM(tk.lifetime_minutes)}</td>
+                  <td className="px-4 py-2 text-right font-mono">{fmtHoras(tk.period_minutes)}</td>
+                  <td className="px-4 py-2 text-right font-mono" style={{ color: 'var(--text-muted)' }}>{fmtHoras(tk.lifetime_minutes)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '1px solid var(--border)', fontWeight: 600 }}>
                 <td colSpan={3} className="px-4 py-2 text-right">Totais ({rows.length} {rows.length === 1 ? 'ticket' : 'tickets'})</td>
-                <td className="px-4 py-2 text-right font-mono">{fmtHHMM(rows.reduce((s, r) => s + (r.period_minutes || 0), 0))}</td>
-                <td className="px-4 py-2 text-right font-mono">{fmtHHMM(rows.reduce((s, r) => s + (r.lifetime_minutes || 0), 0))}</td>
+                <td className="px-4 py-2 text-right font-mono">{fmtHoras(rows.reduce((s, r) => s + (r.period_minutes || 0), 0))}</td>
+                <td className="px-4 py-2 text-right font-mono">{fmtHoras(rows.reduce((s, r) => s + (r.lifetime_minutes || 0), 0))}</td>
               </tr>
             </tfoot>
           </table>
