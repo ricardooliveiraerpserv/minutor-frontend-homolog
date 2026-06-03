@@ -136,13 +136,45 @@ export default function RentabilidadePage() {
     return m
   }, [filtered])
 
-  const { sorted, thProps } = useTableSort(projectRows)
+  // Linhas-pai por CONSULTOR (visão "Consultor × Projeto"): uma linha única por consultor
+  // totalizando horas/receita/custo (custo já vem convertido /160 p/ fixo no filho).
+  // n_consultores reaproveita o campo p/ guardar a contagem de projetos do consultor.
+  const consultorRows = useMemo<DisplayRow[]>(() => {
+    const map = new Map<number, { consultor: string; vhc: number; horas: number; receita: number; custo: number; projs: Set<number> }>()
+    for (const r of filtered) {
+      let e = map.get(r.user_id)
+      if (!e) { e = { consultor: r.consultor, vhc: r.valor_hora_consultor, horas: 0, receita: 0, custo: 0, projs: new Set() }; map.set(r.user_id, e) }
+      e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.projs.add(r.project_id)
+    }
+    return [...map.entries()].map(([user_id, e]) => {
+      const horas = Math.round(e.horas * 100) / 100, receita = Math.round(e.receita * 100) / 100, custo = Math.round(e.custo * 100) / 100
+      const margem = Math.round((receita - custo) * 100) / 100
+      return {
+        key: `u${user_id}`, user_id, consultor: e.consultor, n_consultores: e.projs.size,
+        project_id: 0, projeto: '', cliente: '',
+        valor_hora_projeto: horas > 0 ? Math.round(receita / horas * 100) / 100 : 0, // R$/h projeto médio (mix)
+        valor_hora_consultor: e.vhc,
+        horas, receita, custo, margem, margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
+      }
+    })
+  }, [filtered])
 
-  // Árvore: "Consultor × Projeto" abre todos os projetos por padrão; "Por projeto" recolhe.
+  // Filhos (projetos) de cada consultor, ordenados por receita desc.
+  const childrenByConsultor = useMemo(() => {
+    const m = new Map<number, Row[]>()
+    for (const r of filtered) { const a = m.get(r.user_id) ?? []; a.push(r); m.set(r.user_id, a) }
+    for (const a of m.values()) a.sort((x, y) => y.receita - x.receita)
+    return m
+  }, [filtered])
+
+  // Pai conforme a visão: projeto (id = project_id) ou consultor (id = user_id).
+  const parentId = (r: DisplayRow) => visao === 'projeto' ? r.project_id : r.user_id
+  const childrenOf = (r: DisplayRow) => (visao === 'projeto' ? childrenByProject.get(r.project_id) : childrenByConsultor.get(r.user_id)) ?? []
+  const { sorted, thProps } = useTableSort(visao === 'projeto' ? projectRows : consultorRows)
+
+  // Árvore: começa recolhida (uma linha por pai); clique expande. Reseta ao trocar de visão.
   const [expanded, setExpanded] = useState<Set<number>>(new Set())
-  useEffect(() => {
-    setExpanded(visao === 'consultor' ? new Set(projectRows.map(p => p.project_id)) : new Set())
-  }, [visao, projectRows])
+  useEffect(() => { setExpanded(new Set()) }, [visao])
   const toggleRow = (pid: number) => setExpanded(prev => {
     const n = new Set(prev)
     if (n.has(pid)) n.delete(pid); else n.add(pid)
@@ -301,29 +333,32 @@ export default function RentabilidadePage() {
           <Table>
             <Thead>
               <tr>
-                <Th {...thProps('projeto')}>Projeto</Th><Th {...thProps('cliente')}>Cliente</Th>
-                <Th right {...thProps('n_consultores')}>Cons.</Th>
+                <Th {...thProps(visao === 'projeto' ? 'projeto' : 'consultor')}>{visao === 'projeto' ? 'Projeto' : 'Consultor'}</Th>
+                <Th {...thProps('cliente')}>Cliente</Th>
+                <Th right {...thProps('n_consultores')}>{visao === 'projeto' ? 'Cons.' : 'Proj.'}</Th>
                 <Th right {...thProps('horas')}>Horas</Th><Th right {...thProps('valor_hora_projeto')}>R$/h Proj.</Th>
-                <Th right {...thProps('valor_hora_consultor')}>Custo/h</Th>
+                <Th right {...thProps('valor_hora_consultor')}>{visao === 'projeto' ? 'Custo/h' : 'R$/h Cons.'}</Th>
                 <Th right {...thProps('receita')}>Receita</Th><Th right {...thProps('custo')}>Custo</Th><Th right {...thProps('margem')}>Margem</Th><Th right {...thProps('margem_pct')}>%</Th>
               </tr>
             </Thead>
             <Tbody>
               {sorted.map((r) => {
-                const isOpen = expanded.has(r.project_id)
-                const kids = childrenByProject.get(r.project_id) ?? []
+                const pid = parentId(r)
+                const isOpen = expanded.has(pid)
+                const kids = childrenOf(r)
+                const nomePai = visao === 'projeto' ? r.projeto : r.consultor
                 return (
                   <Fragment key={r.key}>
-                    <Tr onClick={() => toggleRow(r.project_id)}>
+                    <Tr onClick={() => toggleRow(pid)}>
                       <Td className="font-medium" style={{ color: 'var(--text)' }}>
                         <span className="inline-flex items-center gap-1.5">
                           {kids.length > 0
                             ? (isOpen ? <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={13} style={{ color: 'var(--text-muted)' }} />)
                             : <span style={{ display: 'inline-block', width: 13 }} />}
-                          <span className="truncate max-w-[240px]">{r.projeto}</span>
+                          <span className="truncate max-w-[240px]">{nomePai}</span>
                         </span>
                       </Td>
-                      <Td muted className="truncate max-w-[140px]">{r.cliente}</Td>
+                      <Td muted className="truncate max-w-[140px]">{visao === 'projeto' ? r.cliente : '—'}</Td>
                       <Td right muted className="tabular-nums">{r.n_consultores}</Td>
                       <Td right className="tabular-nums">{fmtH(r.horas)}</Td>
                       <Td right muted className="tabular-nums">{formatBRL(r.valor_hora_projeto)}</Td>
@@ -334,14 +369,14 @@ export default function RentabilidadePage() {
                       <Td right className="font-semibold tabular-nums" style={{ color: pctColor(r.margem_pct) }}>{r.margem_pct == null ? '—' : r.margem_pct + '%'}</Td>
                     </Tr>
                     {isOpen && kids.map(c => (
-                      <Tr key={`${r.key}:${c.user_id}`} baseBackground="var(--surface-hover)">
+                      <Tr key={`${r.key}:${visao === 'projeto' ? c.user_id : c.project_id}`} baseBackground="var(--surface-hover)">
                         <Td>
                           <span className="inline-flex items-center gap-1.5 pl-6" style={{ color: 'var(--text-muted)' }}>
                             <span className="text-zinc-600">↳</span>
-                            <span className="truncate max-w-[220px]">{c.consultor}</span>
+                            <span className="truncate max-w-[220px]">{visao === 'projeto' ? c.consultor : c.projeto}</span>
                           </span>
                         </Td>
-                        <Td muted>—</Td>
+                        <Td muted className="truncate max-w-[140px]">{visao === 'projeto' ? '—' : c.cliente}</Td>
                         <Td right muted></Td>
                         <Td right muted className="tabular-nums">{fmtH(c.horas)}</Td>
                         <Td right muted className="tabular-nums">{formatBRL(c.valor_hora_projeto)}</Td>
