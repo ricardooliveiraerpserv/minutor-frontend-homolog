@@ -270,7 +270,7 @@ export default function RentabilidadePage() {
     if (visao === 'clientes') {
       const data = clientesSorted.map(r => ({
         Cliente: r.cliente, CNPJ: r.cnpj, 'No Minutor': r.no_minutor ? 'Sim' : 'Não',
-        Horas: r.horas, Custo: r.custo, 'Receita (Minutor)': r.receita,
+        Horas: r.horas, Custo: r.custo,
         'Recebido (M+1)': r.recebido, 'Margem Real': r.margem_real, 'Margem Real %': r.margem_real_pct,
       }))
       const ws = XLSX.utils.json_to_sheet(data)
@@ -293,7 +293,7 @@ export default function RentabilidadePage() {
     if (visao === 'clientes') {
       const linhas = clientesSorted.map(r => `
         <tr><td>${r.cliente}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td><td>${fmtCnpj(r.cnpj)}</td>
-        <td class="r">${fmtH(r.horas)}</td><td class="r">${formatBRL(r.custo)}</td><td class="r">${formatBRL(r.receita)}</td>
+        <td class="r">${fmtH(r.horas)}</td><td class="r">${formatBRL(r.custo)}</td>
         <td class="r">${formatBRL(r.recebido)}</td><td class="r">${formatBRL(r.margem_real)}</td>
         <td class="r">${r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</td></tr>`).join('')
       const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Rentabilidade Clientes — ${fmtMes()}</title>
@@ -304,9 +304,9 @@ export default function RentabilidadePage() {
         @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>
         <h1>Rentabilidade por Cliente</h1>
         <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesSorted.length} cliente(s)</div>
-        <table><thead><tr><th>Cliente</th><th>CNPJ</th><th class="r">Horas</th><th class="r">Custo</th><th class="r">Receita</th><th class="r">Recebido (M+1)</th><th class="r">Margem Real</th><th class="r">%</th></tr></thead>
+        <table><thead><tr><th>Cliente</th><th>CNPJ</th><th class="r">Horas</th><th class="r">Custo</th><th class="r">Recebido (M+1)</th><th class="r">Margem Real</th><th class="r">%</th></tr></thead>
         <tbody>${linhas}</tbody>
-        <tfoot><tr><td colspan="3" class="r">Total</td><td class="r">${formatBRL(clientesTot.custo)}</td><td class="r">${formatBRL(clientesTot.receita)}</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.margemReal)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
+        <tfoot><tr><td colspan="3" class="r">Total</td><td class="r">${formatBRL(clientesTot.custo)}</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.margemReal)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
         <script>window.onload=function(){window.print();}</script></body></html>`
       const w = window.open('', '_blank')
       if (w) { w.document.write(html); w.document.close() }
@@ -419,7 +419,7 @@ export default function RentabilidadePage() {
         {/* Cards de total */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           {(visao === 'clientes' ? [
-            { label: 'Receita (Minutor)', value: formatBRL(clientesTot.receita), color: 'var(--text)' },
+            // Receita (Minutor) removida: p/ cliente a apuração é o recebido do Keruak (M+1).
             { label: 'Custo', value: formatBRL(clientesTot.custo), color: 'var(--text)' },
             { label: 'Recebido (M+1)', value: formatBRL(clientesTot.recebido), color: 'var(--brand-primary)' },
             { label: 'Margem Real %', value: clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%', color: pctColor(clientesTot.pct) },
@@ -438,7 +438,7 @@ export default function RentabilidadePage() {
 
         {visao === 'clientes' ? (
           clientesLoading && clientesRows.length === 0 ? (
-            <SkeletonTable rows={8} cols={8} />
+            <SkeletonTable rows={8} cols={7} />
           ) : clientesFiltered.length === 0 ? (
             <EmptyState icon={TrendingUp} title="Sem dados" description="Nenhum cliente/recebimento para o mês/filtros." />
           ) : (
@@ -449,7 +449,6 @@ export default function RentabilidadePage() {
                   <Th {...cliThProps('cnpj')}>CNPJ</Th>
                   <Th right {...cliThProps('horas')}>Horas</Th>
                   <Th right {...cliThProps('custo')}>Custo</Th>
-                  <Th right {...cliThProps('receita')}>Receita (Minutor)</Th>
                   <Th right {...cliThProps('recebido')}>Recebido (M+1)</Th>
                   <Th right {...cliThProps('margem_real')}>Margem Real</Th>
                   <Th right {...cliThProps('margem_real_pct')}>%</Th>
@@ -465,7 +464,6 @@ export default function RentabilidadePage() {
                     <Td muted className="tabular-nums">{fmtCnpj(r.cnpj)}</Td>
                     <Td right muted className="tabular-nums">{fmtH(r.horas)}</Td>
                     <Td right muted className="tabular-nums">{formatBRL(r.custo)}</Td>
-                    <Td right className="tabular-nums">{formatBRL(r.receita)}</Td>
                     <Td right className="font-semibold tabular-nums" style={{ color: 'var(--brand-primary)' }}>{formatBRL(r.recebido)}</Td>
                     <Td right className="font-semibold tabular-nums">{formatBRL(r.margem_real)}</Td>
                     <Td right className="font-semibold tabular-nums" style={{ color: pctColor(r.margem_real_pct) }}>{r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</Td>
