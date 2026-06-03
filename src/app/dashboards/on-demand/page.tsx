@@ -62,7 +62,8 @@ interface ProjectItem {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function fmtH(h: number | null | undefined) { return (h ?? 0).toFixed(1) }
+// 2 casas p/ bater com o "Valor a pagar" (horas decimais × valor/hora). Ex.: 49,42h × 148 = 7.314,16.
+function fmtH(h: number | null | undefined) { return (h ?? 0).toFixed(2) }
 function fmtBRL(v: number | null | undefined) {
   if (v == null) return '—'
   return formatBRL(v ?? 0)
