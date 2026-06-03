@@ -79,10 +79,9 @@ function fmtTimeHM(t: string | null | undefined): string {
   return t.length >= 5 ? t.slice(0, 5) : t
 }
 
-function minutesToHHMM(minutes: number): string {
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return `${h}:${String(m).padStart(2, '0')}`
+// Apuração 100% em horas DECIMAIS (não HH:MM) — ex.: 8h30 = 8,50h → "8.50h".
+function fmtHoras(minutes: number): string {
+  return `${((minutes ?? 0) / 60).toFixed(2)}h`
 }
 
 function parseRequester(v: RawTimesheet['ticket_solicitante']): string {
@@ -277,7 +276,7 @@ export default function RelatorioApontamentosPage() {
     () => items.reduce((acc, t) => acc + (t.effort_minutes ?? 0), 0),
     [items],
   )
-  const totalHHMM = minutesToHHMM(totalMinutes)
+  const totalHoras = fmtHoras(totalMinutes)
   const emittedAt = fmtDateBR(today.toISOString().slice(0, 10))
 
   // Ordenação por coluna (só na TABELA da tela; o relatório/PDF mantém a ordem por serviço).
@@ -318,7 +317,7 @@ export default function RelatorioApontamentosPage() {
       description:    previewText(t.observation),
       start_time:     fmtTimeHM(t.start_time),
       end_time:       fmtTimeHM(t.end_time),
-      effort_hours:   t.effort_hours ?? minutesToHHMM(t.effort_minutes ?? 0),
+      effort_hours:   fmtHoras(t.effort_minutes ?? 0),
       effort_decimal: Math.round(((t.effort_minutes ?? 0) / 60) * 100) / 100,
       date_service:   fmtDateBR(t.date),
     }))
@@ -329,7 +328,7 @@ export default function RelatorioApontamentosPage() {
       client:       customerName,
       period:       periodInfo.label,
       emittedAt,
-      totalHours:   totalHHMM,
+      totalHours:   totalHoras,
       totalRecords: items.length,
       ticketHeader: isVedamotors ? 'Ticket ERPSERV' : 'Ticket',
       titleHeader:  isVedamotors ? 'Ticket Vedamotors' : 'Título',
@@ -592,7 +591,7 @@ export default function RelatorioApontamentosPage() {
               <div>Competência: <span style={{ color: 'var(--brand-text)' }}>{periodInfo.label || '—'}</span></div>
               <div>Emitido em: <span style={{ color: 'var(--brand-text)' }}>{emittedAt}</span></div>
               <div>
-                Total: <span className="font-semibold" style={{ color: 'var(--brand-primary)' }}>{totalHHMM}</span>
+                Total: <span className="font-semibold" style={{ color: 'var(--brand-primary)' }}>{totalHoras}</span>
                 <span className="mx-2" style={{ color: 'var(--brand-subtle)' }}>•</span>
                 <span style={{ color: 'var(--brand-text)' }}>{items.length}</span> registro{items.length === 1 ? '' : 's'}
               </div>
@@ -714,7 +713,7 @@ export default function RelatorioApontamentosPage() {
                                   <td className="px-3 pt-2 pb-1 text-xs text-gray-700 text-center whitespace-nowrap">{fmtTimeHM(t.start_time) || '—'}</td>
                                   <td className="px-3 pt-2 pb-1 text-xs text-gray-700 text-center whitespace-nowrap">{fmtTimeHM(t.end_time) || '—'}</td>
                                   <td className="px-3 pt-2 pb-1 text-xs text-center font-semibold text-gray-800 tabular-nums whitespace-nowrap">
-                                    {t.effort_hours ?? minutesToHHMM(t.effort_minutes ?? 0)}
+                                    {fmtHoras(t.effort_minutes ?? 0)}
                                   </td>
                                   <td className="px-3 pt-2 pb-1 text-xs text-gray-700 text-center whitespace-nowrap">{fmtDateBR(t.date)}</td>
                                 </tr>
@@ -729,7 +728,7 @@ export default function RelatorioApontamentosPage() {
                           })}
                           <tr style={{ background: '#faf9ff', borderBottom: '2px solid #c4b5fd', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                             <td colSpan={7} className="px-3 py-1.5 text-right text-xs font-semibold text-gray-600">Subtotal — {g.name} ({g.rows.length} reg.)</td>
-                            <td className="px-3 py-1.5 text-right text-xs font-bold tabular-nums" style={{ color: '#5b21b6' }}>{minutesToHHMM(g.mins)}</td>
+                            <td className="px-3 py-1.5 text-right text-xs font-bold tabular-nums" style={{ color: '#5b21b6' }}>{fmtHoras(g.mins)}</td>
                             <td />
                           </tr>
                         </Fragment>
@@ -742,7 +741,7 @@ export default function RelatorioApontamentosPage() {
                         Total ({items.length} registro{items.length === 1 ? '' : 's'})
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-bold tabular-nums" style={{ color: '#5b21b6' }}>
-                        {totalHHMM}
+                        {totalHoras}
                       </td>
                       <td />
                     </tr>
@@ -782,10 +781,10 @@ export default function RelatorioApontamentosPage() {
                           <td className="px-3 py-2 text-xs text-gray-700">{tk.title ?? '—'}</td>
                           <td className="px-3 py-2 text-xs text-gray-700">{tk.requester ?? '—'}</td>
                           <td className="px-3 py-2 text-xs text-right font-semibold text-gray-800 tabular-nums whitespace-nowrap">
-                            {minutesToHHMM(tk.period_minutes)}
+                            {fmtHoras(tk.period_minutes)}
                           </td>
                           <td className="px-3 py-2 text-xs text-right font-semibold tabular-nums whitespace-nowrap" style={{ color: '#5b21b6' }}>
-                            {minutesToHHMM(tk.lifetime_minutes)}
+                            {fmtHoras(tk.lifetime_minutes)}
                           </td>
                         </tr>
                       ))}
@@ -796,10 +795,10 @@ export default function RelatorioApontamentosPage() {
                           Totais ({ticketSummary.length} ticket{ticketSummary.length === 1 ? '' : 's'})
                         </td>
                         <td className="px-3 py-2 text-right text-sm font-bold tabular-nums text-gray-800 whitespace-nowrap">
-                          {minutesToHHMM(ticketSummary.reduce((acc, t) => acc + t.period_minutes, 0))}
+                          {fmtHoras(ticketSummary.reduce((acc, t) => acc + t.period_minutes, 0))}
                         </td>
                         <td className="px-3 py-2 text-right text-sm font-bold tabular-nums whitespace-nowrap" style={{ color: '#5b21b6' }}>
-                          {minutesToHHMM(ticketSummary.reduce((acc, t) => acc + t.lifetime_minutes, 0))}
+                          {fmtHoras(ticketSummary.reduce((acc, t) => acc + t.lifetime_minutes, 0))}
                         </td>
                       </tr>
                     </tfoot>
@@ -879,7 +878,7 @@ export default function RelatorioApontamentosPage() {
                   </Td>
                   <Td className="text-center">{fmtTimeHM(t.start_time)}</Td>
                   <Td className="text-center">{fmtTimeHM(t.end_time)}</Td>
-                  <Td right className="font-semibold">{t.effort_hours ?? minutesToHHMM(t.effort_minutes ?? 0)}</Td>
+                  <Td right className="font-semibold">{fmtHoras(t.effort_minutes ?? 0)}</Td>
                 </Tr>
               ))}
               <tr style={{ background: 'var(--brand-bg)', borderTop: '2px solid var(--brand-border)' }}>
@@ -891,7 +890,7 @@ export default function RelatorioApontamentosPage() {
                   Total
                 </td>
                 <td className="px-5 py-3.5 text-right font-bold" style={{ color: 'var(--brand-primary)' }}>
-                  {totalHHMM}
+                  {totalHoras}
                 </td>
               </tr>
             </Tbody>
