@@ -786,7 +786,7 @@ function toHHMM(mins: number): string {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'sustentacao'; embedded?: boolean; triagemPadrao?: boolean } = {}) {
+function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'sustentacao' | 'investimento'; embedded?: boolean; triagemPadrao?: boolean } = {}) {
   // Filtro de dimensão pra modo Triagem: '' = todos (OR), ou 'user'|'customer'|'project'
   const [triagemField, setTriagemField] = useState<string>('')
   const { user } = useAuth()
@@ -817,7 +817,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
       origins:          [] as string[],
       serviceTypeIds:   [] as string[],
       contractTypeIds:  [] as string[],
-      categoriaServico: '' as '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento',
+      categoriaServico: (scope === 'investimento' ? 'investimento' : '') as '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento',
       customerIds:      spCustomerId ? [spCustomerId] : [] as string[],
       coordinatorIds:   [] as string[],
       executiveIds:     [] as string[],
@@ -1019,7 +1019,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
     origins.forEach(v => p.append('origin[]', v))
     serviceTypeIds.forEach(v => p.append('service_type_id[]', v))
     contractTypeIds.forEach(v => p.append('contract_type_id[]', v))
-    if (categoriaServico) p.set('categoria_servico', categoriaServico)
+    if (scope === 'investimento') p.set('categoria_servico', 'investimento')
+    else if (categoriaServico) p.set('categoria_servico', categoriaServico)
     if (isCliente && user?.customer_id) p.set('customer_id', String(user.customer_id))
     else customerIds.forEach(v => p.append('customer_id[]', v))
     coordinatorIds.forEach(v => p.append('coordinator_id[]', v))
@@ -1038,7 +1039,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
     if (projectId)     p.set('project_id', projectId)
     projectIds.forEach(v => p.append('project_id[]', v))
     if (sortField)     p.set('order', sortDir === 'desc' ? `-${sortField}` : sortField)
-    if (scope)         p.set('scope', scope)
+    if (scope === 'sustentacao') p.set('scope', scope)
     if (triagemPadrao) p.set('triagem_padrao', '1')
     if (triagemPadrao && triagemField) p.set('triagem_field', triagemField)
     return p.toString()
@@ -1289,7 +1290,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
                 onChange={(f, t) => { setStartDate(f); setEndDate(t); setRefMonth(null); setRefYear(null); resetPage() }}
               />
             )}
-            {!isCliente && ([
+            {!isCliente && scope !== 'investimento' && ([
               { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
               { id: 'projeto',      label: 'Projeto',     color: '#00F5FF',            bg: 'rgba(0,245,255,0.12)',   border: 'rgba(0,245,255,0.35)' },
               { id: 'bizify',       label: 'Bizify',      color: '#a78bfa',            bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },
@@ -1862,7 +1863,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
 }
 
 export interface TimesheetsScreenProps {
-  scope?: 'sustentacao'
+  scope?: 'sustentacao' | 'investimento'
   embedded?: boolean
   /** Filtra timesheets atribuídos ao Usuário/Cliente/Projeto Padrão Movidesk (OR). Usado pela rotina Triagem. */
   triagemPadrao?: boolean

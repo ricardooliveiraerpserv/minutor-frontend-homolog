@@ -310,6 +310,10 @@ function SidebarInner({ user }: { user: User }) {
       // Meu Painel — primeiro item para TODOS os coordenadores
       nav.unshift({ type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard })
 
+      // Investimento Interno — disponível para TODOS os coordenadores (apontamentos,
+      // aprovação e gestão dos investimentos internos / leads da ERPSERV).
+      nav.push({ type: 'item', label: 'Investimento Interno', href: '/investimento-comercial', icon: TrendingUp })
+
       // Demandas e Projetos — posição 2 para coordenador de projetos
       // ("Gestão de Projetos" foi removida — governança ficou no painel/Demandas)
       if (user?.coordinator_type === 'projetos') {

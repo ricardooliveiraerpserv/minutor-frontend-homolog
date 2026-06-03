@@ -560,7 +560,7 @@ function ExpApproveModal({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export interface ApprovalsScreenProps {
-  scope?: 'sustentacao'
+  scope?: 'sustentacao' | 'investimento'
   embedded?: boolean
 }
 
@@ -686,9 +686,10 @@ export function ApprovalsScreen({ scope, embedded }: ApprovalsScreenProps = {}) 
     if (executiveId)   p.set('executive_id',   executiveId)
     if (projectId)     p.set('project_id',     projectId)
     if (customerId)    p.set('customer_id',    customerId)
-    if (categoriaServico) p.set('categoria_servico', categoriaServico)
+    if (scope === 'investimento') p.set('categoria_servico', 'investimento')
+    else if (categoriaServico) p.set('categoria_servico', categoriaServico)
     return p.toString()
-  }, [dateFrom, dateTo, userId, coordinatorId, executiveId, projectId, customerId, categoriaServico, isCoordenador, coordScope, user?.id])
+  }, [dateFrom, dateTo, userId, coordinatorId, executiveId, projectId, customerId, categoriaServico, isCoordenador, coordScope, user?.id, scope])
 
   const loadTs = useCallback(async () => {
     setTsLoading(true)
@@ -696,7 +697,7 @@ export function ApprovalsScreen({ scope, embedded }: ApprovalsScreenProps = {}) 
       const p = new URLSearchParams(filterParams)
       p.set('page', String(tsPage)); p.set('per_page', '100')
       if (tsStatus) p.set('status', tsStatus)
-      if (scope)    p.set('scope', scope)
+      if (scope === 'sustentacao') p.set('scope', scope)
       const r = await api.get<any>(`/approvals/timesheets?${p}`)
       setTsItems(Array.isArray(r?.data) ? r.data : [])
       setTsPag(r?.pagination ?? null)
@@ -996,7 +997,7 @@ export function ApprovalsScreen({ scope, embedded }: ApprovalsScreenProps = {}) 
                   onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null) }}
                 />
               )}
-              {([
+              {scope !== 'investimento' && ([
                 { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
                 { id: 'projeto',      label: 'Projeto',     color: '#00F5FF',            bg: 'rgba(0,245,255,0.12)',   border: 'rgba(0,245,255,0.35)' },
                 { id: 'bizify',       label: 'Bizify',      color: '#a78bfa',            bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },

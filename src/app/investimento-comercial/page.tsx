@@ -11,6 +11,8 @@ import {
   CalendarPlus, CalendarOff,
 } from 'lucide-react'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, Button, SkeletonTable, EmptyState } from '@/components/ds'
+import { TimesheetsScreen } from '@/components/screens/TimesheetsScreen'
+import { ApprovalsScreen } from '@/components/screens/ApprovalsScreen'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -86,10 +88,12 @@ function MiniBar({ value, max, color = 'var(--primary)' }: { value: number; max:
 
 // ─── Abas ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'projetos' | 'clientes' | 'consultores' | 'mensal' | 'detalhe'
+type Tab = 'projetos' | 'apontamentos' | 'aprovacoes' | 'clientes' | 'consultores' | 'mensal' | 'detalhe'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'projetos',    label: 'Projetos',         icon: TrendingUp as LucideIcon },
+  { id: 'apontamentos', label: 'Apontamentos',     icon: Clock      as LucideIcon },
+  { id: 'aprovacoes',  label: 'Aprovações',        icon: Check      as LucideIcon },
   { id: 'clientes',    label: 'Por Cliente',       icon: Building2  as LucideIcon },
   { id: 'consultores', label: 'Por Consultor',     icon: User       as LucideIcon },
   { id: 'mensal',      label: 'Evolução Mensal',   icon: BarChart2  as LucideIcon },
@@ -214,8 +218,12 @@ export default function InvestimentoComercialPage() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [expandedConsultant, setExpandedConsultant] = useState<number | null>(null)
 
+  const isAdmin = user?.type === 'admin'
+
   useEffect(() => {
-    if (user && user.type !== 'admin') router.replace('/dashboard')
+    // Rotina disponível para admin e TODOS os coordenadores. Ações de gestão
+    // (criar/editar/alocar/abrir mês) ficam só para admin (gated por isAdmin).
+    if (user && user.type !== 'admin' && user.type !== 'coordenador') router.replace('/dashboard')
   }, [user, router])
 
   const reloadProjects = async () => {
@@ -230,12 +238,14 @@ export default function InvestimentoComercialPage() {
 
   useEffect(() => {
     let cancelled = false
+    // Cada request com catch próprio: falha de uma lista (ex.: /users sem permissão
+    // para o coordenador) não pode derrubar a lista de projetos nem as abas novas.
     Promise.all([
-      api.get<any>('/projects?only_investimento_comercial=true&pageSize=2000&gestao=true&with_team=true'),
-      api.get<any>('/users?exclude_type=cliente&pageSize=500'),
-      api.get<any>('/consultant-groups?pageSize=200&with_users=true'),
-      api.get<any>('/users?type=coordenador&pageSize=300'),
-      api.get<any>('/users?type=admin&pageSize=100'),
+      api.get<any>('/projects?only_investimento_comercial=true&pageSize=2000&gestao=true&with_team=true').catch(() => ({})),
+      api.get<any>('/users?exclude_type=cliente&pageSize=500').catch(() => ({})),
+      api.get<any>('/consultant-groups?pageSize=200&with_users=true').catch(() => ({})),
+      api.get<any>('/users?type=coordenador&pageSize=300').catch(() => ({})),
+      api.get<any>('/users?type=admin&pageSize=100').catch(() => ({})),
     ]).then(([projRes, usersRes, groupsRes, coordsRes, adminsRes]) => {
       if (cancelled) return
       const rawProjects: any[] = projRes?.items ?? projRes?.data ?? []
@@ -410,24 +420,26 @@ export default function InvestimentoComercialPage() {
         </Td>
         <Td>
           <div className="flex items-center gap-1 justify-end">
-            {depth === 0 && project.categoria_interna === 'Comercial' && (
-              <Button size="sm" variant="ghost" onClick={() => addLead(project)} aria-label="Adicionar lead">
-                <Plus size={13} className="mr-1" /> Lead
+            {isAdmin && (<>
+              {depth === 0 && project.categoria_interna === 'Comercial' && (
+                <Button size="sm" variant="ghost" onClick={() => addLead(project)} aria-label="Adicionar lead">
+                  <Plus size={13} className="mr-1" /> Lead
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => openEditModal(project)} aria-label="Editar projeto">
+                <Pencil size={13} className="mr-1" /> Editar
               </Button>
-            )}
-            <Button size="sm" variant="ghost" onClick={() => openEditModal(project)} aria-label="Editar projeto">
-              <Pencil size={13} className="mr-1" /> Editar
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => openModal(project)}>
-              <Users size={13} className="mr-1" /> Alocação
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setOpenPeriodProject(project)}
-              aria-label={project.has_open_period ? 'Fechar mês' : 'Abrir mês'}
-              style={project.has_open_period ? { color: 'var(--warning)' } : undefined}>
-              {project.has_open_period
-                ? <><CalendarOff size={13} className="mr-1" /> Fechar Mês</>
-                : <><CalendarPlus size={13} className="mr-1" /> Abrir Mês</>}
-            </Button>
+              <Button size="sm" variant="ghost" onClick={() => openModal(project)}>
+                <Users size={13} className="mr-1" /> Alocação
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setOpenPeriodProject(project)}
+                aria-label={project.has_open_period ? 'Fechar mês' : 'Abrir mês'}
+                style={project.has_open_period ? { color: 'var(--warning)' } : undefined}>
+                {project.has_open_period
+                  ? <><CalendarOff size={13} className="mr-1" /> Fechar Mês</>
+                  : <><CalendarPlus size={13} className="mr-1" /> Abrir Mês</>}
+              </Button>
+            </>)}
           </div>
         </Td>
       </Tr>
@@ -753,12 +765,14 @@ export default function InvestimentoComercialPage() {
                 <span> · <span className="font-semibold" style={{ color: 'var(--text)' }}>{fmtHours(totalHours)}</span> total</span>
               )}
             </span>
-            <Button size="sm" variant="primary" onClick={() => {
-              setLeadMode(false); setNewProjectParent(''); setNewProjectCategoria('Projeto')
-              setNewProjectName(''); setNewProjectApprover(''); setNewProjectOpen(true)
-            }}>
-              <Plus size={13} className="mr-1" /> Novo Projeto Interno (ERPSERV)
-            </Button>
+            {isAdmin && (
+              <Button size="sm" variant="primary" onClick={() => {
+                setLeadMode(false); setNewProjectParent(''); setNewProjectCategoria('Projeto')
+                setNewProjectName(''); setNewProjectApprover(''); setNewProjectOpen(true)
+              }}>
+                <Plus size={13} className="mr-1" /> Novo Projeto Interno (ERPSERV)
+              </Button>
+            )}
           </>
         )}
       </div>
@@ -809,6 +823,8 @@ export default function InvestimentoComercialPage() {
 
       {/* Conteúdo */}
       {activeTab === 'projetos'    && renderProjetos()}
+      {activeTab === 'apontamentos' && <TimesheetsScreen scope="investimento" embedded />}
+      {activeTab === 'aprovacoes'  && <ApprovalsScreen scope="investimento" embedded />}
       {activeTab === 'clientes'    && renderClientes()}
       {activeTab === 'consultores' && renderConsultores()}
       {activeTab === 'mensal'      && renderMensal()}
