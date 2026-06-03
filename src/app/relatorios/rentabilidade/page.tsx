@@ -18,6 +18,10 @@ interface Row {
   horas: number; receita: number; custo: number; margem: number; margem_pct: number | null
 }
 
+// Linha exibida na tabela. Na visão "consultor" é a própria Row; na visão
+// "projeto" é o consolidado de todos os consultores daquele projeto (custo/h = médio).
+interface DisplayRow extends Row { key: string; n_consultores: number }
+
 const fmtH = (h: number) => `${h.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}h`
 const pctColor = (p: number | null) => p == null ? 'var(--text-light)' : p < 0 ? 'var(--danger)' : p < 20 ? 'var(--warning)' : 'var(--success)'
 
@@ -37,6 +41,7 @@ export default function RentabilidadePage() {
   const [fCliente, setFCliente]     = useState('')
   const [fProjeto, setFProjeto]     = useState('')
   const [fConsultor, setFConsultor] = useState('')
+  const [visao, setVisao] = useState<'consultor' | 'projeto'>('consultor')
 
   const monthsToFetch = useMemo(() => {
     if (mode === 'mes') return [`${year}-${String(month).padStart(2, '0')}`]
@@ -102,7 +107,29 @@ export default function RentabilidadePage() {
     return true
   }), [rows, busca, soReceita, fCliente, fProjeto, fConsultor])
 
-  const { sorted, thProps } = useTableSort(filtered)
+  // Visão "projeto": consolida as linhas filtradas por projeto (soma horas/receita/custo,
+  // conta consultores distintos, custo/h = custo total ÷ horas).
+  const displayRows = useMemo<DisplayRow[]>(() => {
+    if (visao === 'consultor') return filtered.map(r => ({ ...r, key: `${r.user_id}:${r.project_id}`, n_consultores: 1 }))
+    const map = new Map<number, { projeto: string; cliente: string; vhp: number; horas: number; receita: number; custo: number; users: Set<number> }>()
+    for (const r of filtered) {
+      let e = map.get(r.project_id)
+      if (!e) { e = { projeto: r.projeto, cliente: r.cliente, vhp: r.valor_hora_projeto, horas: 0, receita: 0, custo: 0, users: new Set() }; map.set(r.project_id, e) }
+      e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.users.add(r.user_id)
+    }
+    return [...map.entries()].map(([project_id, e]) => {
+      const horas = Math.round(e.horas * 100) / 100, receita = Math.round(e.receita * 100) / 100, custo = Math.round(e.custo * 100) / 100
+      const margem = Math.round((receita - custo) * 100) / 100
+      return {
+        key: `p${project_id}`, user_id: 0, consultor: '', n_consultores: e.users.size,
+        project_id, projeto: e.projeto, cliente: e.cliente,
+        valor_hora_projeto: e.vhp, valor_hora_consultor: horas > 0 ? Math.round(custo / horas * 100) / 100 : 0,
+        horas, receita, custo, margem, margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
+      }
+    })
+  }, [filtered, visao])
+
+  const { sorted, thProps } = useTableSort(displayRows)
 
   const tot = useMemo(() => {
     const receita = filtered.reduce((s, r) => s + r.receita, 0)
@@ -121,25 +148,27 @@ export default function RentabilidadePage() {
   const periodoLabel = monthsToFetch.length === 1 ? monthsToFetch[0] : `${monthsToFetch[0]}_a_${monthsToFetch[monthsToFetch.length - 1]}`
 
   const exportExcel = () => {
-    const data = sorted.map(r => ({
-      Consultor: r.consultor, Projeto: r.projeto, Cliente: r.cliente,
-      Horas: r.horas, 'R$/h Projeto': r.valor_hora_projeto, 'R$/h Consultor': r.valor_hora_consultor,
-      Receita: r.receita, Custo: r.custo, Margem: r.margem, 'Margem %': r.margem_pct,
-    }))
+    const data = sorted.map(r => visao === 'projeto'
+      ? { Projeto: r.projeto, Cliente: r.cliente, Consultores: r.n_consultores, Horas: r.horas, 'R$/h Projeto': r.valor_hora_projeto, 'Custo/h médio': r.valor_hora_consultor, Receita: r.receita, Custo: r.custo, Margem: r.margem, 'Margem %': r.margem_pct }
+      : { Consultor: r.consultor, Projeto: r.projeto, Cliente: r.cliente, Horas: r.horas, 'R$/h Projeto': r.valor_hora_projeto, 'R$/h Consultor': r.valor_hora_consultor, Receita: r.receita, Custo: r.custo, Margem: r.margem, 'Margem %': r.margem_pct })
     const ws = XLSX.utils.json_to_sheet(data)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Rentabilidade')
-    XLSX.writeFile(wb, `rentabilidade_${periodoLabel}.xlsx`)
+    XLSX.writeFile(wb, `rentabilidade_${visao}_${periodoLabel}.xlsx`)
   }
 
   const exportPdf = () => {
     const linhas = sorted.map(r => `
       <tr>
-        <td>${r.consultor}</td><td>${r.projeto}</td><td>${r.cliente}</td>
+        ${visao === 'consultor' ? `<td>${r.consultor}</td>` : ''}<td>${r.projeto}</td><td>${r.cliente}</td>
+        ${visao === 'projeto' ? `<td class="r">${r.n_consultores}</td>` : ''}
         <td class="r">${fmtH(r.horas)}</td><td class="r">${formatBRL(r.valor_hora_projeto)}</td><td class="r">${formatBRL(r.valor_hora_consultor)}</td>
         <td class="r">${formatBRL(r.receita)}</td><td class="r">${formatBRL(r.custo)}</td><td class="r">${formatBRL(r.margem)}</td>
         <td class="r">${r.margem_pct == null ? '—' : r.margem_pct + '%'}</td>
       </tr>`).join('')
+    const thead = visao === 'projeto'
+      ? '<th>Projeto</th><th>Cliente</th><th class="r">Cons.</th><th class="r">Horas</th><th class="r">R$/h Proj</th><th class="r">Custo/h</th><th class="r">Receita</th><th class="r">Custo</th><th class="r">Margem</th><th class="r">%</th>'
+      : '<th>Consultor</th><th>Projeto</th><th>Cliente</th><th class="r">Horas</th><th class="r">R$/h Proj</th><th class="r">R$/h Cons</th><th class="r">Receita</th><th class="r">Custo</th><th class="r">Margem</th><th class="r">%</th>'
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Rentabilidade — ${fmtMes()}</title>
       <style>
         body{font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;font-size:11px;padding:20px;}
@@ -149,8 +178,8 @@ export default function RentabilidadePage() {
         @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
       </style></head><body>
       <h1>Relatório de Rentabilidade</h1>
-      <div class="sub">${fmtMes()} · ${filtered.length} linha(s)</div>
-      <table><thead><tr><th>Consultor</th><th>Projeto</th><th>Cliente</th><th class="r">Horas</th><th class="r">R$/h Proj</th><th class="r">R$/h Cons</th><th class="r">Receita</th><th class="r">Custo</th><th class="r">Margem</th><th class="r">%</th></tr></thead>
+      <div class="sub">${fmtMes()} · ${visao === 'projeto' ? 'por projeto' : 'consultor × projeto'} · ${sorted.length} linha(s)</div>
+      <table><thead><tr>${thead}</tr></thead>
       <tbody>${linhas}</tbody>
       <tfoot><tr><td colspan="6" class="r">Total</td><td class="r">${formatBRL(tot.receita)}</td><td class="r">${formatBRL(tot.custo)}</td><td class="r">${formatBRL(tot.margem)}</td><td class="r">${tot.pct == null ? '—' : tot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
       <script>window.onload=function(){window.print();}</script></body></html>`
@@ -164,7 +193,7 @@ export default function RentabilidadePage() {
         <PageHeader
           icon={TrendingUp}
           title="Rentabilidade"
-          subtitle="Receita, custo e margem por consultor × projeto"
+          subtitle={visao === 'projeto' ? 'Receita, custo e margem por projeto' : 'Receita, custo e margem por consultor × projeto'}
           actions={
             <div className="flex items-center gap-2 flex-wrap">
               <div className="inline-flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
@@ -191,6 +220,17 @@ export default function RentabilidadePage() {
         />
 
         <div className="flex flex-wrap items-end gap-3 mb-4">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Visão</p>
+            <div className="inline-flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              {([['consultor', 'Consultor × Projeto'], ['projeto', 'Por projeto']] as const).map(([v, label], i) => (
+                <button key={v} onClick={() => setVisao(v)} className="px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap"
+                  style={{ background: visao === v ? 'var(--primary)' : 'transparent', color: visao === v ? 'var(--primary-fg)' : 'var(--text-muted)', borderLeft: i > 0 ? '1px solid var(--border)' : undefined }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="min-w-[180px]">
             <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Cliente</p>
             <SearchSelect value={fCliente} onChange={setFCliente} options={[{ id: '', name: 'Todos os clientes' }, ...optClientes]} placeholder="Todos os clientes" />
@@ -236,17 +276,21 @@ export default function RentabilidadePage() {
           <Table>
             <Thead>
               <tr>
-                <Th {...thProps('consultor')}>Consultor</Th><Th {...thProps('projeto')}>Projeto</Th><Th {...thProps('cliente')}>Cliente</Th>
-                <Th right {...thProps('horas')}>Horas</Th><Th right {...thProps('valor_hora_projeto')}>R$/h Proj.</Th><Th right {...thProps('valor_hora_consultor')}>R$/h Cons.</Th>
+                {visao === 'consultor' && <Th {...thProps('consultor')}>Consultor</Th>}
+                <Th {...thProps('projeto')}>Projeto</Th><Th {...thProps('cliente')}>Cliente</Th>
+                {visao === 'projeto' && <Th right {...thProps('n_consultores')}>Cons.</Th>}
+                <Th right {...thProps('horas')}>Horas</Th><Th right {...thProps('valor_hora_projeto')}>R$/h Proj.</Th>
+                <Th right {...thProps('valor_hora_consultor')}>{visao === 'projeto' ? 'Custo/h' : 'R$/h Cons.'}</Th>
                 <Th right {...thProps('receita')}>Receita</Th><Th right {...thProps('custo')}>Custo</Th><Th right {...thProps('margem')}>Margem</Th><Th right {...thProps('margem_pct')}>%</Th>
               </tr>
             </Thead>
             <Tbody>
-              {sorted.map((r, i) => (
-                <Tr key={i}>
-                  <Td className="font-medium" style={{ color: 'var(--text)' }}>{r.consultor}</Td>
-                  <Td muted className="truncate max-w-[200px]">{r.projeto}</Td>
+              {sorted.map((r) => (
+                <Tr key={r.key}>
+                  {visao === 'consultor' && <Td className="font-medium" style={{ color: 'var(--text)' }}>{r.consultor}</Td>}
+                  <Td className={`truncate ${visao === 'projeto' ? 'font-medium max-w-[260px]' : 'max-w-[200px]'}`} style={{ color: visao === 'projeto' ? 'var(--text)' : 'var(--text-muted)' }}>{r.projeto}</Td>
                   <Td muted className="truncate max-w-[140px]">{r.cliente}</Td>
+                  {visao === 'projeto' && <Td right muted className="tabular-nums">{r.n_consultores}</Td>}
                   <Td right className="tabular-nums">{fmtH(r.horas)}</Td>
                   <Td right muted className="tabular-nums">{formatBRL(r.valor_hora_projeto)}</Td>
                   <Td right muted className="tabular-nums">{formatBRL(r.valor_hora_consultor)}</Td>
