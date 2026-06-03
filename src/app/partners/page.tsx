@@ -24,6 +24,7 @@ interface PartnerItem {
   active: boolean
   pricing_type: 'fixed' | 'variable'
   hourly_rate?: string | null
+  contract_type?: 'cooperado' | 'clt' | 'pj' | null
 }
 
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
@@ -53,7 +54,7 @@ function TableSkeleton() {
   )
 }
 
-const EMPTY_FORM = { name: '', document: '', email: '', phone: '', active: true, pricing_type: 'fixed' as 'fixed' | 'variable', hourly_rate: '' }
+const EMPTY_FORM = { name: '', document: '', email: '', phone: '', active: true, pricing_type: 'fixed' as 'fixed' | 'variable', hourly_rate: '', contract_type: '' as '' | 'cooperado' | 'clt' | 'pj' }
 
 export default function PartnersPage() {
   const { user } = useAuth()
@@ -129,6 +130,7 @@ export default function PartnersPage() {
       active: item.active,
       pricing_type: item.pricing_type ?? 'fixed',
       hourly_rate: item.hourly_rate ?? '',
+      contract_type: item.contract_type ?? '',
     })
     setModal({ open: true, item })
   }
@@ -141,9 +143,10 @@ export default function PartnersPage() {
         document:     form.document || null,
         email:        form.email || null,
         phone:        form.phone || null,
-        active:       form.active,
-        pricing_type: form.pricing_type,
-        hourly_rate:  form.pricing_type === 'fixed' ? (form.hourly_rate || null) : null,
+        active:        form.active,
+        pricing_type:  form.pricing_type,
+        hourly_rate:   form.pricing_type === 'fixed' ? (form.hourly_rate || null) : null,
+        contract_type: form.contract_type || null,
       }
       if (modal.item) {
         // Mudou o valor-hora? Abre o modal de vigência antes de enviar (fechamentos passados não mudam).
@@ -314,6 +317,26 @@ export default function PartnersPage() {
                 <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   placeholder="(00) 00000-0000"
                   className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs text-zinc-400 mb-1.5 block">Contrato</Label>
+                <div className="flex gap-2">
+                  {([['cooperado', 'Cooperado'], ['clt', 'CLT'], ['pj', 'PJ']] as const).map(([ct, label]) => (
+                    <button
+                      key={ct}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, contract_type: f.contract_type === ct ? '' : ct }))}
+                      className={`flex-1 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                        form.contract_type === ct
+                          ? 'border-blue-500 bg-blue-600/20 text-blue-300'
+                          : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-zinc-500 mt-1">Aplica a todos os consultores do parceiro.</p>
               </div>
               <div>
                 <Label className="text-xs text-zinc-400 mb-1.5 block">Tipo de precificação *</Label>
