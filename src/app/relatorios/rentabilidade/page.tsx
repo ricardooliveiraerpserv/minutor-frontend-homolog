@@ -22,7 +22,17 @@ interface Row {
 // "projeto" é o consolidado de todos os consultores daquele projeto (custo/h = médio).
 interface DisplayRow extends Row { key: string; n_consultores: number }
 
+// Aba "Clientes": rentabilidade por cliente cruzada com o RECEBIMENTO do Keruak
+// (por CNPJ). O recebido é sempre do mês seguinte ao apontamento (trabalha em M,
+// recebe em M+1): apontamentos de maio ↔ recebimento de junho.
+interface ClienteRow {
+  customer_id: number | null; cliente: string; cnpj: string
+  horas: number; receita: number; custo: number; margem: number; margem_pct: number | null
+  recebido: number; margem_real: number; margem_real_pct: number | null; no_minutor: boolean
+}
+
 const fmtH = (h: number) => `${h.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}h`
+const fmtCnpj = (c: string) => c && c.length === 14 ? c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (c || '—')
 const pctColor = (p: number | null) => p == null ? 'var(--text-light)' : p < 0 ? 'var(--danger)' : p < 20 ? 'var(--warning)' : 'var(--success)'
 
 export default function RentabilidadePage() {
@@ -41,7 +51,10 @@ export default function RentabilidadePage() {
   const [fCliente, setFCliente]     = useState('')
   const [fProjeto, setFProjeto]     = useState('')
   const [fConsultor, setFConsultor] = useState('')
-  const [visao, setVisao] = useState<'consultor' | 'projeto'>('consultor')
+  const [visao, setVisao] = useState<'consultor' | 'projeto' | 'clientes'>('consultor')
+  const [clientesRows, setClientesRows] = useState<ClienteRow[]>([])
+  const [clientesLoading, setClientesLoading] = useState(false)
+  const [soMinutor, setSoMinutor] = useState(false)
 
   const monthsToFetch = useMemo(() => {
     if (mode === 'mes') return [`${year}-${String(month).padStart(2, '0')}`]
@@ -77,6 +90,39 @@ export default function RentabilidadePage() {
       }))
     }).finally(() => setLoading(false))
   }, [monthsToFetch])
+
+  // Aba Clientes: busca a rentabilidade-por-cliente + recebido Keruak (M+1).
+  // Período: agrega por CNPJ (soma horas/receita/custo/recebido).
+  useEffect(() => {
+    if (visao !== 'clientes') return
+    setClientesLoading(true)
+    Promise.all(monthsToFetch.map(ym =>
+      api.get<{ data: { rows: ClienteRow[] } }>(`/relatorios/rentabilidade/clientes/${ym}`)
+        .then(r => r?.data?.rows ?? []).catch(() => [] as ClienteRow[])
+    )).then(results => {
+      const all = results.flat()
+      const r2 = (n: number) => Math.round(n * 100) / 100
+      const map = new Map<string, ClienteRow>()
+      for (const r of all) {
+        const k = r.cnpj || (r.customer_id != null ? 'c' + r.customer_id : r.cliente)
+        const e = map.get(k)
+        if (!e) map.set(k, { ...r })
+        else {
+          e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.recebido += r.recebido
+          e.no_minutor = e.no_minutor || r.no_minutor
+        }
+      }
+      setClientesRows([...map.values()].map(r => {
+        const horas = r2(r.horas), receita = r2(r.receita), custo = r2(r.custo), recebido = r2(r.recebido)
+        const margem = r2(receita - custo), margem_real = r2(recebido - custo)
+        return {
+          ...r, horas, receita, custo, recebido, margem,
+          margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
+          margem_real, margem_real_pct: recebido > 0 ? Math.round(margem_real / recebido * 1000) / 10 : null,
+        }
+      }))
+    }).finally(() => setClientesLoading(false))
+  }, [visao, monthsToFetch])
 
   // Opções dos filtros (distintos, derivados das linhas carregadas).
   const optClientes = useMemo(() => {
@@ -188,8 +234,26 @@ export default function RentabilidadePage() {
     return { receita, custo, horas, margem: receita - custo, pct: receita > 0 ? (receita - custo) / receita * 100 : null }
   }, [filtered])
 
-  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true) }
-  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita)
+  // ── Aba Clientes: filtro/ordenação/total ──
+  const clientesFiltered = useMemo(() => clientesRows.filter(r => {
+    if (soReceita && r.receita === 0 && r.recebido === 0) return false
+    if (soMinutor && !r.no_minutor) return false
+    if (busca.trim()) {
+      const q = busca.trim().toLowerCase()
+      if (!r.cliente.toLowerCase().includes(q) && !r.cnpj.includes(busca.replace(/\D/g, ''))) return false
+    }
+    return true
+  }), [clientesRows, soReceita, soMinutor, busca])
+  const { sorted: clientesSorted, thProps: cliThProps } = useTableSort(clientesFiltered)
+  const clientesTot = useMemo(() => {
+    const receita = clientesFiltered.reduce((s, r) => s + r.receita, 0)
+    const custo = clientesFiltered.reduce((s, r) => s + r.custo, 0)
+    const recebido = clientesFiltered.reduce((s, r) => s + r.recebido, 0)
+    return { receita, custo, recebido, margemReal: recebido - custo, pct: recebido > 0 ? (recebido - custo) / recebido * 100 : null }
+  }, [clientesFiltered])
+
+  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true); setSoMinutor(false) }
+  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita || soMinutor)
 
   const fmtYm = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) }
   const fmtMes = () => monthsToFetch.length === 1
@@ -203,6 +267,18 @@ export default function RentabilidadePage() {
     a.projeto.localeCompare(b.projeto, 'pt-BR') || a.consultor.localeCompare(b.consultor, 'pt-BR'))
 
   const exportExcel = () => {
+    if (visao === 'clientes') {
+      const data = clientesSorted.map(r => ({
+        Cliente: r.cliente, CNPJ: r.cnpj, 'No Minutor': r.no_minutor ? 'Sim' : 'Não',
+        Horas: r.horas, Custo: r.custo, 'Receita (Minutor)': r.receita,
+        'Recebido (M+1)': r.recebido, 'Margem Real': r.margem_real, 'Margem Real %': r.margem_real_pct,
+      }))
+      const ws = XLSX.utils.json_to_sheet(data)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Clientes')
+      XLSX.writeFile(wb, `rentabilidade_clientes_${periodoLabel}.xlsx`)
+      return
+    }
     const src = visao === 'projeto' ? sorted : detalheConsultor()
     const data = src.map(r => visao === 'projeto'
       ? { Projeto: r.projeto, Cliente: r.cliente, Consultores: (r as DisplayRow).n_consultores, Horas: r.horas, 'R$/h Projeto': r.valor_hora_projeto, 'Custo/h médio': r.valor_hora_consultor, Receita: r.receita, Custo: r.custo, Margem: r.margem, 'Margem %': r.margem_pct }
@@ -214,6 +290,28 @@ export default function RentabilidadePage() {
   }
 
   const exportPdf = () => {
+    if (visao === 'clientes') {
+      const linhas = clientesSorted.map(r => `
+        <tr><td>${r.cliente}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td><td>${fmtCnpj(r.cnpj)}</td>
+        <td class="r">${fmtH(r.horas)}</td><td class="r">${formatBRL(r.custo)}</td><td class="r">${formatBRL(r.receita)}</td>
+        <td class="r">${formatBRL(r.recebido)}</td><td class="r">${formatBRL(r.margem_real)}</td>
+        <td class="r">${r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</td></tr>`).join('')
+      const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Rentabilidade Clientes — ${fmtMes()}</title>
+        <style>body{font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;font-size:11px;padding:20px;}
+        h1{font-size:18px;color:#5b21b6;margin:0 0 2px;} .sub{color:#6b7280;font-size:11px;margin-bottom:14px;}
+        table{width:100%;border-collapse:collapse;} th{background:#ede9fe;color:#5b21b6;text-align:left;padding:5px 6px;font-size:9px;text-transform:uppercase;}
+        td{border-bottom:1px solid #f3f4f6;padding:5px 6px;} .r{text-align:right;} tfoot td{font-weight:bold;border-top:2px solid #7c3aed;}
+        @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>
+        <h1>Rentabilidade por Cliente</h1>
+        <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesSorted.length} cliente(s)</div>
+        <table><thead><tr><th>Cliente</th><th>CNPJ</th><th class="r">Horas</th><th class="r">Custo</th><th class="r">Receita</th><th class="r">Recebido (M+1)</th><th class="r">Margem Real</th><th class="r">%</th></tr></thead>
+        <tbody>${linhas}</tbody>
+        <tfoot><tr><td colspan="3" class="r">Total</td><td class="r">${formatBRL(clientesTot.custo)}</td><td class="r">${formatBRL(clientesTot.receita)}</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.margemReal)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
+        <script>window.onload=function(){window.print();}</script></body></html>`
+      const w = window.open('', '_blank')
+      if (w) { w.document.write(html); w.document.close() }
+      return
+    }
     const src = visao === 'projeto' ? sorted : detalheConsultor()
     const linhas = src.map(r => `
       <tr>
@@ -250,7 +348,7 @@ export default function RentabilidadePage() {
         <PageHeader
           icon={TrendingUp}
           title="Rentabilidade"
-          subtitle={visao === 'projeto' ? 'Receita, custo e margem por projeto' : 'Receita, custo e margem por consultor × projeto'}
+          subtitle={visao === 'clientes' ? 'Custo Minutor × recebimento Keruak por cliente (CNPJ) — recebido do mês seguinte (M+1)' : visao === 'projeto' ? 'Receita, custo e margem por projeto' : 'Receita, custo e margem por consultor × projeto'}
           actions={
             <div className="flex items-center gap-2 flex-wrap">
               <div className="inline-flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
@@ -270,8 +368,8 @@ export default function RentabilidadePage() {
                   <MonthYearPicker month={toM} year={toY} onChange={(m, y) => { setToM(m); setToY(y) }} placeholder="Até" />
                 </>
               )}
-              <Button variant="ghost" size="sm" icon={Download} onClick={exportExcel} disabled={filtered.length === 0}>Excel</Button>
-              <Button variant="ghost" size="sm" icon={FileText} onClick={exportPdf} disabled={filtered.length === 0}>PDF</Button>
+              <Button variant="ghost" size="sm" icon={Download} onClick={exportExcel} disabled={(visao === 'clientes' ? clientesFiltered : filtered).length === 0}>Excel</Button>
+              <Button variant="ghost" size="sm" icon={FileText} onClick={exportPdf} disabled={(visao === 'clientes' ? clientesFiltered : filtered).length === 0}>PDF</Button>
             </div>
           }
         />
@@ -280,7 +378,7 @@ export default function RentabilidadePage() {
           <div>
             <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Visão</p>
             <div className="inline-flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-              {([['consultor', 'Consultor × Projeto'], ['projeto', 'Por projeto']] as const).map(([v, label], i) => (
+              {([['consultor', 'Consultor × Projeto'], ['projeto', 'Por projeto'], ['clientes', 'Clientes']] as const).map(([v, label], i) => (
                 <button key={v} onClick={() => setVisao(v)} className="px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap"
                   style={{ background: visao === v ? 'var(--primary)' : 'transparent', color: visao === v ? 'var(--primary-fg)' : 'var(--text-muted)', borderLeft: i > 0 ? '1px solid var(--border)' : undefined }}>
                   {label}
@@ -288,22 +386,30 @@ export default function RentabilidadePage() {
               ))}
             </div>
           </div>
-          <div className="min-w-[180px]">
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Cliente</p>
-            <SearchSelect value={fCliente} onChange={setFCliente} options={[{ id: '', name: 'Todos os clientes' }, ...optClientes]} placeholder="Todos os clientes" />
-          </div>
-          <div className="min-w-[180px]">
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Projeto</p>
-            <SearchSelect value={fProjeto} onChange={setFProjeto} options={[{ id: '', name: 'Todos os projetos' }, ...optProjetos]} placeholder="Todos os projetos" />
-          </div>
-          <div className="min-w-[180px]">
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Consultor</p>
-            <SearchSelect value={fConsultor} onChange={setFConsultor} options={[{ id: '', name: 'Todos os consultores' }, ...optConsultores]} placeholder="Todos os consultores" />
-          </div>
+          {visao !== 'clientes' && (<>
+            <div className="min-w-[180px]">
+              <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Cliente</p>
+              <SearchSelect value={fCliente} onChange={setFCliente} options={[{ id: '', name: 'Todos os clientes' }, ...optClientes]} placeholder="Todos os clientes" />
+            </div>
+            <div className="min-w-[180px]">
+              <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Projeto</p>
+              <SearchSelect value={fProjeto} onChange={setFProjeto} options={[{ id: '', name: 'Todos os projetos' }, ...optProjetos]} placeholder="Todos os projetos" />
+            </div>
+            <div className="min-w-[180px]">
+              <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Consultor</p>
+              <SearchSelect value={fConsultor} onChange={setFConsultor} options={[{ id: '', name: 'Todos os consultores' }, ...optConsultores]} placeholder="Todos os consultores" />
+            </div>
+          </>)}
           <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
             <input type="checkbox" checked={soReceita} onChange={e => setSoReceita(e.target.checked)} />
-            Só com receita
+            {visao === 'clientes' ? 'Só com movimento' : 'Só com receita'}
           </label>
+          {visao === 'clientes' && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
+              <input type="checkbox" checked={soMinutor} onChange={e => setSoMinutor(e.target.checked)} />
+              Só clientes do Minutor
+            </label>
+          )}
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..."
             className="flex-1 min-w-[160px] px-3 py-2 rounded-xl text-xs outline-none"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
@@ -312,12 +418,17 @@ export default function RentabilidadePage() {
 
         {/* Cards de total */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          {[
+          {(visao === 'clientes' ? [
+            { label: 'Receita (Minutor)', value: formatBRL(clientesTot.receita), color: 'var(--text)' },
+            { label: 'Custo', value: formatBRL(clientesTot.custo), color: 'var(--text)' },
+            { label: 'Recebido (M+1)', value: formatBRL(clientesTot.recebido), color: 'var(--brand-primary)' },
+            { label: 'Margem Real %', value: clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%', color: pctColor(clientesTot.pct) },
+          ] : [
             { label: 'Receita', value: formatBRL(tot.receita), color: 'var(--text)' },
             { label: 'Custo', value: formatBRL(tot.custo), color: 'var(--text)' },
             { label: 'Margem', value: formatBRL(tot.margem), color: 'var(--brand-primary)' },
             { label: 'Margem %', value: tot.pct == null ? '—' : tot.pct.toFixed(1) + '%', color: pctColor(tot.pct) },
-          ].map(c => (
+          ]).map(c => (
             <div key={c.label} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{c.label}</p>
               <p className="text-lg font-bold tabular-nums" style={{ color: c.color }}>{c.value}</p>
@@ -325,7 +436,45 @@ export default function RentabilidadePage() {
           ))}
         </div>
 
-        {loading ? (
+        {visao === 'clientes' ? (
+          clientesLoading && clientesRows.length === 0 ? (
+            <SkeletonTable rows={8} cols={8} />
+          ) : clientesFiltered.length === 0 ? (
+            <EmptyState icon={TrendingUp} title="Sem dados" description="Nenhum cliente/recebimento para o mês/filtros." />
+          ) : (
+            <Table>
+              <Thead>
+                <tr>
+                  <Th {...cliThProps('cliente')}>Cliente</Th>
+                  <Th {...cliThProps('cnpj')}>CNPJ</Th>
+                  <Th right {...cliThProps('horas')}>Horas</Th>
+                  <Th right {...cliThProps('custo')}>Custo</Th>
+                  <Th right {...cliThProps('receita')}>Receita (Minutor)</Th>
+                  <Th right {...cliThProps('recebido')}>Recebido (M+1)</Th>
+                  <Th right {...cliThProps('margem_real')}>Margem Real</Th>
+                  <Th right {...cliThProps('margem_real_pct')}>%</Th>
+                </tr>
+              </Thead>
+              <Tbody>
+                {clientesSorted.map(r => (
+                  <Tr key={r.cnpj || `c${r.customer_id}` || r.cliente}>
+                    <Td className="font-medium" style={{ color: 'var(--text)' }}>
+                      <span className="truncate max-w-[240px] inline-block align-bottom">{r.cliente}</span>
+                      {!r.no_minutor && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>(fora do Minutor)</span>}
+                    </Td>
+                    <Td muted className="tabular-nums">{fmtCnpj(r.cnpj)}</Td>
+                    <Td right muted className="tabular-nums">{fmtH(r.horas)}</Td>
+                    <Td right muted className="tabular-nums">{formatBRL(r.custo)}</Td>
+                    <Td right className="tabular-nums">{formatBRL(r.receita)}</Td>
+                    <Td right className="font-semibold tabular-nums" style={{ color: 'var(--brand-primary)' }}>{formatBRL(r.recebido)}</Td>
+                    <Td right className="font-semibold tabular-nums">{formatBRL(r.margem_real)}</Td>
+                    <Td right className="font-semibold tabular-nums" style={{ color: pctColor(r.margem_real_pct) }}>{r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          )
+        ) : loading ? (
           <SkeletonTable rows={8} cols={10} />
         ) : filtered.length === 0 ? (
           <EmptyState icon={TrendingUp} title="Sem dados" description="Nenhum apontamento para o mês/filtros." />
