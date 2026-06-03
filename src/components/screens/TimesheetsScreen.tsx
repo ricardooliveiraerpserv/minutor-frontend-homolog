@@ -786,7 +786,7 @@ function toHHMM(mins: number): string {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'sustentacao' | 'investimento'; embedded?: boolean; triagemPadrao?: boolean } = {}) {
+function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: { scope?: 'sustentacao' | 'investimento'; embedded?: boolean; triagemPadrao?: boolean; leadOptions?: { id: number; name: string }[] } = {}) {
   // Filtro de dimensão pra modo Triagem: '' = todos (OR), ou 'user'|'customer'|'project'
   const [triagemField, setTriagemField] = useState<string>('')
   const { user } = useAuth()
@@ -985,6 +985,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
   // Sem cliente selecionado: traz todos. Com 1+ clientes: traz só os daquele(s) cliente(s).
   useEffect(() => {
     if (isCliente) return
+    // Escopo investimento: o filtro de projeto vira filtro de LEAD (opções = leads).
+    if (scope === 'investimento' && leadOptions) { setProjectsList(leadOptions); return }
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
     const params = new URLSearchParams({ minimal: 'true', pageSize: '2000' })
     if (customerIds.length === 1) {
@@ -1002,7 +1004,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
         setProjectsList(list)
       })
       .catch(() => {})
-  }, [isCliente, customerIds])
+  }, [isCliente, customerIds, scope, leadOptions])
 
   // Limpa seleção de projetos quando o cliente muda (evita IDs órfãos).
   useEffect(() => {
@@ -1211,7 +1213,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
                   value={projectIds}
                   onChange={v => { setProjectIds(v); resetPage() }}
                   options={projectsList}
-                  placeholder="Todos os projetos"
+                  placeholder={scope === 'investimento' ? 'Todos os leads' : 'Todos os projetos'}
                 />
                 {!triagemPadrao && coordinators.length > 0 && (
                   <MultiSelect
@@ -1867,12 +1869,14 @@ export interface TimesheetsScreenProps {
   embedded?: boolean
   /** Filtra timesheets atribuídos ao Usuário/Cliente/Projeto Padrão Movidesk (OR). Usado pela rotina Triagem. */
   triagemPadrao?: boolean
+  /** No escopo investimento, transforma o filtro de Projeto em filtro de Lead. */
+  leadOptions?: { id: number; name: string }[]
 }
 
 export function TimesheetsScreen(props: TimesheetsScreenProps = {}) {
   return (
     <Suspense>
-      <TimesheetsPageContent scope={props.scope} embedded={props.embedded} triagemPadrao={props.triagemPadrao} />
+      <TimesheetsPageContent scope={props.scope} embedded={props.embedded} triagemPadrao={props.triagemPadrao} leadOptions={props.leadOptions} />
     </Suspense>
   )
 }

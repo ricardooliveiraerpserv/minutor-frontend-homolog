@@ -344,6 +344,12 @@ export default function InvestimentoComercialPage() {
     })
   }, [projects, clientSearch, categoriaFilter])
 
+  // Opções de Lead (categoria Leads) p/ o filtro das abas Apontamentos/Aprovações.
+  const leadOptions = useMemo(
+    () => projects.filter(p => p.categoria_interna === 'Leads').map(p => ({ id: p.id, name: p.name || p.code })),
+    [projects],
+  )
+
   const filteredUsers = useMemo(() => {
     const q = userSearch.toLowerCase()
     return allUsers.filter(u => !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
@@ -823,8 +829,8 @@ export default function InvestimentoComercialPage() {
 
       {/* Conteúdo */}
       {activeTab === 'projetos'    && renderProjetos()}
-      {activeTab === 'apontamentos' && <TimesheetsScreen scope="investimento" embedded />}
-      {activeTab === 'aprovacoes'  && <ApprovalsScreen scope="investimento" embedded />}
+      {activeTab === 'apontamentos' && <TimesheetsScreen scope="investimento" embedded leadOptions={leadOptions} />}
+      {activeTab === 'aprovacoes'  && <ApprovalsScreen scope="investimento" embedded leadOptions={leadOptions} />}
       {activeTab === 'clientes'    && renderClientes()}
       {activeTab === 'consultores' && renderConsultores()}
       {activeTab === 'mensal'      && renderMensal()}

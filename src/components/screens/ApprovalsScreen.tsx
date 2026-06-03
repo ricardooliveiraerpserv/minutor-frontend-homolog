@@ -562,9 +562,11 @@ function ExpApproveModal({
 export interface ApprovalsScreenProps {
   scope?: 'sustentacao' | 'investimento'
   embedded?: boolean
+  /** No escopo investimento, transforma o filtro de Projeto em filtro de Lead. */
+  leadOptions?: { id: number; name: string }[]
 }
 
-export function ApprovalsScreen({ scope, embedded }: ApprovalsScreenProps = {}) {
+export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScreenProps = {}) {
   const { user } = useAuth()
   const isCoordenador = user?.type === 'coordenador'
   // Chip "Meus projetos / Todos" pra coordenador (idem Apontamentos / Despesas).
@@ -660,15 +662,20 @@ export function ApprovalsScreen({ scope, embedded }: ApprovalsScreenProps = {}) 
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setExecutives(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
-    api.get<any>('/projects?minimal=true&pageSize=200&status=active').then(r => {
-      const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-      setProjects(l.map((p: any) => ({ id: p.id, name: p.name })))
-    }).catch(() => {})
+    if (scope === 'investimento' && leadOptions) {
+      // Escopo investimento: o filtro de projeto vira filtro de LEAD.
+      setProjects(leadOptions)
+    } else {
+      api.get<any>('/projects?minimal=true&pageSize=200&status=active').then(r => {
+        const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+        setProjects(l.map((p: any) => ({ id: p.id, name: p.name })))
+      }).catch(() => {})
+    }
     api.get<any>('/customers?pageSize=500').then(r => {
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setCustomers(l.map((c: any) => ({ id: c.id, name: c.name })))
     }).catch(() => {})
-  }, [])
+  }, [scope, leadOptions])
 
   const filterParams = useMemo(() => {
     const p = new URLSearchParams()
@@ -1044,7 +1051,7 @@ export function ApprovalsScreen({ scope, embedded }: ApprovalsScreenProps = {}) 
                 options={customers}
               />
               <SearchableSelect
-                label="Projeto"
+                label={scope === 'investimento' ? 'Lead' : 'Projeto'}
                 value={projectId}
                 onChange={setProjectId}
                 options={projects}
