@@ -112,7 +112,8 @@ export default function RelatorioApontamentosPage() {
   const [digFrom, setDigFrom] = useState('')
   const [digTo,   setDigTo]   = useState('')
 
-  const [statuses, setStatuses] = useState<StatusKey[]>(['pending', 'approved'])
+  // Status fixo: relatório sempre considera pendentes + aprovados (sem toggle).
+  const statuses: StatusKey[] = ['pending', 'approved']
 
   const [items,    setItems]    = useState<RawTimesheet[]>([])
   const [ticketSummary, setTicketSummary] = useState<TicketSummaryRow[]>([])
@@ -189,10 +190,10 @@ export default function RelatorioApontamentosPage() {
       arr.push(p); byParent.set(key, arr)
     }
     const sortName = (a: Project, b: Project) => a.name.localeCompare(b.name, 'pt-BR')
-    const out: { id: number; name: string }[] = []
+    const out: { id: number; name: string; depth: number }[] = []
     const walk = (parentId: number | null, depth: number) => {
       for (const p of (byParent.get(parentId) ?? []).sort(sortName)) {
-        out.push({ id: p.id, name: depth > 0 ? `${'   '.repeat(depth - 1)}↳ ${p.name}` : p.name })
+        out.push({ id: p.id, name: p.name, depth })
         walk(p.id, depth + 1)
       }
     }
@@ -221,14 +222,6 @@ export default function RelatorioApontamentosPage() {
     const original = (t.ticket_subject ?? '').trim()
     const match = original.match(VEDAMOTORS_PATTERN)
     return match ? match[0] : 'Sem ticket'
-  }
-
-  const toggleStatus = (s: StatusKey) => {
-    setStatuses(prev => {
-      const has = prev.includes(s)
-      if (has && prev.length === 1) return prev // não deixa zerar
-      return has ? prev.filter(x => x !== s) : [...prev, s]
-    })
   }
 
   async function loadReport() {
@@ -558,28 +551,6 @@ export default function RelatorioApontamentosPage() {
 
         <div className="flex flex-wrap items-end gap-3 justify-between">
           <div className="flex items-end gap-3 flex-wrap">
-            <div>
-              <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>Status</label>
-              <div className="flex gap-2">
-                {(['pending', 'approved'] as StatusKey[]).map(s => {
-                  const active = statuses.includes(s)
-                  const styles = s === 'pending'
-                    ? { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)' }
-                    : { color: '#10B981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)' }
-                  return (
-                    <button
-                      key={s} type="button" onClick={() => toggleStatus(s)}
-                      className="px-3 h-8 rounded-lg text-xs font-medium transition-colors"
-                      style={active
-                        ? { background: styles.bg, color: styles.color, border: `1px solid ${styles.border}` }
-                        : { background: 'transparent', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}
-                    >
-                      {STATUS_LABEL[s]}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
             <Button variant="primary" icon={Search} loading={loading} onClick={loadReport} disabled={!customerId}>
               {loading ? 'Carregando...' : 'Gerar relatório'}
             </Button>

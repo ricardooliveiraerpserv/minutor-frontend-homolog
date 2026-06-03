@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { ChevronDown, Search, Check } from 'lucide-react'
 
-export interface MultiSelectOption { id: number | string; name: string }
+// depth > 0 = projeto filho: indenta e prefixa com uma seta azul "↳".
+export interface MultiSelectOption { id: number | string; name: string; depth?: number }
 
 export function MultiSelect({
   label,
@@ -164,7 +165,12 @@ export function MultiSelect({
                         style={{ borderColor: checked ? 'var(--primary)' : 'var(--border-strong)', background: checked ? 'var(--primary)' : 'var(--surface)' }}>
                         {checked && <Check size={9} color="var(--primary-fg)" strokeWidth={3} />}
                       </span>
-                      {o.name}
+                      {o.depth ? (
+                        <span className="inline-flex items-center gap-1 truncate" style={{ paddingLeft: (o.depth - 1) * 14 }}>
+                          <span style={{ color: 'var(--primary)' }}>↳</span>
+                          <span className="truncate">{o.name}</span>
+                        </span>
+                      ) : <span className="truncate">{o.name}</span>}
                     </button>
                   )
                 })}
