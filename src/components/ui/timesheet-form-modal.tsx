@@ -254,10 +254,15 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.start_time, form.end_time, form.total_hours, useTotal, timeDriver])
 
+  // ERPSERV (empresa própria): investimentos internos não pedem Projeto Real.
+  const selectedCustomer = customers.find(c => String(c.id) === form.customer_id) as any
+  const isErpservCustomer = String(selectedCustomer?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+
   const save = async () => {
     if (!form.project_id) { toast.error('Selecione um projeto'); return }
     const selProj = projects.find(p => String(p.id) === form.project_id) as any
-    const isInvestimento = !!selProj?.is_investimento_comercial
+    // Investimento da própria ERPSERV não pede Projeto Real (interno, sem projeto de cliente real).
+    const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
     if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); return }
     if (useTotal) {
       if (!form.total_hours) { toast.error('Informe o total de horas'); return }
@@ -376,7 +381,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                 investimento; o real é referência e define o coordenador que aprova). */}
             {(() => {
               const sel = projects.find(p => String(p.id) === form.project_id) as any
-              if (!sel?.is_investimento_comercial) return null
+              // ERPSERV: investimento interno não pede Projeto Real.
+              if (!sel?.is_investimento_comercial || isErpservCustomer) return null
               const soSustentacao = sel?.categoria_interna === 'Suporte'
               const realOpts = projects.filter(p => {
                 if ((p as any).is_investimento_comercial || String(p.id) === form.project_id) return false
