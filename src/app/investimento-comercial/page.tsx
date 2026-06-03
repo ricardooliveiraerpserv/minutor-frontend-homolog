@@ -128,7 +128,15 @@ export default function InvestimentoComercialPage() {
   const [newProjectCategoria, setNewProjectCategoria] = useState<'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads'>('Projeto')
   const [newProjectApprover,  setNewProjectApprover]  = useState('')
   const [newProjectParent,    setNewProjectParent]    = useState('')
+  const [leadMode,            setLeadMode]            = useState(false) // criação de Lead (nome=cliente, sempre Leads)
   const [creatingProject,     setCreatingProject]     = useState(false)
+
+  // Opções de aprovador (coordenadores+admins), garantindo o usuário logado na lista.
+  const approverOptions = useMemo(() => {
+    const opts = approvers.map(a => ({ id: a.id as number | string, name: a.name }))
+    if (user && !opts.some(o => String(o.id) === String(user.id))) opts.unshift({ id: user.id, name: user.name })
+    return opts
+  }, [approvers, user])
 
   // Modal de edição de projeto interno
   type EditableCategoria = '' | 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads'
@@ -352,6 +360,7 @@ export default function InvestimentoComercialPage() {
 
   // Abre o modal de criação já aninhado abaixo de um investimento pai (lead).
   const addLead = (parent: ICProject) => {
+    setLeadMode(true)
     setNewProjectParent(String(parent.id))
     setNewProjectCategoria('Leads')
     setNewProjectName('')
@@ -744,7 +753,10 @@ export default function InvestimentoComercialPage() {
                 <span> · <span className="font-semibold" style={{ color: 'var(--text)' }}>{fmtHours(totalHours)}</span> total</span>
               )}
             </span>
-            <Button size="sm" variant="primary" onClick={() => setNewProjectOpen(true)}>
+            <Button size="sm" variant="primary" onClick={() => {
+              setLeadMode(false); setNewProjectParent(''); setNewProjectCategoria('Projeto')
+              setNewProjectName(''); setNewProjectApprover(''); setNewProjectOpen(true)
+            }}>
               <Plus size={13} className="mr-1" /> Novo Projeto Interno (ERPSERV)
             </Button>
           </>
@@ -809,7 +821,7 @@ export default function InvestimentoComercialPage() {
           <div className="flex flex-col rounded-2xl w-full max-w-md" onClick={e => e.stopPropagation()}
             style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-              <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>Novo Projeto Interno</h2>
+              <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{leadMode ? 'Novo Lead' : 'Novo Projeto Interno'}</h2>
               <button onClick={() => !creatingProject && setNewProjectOpen(false)} className="p-1.5 rounded-lg hover:bg-white/5">
                 <X size={16} style={{ color: 'var(--brand-muted)' }} />
               </button>
@@ -818,54 +830,68 @@ export default function InvestimentoComercialPage() {
               <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
                 Cliente: <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>ERPSERV</span> · sem horas e sem valor de contrato
               </p>
+              {leadMode ? (
+                <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                  Lead abaixo de: <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>
+                    {projects.find(p => String(p.id) === newProjectParent)?.name ?? 'Investimento Comercial'}
+                  </span>
+                </p>
+              ) : (
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+                    Investimento pai (opcional)
+                  </label>
+                  <SearchSelect
+                    fullWidth
+                    value={newProjectParent}
+                    onChange={setNewProjectParent}
+                    options={projects
+                      .filter(p => (p.customer?.name ?? '').toUpperCase().includes('ERPSERV') && !p.parent_project_id)
+                      .map(p => ({ id: p.id, name: p.name || p.code }))}
+                    placeholder="Aninhar abaixo de um investimento (ex.: Investimento Leads)..."
+                  />
+                  <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Deixe vazio para um projeto de topo. Selecione p/ criar um lead abaixo do investimento.</p>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
-                  Investimento pai (opcional)
-                </label>
-                <SearchSelect
-                  fullWidth
-                  value={newProjectParent}
-                  onChange={setNewProjectParent}
-                  options={projects
-                    .filter(p => (p.customer?.name ?? '').toUpperCase().includes('ERPSERV') && !p.parent_project_id)
-                    .map(p => ({ id: p.id, name: p.name || p.code }))}
-                  placeholder="Aninhar abaixo de um investimento (ex.: Investimento Leads)..."
-                />
-                <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Deixe vazio para um projeto de topo. Selecione p/ criar um lead abaixo do investimento.</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
-                  Nome do Projeto <span style={{ color: '#ef4444' }}>*</span>
+                  {leadMode ? 'Nome do Cliente' : 'Nome do Projeto'} <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input type="text" autoFocus value={newProjectName}
                   onChange={e => setNewProjectName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !creatingProject) handleCreateProject() }}
-                  placeholder="Ex: Desenvolvimento Minutor"
+                  placeholder={leadMode ? 'Ex: Acme Indústria' : 'Ex: Desenvolvimento Minutor'}
                   className="w-full px-3 h-9 rounded-xl text-sm outline-none" style={inputStyle} />
               </div>
+              {!leadMode && (
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+                    Categoria <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <select value={newProjectCategoria}
+                    onChange={e => setNewProjectCategoria(e.target.value as 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads')}
+                    className="w-full px-3 h-9 rounded-xl text-sm outline-none" style={inputStyle}>
+                    <option value="Sustentação">Sustentação</option>
+                    <option value="Projeto">Projeto</option>
+                    <option value="Suporte">Suporte</option>
+                    <option value="Comercial">Comercial</option>
+                    <option value="Leads">Leads</option>
+                  </select>
+                </div>
+              )}
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
-                  Categoria <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <select value={newProjectCategoria}
-                  onChange={e => setNewProjectCategoria(e.target.value as 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads')}
-                  className="w-full px-3 h-9 rounded-xl text-sm outline-none" style={inputStyle}>
-                  <option value="Sustentação">Sustentação</option>
-                  <option value="Projeto">Projeto</option>
-                  <option value="Suporte">Suporte</option>
-                  <option value="Comercial">Comercial</option>
-                  <option value="Leads">Leads</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
-                  Aprovador
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium" style={{ color: 'var(--brand-muted)' }}>Aprovador</label>
+                  <button type="button" onClick={() => setNewProjectApprover(String(user?.id ?? ''))}
+                    className="text-[11px] font-medium transition-colors" style={{ color: 'var(--brand-primary)' }}>
+                    → Me colocar como aprovador
+                  </button>
+                </div>
                 <SearchSelect
                   fullWidth
                   value={newProjectApprover}
                   onChange={setNewProjectApprover}
-                  options={approvers.map(a => ({ id: a.id, name: a.name }))}
+                  options={approverOptions}
                   placeholder="Quem aprova os apontamentos (coordenador)..."
                 />
                 <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Sem aprovador, só admin aprova os apontamentos deste projeto.</p>
@@ -874,7 +900,7 @@ export default function InvestimentoComercialPage() {
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
               <Button variant="ghost" onClick={() => setNewProjectOpen(false)} disabled={creatingProject}>Cancelar</Button>
               <Button variant="primary" onClick={handleCreateProject} disabled={creatingProject || newProjectName.trim().length < 2}>
-                {creatingProject ? 'Criando...' : 'Criar Projeto'}
+                {creatingProject ? 'Criando...' : (leadMode ? 'Criar Lead' : 'Criar Projeto')}
               </Button>
             </div>
           </div>
@@ -921,12 +947,18 @@ export default function InvestimentoComercialPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>Aprovador</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium" style={{ color: 'var(--brand-muted)' }}>Aprovador</label>
+                  <button type="button" onClick={() => setEditApprover(String(user?.id ?? ''))}
+                    className="text-[11px] font-medium transition-colors" style={{ color: 'var(--brand-primary)' }}>
+                    → Me colocar como aprovador
+                  </button>
+                </div>
                 <SearchSelect
                   fullWidth
                   value={editApprover}
                   onChange={setEditApprover}
-                  options={approvers.map(a => ({ id: a.id, name: a.name }))}
+                  options={approverOptions}
                   placeholder="Quem aprova os apontamentos (coordenador)..."
                 />
               </div>
