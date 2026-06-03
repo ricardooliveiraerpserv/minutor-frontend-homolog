@@ -27,6 +27,7 @@ interface ICProject {
   categoria_interna: string | null
   customer: { id: number; name: string } | null
   consultants: Consultant[]
+  coordinators: Consultant[]
   has_open_period?: boolean
 }
 
@@ -112,6 +113,8 @@ export default function InvestimentoComercialPage() {
   const [hoursLoading, setHoursLoading] = useState(false)
   const [loading,      setLoading]      = useState(true)
   const [allUsers,     setAllUsers]     = useState<Consultant[]>([])
+  // Aprovadores possíveis (coordenadores + admins) — quem pode aprovar os apontamentos.
+  const [approvers,    setApprovers]    = useState<Consultant[]>([])
   const [groups,       setGroups]       = useState<ConsultantGroup[]>([])
   const [modal,        setModal]        = useState<{ open: boolean; project: ICProject | null }>({ open: false, project: null })
   const [selected,     setSelected]     = useState<number[]>([])
@@ -121,14 +124,16 @@ export default function InvestimentoComercialPage() {
   // Modal de criação de projeto interno (ERPSERV)
   const [newProjectOpen,      setNewProjectOpen]      = useState(false)
   const [newProjectName,      setNewProjectName]      = useState('')
-  const [newProjectCategoria, setNewProjectCategoria] = useState<'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial'>('Projeto')
+  const [newProjectCategoria, setNewProjectCategoria] = useState<'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads'>('Projeto')
+  const [newProjectApprover,  setNewProjectApprover]  = useState('')
   const [creatingProject,     setCreatingProject]     = useState(false)
 
   // Modal de edição de projeto interno
-  type EditableCategoria = '' | 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial'
+  type EditableCategoria = '' | 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads'
   const [editProject,     setEditProject]     = useState<ICProject | null>(null)
   const [editName,        setEditName]        = useState('')
   const [editCategoria,   setEditCategoria]   = useState<EditableCategoria>('')
+  const [editApprover,    setEditApprover]    = useState('')
   // Modal de abertura/fechamento de mês (períodos abertos) — igual aos projetos tradicionais
   const [openPeriodProject, setOpenPeriodProject] = useState<ICProject | null>(null)
   const [savingEdit,      setSavingEdit]      = useState(false)
@@ -137,21 +142,24 @@ export default function InvestimentoComercialPage() {
     setEditProject(p)
     setEditName(p.name ?? '')
     setEditCategoria(((p.categoria_interna ?? '') as EditableCategoria))
+    setEditApprover(p.coordinators?.[0]?.id ? String(p.coordinators[0].id) : '')
   }
-  const closeEditModal = () => { setEditProject(null); setEditName(''); setEditCategoria('') }
+  const closeEditModal = () => { setEditProject(null); setEditName(''); setEditCategoria(''); setEditApprover('') }
   const handleSaveEdit = async () => {
     if (!editProject) return
     const name = editName.trim()
     if (name.length < 2) { toast.error('Informe um nome válido (mín. 2 caracteres)'); return }
     setSavingEdit(true)
     try {
-      const payload: { name: string; categoria_interna: string | null } = {
+      const payload: { name: string; categoria_interna: string | null; coordinator_ids: number[] } = {
         name,
         categoria_interna: editCategoria === '' ? null : editCategoria,
+        coordinator_ids: editApprover ? [Number(editApprover)] : [],
       }
       await api.patch(`/projects/${editProject.id}`, payload)
+      const newCoords = editApprover ? approvers.filter(a => String(a.id) === editApprover) : []
       setProjects(prev => prev.map(p => p.id === editProject.id
-        ? { ...p, name, categoria_interna: payload.categoria_interna }
+        ? { ...p, name, categoria_interna: payload.categoria_interna, coordinators: newCoords }
         : p))
       toast.success('Projeto atualizado')
       closeEditModal()
@@ -181,7 +189,7 @@ export default function InvestimentoComercialPage() {
   // Árvore: clientes expandidos
   const [expandedCustomers, setExpandedCustomers] = useState<Set<number>>(new Set())
   // Filtro de categoria
-  const [categoriaFilter, setCategoriaFilter] = useState<'todas' | 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'sem'>('todas')
+  const [categoriaFilter, setCategoriaFilter] = useState<'todas' | 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads' | 'sem'>('todas')
   const toggleCustomerExpand = (customerId: number) => {
     setExpandedCustomers(prev => {
       const next = new Set(prev)
@@ -204,7 +212,7 @@ export default function InvestimentoComercialPage() {
     try {
       const projRes = await api.get<any>('/projects?only_investimento_comercial=true&pageSize=2000&gestao=true&with_team=true')
       const rawProjects: any[] = projRes?.items ?? projRes?.data ?? []
-      setProjects(rawProjects.map(p => ({ id: p.id, name: p.name ?? '', code: p.code, status: p.status, categoria_interna: p.categoria_interna ?? null, customer: p.customer ?? null, consultants: p.consultants ?? [], has_open_period: p.has_open_period ?? false })))
+      setProjects(rawProjects.map(p => ({ id: p.id, name: p.name ?? '', code: p.code, status: p.status, categoria_interna: p.categoria_interna ?? null, customer: p.customer ?? null, consultants: p.consultants ?? [], coordinators: p.coordinators ?? [], has_open_period: p.has_open_period ?? false })))
     } catch {
       toast.error('Erro ao recarregar projetos')
     }
@@ -216,12 +224,20 @@ export default function InvestimentoComercialPage() {
       api.get<any>('/projects?only_investimento_comercial=true&pageSize=2000&gestao=true&with_team=true'),
       api.get<any>('/users?exclude_type=cliente&pageSize=500'),
       api.get<any>('/consultant-groups?pageSize=200&with_users=true'),
-    ]).then(([projRes, usersRes, groupsRes]) => {
+      api.get<any>('/users?type=coordenador&pageSize=300'),
+      api.get<any>('/users?type=admin&pageSize=100'),
+    ]).then(([projRes, usersRes, groupsRes, coordsRes, adminsRes]) => {
       if (cancelled) return
       const rawProjects: any[] = projRes?.items ?? projRes?.data ?? []
-      setProjects(rawProjects.map(p => ({ id: p.id, name: p.name ?? '', code: p.code, status: p.status, categoria_interna: p.categoria_interna ?? null, customer: p.customer ?? null, consultants: p.consultants ?? [], has_open_period: p.has_open_period ?? false })))
+      setProjects(rawProjects.map(p => ({ id: p.id, name: p.name ?? '', code: p.code, status: p.status, categoria_interna: p.categoria_interna ?? null, customer: p.customer ?? null, consultants: p.consultants ?? [], coordinators: p.coordinators ?? [], has_open_period: p.has_open_period ?? false })))
       const rawUsers: any[] = usersRes?.items ?? usersRes?.data ?? []
       setAllUsers(rawUsers.map((u: any) => ({ id: u.id, name: u.name, email: u.email })))
+      // Aprovadores = coordenadores + admins (dedup por id).
+      const rawCoords: any[] = coordsRes?.items ?? coordsRes?.data ?? []
+      const rawAdmins: any[] = adminsRes?.items ?? adminsRes?.data ?? []
+      const byId = new Map<number, Consultant>()
+      ;[...rawCoords, ...rawAdmins].forEach((u: any) => byId.set(u.id, { id: u.id, name: u.name, email: u.email }))
+      setApprovers([...byId.values()].sort((a, b) => a.name.localeCompare(b.name)))
       const rawGroups: any[] = groupsRes?.data ?? groupsRes?.items ?? []
       setGroups(rawGroups.map((g: any) => ({
         id: g.id,
@@ -245,11 +261,16 @@ export default function InvestimentoComercialPage() {
     if (name.length < 2) { toast.error('Informe um nome válido (mín. 2 caracteres)'); return }
     setCreatingProject(true)
     try {
-      await api.post('/investimento-interno/projects', { name, categoria: newProjectCategoria })
+      await api.post('/investimento-interno/projects', {
+        name,
+        categoria: newProjectCategoria,
+        approver_id: newProjectApprover ? Number(newProjectApprover) : undefined,
+      })
       toast.success('Projeto interno criado')
       setNewProjectOpen(false)
       setNewProjectName('')
       setNewProjectCategoria('Projeto')
+      setNewProjectApprover('')
       await reloadProjects()
     } catch (err: any) {
       toast.error(err?.message ?? 'Erro ao criar projeto')
@@ -424,6 +445,9 @@ export default function InvestimentoComercialPage() {
                               {project.categoria_interna}
                             </span>
                           )}
+                        </span>
+                        <span className="block pl-12 text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+                          Aprovador: {project.coordinators?.[0]?.name ?? '— (só admin)'}
                         </span>
                       </Td>
                       <Td><span className="text-xs font-mono font-medium px-2 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{project.code}</span></Td>
@@ -711,6 +735,7 @@ export default function InvestimentoComercialPage() {
           {([
             { id: 'todas',       label: 'Todas as categorias' },
             { id: 'Comercial',   label: 'Comercial' },
+            { id: 'Leads',       label: 'Leads' },
             { id: 'Sustentação', label: 'Sustentação' },
             { id: 'Projeto',     label: 'Projeto' },
             { id: 'Suporte',     label: 'Suporte' },
@@ -768,13 +793,27 @@ export default function InvestimentoComercialPage() {
                   Categoria <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <select value={newProjectCategoria}
-                  onChange={e => setNewProjectCategoria(e.target.value as 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial')}
+                  onChange={e => setNewProjectCategoria(e.target.value as 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads')}
                   className="w-full px-3 h-9 rounded-xl text-sm outline-none" style={inputStyle}>
                   <option value="Sustentação">Sustentação</option>
                   <option value="Projeto">Projeto</option>
                   <option value="Suporte">Suporte</option>
                   <option value="Comercial">Comercial</option>
+                  <option value="Leads">Leads</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+                  Aprovador
+                </label>
+                <SearchSelect
+                  fullWidth
+                  value={newProjectApprover}
+                  onChange={setNewProjectApprover}
+                  options={approvers.map(a => ({ id: a.id, name: a.name }))}
+                  placeholder="Quem aprova os apontamentos (coordenador)..."
+                />
+                <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Sem aprovador, só admin aprova os apontamentos deste projeto.</p>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
@@ -823,7 +862,18 @@ export default function InvestimentoComercialPage() {
                   <option value="Projeto">Projeto</option>
                   <option value="Suporte">Suporte</option>
                   <option value="Comercial">Comercial</option>
+                  <option value="Leads">Leads</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>Aprovador</label>
+                <SearchSelect
+                  fullWidth
+                  value={editApprover}
+                  onChange={setEditApprover}
+                  options={approvers.map(a => ({ id: a.id, name: a.name }))}
+                  placeholder="Quem aprova os apontamentos (coordenador)..."
+                />
               </div>
             </div>
             <div className="flex items-center justify-between gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
