@@ -401,7 +401,7 @@ export default function InvestimentoComercialPage() {
         </Td>
         <Td>
           <div className="flex items-center gap-1 justify-end">
-            {depth === 0 && (
+            {depth === 0 && project.categoria_interna === 'Comercial' && (
               <Button size="sm" variant="ghost" onClick={() => addLead(project)} aria-label="Adicionar lead">
                 <Plus size={13} className="mr-1" /> Lead
               </Button>
