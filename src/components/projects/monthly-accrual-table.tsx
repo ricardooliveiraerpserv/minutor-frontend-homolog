@@ -35,6 +35,7 @@ interface StatementRow {
   vendidas_hours: number | null
   aporte_hours?: number
   consumption_hours: number
+  child_block_hours?: number
   accumulated_consumption_hours: number
   balance_hours: number | null
   editable: boolean
@@ -170,6 +171,9 @@ export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated,
                         </div>
                       ) : (
                         <span className="font-semibold">{fmtH(r.consumption_hours)}</span>
+                      )}
+                      {(r.child_block_hours ?? 0) > 0 && (
+                        <span className="block text-[10px] font-medium" style={{ color: 'var(--warning)' }}>+{fmtH(r.child_block_hours ?? 0)} filho</span>
                       )}
                     </td>
                     {showVendidas && <td className="px-3 py-2 text-right tabular-nums font-semibold" style={{ color: negative ? 'var(--danger)' : t.text }}>{r.balance_hours != null ? fmtH(r.balance_hours) : '—'}</td>}
