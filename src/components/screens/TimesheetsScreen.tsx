@@ -1763,7 +1763,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               const cliente = ts.customer?.name ?? ts.project?.customer?.name ?? null
               const projeto = ts.project?.name ?? `Projeto #${ts.project_id}`
               return (
-                <div key={ts.id} onClick={() => openView(ts)}
+                <div key={ts.id} onClick={() => openView(ts)} {...hover.bind(ts)}
                   className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-hover)]"
                   style={{ borderColor: 'var(--brand-border)' }}>
                   {/* Linha 1: [checkbox] colaborador/projeto + menu */}
