@@ -166,6 +166,28 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
   return { displaySold, consumedHours }
 }
 
+// Saúde + % de uso. Banco de Horas MENSAL considera o PRÓXIMO aporte mensal
+// (= sold_hours por mês), pois todo mês entra um lote novo:
+//   verde   : saldo de hoje >= 0 (tem folga agora)
+//   amarelo : saldo de hoje < 0, mas o próximo aporte cobre (saldo projetado >= 0)
+//   vermelho: nem com o próximo aporte fecha (saldo projetado < 0)
+// O % de uso usa (disponível + próximo aporte) como base, então 100% = saldo projetado 0.
+function projectHealth(p: ProjectWithTeam, displaySold: number, consumed: number): { pct: number; color: 'green' | 'yellow' | 'red' } {
+  const ctName = ((p as any).contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
+  if (ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand') return { pct: 100, color: 'green' }
+  if (ctName.includes('mensal')) {
+    const aporteMensal = Number(p.sold_hours ?? 0)
+    const dispProx   = displaySold + aporteMensal
+    const saldoHoje  = displaySold - consumed
+    const saldoProj  = saldoHoje + aporteMensal
+    const pct = dispProx > 0 ? (consumed / dispProx) * 100 : 0
+    const color: 'green' | 'yellow' | 'red' = saldoProj < 0 ? 'red' : (saldoHoje < 0 ? 'yellow' : 'green')
+    return { pct, color }
+  }
+  const pct = displaySold > 0 ? (consumed / displaySold) * 100 : 0
+  return { pct, color: healthColor(pct) }
+}
+
 // Banco de horas de coordenação (lente do coordenador). "Vendidas" = coordination_hours;
 // se em branco, cai pro vendido operacional (displaySold). Consumido = apontamentos do
 // coordenador. 4 níveis de risco (saudável ≤70 / atenção 71-90 / crítico 91-100 / estourado >100).
@@ -388,8 +410,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
     ? project.consumed_hours
     : (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0) + ((project as any).initial_hours_consumed ?? 0)
   const displaySaldo = isOnDemand ? 0 : (project.general_hours_balance ?? null)
-  const pct = isOnDemand ? 100 : (displaySold > 0 ? (consumedHours / displaySold) * 100 : 0)
-  const color = isOnDemand ? 'green' : healthColor(pct)
+  const { pct, color } = projectHealth(project, displaySold, consumedHours)
   const hs    = healthStyles[color]
 
   const saldo    = displaySaldo
@@ -2139,9 +2160,7 @@ export default function GestaoProjetosPage() {
       }
       if (saudeFilter) {
         const { displaySold, consumedHours } = calcProjHours(p)
-        const pct = displaySold > 0 ? (consumedHours / displaySold) * 100 : 0
-        const color = healthColor(pct)
-        if (color !== saudeFilter) return false
+        if (projectHealth(p, displaySold, consumedHours).color !== saudeFilter) return false
       }
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
@@ -2177,7 +2196,7 @@ export default function GestaoProjetosPage() {
         case 'balance':       return (p as any).general_hours_balance ?? 0
         case 'pct': {
           const { displaySold, consumedHours } = calcProjHours(p)
-          return displaySold > 0 ? (consumedHours / displaySold) * 100 : 0
+          return projectHealth(p, displaySold, consumedHours).pct
         }
         case 'coord': {
           const bank = Number((p as any).coordination_hours ?? 0)
@@ -2230,8 +2249,7 @@ export default function GestaoProjetosPage() {
       }
       if (saudeFilter) {
         const { displaySold, consumedHours } = calcProjHours(p)
-        const pct = displaySold > 0 ? (consumedHours / displaySold) * 100 : 0
-        if (healthColor(pct) !== saudeFilter) return false
+        if (projectHealth(p, displaySold, consumedHours).color !== saudeFilter) return false
       }
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
@@ -2270,11 +2288,14 @@ export default function GestaoProjetosPage() {
     const vendidas  = base.reduce((s, p) => s + calcProjHours(p).displaySold, 0)
     const consumidas = base.reduce((s, p) => s + calcProjHours(p).consumedHours, 0)
     const saldo     = base.reduce((s, p) => s + (p.general_hours_balance ?? 0), 0)
+    // % médio e contagem de críticos seguem a saúde efetiva (BH Mensal já considera
+    // o próximo aporte) em vez do balance_percentage cru do backend.
+    const healthOf = (p: ProjectWithTeam) => { const h = calcProjHours(p); return projectHealth(p, h.displaySold, h.consumedHours) }
     const comPct    = base.filter(p => calcProjHours(p).displaySold > 0)
     const avgPct    = comPct.length
-      ? comPct.reduce((s, p) => s + (p.balance_percentage ?? 0), 0) / comPct.length
+      ? comPct.reduce((s, p) => s + healthOf(p).pct, 0) / comPct.length
       : 0
-    const criticos  = base.filter(p => (p.balance_percentage ?? 0) >= 90).length
+    const criticos  = base.filter(p => healthOf(p).color === 'red').length
     return { ativos, vendidas, consumidas, saldo, avgPct, criticos }
   }, [filtered])
 
@@ -3429,8 +3450,7 @@ export default function GestaoProjetosPage() {
         const p: ProjectFull = viewProjectFull ?? base
         const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
         const totalAvail = p.total_available_hours ?? ((p.sold_hours ?? 0) + (p.hour_contribution ?? 0))
-        const pct = totalAvail > 0 ? (consumed / totalAvail) * 100 : 0
-        const color = healthColor(pct)
+        const { pct, color } = projectHealth(p as unknown as ProjectWithTeam, totalAvail, consumed)
         const hs = healthStyles[color]
         const statusLabel: Record<string, string> = {
           active: 'Ativo', started: 'Em Andamento', awaiting_start: 'Aguardando Início',
