@@ -325,6 +325,14 @@ tbody tr + tr > td {
   html {
     @apply font-sans;
   }
+  /* Mobile: nada pode estourar a largura da viewport (drawer off-canvas,
+   * tabelas largas, etc.). A rolagem horizontal acontece só nos containers
+   * internos (overflow-x-auto), nunca na página inteira — evita o "zoom"
+   * e faixas vazias nas laterais no celular. */
+  html, body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
 
   /* ─── Tipografia base do produto ────────────────────────────────────
    * Headings sem className específica passam a herdar essa escala.
