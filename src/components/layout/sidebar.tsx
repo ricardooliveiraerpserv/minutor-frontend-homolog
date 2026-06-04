@@ -247,11 +247,21 @@ function itemClass(active: boolean): string {
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
-function SidebarInner({ user }: { user: User }) {
+function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobileOpen?: boolean; onClose?: () => void }) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
-  const [collapsed,   setCollapsed]   = useState(false)
+  const [collapsedRaw, setCollapsed]  = useState(false)
   const [openGroups,  setOpenGroups]  = useState<string[]>([])
+  // No mobile o menu é um drawer de largura cheia — nunca colapsado (ícones-só é coisa de desktop).
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const sync = () => setIsMobile(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+  const collapsed = collapsedRaw && !isMobile
 
   const isConsultor        = user?.type === 'consultor'
   const isCoordenador      = user?.type === 'coordenador'
@@ -532,10 +542,35 @@ function SidebarInner({ user }: { user: User }) {
   )
 
   return (
+    <>
+      {/* Backdrop do drawer (só mobile, quando aberto) */}
+      <div
+        onClick={onClose}
+        className={cn('fixed inset-0 z-40 bg-black/50 md:hidden transition-opacity duration-200',
+          mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none')}
+        aria-hidden
+      />
     <aside
-      className={cn('flex flex-col h-screen border-r transition-all duration-200 shrink-0', collapsed ? 'w-[60px]' : 'w-[248px]')}
+      className={cn(
+        'flex flex-col h-screen border-r transition-transform duration-200 shrink-0',
+        // Mobile: drawer off-canvas largura cheia
+        'fixed inset-y-0 left-0 z-50 w-[248px]',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full',
+        // Desktop: estático no fluxo, com colapso opcional
+        'md:static md:z-auto md:translate-x-0 md:transition-all',
+        collapsedRaw ? 'md:w-[60px]' : 'md:w-[248px]',
+      )}
       style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}
     >
+      {/* Fechar (só mobile) */}
+      <button
+        onClick={onClose}
+        aria-label="Fechar menu"
+        className="md:hidden absolute top-3 right-3 z-10 p-1.5 rounded-md transition-colors hover:bg-zinc-800"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <ChevronLeft size={16} />
+      </button>
       {/* ── Logo ── */}
       <div
         className="flex items-center gap-8 h-18 px-5 border-b shrink-0"
@@ -741,10 +776,10 @@ function SidebarInner({ user }: { user: User }) {
         </div>
       )}
 
-      {/* ── Collapse toggle ── */}
+      {/* ── Collapse toggle (só desktop) ── */}
       <button
         onClick={() => setCollapsed(c => !c)}
-        className="flex items-center justify-center h-10 border-t transition-colors"
+        className="hidden md:flex items-center justify-center h-10 border-t transition-colors"
         style={{ borderColor: 'var(--brand-border)', color: 'var(--text-muted)' }}
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -752,13 +787,14 @@ function SidebarInner({ user }: { user: User }) {
         {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
     </aside>
+    </>
   )
 }
 
-export function Sidebar({ user }: { user: User }) {
+export function Sidebar({ user, mobileOpen, onClose }: { user: User; mobileOpen?: boolean; onClose?: () => void }) {
   return (
     <Suspense>
-      <SidebarInner user={user} />
+      <SidebarInner user={user} mobileOpen={mobileOpen} onClose={onClose} />
     </Suspense>
   )
 }
