@@ -11,7 +11,7 @@ import {
   Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
   Trash2, X, Globe, Webhook, MoreVertical, Eye, Search, ChevronDown,
   Paperclip, Calendar, Building2, FolderOpen, Ticket, Hash,
-  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign, TrendingUp, RotateCcw, AlertTriangle,
+  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign, TrendingUp, RotateCcw, AlertTriangle, SlidersHorizontal,
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
@@ -868,6 +868,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const [coordinators, setCoordinators] = useState<SelectOption[]>([])
   const [executives, setExecutives]     = useState<SelectOption[]>([])
   const [consultants, setConsultants]   = useState<SelectOption[]>([])
+  // Mobile: painel de filtros vira Drawer (off-canvas) acionado pelo botão "Filtros".
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [viewItem, setViewItem]       = useState<Timesheet | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
@@ -1165,8 +1167,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   )
 
   return (
-    <div>
-      <div className={embedded ? '' : 'max-w-7xl mx-auto'}>
+    <div className="w-full max-w-full overflow-x-hidden">
+      <div className={embedded ? 'min-w-0' : 'max-w-7xl mx-auto min-w-0'}>
         <PageHeader
           icon={Clock}
           title="Apontamentos"
@@ -1183,7 +1185,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 </Button>
               )}
               {!isCliente && (
-                <Button variant="primary" size="sm" icon={Plus} onClick={() => setNewModalOpen(true)}>Novo</Button>
+                <Button variant="primary" size="sm" icon={Plus} onClick={() => setNewModalOpen(true)} className="w-full sm:w-auto">Novo</Button>
               )}
             </>
           }
@@ -1198,14 +1200,39 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           </div>
         )}
 
-        {/* Filters */}
+        {/* Botão "Filtros" — só mobile (abre o Drawer) */}
+        <div className="md:hidden mb-3">
+          <button
+            onClick={() => setFiltersOpen(true)}
+            className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--text)' }}
+          >
+            <SlidersHorizontal size={15} /> Filtros{hasFilters ? ' • ativos' : ''}
+          </button>
+        </div>
+
+        {/* Backdrop do Drawer (mobile) */}
+        {filtersOpen && (
+          <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setFiltersOpen(false)} />
+        )}
+
+        {/* Filters — inline no desktop/tablet, Drawer off-canvas no mobile */}
         <div
-          className="p-4 rounded-2xl mb-4 space-y-3"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+          className={`p-4 mb-4 space-y-3 ${filtersOpen ? 'block' : 'hidden'} md:block
+            fixed inset-y-0 left-0 z-50 w-[86%] max-w-xs overflow-y-auto rounded-none shadow-2xl
+            md:static md:z-auto md:w-auto md:max-w-none md:overflow-visible md:rounded-2xl md:shadow-none`}
+          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', WebkitOverflowScrolling: 'touch' }}
         >
+          {/* Cabeçalho do Drawer (mobile) */}
+          <div className="flex items-center justify-between md:hidden">
+            <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Filtros</span>
+            <button onClick={() => setFiltersOpen(false)} className="p-1 rounded-lg" style={{ color: 'var(--text-muted)' }} aria-label="Fechar filtros">
+              <X size={16} />
+            </button>
+          </div>
           {/* Chips de categoria de serviço */}
           {/* Linha 1: selects */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
             {isCliente ? (
               // Filtros para cliente: apenas Projeto
               <>
@@ -1374,7 +1401,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
 
         {/* Pills de tipo de contrato — apenas para cliente */}
         {isCliente && clienteContractTypes.length > 0 && (
-          <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-4"
+          <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-4"
             style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
             <button
               onClick={() => { setContractTypeIds([]); resetPage() }}
@@ -1400,7 +1427,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         )}
 
         {/* Status pills — oculto para clientes e em modo Triagem */}
-        {!isCliente && !triagemPadrao && <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        {!isCliente && !triagemPadrao && <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           {STATUS_PILLS.map(s => (
             <button
               key={s.value}
@@ -1418,7 +1445,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         </div>}
 
         {/* Pills Triagem: filtra por dimensão padrão (user/customer/project) */}
-        {triagemPadrao && <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        {triagemPadrao && <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           {[
             { value: '',         label: 'Todos' },
             { value: 'user',     label: 'Usuário' },
