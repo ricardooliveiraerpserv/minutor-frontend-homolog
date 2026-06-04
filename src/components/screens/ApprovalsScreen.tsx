@@ -1334,32 +1334,33 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
         {/* Timesheets cards — compacto: toca p/ abrir detalhe (igual desktop), muda de cor ao tocar */}
         {!currentLoading && tab === 'timesheets' && tsItems.map(ts => (
           <div key={ts.id} onClick={() => openTsView(ts)}
-            className={`rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-hover)] ${
+            className={`rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)] ${
               selected.includes(ts.id) ? 'ring-1 ring-blue-500/40' : ''
             }`}
             style={{ borderColor: 'var(--brand-border)' }}>
-            {/* Linha 1: checkbox + colaborador + status */}
+            {/* Linha 1: checkbox + colaborador + menu */}
             <div className="flex items-center gap-2">
               <span onClick={e => e.stopPropagation()} className="shrink-0 flex">
                 <input type="checkbox" checked={selected.includes(ts.id)} onChange={() => toggleOne(ts.id)}
                   className="rounded border-zinc-600 bg-zinc-800 accent-blue-500" />
               </span>
               <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--brand-text)' }}>{ts.user?.name ?? '—'}</span>
+              <div onClick={e => e.stopPropagation()} className="shrink-0">
+                <RowMenu items={[
+                  { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openTsView(ts) },
+                  { label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTs(ts.id), disabled: actioning === ts.id },
+                  { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: ts.id, type: 'timesheet' }); setAdjReason('') } },
+                  { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }, danger: true },
+                ]} />
+              </div>
+            </div>
+            {/* Linha 2: status */}
+            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
               <TsStatusBadge status={ts.status} display={ts.status_display} />
             </div>
-            {/* Linha 2: resumo + ações compactas (ícones) */}
-            <div className="mt-1.5 flex items-center justify-between gap-2">
-              <span className="text-[11px] truncate min-w-0" style={{ color: 'var(--brand-subtle)' }}>
-                {fmt(ts.date)}{ts.ticket ? ` · #${ts.ticket}` : ''} · {fmtMin(ts.effort_minutes)}{ts.project?.customer?.name ? ` · ${ts.project.customer.name}` : ''}
-              </span>
-              <div onClick={e => e.stopPropagation()} className="flex items-center gap-1 shrink-0">
-                <button onClick={() => approveTs(ts.id)} disabled={actioning === ts.id} aria-label="Aprovar"
-                  className="p-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white disabled:opacity-50 transition-colors"><Check size={13} /></button>
-                <button onClick={() => { setAdjModal({ open: true, id: ts.id, type: 'timesheet' }); setAdjReason('') }} aria-label="Solicitar ajuste"
-                  className="p-1.5 rounded-lg border border-blue-700/50 text-blue-400 hover:bg-blue-400/10 transition-colors"><RotateCcw size={13} /></button>
-                <button onClick={() => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }} aria-label="Rejeitar"
-                  className="p-1.5 rounded-lg border border-red-700/50 text-red-400 hover:bg-red-400/10 transition-colors"><XCircle size={13} /></button>
-              </div>
+            {/* Linha 3: resumo */}
+            <div className="mt-1.5 text-[11px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+              {fmt(ts.date)}{ts.ticket ? ` · #${ts.ticket}` : ''} · {fmtMin(ts.effort_minutes)}{ts.project?.customer?.name ? ` · ${ts.project.customer.name}` : ''}{ts.project?.name ? ` · ${ts.project.name}` : ''}
             </div>
           </div>
         ))}
@@ -1369,33 +1370,29 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
           const isOwn = (exp.user?.id ?? (exp as any).user_id) === user?.id
           return (
             <div key={exp.id} onClick={() => openExpApprove(exp)}
-              className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-hover)]"
+              className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)]"
               style={{ borderColor: 'var(--brand-border)' }}>
-              {/* Linha 1: colaborador + status */}
+              {/* Linha 1: colaborador + menu */}
               <div className="flex items-center gap-2">
                 <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--brand-text)' }}>{exp.user?.name ?? '—'}</span>
+                <div onClick={e => e.stopPropagation()} className="shrink-0">
+                  <RowMenu items={[
+                    { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openExpApprove(exp) },
+                    ...(isOwn ? [] : [{ label: 'Aprovar', icon: <Check size={12} />, onClick: () => openExpApprove(exp) }]),
+                    { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: exp.id, type: 'expense' }); setAdjReason('') } },
+                    { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [exp.id] }); setRejectReason('') }, danger: true },
+                    ...(exp.receipt_url ? [{ label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceiptUrl(exp.receipt_url!) }] : []),
+                  ]} />
+                </div>
+              </div>
+              {/* Linha 2: status */}
+              <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
                 <TsStatusBadge status={exp.status} display={exp.status_display} />
               </div>
-              {/* Linha 2: resumo + ações compactas (ícones) */}
-              <div className="mt-1.5 flex items-center justify-between gap-2">
-                <span className="text-[11px] truncate min-w-0 flex items-center gap-1" style={{ color: 'var(--brand-subtle)' }}>
-                  {exp.receipt_url && <Paperclip size={10} className="shrink-0" />}
-                  {fmt(exp.expense_date)} · {fmtBRL(parseFloat(String(exp.amount)) || 0)}{exp.category?.name ? ` · ${exp.category.name}` : ''}
-                </span>
-                <div onClick={e => e.stopPropagation()} className="flex items-center gap-1 shrink-0">
-                  {!isOwn && (
-                    <button onClick={() => openExpApprove(exp)} aria-label="Aprovar"
-                      className="p-1.5 rounded-lg bg-green-600 hover:bg-green-500 text-white transition-colors"><Check size={13} /></button>
-                  )}
-                  <button onClick={() => { setAdjModal({ open: true, id: exp.id, type: 'expense' }); setAdjReason('') }} aria-label="Solicitar ajuste"
-                    className="p-1.5 rounded-lg border border-blue-700/50 text-blue-400 hover:bg-blue-400/10 transition-colors"><RotateCcw size={13} /></button>
-                  <button onClick={() => { setRejectModal({ open: true, ids: [exp.id] }); setRejectReason('') }} aria-label="Rejeitar"
-                    className="p-1.5 rounded-lg border border-red-700/50 text-red-400 hover:bg-red-400/10 transition-colors"><XCircle size={13} /></button>
-                  {exp.receipt_url && (
-                    <button onClick={() => openReceiptUrl(exp.receipt_url!)} aria-label="Comprovante"
-                      className="p-1.5 rounded-lg border border-zinc-700 text-zinc-300 hover:bg-white/5 transition-colors"><Paperclip size={13} /></button>
-                  )}
-                </div>
+              {/* Linha 3: resumo */}
+              <div className="mt-1.5 text-[11px] truncate flex items-center gap-1" style={{ color: 'var(--brand-subtle)' }}>
+                {exp.receipt_url && <Paperclip size={10} className="shrink-0" />}
+                {fmt(exp.expense_date)} · {fmtBRL(parseFloat(String(exp.amount)) || 0)}{exp.category?.name ? ` · ${exp.category.name}` : ''}{exp.project?.customer?.name ? ` · ${exp.project.customer.name}` : ''}
               </div>
             </div>
           )
