@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { FileType, Wrench, Users, Star, UserCheck, CalendarDays, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Check, Tag, CreditCard, Receipt, Contact, Download, Mail } from 'lucide-react'
+import { FileType, Wrench, Users, Star, UserCheck, CalendarDays, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Check, Tag, CreditCard, Receipt, Contact, Download, Mail, Copy } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -1081,6 +1081,8 @@ function EmailTemplatesTab() {
 
   const openCreate = () => { setVarMenu(null); setForm({ categoria: 'consultor', contract_type: 'cooperado', nome: '', subject: '', body: '', pay_day: '', active: true }); setModal({ open: true }) }
   const openEdit = (it: EmailTpl) => { setVarMenu(null); setForm({ categoria: it.categoria, contract_type: it.contract_type ?? 'cooperado', nome: it.nome ?? '', subject: it.subject, body: it.body, pay_day: it.pay_day != null ? String(it.pay_day) : '', active: it.active }); setModal({ open: true, item: it }) }
+  // Duplica: abre como NOVO modelo (sem item) com o conteúdo copiado, inativo p/ não derrubar o ativo atual.
+  const openDuplicate = (it: EmailTpl) => { setVarMenu(null); setForm({ categoria: it.categoria, contract_type: it.contract_type ?? 'cooperado', nome: (it.nome ? it.nome + ' (cópia)' : 'Cópia'), subject: it.subject, body: it.body, pay_day: it.pay_day != null ? String(it.pay_day) : '', active: false }); setModal({ open: true }) }
 
   const save = async () => {
     if (!form.subject.trim() || !form.body.trim()) { toast.error('Preencha assunto e corpo'); return }
@@ -1130,6 +1132,7 @@ function EmailTemplatesTab() {
               <tr key={it.id} className="border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors">
                 <td className="px-2 py-2.5 w-10"><RowMenu items={[
                   { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(it) },
+                  { label: 'Duplicar', icon: <Copy size={12} />, onClick: () => openDuplicate(it) },
                   { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: it.id }), danger: true },
                 ]} /></td>
                 <td className="px-3 py-2.5 text-zinc-200">{catLabel(it.categoria)}</td>
