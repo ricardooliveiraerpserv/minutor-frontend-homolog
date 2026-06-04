@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense, type ChangeEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { api, ApiError } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
@@ -1045,6 +1045,33 @@ function EmailTemplatesTab() {
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
+  // Autocomplete de variáveis ao digitar "{".
+  const subjectRef = useRef<HTMLInputElement>(null)
+  const bodyRef = useRef<HTMLTextAreaElement>(null)
+  const [varMenu, setVarMenu] = useState<'subject' | 'body' | null>(null)
+  const VAR_DESC: Record<string, string> = {
+    nome: 'nome do destinatário', periodo: 'mês/ano (ex.: Maio de 2026)',
+    valor: 'valor total (R$)', data_nota: 'data de envio da NF (só PJ)',
+  }
+  const availableVars = ['nome', 'periodo', 'valor',
+    ...(form.categoria !== 'cliente' && form.contract_type === 'pj' ? ['data_nota'] : [])]
+
+  const onVarField = (field: 'subject' | 'body', e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = e.target.value
+    const pos = e.target.selectionStart ?? value.length
+    setForm(f => ({ ...f, [field]: value }))
+    setVarMenu(value[pos - 1] === '{' ? field : null)
+  }
+  const insertVar = (field: 'subject' | 'body', name: string) => {
+    const ref = field === 'subject' ? subjectRef.current : bodyRef.current
+    const cur = form[field]
+    const pos = ref?.selectionStart ?? cur.length // cursor logo após o "{"
+    const next = cur.slice(0, pos) + name + '}' + cur.slice(pos)
+    setForm(f => ({ ...f, [field]: next }))
+    setVarMenu(null)
+    setTimeout(() => { if (ref) { ref.focus(); const c = pos + name.length + 1; ref.setSelectionRange(c, c) } }, 0)
+  }
+
   const load = useCallback(async () => {
     setLoading(true)
     try { const r = await api.get<{ data: EmailTpl[] }>('/fechamento-email-templates'); setItems(r.data ?? []) }
@@ -1052,8 +1079,8 @@ function EmailTemplatesTab() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const openCreate = () => { setForm({ categoria: 'consultor', contract_type: 'cooperado', nome: '', subject: '', body: '', active: true }); setModal({ open: true }) }
-  const openEdit = (it: EmailTpl) => { setForm({ categoria: it.categoria, contract_type: it.contract_type ?? 'cooperado', nome: it.nome ?? '', subject: it.subject, body: it.body, active: it.active }); setModal({ open: true, item: it }) }
+  const openCreate = () => { setVarMenu(null); setForm({ categoria: 'consultor', contract_type: 'cooperado', nome: '', subject: '', body: '', active: true }); setModal({ open: true }) }
+  const openEdit = (it: EmailTpl) => { setVarMenu(null); setForm({ categoria: it.categoria, contract_type: it.contract_type ?? 'cooperado', nome: it.nome ?? '', subject: it.subject, body: it.body, active: it.active }); setModal({ open: true, item: it }) }
 
   const save = async () => {
     if (!form.subject.trim() || !form.body.trim()) { toast.error('Preencha assunto e corpo'); return }
@@ -1146,15 +1173,47 @@ function EmailTemplatesTab() {
               </div>
               <div>
                 <Label className="text-xs text-zinc-400">Assunto *</Label>
-                <Input value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" placeholder="Fechamento {periodo} - {nome}" />
+                <div className="relative">
+                  <input ref={subjectRef} value={form.subject}
+                    onChange={e => onVarField('subject', e)}
+                    onBlur={() => setTimeout(() => setVarMenu(m => m === 'subject' ? null : m), 150)}
+                    className="mt-1 w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-white h-9 text-xs outline-none"
+                    placeholder="Fechamento {periodo} - {nome}" />
+                  {varMenu === 'subject' && (
+                    <div className="absolute z-30 left-0 top-full mt-1 rounded-md border border-zinc-700 bg-zinc-900 shadow-xl text-xs overflow-hidden min-w-[220px]">
+                      {availableVars.map(v => (
+                        <button key={v} type="button" onMouseDown={e => { e.preventDefault(); insertVar('subject', v) }}
+                          className="block w-full text-left px-3 py-1.5 hover:bg-zinc-800">
+                          <span className="font-mono text-blue-300">{'{' + v + '}'}</span>
+                          <span className="text-zinc-500 ml-2">{VAR_DESC[v]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <Label className="text-xs text-zinc-400">Corpo *</Label>
-                <textarea value={form.body} onChange={e => setForm(f => ({ ...f, body: e.target.value }))} rows={7}
-                  className="mt-1 w-full px-3 py-2 rounded-md text-xs bg-zinc-800 border border-zinc-700 text-white outline-none resize-y"
-                  placeholder={'Olá {nome},\nSegue o fechamento de {periodo}. Total: {valor}.'} />
-                <p className="mt-1 text-[10px] text-zinc-500">Variáveis: {'{nome}'} {'{periodo}'} {'{valor}'}{form.categoria !== 'cliente' && form.contract_type === 'pj' ? ' {data_nota}' : ''}</p>
+                <div className="relative">
+                  <textarea ref={bodyRef} value={form.body}
+                    onChange={e => onVarField('body', e)}
+                    onBlur={() => setTimeout(() => setVarMenu(m => m === 'body' ? null : m), 150)}
+                    rows={7}
+                    className="mt-1 w-full px-3 py-2 rounded-md text-xs bg-zinc-800 border border-zinc-700 text-white outline-none resize-y"
+                    placeholder={'Olá {nome},\nSegue o fechamento de {periodo}. Total: {valor}.'} />
+                  {varMenu === 'body' && (
+                    <div className="absolute z-30 left-0 top-full mt-1 rounded-md border border-zinc-700 bg-zinc-900 shadow-xl text-xs overflow-hidden min-w-[220px]">
+                      {availableVars.map(v => (
+                        <button key={v} type="button" onMouseDown={e => { e.preventDefault(); insertVar('body', v) }}
+                          className="block w-full text-left px-3 py-1.5 hover:bg-zinc-800">
+                          <span className="font-mono text-blue-300">{'{' + v + '}'}</span>
+                          <span className="text-zinc-500 ml-2">{VAR_DESC[v]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="mt-1 text-[10px] text-zinc-500">Digite <code>{'{'}</code> para escolher uma variável. Disponíveis: {availableVars.map(v => '{' + v + '}').join('  ')}</p>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}
