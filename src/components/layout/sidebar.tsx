@@ -43,6 +43,7 @@ import {
   UserPlus,
   Search,
   Inbox,
+  Mail,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -224,6 +225,7 @@ const NAV: NavEntry[] = [
       { label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag },
       { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',     icon: Receipt },
       { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',   icon: CreditCard },
+      { label: 'Modelos de E-mail',     href: '/cadastros?tab=email_templates',   icon: Mail },
       { label: 'Parceiros',             href: '/partners',                        icon: Handshake },
       { label: 'Saldo Inicial de Tickets', href: '/cadastros/saldo-inicial-tickets', icon: Ticket },
       { label: 'Integração Movidesk',   href: '/configuracoes/movidesk',          icon: Webhook },
