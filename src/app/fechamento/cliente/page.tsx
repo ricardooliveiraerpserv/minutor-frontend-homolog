@@ -949,7 +949,7 @@ export default function FechamentoClientePage() {
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
 
         {/* ── Header ── */}
-        <div className="px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div className="flex flex-wrap items-center gap-3">
             <Building2 size={20} style={{ color: 'var(--brand-primary)' }} />
             <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>
@@ -1022,7 +1022,7 @@ export default function FechamentoClientePage() {
 
         {/* ── Cards de pendências (apontamentos + despesas a cobrar não aprovados) — topo, sempre visíveis ── */}
         {customerId && pendData && (
-          <div className="px-6 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="px-4 md:px-6 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Card 1 — apontamentos pendentes */}
             <div
               className="ds-card flex items-center justify-between gap-3 px-4 py-3"
@@ -1087,7 +1087,7 @@ export default function FechamentoClientePage() {
         )}
 
         {/* ── Tabs — sempre visíveis ── */}
-        <div className="flex gap-1 px-6 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex gap-1 px-4 md:px-6 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
           {([
             { key: 'global',    label: 'Visão Global' },
             { key: 'servicos',  label: 'Apontamentos' },
@@ -1152,7 +1152,7 @@ export default function FechamentoClientePage() {
             return (
               <div>
                 {/* Cards de resumo */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                   <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                     <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Clientes com movimento</div>
                     <div className="text-2xl font-bold" style={{ color: 'var(--brand-text)' }}>{lista.length}</div>

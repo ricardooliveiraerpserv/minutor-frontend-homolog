@@ -88,7 +88,7 @@ export default function SaldoInicialTicketsPage() {
 
   return (
     <AppLayout title="Saldo Inicial de Tickets">
-      <div className="max-w-6xl mx-auto p-6 space-y-4">
+      <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 space-y-4">
         <header className="flex items-start gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(0,245,255,0.08)' }}>
             <Clock size={16} color="#00F5FF" />

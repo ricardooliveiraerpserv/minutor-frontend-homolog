@@ -406,7 +406,7 @@ export default function ContratosPage() {
       </div>
 
       {/* ── Table ── */}
-      <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="rounded-xl border overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
@@ -587,7 +587,7 @@ export default function ContratosPage() {
 
               {/* Body */}
               <div className="px-6 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   {fields.map(([label, value]) => (
                     <div key={label}>
                       <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>

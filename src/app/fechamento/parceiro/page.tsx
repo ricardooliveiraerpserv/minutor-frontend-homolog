@@ -870,7 +870,7 @@ export default function FechamentoParceiroPage() {
     <AppLayout title="Fechamento — Parceiros">
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div className="flex flex-wrap items-center gap-3">
             <Handshake size={20} style={{ color: 'var(--brand-primary)' }} />
             <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>
@@ -1047,7 +1047,7 @@ export default function FechamentoParceiroPage() {
         ) : (
           <>
             {/* Tabs */}
-            <div className="flex gap-1 px-6 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="flex gap-1 px-4 md:px-6 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
               {TABS.map(t => (
                 <button
                   key={t.key}
@@ -1067,7 +1067,7 @@ export default function FechamentoParceiroPage() {
 
               {/* ── Tab Consultores ── */}
               {tab === 'consultores' && (
-                <div className="p-6">
+                <div className="p-4 md:p-6">
                   {/* Toggle de visão */}
                   <div className="flex items-center gap-2 mb-5">
                     {(['resumo', 'tipo'] as const).map(v => (
@@ -1209,7 +1209,7 @@ export default function FechamentoParceiroPage() {
 
               {/* ── Tab Despesas ── */}
               {tab === 'despesas' && (
-                <div className="p-6">
+                <div className="p-4 md:p-6">
                   {loadingDesp ? (
                     <SkeletonTable rows={4} cols={6} />
                   ) : despesas.length === 0 ? (
@@ -1285,7 +1285,7 @@ export default function FechamentoParceiroPage() {
 
               {/* ── Tab Apontamentos ── */}
               {tab === 'apontamentos' && (
-                <div className="p-6">
+                <div className="p-4 md:p-6">
                   {/* Filtros */}
                   <div className="flex flex-wrap items-center gap-3 mb-4">
                     <Filter size={14} style={{ color: 'var(--brand-muted)' }} />
@@ -1381,7 +1381,7 @@ export default function FechamentoParceiroPage() {
 
               {/* ── Tab Resumo ── */}
               {tab === 'resumo' && (
-                <div className="p-6 max-w-md">
+                <div className="p-4 md:p-6 max-w-md">
                   <div className="rounded-lg p-5 space-y-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)' }}>
                     <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--brand-text)' }}>
                       Resumo — {yearMonth ? fmtYearMonth(yearMonth) : ''}
@@ -1413,7 +1413,7 @@ export default function FechamentoParceiroPage() {
               {/* ── Tab Relatório ── */}
               {tab === 'relatorio' && (
                 (loadingAp || loadingReport) ? (
-                  <div className="p-6"><SkeletonTable rows={4} cols={6} /></div>
+                  <div className="p-4 md:p-6"><SkeletonTable rows={4} cols={6} /></div>
                 ) : (() => {
                   const reportHtml = reportHtmlSrv
                   if (!reportHtml) {

@@ -1407,7 +1407,7 @@ export default function FechamentoConsultorPage() {
           title="Fechamento de Consultores"
           subtitle={`Custo mensal por tipo de vínculo — ${fmtYearMonth(yearMonth)}`}
           actions={
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <input
                 type="month"
                 value={yearMonth}
@@ -1440,7 +1440,7 @@ export default function FechamentoConsultorPage() {
           return (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               {/* Cards menores (3 vínculos) — neutros via tokens */}
-              <div className="grid grid-cols-3 lg:col-span-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 lg:col-span-2 gap-3">
                 {breakdown.map(b => (
                   <div key={b.key} className="rounded-xl p-4 border" style={{
                     background: 'var(--surface)',
@@ -1491,7 +1491,7 @@ export default function FechamentoConsultorPage() {
         })()}
 
         {/* Tabs */}
-        <div className="border-b flex gap-1" style={{ borderColor: 'var(--border)' }}>
+        <div className="border-b flex gap-1 overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
           {TABS.map(t => {
             const active = tab === t.key
             return (

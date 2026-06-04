@@ -155,7 +155,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Modo selector */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
               onClick={() => selectMode('auto')}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium transition-all ${

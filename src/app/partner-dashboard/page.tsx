@@ -689,7 +689,7 @@ export default function PartnerDashboardPage() {
 
   return (
     <AppLayout>
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
 
         {/* ── Header ── */}
         <div className="flex items-start justify-between gap-4">
@@ -865,7 +865,7 @@ export default function PartnerDashboardPage() {
 
           {/* ── Consultores tab ── */}
           {activeTab === 'consultores' && (
-            <div style={{ background: 'var(--brand-surface)' }}>
+            <div className="overflow-x-auto" style={{ background: 'var(--brand-surface)' }}>
               <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-border)' }}>
                 <h2 className="text-sm font-semibold text-white">Consultores</h2>
                 {data && (
@@ -962,7 +962,7 @@ export default function PartnerDashboardPage() {
 
           {/* ── Apontamentos tab ── */}
           {activeTab === 'apontamentos' && (
-            <div style={{ background: 'var(--brand-surface)' }}>
+            <div className="overflow-x-auto" style={{ background: 'var(--brand-surface)' }}>
               <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-border)' }}>
                 <h2 className="text-sm font-semibold text-white">Apontamentos da Equipe</h2>
                 <div className="flex items-center gap-3">
@@ -1083,7 +1083,7 @@ export default function PartnerDashboardPage() {
 
           {/* ── Despesas tab ── */}
           {activeTab === 'despesas' && (
-            <div style={{ background: 'var(--brand-surface)' }}>
+            <div className="overflow-x-auto" style={{ background: 'var(--brand-surface)' }}>
               <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-border)' }}>
                 <h2 className="text-sm font-semibold text-white">Despesas da Equipe</h2>
                 <div className="flex items-center gap-3">
@@ -1211,7 +1211,7 @@ export default function PartnerDashboardPage() {
                   {/* 2. Performance por Consultor */}
                   <div>
                     <p className="text-[11px] uppercase tracking-widest font-semibold mb-3" style={{ color: 'var(--brand-subtle)' }}>Performance por Consultor</p>
-                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                    <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
                       <table className="w-full text-sm">
                         <thead>
                           <tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>

@@ -143,7 +143,7 @@ export default function FechadoPage() {
         <NoTrackingNotice />
 
         {/* Projetos fechados — sempre visível (sem seleção de projeto). */}
-        <div className="rounded-2xl overflow-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="rounded-2xl overflow-x-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           {loadingProjects ? (
             <div className="p-10 text-center">
               <div className="animate-pulse h-4 w-32 mx-auto rounded" style={{ background: 'var(--brand-border)' }} />

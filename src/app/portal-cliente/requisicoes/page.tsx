@@ -116,7 +116,7 @@ function DetailModal({ req, isAdmin, onClose, onReview }: {
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
           {/* Info grid */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               ['Tipo de Necessidade', TIPO_LABEL[req.tipo_necessidade] ?? req.tipo_necessidade],
               ['Product Owner', req.product_owner || '—'],
@@ -230,7 +230,7 @@ function ReqRow({ req, onClick }: { req: Req; onClick: () => void }) {
       {/* Urgency bar */}
       <div className="w-1 self-stretch rounded-full shrink-0" style={{ background: urgConf.color, opacity: 0.7 }} />
 
-      <div className="flex-1 min-w-0 grid grid-cols-5 gap-3 items-center">
+      <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
         <div className="col-span-2 min-w-0">
           <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>{req.area_requisitante}</p>
           <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>{req.customer.name}</p>
@@ -297,7 +297,7 @@ function RequisicoesContent() {
     <AppLayout>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div>
             <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>
               {isAdmin ? 'Requisições de Clientes' : 'Minhas Requisições'}
@@ -316,7 +316,7 @@ function RequisicoesContent() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-3 px-6 py-3 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex flex-wrap items-center gap-3 px-4 md:px-6 py-3 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div className="relative flex-1 max-w-xs">
             <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
             <input

@@ -826,7 +826,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
               <MultiSelect value={executiveIds}   onChange={v => { setExecutiveIds(v);   setPage(1) }} options={executives}   placeholder="Todos os executivos"   />
             </div>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
               {(['month', 'period'] as const).map((mode) => (
                 <button key={mode} onClick={() => setFilterMode(mode)}

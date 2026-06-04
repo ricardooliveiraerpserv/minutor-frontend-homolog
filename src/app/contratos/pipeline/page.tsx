@@ -2169,7 +2169,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className="px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap"
@@ -2192,7 +2192,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
               <div className="space-y-5">
 
                 {/* KPI strip */}
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
                     { label: isCoordViewer ? 'Horas Vendidas (Coord.)' : 'Horas Vendidas',
                       value: fmt(cardVendidas, 1) + 'h',  color: 'var(--brand-text)', bg: 'rgba(255,255,255,0.03)' },
@@ -2211,7 +2211,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
 
                 {/* Secondary KPIs */}
                 {breakdown.length > 0 && (
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {[
                       { label: 'Média h/consultor', value: fmt(avgHours, 1) + 'h',                           color: 'var(--brand-text)' },
                       { label: 'Maior consumidor',  value: topConsultant ? topConsultant.consultant_name : '—', color: '#f59e0b' },
@@ -2315,7 +2315,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                 )}
 
                 {/* Identification + Team */}
-                <div className="grid grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
                     <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
@@ -2403,7 +2403,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                 ) : (
                   <>
                     {/* Summary */}
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                       {[
                         { label: 'Consultores',    value: String(breakdown.length),                                          color: '#a78bfa' },
                         { label: 'Total Horas',    value: fmt(totalBreakdownHours, 1) + 'h',                                 color: 'var(--brand-text)' },
@@ -2450,7 +2450,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     </div>
 
                     {/* Full table */}
-                    <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
+                    <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
                       <table className="w-full text-xs">
                         <thead className="sticky top-0 z-10" style={{ background: 'rgba(0,0,0,0.25)' }}>
                           <tr style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid var(--brand-border)' }}>
@@ -2497,7 +2497,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                 ) : (
                   <>
                     {/* Summary */}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {[
                         { label: 'Total de Registros', value: String(timesheets.length), color: 'var(--brand-text)' },
                         { label: 'Aprovados',          value: String(timesheets.filter(t => t.status === 'approved').length), color: '#22c55e' },
@@ -2565,7 +2565,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                   <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum aporte registrado.</p>
                 )}
                 {!aportesLoading && aportesList.length > 0 && (
-                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                  <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
                     <table className="w-full text-xs">
                       <thead style={{ background: 'rgba(255,255,255,0.04)' }}>
                         <tr>
@@ -2617,7 +2617,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
             {/* ── FINANCEIRO ── */}
             {tab === 'financial' && !isCoordRole && (
               <div className="space-y-5">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {[
                     { label: 'Valor do Projeto',       value: fmtBRL(p.project_value),                        color: '#00F5FF' },
                     { label: 'Valor Total (c/aportes)', value: fmtBRL(p.total_project_value ?? p.project_value), color: '#00F5FF' },
@@ -2700,7 +2700,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                         <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{hoursUsedPct.toFixed(1)}% das horas utilizadas</p>
                       </div>
                       {cb.length > 0 && (
-                        <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
+                        <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
                           <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}><p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}><UserCheck size={11} />Custo por Consultor</p></div>
                           <table className="w-full text-xs">
                             <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-bg)' }}><tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>{['Consultor','Hs Total','Aprovadas','Pendentes','Taxa/h','Custo'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}</tr></thead>
@@ -3032,7 +3032,7 @@ function ProjectExpensesModal({ projectId, projectName, onClose }: { projectId: 
                   </div>
                 </div>
                 <div className="px-5 pb-5">
-                  <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
+                  <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
                     <table className="w-full text-xs">
                       <thead className="sticky top-0 z-10" style={{ background: 'rgba(0,0,0,0.2)' }}><tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--brand-border)' }}>
                         {['Data','Descrição','Categoria','Responsável','Valor','Status'].map(h => <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}
@@ -3155,7 +3155,7 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
                   <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)' }}><p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor Total</p><p className="text-lg font-bold" style={{ color: '#00F5FF' }}>{fmtBRL(totalV)}</p></div>
                 </div>
                 <div className="px-5 pb-5">
-                  <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
+                  <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
                     <table className="w-full text-xs">
                       <thead className="sticky top-0 z-10" style={{ background: 'rgba(0,0,0,0.2)' }}><tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--brand-border)' }}>
                         {['Data','Horas','Motivo','Valor/h','Total','Descrição',''].map(h => <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}
@@ -4380,7 +4380,7 @@ function KanbanContent() {
     <AppLayout>
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-4 md:px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div>
             <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>Demandas e Projetos</h1>
             <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
@@ -4428,7 +4428,7 @@ function KanbanContent() {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-6 px-6 py-2 shrink-0 border-b text-[11px] font-medium" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+        <div className="flex flex-wrap items-center gap-6 px-4 md:px-6 py-2 shrink-0 border-b text-[11px] font-medium" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
           {!isConsultor && !isCoord && (
             <>
               <span className="flex items-center gap-1.5">
@@ -4451,7 +4451,7 @@ function KanbanContent() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 px-6 py-2 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex flex-wrap items-center gap-2 px-4 md:px-6 py-2 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
             <input
@@ -4774,7 +4774,7 @@ function KanbanContent() {
 
               {/* Tab: Contratos */}
               {listTab === 'contratos' && (
-                <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="rounded-xl border overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                       <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
@@ -4824,7 +4824,7 @@ function KanbanContent() {
 
               {/* Tab: Requisições */}
               {listTab === 'requisicoes' && (
-                <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="rounded-xl border overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                       <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>

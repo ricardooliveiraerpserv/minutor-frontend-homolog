@@ -2647,7 +2647,7 @@ export default function GestaoProjetosPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-[1400px] mx-auto px-6 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-8">
         <PageHeader
           icon={Layers}
           title="Gestão de Projetos"
@@ -3097,7 +3097,7 @@ export default function GestaoProjetosPage() {
                     {/* Bloco 5 — HORAS */}
                     <div className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                       <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Horas</p>
-                      <div className="grid grid-cols-5 gap-2 mb-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
                         {[
                           { label: 'Iniciais',    value: `${hoursIniciais.toFixed(1)}h`,          color: 'var(--text)' },
                           { label: 'Apontadas',   value: `${hs.total_logged_hours.toFixed(1)}h`,  color: 'var(--text)' },
@@ -3128,7 +3128,7 @@ export default function GestaoProjetosPage() {
 
                     {/* Tabela de custo por consultor */}
                     {cb.length > 0 && (
-                      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                      <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
                         <div className="px-4 py-3" style={{ background: 'var(--surface)' }}>
                           <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}>
                             <UserCheck size={11} />Custo por Consultor
@@ -3289,7 +3289,7 @@ export default function GestaoProjetosPage() {
                         <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--warning-border)' }}>{totalValor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                       </div>
                     </div>
-                    <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--border)' }}>
+                    <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
                       <table className="w-full text-xs">
                         <thead className="sticky top-0 z-10" style={{ background: 'var(--surface)' }}>
                           <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
@@ -3653,7 +3653,7 @@ export default function GestaoProjetosPage() {
                           {/* Bloco 5 — HORAS */}
                           <div className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                             <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Horas</p>
-                            <div className="grid grid-cols-5 gap-2 mb-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
                               {[
                                 { label: 'Iniciais',    value: `${hoursIniciais.toFixed(1)}h`,          color: 'var(--text)' },
                                 { label: 'Apontadas',   value: `${hs.total_logged_hours.toFixed(1)}h`,  color: 'var(--text)' },
@@ -3684,7 +3684,7 @@ export default function GestaoProjetosPage() {
 
                           {/* Tabela de custo por consultor */}
                           {cb.length > 0 && (
-                            <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--border)' }}>
+                            <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
                               <div className="px-4 py-3" style={{ background: 'var(--surface)' }}>
                                 <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}>
                                   <UserCheck size={11} />Custo por Consultor

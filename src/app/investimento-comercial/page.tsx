@@ -573,7 +573,7 @@ export default function InvestimentoComercialPage() {
     const totalC = data.reduce((s, r) => s + r.total_cost, 0)
     return (
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="rounded-xl px-4 py-3" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
             <p className="text-[10px] uppercase tracking-widest mb-1 font-semibold" style={{ color: 'var(--text-muted)' }}>Total Horas</p>
             <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtHours(totalH)}</p>

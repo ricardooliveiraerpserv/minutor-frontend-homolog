@@ -514,7 +514,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
               <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
             </div>
           </div>
-          <div className="flex gap-1 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className="px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap"
@@ -534,7 +534,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 
             {tab === 'overview' && (
               <div className="space-y-5">
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
                     { label: isCoordViewer ? 'Horas Vendidas (Coord.)' : 'Horas Vendidas',
                       value: fmt(cardVendidas, 1) + 'h',  color: 'var(--brand-text)', bg: 'var(--surface-hover)' },
@@ -598,7 +598,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
                     <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
@@ -727,7 +727,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   <p className="text-center text-sm py-12" style={{ color: 'var(--brand-subtle)' }}>Nenhum lançamento de horas encontrado.</p>
                 ) : (
                   <>
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                       {[
                         { label: 'Consultores', value: String(breakdown.length), color: '#a78bfa' },
                         { label: 'Total Horas', value: fmt(totalBreakdownHours, 1) + 'h', color: 'var(--brand-text)' },
@@ -779,7 +779,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   <p className="text-center text-sm py-12" style={{ color: 'var(--brand-subtle)' }}>Nenhum apontamento encontrado.</p>
                 ) : (
                   <>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {[
                         { label: 'Total de Registros', value: String(timesheets.length), color: 'var(--brand-text)' },
                         { label: 'Aprovados', value: String(timesheets.filter(t => t.status === 'approved').length), color: '#22c55e' },
@@ -833,7 +833,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum aporte registrado.</p>
                 )}
                 {!aportesLoading && aportesList.length > 0 && (
-                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+                  <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
                     <table className="w-full text-xs">
                       <thead style={{ background: 'rgba(255,255,255,0.04)' }}>
                         <tr>
@@ -884,7 +884,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 
             {tab === 'financial' && !isCoordRole && (
               <div className="space-y-5">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {[
                     { label: 'Valor do Projeto',        value: fmtBRL(p.project_value),                          color: 'var(--primary)' },
                     { label: 'Valor Total (c/aportes)', value: fmtBRL(p.total_project_value ?? p.project_value), color: 'var(--primary)' },
@@ -931,7 +931,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--primary)' }}>
                           <DollarSign size={11} />Receita {isOnDemand && <span className="text-[9px] font-normal ml-1 opacity-70">(On Demand — horas × R$/h)</span>}
                         </p>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {[
                             { label: isOnDemand ? 'Horas × R$/h' : 'Valor Projeto', value: fmtBRL(cc.project_revenue) },
                             { label: 'Aportes',        value: fmtBRL(cc.aportes_total) },
@@ -950,7 +950,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: '#f59e0b' }}>
                           <TrendingUp size={11} />Custo
                         </p>
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {[
                             { label: 'Custo Inicial',     value: fmtBRL(pi.initial_cost ?? 0) },
                             { label: 'Custo Operacional', value: fmtBRL(cc.custo_operacional) },
@@ -1006,7 +1006,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                       {/* Bloco 5 — HORAS */}
                       <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
                         <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Horas</p>
-                        <div className="grid grid-cols-5 gap-2 mb-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
                           {[
                             { label: 'Iniciais',    value: `${hoursIniciais.toFixed(1)}h`,          color: 'var(--brand-text)' },
                             { label: 'Apontadas',   value: `${hs.total_logged_hours.toFixed(1)}h`,  color: 'var(--brand-text)' },
@@ -1037,7 +1037,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 
                       {/* Tabela de custo por consultor */}
                       {cb.length > 0 && (
-                        <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
+                        <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
                           <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}>
                             <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}>
                               <UserCheck size={11} />Custo por Consultor
@@ -1326,7 +1326,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-3">
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
               <div><label style={lStyle}>Nome do Projeto *</label><input value={form.name} onChange={setF('name')} style={iStyle} /></div>
@@ -2981,7 +2981,7 @@ function KanbanContent() {
     <AppLayout>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-4 md:px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div>
             <h1 className="ds-text-h1">Kanban de Contratos</h1>
             <p className="ds-text-body-sm mt-1" style={{ color: 'var(--text-muted)' }}>Arraste para o coordenador para gerar o projeto — depois gerencie nos status de execução</p>
@@ -3006,7 +3006,7 @@ function KanbanContent() {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-5 px-6 py-2 shrink-0 border-b text-[11px] font-medium" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+        <div className="flex flex-wrap items-center gap-5 px-4 md:px-6 py-2 shrink-0 border-b text-[11px] font-medium" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: 'var(--danger)' }} />Incompleto</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: 'var(--warning)' }} />Pronto</span>
           <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full inline-block" style={{ background: 'var(--success)' }} />Projeto Ativo</span>
@@ -3016,7 +3016,7 @@ function KanbanContent() {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-2 px-6 py-2 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex flex-wrap items-center gap-2 px-4 md:px-6 py-2 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="relative">
             <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
             <input

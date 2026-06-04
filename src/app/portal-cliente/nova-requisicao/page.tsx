@@ -203,7 +203,7 @@ function NovaRequisicaoContent() {
     <AppLayout>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-4 md:px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div className="flex items-center gap-3">
             <button onClick={() => router.back()} className="p-1.5 rounded-lg transition-opacity hover:opacity-70" style={{ color: 'var(--brand-muted)' }}>
               <ChevronLeft size={16} />
@@ -219,7 +219,7 @@ function NovaRequisicaoContent() {
           <SuccessScreen onNew={resetForm} onClose={() => router.back()} />
         ) : (
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-2xl mx-auto px-6 py-8 space-y-8">
+            <div className="max-w-2xl mx-auto px-4 md:px-6 py-8 space-y-8">
 
               {/* Seletor de cliente (apenas para admin/coordenador) */}
               {!isCliente && (
@@ -259,7 +259,7 @@ function NovaRequisicaoContent() {
                     <Label required>Área Requisitante</Label>
                     <Input value={form.area_requisitante} onChange={set('area_requisitante')} placeholder="Ex: Financeiro, RH, TI..." />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label required>Product Owner</Label>
                       <Input value={form.product_owner} onChange={set('product_owner')} placeholder="Nome do responsável" />
@@ -275,7 +275,7 @@ function NovaRequisicaoContent() {
               {/* Seção 4: Tipo de Necessidade */}
               <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                 <SectionTitle number="4" title="Tipo de Necessidade" />
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {TIPOS.map(t => (
                     <button
                       key={t.value}

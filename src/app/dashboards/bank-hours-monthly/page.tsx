@@ -654,7 +654,7 @@ export default function BankHoursMonthlyPage() {
             {activeTab === 'maintenance' && isSustentacaoContract && (
               <div className="space-y-4">
                 {summary && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <KpiCard label="Consumo Acumulado" value={fmtH(summary.maintenance_consumed_hours ?? 0)} accent="primary" />
                     <KpiCard label="Consumo do Mês"    value={fmtH(summary.maintenance_month_consumed_hours ?? 0)} hint={monthConsumptionHint} />
                   </div>

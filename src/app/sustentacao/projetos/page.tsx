@@ -303,7 +303,7 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
                 <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{hoursUsedPct.toFixed(1)}% das horas utilizadas</p>
               </div>
               {summary.consultant_breakdown.length > 0 && (
-                <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
+                <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
                   <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}>
                     <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Por Consultor</p>
                   </div>
@@ -495,7 +495,7 @@ export default function SustentacaoProjetosPage() {
 
   return (
     <AppLayout>
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-6">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-6 py-6">
         <PageHeader
           icon={Headphones}
           title="Projetos de Sustentação"
@@ -503,7 +503,7 @@ export default function SustentacaoProjetosPage() {
         />
 
         {/* Summary cards */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
             { label: 'Total',        value: String(stats.total),                       sub: 'projetos listados' },
             { label: 'Ativos',       value: String(stats.ativos),                      sub: 'em andamento' },
@@ -598,7 +598,7 @@ export default function SustentacaoProjetosPage() {
         {loading ? (
           <Skeleton />
         ) : (
-          <div className="rounded-2xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
+          <div className="rounded-2xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
             <table className="w-full">
               <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                 <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>

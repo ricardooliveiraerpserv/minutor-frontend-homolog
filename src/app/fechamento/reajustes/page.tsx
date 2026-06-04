@@ -439,7 +439,7 @@ function EditCadastroModal({ row, onClose, onSaved }: { row: Row; onClose: () =>
     <Modal open onClose={() => { if (!saving) onClose() }} size="md">
       <ModalHeader icon={Pencil} title="Editar cadastro" subtitle={`${row.cliente_nome ?? '—'} · ${row.codigo ?? '—'}`} onClose={() => { if (!saving) onClose() }} />
       <ModalBody>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="col-span-2">
             <label className={lbl} style={{ color: 'var(--text-muted)' }}>Valor inicial (base do reajuste)</label>
             <input type="number" step="0.01" min="0" value={valorInicial} onChange={e => setValorInicial(e.target.value)} className={inp} style={st} />

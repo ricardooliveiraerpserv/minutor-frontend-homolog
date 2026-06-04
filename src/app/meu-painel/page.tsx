@@ -2340,7 +2340,7 @@ export default function MeuPainelPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-0.5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex gap-0.5 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
           {TABS.map(tab => {
             const Icon = tab.icon
             const active = validTab === tab.id
@@ -3203,7 +3203,7 @@ export default function MeuPainelPage() {
 
             {/* Tabela Detalhamento */}
             {tsByProject.length > 0 ? (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-x-auto">
                 <div className="px-5 py-4 border-b border-zinc-800">
                   <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Detalhamento</h3>
                 </div>

@@ -691,7 +691,7 @@ export default function FechamentoFolhaPage() {
           title="Folha Cooperativa"
           subtitle={`Valores por consultor — ${fmtYearMonth(yearMonth)}`}
           actions={
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <input
                 type="month"
                 value={yearMonth}
