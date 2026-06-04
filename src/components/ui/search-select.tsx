@@ -33,10 +33,14 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
     }
     const onScroll = () => setOpen(false)
     document.addEventListener('mousedown', h)
-    window.addEventListener('scroll', onScroll, { passive: true })
+    // Em telas de toque NÃO fechar no scroll: ao focar o input de busca o iOS
+    // rola a tela pra acomodar o teclado, o que fecharia o dropdown e impediria
+    // de digitar. No desktop mantém o fecha-ao-rolar.
+    const isCoarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
+    if (!isCoarse) window.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       document.removeEventListener('mousedown', h)
-      window.removeEventListener('scroll', onScroll)
+      if (!isCoarse) window.removeEventListener('scroll', onScroll)
     }
   }, [open])
 
