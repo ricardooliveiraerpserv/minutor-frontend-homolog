@@ -883,6 +883,15 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const [logsModalTsId, setLogsModalTsId] = useState<number | null>(null)
   // Hover preview do apontamento (tooltip fixo no canto superior direito)
   const hover = useTimesheetHover()
+  // Em telas de toque o hover do card é desligado: no iOS o 1º toque viraria "hover"
+  // (mostra tooltip) e suprimiria o clique, impedindo o modal de abrir.
+  const [isTouch, setIsTouch] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)')
+    const s = () => setIsTouch(mq.matches); s()
+    mq.addEventListener('change', s)
+    return () => mq.removeEventListener('change', s)
+  }, [])
   const [conflictItem, setConflictItem]   = useState<ConflictTimesheet | null>(null)
 
   const handleReprocessMovidesk = async (ids?: number[]) => {
@@ -1763,8 +1772,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               const cliente = ts.customer?.name ?? ts.project?.customer?.name ?? null
               const projeto = ts.project?.name ?? `Projeto #${ts.project_id}`
               return (
-                <div key={ts.id} onClick={() => openView(ts)} {...hover.bind(ts)}
-                  className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-hover)]"
+                <div key={ts.id} onClick={() => openView(ts)} {...(isTouch ? {} : hover.bind(ts))}
+                  className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)]"
                   style={{ borderColor: 'var(--brand-border)' }}>
                   {/* Linha 1: [checkbox] colaborador/projeto + menu */}
                   <div className="flex items-center gap-2">
