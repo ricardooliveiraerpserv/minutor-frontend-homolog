@@ -1033,7 +1033,7 @@ function HolidaysTab() {
 }
 
 // ─── TAB: Modelos de E-mail dos Fechamentos ──────────────────────────────────
-interface EmailTpl { id: number; categoria: string; contract_type: string | null; nome: string | null; subject: string; body: string; active: boolean }
+interface EmailTpl { id: number; categoria: string; contract_type: string | null; nome: string | null; subject: string; body: string; pay_day: number | null; active: boolean }
 const TPL_CATEGORIAS = [{ value: 'consultor', label: 'Consultor' }, { value: 'parceiro', label: 'Parceiro' }, { value: 'cliente', label: 'Cliente' }]
 const TPL_CONTRATOS  = [{ value: 'cooperado', label: 'Cooperado' }, { value: 'clt', label: 'CLT' }, { value: 'pj', label: 'PJ' }]
 
@@ -1041,7 +1041,7 @@ function EmailTemplatesTab() {
   const [items, setItems] = useState<EmailTpl[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; item?: EmailTpl }>({ open: false })
-  const [form, setForm] = useState({ categoria: 'consultor', contract_type: 'cooperado', nome: '', subject: '', body: '', active: true })
+  const [form, setForm] = useState({ categoria: 'consultor', contract_type: 'cooperado', nome: '', subject: '', body: '', pay_day: '', active: true })
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
@@ -1051,10 +1051,10 @@ function EmailTemplatesTab() {
   const [varMenu, setVarMenu] = useState<'subject' | 'body' | null>(null)
   const VAR_DESC: Record<string, string> = {
     nome: 'nome do destinatário', periodo: 'mês/ano (ex.: Maio de 2026)',
-    valor: 'valor total (R$)', data_nota: 'data de envio da NF (só PJ)',
+    valor: 'valor total (R$)', data: 'data do "dia do mês" no mês seguinte (dia útil)',
   }
   const availableVars = ['nome', 'periodo', 'valor',
-    ...(form.categoria !== 'cliente' && form.contract_type === 'pj' ? ['data_nota'] : [])]
+    ...(form.pay_day.trim() !== '' ? ['data'] : [])]
 
   const onVarField = (field: 'subject' | 'body', e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const value = e.target.value
@@ -1079,14 +1079,14 @@ function EmailTemplatesTab() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  const openCreate = () => { setVarMenu(null); setForm({ categoria: 'consultor', contract_type: 'cooperado', nome: '', subject: '', body: '', active: true }); setModal({ open: true }) }
-  const openEdit = (it: EmailTpl) => { setVarMenu(null); setForm({ categoria: it.categoria, contract_type: it.contract_type ?? 'cooperado', nome: it.nome ?? '', subject: it.subject, body: it.body, active: it.active }); setModal({ open: true, item: it }) }
+  const openCreate = () => { setVarMenu(null); setForm({ categoria: 'consultor', contract_type: 'cooperado', nome: '', subject: '', body: '', pay_day: '', active: true }); setModal({ open: true }) }
+  const openEdit = (it: EmailTpl) => { setVarMenu(null); setForm({ categoria: it.categoria, contract_type: it.contract_type ?? 'cooperado', nome: it.nome ?? '', subject: it.subject, body: it.body, pay_day: it.pay_day != null ? String(it.pay_day) : '', active: it.active }); setModal({ open: true, item: it }) }
 
   const save = async () => {
     if (!form.subject.trim() || !form.body.trim()) { toast.error('Preencha assunto e corpo'); return }
     setSaving(true)
     try {
-      const payload = { categoria: form.categoria, contract_type: form.categoria === 'cliente' ? null : form.contract_type, nome: form.nome || null, subject: form.subject, body: form.body, active: form.active }
+      const payload = { categoria: form.categoria, contract_type: form.categoria === 'cliente' ? null : form.contract_type, nome: form.nome || null, subject: form.subject, body: form.body, pay_day: form.pay_day.trim() === '' ? null : Number(form.pay_day), active: form.active }
       if (modal.item) await api.put(`/fechamento-email-templates/${modal.item.id}`, payload)
       else await api.post('/fechamento-email-templates', payload)
       toast.success('Modelo salvo'); setModal({ open: false }); load()
@@ -1107,7 +1107,7 @@ function EmailTemplatesTab() {
     <div>
       <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-          Variáveis: <code>{'{nome}'}</code> <code>{'{periodo}'}</code> <code>{'{valor}'}</code> <code>{'{data_nota}'}</code> (só PJ). Só 1 ativo por tipo.
+          Variáveis: <code>{'{nome}'}</code> <code>{'{periodo}'}</code> <code>{'{valor}'}</code> <code>{'{data}'}</code> (dia do mês configurado, no mês seguinte). Só 1 ativo por tipo.
         </p>
         <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5"><Plus size={13} /> Novo modelo</Button>
       </div>
@@ -1166,10 +1166,19 @@ function EmailTemplatesTab() {
                   </div>
                 )}
               </div>
-              <div>
-                <Label className="text-xs text-zinc-400">Nome (rótulo)</Label>
-                <Input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" placeholder="Ex: Cooperado padrão" />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-zinc-400">Nome (rótulo)</Label>
+                  <Input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" placeholder="Ex: Cooperado padrão" />
+                </div>
+                <div>
+                  <Label className="text-xs text-zinc-400">Dia do mês (variável {'{data}'})</Label>
+                  <Input type="number" min={1} max={31} value={form.pay_day}
+                    onChange={e => setForm(f => ({ ...f, pay_day: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }))}
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" placeholder="Ex: 19 (cooperado) / 20 (PJ)" />
+                  <p className="mt-1 text-[10px] text-zinc-500">Vira o dia no mês seguinte; em fds/feriado recua pro dia útil anterior. Deixe vazio se não usar {'{data}'}.</p>
+                </div>
               </div>
               <div>
                 <Label className="text-xs text-zinc-400">Assunto *</Label>
