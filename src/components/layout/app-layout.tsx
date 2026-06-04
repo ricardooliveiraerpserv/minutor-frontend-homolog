@@ -61,7 +61,7 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
   const displayName = isCliente ? companyName : (user.name ?? null)
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--brand-bg)' }}>
+    <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--brand-bg)', contain: 'paint' }}>
 
       {/* ── Faixa de ambiente — só aparece em DEV ou HOMOLOG ── */}
       {ENV_BANNER && (
