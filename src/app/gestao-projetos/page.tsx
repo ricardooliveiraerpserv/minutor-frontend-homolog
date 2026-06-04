@@ -392,9 +392,11 @@ interface ProjectRowProps {
   isSelected?: boolean
   onSelect?: (id: number) => void
   onConsultantManualToggle?: (userId: number, allow: boolean) => void
+  /** admin/administrativo — só eles veem horas não faturadas (cliente/coord não). */
+  showUnbilled?: boolean
 }
 
-function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, canDetach, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect, onConsultantManualToggle }: ProjectRowProps) {
+function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, canDetach, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect, onConsultantManualToggle, showUnbilled }: ProjectRowProps) {
   const ctName = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (project as any).tipo_faturamento === 'on_demand'
   const isBhMensal = ctName.includes('mensal')
@@ -410,6 +412,9 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
     ? project.consumed_hours
     : (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0) + ((project as any).initial_hours_consumed ?? 0)
   const displaySaldo = isOnDemand ? 0 : (project.general_hours_balance ?? null)
+  // On Demand pai: horas de meses encerrados ainda NÃO faturados (informativo, só admin).
+  const unbilledHrs  = Number((project as any).unbilled_hours ?? 0)
+  const hasUnbilled  = !!showUnbilled && isOnDemand && unbilledHrs > 0
   const { pct, color } = projectHealth(project, displaySold, consumedHours)
   const hs    = healthStyles[color]
 
@@ -634,8 +639,12 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
 
         {/* Saldo */}
         <td className="py-3 px-4 text-[13px] text-right tabular-nums font-semibold"
-          style={{ color: saldoNeg ? 'var(--danger-border)' : 'var(--text)' }}>
-          {isOnDemand ? <span style={{ color: 'var(--text-light)' }}>0,0</span> : (saldo != null ? fmt(saldo, 1) : '—')}
+          style={{ color: (saldoNeg || hasUnbilled) ? 'var(--danger-border)' : 'var(--text)' }}>
+          {isOnDemand
+            ? (hasUnbilled
+                ? <span title="Horas de meses encerrados ainda não faturados" style={{ color: 'var(--danger-border)' }}>-{fmt(unbilledHrs, 1)}</span>
+                : <span style={{ color: 'var(--text-light)' }}>0,0</span>)
+            : (saldo != null ? fmt(saldo, 1) : '—')}
         </td>
 
         {/* % Uso + barra */}
@@ -724,12 +733,23 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
             }
             const s = stMap[project.status] ?? stMap.finished
             return (
-              <span
-                className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center"
-                style={{ background: s.bg, color: s.fg, border: `1px solid ${s.bd}` }}
-              >
-                {project.status_display ?? statusLabel[project.status] ?? project.status}
-              </span>
+              <div className="flex flex-col items-start gap-1">
+                <span
+                  className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center"
+                  style={{ background: s.bg, color: s.fg, border: `1px solid ${s.bd}` }}
+                >
+                  {project.status_display ?? statusLabel[project.status] ?? project.status}
+                </span>
+                {hasUnbilled && (
+                  <span
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center"
+                    style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}
+                    title={`${fmt(unbilledHrs, 1)}h de meses encerrados ainda não faturados`}
+                  >
+                    Crítico — não faturado
+                  </span>
+                )}
+              </div>
             )
           })()}
         </td>
@@ -2938,6 +2958,7 @@ export default function GestaoProjetosPage() {
                       isSelected={selectedProjectIds.has(project.id)}
                       onSelect={toggleProjectSelect}
                       onConsultantManualToggle={canEdit ? (userId, allow) => handleConsultantManualToggle(project.id, userId, allow) : undefined}
+                      showUnbilled={isAdmin || isAdministrativo}
                     />
                   )
                 })}

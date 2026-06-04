@@ -117,7 +117,7 @@ interface TicketSummaryRow {
 }
 
 // Estrutura mínima do /fechamento-contrato (on_demand only)
-interface ProjetoGlobal { projeto_id: number; nome: string; codigo: string; horas: number; valor_hora: number; total_receita: number }
+interface ProjetoGlobal { projeto_id: number; nome: string; codigo: string; horas: number; valor_hora: number; total_receita: number; invoiced?: boolean }
 interface ClienteGlobal  { customer_id: number; nome: string; projetos: ProjetoGlobal[]; total_horas: number; total_receita: number }
 interface GlobalData     { tipos: { code: string; nome: string; clientes: ClienteGlobal[]; total_clientes: number; total_horas: number; total_receita: number }[]; total_geral: number }
 
@@ -187,6 +187,7 @@ const CLOSING_YEAR  = closingRef.getFullYear()
 export default function FechamentoClientePage() {
   const { user } = useAuth()
   const isAdmin = (user as any)?.type === 'admin'
+  const canInvoice = isAdmin || (user as any)?.type === 'administrativo'
 
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'fechamento_cliente',
@@ -329,6 +330,37 @@ export default function FechamentoClientePage() {
       .catch(() => {})
       .finally(() => setLoadingGlobal(false))
   }, [toYM])
+
+  // Flag "Faturado / NFS-e enviada" por projeto On Demand (pai) no mês selecionado.
+  const setProjetoInvoiced = (projetoId: number, val: boolean) =>
+    setGlobalData(prev => prev ? { ...prev, tipos: prev.tipos.map(t => ({ ...t,
+      clientes: t.clientes.map(c => ({ ...c, projetos: c.projetos.map(p => p.projeto_id === projetoId ? { ...p, invoiced: val } : p) })) })) } : prev)
+
+  const toggleInvoiced = async (projetoId: number, current: boolean) => {
+    const next = !current
+    setProjetoInvoiced(projetoId, next) // otimista
+    try {
+      await api.post('/on-demand/invoiced', { project_id: projetoId, year_month: toYM, invoiced: next })
+    } catch {
+      toast.error('Erro ao atualizar faturamento')
+      setProjetoInvoiced(projetoId, current) // reverte
+    }
+  }
+
+  const renderInvoiceToggle = (projetoId: number, invoiced: boolean, isOd: boolean) => {
+    if (!isOd) return <span style={{ color: 'var(--brand-muted)' }}>—</span>
+    return (
+      <button type="button" disabled={!canInvoice}
+        onClick={e => { e.stopPropagation(); toggleInvoiced(projetoId, invoiced) }}
+        className="text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 disabled:opacity-60 disabled:cursor-default"
+        title={invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada'}
+        style={invoiced
+          ? { background: 'var(--success-bg)', color: 'var(--success-border)', border: '1px solid var(--success-border)' }
+          : { background: 'transparent', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+        {invoiced ? <><Check size={11} /> Faturado</> : 'Marcar faturado'}
+      </button>
+    )
+  }
 
   const loadServicos = useCallback(() => {
     if (!customerId || !fromYM || !toYM) return
@@ -1148,6 +1180,7 @@ export default function FechamentoClientePage() {
                       <Th right>Horas</Th>
                       <Th right>Valor/h</Th>
                       <Th right>Total Serviços</Th>
+                      <Th>Faturado (NFS-e)</Th>
                     </tr>
                   </Thead>
                   <Tbody>
@@ -1193,6 +1226,11 @@ export default function FechamentoClientePage() {
                             <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--brand-primary)' }}>
                               {formatBRL(c.total_receita)}
                             </td>
+                            <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
+                              {!hasMult && c.projetos[0]
+                                ? renderInvoiceToggle(c.projetos[0].projeto_id, !!c.projetos[0].invoiced, c.projetos[0].tipo_code === 'on_demand')
+                                : <span style={{ color: 'var(--brand-muted)' }}>—</span>}
+                            </td>
                           </tr>
                           {/* Linhas dos projetos (expandido ou multi-projeto) */}
                           {expanded && hasMult && c.projetos.map(p => (
@@ -1216,6 +1254,9 @@ export default function FechamentoClientePage() {
                               </td>
                               <td className="px-5 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: 'var(--brand-primary)' }}>
                                 {formatBRL(p.total_display)}
+                              </td>
+                              <td className="px-5 py-2.5">
+                                {renderInvoiceToggle(p.projeto_id, !!p.invoiced, p.tipo_code === 'on_demand')}
                               </td>
                             </tr>
                           ))}
