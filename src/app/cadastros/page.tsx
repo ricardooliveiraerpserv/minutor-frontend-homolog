@@ -1035,7 +1035,7 @@ function HolidaysTab() {
 // ─── TAB: Modelos de E-mail dos Fechamentos ──────────────────────────────────
 interface EmailTpl { id: number; categoria: string; contract_type: string | null; nome: string | null; subject: string; body: string; pay_day: number | null; active: boolean }
 const TPL_CATEGORIAS = [{ value: 'consultor', label: 'Consultor' }, { value: 'parceiro', label: 'Parceiro' }, { value: 'cliente', label: 'Cliente' }]
-const TPL_CONTRATOS  = [{ value: 'cooperado', label: 'Cooperado' }, { value: 'clt', label: 'CLT' }, { value: 'pj', label: 'PJ' }]
+const TPL_CONTRATOS  = [{ value: 'cooperado', label: 'Cooperado' }, { value: 'clt', label: 'CLT' }, { value: 'pj', label: 'PJ' }, { value: 'bizify', label: 'Bizify' }]
 
 function EmailTemplatesTab() {
   const [items, setItems] = useState<EmailTpl[]>([])
@@ -1151,7 +1151,7 @@ function EmailTemplatesTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs text-zinc-400">Categoria *</Label>
-                  <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
+                  <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value, contract_type: (e.target.value !== 'consultor' && f.contract_type === 'bizify') ? 'cooperado' : f.contract_type }))}
                     className="mt-1 w-full px-3 py-2 rounded-md text-xs bg-zinc-800 border border-zinc-700 text-white outline-none">
                     {TPL_CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
@@ -1161,7 +1161,7 @@ function EmailTemplatesTab() {
                     <Label className="text-xs text-zinc-400">Tipo de contrato *</Label>
                     <select value={form.contract_type} onChange={e => setForm(f => ({ ...f, contract_type: e.target.value }))}
                       className="mt-1 w-full px-3 py-2 rounded-md text-xs bg-zinc-800 border border-zinc-700 text-white outline-none">
-                      {TPL_CONTRATOS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      {TPL_CONTRATOS.filter(c => c.value !== 'bizify' || form.categoria === 'consultor').map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </div>
                 )}
