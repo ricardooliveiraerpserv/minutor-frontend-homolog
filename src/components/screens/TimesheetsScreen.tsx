@@ -1006,6 +1006,28 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
       .catch(() => {})
   }, [isCliente, customerIds, scope, leadOptions])
 
+  // Opções do filtro de projeto em árvore: filho aparece sob o pai com seta ↳ (azul).
+  const projectTreeOptions = useMemo(() => {
+    const list = projectsList as Array<{ id: number; name: string; parent_project_id?: number | null }>
+    const ids = new Set(list.map(p => p.id))
+    const byParent = new Map<number | null, typeof list>()
+    for (const p of list) {
+      const key = p.parent_project_id && ids.has(p.parent_project_id) ? p.parent_project_id : null
+      const arr = byParent.get(key) ?? []
+      arr.push(p); byParent.set(key, arr)
+    }
+    const sortName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'pt-BR')
+    const out: { id: number; name: string; depth: number }[] = []
+    const walk = (parentId: number | null, depth: number) => {
+      for (const p of (byParent.get(parentId) ?? []).sort(sortName)) {
+        out.push({ id: p.id, name: p.name, depth })
+        walk(p.id, depth + 1)
+      }
+    }
+    walk(null, 0)
+    return out
+  }, [projectsList])
+
   // Limpa seleção de projetos quando o cliente muda (evita IDs órfãos).
   useEffect(() => {
     if (projectIds.length > 0) {
@@ -1212,7 +1234,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 <MultiSelect
                   value={projectIds}
                   onChange={v => { setProjectIds(v); resetPage() }}
-                  options={projectsList}
+                  options={projectTreeOptions}
                   placeholder={scope === 'investimento' ? 'Todos os leads' : 'Todos os projetos'}
                 />
                 {!triagemPadrao && coordinators.length > 0 && (
