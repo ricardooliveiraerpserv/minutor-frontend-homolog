@@ -1123,3 +1123,57 @@ html.dark .sidebar-erpserv-logo {
   filter: grayscale(1) invert(1) brightness(10);
   opacity: 0.4;
 }
+/* ─────────────────────────────────────────────────────────────────────────
+ * MOBILE-FIRST: tabelas do design system (.ds-table) viram CARDS no celular.
+ * Cada <tr> = um card independente; cada <td> mostra o rótulo da coluna
+ * (data-label injetado pelo componente <Table>) acima do valor. Sem header
+ * de tabela, sem scroll horizontal. Vale automaticamente em TODAS as telas
+ * que usam o <Table> do ds (Apontamentos, Projetos, Usuários, Fechamentos…).
+ * ───────────────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* o wrapper deixa de ser uma "caixa" única — cada linha é o card */
+  .ds-table-wrap {
+    border: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+  .ds-table-wrap > div { overflow-x: visible !important; }
+
+  table.ds-table,
+  table.ds-table > tbody { display: block; width: 100%; }
+  table.ds-table > thead { display: none; }      /* sem cabeçalho de tabela */
+
+  table.ds-table > tbody > tr {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--brand-border);
+    border-radius: 0.75rem;
+    background: var(--brand-surface) !important;
+    padding: 6px 0;
+    margin-bottom: 12px;
+  }
+
+  /* cada célula visível (não-.hidden) vira um bloco rótulo↑/valor↓ */
+  table.ds-table > tbody > tr > td:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    text-align: left !important;
+    white-space: normal;
+    padding: 8px 16px !important;     /* espaçamento interno ≥16px lateral */
+    border: none !important;
+  }
+  table.ds-table > tbody > tr > td[data-label]::before {
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--brand-subtle);
+  }
+  /* célula sem rótulo (checkbox/ações) alinha o conteúdo à esquerda */
+  table.ds-table > tbody > tr > td:not([data-label]) { align-items: flex-start; }
+}

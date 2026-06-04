@@ -4,6 +4,7 @@
  *         --brand-text / --brand-muted / --brand-subtle
  *         --brand-success / --brand-warning / --brand-danger / --brand-purple
  */
+import React, { Children, isValidElement, cloneElement, Fragment } from 'react'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
@@ -61,12 +62,74 @@ export function Card({ children, className, padding = 'md' }: CardProps) {
 
 // ─── TABLE ───────────────────────────────────────────────────────────────────
 
+// ── Mobile-first: no celular (≤768px) cada <tr> vira um card (ver globals.css,
+// bloco `table.ds-table`). Para o card mostrar o rótulo de cada campo, o próprio
+// <Table> lê os textos do <Thead> e injeta `data-label` em cada <Td> por posição
+// de coluna — sem precisar alterar nenhuma tela que usa o componente.
+
+function nodeToText(node: React.ReactNode): string {
+  if (node == null || node === false || node === true) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(nodeToText).join(' ').replace(/\s+/g, ' ').trim()
+  if (isValidElement(node)) return nodeToText((node.props as any)?.children)
+  return ''
+}
+
+// Rótulos das colunas a partir do <Thead> → <tr> → <Th>[] (por índice de filho).
+function collectLabels(children: React.ReactNode): string[] {
+  let labels: string[] = []
+  Children.forEach(children, (child) => {
+    if (!isValidElement(child) || child.type !== Thead) return
+    Children.forEach((child.props as any).children, (row) => {
+      if (!isValidElement(row)) return
+      const out: string[] = []
+      Children.forEach((row.props as any).children, (th) => {
+        out.push(isValidElement(th) ? nodeToText((th.props as any).children) : '')
+      })
+      if (out.length) labels = out
+    })
+  })
+  return labels
+}
+
+function labelTr(tr: React.ReactElement, labels: string[]): React.ReactElement {
+  const kids = Children.map((tr.props as any).children, (cell, i) => {
+    if (isValidElement(cell) && cell.type === Td) {
+      const span = (cell.props as any).colSpan
+      const label = (!span || span === 1) ? (labels[i] ?? '') : ''
+      return cloneElement(cell as any, { label })
+    }
+    return cell
+  })
+  return cloneElement(tr, {}, kids)
+}
+
+function injectBody(node: React.ReactNode, labels: string[]): React.ReactNode {
+  return Children.map(node, (child) => {
+    if (!isValidElement(child)) return child
+    if (child.type === Tr) return labelTr(child as React.ReactElement, labels)
+    if (child.type === Fragment) return cloneElement(child, {}, injectBody((child.props as any).children, labels))
+    return child
+  })
+}
+
+function injectLabels(children: React.ReactNode, labels: string[]): React.ReactNode {
+  if (!labels.length) return children
+  return Children.map(children, (child) => {
+    if (isValidElement(child) && child.type === Tbody) {
+      return cloneElement(child, {}, injectBody((child.props as any).children, labels))
+    }
+    return child
+  })
+}
+
 export function Table({ children, className }: { children: React.ReactNode; className?: string }) {
+  const content = injectLabels(children, collectLabels(children))
   return (
-    <div className={cn('rounded-2xl overflow-hidden', className)} style={{ border: '1px solid var(--brand-border)' }}>
+    <div className={cn('ds-table-wrap rounded-2xl overflow-hidden', className)} style={{ border: '1px solid var(--brand-border)' }}>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
-          {children}
+        <table className="ds-table w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
+          {content}
         </table>
       </div>
     </div>
@@ -152,7 +215,7 @@ export function Tr({ children, onClick, className, baseBackground, onMouseEnter,
 }
 
 export function Td({
-  children, right, muted, mono, className, style, colSpan,
+  children, right, muted, mono, className, style, colSpan, label,
 }: {
   children?: React.ReactNode
   right?: boolean
@@ -161,10 +224,13 @@ export function Td({
   className?: string
   style?: React.CSSProperties
   colSpan?: number
+  // Rótulo do campo no card mobile (injetado automaticamente pelo <Table>).
+  label?: string
 }) {
   return (
     <td
       colSpan={colSpan}
+      data-label={label || undefined}
       className={cn('px-5 py-3.5', right && 'text-right', mono && 'font-mono text-xs', className)}
       style={{ color: muted ? 'var(--brand-muted)' : 'var(--brand-text)', ...style }}
     >
