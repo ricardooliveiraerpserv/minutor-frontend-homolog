@@ -1530,6 +1530,9 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         ) : error ? (
           <div className="py-10 text-center text-sm" style={{ color: 'var(--brand-danger)' }}>{error}</div>
         ) : (
+          <>
+          {/* Desktop: tabela (inalterada) */}
+          <div className="hidden md:block">
           <Table>
             <Thead>
               <tr>
@@ -1750,6 +1753,63 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               ))}
             </Tbody>
           </Table>
+          </div>
+
+          {/* Mobile: cards compactos — toca p/ abrir detalhe (igual desktop), muda de cor ao tocar */}
+          <div className="md:hidden space-y-2">
+            {(data?.items.length ?? 0) === 0 ? (
+              <EmptyState icon={Clock} title="Nenhum apontamento encontrado" description="Tente ajustar os filtros ou criar um novo apontamento." />
+            ) : data?.items.map(ts => {
+              const cliente = ts.customer?.name ?? ts.project?.customer?.name ?? null
+              const projeto = ts.project?.name ?? `Projeto #${ts.project_id}`
+              return (
+                <div key={ts.id} onClick={() => openView(ts)}
+                  className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] hover:bg-[var(--surface-hover)] active:bg-[var(--surface-hover)]"
+                  style={{ borderColor: 'var(--brand-border)' }}>
+                  {/* Linha 1: [checkbox] colaborador/projeto + menu */}
+                  <div className="flex items-center gap-2">
+                    {(isAdmin || isCoordenador) && (
+                      <input type="checkbox" className="w-3.5 h-3.5 accent-cyan-400 shrink-0 cursor-pointer"
+                        checked={selectedIds.has(ts.id)} onClick={e => e.stopPropagation()}
+                        onChange={e => setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(ts.id); else next.delete(ts.id); return next })} />
+                    )}
+                    <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--brand-text)' }}>
+                      {(isAdmin || isCoordenador) ? (ts.user?.name ?? '—') : projeto}
+                    </span>
+                    <div onClick={e => e.stopPropagation()} className="shrink-0">
+                      <RowActions
+                        id={ts.id}
+                        onView={() => openView(ts)}
+                        onDeleted={refetch}
+                        viewOnly={isCliente}
+                        onShowLogs={(isAdmin || isCoordenador) ? () => setLogsModalTsId(ts.id) : undefined}
+                        onShowConflict={ts.status === 'conflicted' ? () => setConflictItem(ts as unknown as ConflictTimesheet) : undefined}
+                        onExtraPct={(isAdmin || isCoordenador) ? () => setExtraPctModalData({ ids: [ts.id], ts }) : undefined}
+                        onRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'internal' ? () => handleRelease(ts.id) : undefined}
+                        onReverseApproval={(isAdmin || isCoordenador) && ts.status === 'approved' ? () => handleReverseApproval(ts.id) : undefined}
+                        onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
+                        onReverseRejection={(isAdmin || isCoordenador) && (ts.status === 'rejected' || ts.status === 'adjustment_requested') ? () => { setReverseRejectionModal({ open: true, tsId: ts.id }); setReverseRejectionReason('') } : undefined}
+                      />
+                    </div>
+                  </div>
+                  {/* Linha 2: status */}
+                  <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                    {ts.is_internal_action
+                      ? (<><Badge variant="internal">Ação Interna</Badge>{ts.status === 'released' && <Badge variant="approved">Liberado</Badge>}</>)
+                      : (<ReasonTooltip status={ts.status} reason={ts.rejection_reason}><Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge></ReasonTooltip>)}
+                    {ts.is_paid && <Badge variant="success">Pago</Badge>}
+                  </div>
+                  {/* Linha 3: resumo (data · tempo · cliente · projeto) */}
+                  <div className="mt-1.5 text-[11px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+                    {formatDate(ts.date)} · <span style={{ color: 'var(--brand-primary)' }}>{formatMinutes(ts.effort_minutes)}</span>
+                    {(isAdmin || isCoordenador) && cliente ? ` · ${cliente}` : ''}
+                    {(isAdmin || isCoordenador) ? ` · ${projeto}` : ''}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          </>
         )}
 
         {/* Pagination */}
