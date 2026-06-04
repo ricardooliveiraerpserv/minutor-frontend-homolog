@@ -172,9 +172,13 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
 //   amarelo : saldo de hoje < 0, mas o próximo aporte cobre (saldo projetado >= 0)
 //   vermelho: nem com o próximo aporte fecha (saldo projetado < 0)
 // O % de uso usa (disponível + próximo aporte) como base, então 100% = saldo projetado 0.
-function projectHealth(p: ProjectWithTeam, displaySold: number, consumed: number): { pct: number; color: 'green' | 'yellow' | 'red' } {
+function projectHealth(p: ProjectWithTeam, displaySold: number, consumed: number, considerUnbilled = false): { pct: number; color: 'green' | 'yellow' | 'red' } {
   const ctName = ((p as any).contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
-  if (ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand') return { pct: 100, color: 'green' }
+  if (ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand') {
+    // On Demand pai com horas de meses encerrados NÃO faturadas → Crítico (só admin).
+    if (considerUnbilled && Number((p as any).unbilled_hours ?? 0) > 0) return { pct: 100, color: 'red' }
+    return { pct: 100, color: 'green' }
+  }
   if (ctName.includes('mensal')) {
     const aporteMensal = Number(p.sold_hours ?? 0)
     const dispProx   = displaySold + aporteMensal
@@ -415,7 +419,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
   // On Demand pai: horas de meses encerrados ainda NÃO faturados (informativo, só admin).
   const unbilledHrs  = Number((project as any).unbilled_hours ?? 0)
   const hasUnbilled  = !!showUnbilled && isOnDemand && unbilledHrs > 0
-  const { pct, color } = projectHealth(project, displaySold, consumedHours)
+  const { pct, color } = projectHealth(project, displaySold, consumedHours, !!showUnbilled)
   const hs    = healthStyles[color]
 
   const saldo    = displaySaldo
@@ -650,7 +654,9 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
         {/* % Uso + barra */}
         <td className="py-3 px-4 min-w-[140px]">
           {isOnDemand ? (
-            <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>
+            hasUnbilled
+              ? <span className="text-xs font-semibold" style={{ color: 'var(--danger-border)' }}>Crítico</span>
+              : <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>
           ) : (
             <>
               <div className="flex items-center gap-2">
@@ -2180,7 +2186,7 @@ export default function GestaoProjetosPage() {
       }
       if (saudeFilter) {
         const { displaySold, consumedHours } = calcProjHours(p)
-        if (projectHealth(p, displaySold, consumedHours).color !== saudeFilter) return false
+        if (projectHealth(p, displaySold, consumedHours, isAdmin).color !== saudeFilter) return false
       }
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
@@ -2269,7 +2275,7 @@ export default function GestaoProjetosPage() {
       }
       if (saudeFilter) {
         const { displaySold, consumedHours } = calcProjHours(p)
-        if (projectHealth(p, displaySold, consumedHours).color !== saudeFilter) return false
+        if (projectHealth(p, displaySold, consumedHours, isAdmin).color !== saudeFilter) return false
       }
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
@@ -2310,7 +2316,7 @@ export default function GestaoProjetosPage() {
     const saldo     = base.reduce((s, p) => s + (p.general_hours_balance ?? 0), 0)
     // % médio e contagem de críticos seguem a saúde efetiva (BH Mensal já considera
     // o próximo aporte) em vez do balance_percentage cru do backend.
-    const healthOf = (p: ProjectWithTeam) => { const h = calcProjHours(p); return projectHealth(p, h.displaySold, h.consumedHours) }
+    const healthOf = (p: ProjectWithTeam) => { const h = calcProjHours(p); return projectHealth(p, h.displaySold, h.consumedHours, isAdmin) }
     const comPct    = base.filter(p => calcProjHours(p).displaySold > 0)
     const avgPct    = comPct.length
       ? comPct.reduce((s, p) => s + healthOf(p).pct, 0) / comPct.length
