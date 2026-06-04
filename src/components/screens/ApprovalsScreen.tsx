@@ -658,7 +658,9 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setCoordinators(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
-    api.get<any>('/users?pageSize=100&is_executive=true').then(r => {
+    // Endpoint canônico de executivos: exclui parceiro_admin (gestores) e users de cliente.
+    // /users?is_executive=true traria os Parceiros Gestores (mesma flag) por engano.
+    api.get<any>('/executives?pageSize=100').then(r => {
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setExecutives(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
