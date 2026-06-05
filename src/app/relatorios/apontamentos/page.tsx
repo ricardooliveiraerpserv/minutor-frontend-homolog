@@ -781,19 +781,6 @@ export default function RelatorioApontamentosPage() {
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot>
-                      <tr style={{ background: '#ede9fe', borderTop: '2px solid #5b21b6', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
-                        <td colSpan={3} className="px-3 py-2 text-right text-sm font-semibold text-gray-700">
-                          Totais ({ticketSummary.length} ticket{ticketSummary.length === 1 ? '' : 's'})
-                        </td>
-                        <td className="px-3 py-2 text-right text-sm font-bold tabular-nums text-gray-800 whitespace-nowrap">
-                          {fmtHoras(ticketSummary.reduce((acc, t) => acc + t.period_minutes, 0))}
-                        </td>
-                        <td className="px-3 py-2 text-right text-sm font-bold tabular-nums whitespace-nowrap" style={{ color: '#5b21b6' }}>
-                          {fmtHoras(ticketSummary.reduce((acc, t) => acc + t.lifetime_minutes, 0))}
-                        </td>
-                      </tr>
-                    </tfoot>
                   </table>
                 </div>
               )}
