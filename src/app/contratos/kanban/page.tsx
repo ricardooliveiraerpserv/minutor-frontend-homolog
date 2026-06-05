@@ -15,6 +15,7 @@ import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
 import { AporteDetailModal } from '@/components/shared/AporteDetailModal'
 import { ContractMessages } from '@/components/shared/ContractMessages'
+import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { ProjectDataModal } from '@/components/shared/ProjectDataModal'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 
@@ -2222,7 +2223,8 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
   userRole?: string
 }) {
   const badge = statusBadge(card)
-  const [tab, setTab]   = useState<'details' | 'chat' | 'log'>(initialTab ?? 'details')
+  const [tab, setTab]   = useState<'details' | 'chat' | 'log' | 'extrato'>(initialTab ?? 'details')
+  const canEditExtrato = userRole === 'admin' || userRole === 'coordenador'
   const [full, setFull] = useState<any>(null)
   const [logs, setLogs] = useState<any[]>([])
   const [logsLoaded, setLogsLoaded] = useState(false)
@@ -2321,6 +2323,11 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
             <button onClick={() => setTab('log')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style={tabStyle('log')}>
               <Clock size={11} /> Histórico
             </button>
+            {(card.project_id ?? full?.project?.id) && (
+              <button onClick={() => setTab('extrato')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all" style={tabStyle('extrato')}>
+                <FileText size={11} /> Extrato
+              </button>
+            )}
           </div>
         </div>
 
@@ -2348,6 +2355,12 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
                 ))}
               </div>
             )}
+          </div>
+        ) : tab === 'extrato' ? (
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {(card.project_id ?? full?.project?.id)
+              ? <MonthlyAccrualTable projectId={(card.project_id ?? full?.project?.id) as number} canEditConsumption={canEditExtrato} />
+              : <p className="text-xs text-center py-8" style={{ color: 'var(--brand-muted)' }}>Sem projeto gerado.</p>}
           </div>
         ) : (
           <>
