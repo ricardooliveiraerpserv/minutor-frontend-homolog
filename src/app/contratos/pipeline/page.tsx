@@ -4,7 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { ProjectStagesSidePanel } from '@/components/projects/project-stages-side-panel'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
@@ -1837,7 +1837,7 @@ function FinalizeRequestModal({ card, onClose, onDone }: {
 
 interface ReqAttachment { id: number; original_name: string; file_path: string; file_size: number; mime_type?: string }
 interface ReqMsg { id: number; message: string; author?: { id: number; name: string }; created_at: string; attachments?: ReqAttachment[] }
-interface MentionUser { id: number; name: string }
+interface MentionUser { id: number; name: string; role?: 'admin' | 'executivo' | 'cliente' }
 
 interface KanbanLogEntry {
   id: number
@@ -3331,8 +3331,9 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
   )
 }
 
-function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () => void }) {
-  const [tab, setTab]               = useState<'details' | 'comments' | 'log'>('details')
+function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; onClose: () => void; initialTab?: 'details' | 'comments' | 'log' }) {
+  const { user: currentUser } = useAuth()
+  const [tab, setTab]               = useState<'details' | 'comments' | 'log'>(initialTab ?? 'details')
   const [msgs, setMsgs]             = useState<ReqMsg[]>([])
   const [msgsLoaded, setMsgsLoaded] = useState(false)
   const [logs, setLogs]             = useState<KanbanLogEntry[]>([])
@@ -3388,14 +3389,15 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
   const insertMention = (user: MentionUser) => {
     const before = input.slice(0, mentionStart)
     const after  = input.slice(textareaRef.current?.selectionStart ?? input.length)
-    const next   = `${before}@${user.name} ${after}`
+    // Token canônico que o backend parseia: @[id:Nome]
+    const next   = `${before}@[${user.id}:${user.name}] ${after}`
     setInput(next)
     setShowMentions(false)
     setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
   const filteredMentions = mentionUsers.filter(u =>
-    u.name.toLowerCase().includes(mentionQuery)
+    u.id !== currentUser?.id && u.name.toLowerCase().includes(mentionQuery)
   )
 
   const handleSend = async () => {
@@ -3625,15 +3627,27 @@ function RequestDetailModal({ card, onClose }: { card: RequestCard; onClose: () 
               {/* Mention dropdown */}
               <div className="relative">
                 {showMentions && filteredMentions.length > 0 && (
-                  <div className="absolute bottom-full left-0 mb-1 w-56 rounded-lg overflow-hidden shadow-lg z-10"
+                  <div className="absolute bottom-full left-0 mb-1 w-64 max-h-60 overflow-y-auto rounded-lg shadow-lg z-10"
                     style={{ background: 'var(--brand-bg)', border: '1px solid rgba(139,92,246,0.3)' }}>
-                    {filteredMentions.map(u => (
-                      <button key={u.id} onClick={() => insertMention(u)}
-                        className="w-full text-left px-3 py-2 text-sm hover:opacity-80 transition-opacity"
-                        style={{ color: 'var(--brand-text)' }}>
-                        <span className="text-[#a78bfa] font-semibold">@</span>{u.name}
-                      </button>
-                    ))}
+                    {filteredMentions.map(u => {
+                      const isCliente = u.role === 'cliente'
+                      const accent = isCliente ? 'var(--success)' : '#a78bfa'
+                      return (
+                        <button key={u.id} onClick={() => insertMention(u)}
+                          className="w-full flex items-center justify-between gap-2 text-left px-3 py-2 text-sm hover:opacity-80 transition-opacity"
+                          style={{ color: isCliente ? 'var(--success)' : 'var(--brand-text)' }}>
+                          <span className="truncate">
+                            <span style={{ color: accent }} className="font-semibold">@</span>{u.name}
+                          </span>
+                          {u.role && (
+                            <span className="text-[10px] uppercase tracking-wider opacity-70 shrink-0"
+                              style={{ color: accent }}>
+                              {u.role}
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
                 <div className="flex gap-2 items-end">
@@ -3881,6 +3895,8 @@ function PhaseSeparator({ label, icon }: { label: string; icon: React.ReactNode 
 
 function KanbanContent() {
   const router = useRouter()
+  // useSearchParams pra deep link de emails re-rodar em client-side nav (?req=, ?project=)
+  const searchParams = useSearchParams()
   const { user } = useAuth()
   const canWrite = user?.type === 'admin' || user?.type === 'administrativo'
 
@@ -3893,6 +3909,8 @@ function KanbanContent() {
   const [userRole,        setUserRole]        = useState<string>('admin')
   const [loading,         setLoading]         = useState(true)
   const [selectedRequest,      setSelectedRequest]      = useState<RequestCard | null>(null)
+  // Tab inicial do RequestDetailModal — usado quando vem de deep link #chat
+  const [requestInitialTab, setRequestInitialTab] = useState<'details' | 'comments' | 'log' | undefined>(undefined)
   const [planDecisionCard,     setPlanDecisionCard]     = useState<RequestCard | null>(null)
   const [contractCreateForReq, setContractCreateForReq] = useState<RequestCard | null>(null)
   const [subprojetoForReq, setSubprojetoForReq] = useState<{ card: RequestCard; projectId: number; subSeq: string } | null>(null)
@@ -3972,8 +3990,7 @@ function KanbanContent() {
 
   useEffect(() => {
     if (projectCards.length === 0) return
-    const params = new URLSearchParams(window.location.search)
-    const contractIdParam = params.get('chat_contract_id')
+    const contractIdParam = searchParams.get('chat_contract_id')
     if (!contractIdParam) return
     const contractId = Number(contractIdParam)
     const card = projectCards.find(p => p.contract_id === contractId)
@@ -3983,7 +4000,47 @@ function KanbanContent() {
       url.searchParams.delete('chat_contract_id')
       window.history.replaceState({}, '', url.toString())
     }
-  }, [projectCards])
+  }, [projectCards, searchParams])
+
+  // Deep link de emails: ?req=<id> abre RequestDetailModal | ?project=<id> abre side panel
+  // do projeto. Hash #chat → tenta foco na seção de chat (Modal já tem tabs).
+  useEffect(() => {
+    if (requestCards.length === 0) return
+    const reqIdParam = searchParams.get('req')
+    if (!reqIdParam) return
+    const reqId = Number(reqIdParam)
+    const card = requestCards.find(r => r.id === reqId)
+    if (card) {
+      // ?tab=chat OU hash #chat (compat) → abre direto em Comentários
+      const wantsChat = searchParams.get('tab') === 'chat'
+        || (typeof window !== 'undefined' && window.location.hash === '#chat')
+      setRequestInitialTab(wantsChat ? 'comments' : 'details')
+      setSelectedRequest(card)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('req')
+      url.searchParams.delete('tab')
+      if (wantsChat) url.hash = ''
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [requestCards, searchParams])
+
+  useEffect(() => {
+    if (projectCards.length === 0) return
+    const projIdParam = searchParams.get('project')
+    if (!projIdParam) return
+    const projId = Number(projIdParam)
+    const card = projectCards.find(p => p.id === projId)
+    if (card) {
+      const wantsChat = searchParams.get('tab') === 'chat'
+        || (typeof window !== 'undefined' && window.location.hash === '#chat')
+      setProjectAction({ card, action: wantsChat ? 'chat' : 'view' })
+      const url = new URL(window.location.href)
+      url.searchParams.delete('project')
+      url.searchParams.delete('tab')
+      if (wantsChat) url.hash = ''
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [projectCards, searchParams])
 
   const colIsClientVisible = (colId: string): boolean =>
     DEMAND_COLS.find(c => c.id === colId)?.clientVisible ?? false
@@ -5029,7 +5086,11 @@ function KanbanContent() {
         />
       )}
       {selectedRequest && (
-        <RequestDetailModal card={selectedRequest} onClose={() => setSelectedRequest(null)} />
+        <RequestDetailModal
+          card={selectedRequest}
+          initialTab={requestInitialTab}
+          onClose={() => { setSelectedRequest(null); setRequestInitialTab(undefined) }}
+        />
       )}
       {contractDecisionCard && (
         <ContractDecisionModal
