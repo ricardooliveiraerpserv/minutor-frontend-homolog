@@ -550,14 +550,18 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none')}
         aria-hidden
       />
+    {/* Container que CLIPA o drawer off-screen no mobile — é `fixed` (fora da
+        cadeia de altura do conteúdo, então não quebra `h-full`/h:100% no iOS).
+        No desktop vira `contents` e some, deixando o <aside> fluir normalmente. */}
+    <div className="fixed inset-0 z-50 overflow-x-hidden pointer-events-none md:static md:inset-auto md:z-auto md:overflow-visible md:pointer-events-auto md:contents">
     <aside
       className={cn(
-        'flex flex-col h-screen border-r transition-transform duration-200 shrink-0',
-        // Mobile: drawer off-canvas largura cheia
-        'fixed inset-y-0 left-0 z-50 w-[248px]',
+        'flex flex-col border-r transition-transform duration-200',
+        // Mobile: drawer off-canvas (absolute dentro do container fixo → clipado)
+        'absolute inset-y-0 left-0 w-[248px] pointer-events-auto',
         mobileOpen ? 'translate-x-0' : '-translate-x-full',
-        // Desktop: estático no fluxo, com colapso opcional
-        'md:static md:z-auto md:translate-x-0 md:transition-all',
+        // Desktop: estático no fluxo, altura cheia, colapso opcional
+        'md:static md:h-screen md:shrink-0 md:translate-x-0 md:transition-all',
         collapsedRaw ? 'md:w-[60px]' : 'md:w-[248px]',
       )}
       style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}
@@ -787,6 +791,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
     </aside>
+    </div>
     </>
   )
 }
