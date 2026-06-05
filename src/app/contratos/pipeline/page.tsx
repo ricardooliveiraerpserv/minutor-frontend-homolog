@@ -39,6 +39,7 @@ interface ContractCard {
   kanban_status: string
   kanban_coordinator_id?: number
   kanban_coordinator?: string
+  executivo_conta_name?: string
   kanban_order: number
   status: string
   project_id?: number
@@ -64,6 +65,7 @@ interface ProjectCard {
   expected_end_date?: string | null
   coordinator_ids?: number[]
   coordinators?: string[]
+  executivo_conta_name?: string
   coordination_hours?: number | null
   coordination_consumed_hours?: number
   consultants?: string[]
@@ -4117,9 +4119,9 @@ function KanbanContent() {
   ].filter(Boolean))].sort() as string[]
 
   const allExecutivos = [...new Set([
-    ...demandCards.flatMap(c => c.kanban_coordinator ? [c.kanban_coordinator] : []),
-    ...transitionCards.flatMap(c => c.kanban_coordinator ? [c.kanban_coordinator] : []),
-    ...projectCards.flatMap(p => p.coordinators ?? []),
+    ...demandCards.flatMap(c => c.executivo_conta_name ? [c.executivo_conta_name] : []),
+    ...transitionCards.flatMap(c => c.executivo_conta_name ? [c.executivo_conta_name] : []),
+    ...projectCards.flatMap(p => p.executivo_conta_name ? [p.executivo_conta_name] : []),
   ])].sort()
 
   const allProjectCoordinators = [...new Set(
@@ -4132,10 +4134,9 @@ function KanbanContent() {
       .map(p => [p.id, { id: String(p.id), name: p.project_name + (p.code ? ` (${p.code})` : '') }])
   ).values()].sort((a, b) => a.name.localeCompare(b.name))
 
-  const matchExecutivo = (coordinator?: string | null, coordinators?: string[]): boolean => {
+  const matchExecutivo = (executivo?: string | null): boolean => {
     if (filterExecutivos.length === 0) return true
-    const arr = coordinators ?? (coordinator ? [coordinator] : [])
-    return arr.some(e => filterExecutivos.includes(e))
+    return filterExecutivos.includes(executivo ?? '')
   }
 
   // IDs de projetos já visíveis em colunas de execução — evita duplicar contrato + projeto
@@ -4151,7 +4152,7 @@ function KanbanContent() {
     return base
       .filter(c => c.categoria !== 'sustentacao')
       .filter(c => matchFilter(c.customer_name, c.project_name))
-      .filter(c => matchExecutivo(c.kanban_coordinator))
+      .filter(c => matchExecutivo(c.executivo_conta_name))
       .sort((a, b) => a.kanban_order - b.kanban_order)
   }
 
@@ -4168,7 +4169,7 @@ function KanbanContent() {
       .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
       .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
       .filter(p => matchFilter(p.customer_name, p.project_name))
-      .filter(p => matchExecutivo(undefined, p.coordinators))
+      .filter(p => matchExecutivo(p.executivo_conta_name))
       .sort((a, b) => {
         if (newProjectIds && colId === 'em_andamento') {
           const aNew = newProjectIds.has(a.id) ? 0 : 1
@@ -4562,10 +4563,7 @@ function KanbanContent() {
             .filter(c => {
               if (filterCustomers.length > 0 && !filterCustomers.includes(c.customer_name)) return false
               if (sq && !c.customer_name.toLowerCase().includes(sq) && !(c.project_name ?? '').toLowerCase().includes(sq)) return false
-              if (filterExecutivos.length > 0) {
-                const coord = c.kanban_coordinator ? [c.kanban_coordinator] : []
-                if (!coord.some(e => filterExecutivos.includes(e))) return false
-              }
+              if (filterExecutivos.length > 0 && !filterExecutivos.includes(c.executivo_conta_name ?? '')) return false
               return true
             })
           const allProjects = projectCards
@@ -4577,7 +4575,7 @@ function KanbanContent() {
             .filter(p => {
               if (filterCustomers.length > 0 && !filterCustomers.includes(p.customer_name)) return false
               if (sq && !p.customer_name.toLowerCase().includes(sq) && !(p.project_name ?? '').toLowerCase().includes(sq)) return false
-              if (filterExecutivos.length > 0 && !(p.coordinators ?? []).some(e => filterExecutivos.includes(e))) return false
+              if (filterExecutivos.length > 0 && !filterExecutivos.includes(p.executivo_conta_name ?? '')) return false
               return true
             })
           const allRequests = requestCards
