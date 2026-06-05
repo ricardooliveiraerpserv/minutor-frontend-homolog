@@ -1051,10 +1051,12 @@ function EmailTemplatesTab() {
   const bodyRef = useRef<HTMLTextAreaElement>(null)
   const [varMenu, setVarMenu] = useState<'subject' | 'body' | null>(null)
   const VAR_DESC: Record<string, string> = {
-    nome: 'nome do destinatário', periodo: 'mês/ano (ex.: Maio de 2026)',
+    nome: 'nome do destinatário (cliente = nome da empresa)', periodo: 'mês/ano (ex.: Maio de 2026)',
     valor: 'valor total (R$)', data: 'data do "dia do mês" no mês seguinte (dia útil)',
+    empresa: 'nome de exibição da empresa', razao_social: 'razão social (cai pro nome se vazio)',
   }
   const availableVars = ['nome', 'periodo', 'valor',
+    ...(form.categoria === 'cliente' ? ['empresa', 'razao_social'] : []),
     ...(form.pay_day.trim() !== '' ? ['data'] : [])]
 
   const onVarField = (field: 'subject' | 'body', e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
