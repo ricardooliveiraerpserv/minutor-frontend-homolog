@@ -6,7 +6,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
-import { Eye } from 'lucide-react'
+import { Eye, AlertTriangle } from 'lucide-react'
 import DashboardIndicators from '@/components/dashboard/DashboardIndicators'
 import ProjectTimesheetsModal from '@/components/dashboard/ProjectTimesheetsModal'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
@@ -80,6 +80,16 @@ interface ProjectItem {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function fmtH(h: number | null | undefined) { return (h ?? 0).toFixed(1) + 'h' }
+
+// ── Card informativo FIXO do saldo devedor da CONCRESERV (customer_id 215). ──
+// Valores CONGELADOS manualmente (consumo até abr/2026, SEM maio):
+//   contratadas = 5653 − 160 (mês maio) = 5493
+//   consumidas  = 6199,1 − 168 (apont. maio) = 6031,1
+//   saldo       = 5493 − 6031,1 = −538,1
+// Fica hardcoded de propósito: quando o cadastro for limpo (aporte/apontamentos
+// iniciais), o cálculo dinâmico muda, mas este informativo permanece.
+const CONCRESERV_CUSTOMER_ID = 215
+const CONCRESERV_SALDO_DEVEDOR = { contratadas: 5493.0, consumidas: 6031.1, saldo: -538.1, referencia: 'consumo até abr/2026' }
 function fmtBRL(v: number | null | undefined) {
   if (v == null) return '—'
   return formatBRL(v ?? 0)
@@ -496,6 +506,34 @@ export default function BankHoursMonthlyPage() {
             {/* Total Tab */}
             {activeTab === 'total' && (
               <div className="space-y-4">
+                {/* Saldo devedor INFORMATIVO — fixo, só CONCRESERV (não recalcula) */}
+                {Number(selectedCustomer || user?.customer_id) === CONCRESERV_CUSTOMER_ID && (
+                  <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle size={14} style={{ color: '#EF4444' }} />
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+                        Saldo Devedor — ERPSERV <span style={{ opacity: 0.7 }}>(informativo)</span>
+                      </span>
+                    </div>
+                    <span className="text-3xl font-extrabold tracking-tight" style={{ color: '#EF4444', lineHeight: 1 }}>
+                      {fmtH(CONCRESERV_SALDO_DEVEDOR.saldo)}
+                    </span>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-1 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Horas contratadas</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmtH(CONCRESERV_SALDO_DEVEDOR.contratadas)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Horas consumidas</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmtH(CONCRESERV_SALDO_DEVEDOR.consumidas)}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Referência</p>
+                        <p className="text-sm font-medium" style={{ color: 'var(--brand-muted)' }}>{CONCRESERV_SALDO_DEVEDOR.referencia}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {loadingSummary ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {Array.from({ length: 5 }).map((_, i) => (
