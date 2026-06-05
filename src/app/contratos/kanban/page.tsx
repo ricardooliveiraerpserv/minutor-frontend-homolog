@@ -885,7 +885,35 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
             )}
 
             {tab === 'extrato' && (
-              <MonthlyAccrualTable projectId={projectId} canEditConsumption={viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'} />
+              <div className="space-y-4">
+                {(viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador') && (() => {
+                  const visivel = (p as any)?.extrato_visivel_cliente ?? true
+                  return (
+                    <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                      <span className="text-xs" style={{ color: 'var(--text)' }}>Cliente vê este Extrato no perfil dele</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const v = !visivel
+                          setP(prev => prev ? ({ ...prev, extrato_visivel_cliente: v } as any) : prev)
+                          try {
+                            await api.put(`/projects/${projectId}`, { extrato_visivel_cliente: v })
+                            toast.success(v ? 'Extrato visível para o cliente' : 'Extrato oculto para o cliente')
+                          } catch {
+                            setP(prev => prev ? ({ ...prev, extrato_visivel_cliente: !v } as any) : prev)
+                            toast.error('Erro ao salvar')
+                          }
+                        }}
+                        className="relative w-10 h-5 rounded-full transition-colors shrink-0"
+                        style={{ background: visivel ? 'var(--success-border)' : 'var(--border-strong)' }}
+                      >
+                        <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: visivel ? 'translateX(20px)' : 'translateX(0)' }} />
+                      </button>
+                    </div>
+                  )
+                })()}
+                <MonthlyAccrualTable projectId={projectId} canEditConsumption={viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'} />
+              </div>
             )}
 
             {tab === 'financial' && !isCoordRole && (
