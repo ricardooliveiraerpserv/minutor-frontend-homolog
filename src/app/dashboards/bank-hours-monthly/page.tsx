@@ -27,6 +27,7 @@ interface Executive { id: number; name: string }
 
 interface SummaryData {
   contracted_hours: number
+  extrato_visivel_cliente?: boolean
   accumulated_contracted_hours?: number
   contributed_hours?: number
   consumed_hours: number
@@ -627,13 +628,16 @@ export default function BankHoursMonthlyPage() {
                       />
                     </div>
 
-                    {/* Horas mensais incrementadas (acúmulo do banco mensal) — acima dos aportes */}
-                    <MonthlyAccrualTable
-                      variant="brand"
-                      startDate={summary.start_date}
-                      hoursPerMonth={summary.contracted_hours ?? 0}
-                      accumulated={summary.accumulated_contracted_hours ?? null}
-                    />
+                    {/* Horas mensais incrementadas (acúmulo do banco mensal) — acima dos aportes.
+                        Para o CLIENTE só aparece se a chave extrato_visivel_cliente estiver ligada. */}
+                    {(!isCliente || summary.extrato_visivel_cliente !== false) && (
+                      <MonthlyAccrualTable
+                        variant="brand"
+                        startDate={summary.start_date}
+                        hoursPerMonth={summary.contracted_hours ?? 0}
+                        accumulated={summary.accumulated_contracted_hours ?? null}
+                      />
+                    )}
 
                     {/* Histórico de Aporte — sempre exibido (com estado vazio). */}
                     <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
