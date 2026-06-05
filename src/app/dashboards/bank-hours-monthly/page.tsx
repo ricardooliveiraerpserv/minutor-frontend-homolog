@@ -343,6 +343,12 @@ export default function BankHoursMonthlyPage() {
           <div>
             <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>Banco de Horas Mensais</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>Consumo e saldo de horas por mês e projeto</p>
+            {summary && (summary.contracted_hours ?? 0) > 0 && (
+              <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-xs font-medium"
+                style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: 'var(--brand-primary)' }}>
+                Contrato mensal · {fmtH(summary.contracted_hours)} contratadas por mês
+              </span>
+            )}
           </div>
         </div>
 
