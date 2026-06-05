@@ -352,7 +352,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 }) {
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes'>((initialTab as any) ?? 'overview')
+  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'extrato'>((initialTab as any) ?? 'overview')
   const [breakdown, setBreakdown] = useState<ConsultantBreakdown[]>([])
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
@@ -477,6 +477,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
     { id: 'consultants' as const, label: `Consultores${breakdown.length > 0 ? ` (${breakdown.length})` : ''}` },
     { id: 'timesheets'  as const, label: 'Apontamentos' },
     { id: 'aportes'     as const, label: `Aportes${aportesList.length > 0 ? ` (${aportesList.length})` : ''}` },
+    { id: 'extrato'     as const, label: 'Extrato' },
     ...(isCoordRole ? [] : [
       { id: 'financial'   as const, label: 'Financeiro' },
       { id: 'cost'        as const, label: 'Custo' },
@@ -881,6 +882,10 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   </div>
                 )}
               </div>
+            )}
+
+            {tab === 'extrato' && (
+              <MonthlyAccrualTable projectId={projectId} canEditConsumption={viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador'} />
             )}
 
             {tab === 'financial' && !isCoordRole && (
