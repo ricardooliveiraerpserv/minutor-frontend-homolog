@@ -329,8 +329,11 @@ tbody tr + tr > td {
    * tabelas largas, etc.). A rolagem horizontal acontece só nos containers
    * internos (overflow-x-auto), nunca na página inteira — evita o "zoom"
    * e faixas vazias nas laterais no celular. */
+  /* `clip` (não `hidden`): com h-full no html/body, `hidden` faz overflow-y virar
+     `auto` → body vira scroll container de 1 viewport e window.print()/PDF dos
+     relatórios corta em 1 página. `clip` recorta o X sem criar scroll container. */
   html, body {
-    overflow-x: hidden;
+    overflow-x: clip;
     max-width: 100%;
   }
 
