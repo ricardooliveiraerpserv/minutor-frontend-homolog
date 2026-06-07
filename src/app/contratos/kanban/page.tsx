@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, ApiError } from '@/lib/api'
+import { fmtDateBR } from '@/lib/date-only'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
@@ -603,7 +604,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                           return (
                             <Row label="Data de Conclusão" value={
                               <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: ds.bg, color: ds.color }}>
-                                {new Date(p.expected_end_date).toLocaleDateString('pt-BR')} — {ds.label}
+                                {fmtDateBR(p.expected_end_date)} — {ds.label}
                               </span>
                             } />
                           )
@@ -844,7 +845,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                           return (
                             <tr key={a.id} style={{ borderTop: '1px solid var(--brand-border)' }}>
                               <td className="px-3 py-2" style={{ color: 'var(--brand-text)' }}>
-                                {a.contributed_at ? new Date(a.contributed_at).toLocaleDateString('pt-BR') : '—'}
+                                {a.contributed_at ? fmtDateBR(a.contributed_at) : '—'}
                               </td>
                               <td className="px-3 py-2" style={{ color: 'var(--brand-text)' }}>{motivoLabel[a.motivo] ?? a.motivo}</td>
                               <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--brand-text)' }}>{h.toFixed(1)}h</td>
@@ -1806,7 +1807,7 @@ function AporteKanbanCard({ aporte, onClick, onMoveToFinal, canWrite }: {
       )}
       <div className="flex items-center justify-between mt-1.5 text-[9px]" style={{ color: 'var(--text-light)' }}>
         <span>{aporte.contributed_by ?? '—'}</span>
-        <span>{aporte.contributed_at ? new Date(aporte.contributed_at).toLocaleDateString('pt-BR') : ''}</span>
+        <span>{aporte.contributed_at ? fmtDateBR(aporte.contributed_at) : ''}</span>
       </div>
 
       {/* Botão "Mover pra Aporte" — só em kanban_status='novo_contrato' */}

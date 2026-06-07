@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { X, Pencil, Trash2 } from 'lucide-react'
 import { EntityAttachmentsPanel } from '@/components/attachments'
 import { api } from '@/lib/api'
+import { fmtDateBR } from '@/lib/date-only'
 import { toast } from 'sonner'
 
 export interface AporteDetail {
@@ -228,7 +229,7 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
 
           <div className="flex items-center justify-between text-[11px] pt-2 border-t" style={{ color: 'var(--text-light)', borderColor: 'var(--brand-border)' }}>
             <span>Criado por <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>{aporte.contributed_by ?? '—'}</span></span>
-            <span>{aporte.contributed_at ? new Date(aporte.contributed_at).toLocaleDateString('pt-BR') : ''}</span>
+            <span>{aporte.contributed_at ? fmtDateBR(aporte.contributed_at) : ''}</span>
           </div>
         </div>
 

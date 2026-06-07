@@ -9,6 +9,7 @@ import {
   Layers, CheckSquare, Play, Lock, UserCheck, CalendarClock,
 } from 'lucide-react'
 import { useProjectSchedule } from '@/hooks/use-project-schedule'
+import { notifyProjectUpdated } from '@/lib/project-events'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 import { useAuth } from '@/hooks/use-auth'
 import { useExecutiveMode } from '@/hooks/use-executive-mode'
@@ -21,6 +22,7 @@ import { CronogramaSettingsModal } from '@/components/projects/cronograma-settin
 import { CronogramaExecutiveHeader } from '@/components/projects/cronograma-executive-header'
 import { CronogramaAlertsList } from '@/components/projects/cronograma-alerts-list'
 import { CronogramaRecalcModal } from '@/components/projects/cronograma-recalc-modal'
+import { CronogramaModelosModal } from '@/components/projects/cronograma-modelos-modal'
 import type { RecalcTrigger } from '@/hooks/use-preview-recalc'
 
 type ViewMode = 'operacao' | 'planejamento' | 'timeline'
@@ -62,6 +64,10 @@ export default function CronogramaPage() {
 
   const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, loading, error, refetch } =
     useProjectSchedule(projectId)
+
+  // Pós-mutação no cronograma: refaz o schedule E avisa o header (layout) pra
+  // ele recarregar o projeto — o "Prazo de entrega" deriva da última data daqui.
+  const refresh = () => { refetch(); notifyProjectUpdated(projectId) }
 
   // Restore last-used view do localStorage quando entra sem ?view= explícito.
   // Normaliza legacy (board/tabela/gantt) → operacao/planejamento/timeline.
@@ -171,6 +177,7 @@ export default function CronogramaPage() {
   const [hours, setHours] = useState('')
   const [saving, setSaving] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [modelosOpen, setModelosOpen] = useState(false)
   const [calendarRecalc, setCalendarRecalc] = useState<RecalcTrigger | null>(null)
   const allowWeekend = !!project?.allow_weekend_work
   const allowHoliday = !!project?.allow_holiday_work
@@ -187,7 +194,7 @@ export default function CronogramaPage() {
         hours_planned: hoursNum,
       })
       setName(''); setHours(''); setCreating(false)
-      refetch()
+      refresh()
       toast.success('Etapa criada')
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao criar etapa')
@@ -196,7 +203,9 @@ export default function CronogramaPage() {
     }
   }
 
-  if (loading) return <div style={{ color: 'var(--text-muted)' }}>Carregando cronograma…</div>
+  // Só mostra o placeholder no carregamento INICIAL. Em refetch (após salvar) os dados
+  // persistem, então mantemos a tabela montada — senão a tela desmonta e rola pro topo.
+  if (loading && !project) return <div style={{ color: 'var(--text-muted)' }}>Carregando cronograma…</div>
   if (error) return <div style={{ color: 'var(--danger)' }}>{error}</div>
 
   if (!isOperational) {
@@ -303,6 +312,18 @@ export default function CronogramaPage() {
               Configurações
             </button>
           )}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => setModelosOpen(true)}
+              title="Salvar/aplicar modelo de cronograma ou copiar de outro projeto"
+              className="ds-btn-ghost"
+              style={{ fontSize: 12, padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)' }}
+            >
+              <Layers size={12} />
+              Modelos
+            </button>
+          )}
           {canEdit && !creating && (
             <button
               type="button"
@@ -401,7 +422,7 @@ export default function CronogramaPage() {
             canEdit={canEdit}
             holidays={holidays}
             calendarOpts={{ allowWeekend, allowHoliday }}
-            onChanged={refetch}
+            onChanged={refresh}
           />
         )}
         {view === 'timeline' && (
@@ -411,7 +432,7 @@ export default function CronogramaPage() {
             canEdit={canEdit}
             highlightUserId={highlightUserId}
             onSelectUser={setHighlightUserId}
-            onChanged={refetch}
+            onChanged={refresh}
           />
         )}
       </div>
@@ -442,8 +463,17 @@ export default function CronogramaPage() {
         projectId={projectId}
         trigger={calendarRecalc}
         onCancel={() => setCalendarRecalc(null)}
-        onApplied={() => { setCalendarRecalc(null); refetch() }}
+        onApplied={() => { setCalendarRecalc(null); refresh() }}
       />
+
+      {canEdit && (
+        <CronogramaModelosModal
+          open={modelosOpen}
+          onClose={() => setModelosOpen(false)}
+          projectId={projectId}
+          onApplied={refresh}
+        />
+      )}
     </div>
   )
 }

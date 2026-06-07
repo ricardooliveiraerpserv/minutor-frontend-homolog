@@ -67,15 +67,21 @@ export function CronogramaExecutiveHeader({ executive, teamLoad, alerts }: Props
           </div>
         </Card>
 
-        {/* Horas */}
-        <Card icon={<Clock size={14} />} label="Horas">
-          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
-            {Math.round(e.hours_actual)}h / {Math.round(e.hours_planned)}h
-          </div>
-          <div className="ds-text-body-sm" style={{ color: e.hours_balance < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
-            saldo {e.hours_balance >= 0 ? '+' : ''}{Math.round(e.hours_balance)}h
-          </div>
-        </Card>
+        {/* Horas — planejadas (alocadas em atividades) sobre as horas DISPONIBILIZADAS
+            à gestão (pool do cronograma). Saldo = disponibilizadas − planejadas (a alocar). */}
+        {(() => {
+          const aAlocar = Math.round((e.hours_available ?? 0) - e.hours_planned)
+          return (
+            <Card icon={<Clock size={14} />} label="Horas">
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                {Math.round(e.hours_planned)}h / {Math.round(e.hours_available ?? 0)}h
+              </div>
+              <div className="ds-text-body-sm" style={{ color: aAlocar < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+                {aAlocar < 0 ? `excede em ${Math.abs(aAlocar)}h` : `a alocar +${aAlocar}h`}
+              </div>
+            </Card>
+          )
+        })()}
 
         {/* Prazo Final — data da última entrega do cronograma */}
         <Card icon={<CalendarClock size={14} />} label="Prazo final">

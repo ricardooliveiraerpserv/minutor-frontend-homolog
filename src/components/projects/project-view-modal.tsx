@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { uploadDirect } from '@/lib/upload'
 import { previewText } from '@/lib/sanitize'
+import { fmtDateBR, parseDateLocal } from '@/lib/date-only'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText } from 'lucide-react'
@@ -92,7 +93,7 @@ interface ProjectEditForm {
 // ─── Helpers (duplicados da página do kanban — manter idênticos) ─────────────────
 
 function endDateStyle(dateStr: string): { color: string; bg: string; label: string } {
-  const diff = Math.floor((new Date(dateStr).getTime() - Date.now()) / 86400000)
+  const diff = Math.floor((parseDateLocal(dateStr).getTime() - Date.now()) / 86400000)
   if (diff < 0)   return { color: '#ef4444', bg: '#ef444420', label: `Venceu há ${Math.abs(diff)}d` }
   if (diff <= 7)  return { color: '#f97316', bg: '#f9731620', label: `Vence em ${diff}d` }
   if (diff <= 30) return { color: '#eab308', bg: '#eab30820', label: `${diff}d` }
@@ -369,7 +370,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                           return (
                             <Row label="Data de Conclusão" value={
                               <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: ds.bg, color: ds.color }}>
-                                {new Date(p.expected_end_date).toLocaleDateString('pt-BR')} — {ds.label}
+                                {fmtDateBR(p.expected_end_date)} — {ds.label}
                               </span>
                             } />
                           )
@@ -612,7 +613,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                           return (
                             <tr key={a.id} style={{ borderTop: '1px solid var(--brand-border)' }}>
                               <td className="px-3 py-2" style={{ color: 'var(--brand-text)' }}>
-                                {a.contributed_at ? new Date(a.contributed_at).toLocaleDateString('pt-BR') : '—'}
+                                {a.contributed_at ? fmtDateBR(a.contributed_at) : '—'}
                               </td>
                               <td className="px-3 py-2" style={{ color: 'var(--brand-text)' }}>{motivoLabel[a.motivo] ?? a.motivo}</td>
                               <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--brand-text)' }}>{h.toFixed(1)}h</td>

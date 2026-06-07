@@ -19,13 +19,28 @@ export function buildCronogramaCodes(stages: ScheduleStage[]): CronogramaCodes {
   const stageMap = new Map<number, string>()
   const activityMap = new Map<number, string>()
 
-  stages.forEach((stage, sIdx) => {
-    const stageCode = String(sIdx + 1)
-    stageMap.set(stage.id, stageCode)
+  const byOrder = (a: ScheduleStage, b: ScheduleStage) => (a.order_index ?? 0) - (b.order_index ?? 0)
+  const topStages = stages.filter(s => s.parent_stage_id == null).sort(byOrder)
+  const childrenOf = (id: number) => stages.filter(s => s.parent_stage_id === id).sort(byOrder)
 
-    const deliveries = stage.deliveries ?? []
-    deliveries.forEach((delivery, dIdx) => {
-      activityMap.set(delivery.id, `${stageCode}.${dIdx + 1}`)
+  topStages.forEach((etapa, i) => {
+    const etapaCode = String(i + 1)
+    stageMap.set(etapa.id, etapaCode)
+
+    // Numeração de 2º nível compartilhada entre atividades diretas e sub-etapas
+    // (garante unicidade quando a etapa tem os dois).
+    let second = 0
+    ;(etapa.deliveries ?? []).forEach(d => {
+      second++
+      activityMap.set(d.id, `${etapaCode}.${second}`)
+    })
+    childrenOf(etapa.id).forEach(sub => {
+      second++
+      const subCode = `${etapaCode}.${second}`
+      stageMap.set(sub.id, subCode)
+      ;(sub.deliveries ?? []).forEach((d, k) => {
+        activityMap.set(d.id, `${subCode}.${k + 1}`)
+      })
     })
   })
 

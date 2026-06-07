@@ -2,6 +2,7 @@
 
 import { Lock } from 'lucide-react'
 import type { StageDelivery } from '@/lib/types/project-stage'
+import { parseDateLocal } from '@/lib/date-only'
 import { ResponsibleChip } from './responsible-chip'
 import { useUserCapacityIndex } from '@/hooks/use-user-capacity'
 
@@ -46,7 +47,7 @@ export function DeliveryCard({ delivery, onClick, isDragging, predecessorTitle, 
   const actual = delivery.effort_minutes_sum !== undefined && delivery.effort_minutes_sum !== null
     ? Number(delivery.effort_minutes_sum) / 60
     : undefined
-  const overdue = delivery.due_date && new Date(delivery.due_date) < new Date() && delivery.status !== 'done'
+  const overdue = delivery.due_date && parseDateLocal(delivery.due_date) < new Date(new Date().toDateString()) && delivery.status !== 'done'
   const due = formatDue(delivery.due_date)
   const isBlocked = delivery.predecessor_state === 'pending' && delivery.status === 'backlog'
   const { byUserId } = useUserCapacityIndex()

@@ -38,7 +38,9 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
     Number.isFinite(id) ? `/projects/${id}` : null
   )
 
-  if (loading) {
+  // Só placeholder no load INICIAL. Em refetch (header reage à mudança no cronograma)
+  // os dados persistem — manter a árvore montada evita desmontar a página e rolar pro topo.
+  if (loading && !project) {
     return (
       <AppLayout>
         <div style={{ padding: 32, color: 'var(--text-muted)' }}>Carregando…</div>

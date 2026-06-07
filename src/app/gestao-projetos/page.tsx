@@ -888,6 +888,8 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     kanban_coordinator_override_id:  d.kanban_coordinator_override_id ? String(d.kanban_coordinator_override_id) : '',
   })
   const [saving, setSaving] = useState(false)
+  // Horas de Gestão (derivado do Percentual Gestão × Vendidas) — draft p/ edição bidirecional.
+  const [gestaoDraft, setGestaoDraft] = useState<string | null>(null)
   const [manualTimesheetIds, setManualTimesheetIds] = useState<Set<number>>(
     () => new Set((d.consultants ?? []).filter((c: any) => c.pivot?.allow_manual_timesheet).map((c: any) => c.id))
   )
@@ -1026,8 +1028,11 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     // (no On Demand o campo nem aparece — backend recebe 0 como fallback).
     const ctNameForSave = optContractTypes.find(c => String(c.id) === form.contract_type_id)?.name?.toLowerCase() ?? ''
     const isOnDemandSave = ctNameForSave.includes('on demand') || form.tipo_faturamento === 'on_demand'
-    if (!isOnDemandSave && form.coordination_hours === '') {
-      toast.error('Horas de Coordenação obrigatórias.')
+    const editIsBhMensalSave = ctNameForSave.includes('mensal')
+    const editIsMensalidadeSave = ctNameForSave === 'cloud' || ctNameForSave === 'saas'
+    const showApontaveisSave = !isOnDemandSave && !editIsBhMensalSave && !editIsMensalidadeSave
+    if (showApontaveisSave && form.coordination_hours === '') {
+      toast.error('Horas Apontáveis obrigatórias.')
       return
     }
     // Horas de coordenação não podem exceder as horas vendidas (contratadas) do projeto.
@@ -1369,6 +1374,10 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
               {(() => {
                 const ctNameForm = optContractTypes.find(c => String(c.id) === form.contract_type_id)?.name?.toLowerCase() ?? ''
                 const isOnDemandForm = ctNameForm.includes('on demand') || form.tipo_faturamento === 'on_demand'
+                const editIsBhMensal = ctNameForm.includes('mensal')
+                const editIsMensalidade = ctNameForm === 'cloud' || ctNameForm === 'saas'
+                // Percentual/Horas de Gestão e Horas Apontáveis só p/ Fechado e BH Fixo.
+                const showApontaveis = !isOnDemandForm && !editIsBhMensal && !editIsMensalidade
                 return (
               <>
               <div className="grid grid-cols-2 gap-3">
@@ -1417,31 +1426,59 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                     }))
                   }} style={iStyle} placeholder="0" step="1" /></div>
                 )}
-                {!isOnDemandForm && (
-                  <div><label style={lStyle}>% Horas Coordenador</label><input type="number" value={form.coordinator_hours} onChange={setF('coordinator_hours')} style={iStyle} placeholder="0" step="1" min="0" max="100" /></div>
+                {showApontaveis && (
+                  <div><label style={lStyle}>Percentual Gestão (%)</label><input type="number" value={form.coordinator_hours}
+                    onChange={e => { setGestaoDraft(null); setForm(f => ({ ...f, coordinator_hours: e.target.value })) }}
+                    style={iStyle} placeholder="0" step="1" min="0" max="100" /></div>
                 )}
+                {showApontaveis && (() => {
+                  // Horas de Gestão = (Percentual Gestão / 100) × Horas Vendidas (contratadas).
+                  // Bidirecional: editar aqui recalcula o %; editar o % recalcula isto. Deriva do %.
+                  const base = Number(form.sold_hours || 0)
+                  const pct  = Number(form.coordinator_hours || 0)
+                  const derived = base > 0 ? Math.round((pct / 100) * base * 100) / 100 : 0
+                  const shown = gestaoDraft ?? (derived ? String(derived) : '')
+                  return (
+                    <div>
+                      <label style={lStyle}>Horas de Gestão</label>
+                      <input type="number" value={shown} min="0" step="0.5" disabled={base <= 0}
+                        onChange={e => {
+                          const v = e.target.value
+                          setGestaoDraft(v)
+                          const h = Number(v) || 0
+                          if (base > 0) setForm(f => ({ ...f, coordinator_hours: String(Math.round((h / base) * 100 * 100) / 100) }))
+                        }}
+                        onBlur={() => setGestaoDraft(null)}
+                        style={iStyle} placeholder="0" />
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
+                        {base > 0 ? `${pct || 0}% de ${base}h (vendidas)` : 'Informe Horas Contratadas para calcular'}
+                      </p>
+                    </div>
+                  )
+                })()}
                 {!isOnDemandForm && (
+                  <div><label style={lStyle}>Horas Consultor</label><input type="number" value={form.consultant_hours} onChange={setF('consultant_hours')} style={iStyle} placeholder="0" step="1" /></div>
+                )}
+                {!isOnDemandForm && (() => {
+                  // Saving ERPSERV (read-only) = Horas Vendidas − Consultor − Horas de Gestão (% × Vendidas).
+                  const sold = Number(form.sold_hours || 0)
+                  const cons = Number(form.consultant_hours || 0)
+                  const coordPct = Number(form.coordinator_hours || 0)
+                  const gestao = sold > 0 ? (coordPct / 100) * sold : 0
+                  const sobra = Math.round((sold - cons - gestao) * 100) / 100
+                  return (
+                    <div><label style={lStyle}>Saving ERPSERV</label><input type="text" value={isNaN(sobra) ? '—' : `${sobra}h`} readOnly tabIndex={-1} style={{ ...iStyle, opacity: 0.7, cursor: 'default' }} /></div>
+                  )
+                })()}
+                {showApontaveis && (
                   <div>
-                    <label style={lStyle}>Horas de Coordenação <span style={{ color: 'var(--danger-border)' }}>*</span></label>
+                    <label style={lStyle}>Horas Apontáveis <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                     <input type="number" required value={form.coordination_hours} onChange={setF('coordination_hours')} style={iStyle} placeholder="0" step="0.5" min="0" max={form.sold_hours || undefined} />
                     {form.coordination_hours !== '' && form.sold_hours !== '' && Number(form.coordination_hours) > Number(form.sold_hours) && (
                       <p className="text-[10px] mt-1" style={{ color: 'var(--danger-border)' }}>Não pode exceder as horas vendidas ({form.sold_hours}h).</p>
                     )}
                   </div>
                 )}
-                {!isOnDemandForm && (
-                  <div><label style={lStyle}>Horas Consultor</label><input type="number" value={form.consultant_hours} onChange={setF('consultant_hours')} style={iStyle} placeholder="0" step="1" /></div>
-                )}
-                {!isOnDemandForm && (() => {
-                  // Sobra de horas (read-only): contratadas − consultor − (%coordenador × consultor).
-                  const sold = Number(form.sold_hours || 0)
-                  const cons = Number(form.consultant_hours || 0)
-                  const coordPct = Number(form.coordinator_hours || 0)
-                  const sobra = Math.round((sold - cons - (coordPct / 100) * cons) * 100) / 100
-                  return (
-                    <div><label style={lStyle}>Sobra de Horas</label><input type="text" value={isNaN(sobra) ? '—' : `${sobra}h`} readOnly tabIndex={-1} style={{ ...iStyle, opacity: 0.7, cursor: 'default' }} /></div>
-                  )
-                })()}
               </div>
               {/* Histórico: oculto em On Demand novo (sem valor); mostra em On Demand
                   legado pra permitir zerar valores migrados do sistema anterior.

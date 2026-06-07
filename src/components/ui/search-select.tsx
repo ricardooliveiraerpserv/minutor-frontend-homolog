@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, Search } from 'lucide-react'
 
 export interface SearchSelectOption { id: number | string; name: string }
 
-export function SearchSelect({ label, value, onChange, options, placeholder, wide, fullWidth, disabled }: {
+export function SearchSelect({ label, value, onChange, options, placeholder, wide, fullWidth, disabled, subtle }: {
   label?: string
   value: string | number
   onChange: (v: string) => void
@@ -14,10 +15,12 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
   wide?: boolean
   fullWidth?: boolean
   disabled?: boolean
+  /** Não realça a borda em azul quando há valor (usado nas linhas do cronograma). */
+  subtle?: boolean
 }) {
   const [open,  setOpen]  = useState(false)
   const [query, setQuery] = useState('')
-  const [pos,   setPos]   = useState<{ top: number; left: number; width: number } | null>(null)
+  const [pos,   setPos]   = useState<{ top?: number; bottom?: number; left: number; width: number } | null>(null)
   const btnRef   = useRef<HTMLButtonElement>(null)
   const ref      = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -54,7 +57,14 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
     const r = btnRef.current.getBoundingClientRect()
     const dropW = fullWidth ? r.width : Math.max(r.width, wide ? 240 : 200)
     const left = Math.min(r.left, window.innerWidth - dropW - 8)
-    setPos({ top: r.bottom + 4, left: Math.max(8, left), width: dropW })
+    // Abre pra cima quando não há espaço abaixo. Ancora pelo BOTTOM (logo acima do
+    // campo) pra não depender da altura do dropdown — assim fica colado no campo.
+    const estH = 300
+    const spaceBelow = window.innerHeight - r.bottom
+    const openUp = spaceBelow < estH && r.top > spaceBelow
+    setPos(openUp
+      ? { bottom: window.innerHeight - r.top + 4, left: Math.max(8, left), width: dropW }
+      : { top: r.bottom + 4, left: Math.max(8, left), width: dropW })
     setOpen(true)
   }
 
@@ -75,7 +85,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
         className={`flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl text-sm outline-none text-left disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : wide ? 'min-w-52' : 'min-w-36'}`}
         style={{
           background: 'var(--brand-bg)',
-          border: `1px solid ${selected ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
+          border: `1px solid ${selected && !subtle ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
           color: selected ? 'var(--brand-text)' : 'var(--brand-subtle)',
         }}
       >
@@ -83,12 +93,13 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
         <ChevronDown size={13} style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />
       </button>
 
-      {open && pos && (
+      {open && pos && typeof document !== 'undefined' && createPortal(
         <div
           ref={ref}
           className="rounded-xl shadow-2xl overflow-hidden"
           style={{
-            position: 'fixed', top: pos.top, left: pos.left, width: pos.width,
+            position: 'fixed', left: pos.left, width: pos.width,
+            ...(pos.top != null ? { top: pos.top } : { bottom: pos.bottom }),
             zIndex: 9999, background: 'var(--brand-surface)', border: '1px solid var(--brand-border)',
           }}
         >
@@ -121,7 +132,8 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
                 </button>
               ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

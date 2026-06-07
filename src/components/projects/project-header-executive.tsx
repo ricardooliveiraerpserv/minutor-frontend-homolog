@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { CalendarDays, Pencil, AlertTriangle } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { useApiQuery } from '@/hooks/use-query'
 import { useDelayRisk } from '@/hooks/use-delay-risk'
+import { useProjectUpdated } from '@/lib/project-events'
+import { fmtDateBR, parseDateLocal } from '@/lib/date-only'
 
 interface Project {
   id: number
@@ -16,6 +18,7 @@ interface Project {
   status_display?: string
   customer?: { id: number; name: string } | null
   sold_hours?: number | string | null
+  coordination_hours?: number | string | null
   consumed_hours?: number | string | null
   general_hours_balance?: number | string | null
   expected_end_date?: string | null
@@ -84,6 +87,7 @@ function PrazoKPI({
   projectId,
   expectedEndDate,
   suggestedEndDate,
+  autoFromSchedule,
   canEdit,
   onChange,
 }: {
@@ -91,6 +95,8 @@ function PrazoKPI({
   expectedEndDate: string | null | undefined
   /** Sugestão = última data do cronograma (latest_stage_end). Usada ao abrir o editor vazio. */
   suggestedEndDate?: string | null
+  /** Quando há cronograma datado, o prazo deriva dele (read-only — sem edição manual). */
+  autoFromSchedule?: boolean
   canEdit: boolean
   onChange?: () => void
 }) {
@@ -98,12 +104,14 @@ function PrazoKPI({
   const [value, setValue] = useState(expectedEndDate ? expectedEndDate.slice(0, 10) : '')
   const [saving, setSaving] = useState(false)
   const suggested = suggestedEndDate ? suggestedEndDate.slice(0, 10) : ''
+  // Cronograma com datas → prazo automático; só permite edição manual sem cronograma.
+  const editable = canEdit && !autoFromSchedule
 
   const hasDate = Boolean(expectedEndDate)
-  const isOverdue = hasDate && new Date(expectedEndDate as string) < new Date(new Date().toDateString())
+  const isOverdue = hasDate && parseDateLocal(expectedEndDate as string) < new Date(new Date().toDateString())
 
   const displayDate = hasDate
-    ? new Date(expectedEndDate as string).toLocaleDateString('pt-BR')
+    ? fmtDateBR(expectedEndDate as string)
     : '—'
 
   async function save() {
@@ -140,15 +148,16 @@ function PrazoKPI({
       {!editing ? (
         <button
           type="button"
-          onClick={canEdit ? () => {
+          onClick={editable ? () => {
             // Pré-preenche com prazo atual; se vazio, com sugestão do cronograma
             setValue(expectedEndDate ? expectedEndDate.slice(0, 10) : suggested)
             setEditing(true)
           } : undefined}
-          disabled={!canEdit}
+          disabled={!editable}
+          title={autoFromSchedule ? 'Prazo derivado automaticamente do cronograma' : undefined}
           style={{
             background: 'transparent', border: 'none', padding: 0, margin: 0,
-            cursor: canEdit ? 'pointer' : 'default',
+            cursor: editable ? 'pointer' : 'default',
             display: 'flex', alignItems: 'baseline', gap: 8,
             marginTop: 2, width: '100%', textAlign: 'left',
           }}
@@ -160,7 +169,7 @@ function PrazoKPI({
           }}>
             {hasDate ? displayDate : 'Definir prazo'}
           </span>
-          {canEdit && (
+          {editable && (
             <Pencil size={11} style={{ color: 'var(--text-light)', marginLeft: 'auto' }} />
           )}
         </button>
@@ -217,7 +226,7 @@ function PrazoKPI({
       {hasDate && !editing && (
         <div style={{ fontSize: 11, color: isOverdue ? 'var(--danger)' : 'var(--text-muted)', marginTop: 2 }}>
           {(() => {
-            const d = new Date(expectedEndDate as string)
+            const d = parseDateLocal(expectedEndDate as string)
             d.setHours(0, 0, 0, 0)
             const today = new Date()
             today.setHours(0, 0, 0, 0)
@@ -231,6 +240,12 @@ function PrazoKPI({
           })()}
         </div>
       )}
+
+      {autoFromSchedule && !editing && (
+        <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <CalendarDays size={9} /> derivado do cronograma
+        </div>
+      )}
     </div>
   )
 }
@@ -242,7 +257,13 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   const sold = n(project.sold_hours)
   const consumed = n(project.consumed_hours)
   const balance = n(project.general_hours_balance)
-  const pct = sold > 0 ? Math.min(100, (consumed / sold) * 100) : 0
+  // Lente do coordenador: NUNCA vê Horas Vendidas — só as Horas de Gestão
+  // (disponibilizadas à gestão = coordination_hours; 100% das vendidas quando 0/não preenchido).
+  const isCoord = user?.type === 'coordenador'
+  const coordPool = n(project.coordination_hours) > 0 ? n(project.coordination_hours) : sold
+  const base = isCoord ? coordPool : sold
+  const balanceShown = isCoord ? coordPool - consumed : balance
+  const pct = base > 0 ? Math.min(100, (consumed / base) * 100) : 0
 
   const healthColor =
     pct >= 90 ? 'var(--danger)' :
@@ -255,7 +276,14 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   const last = tsResp?.items?.[0]
 
   // Risco de atraso (Pilar 2): última etapa termina depois do prazo macro?
-  const { data: delayRisk } = useDelayRisk(project.id)
+  const { data: delayRisk, refetch: refetchDelayRisk } = useDelayRisk(project.id)
+
+  // O cronograma (página filha) avisa quando muda uma data — o "Prazo de entrega"
+  // deriva da última data dele, então recarregamos projeto + delay-risk.
+  useProjectUpdated(project.id, useCallback(() => {
+    onProjectChange?.()
+    refetchDelayRisk()
+  }, [onProjectChange, refetchDelayRisk]))
 
   return (
     <div style={{
@@ -292,19 +320,20 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         gap: 12,
         marginTop: 14,
       }}>
-        <KPI label="Vendidas" value={formatHours(sold)} />
+        <KPI label={isCoord ? 'Horas de Gestão' : 'Vendidas'} value={formatHours(base)} />
         <KPI label="Consumidas" value={formatHours(consumed)} sub={`${Math.round(pct)}%`} />
-        <KPI label="Saldo" value={formatHours(balance)} />
+        <KPI label="Saldo" value={formatHours(balanceShown)} />
         <PrazoKPI
           projectId={project.id}
           expectedEndDate={project.expected_end_date}
           suggestedEndDate={delayRisk?.latest_stage_end}
+          autoFromSchedule={Boolean(delayRisk?.latest_stage_end)}
           canEdit={canEditPrazo}
           onChange={onProjectChange}
         />
       </div>
 
-      {sold > 0 && (
+      {base > 0 && (
         <div style={{ marginTop: 12 }}>
           <div style={{
             height: 4,
@@ -339,7 +368,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
           <AlertTriangle size={13} />
           <span>
             Última etapa termina em{' '}
-            <strong>{new Date(delayRisk.latest_stage_end).toLocaleDateString('pt-BR')}</strong>
+            <strong>{fmtDateBR(delayRisk.latest_stage_end)}</strong>
             {' — '}
             {delayRisk.delay_days} dia{delayRisk.delay_days === 1 ? '' : 's'} após o prazo do projeto
           </span>

@@ -95,6 +95,8 @@ export interface StageDelivery {
   client?: UserMini | null
   /** E-mail de cliente externo (sem login) — só recebe notificações. */
   client_email?: string | null
+  /** Clientes adicionais envolvidos (além do primário). */
+  extra_clients?: { user_id?: number | null; email?: string | null; name?: string }[] | null
   effort_minutes_sum?: number | null
   created_at: string
   updated_at: string

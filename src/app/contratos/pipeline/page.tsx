@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ProjectStagesSidePanel } from '@/components/projects/project-stages-side-panel'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
+import { fmtDateBR } from '@/lib/date-only'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
@@ -696,7 +697,7 @@ function ProjectKanbanCard({
                 <Clock size={10} style={{ color: ds.color }} />
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
                   style={{ background: ds.bg, color: ds.color }}>
-                  {ds.label} — {new Date(card.expected_end_date).toLocaleDateString('pt-BR')}
+                  {ds.label} — {fmtDateBR(card.expected_end_date)}
                 </span>
               </div>
             )
@@ -2349,7 +2350,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                             <Row label="Data de Conclusão" value={
                               <span className="flex items-center gap-1.5">
                                 <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: ds.bg, color: ds.color }}>
-                                  {new Date(p.expected_end_date).toLocaleDateString('pt-BR')} — {ds.label}
+                                  {fmtDateBR(p.expected_end_date)} — {ds.label}
                                 </span>
                               </span>
                             } />
@@ -2605,7 +2606,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                           return (
                             <tr key={a.id} style={{ borderTop: '1px solid var(--brand-border)' }}>
                               <td className="px-3 py-2" style={{ color: 'var(--brand-text)' }}>
-                                {a.contributed_at ? new Date(a.contributed_at).toLocaleDateString('pt-BR') : '—'}
+                                {a.contributed_at ? fmtDateBR(a.contributed_at) : '—'}
                               </td>
                               <td className="px-3 py-2" style={{ color: 'var(--brand-text)' }}>{motivoLabel[a.motivo] ?? a.motivo}</td>
                               <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--brand-text)' }}>{h.toFixed(1)}h</td>

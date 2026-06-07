@@ -8,7 +8,7 @@ interface Props {
   stages: ScheduleStage[]
   coordinators: ProjectCoordinator[]
   canEdit: boolean
-  holidays?: string[]
+  holidays?: { date: string; name: string }[]
   calendarOpts?: { allowWeekend?: boolean; allowHoliday?: boolean }
   onChanged: () => void
 }

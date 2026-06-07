@@ -5,6 +5,10 @@ import type { ProjectStage, StageDelivery } from '@/lib/types/project-stage'
 
 export interface ScheduleStage extends ProjectStage {
   deliveries: StageDelivery[]
+  /** Horas "efetivas" da etapa: hours_planned se preenchido, senão a soma das atividades. */
+  effective_hours_planned?: number | string | null
+  /** Sub-etapas: id da etapa-mãe (null = etapa de topo). */
+  parent_stage_id?: number | null
 }
 
 export interface ProjectWindow {
@@ -21,8 +25,8 @@ export interface ProjectCoordinator {
 export interface ScheduleResponse {
   is_operational: boolean
   project_window: ProjectWindow | null
-  /** Feriados ativos dentro da janela do cronograma (YYYY-MM-DD). ADR 0009 appendix. */
-  holidays?: string[]
+  /** Feriados ativos do cadastro (data + nome). Usado pelo date picker + BusinessCalendar. */
+  holidays?: { date: string; name: string }[]
   project: {
     id: number
     name: string
@@ -55,6 +59,7 @@ export interface ExecutiveSummary {
   hours_planned: number
   hours_actual: number
   hours_balance: number
+  hours_available: number
   overall_risk: 'low' | 'medium' | 'high'
   high_risk_stages: number
   medium_risk_stages: number
