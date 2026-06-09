@@ -19,6 +19,8 @@ interface Project {
   consumed_hours?: number | string | null
   general_hours_balance?: number | string | null
   expected_end_date?: string | null
+  coordinators?: { id: number; name: string }[] | null
+  executivo_conta?: { id: number; name: string } | null
 }
 
 interface TimesheetItem {
@@ -254,12 +256,18 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, fontSize: 13, color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, fontSize: 13, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
             {project.customer?.name && <span>{project.customer.name}</span>}
             {project.status_display && (
               <span className="ds-status ds-status-info" style={{ fontSize: 11 }}>
                 {project.status_display}
               </span>
+            )}
+            {project.coordinators && project.coordinators.length > 0 && (
+              <span title="Coordenador do projeto">👤 {project.coordinators[0].name}</span>
+            )}
+            {project.executivo_conta?.name && (
+              <span title="Executivo de conta">🎯 Exec: {project.executivo_conta.name}</span>
             )}
           </div>
         </div>
