@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import type { StageDelivery, DeliveryStatus } from '@/lib/types/project-stage'
 import { DeliveryCard } from './delivery-card'
 import { DeliverySidePanel } from './delivery-side-panel'
+import { ApprovalRequestModal } from './approval-request-modal'
 
 interface Props {
   stageId: number
@@ -30,6 +31,8 @@ export function StageKanbanBoard({ stageId, projectId, deliveries, onChanged, ca
   const [selected, setSelected] = useState<StageDelivery | null>(null)
   const [creatingIn, setCreatingIn] = useState<DeliveryStatus | null>(null)
   const [newTitle, setNewTitle] = useState('')
+  // Card arrastado para "Aguardando cliente" — exige mensagem (modal de aprovação).
+  const [approvalFor, setApprovalFor] = useState<StageDelivery | null>(null)
 
   // Sincroniza local com prop quando refetch traz novos dados
   useEffect(() => { setLocal(deliveries) }, [deliveries])
@@ -78,6 +81,13 @@ export function StageKanbanBoard({ stageId, projectId, deliveries, onChanged, ca
       const pred = local.find(d => d.id === moved.depends_on_delivery_id)
       const predTitle = pred?.title ?? 'predecessor'
       toast.error(`Conclua a atividade '${predTitle}' antes de iniciar esta.`)
+      return
+    }
+
+    // Mover para "Aguardando cliente" exige mensagem ao cliente → abre o modal
+    // (não move direto; o request-approval do modal faz a transição).
+    if (newStatus === 'waiting_client' && moved.status !== 'waiting_client') {
+      setApprovalFor(moved)
       return
     }
 
@@ -219,6 +229,15 @@ export function StageKanbanBoard({ stageId, projectId, deliveries, onChanged, ca
           })}
         </div>
       </DragDropContext>
+
+      {approvalFor && (
+        <ApprovalRequestModal
+          deliveryId={approvalFor.id}
+          title={approvalFor.title}
+          onClose={() => setApprovalFor(null)}
+          onDone={() => { setApprovalFor(null); onChanged() }}
+        />
+      )}
 
       {selected && (
         <DeliverySidePanel

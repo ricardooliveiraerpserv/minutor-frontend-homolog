@@ -22,6 +22,8 @@ export function ActivityCommentComposer({ deliveryId, onCreated }: Props) {
   const [text, setText] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
+  const [toCliente, setToCliente] = useState(false)
+  const [toConsultor, setToConsultor] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
   function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -47,12 +49,16 @@ export function ActivityCommentComposer({ deliveryId, onCreated }: Props) {
     const fd = new FormData()
     if (trimmed) fd.append('text', trimmed)
     if (file) fd.append('attachment', file)
+    if (toCliente) fd.append('audiences[]', 'cliente')
+    if (toConsultor) fd.append('audiences[]', 'consultor')
 
     setSaving(true)
     try {
       await api.post(`/activities/${deliveryId}/comments`, fd)
       setText('')
       setFile(null)
+      setToCliente(false)
+      setToConsultor(false)
       if (fileInput.current) fileInput.current.value = ''
       onCreated()
     } catch (e) {
@@ -131,8 +137,16 @@ export function ActivityCommentComposer({ deliveryId, onCreated }: Props) {
           <Paperclip size={12} /> Anexar
         </button>
 
+        {/* Público da mensagem — admin/coordenador veem sempre. */}
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: toCliente ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }} title="Visível para o cliente do projeto">
+          <input type="checkbox" checked={toCliente} onChange={e => setToCliente(e.target.checked)} /> Cliente
+        </label>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, color: toConsultor ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer' }} title="Visível para consultores">
+          <input type="checkbox" checked={toConsultor} onChange={e => setToConsultor(e.target.checked)} /> Consultor
+        </label>
+
         <div style={{ flex: 1, fontSize: 10, color: 'var(--text-light)' }}>
-          Ctrl/⌘+Enter envia
+          {!toCliente && !toConsultor ? 'Só admin/coord' : 'Ctrl/⌘+Enter'}
         </div>
 
         <button

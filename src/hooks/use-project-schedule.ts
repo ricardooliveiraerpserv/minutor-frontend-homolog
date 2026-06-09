@@ -9,6 +9,8 @@ export interface ScheduleStage extends ProjectStage {
   effective_hours_planned?: number | string | null
   /** Sub-etapas: id da etapa-mãe (null = etapa de topo). */
   parent_stage_id?: number | null
+  /** Agregado de Acompanhamentos da etapa (inclui os das atividades). */
+  followups?: { count: number; overdue: number; waiting_client: number; done?: number }
 }
 
 export interface ProjectWindow {

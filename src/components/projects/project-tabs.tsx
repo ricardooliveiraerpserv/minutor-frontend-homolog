@@ -8,11 +8,14 @@ interface Tab {
   segment: string
   /** Se true, aparece apenas em projetos operacionais (não sustentação). */
   operationalOnly?: boolean
+  /** Se true, o cliente (visão em dias) também vê esta aba. */
+  clientAllowed?: boolean
 }
 
 const TABS: Tab[] = [
-  { label: 'Visão Geral',  segment: 'visao-geral' },
-  { label: 'Cronograma',   segment: 'cronograma',   operationalOnly: true },
+  { label: 'Visão Geral',  segment: 'visao-geral', clientAllowed: true },
+  { label: 'Cronograma',   segment: 'cronograma',   operationalOnly: true, clientAllowed: true },
+  { label: 'Acompanhamentos',   segment: 'follow-ups', clientAllowed: true },
   { label: 'Horas',        segment: 'horas' },
   { label: 'Financeiro',   segment: 'financeiro' },
   { label: 'Arquivos',     segment: 'arquivos' },
@@ -21,13 +24,17 @@ const TABS: Tab[] = [
 interface Props {
   projectId: number
   isOperational?: boolean
+  /** Cliente: só vê as abas clientAllowed (Visão Geral, Cronograma, Follow Ups). */
+  clientView?: boolean
 }
 
-export function ProjectTabs({ projectId, isOperational = true }: Props) {
+export function ProjectTabs({ projectId, isOperational = true, clientView = false }: Props) {
   const pathname = usePathname()
   const basePath = `/projetos/${projectId}`
 
-  const visible = TABS.filter(t => !t.operationalOnly || isOperational)
+  const visible = TABS
+    .filter(t => !t.operationalOnly || isOperational)
+    .filter(t => !clientView || t.clientAllowed)
 
   return (
     <nav style={{

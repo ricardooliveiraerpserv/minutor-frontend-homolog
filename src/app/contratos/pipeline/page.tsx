@@ -384,6 +384,13 @@ function ContractKanbanCard({
             )}
           </div>
 
+          {card.executivo_conta_name && (
+            <div className="flex items-center gap-1 mb-1.5 min-w-0">
+              <span className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }} title={`Executivo: ${card.executivo_conta_name}`}>
+                🎯 Exec: {card.executivo_conta_name}
+              </span>
+            </div>
+          )}
           <div className="flex items-center justify-between mt-1 pt-2" style={{ borderTop: '1px solid var(--brand-border)' }}>
             <div className="flex items-center gap-3 text-[11px]" style={{ color: 'var(--brand-subtle)' }}>
               {!!card.horas_contratadas && card.horas_contratadas > 0 && (
@@ -719,7 +726,7 @@ function ProjectKanbanCard({
           {(() => {
             // Lente do coordenador: se o usuário logado é coordenador do projeto e há banco
             // de coordenação, mostra consumo/banco de coordenação no lugar do operacional.
-            const isCoordViewer = !!viewerUser?.id && (card.coordinator_ids ?? []).includes(viewerUser.id) && Number(card.coordination_hours ?? 0) > 0
+            const isCoordViewer = viewerUser?.type === 'coordenador' && Number(card.coordination_hours ?? 0) > 0
             const sold = isCoordViewer ? Number(card.coordination_hours ?? 0) : Number(card.sold_hours ?? 0)
             const consumed = isCoordViewer ? Number(card.coordination_consumed_hours ?? 0) : Number(card.consumed_hours ?? 0)
             const pct = sold > 0 ? Math.min(100, Math.round((consumed / sold) * 100)) : 0
@@ -745,10 +752,15 @@ function ProjectKanbanCard({
             )
           })()}
           <div className="flex items-center justify-between mt-1 pt-2" style={{ borderTop: '1px solid rgba(99,102,241,0.15)' }}>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-0.5 min-w-0">
               {card.coordinators && card.coordinators.length > 0 && (
-                <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>
+                <span className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }}>
                   👤 {card.coordinators[0]}
+                </span>
+              )}
+              {card.executivo_conta_name && (
+                <span className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }} title={`Executivo: ${card.executivo_conta_name}`}>
+                  🎯 Exec: {card.executivo_conta_name}
                 </span>
               )}
             </div>
@@ -1249,7 +1261,11 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {([
                   ['Código', card.code],
-                  ['Horas Vendidas', card.sold_hours ? `${card.sold_hours}h` : '—'],
+                  // Coordenador NUNCA vê Horas Vendidas (comercial) — só as Apontáveis (banco de coordenação).
+                  userRole === 'coordenador'
+                    ? ['Horas Apontáveis', `${(card.coordination_hours ?? 0) > 0 ? (card.coordination_hours ?? 0) : (card.sold_hours ?? 0)}h`]
+                    : ['Horas Vendidas', card.sold_hours ? `${card.sold_hours}h` : '—'],
+                  ['Executivo', card.executivo_conta_name || '—'],
                   ['Coordenadores', card.coordinators?.join(', ') || '—'],
                   ['Consultores', card.consultants?.join(', ') || '—'],
                 ] as [string, string][]).map(([label, value]) => (
@@ -1990,6 +2006,7 @@ interface ProjectFull {
   coordinators?: { id: number; name: string; email: string }[]
   consultants?: { id: number; name: string; email: string }[]
   approvers?: { id: number; name: string; email: string }[]
+  executivo_conta?: { id: number; name: string } | null
 }
 
 interface ConsultantBreakdown {
@@ -2112,12 +2129,16 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const totalAvail = p?.total_available_hours ?? ((p?.sold_hours ?? 0) + (p?.hour_contribution ?? 0))
   // Lente do coordenador (swap KPIs/risco) — coordenador do projeto + banco explícito.
   const coordHoursBank = Number((p as any)?.coordination_hours ?? 0)
-  const isCoordViewer = !!viewerUser?.id && !!p?.coordinators?.some((c: any) => c.id === viewerUser.id) && coordHoursBank > 0
+  // Lente do coordenador: NUNCA vê Horas Vendidas — só as Horas Apontáveis (banco de
+  // coordenação; cai pras vendidas quando não há banco). Por PAPEL, não por filiação ao
+  // projeto, espelhando o ProjectHeaderExecutive. Mesma fonte do bloco "Horas de Coordenação".
+  const isCoordViewer = viewerUser?.type === 'coordenador'
   const coordConsumedVal = Number((p as any)?.coordination_consumed_hours ?? 0)
-  const cardVendidas = isCoordViewer ? coordHoursBank : (p?.sold_hours ?? 0)
-  const cardConsumed = isCoordViewer ? coordConsumedVal : consumed
-  const cardSaldo    = isCoordViewer ? Math.round((cardVendidas - cardConsumed) * 100) / 100 : (p?.general_hours_balance ?? 0)
-  const pct = isCoordViewer ? (cardVendidas > 0 ? (cardConsumed / cardVendidas) * 100 : 0)
+  const coordPool = coordHoursBank > 0 ? coordHoursBank : (p?.sold_hours ?? 0)
+  const cardVendidas = isCoordViewer ? coordPool : (p?.sold_hours ?? 0)
+  const cardConsumed = isCoordViewer ? (coordHoursBank > 0 ? coordConsumedVal : consumed) : consumed
+  const cardSaldo    = isCoordViewer ? Math.round((coordPool - cardConsumed) * 100) / 100 : (p?.general_hours_balance ?? 0)
+  const pct = isCoordViewer ? (coordPool > 0 ? (cardConsumed / coordPool) * 100 : 0)
                             : (totalAvail > 0 ? (consumed / totalAvail) * 100 : 0)
   const bar = healthColor(pct)
   const sc = p ? (statusColors[p.status] ?? statusColors.awaiting_start) : statusColors.awaiting_start
@@ -2212,7 +2233,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                 {/* KPI strip */}
                 <div className="grid grid-cols-4 gap-3">
                   {[
-                    { label: isCoordViewer ? 'Horas Vendidas (Coord.)' : 'Horas Vendidas',
+                    { label: isCoordViewer ? 'Horas Apontáveis' : 'Horas Vendidas',
                       value: fmt(cardVendidas, 1) + 'h',  color: 'var(--brand-text)', bg: 'rgba(255,255,255,0.03)' },
                     { label: 'Horas Consumidas', value: fmt(cardConsumed, 1) + 'h',       color: 'var(--brand-muted)', bg: 'rgba(255,255,255,0.03)' },
                     { label: 'Saldo',            value: fmt(cardSaldo, 1) + 'h',
@@ -2251,7 +2272,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                       <span className="text-xs font-semibold" style={{ color: bar }}>{riskLabel(pct)}</span>
                     </div>
                     <span className="text-xs font-bold tabular-nums" style={{ color: bar }}>
-                      {totalAvail > 0 ? `${Math.round(pct)}% consumido` : 'Sem horas'}
+                      {(isCoordViewer ? coordPool : totalAvail) > 0 ? `${Math.round(pct)}% consumido` : 'Sem horas'}
                     </span>
                   </div>
                   <div className="w-full h-4 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
@@ -2260,9 +2281,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     </div>
                   </div>
                   <div className="flex justify-between text-[10px] mt-1.5" style={{ color: 'var(--brand-subtle)' }}>
-                    <span>{fmt(consumed, 1)}h utilizadas</span>
+                    <span>{fmt(isCoordViewer ? cardConsumed : consumed, 1)}h utilizadas</span>
                     <span>🟢 &lt;70% · 🟡 70-90% · 🔴 &gt;90%</span>
-                    <span>{fmt(totalAvail, 1)}h disponíveis</span>
+                    <span>{fmt(isCoordViewer ? coordPool : totalAvail, 1)}h disponíveis</span>
                   </div>
                 </div>
 
@@ -2362,6 +2383,14 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Equipe</p>
                     <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--brand-border)' }}>
+                      {p.executivo_conta?.name && (
+                        <div>
+                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Executivo</p>
+                          <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium w-fit" style={{ background: 'rgba(34,197,94,0.10)', color: '#22c55e' }}>
+                            🎯 {p.executivo_conta.name}
+                          </span>
+                        </div>
+                      )}
                       {(p.coordinators?.length ?? 0) > 0 && (
                         <div>
                           <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Coordenadores</p>

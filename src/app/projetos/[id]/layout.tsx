@@ -5,8 +5,10 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ProjectHeaderExecutive } from '@/components/projects/project-header-executive'
+import { ClientProjectHeader } from '@/components/projects/client-project-header'
 import { ProjectTabs } from '@/components/projects/project-tabs'
 import { useApiQuery } from '@/hooks/use-query'
+import { useAuth } from '@/hooks/use-auth'
 
 interface ProjectResponse {
   id: number
@@ -20,6 +22,12 @@ interface ProjectResponse {
   general_hours_balance?: number | string | null
   expected_end_date?: string | null
   is_operational?: boolean
+  /** Cliente: payload em dias (sem horas/valores). */
+  client_view?: boolean
+  progress_pct?: number
+  days_remaining?: number | null
+  total_activities?: number
+  done_activities?: number
 }
 
 const BACK_MAP: Record<string, { href: string; label: string }> = {
@@ -30,6 +38,8 @@ const BACK_MAP: Record<string, { href: string; label: string }> = {
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
+  const { user } = useAuth()
+  const isClient = user?.type === 'cliente'
   const id = Number(params.id)
   const from = searchParams.get('from') ?? 'pipeline'
   const back = BACK_MAP[from] ?? BACK_MAP.pipeline
@@ -76,9 +86,11 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
             <ChevronLeft size={14} /> Voltar para {back.label}
           </Link>
         </div>
-        <ProjectHeaderExecutive project={project} onProjectChange={refetch} />
+        {isClient
+          ? <ClientProjectHeader project={project} />
+          : <ProjectHeaderExecutive project={project} onProjectChange={refetch} />}
         <div style={{ padding: '0 24px', background: 'var(--brand-bg)' }}>
-          <ProjectTabs projectId={project.id} isOperational={project.is_operational !== false} />
+          <ProjectTabs projectId={project.id} isOperational={project.is_operational !== false} clientView={isClient} />
         </div>
         <div style={{ flex: 1, padding: 24, background: 'var(--bg)' }}>
           {children}

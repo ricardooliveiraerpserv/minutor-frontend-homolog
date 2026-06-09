@@ -61,6 +61,7 @@ const TABS = [
   { id: 'groups',             label: 'Grupos de Consultor',   icon: UserCheck },
   { id: 'holidays',           label: 'Feriados',              icon: CalendarDays },
   { id: 'expense_categories', label: 'Categorias de Despesa', icon: Tag },
+  { id: 'followup_categories', label: 'Categorias Follow Up', icon: Tag },
   { id: 'email_templates',    label: 'Modelos de E-mail',     icon: Mail },
 ]
 
@@ -1636,6 +1637,7 @@ const TAB_PERMISSION: Record<string, string> = {
   groups:             'groups.manage',
   holidays:           'holidays.manage',
   expense_categories: 'expense_categories.manage',
+  followup_categories: 'followups.manage',
 }
 
 function CadastrosContent() {
@@ -1673,6 +1675,7 @@ function CadastrosContent() {
           {activeTab === 'groups'             && <ConsultantGroupsTab />}
           {activeTab === 'holidays'           && <HolidaysTab />}
           {activeTab === 'expense_categories' && <IsActiveCrudTab endpoint="expense-categories" label="Categoria de Despesa" />}
+          {activeTab === 'followup_categories' && <IsActiveCrudTab endpoint="follow-up-categories" label="Categoria de Follow Up" />}
           {activeTab === 'email_templates'    && <EmailTemplatesTab />}
         </div>
       </div>

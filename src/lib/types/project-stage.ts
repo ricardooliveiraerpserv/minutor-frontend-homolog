@@ -97,6 +97,14 @@ export interface StageDelivery {
   client_email?: string | null
   /** Clientes adicionais envolvidos (além do primário). */
   extra_clients?: { user_id?: number | null; email?: string | null; name?: string }[] | null
+  /** Quantidade de Follow Ups (não-cancelados) vinculados a esta atividade. */
+  followups_count?: number
+  /** Workflow de aprovação do cliente (status "Aguardando cliente"). */
+  approval_status?: 'none' | 'pending' | 'approved' | 'rejected' | 'changes_requested'
+  approval_requested_at?: string | null
+  approval_decided_at?: string | null
+  approval_note?: string | null
+  approval_decider?: { id: number; name: string } | null
   effort_minutes_sum?: number | null
   created_at: string
   updated_at: string

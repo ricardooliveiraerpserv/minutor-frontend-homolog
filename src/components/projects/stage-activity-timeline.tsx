@@ -15,6 +15,11 @@ const TYPE_LABEL: Record<StageActivityType, string> = {
   block_set:          'bloqueou a etapa',
   block_cleared:      'desbloqueou a etapa',
   comment:            'comentou',
+  client_involved:    'envolveu o cliente',
+  client_removed:     'removeu o cliente',
+  approval_requested: 'solicitou aprovação do cliente',
+  approval_approved:  'aprovação concedida',
+  approval_rejected:  'ajustes solicitados',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -63,6 +68,12 @@ function describe(ev: StageActivityEvent): string {
       return `apontou ${p.hours ?? '?'}h`
     case 'comment':
       return 'comentou'
+    case 'approval_requested':
+      return `solicitou aprovação do cliente para "${p.title ?? ''}"`
+    case 'approval_approved':
+      return `cliente aprovou "${p.title ?? ''}"${p.note ? ` — ${p.note}` : ''}`
+    case 'approval_rejected':
+      return `ajustes solicitados em "${p.title ?? ''}"${p.note ? ` — ${p.note}` : ''}`
     default:
       return TYPE_LABEL[ev.type] ?? ev.type
   }
@@ -117,6 +128,7 @@ export function StageActivityTimeline({ stageId, deliveryId, refreshKey, limit =
               <strong style={{ fontWeight: 500 }}>{ev.actor?.name ?? 'Sistema'}</strong>{' '}
               <span style={{ color: 'var(--text-muted)' }}>{describe(ev)}</span>
             </div>
+            {ev.type === 'comment' && <AudienceBadge audiences={ev.audiences} />}
             {ev.type === 'comment' && (
               <CommentBody event={ev} />
             )}
@@ -127,6 +139,22 @@ export function StageActivityTimeline({ stageId, deliveryId, refreshKey, limit =
         </li>
       ))}
     </ul>
+  )
+}
+
+/** Chip indicando quem vê o comentário (além de admin/coord, que veem sempre). */
+function AudienceBadge({ audiences }: { audiences?: string[] | null }) {
+  const aud = audiences ?? []
+  const labels = [
+    aud.includes('cliente') ? 'Cliente' : null,
+    aud.includes('consultor') ? 'Consultor' : null,
+  ].filter(Boolean)
+  const text = labels.length ? `Visível: ${labels.join(' + ')}` : 'Só admin/coord'
+  const tone = labels.length ? 'var(--primary)' : 'var(--text-light)'
+  return (
+    <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 600, color: tone, background: 'var(--surface-hover)', padding: '1px 6px', borderRadius: 8, textTransform: 'uppercase', letterSpacing: '.03em' }}>
+      {text}
+    </span>
   )
 }
 

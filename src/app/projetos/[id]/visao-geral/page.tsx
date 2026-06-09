@@ -2,7 +2,11 @@
 
 import { useParams } from 'next/navigation'
 import { useApiQuery } from '@/hooks/use-query'
+import { useAuth } from '@/hooks/use-auth'
 import { ProjectConsolidatedTeam } from '@/components/projects/project-consolidated-team'
+import { ClientProjectOverview } from '@/components/projects/client-project-overview'
+import { ClientViewersManager } from '@/components/projects/client-viewers-manager'
+import { ConsultantTeamManager } from '@/components/projects/consultant-team-manager'
 
 interface ProjectFull {
   id: number
@@ -34,6 +38,15 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 }
 
 export default function VisaoGeralPage() {
+  const params = useParams<{ id: string }>()
+  const id = Number(params.id)
+  const { user } = useAuth()
+  // Cliente: visão em dias (progresso por etapa), sem horas/valores/equipe interna.
+  if (user?.type === 'cliente') return <ClientProjectOverview projectId={id} />
+  return <InternalVisaoGeral />
+}
+
+function InternalVisaoGeral() {
   const params = useParams<{ id: string }>()
   const id = Number(params.id)
   const { data: project, loading } = useApiQuery<ProjectFull>(
@@ -96,6 +109,11 @@ export default function VisaoGeralPage() {
           <ProjectConsolidatedTeam projectId={id} />
         </div>
       )}
+
+      {/* Equipe do projeto (define quem aparece nos seletores das atividades). */}
+      <ConsultantTeamManager projectId={id} />
+      {/* Clientes com visão global do projeto (nível projeto, em dias). */}
+      <ClientViewersManager projectId={id} />
     </div>
   )
 }

@@ -22,6 +22,8 @@ interface Project {
   consumed_hours?: number | string | null
   general_hours_balance?: number | string | null
   expected_end_date?: string | null
+  coordinators?: { id: number; name: string }[] | null
+  executivo_conta?: { id: number; name: string } | null
 }
 
 interface TimesheetItem {
@@ -57,6 +59,63 @@ function timeAgo(iso: string): string {
   if (h < 24) return `há ${h}h`
   const d = Math.floor(h / 24)
   return `há ${d}d`
+}
+
+/** Card de Saving (finalização antecipada) — aparece quando finalizado antes do prazo. */
+function SavingCard({ projectId }: { projectId: number }) {
+  const { data, refetch } = useApiQuery<{ early: boolean; days_early?: number; hours_saved?: number; notified_at?: string | null }>(
+    `/projects/${projectId}/saving`
+  )
+  const [sending, setSending] = useState(false)
+  if (!data?.early) return null
+
+  async function send() {
+    if (sending) return
+    setSending(true)
+    try {
+      const r = await api.post<{ message: string }>(`/projects/${projectId}/send-saving`, {})
+      toast.success(r.message ?? 'Saving enviado')
+      refetch()
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Não foi possível enviar o Saving')
+    } finally { setSending(false) }
+  }
+
+  return (
+    <div style={{ padding: '12px 14px', borderRadius: 8, background: 'var(--success-bg)', border: '1px solid var(--success)', minWidth: 0 }}>
+      <div style={{ fontSize: 11, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '.04em', fontWeight: 600 }}>🎯 Saving</div>
+      <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)', marginTop: 2 }}>
+        {data.days_early} dia(s) antes
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+        {Number(data.hours_saved ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}h economizadas
+      </div>
+      <button onClick={send} disabled={sending} title="Enviar para coordenador, executivo e diretor"
+        style={{ marginTop: 8, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', background: 'var(--success)', color: '#fff', border: 'none', width: '100%' }}>
+        {sending ? 'Enviando…' : data.notified_at ? '📤 Reenviar Saving' : '📤 Enviar Saving'}
+      </button>
+    </div>
+  )
+}
+
+/** Card FOLLOW UPS na Visão Geral do projeto — leva à aba Follow Ups. */
+function FollowUpKPI({ projectId }: { projectId: number }) {
+  const { data } = useApiQuery<{ pendentes: number; atrasados: number; aguardando_cliente: number; concluidos: number }>(
+    `/follow-ups/summary?project_id=${projectId}`
+  )
+  const overdue = data?.atrasados ?? 0
+  return (
+    <div
+      onClick={() => { window.location.href = `/projetos/${projectId}/follow-ups` }}
+      style={{ padding: '12px 14px', borderRadius: 8, background: 'var(--surface)', border: `1px solid ${overdue > 0 ? 'var(--danger)' : 'var(--border)'}`, minWidth: 0, cursor: 'pointer' }}
+    >
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Follow Ups</div>
+      <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)', marginTop: 2 }}>{data?.pendentes ?? 0} <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>pendentes</span></div>
+      <div style={{ fontSize: 11, color: overdue > 0 ? 'var(--danger)' : 'var(--text-muted)', marginTop: 2 }}>
+        {overdue} atrasados · {data?.aguardando_cliente ?? 0} aguard. cliente
+      </div>
+    </div>
+  )
 }
 
 function KPI({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -303,12 +362,18 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, fontSize: 13, color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, fontSize: 13, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
             {project.customer?.name && <span>{project.customer.name}</span>}
             {project.status_display && (
               <span className="ds-status ds-status-info" style={{ fontSize: 11 }}>
                 {project.status_display}
               </span>
+            )}
+            {project.coordinators && project.coordinators.length > 0 && (
+              <span title="Coordenador do projeto">👤 {project.coordinators[0].name}</span>
+            )}
+            {project.executivo_conta?.name && (
+              <span title="Executivo de conta">🎯 Exec: {project.executivo_conta.name}</span>
             )}
           </div>
         </div>
@@ -320,7 +385,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         gap: 12,
         marginTop: 14,
       }}>
-        <KPI label={isCoord ? 'Horas de Gestão' : 'Vendidas'} value={formatHours(base)} />
+        <KPI label={isCoord ? 'Horas do Projeto' : 'Vendidas'} value={formatHours(base)} />
         <KPI label="Consumidas" value={formatHours(consumed)} sub={`${Math.round(pct)}%`} />
         <KPI label="Saldo" value={formatHours(balanceShown)} />
         <PrazoKPI
@@ -331,6 +396,8 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
           canEdit={canEditPrazo}
           onChange={onProjectChange}
         />
+        <FollowUpKPI projectId={project.id} />
+        <SavingCard projectId={project.id} />
       </div>
 
       {base > 0 && (

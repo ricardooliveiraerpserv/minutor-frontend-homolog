@@ -86,6 +86,27 @@ export class BusinessCalendar {
     return toISODate(this.addBusinessHours(start, hours, dailyHours))
   }
 
+  /** Conta dias CORRIDOS entre start e end (inclusivo). 0 se end < start. */
+  calendarDaysBetween(start: string | Date | null, end: string | Date | null): number {
+    if (!start || !end) return 0
+    const a = toDate(start); const b = toDate(end)
+    a.setHours(0, 0, 0, 0); b.setHours(0, 0, 0, 0)
+    if (b < a) return 0
+    return Math.round((b.getTime() - a.getTime()) / 86400000) + 1
+  }
+
+  /** Dias NÃO úteis (fim de semana/feriado) dentro do intervalo [start, end]. */
+  nonBusinessDaysBetween(start: string | Date | null, end: string | Date | null): number {
+    return Math.max(0, this.calendarDaysBetween(start, end) - this.businessDaysBetween(start, end))
+  }
+
+  /** Soma dias CORRIDOS a uma data (pra editar duração em dias corridos). */
+  addCalendarDays(start: Date, days: number): Date {
+    const d = new Date(start.getTime())
+    d.setDate(d.getDate() + days)
+    return d
+  }
+
   /** Conta dias úteis entre start e end (inclusivo). 0 se end < start. */
   businessDaysBetween(start: string | Date | null, end: string | Date | null): number {
     if (!start || !end) return 0

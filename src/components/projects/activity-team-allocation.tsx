@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Users } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
+import { SearchSelect } from '@/components/ui/search-select'
 import { toast } from 'sonner'
 import { useActivityAllocations } from '@/hooks/use-activity-allocations'
 import { useUserCapacityIndex } from '@/hooks/use-user-capacity'
@@ -247,41 +248,45 @@ interface AddProps {
 }
 
 function AddActivityAllocationForm({ deliveryId, existing, onClose, onAdded }: AddProps) {
-  const [search, setSearch] = useState('')
-  const [results, setResults] = useState<ConsultantOption[]>([])
-  const [selected, setSelected] = useState<ConsultantOption | null>(null)
+  const [opts, setOpts] = useState<{ id: number; name: string }[]>([])
+  const [userId, setUserId] = useState('')
   const [hours, setHours] = useState('8')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
   const [isPrimary, setIsPrimary] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  async function searchUsers(q: string) {
-    if (!q.trim()) { setResults([]); return }
-    try {
-      const data = await api.get<{ items?: ConsultantOption[]; data?: ConsultantOption[] }>(
-        `/users?minimal=true&search=${encodeURIComponent(q)}&pageSize=10`
-      )
-      const items = (data.items ?? data.data ?? []).filter(u => !existing.includes(u.id))
-      setResults(items)
-    } catch { setResults([]) }
-  }
+  // Mesmo cadastro do cronograma: consultores + coordenadores + executivos + clientes, com busca.
+  useEffect(() => {
+    const pick = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : Array.isArray(r) ? r : []
+    Promise.all([
+      api.get<any>('/users?type=consultor,coordenador&minimal=true&pageSize=500').catch(() => null),
+      api.get<any>('/executives?pageSize=200').catch(() => null),
+      api.get<any>('/users?type=cliente&minimal=true&pageSize=500').catch(() => null),
+    ]).then(([u, e, c]) => {
+      const byId = new Map<number, { id: number; name: string }>()
+      for (const x of [...pick(u), ...pick(e)]) if (x?.id && x?.name && !byId.has(x.id)) byId.set(x.id, { id: x.id, name: x.name })
+      const users = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name))
+      const clientes = pick(c).filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: x.id, name: `${x.name} (cliente)` })).sort((a: any, b: any) => a.name.localeCompare(b.name))
+      setOpts([...users, ...clientes].filter(o => !existing.includes(o.id)))
+    })
+  }, [existing])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!selected) { toast.error('Escolha um consultor'); return }
+    if (!userId) { toast.error('Escolha um usuário ou cliente'); return }
     const n = Number(hours)
     if (!Number.isFinite(n) || n < 0.5) { toast.error('Mínimo 0,5h'); return }
     setSaving(true)
     try {
       await api.post(`/activities/${deliveryId}/allocations`, {
-        user_id: selected.id,
+        user_id: Number(userId),
         planned_hours: n,
         allocation_start_at: start || null,
         allocation_end_at: end || null,
         is_primary: isPrimary,
       })
-      toast.success('Consultor alocado')
+      toast.success('Alocado')
       onAdded()
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao alocar')
@@ -292,32 +297,8 @@ function AddActivityAllocationForm({ deliveryId, existing, onClose, onAdded }: A
     <form onSubmit={handleSubmit} className="ds-card ds-card-pad" style={{ marginBottom: 10, padding: 10 }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-          <label style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Consultor</label>
-          {selected ? (
-            <div style={{ marginTop: 4, padding: '6px 10px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-              <span>{selected.name}</span>
-              <button type="button" onClick={() => { setSelected(null); setSearch(''); setResults([]) }}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14 }}>×</button>
-            </div>
-          ) : (
-            <>
-              <input autoFocus className="ds-input" value={search}
-                onChange={e => { setSearch(e.target.value); searchUsers(e.target.value) }}
-                placeholder="Buscar por nome ou email…"
-                style={{ width: '100%', marginTop: 4, fontSize: 12 }}
-              />
-              {results.length > 0 && (
-                <ul style={{ listStyle: 'none', margin: '4px 0 0', padding: 0, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, maxHeight: 180, overflowY: 'auto' }}>
-                  {results.map(u => (
-                    <li key={u.id} onClick={() => { setSelected(u); setSearch(''); setResults([]) }}
-                      style={{ padding: '6px 10px', fontSize: 12, cursor: 'pointer', borderBottom: '1px solid var(--border)' }}>
-                      {u.name}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
+          <label style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Usuário ou cliente</label>
+          <SearchSelect value={userId} onChange={setUserId} options={opts} placeholder="Buscar por nome…" fullWidth />
         </div>
         <div style={{ width: 80 }}>
           <label style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Horas</label>
@@ -338,7 +319,7 @@ function AddActivityAllocationForm({ deliveryId, existing, onClose, onAdded }: A
           <input type="checkbox" checked={isPrimary} onChange={e => setIsPrimary(e.target.checked)} />
           Principal
         </label>
-        <button type="submit" className="ds-btn-primary" disabled={saving || !selected}
+        <button type="submit" className="ds-btn-primary" disabled={saving || !userId}
           style={{ fontSize: 12, padding: '6px 12px' }}>
           {saving ? 'Salvando…' : 'Alocar'}
         </button>

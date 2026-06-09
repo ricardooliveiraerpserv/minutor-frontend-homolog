@@ -11,6 +11,7 @@ import { api, toRelativePath } from '@/lib/api'
 // constraint + registry, então uma string fora dessa lista vira 422 — manter
 // sincronizado com o registry é responsabilidade conjunta.
 export type AttachmentEntityType =
+  | 'FOLLOW_UP'
   | 'USER'
   | 'PROJECT'
   | 'CONTRACT'

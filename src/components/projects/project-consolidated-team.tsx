@@ -72,10 +72,13 @@ function ConsultantRow({ row }: { row: ConsolidatedTeamRow }) {
             color: isOverrun ? 'var(--danger)' : 'var(--text-muted)',
             fontWeight: isOverrun ? 600 : 400,
             whiteSpace: 'nowrap',
-            minWidth: 90,
+            minWidth: 150,
             textAlign: 'right',
           }}>
             {formatHours(row.total_actual)} / {formatHours(row.total_planned)}
+            <span style={{ marginLeft: 6, color: row.total_remaining < 0 ? 'var(--danger)' : 'var(--text-light)' }}>
+              · saldo {formatHours(row.total_remaining)}
+            </span>
           </span>
         </div>
       </button>
@@ -104,6 +107,9 @@ function ConsultantRow({ row }: { row: ConsolidatedTeamRow }) {
                   whiteSpace: 'nowrap',
                 }}>
                   {formatHours(s.actual)} / {formatHours(s.planned)} · {sPct}%
+                  <span style={{ marginLeft: 6, color: (s.planned - s.actual) < 0 ? 'var(--danger)' : 'var(--text-light)' }}>
+                    · saldo {formatHours(s.planned - s.actual)}
+                  </span>
                 </span>
               </li>
             )
@@ -147,6 +153,9 @@ export function ProjectConsolidatedTeam({ projectId }: Props) {
           {totals.consultant_count} {totals.consultant_count === 1 ? 'consultor' : 'consultores'}
           {' · '}
           {formatHours(totals.total_actual)} / {formatHours(totals.total_planned)}
+          <span style={{ marginLeft: 6, color: (totals.total_planned - totals.total_actual) < 0 ? 'var(--danger)' : 'var(--text-light)' }}>
+            · saldo {formatHours(totals.total_planned - totals.total_actual)}
+          </span>
         </span>
       </div>
 

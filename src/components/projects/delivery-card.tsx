@@ -54,9 +54,14 @@ export function DeliveryCard({ delivery, onClick, isDragging, predecessorTitle, 
   const responsibleCapacity = delivery.responsible_user_id ? byUserId[delivery.responsible_user_id] : undefined
 
   return (
-    <button
-      type="button"
+    // NÃO usar <button>: o @hello-pangea/dnd não inicia drag a partir de elementos
+    // interativos (button/input/a). Como o card vive dentro de um Draggable, usamos
+    // <div role="button"> pra permitir o arrastar mantendo o clique/teclado.
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       className="ds-card"
       style={{
         display: 'block',
@@ -141,6 +146,6 @@ export function DeliveryCard({ delivery, onClick, isDragging, predecessorTitle, 
           <span>{formatHours(planned, actual)}</span>
         </span>
       </div>
-    </button>
+    </div>
   )
 }

@@ -13,10 +13,26 @@ export interface PreviewAffected {
   duration_new?: number
 }
 
+export interface PreviewAffectedStage {
+  stage_id: number
+  name: string
+  current_start: string | null
+  current_end: string | null
+  new_start: string | null
+  new_end: string | null
+  days_diff: number
+}
+
 export interface PreviewResult {
   summary: {
     change_description: string
     trigger_label: string
+    /** Resumo executivo estruturado (Fase 10.1+). */
+    item_title?: string | null
+    item_kind?: 'atividade' | 'etapa' | null
+    field_label?: string | null
+    old_value?: string | null
+    new_value?: string | null
   }
   impact: {
     affected_deliveries_count: number
@@ -27,6 +43,7 @@ export interface PreviewResult {
     has_conflicts: boolean
   }
   affected: PreviewAffected[]
+  affected_stages?: PreviewAffectedStage[]
   conflicts: string[]
 }
 
@@ -39,6 +56,15 @@ export type RecalcTrigger =
         due_date: string | null
         hours_planned: number
         depends_on_delivery_id: number | null
+      }>
+    }
+  | {
+      type: 'stage_field'
+      stageId: number
+      simulate: Partial<{
+        stage_start_at: string | null
+        expected_end_date: string | null
+        hours_planned: number
       }>
     }
   | {
@@ -60,6 +86,8 @@ export function usePreviewRecalc(projectId: number) {
       const body =
         trigger.type === 'delivery_field'
           ? { trigger: 'delivery_field', delivery_id: trigger.deliveryId, simulate: trigger.simulate }
+          : trigger.type === 'stage_field'
+          ? { trigger: 'stage_field', stage_id: trigger.stageId, simulate: trigger.simulate }
           : { trigger: 'project_calendar', simulate: trigger.simulate }
       return api.post<PreviewResult>(`/projects/${projectId}/cronograma/recalc-preview`, body)
     },

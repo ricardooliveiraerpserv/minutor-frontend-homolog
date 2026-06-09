@@ -44,6 +44,7 @@ import {
   Search,
   Inbox,
   Mail,
+  ListChecks,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -117,6 +118,7 @@ const NAV: NavEntry[] = [
       { label: 'Gestão de Projetos',       href: '/gestao-projetos',          icon: Layers },
       { label: 'Kanban Contratos',         href: '/contratos/kanban',         icon: LayoutGrid },
       { label: 'Demandas e Projetos',      href: '/contratos/pipeline',       icon: Layers },
+      { label: 'Central de Acompanhamentos', href: '/acompanhamentos',        icon: ListChecks },
       { label: 'Investimento Interno',      href: '/investimento-comercial',   icon: TrendingUp },
     ],
   },
@@ -222,6 +224,7 @@ const NAV: NavEntry[] = [
       { label: 'Executivos',            href: '/cadastros?tab=executives',        icon: Star },
       { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
       { label: 'Feriados',              href: '/cadastros?tab=holidays',          icon: CalendarDays },
+      { label: 'Categorias Follow Up',  href: '/cadastros?tab=followup_categories', icon: ListChecks },
       { label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag },
       { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',     icon: Receipt },
       { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',   icon: CreditCard },
@@ -368,6 +371,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       if (has('executives.manage'))         cadastrosItems.push({ label: 'Executivos',            href: '/cadastros?tab=executives',         icon: Star })
       if (has('groups.manage'))             cadastrosItems.push({ label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',             icon: UserCheck })
       if (has('holidays.manage'))           cadastrosItems.push({ label: 'Feriados',              href: '/cadastros?tab=holidays',           icon: CalendarDays })
+      if (has('followups.manage'))          cadastrosItems.push({ label: 'Categorias Follow Up',  href: '/cadastros?tab=followup_categories', icon: ListChecks })
       if (has('expense_categories.manage')) cadastrosItems.push({ label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag })
       if (has('expense_types.manage'))      cadastrosItems.push({ label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',      icon: Receipt })
       if (has('payment_methods.manage'))    cadastrosItems.push({ label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',    icon: CreditCard })
@@ -438,8 +442,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         .filter(([code]) => clienteContractCodes.has(code))
         .map(([, item]) => item)
       const nav: NavEntry[] = [
-        { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2 },
-        { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid },
+        { type: 'item', label: 'Home',                  href: '/portal-cliente',                 icon: Building2 },
+        { type: 'item', label: 'Demandas e Projetos',   href: '/contratos/pipeline',             icon: LayoutGrid },
+        { type: 'item', label: 'Meus Acompanhamentos',  href: '/portal-cliente/acompanhamentos', icon: CheckSquare },
       ]
       if (dashItems.length > 0) {
         nav.push({ type: 'group', label: 'Contratos', icon: FileText, items: dashItems })

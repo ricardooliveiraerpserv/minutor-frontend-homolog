@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { AlertTriangle, Activity, Users, Calendar, TrendingUp, Lock, Clock, CalendarClock } from 'lucide-react'
 import type { ExecutiveSummary, TeamLoadItem, CronogramaAlert } from '@/hooks/use-project-schedule'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -30,6 +31,7 @@ export function CronogramaExecutiveHeader({ executive, teamLoad, alerts }: Props
   const e = executive
   const dangerAlerts = alerts.filter(a => a.severity === 'danger').length
   const warnAlerts = alerts.filter(a => a.severity === 'warning').length
+  const [teamExpanded, setTeamExpanded] = useState(false)
 
   return (
     <div className="ds-card" style={{ padding: 14, marginBottom: 14, border: `1px solid var(--border)` }}>
@@ -126,8 +128,12 @@ export function CronogramaExecutiveHeader({ executive, teamLoad, alerts }: Props
           {teamLoad.length === 0 ? (
             <span style={{ color: 'var(--text-light)', fontSize: 12 }}>nenhum responsável</span>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {teamLoad.slice(0, 3).map(t => (
+            <div style={{
+              display: 'flex', flexDirection: 'column', gap: 4,
+              // Quando expandido, limita a altura e rola (não estoura o card com equipes grandes).
+              ...(teamExpanded ? { maxHeight: 168, overflowY: 'auto' as const, paddingRight: 2 } : {}),
+            }}>
+              {(teamExpanded ? teamLoad : teamLoad.slice(0, 3)).map(t => (
                 <div key={t.user.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
                   <Avatar size="sm">
                     {t.user.profile_photo_url && <AvatarImage src={t.user.profile_photo_url} alt={t.user.name} />}
@@ -146,9 +152,16 @@ export function CronogramaExecutiveHeader({ executive, teamLoad, alerts }: Props
                 </div>
               ))}
               {teamLoad.length > 3 && (
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  +{teamLoad.length - 3} consultores
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setTeamExpanded(v => !v)}
+                  style={{
+                    background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                    fontSize: 11, color: 'var(--primary)', textAlign: 'left', fontWeight: 500,
+                  }}
+                >
+                  {teamExpanded ? 'mostrar menos' : `+${teamLoad.length - 3} consultores`}
+                </button>
               )}
             </div>
           )}

@@ -23,6 +23,7 @@ import { CronogramaExecutiveHeader } from '@/components/projects/cronograma-exec
 import { CronogramaAlertsList } from '@/components/projects/cronograma-alerts-list'
 import { CronogramaRecalcModal } from '@/components/projects/cronograma-recalc-modal'
 import { CronogramaModelosModal } from '@/components/projects/cronograma-modelos-modal'
+import { ClientSchedule } from '@/components/projects/client-schedule'
 import type { RecalcTrigger } from '@/hooks/use-preview-recalc'
 
 type ViewMode = 'operacao' | 'planejamento' | 'timeline'
@@ -51,6 +52,15 @@ function normalizeView(raw: string | null): ViewMode | null {
  * silently na leitura inicial e em localStorage).
  */
 export default function CronogramaPage() {
+  const params = useParams<{ id: string }>()
+  const projectId = Number(params.id)
+  const { user } = useAuth()
+  // Cliente: visão em dias, sem horas/valores, cards bloqueados com cadeado.
+  if (user?.type === 'cliente') return <ClientSchedule projectId={projectId} />
+  return <InternalCronogramaPage />
+}
+
+function InternalCronogramaPage() {
   const params = useParams<{ id: string }>()
   const projectId = Number(params.id)
   const router = useRouter()
@@ -413,7 +423,7 @@ export default function CronogramaPage() {
 
       {/* View ativa — key força remontagem suave; CSS animation fade-in rápido */}
       <div key={view} className="cronograma-view-fade">
-        {view === 'operacao' && <OperacaoView projectId={projectId} stages={stages} />}
+        {view === 'operacao' && <OperacaoView projectId={projectId} stages={stages} onChanged={refresh} canEdit={canEdit} />}
         {view === 'planejamento' && (
           <PlanejamentoView
             projectId={projectId}

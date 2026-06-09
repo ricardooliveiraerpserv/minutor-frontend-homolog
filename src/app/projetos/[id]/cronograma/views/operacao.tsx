@@ -1,14 +1,16 @@
 'use client'
 
-import { StagesCentralKanban } from '@/components/projects/stages-central-kanban'
+import { ProjectActivityKanban } from '@/components/projects/project-activity-kanban'
 import type { ScheduleStage } from '@/hooks/use-project-schedule'
 
 interface Props {
   projectId: number
   stages: ScheduleStage[]
+  onChanged?: () => void
+  canEdit?: boolean
 }
 
-export function OperacaoView({ projectId, stages }: Props) {
+export function OperacaoView({ projectId, stages, onChanged, canEdit = true }: Props) {
   if (stages.length === 0) {
     return (
       <div style={{
@@ -23,5 +25,5 @@ export function OperacaoView({ projectId, stages }: Props) {
       </div>
     )
   }
-  return <StagesCentralKanban projectId={projectId} stages={stages} />
+  return <ProjectActivityKanban projectId={projectId} stages={stages} onChanged={onChanged ?? (() => {})} canEdit={canEdit} />
 }

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
-import { ArrowLeft, Send, Paperclip } from 'lucide-react'
+import { ArrowLeft, Send, Paperclip, ShieldCheck, ShieldQuestion, Check, X } from 'lucide-react'
 
 interface ClientActivity {
   id: number
@@ -19,6 +19,12 @@ interface ClientActivity {
   responsible_name: string | null
   stage_name: string | null
   project_name: string | null
+  approval_status?: string | null
+  approval_note?: string | null
+  approval_decided_at?: string | null
+  approval_decided_by_name?: string | null
+  /** Conversa/anexos só aparecem se o cliente for o responsável da atividade. */
+  is_responsible?: boolean
 }
 
 interface TimelineEvent {
@@ -73,6 +79,24 @@ export default function ClientActivityDetailPage() {
   }
 
   useEffect(() => { if (id) load() }, [id])
+
+  const [deciding, setDeciding] = useState(false)
+  const [decisionNote, setDecisionNote] = useState('')
+  async function decide(action: 'approve' | 'reject') {
+    const note = decisionNote.trim() || null
+    setDeciding(true)
+    try {
+      const updated = await api.post<ClientActivity>(`/client/activities/${id}/${action}`, note != null ? { note } : {})
+      setActivity(updated)
+      setDecisionNote('')
+      toast.success(action === 'approve' ? 'Atividade aprovada' : 'Ajustes solicitados')
+      load()
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao registrar')
+    } finally {
+      setDeciding(false)
+    }
+  }
 
   async function handleSend() {
     if (!text.trim() && !file) {
@@ -131,6 +155,68 @@ export default function ClientActivityDetailPage() {
               )}
             </div>
 
+            {activity.approval_status === 'pending' && (
+              <div style={{
+                padding: 16, marginBottom: 18, borderRadius: 8,
+                background: 'var(--warning-bg)', border: '1px solid var(--warning)33',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ShieldQuestion size={18} style={{ color: 'var(--warning)' }} />
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--warning)' }}>Esta atividade aguarda a sua aprovação</span>
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '8px 0 10px' }}>
+                  Confira a entrega e aprove, ou solicite ajustes. Você pode deixar um comentário (opcional).
+                </p>
+                <textarea
+                  value={decisionNote}
+                  onChange={e => setDecisionNote(e.target.value)}
+                  placeholder="Comentário (opcional) — ex.: validado, pode seguir / ajustar item X…"
+                  rows={2}
+                  className="ds-input"
+                  style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', padding: 8, fontSize: 13, marginBottom: 10 }}
+                />
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={() => decide('approve')} disabled={deciding} className="ds-btn-primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '8px 16px' }}>
+                    <Check size={14} /> Aprovar
+                  </button>
+                  <button onClick={() => decide('reject')} disabled={deciding}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, padding: '8px 16px',
+                      background: 'transparent', border: '1px solid var(--info)', color: 'var(--info)', borderRadius: 6, cursor: 'pointer' }}>
+                    <X size={14} /> Solicitar ajustes
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activity.approval_status === 'approved' && (
+              <div style={{
+                padding: '12px 16px', marginBottom: 18, borderRadius: 8,
+                background: 'var(--success-bg)', border: '1px solid var(--success)33',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--success)', fontWeight: 600 }}>
+                  <ShieldCheck size={16} /> Aprovado{activity.approval_decided_by_name ? ` por ${activity.approval_decided_by_name}` : ''}{activity.approval_decided_at ? ` em ${fmtDateTime(activity.approval_decided_at)}` : ''}
+                </div>
+                {activity.approval_note && (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>“{activity.approval_note}”</div>
+                )}
+              </div>
+            )}
+
+            {activity.approval_status === 'changes_requested' && (
+              <div style={{
+                padding: '12px 16px', marginBottom: 18, borderRadius: 8,
+                background: 'var(--info-bg)', border: '1px solid var(--info)33',
+              }}>
+                <div style={{ fontSize: 13, color: 'var(--info)', fontWeight: 600 }}>
+                  Ajustes solicitados{activity.approval_decided_by_name ? ` por ${activity.approval_decided_by_name}` : ''}{activity.approval_decided_at ? ` em ${fmtDateTime(activity.approval_decided_at)}` : ''}
+                </div>
+                {activity.approval_note && (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>“{activity.approval_note}”</div>
+                )}
+              </div>
+            )}
+
             {activity.description && (
               <div style={{
                 padding: '12px 16px', marginBottom: 18,
@@ -144,9 +230,12 @@ export default function ClientActivityDetailPage() {
             )}
 
             <h2 style={{ fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>
-              Conversa
+              {activity.is_responsible ? 'Conversa' : 'Andamento'}
             </h2>
 
+            {/* Conversa e anexos: SÓ pro responsável da atividade. Os demais veem só
+                o andamento (status/aprovações) na timeline abaixo. */}
+            {activity.is_responsible && (
             <div className="ds-card" style={{ padding: 12, marginBottom: 16 }}>
               <textarea
                 value={text}
@@ -185,6 +274,7 @@ export default function ClientActivityDetailPage() {
                 </button>
               </div>
             </div>
+            )}
 
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
               {events.map(ev => (
@@ -260,6 +350,9 @@ function labelType(t: string): string {
     case 'delivery_completed': return 'Atividade concluída'
     case 'client_involved': return 'Cliente envolvido'
     case 'client_removed': return 'Cliente removido'
+    case 'approval_requested': return 'Aprovação solicitada'
+    case 'approval_approved': return 'Aprovado'
+    case 'approval_rejected': return 'Ajustes solicitados'
     default: return t
   }
 }

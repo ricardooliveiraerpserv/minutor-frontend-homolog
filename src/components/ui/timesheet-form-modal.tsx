@@ -270,6 +270,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       if (!form.start_time) { toast.error('Informe o horário de início'); return }
       if (!form.end_time)   { toast.error('Informe o horário de fim'); return }
     }
+    if (!form.observation.trim()) { toast.error('A observação é obrigatória'); return }
     setSaving(true)
     try {
       const body: Record<string, any> = {
@@ -483,9 +484,9 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               </div>
             )}
 
-            {/* Observação */}
+            {/* Observação — obrigatória */}
             <div>
-              <Label className="text-xs text-zinc-400">Observação</Label>
+              <Label className="text-xs text-zinc-400">Observação <span style={{ color: 'var(--danger)' }}>*</span></Label>
               <textarea value={form.observation} rows={3}
                 placeholder="Descreva as atividades realizadas..."
                 onChange={e => setForm(f => ({ ...f, observation: e.target.value }))}

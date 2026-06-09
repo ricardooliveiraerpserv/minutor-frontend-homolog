@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState, createContext, useContext, Fragment } from 'react'
-import { ChevronDown, ChevronRight, Plus, Trash2, Calendar, Lock, Pencil } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ChevronDown, ChevronRight, Plus, Trash2, Calendar, Lock, Pencil, ListChecks, X } from 'lucide-react'
+import { AcompanhamentosList } from './acompanhamentos-list'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import type { ScheduleStage, ProjectCoordinator } from '@/hooks/use-project-schedule'
@@ -66,6 +68,25 @@ function formatHours(v: number): string {
   return v >= 10 ? `${Math.round(v)}h` : `${v.toFixed(1)}h`
 }
 
+/** true se a data `a` (YYYY-MM-DD) for posterior a `b`. Usado p/ validar início ≤ fim. */
+function dateAfter(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return false
+  return a.slice(0, 10) > b.slice(0, 10)
+}
+
+/** Marca de legenda: o intervalo (em dias corridos) inclui dias não úteis (fim de semana/feriado). */
+function NonBusinessMark({ n }: { n: number }) {
+  if (n <= 0) return null
+  return (
+    <sup
+      title={`Inclui ${n} dia${n > 1 ? 's' : ''} não útil${n > 1 ? 'eis' : ''} — fim de semana/feriado`}
+      style={{ color: 'var(--warning)', fontSize: 9, marginLeft: 1, cursor: 'help', fontWeight: 700 }}
+    >
+      ●
+    </sup>
+  )
+}
+
 interface NewStageDraft {
   name: string
   responsible_user_id: string
@@ -86,7 +107,7 @@ interface ExtraClientDraft {
   name: string
 }
 
-interface NewActivityDraft {
+export interface NewActivityDraft {
   title: string
   responsible_user_id: string
   planned_start_at: string
@@ -130,24 +151,18 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
   // (não só os coordenadores do projeto). Executivo = flag is_executive.
   const [respOpts, setRespOpts] = useState<{ id: number; name: string }[]>([])
   const [clientOpts, setClientOpts] = useState<{ id: number; name: string }[]>([])
+  // Equipe do projeto definida na VISÃO GERAL: consultores e clientes. As atividades
+  // só oferecem essas pessoas nos seletores (Responsável/alocação e Envolver cliente).
   useEffect(() => {
     let cancel = false
-    const pick = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : Array.isArray(r) ? r : []
-    Promise.all([
-      api.get<any>('/users?type=consultor,coordenador&minimal=true&pageSize=500').catch(() => null),
-      api.get<any>('/executives?pageSize=200').catch(() => null),
-      api.get<any>('/users?type=cliente&minimal=true&pageSize=500').catch(() => null),
-    ]).then(([u, e, c]) => {
+    api.get<any>(`/projects/${projectId}/team`).then(t => {
       if (cancel) return
-      const byId = new Map<number, { id: number; name: string }>()
-      for (const x of [...pick(u), ...pick(e)]) {
-        if (x?.id && x?.name && !byId.has(x.id)) byId.set(x.id, { id: x.id, name: x.name })
-      }
-      setRespOpts([...byId.values()].sort((a, b) => a.name.localeCompare(b.name)))
-      setClientOpts(pick(c).filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: x.id, name: x.name })).sort((a: any, b: any) => a.name.localeCompare(b.name)))
-    })
+      const arr = (x: any) => Array.isArray(x) ? x : []
+      setRespOpts(arr(t?.consultores).filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: x.id, name: x.name })))
+      setClientOpts(arr(t?.clientes).filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: x.id, name: x.name })))
+    }).catch(() => {})
     return () => { cancel = true }
-  }, [])
+  }, [projectId])
   // Fallback p/ os coordenadores do projeto se a busca falhar (não deixa o select vazio).
   const responsibleList = respOpts.length > 0 ? respOpts : coordinators
 
@@ -183,14 +198,44 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
   // null = criando etapa de topo; número = criando sub-etapa sob essa etapa-mãe.
   const [subParentId, setSubParentId] = useState<number | null>(null)
 
+  // Filtro por responsável: opções = responsáveis presentes no cronograma.
+  const [filterResp, setFilterResp] = useState('')
+  const respFilterOptions = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const s of sortedStages) for (const d of s.deliveries ?? []) {
+      if (d.responsible_user_id) m.set(d.responsible_user_id, d.responsible?.name ?? `#${d.responsible_user_id}`)
+    }
+    return [...m.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [sortedStages])
+  const fid = filterResp ? Number(filterResp) : null
+
+  // Etapas a exibir: com filtro, mantém só atividades do responsável + as etapas
+  // (e mães) que contêm alguma. A numeração (codes) continua vindo do conjunto FULL.
+  const displayStages = useMemo(() => {
+    if (!fid) return sortedStages
+    const filtered = sortedStages.map(s => ({ ...s, deliveries: (s.deliveries ?? []).filter(d => d.responsible_user_id === fid) }))
+    const childrenOf = new Map<number, ScheduleStage[]>()
+    for (const s of filtered) if (s.parent_stage_id != null) { const a = childrenOf.get(s.parent_stage_id) ?? []; a.push(s); childrenOf.set(s.parent_stage_id, a) }
+    const visible = new Set<number>()
+    const visit = (s: ScheduleStage): boolean => {
+      if (visible.has(s.id)) return true
+      let v = (s.deliveries?.length ?? 0) > 0
+      for (const c of childrenOf.get(s.id) ?? []) if (visit(c)) v = true
+      if (v) visible.add(s.id)
+      return v
+    }
+    for (const s of filtered) visit(s)
+    return filtered.filter(s => visible.has(s.id))
+  }, [sortedStages, fid])
+
   // Árvore: etapas de topo + sub-etapas por mãe (a API retorna lista plana c/ parent_stage_id).
   const topStages = useMemo(
-    () => sortedStages.filter(s => s.parent_stage_id == null).sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
-    [sortedStages],
+    () => displayStages.filter(s => s.parent_stage_id == null).sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
+    [displayStages],
   )
   const childrenByParent = useMemo(() => {
     const m = new Map<number, ScheduleStage[]>()
-    for (const s of sortedStages) {
+    for (const s of displayStages) {
       if (s.parent_stage_id != null) {
         const arr = m.get(s.parent_stage_id) ?? []
         arr.push(s); m.set(s.parent_stage_id, arr)
@@ -198,7 +243,7 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
     }
     for (const arr of m.values()) arr.sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
     return m
-  }, [sortedStages])
+  }, [displayStages])
 
   // Rollup da etapa-mãe: soma horas + intervalo de datas das sub-etapas (+ atividades diretas).
   const rollupFor = (etapa: ScheduleStage): { hours: number; start: string | null; end: string | null } | null => {
@@ -278,7 +323,8 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
     }
     try {
       const body: Record<string, unknown> = { title }
-      if (activityDraft.responsible_user_id && !activityDraft.client_involved) body.responsible_user_id = Number(activityDraft.responsible_user_id)
+      // Responsável (consultor) e cliente coexistem — sempre envia o responsável se houver.
+      if (activityDraft.responsible_user_id) body.responsible_user_id = Number(activityDraft.responsible_user_id)
       if (activityDraft.planned_start_at)    body.planned_start_at = activityDraft.planned_start_at
       if (activityDraft.hours_planned)       body.hours_planned = Number(activityDraft.hours_planned)
 
@@ -367,10 +413,10 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
     if (!title) { toast.error('Informe o título da atividade'); return }
     try {
       const body: Record<string, unknown> = { title }
-      // Responsável vs cliente (mesma lógica da criação, mas explícito p/ limpar o outro lado).
+      // Responsável (consultor/equipe) e cliente são INDEPENDENTES — coexistem na atividade.
+      body.responsible_user_id = activityDraft.responsible_user_id ? Number(activityDraft.responsible_user_id) : null
       if (activityDraft.client_involved) {
         body.client_involved = true
-        body.responsible_user_id = null
         body.client_user_id = activityDraft.client_user_id ? Number(activityDraft.client_user_id) : null
         body.client_email = activityDraft.client_email.trim() || null
         body.extra_clients = activityDraft.extra_clients.map(c => ({
@@ -381,7 +427,6 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
         body.client_user_id = null
         body.client_email = null
         body.extra_clients = []
-        body.responsible_user_id = activityDraft.responsible_user_id ? Number(activityDraft.responsible_user_id) : null
       }
       body.planned_start_at = activityDraft.planned_start_at || null
       body.hours_planned = activityDraft.hours_planned ? Number(activityDraft.hours_planned) : null
@@ -517,6 +562,20 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
   return (
     <CronoCalCtx.Provider value={{ holidays: holidays ?? [], allowWeekend: calendarOpts?.allowWeekend, allowHoliday: calendarOpts?.allowHoliday }}>
     <div className="ds-card" style={{ padding: 0, overflow: 'hidden' }}>
+      {respFilterOptions.length > 0 && (
+        <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Responsável</span>
+          <div style={{ minWidth: 220 }}>
+            <SearchSelect value={filterResp} onChange={setFilterResp} options={respFilterOptions} placeholder="Todos os responsáveis" fullWidth />
+          </div>
+          {filterResp && (
+            <>
+              <button onClick={() => setFilterResp('')} className="ds-btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }}>Limpar</button>
+              {topStages.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-light)' }}>Nenhuma atividade deste responsável.</span>}
+            </>
+          )}
+        </div>
+      )}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
           <tr style={{ background: 'var(--surface-hover)' }}>
@@ -524,7 +583,7 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
             <th style={th()}>Responsável</th>
             <th style={th(110)}>Início</th>
             <th style={th(110)}>Fim</th>
-            <th style={th(80)}>Dias úteis</th>
+            <th style={th(80)}>Dias</th>
             <th style={th(80)}>Horas</th>
             <th style={th(160)}>Depende de</th>
             <th style={th(60)}></th>
@@ -570,6 +629,12 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
           )}
         </tbody>
       </table>
+
+      {/* Legenda da coluna Dias (corridos). */}
+      <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <span style={{ color: 'var(--warning)', fontWeight: 700 }}>●</span>
+        Dias são corridos; a marca indica que o período cai em fim de semana/feriado.
+      </div>
 
       <CronogramaRecalcModal
         open={!!recalcTrigger}
@@ -647,14 +712,29 @@ interface StageRowProps {
 }
 
 function StageRows(props: StageRowProps) {
-  const { stage, coordinators, responsibleOptions, clientOptions, collapsed, onToggle, canEdit, onChanged, creatingActivity, editingActivityId, activityDraft, setActivityDraft, onStartCreateActivity, onStartEditActivity, onCancelCreateActivity, onConfirmCreateActivity, idsWithDependents, previewRecalc, onOpenRecalcModal, calendar, codes, depth = 0, rollup = null } = props
+  const { projectId, stage, coordinators, responsibleOptions, clientOptions, collapsed, onToggle, canEdit, onChanged, creatingActivity, editingActivityId, activityDraft, setActivityDraft, onStartCreateActivity, onStartEditActivity, onCancelCreateActivity, onConfirmCreateActivity, idsWithDependents, previewRecalc, onOpenRecalcModal, calendar, codes, depth = 0, rollup = null } = props
   const cronoCal = useContext(CronoCalCtx)
   const { byUserId: capacityByUserId } = useUserCapacityIndex()
 
   const allDeliveries = stage.deliveries ?? []
 
+  const stageStructural = new Set(['stage_start_at', 'expected_end_date', 'hours_planned'])
+
   async function patchStage(field: string, value: unknown) {
     try {
+      // Campo estrutural da etapa — preview-first (impacto no prazo do projeto).
+      if (stageStructural.has(field)) {
+        const simulate: Record<string, unknown> = { [field]: value }
+        const preview = await previewRecalc({ type: 'stage_field', stageId: stage.id, simulate })
+        if (hasMeaningfulImpact(preview)) {
+          onOpenRecalcModal({ type: 'stage_field', stageId: stage.id, simulate })
+          return
+        }
+        await api.patch(`/stages/${stage.id}`, simulate)
+        onChanged()
+        return
+      }
+      // Campos triviais (name, responsável) — PATCH direto
       await api.patch(`/stages/${stage.id}`, { [field]: value })
       onChanged()
     } catch (e) {
@@ -696,6 +776,14 @@ function StageRows(props: StageRowProps) {
                 sub-etapa
               </span>
             )}
+            {!!stage.followups?.count && (
+              <span title="Acompanhamentos da etapa (inclui atividades)" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 10, background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+                <ListChecks size={10} /> {stage.followups.count}
+                <span style={{ color: 'var(--warning)' }}>· {stage.followups.count - (stage.followups.done ?? 0)} abertos</span>
+                <span style={{ color: 'var(--success)' }}>· {stage.followups.done ?? 0} concl.</span>
+                {stage.followups.overdue > 0 && <span style={{ color: 'var(--danger)' }}>· {stage.followups.overdue} venc.</span>}
+              </span>
+            )}
           </div>
         </td>
         <td style={cell()}>
@@ -706,10 +794,10 @@ function StageRows(props: StageRowProps) {
           />
         </td>
         <td style={cell()}>
-          <CronogramaDate value={stage.stage_start_at ?? null} canEdit={canEdit} onSave={v => patchStage('stage_start_at', v)} placeholder="Definir início" />
+          <CronogramaDate value={stage.stage_start_at ?? null} canEdit={canEdit} onSave={v => { if (dateAfter(v, stage.expected_end_date)) { toast.error('Início não pode ser depois do fim'); return } patchStage('stage_start_at', v) }} placeholder="Definir início" />
         </td>
         <td style={cell()}>
-          <CronogramaDate value={stage.expected_end_date ?? null} canEdit={canEdit} onSave={v => patchStage('expected_end_date', v)} placeholder="Definir fim" />
+          <CronogramaDate value={stage.expected_end_date ?? null} canEdit={canEdit} onSave={v => { if (dateAfter(stage.stage_start_at, v)) { toast.error('Fim não pode ser antes do início'); return } patchStage('expected_end_date', v) }} placeholder="Definir fim" />
         </td>
         <td style={cell()}>
           {(() => {
@@ -718,7 +806,8 @@ function StageRows(props: StageRowProps) {
             const end = rollup ? rollup.end : stage.expected_end_date
             return start && end ? (
               <span style={{ color: 'var(--text-muted)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-                {calendar.businessDaysBetween(start, end)} d.ú.
+                {calendar.calendarDaysBetween(start, end)} dias
+                <NonBusinessMark n={calendar.nonBusinessDaysBetween(start, end)} />
               </span>
             ) : (
               <span style={{ color: 'var(--text-light)' }}>—</span>
@@ -744,6 +833,7 @@ function StageRows(props: StageRowProps) {
       {!collapsed && allDeliveries.map(d => (
         <ActivityRow
           key={d.id}
+          projectId={projectId}
           delivery={d}
           stageDeliveries={allDeliveries}
           canEdit={canEdit}
@@ -753,6 +843,7 @@ function StageRows(props: StageRowProps) {
           onOpenRecalcModal={onOpenRecalcModal}
           calendar={calendar}
           activityCode={codes.activityCode(d.id)}
+          codes={codes}
           responsibleOptions={responsibleOptions}
           clientOptions={clientOptions}
           onStartEdit={() => onStartEditActivity(d)}
@@ -788,11 +879,10 @@ function StageRows(props: StageRowProps) {
                 </FieldLabeled>
                 <FieldLabeled label="Responsável">
                   <SearchSelect
-                    value={activityDraft.client_involved ? '' : activityDraft.responsible_user_id}
+                    value={activityDraft.responsible_user_id}
                     onChange={v => setActivityDraft(d => ({ ...d, responsible_user_id: v }))}
                     options={responsibleOptions}
-                    placeholder={activityDraft.client_involved ? 'Cliente (responsável)' : '—'}
-                    disabled={activityDraft.client_involved}
+                    placeholder="—"
                   />
                 </FieldLabeled>
                 <FieldLabeled label="Início">
@@ -826,30 +916,29 @@ function StageRows(props: StageRowProps) {
                     placeholder="Fim"
                   />
                 </FieldLabeled>
-                {/* Atividade do cliente é medida em DIAS — sem campo de horas. */}
-                {!activityDraft.client_involved && (
-                  <FieldLabeled label="Horas">
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.5"
-                      className="ds-input"
-                      value={activityDraft.hours_planned}
-                      onChange={e => {
-                        const v = e.target.value
-                        setActivityDraft(d => {
-                          const next = { ...d, hours_planned: v }
-                          if (!d.dueTouched && d.planned_start_at && v) {
-                            const suggested = calendar.suggestedEndISO(d.planned_start_at, Number(v), 8)
-                            if (suggested) next.due_date = suggested
-                          }
-                          return next
-                        })
-                      }}
-                      style={{ width: 80, fontSize: 13, padding: '4px 8px' }}
-                    />
-                  </FieldLabeled>
-                )}
+                {/* Horas do trabalho (consultor). Atividade com cliente também pode ter
+                    consultor/equipe — por isso o campo aparece sempre. */}
+                <FieldLabeled label="Horas">
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.5"
+                    className="ds-input"
+                    value={activityDraft.hours_planned}
+                    onChange={e => {
+                      const v = e.target.value
+                      setActivityDraft(d => {
+                        const next = { ...d, hours_planned: v }
+                        if (!d.dueTouched && d.planned_start_at && v) {
+                          const suggested = calendar.suggestedEndISO(d.planned_start_at, Number(v), 8)
+                          if (suggested) next.due_date = suggested
+                        }
+                        return next
+                      })
+                    }}
+                    style={{ width: 80, fontSize: 13, padding: '4px 8px' }}
+                  />
+                </FieldLabeled>
                 <div style={{ display: 'flex', gap: 4 }}>
                   <button onClick={onConfirmCreateActivity} className="ds-btn-primary" style={{ fontSize: 12, padding: '6px 12px' }}>{editingActivityId ? 'Salvar' : 'Criar'}</button>
                   <button onClick={onCancelCreateActivity} className="ds-btn-ghost" style={{ fontSize: 12, padding: '6px 12px' }}>Cancelar</button>
@@ -861,6 +950,7 @@ function StageRows(props: StageRowProps) {
                 setDraft={setActivityDraft}
                 coordinators={coordinators}
                 responsibleOptions={responsibleOptions}
+                clientOptions={clientOptions}
               />
             </td>
           </tr>
@@ -878,7 +968,8 @@ function StageRows(props: StageRowProps) {
   )
 }
 
-function ActivityRow({ delivery, stageDeliveries, canEdit, onChanged, hasDependents, previewRecalc, onOpenRecalcModal, calendar, activityCode, responsibleOptions, clientOptions, onStartEdit, indent = 36 }: {
+function ActivityRow({ projectId, delivery, stageDeliveries, canEdit, onChanged, hasDependents, previewRecalc, onOpenRecalcModal, calendar, activityCode, codes, responsibleOptions, clientOptions, onStartEdit, indent = 36 }: {
+  projectId: number
   delivery: StageDelivery
   stageDeliveries: StageDelivery[]
   canEdit: boolean
@@ -888,6 +979,7 @@ function ActivityRow({ delivery, stageDeliveries, canEdit, onChanged, hasDepende
   onOpenRecalcModal: (trigger: RecalcTrigger) => void
   calendar: BusinessCalendar
   activityCode: string
+  codes: ReturnType<typeof buildCronogramaCodes>
   responsibleOptions: { id: number; name: string }[]
   clientOptions: { id: number; name: string }[]
   onStartEdit: () => void
@@ -896,6 +988,7 @@ function ActivityRow({ delivery, stageDeliveries, canEdit, onChanged, hasDepende
   const structuralFields = new Set(['planned_start_at', 'due_date', 'hours_planned', 'depends_on_delivery_id'])
   const { byUserId } = useUserCapacityIndex()
   const responsibleCapacity = delivery.responsible_user_id ? byUserId[delivery.responsible_user_id] : undefined
+  const [fuOpen, setFuOpen] = useState(false)
 
   async function patch(field: string, value: unknown) {
     try {
@@ -991,7 +1084,7 @@ function ActivityRow({ delivery, stageDeliveries, canEdit, onChanged, hasDepende
           )}
           {isBlocked && predecessorRef && (
             <span
-              title={`Bloqueada por: ${predecessorRef.title}`}
+              title={`Bloqueada por: ${codes.activityCode(predecessorRef.id)} ${predecessorRef.title}`}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1008,7 +1101,7 @@ function ActivityRow({ delivery, stageDeliveries, canEdit, onChanged, hasDepende
                 textOverflow: 'ellipsis',
               }}
             >
-              <Lock size={10} /> Bloqueada por: <strong>{predecessorRef.title}</strong>
+              <Lock size={10} /> Bloqueada por: <strong>{codes.activityCode(predecessorRef.id)} {predecessorRef.title}</strong>
             </span>
           )}
           {hasDependents && (
@@ -1018,18 +1111,17 @@ function ActivityRow({ delivery, stageDeliveries, canEdit, onChanged, hasDepende
       </td>
       <td style={cell()}>
         {canEdit ? (
-          // Responsável unificado: pessoa (consultor/coord/exec) OU cliente. Selecionar
-          // cliente marca a atividade como responsabilidade do cliente; pessoa "des-cliente".
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          // Responsável (consultor/equipe) E cliente COEXISTEM. O select define o consultor
+          // responsável; escolher um cliente envolve o cliente SEM tirar o consultor. O chip
+          // ao lado mostra o cliente envolvido (gestão completa de clientes é no painel).
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <SearchSelect
-              value={delivery.client_involved
-                ? (delivery.client_user_id ? String(delivery.client_user_id) : '')
-                : (delivery.responsible_user_id ? String(delivery.responsible_user_id) : '')}
+              value={delivery.responsible_user_id ? String(delivery.responsible_user_id) : ''}
               onChange={v => {
                 const isClient = clientOptions.some(c => String(c.id) === v)
                 const body = isClient
-                  ? { client_user_id: Number(v), client_involved: true, responsible_user_id: null }
-                  : { responsible_user_id: v ? Number(v) : null, client_involved: false, client_user_id: null }
+                  ? { client_user_id: Number(v), client_involved: true }
+                  : { responsible_user_id: v ? Number(v) : null }
                 api.patch(`/deliveries/${delivery.id}`, body)
                   .then(() => onChanged())
                   .catch((e: unknown) => toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar'))
@@ -1037,56 +1129,78 @@ function ActivityRow({ delivery, stageDeliveries, canEdit, onChanged, hasDepende
               options={[
                 ...responsibleOptions,
                 ...clientOptions.map(c => ({ id: c.id, name: `${c.name} (cliente)` })),
+                // Garante que o responsável JÁ SALVO renderize o nome na hora (vem no payload).
+                ...(delivery.responsible && !responsibleOptions.some(o => o.id === delivery.responsible!.id)
+                  ? [{ id: delivery.responsible.id, name: delivery.responsible.name }] : []),
               ]}
-              placeholder={delivery.client_involved && !delivery.client_user_id ? (delivery.client_email ?? 'Cliente') : '—'}
+              placeholder="—"
               subtle
             />
-            {isClientRow && (delivery.extra_clients?.length ?? 0) > 0 && (
-              <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>+{delivery.extra_clients!.length}</span>
+            {isClientRow && (
+              <span title="Cliente envolvido" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--info)', fontWeight: 500, padding: '1px 6px', background: 'var(--info-bg)', borderRadius: 10 }}>
+                {delivery.client?.name ?? delivery.client_email ?? 'Cliente'}
+                {(delivery.extra_clients?.length ?? 0) > 0 && (
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>+{delivery.extra_clients!.length}</span>
+                )}
+              </span>
             )}
           </div>
-        ) : isClientRow ? (
-          <span
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--info)', fontWeight: 500 }}
-            title="Atividade de responsabilidade do cliente"
-          >
-            {delivery.client?.name ?? delivery.client_email ?? 'Cliente'}
-            {(delivery.extra_clients?.length ?? 0) > 0 && (
-              <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>+{delivery.extra_clients!.length}</span>
+        ) : (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <ResponsibleChip user={delivery.responsible} capacity={responsibleCapacity} size="sm" />
+            {isClientRow && (
+              <span title="Cliente envolvido" style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--info)', fontWeight: 500, padding: '1px 6px', background: 'var(--info-bg)', borderRadius: 10 }}>
+                {delivery.client?.name ?? delivery.client_email ?? 'Cliente'}
+                {(delivery.extra_clients?.length ?? 0) > 0 && (
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>+{delivery.extra_clients!.length}</span>
+                )}
+              </span>
             )}
           </span>
-        ) : (
-          <ResponsibleChip user={delivery.responsible} capacity={responsibleCapacity} size="sm" />
         )}
       </td>
       <td style={cell()}>
-        <CronogramaDate value={delivery.planned_start_at ?? null} canEdit={canEdit} onSave={v => patch('planned_start_at', v)} placeholder="Definir início" />
+        <CronogramaDate value={delivery.planned_start_at ?? null} canEdit={canEdit} onSave={v => { if (dateAfter(v, delivery.due_date)) { toast.error('Início não pode ser depois do fim'); return } patch('planned_start_at', v) }} placeholder="Definir início" />
       </td>
       <td style={cell()}>
-        <CronogramaDate value={delivery.due_date ?? null} canEdit={canEdit} onSave={v => patch('due_date', v)} placeholder="Definir fim" />
+        <CronogramaDate value={delivery.due_date ?? null} canEdit={canEdit} onSave={v => { if (dateAfter(delivery.planned_start_at, v)) { toast.error('Fim não pode ser antes do início'); return } patch('due_date', v) }} placeholder="Definir fim" />
       </td>
       <td style={cell()}>
-        {delivery.planned_start_at && canEdit ? (
-          <InlineNumber
-            value={delivery.duration_business_days ?? calendar.businessDaysBetween(delivery.planned_start_at, delivery.due_date ?? delivery.planned_start_at)}
-            canEdit
-            onSave={async (n) => {
-              const N = Math.max(1, Math.floor(n))
-              const newEnd = calendar.addBusinessDays(
-                parseDateLocal(delivery.planned_start_at!),
-                N - 1,
-              )
-              const iso = newEnd.toISOString().slice(0, 10)
-              await patch('due_date', iso)
-            }}
-          />
-        ) : typeof delivery.duration_business_days === 'number' ? (
-          <span style={{ color: 'var(--text-muted)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-            {delivery.duration_business_days} d.ú.
-          </span>
-        ) : (
-          <span style={{ color: 'var(--text-light)' }}>—</span>
-        )}
+        {(() => {
+          const dStart = delivery.planned_start_at ?? null
+          const dEnd = delivery.due_date ?? delivery.planned_start_at ?? null
+          const corridos = dStart ? calendar.calendarDaysBetween(dStart, dEnd) : null
+          const naoUteis = dStart ? calendar.nonBusinessDaysBetween(dStart, dEnd) : 0
+          if (dStart && canEdit) {
+            return (
+              <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <InlineNumber
+                  value={corridos ?? 0}
+                  canEdit
+                  step={1}
+                  formatValue={(v) => `${Math.round(v)} dias`}
+                  onSave={async (n) => {
+                    const N = Math.max(1, Math.floor(n))
+                    // Duração em dias CORRIDOS: fim = início + (N-1) dias.
+                    const newEnd = calendar.addCalendarDays(parseDateLocal(dStart), N - 1)
+                    const iso = newEnd.toISOString().slice(0, 10)
+                    await patch('due_date', iso)
+                  }}
+                />
+                <NonBusinessMark n={naoUteis} />
+              </span>
+            )
+          }
+          if (corridos !== null) {
+            return (
+              <span style={{ color: 'var(--text-muted)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
+                {corridos} dias
+                <NonBusinessMark n={naoUteis} />
+              </span>
+            )
+          }
+          return <span style={{ color: 'var(--text-light)' }}>—</span>
+        })()}
       </td>
       <td style={cell()}>
         {/* Atividade do cliente é medida em DIAS, não horas — sem campo de horas. */}
@@ -1099,22 +1213,50 @@ function ActivityRow({ delivery, stageDeliveries, canEdit, onChanged, hasDepende
           value={delivery.depends_on_delivery_id ?? null}
           options={stageDeliveries.filter(d => d.id !== delivery.id)}
           canEdit={canEdit}
+          codes={codes}
           onSave={v => patch('depends_on_delivery_id', v)}
         />
       </td>
       <td style={cell()}>
-        {canEdit && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-            <button onClick={onStartEdit} aria-label="Editar atividade" title="Editar (responsável, cliente, datas…)" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
-              <Pencil size={12} />
-            </button>
-            <button onClick={del} aria-label="Excluir atividade" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
-              <Trash2 size={12} />
-            </button>
-          </div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+          <button onClick={() => setFuOpen(true)} aria-label="Acompanhamentos" title="Acompanhamentos da atividade"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: delivery.followups_count ? 'var(--primary)' : 'var(--text-muted)', padding: 4, display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+            <ListChecks size={12} />{delivery.followups_count ? <span style={{ fontSize: 11, fontWeight: 600 }}>{delivery.followups_count}</span> : null}
+          </button>
+          {canEdit && (
+            <>
+              <button onClick={onStartEdit} aria-label="Editar atividade" title="Editar (responsável, cliente, datas…)" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
+                <Pencil size={12} />
+              </button>
+              <button onClick={del} aria-label="Excluir atividade" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
+                <Trash2 size={12} />
+              </button>
+            </>
+          )}
+        </div>
+        {fuOpen && createPortal(
+          <FuDrawer title={`Acompanhamentos · ${delivery.title}`} onClose={() => { setFuOpen(false); onChanged() }}>
+            <AcompanhamentosList projectId={projectId} stageId={delivery.stage_id} deliveryId={delivery.id} />
+          </FuDrawer>,
+          document.body,
         )}
       </td>
     </tr>
+  )
+}
+
+/** Drawer grande (portal) pra embutir o board de Follow Ups da atividade. */
+function FuDrawer({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1100, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: 1280, height: '88vh', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{title}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
+        </div>
+        {children}
+      </div>
+    </div>
   )
 }
 
@@ -1214,13 +1356,17 @@ function InlineDate({ value, canEdit, onSave, placeholder = 'Definir' }: {
   )
 }
 
-function InlineNumber({ value, canEdit, onSave }: {
+function InlineNumber({ value, canEdit, onSave, formatValue, step = 0.5 }: {
   value: number
   canEdit: boolean
   onSave: (v: number) => void
+  /** Formata o valor exibido. Default: horas ("9.0h"). Use p/ dias úteis ("5 d.ú."). */
+  formatValue?: (v: number) => string
+  step?: number
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(value))
+  const fmt = formatValue ?? formatHours
 
   if (!editing) {
     return (
@@ -1232,7 +1378,7 @@ function InlineNumber({ value, canEdit, onSave }: {
           color: value > 0 ? 'var(--text)' : 'var(--text-light)',
         }}
       >
-        {value > 0 ? formatHours(value) : '—'}
+        {value > 0 ? fmt(value) : '—'}
       </span>
     )
   }
@@ -1241,7 +1387,7 @@ function InlineNumber({ value, canEdit, onSave }: {
       autoFocus
       type="number"
       min={0}
-      step="0.5"
+      step={step}
       className="ds-input"
       value={draft}
       onChange={e => setDraft(e.target.value)}
@@ -1259,18 +1405,20 @@ function InlineNumber({ value, canEdit, onSave }: {
   )
 }
 
-function InlineDependencySelect({ value, options, canEdit, onSave }: {
+function InlineDependencySelect({ value, options, canEdit, codes, onSave }: {
   value: number | null
   options: StageDelivery[]
   canEdit: boolean
+  codes: ReturnType<typeof buildCronogramaCodes>
   onSave: (v: number | null) => void
 }) {
   const selected = value ? options.find(o => o.id === value) : null
+  const label = (o: StageDelivery) => `${codes.activityCode(o.id)} ${o.title}`
 
   if (!canEdit) {
     return (
       <span style={{ fontSize: 12, color: selected ? 'var(--text)' : 'var(--text-light)' }}>
-        {selected ? selected.title : '—'}
+        {selected ? label(selected) : '—'}
       </span>
     )
   }
@@ -1286,7 +1434,7 @@ function InlineDependencySelect({ value, options, canEdit, onSave }: {
     >
       <option value="">—</option>
       {options.map(o => (
-        <option key={o.id} value={o.id}>{o.title}</option>
+        <option key={o.id} value={o.id}>{label(o)}</option>
       ))}
     </select>
   )
@@ -1298,51 +1446,19 @@ interface ConsultantOption {
   email?: string | null
 }
 
-function ActivityExtraSections({ draft, setDraft, coordinators, responsibleOptions }: {
+export function ActivityExtraSections({ draft, setDraft, coordinators, responsibleOptions, clientOptions = [] }: {
   draft: NewActivityDraft
   setDraft: (next: NewActivityDraft | ((d: NewActivityDraft) => NewActivityDraft)) => void
   coordinators: ProjectCoordinator[]
   responsibleOptions: { id: number; name: string }[]
+  /** Clientes do projeto (definidos na Visão Geral) — escopo do "Envolver cliente". */
+  clientOptions?: ConsultantOption[]
 }) {
-  const [clientOptions, setClientOptions] = useState<ConsultantOption[]>([])
-  const [allocHours, setAllocHours] = useState('8')
-
-  // Clientes cadastrados (type=cliente) — carregados ao marcar "Envolver cliente".
-  // A busca por texto fica no próprio SearchSelect (filtragem client-side, mesmo
-  // conceito do Responsável).
-  useEffect(() => {
-    if (!draft.client_involved || clientOptions.length > 0) return
-    api.get<{ items?: ConsultantOption[]; data?: ConsultantOption[] } | ConsultantOption[]>(
-      `/users?type=cliente&minimal=true&pageSize=500`,
-    )
-      .then(res => {
-        const list = Array.isArray(res) ? res : (res.items ?? res.data ?? [])
-        setClientOptions(list ?? [])
-      })
-      .catch(() => setClientOptions([]))
-  }, [draft.client_involved, clientOptions.length])
-
-  function addExtraAllocation(u: ConsultantOption) {
-    const n = Number(allocHours)
-    if (!Number.isFinite(n) || n < 0.5) return
-    setDraft(d => ({
-      ...d,
-      extra_allocations: [...d.extra_allocations, { user_id: u.id, user_name: u.name, planned_hours: String(n) }],
-    }))
-  }
-
   function addExtraClient(c: ExtraClientDraft) {
     setDraft(d => ({ ...d, extra_clients: [...d.extra_clients, c] }))
   }
   function removeExtraClient(idx: number) {
     setDraft(d => ({ ...d, extra_clients: d.extra_clients.filter((_, i) => i !== idx) }))
-  }
-
-  function removeExtraAllocation(userId: number) {
-    setDraft(d => ({
-      ...d,
-      extra_allocations: d.extra_allocations.filter(a => a.user_id !== userId),
-    }))
   }
 
   return (
@@ -1356,9 +1472,9 @@ function ActivityExtraSections({ draft, setDraft, coordinators, responsibleOptio
           <input
             type="checkbox"
             checked={draft.client_involved}
-            onChange={e => setDraft(d => ({ ...d, client_involved: e.target.checked, responsible_user_id: e.target.checked ? '' : d.responsible_user_id }))}
+            onChange={e => setDraft(d => ({ ...d, client_involved: e.target.checked }))}
           />
-          Envolver cliente
+          Envolver cliente <span style={{ fontWeight: 400, color: 'var(--text-light)' }}>(pode ter consultor junto)</span>
         </label>
 
         {draft.client_involved && (
@@ -1453,82 +1569,8 @@ function ActivityExtraSections({ draft, setDraft, coordinators, responsibleOptio
         )}
       </div>
 
-      {/* Alocações adicionais — escondido quando o cliente é o responsável da atividade */}
-      {!draft.client_involved && (
-      <div>
-        <div style={{ color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4 }}>
-          Alocar mais consultores <span style={{ fontWeight: 400, color: 'var(--text-light)' }}>(opcional — equipe da atividade)</span>
-        </div>
-
-        {draft.extra_allocations.length > 0 && (
-          <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 6px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {draft.extra_allocations.map(a => (
-              <li key={a.user_id} style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '4px 8px', background: 'var(--surface)', borderRadius: 4,
-                border: '1px solid var(--border)', fontSize: 12,
-              }}>
-                <span style={{ flex: 1 }}>{a.user_name}</span>
-                <input
-                  type="number"
-                  min={0.5}
-                  step="0.5"
-                  className="ds-input"
-                  value={a.planned_hours}
-                  onChange={e => setDraft(d => ({
-                    ...d,
-                    extra_allocations: d.extra_allocations.map(x =>
-                      x.user_id === a.user_id ? { ...x, planned_hours: e.target.value } : x
-                    ),
-                  }))}
-                  style={{ fontSize: 12, padding: '2px 6px', width: 70 }}
-                />
-                <span style={{ color: 'var(--text-muted)' }}>h</span>
-                <button
-                  type="button"
-                  onClick={() => removeExtraAllocation(a.user_id)}
-                  aria-label="Remover"
-                  style={{
-                    background: 'transparent', border: 'none', cursor: 'pointer',
-                    color: 'var(--text-muted)', padding: 2, fontSize: 14, lineHeight: 1,
-                  }}
-                >×</button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <div style={{ flex: 1, maxWidth: 280 }}>
-            <SearchSelect
-              value=""
-              onChange={id => {
-                if (!id) return
-                const u = responsibleOptions.find(o => String(o.id) === id)
-                if (u) addExtraAllocation({ id: u.id, name: u.name })
-              }}
-              options={responsibleOptions.filter(u =>
-                !draft.extra_allocations.some(a => a.user_id === u.id)
-                && (!draft.responsible_user_id || Number(draft.responsible_user_id) !== u.id)
-              )}
-              placeholder="Buscar consultor…"
-              fullWidth
-            />
-          </div>
-          <input
-            type="number"
-            min={0.5}
-            step="0.5"
-            className="ds-input"
-            value={allocHours}
-            onChange={e => setAllocHours(e.target.value)}
-            title="Horas planejadas"
-            style={{ fontSize: 12, padding: '4px 8px', width: 70 }}
-          />
-          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>h</span>
-        </div>
-      </div>
-      )}
+      {/* Regra: a atividade tem SOMENTE UM consultor (o Responsável). Vários clientes e
+          cliente+consultor são permitidos; equipe de múltiplos consultores não. */}
     </div>
   )
 }
