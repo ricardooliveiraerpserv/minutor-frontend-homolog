@@ -1080,7 +1080,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
     return p.toString()
   }, [page, status, origins, serviceTypeIds, contractTypeIds, categoriaServico, customerIds, coordinatorIds, executiveIds, userIds, projectId, projectIds, startDate, endDate, ticket, requester, ticketService, sortField, sortDir, isCliente, user?.customer_id, user?.id, scope, triagemPadrao, triagemField, isCoordenador, coordScope])
 
-  const { data, loading, error, refetch, setData } = useApiQuery<PaginatedResponse<Timesheet>>(
+  const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<Timesheet>>(
     `/timesheets?${params}`, [params]
   )
 
@@ -1911,27 +1911,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           customers={customers}
           approvedCount={selectedApprovedCount}
           onClose={() => setBulkPcOpen(false)}
-          onSaved={async () => {
-            const changed = Array.from(selectedIds)
-            setSelectedIds(new Set())
-            // Otimista: tira já da lista os apontamentos alterados. A tela é escopada/
-            // filtrada (ex.: Portal de Sustentação só mostra projetos de sustentação),
-            // então ao trocar cliente/projeto eles podem não pertencer mais a este filtro.
-            // Sem isto o refetch parecia "não mudar nada" e a linha ficava no projeto antigo.
-            setData(prev => prev ? { ...prev, items: prev.items.filter(t => !changed.includes(t.id)) } : prev)
-            // Reconcilia com o servidor: os que AINDA batem com o filtro voltam (com o
-            // projeto/cliente novos); os que saíram do escopo ficam de fora.
-            const fresh = await refetch()
-            const back = (fresh?.items ?? []).filter(t => changed.includes(t.id)).length
-            const gone = changed.length - back
-            if (gone > 0) {
-              toast.info(
-                `${gone} apontamento${gone > 1 ? 's' : ''} sa${gone > 1 ? 'íram' : 'iu'} deste filtro/escopo após a alteração — ` +
-                `verifique no cliente/projeto de destino.`,
-                { duration: 6000 },
-              )
-            }
-          }}
+          onSaved={() => { refetch(); setSelectedIds(new Set()) }}
         />
       )}
 

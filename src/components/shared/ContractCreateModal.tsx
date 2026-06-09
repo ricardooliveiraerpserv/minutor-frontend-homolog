@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { api } from '@/lib/api'
+import { uploadDirect } from '@/lib/upload'
 import { toast } from 'sonner'
 import { Plus, X, CheckCircle, ExternalLink } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -335,17 +336,15 @@ export function ContractCreateModal({
   const isBankHours = selectedContractType?.name.toLowerCase().includes('banco de horas') ?? false
   const ctNameLower = selectedContractType?.name.toLowerCase().trim() ?? ''
   const isBhFixo = isBankHours && ctNameLower.includes('fixo')
+  // BH Mensal: banco de horas que não é fixo. Não tem horas de coordenador.
+  const isBhMensal = isBankHours && !isBhFixo
   // Mensalidade: Cloud e SaaS — só "Valor do Contrato" como mensalidade fixa.
   const isMensalidade = ctNameLower === 'cloud' || ctNameLower === 'saas'
   const isFechado = !!selectedContractType && !isOnDemand && !isBankHours && !isMensalidade
 
-  const saveErpserv = useMemo(() => {
-    if (!isFechado) return null
-    const sold = Number(form.horas_contratadas) || 0
-    const consult = Number(form.horas_consultor) || 0
-    const coord = Number(form.pct_horas_coordenador) || 0
-    return sold - consult - Math.round((coord / 100) * consult)
-  }, [isFechado, form.horas_contratadas, form.horas_consultor, form.pct_horas_coordenador])
+  // "Horas de Gestão" é derivado do Percentual Gestão sobre as Horas Vendidas
+  // (contratadas). Draft local pra digitar suave; quando null, mostra o derivado.
+  const [gestaoDraft, setGestaoDraft] = useState<string | null>(null)
 
   const selectedCustomerObj = useMemo(
     () => customers.find(c => String(c.id) === String(form.customer_id)),
@@ -399,8 +398,7 @@ export function ContractCreateModal({
         if (!isOnDemand && !isMensalidade && !form.horas_contratadas)        { toast.error('Informe as Horas Contratadas'); return false }
         if (!form.expectativa_inicio)                                        { toast.error('Informe a Expectativa de Início'); return false }
         if (isMensalidade && !form.valor_projeto)                            { toast.error('Informe o Valor do Contrato (mensalidade)'); return false }
-        // Subprojeto On Demand não tem Valor do Projeto — fica no pai
-        if (isOnDemand && !isMensalidade && !form.is_subproject && !form.valor_projeto) { toast.error('Informe o Valor do Projeto'); return false }
+        if (isOnDemand && !isMensalidade && !form.valor_projeto)             { toast.error('Informe o Valor do Projeto'); return false }
         if (!isMensalidade && !isOnDemand && !form.valor_hora)               { toast.error('Informe o Valor da Hora'); return false }
         // On Demand consome do pai por apontamento (horas_contratadas=0, cobrado por hora
         // apontada) — não reserva bloco de horas, então não valida o saldo do pai.
@@ -497,16 +495,7 @@ export function ContractCreateModal({
         fd.append('motivo',            form.aporte_motivo)
         if (form.aporte_descricao) fd.append('description', form.aporte_descricao)
         if (!isChildTarget && pendingProposta) fd.append('proposta', pendingProposta)
-        const res = await fetch(`/api/v1/projects/${form.aporte_target_project_id}/hour-contributions`, {
-          method: 'POST',
-          credentials: 'same-origin',
-          body: fd,
-        })
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          toast.error((err as any)?.message ?? 'Erro ao criar aporte')
-          return
-        }
+        await uploadDirect(`/projects/${form.aporte_target_project_id}/hour-contributions`, fd)
         toast.success(isChildTarget
           ? 'Aporte registrado no projeto filho (consumindo do saldo do pai)'
           : 'Aporte criado — card disponível no Kanban')
@@ -527,8 +516,7 @@ export function ContractCreateModal({
       [2, () => !!form.contract_type_id],
       [4, () => {
         if (isMensalidade) return !!form.expectativa_inicio && !!form.valor_projeto
-        // Subprojeto On Demand não exige Valor do Projeto — herda do pai
-        if (isOnDemand)    return !!form.expectativa_inicio && (form.is_subproject || !!form.valor_projeto)
+        if (isOnDemand)    return !!form.expectativa_inicio && !!form.valor_projeto
         return !!form.horas_contratadas && !!form.expectativa_inicio && !!form.valor_hora
       }],
       [6, () => !!form.condicao_pagamento.trim()],
@@ -570,8 +558,8 @@ export function ContractCreateModal({
         valor_projeto:         form.valor_projeto ? Number(form.valor_projeto) : null,
         valor_hora:            form.valor_hora ? Number(form.valor_hora) : null,
         hora_adicional:        form.hora_adicional ? Number(form.hora_adicional) : null,
-        pct_horas_coordenador: form.pct_horas_coordenador ? Number(form.pct_horas_coordenador) : null,
-        horas_coordenacao:     form.horas_coordenacao ? Number(form.horas_coordenacao) : null,
+        pct_horas_coordenador: isBhMensal ? null : (form.pct_horas_coordenador ? Number(form.pct_horas_coordenador) : null),
+        horas_coordenacao:     isBhMensal ? null : (form.horas_coordenacao ? Number(form.horas_coordenacao) : null),
         horas_consultor:       form.horas_consultor ? Math.round(Number(form.horas_consultor)) : null,
         expectativa_inicio:    form.expectativa_inicio || null,
         condicao_pagamento:    form.condicao_pagamento || null,
@@ -587,11 +575,10 @@ export function ContractCreateModal({
         const fd = new FormData()
         fd.append('file', clientApprovalFile)
         fd.append('type', 'aprovacao_cliente')
-        const res = await fetch(`/api/v1/contracts/${contract.id}/attachments`, {
-          method: 'POST', credentials: 'same-origin', body: fd,
-        })
-        if (!res.ok) {
-          toast.error('Contrato criado, mas falha ao enviar aprovação. Anexe manualmente na edição.')
+        try {
+          await uploadDirect(`/contracts/${contract.id}/attachments`, fd)
+        } catch (upErr: any) {
+          toast.error(upErr?.message ?? 'Contrato criado, mas falha ao enviar aprovação. Anexe manualmente na edição.')
         }
       }
 
@@ -612,8 +599,8 @@ export function ContractCreateModal({
   // ── Styles ────────────────────────────────────────────────────────────────
 
   const inputCls  = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-cyan-500/40'
-  const inputStyle = { border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }
-  const labelCls  = 'block text-xs text-zinc-400 mb-1'
+  const inputStyle = { border: '1px solid var(--border)', color: 'var(--text)', background: 'var(--surface-sunken)' }
+  const labelCls  = 'block text-xs mb-1'
 
   const tabsToShow = customerReadOnly ? TABS.slice(1) : TABS
   const tabOffset  = customerReadOnly ? 1 : 0
@@ -622,26 +609,26 @@ export function ContractCreateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
-      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <h2 className="text-base font-semibold text-white">{title}</h2>
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{title}</h2>
             {(selectedContractType || form.service_type_id) && (
-              <p className="text-[11px] text-zinc-500 mt-0.5 flex items-center gap-1.5">
-                {selectedContractType && <span style={{ color: '#00F5FF' }}>{selectedContractType.name}</span>}
-                {selectedContractType && form.service_type_id && <span className="text-zinc-600">·</span>}
+              <p className="text-[11px] mt-0.5 flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                {selectedContractType && <span style={{ color: 'var(--primary)' }}>{selectedContractType.name}</span>}
+                {selectedContractType && form.service_type_id && <span style={{ color: 'var(--text-light)' }}>·</span>}
                 {form.service_type_id && <span>{serviceTypes.find(s => String(s.id) === String(form.service_type_id))?.name}</span>}
               </p>
             )}
           </div>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition-colors"><X size={18} /></button>
+          <button onClick={onClose} className="transition-colors" style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
         </div>
 
         {/* Tabs (escondidas quando is_aporte — form de aporte é single-page) */}
         {!form.is_aporte && (
-        <div className="flex border-b overflow-x-auto shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex border-b overflow-x-auto shrink-0" style={{ borderColor: 'var(--border)' }}>
           {tabsToShow.map((t, i) => {
             const realIdx = i + tabOffset
             return (
@@ -671,14 +658,16 @@ export function ContractCreateModal({
           {activeTab === 0 && (
             <div className="space-y-5">
               {/* ── Toggle "É aporte?" — primeira opção do form (Aporte v2) ── */}
+              {/* Cores via tokens do design system: o hardcode dark (white /
+                  rgba branco) sumia no tema claro — título e chave invisíveis. */}
               <div className="rounded-xl p-3 flex items-center justify-between gap-3"
-                style={{ background: form.is_aporte ? 'rgba(34,197,94,0.08)' : 'rgba(255,255,255,0.03)',
-                         border: `1px solid ${form.is_aporte ? 'rgba(34,197,94,0.45)' : 'rgba(255,255,255,0.10)'}` }}>
+                style={{ background: form.is_aporte ? 'var(--success-bg)' : 'var(--surface-sunken)',
+                         border: `1px solid ${form.is_aporte ? 'var(--success-border)' : 'var(--border)'}` }}>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold" style={{ color: form.is_aporte ? '#22c55e' : 'white' }}>
+                  <p className="text-sm font-semibold" style={{ color: form.is_aporte ? 'var(--success)' : 'var(--text)' }}>
                     É aporte?
                   </p>
-                  <p className="text-[11px] text-zinc-500">
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                     Aporte de horas em projeto existente — sem criar novo projeto/contrato.
                   </p>
                 </div>
@@ -686,10 +675,10 @@ export function ContractCreateModal({
                   type="button"
                   onClick={() => setForm(f => ({ ...f, is_aporte: !f.is_aporte }))}
                   className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors"
-                  style={{ background: form.is_aporte ? '#22c55e' : 'rgba(255,255,255,0.18)' }}
+                  style={{ background: form.is_aporte ? 'var(--success-border)' : 'var(--text-light)' }}
                 >
-                  <span className="pointer-events-none inline-block h-5 w-5 mt-0.5 ml-0.5 rounded-full bg-white shadow transition-transform"
-                    style={{ transform: form.is_aporte ? 'translateX(20px)' : 'translateX(0)' }} />
+                  <span className="pointer-events-none inline-block h-5 w-5 mt-0.5 ml-0.5 rounded-full shadow transition-transform"
+                    style={{ background: '#fff', transform: form.is_aporte ? 'translateX(20px)' : 'translateX(0)' }} />
                 </button>
               </div>
 
@@ -701,7 +690,7 @@ export function ContractCreateModal({
                 return (
                   <div className="space-y-5">
                     <div>
-                      <label className={labelCls}>Cliente <span className="text-red-400">*</span></label>
+                      <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Cliente <span style={{ color: 'var(--danger)' }}>*</span></label>
                       <SearchSelect
                         value={form.customer_id}
                         onChange={v => setForm(f => ({ ...f, customer_id: v, aporte_target_project_id: '' }))}
@@ -712,9 +701,9 @@ export function ContractCreateModal({
 
                     {form.customer_id && (
                       <div>
-                        <label className={labelCls}>Projeto que recebe o aporte <span className="text-red-400">*</span></label>
+                        <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Projeto que recebe o aporte <span style={{ color: 'var(--danger)' }}>*</span></label>
                         {aporteProjects.length === 0
-                          ? <p className="text-xs text-amber-400 italic px-3 py-2 rounded-lg" style={inputStyle}>Nenhum projeto disponível para este cliente</p>
+                          ? <p className="text-xs italic px-3 py-2 rounded-lg" style={{ ...inputStyle, color: 'var(--warning)' }}>Nenhum projeto disponível para este cliente</p>
                           : <SearchSelect
                               value={form.aporte_target_project_id}
                               onChange={v => setForm(f => ({ ...f, aporte_target_project_id: v }))}
@@ -727,9 +716,9 @@ export function ContractCreateModal({
 
                     {isChildTarget && selectedAporteProj && (
                       <div className="rounded-xl p-3 flex items-start gap-2"
-                        style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.45)' }}>
-                        <span className="text-base" style={{ color: '#38bdf8' }}>ℹ</span>
-                        <div className="text-[11px]" style={{ color: '#38bdf8' }}>
+                        style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+                        <span className="text-base" style={{ color: 'var(--primary)' }}>ℹ</span>
+                        <div className="text-[11px]" style={{ color: 'var(--primary)' }}>
                           Este aporte será registrado no projeto <span className="font-semibold">{selectedAporteProj.name}</span>,
                           consumindo do saldo do pai <span className="font-semibold">{selectedAporteProj.parent_code} — {selectedAporteProj.parent_name}</span>.
                           <br/>
@@ -740,30 +729,30 @@ export function ContractCreateModal({
 
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <label className={labelCls}>Horas <span className="text-red-400">*</span></label>
+                        <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Horas <span style={{ color: 'var(--danger)' }}>*</span></label>
                         <input type="number" min="0.01" step="0.5"
                           value={form.aporte_horas}
                           onChange={e => setForm(f => ({ ...f, aporte_horas: e.target.value }))}
                           placeholder="0" className={inputCls} style={inputStyle} />
                       </div>
                       <div>
-                        <label className={labelCls}>Valor da hora (R$) <span className="text-red-400">*</span></label>
+                        <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Valor da hora (R$) <span style={{ color: 'var(--danger)' }}>*</span></label>
                         <input type="number" min="0.01" step="0.01"
                           value={form.aporte_valor_hora}
                           onChange={e => setForm(f => ({ ...f, aporte_valor_hora: e.target.value }))}
                           placeholder="0,00" className={inputCls} style={inputStyle} />
                       </div>
                       <div>
-                        <label className={labelCls}>Total do aporte</label>
+                        <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Total do aporte</label>
                         <div className="px-3 py-2 rounded-lg text-sm font-semibold tabular-nums"
-                          style={{ ...inputStyle, background: 'rgba(34,197,94,0.10)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)' }}>
+                          style={{ ...inputStyle, background: 'var(--success-bg)', color: 'var(--success)', borderColor: 'var(--success-border)' }}>
                           {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <label className={labelCls}>Motivo do aporte <span className="text-red-400">*</span></label>
+                      <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Motivo do aporte <span style={{ color: 'var(--danger)' }}>*</span></label>
                       <select
                         value={form.aporte_motivo}
                         onChange={e => setForm(f => ({ ...f, aporte_motivo: e.target.value as FormState['aporte_motivo'] }))}
@@ -776,7 +765,7 @@ export function ContractCreateModal({
                     </div>
 
                     <div>
-                      <label className={labelCls}>Descrição</label>
+                      <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Descrição</label>
                       <textarea rows={3}
                         value={form.aporte_descricao}
                         onChange={e => setForm(f => ({ ...f, aporte_descricao: e.target.value }))}
@@ -787,17 +776,18 @@ export function ContractCreateModal({
 
                     {!isChildTarget && (
                       <div>
-                        <label className={labelCls}>Aprovação do Cliente / Proposta Assinada <span className="text-red-400">*</span></label>
+                        <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Aprovação do Cliente / Proposta Assinada <span style={{ color: 'var(--danger)' }}>*</span></label>
+                        {/* DS: file:* não aceita var() inline — cor do botão de arquivo via classes utilitárias tokenizadas */}
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
                           onChange={e => setPendingProposta(e.target.files?.[0] ?? null)}
-                          className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-cyan-500/10 file:text-cyan-300 hover:file:bg-cyan-500/20 file:cursor-pointer"
-                          style={inputStyle}
+                          className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:cursor-pointer"
+                          style={{ ...inputStyle, ['--tw-ring-color' as any]: 'var(--primary)' }}
                         />
                         {pendingProposta
-                          ? <p className="text-[11px] text-emerald-400 mt-1">✓ {pendingProposta.name} ({Math.round(pendingProposta.size / 1024)} KB)</p>
-                          : <p className="text-[10px] mt-1 text-red-400">Anexe a aprovação formal — gera proposta comercial pro projeto pai (PDF, imagem, etc. — máx 20 MB)</p>
+                          ? <p className="text-[11px] mt-1" style={{ color: 'var(--success)' }}>✓ {pendingProposta.name} ({Math.round(pendingProposta.size / 1024)} KB)</p>
+                          : <p className="text-[10px] mt-1" style={{ color: 'var(--danger)' }}>Anexe a aprovação formal — gera proposta comercial pro projeto pai (PDF, imagem, etc. — máx 20 MB)</p>
                         }
                       </div>
                     )}
@@ -809,10 +799,10 @@ export function ContractCreateModal({
               {!form.is_aporte && (<>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className={labelCls} style={{ marginBottom: 0 }}>Cliente *</label>
+                  <label className={labelCls} style={{ marginBottom: 0, color: 'var(--text-muted)' }}>Cliente *</label>
                   {!customerReadOnly && (
                     <a href="/cadastros?tab=customers" target="_blank" rel="noreferrer"
-                      className="flex items-center gap-1 text-[10px] text-cyan-500 hover:text-cyan-400 transition-colors">
+                      className="flex items-center gap-1 text-[10px] transition-colors" style={{ color: 'var(--primary)' }}>
                       <Plus size={10} /> Novo cliente <ExternalLink size={9} />
                     </a>
                   )}
@@ -831,7 +821,7 @@ export function ContractCreateModal({
               </div>
 
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Código do Projeto</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Código do Projeto</p>
                 {codePrefix ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -844,7 +834,7 @@ export function ContractCreateModal({
                         readOnly={form.is_subproject && !!form.parent_project_id}
                         className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
                         style={{ ...inputStyle, width: '5rem', opacity: form.is_subproject && form.parent_project_id ? 0.5 : 1 }} />
-                      <span className="text-zinc-500 text-sm font-mono">-</span>
+                      <span className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>-</span>
                       <input type="text" maxLength={2} placeholder="26"
                         value={form.code_year}
                         onChange={e => { if (form.is_subproject && form.parent_project_id) return; setForm(f => ({ ...f, code_year: e.target.value.replace(/\D/g, '').slice(0, 2) })) }}
@@ -854,7 +844,7 @@ export function ContractCreateModal({
                         style={{ ...inputStyle, width: '4rem', opacity: form.is_subproject && form.parent_project_id ? 0.5 : 1 }} />
                       {form.is_subproject && (
                         <>
-                          <span className="text-zinc-500 text-sm font-mono">-</span>
+                          <span className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>-</span>
                           <input type="text" maxLength={2} placeholder="01"
                             value={form.sub_seq}
                             onChange={e => { setForm(f => ({ ...f, sub_seq: e.target.value.replace(/\D/g, '').slice(0, 2) })); setCodeExists(false) }}
@@ -864,20 +854,20 @@ export function ContractCreateModal({
                         </>
                       )}
                       {codePreview && (
-                        <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
+                        <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text-light)' }}>
                           {codePreview}{form.is_subproject && !form.sub_seq.trim() ? '-??' : ''}
                         </span>
                       )}
                     </div>
-                    {codeChecking && <p className="text-[11px] text-zinc-500">Verificando código...</p>}
+                    {codeChecking && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Verificando código...</p>}
                     {codeExists && !codeChecking && (
-                      <p className="text-[11px] text-red-400">⚠ Código <span className="font-mono font-semibold">{codePreview}</span> já existe.</p>
+                      <p className="text-[11px]" style={{ color: 'var(--danger)' }}>⚠ Código <span className="font-mono font-semibold">{codePreview}</span> já existe.</p>
                     )}
                   </div>
                 ) : form.customer_id ? (
-                  <p className="text-xs text-amber-400 italic">Cliente sem prefixo configurado — código gerado automaticamente</p>
+                  <p className="text-xs italic" style={{ color: 'var(--warning)' }}>Cliente sem prefixo configurado — código gerado automaticamente</p>
                 ) : (
-                  <p className="text-xs text-zinc-600 italic">Selecione um cliente para ver o código</p>
+                  <p className="text-xs italic" style={{ color: 'var(--text-light)' }}>Selecione um cliente para ver o código</p>
                 )}
               </div>
 
@@ -888,13 +878,13 @@ export function ContractCreateModal({
                     type="button"
                     onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}
                     className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
-                    style={{ background: form.is_subproject ? 'var(--brand-primary)' : 'rgba(255,255,255,0.12)' }}
+                    style={{ background: form.is_subproject ? 'var(--primary)' : 'var(--border)' }}
                   >
-                    <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
-                      style={{ transform: form.is_subproject ? 'translateX(16px)' : 'translateX(0)' }} />
+                    <span className="pointer-events-none inline-block h-4 w-4 rounded-full shadow transition-transform"
+                      style={{ background: '#fff', transform: form.is_subproject ? 'translateX(16px)' : 'translateX(0)' }} />
                   </button>
                   <label className="text-sm cursor-pointer select-none"
-                    style={{ color: form.is_subproject ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}
+                    style={{ color: form.is_subproject ? 'var(--primary)' : 'var(--text-light)' }}
                     onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}>
                     É subprojeto
                   </label>
@@ -902,34 +892,35 @@ export function ContractCreateModal({
               )}
 
               <div>
-                <label className={labelCls}>Nome do Projeto <span style={{ color: '#ef4444' }}>*</span></label>
+                <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Nome do Projeto <span style={{ color: 'var(--danger)' }}>*</span></label>
                 <input type="text" placeholder="Nome do projeto"
                   value={form.project_name}
                   onChange={e => setForm(f => ({ ...f, project_name: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40"
-                  style={{ ...inputStyle, ...(!form.project_name.trim() ? { borderColor: 'rgba(239,68,68,0.5)' } : {}) }} />
+                  style={{ ...inputStyle, ...(!form.project_name.trim() ? { borderColor: 'var(--danger-border)' } : {}) }} />
               </div>
 
               <div>
-                <label className={labelCls}>Aprovação do Cliente / Proposta Assinada <span style={{ color: '#ef4444' }}>*</span></label>
+                <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Aprovação do Cliente / Proposta Assinada <span style={{ color: 'var(--danger)' }}>*</span></label>
+                {/* DS: file:* não aceita var() inline — cor do botão de arquivo via classes utilitárias tokenizadas */}
                 <input
                   type="file"
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
                   onChange={e => setClientApprovalFile(e.target.files?.[0] ?? null)}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-cyan-500/10 file:text-cyan-300 hover:file:bg-cyan-500/20 file:cursor-pointer"
-                  style={{ ...inputStyle, ...(!clientApprovalFile ? { borderColor: 'rgba(239,68,68,0.5)' } : {}) }}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:cursor-pointer"
+                  style={{ ...inputStyle, ['--tw-ring-color' as any]: 'var(--primary)', ...(!clientApprovalFile ? { borderColor: 'var(--danger-border)' } : {}) }}
                 />
                 {clientApprovalFile
-                  ? <p className="text-[11px] text-emerald-400 mt-1">✓ {clientApprovalFile.name} ({Math.round(clientApprovalFile.size / 1024)} KB)</p>
-                  : <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>Anexe a aprovação formal (PDF, imagem ou e-mail exportado) — máx 20 MB</p>
+                  ? <p className="text-[11px] mt-1" style={{ color: 'var(--success)' }}>✓ {clientApprovalFile.name} ({Math.round(clientApprovalFile.size / 1024)} KB)</p>
+                  : <p className="text-[10px] mt-1" style={{ color: 'var(--danger)' }}>Anexe a aprovação formal (PDF, imagem ou e-mail exportado) — máx 20 MB</p>
                 }
               </div>
 
               {form.customer_id && form.is_subproject && (
                 <div className="space-y-1.5">
-                  <label className={labelCls}>Projeto Pai <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Projeto Pai <span style={{ color: 'var(--danger)' }}>*</span></label>
                   {parentProjects.length === 0
-                    ? <p className="text-xs text-amber-400 italic px-3 py-2 rounded-lg" style={inputStyle}>Nenhum projeto pai disponível para este cliente</p>
+                    ? <p className="text-xs italic px-3 py-2 rounded-lg" style={{ ...inputStyle, color: 'var(--warning)' }}>Nenhum projeto pai disponível para este cliente</p>
                     : <SearchSelect
                         value={form.parent_project_id}
                         onChange={v => setForm(f => ({ ...f, parent_project_id: v }))}
@@ -942,10 +933,10 @@ export function ContractCreateModal({
                     const code = parent?.code_prefix
                     if (!code) return null
                     return (
-                      <p className="text-xs font-mono px-1 mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
-                        Código do pai: <span className="font-semibold" style={{ color: '#67e8f9' }}>{code}</span>
+                      <p className="text-xs font-mono px-1 mt-0.5" style={{ color: 'var(--text-light)' }}>
+                        Código do pai: <span className="font-semibold" style={{ color: 'var(--primary)' }}>{code}</span>
                         {' '}→ subprojeto será{' '}
-                        <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>
+                        <span className="font-semibold" style={{ color: 'var(--text)' }}>
                           {code}-{form.sub_seq ? form.sub_seq.padStart(2, '0') : '??'}
                         </span>
                       </p>
@@ -961,8 +952,8 @@ export function ContractCreateModal({
           {activeTab === 1 && !form.is_aporte && (
             <div className="space-y-4">
               <div>
-                <label className={labelCls}>
-                  Tipo de Serviço <span style={{ color: '#ef4444' }}>*</span>
+                <label className={labelCls} style={{ color: 'var(--text-muted)' }}>
+                  Tipo de Serviço <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
                 <SearchSelect
                   value={form.service_type_id}
@@ -971,7 +962,7 @@ export function ContractCreateModal({
                   placeholder="Selecionar tipo de serviço..."
                 />
                 {!form.service_type_id && (
-                  <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>Obrigatório</p>
+                  <p className="text-[10px] mt-1" style={{ color: 'var(--danger)' }}>Obrigatório</p>
                 )}
               </div>
             </div>
@@ -980,8 +971,8 @@ export function ContractCreateModal({
           {/* Tab 2: Faturamento */}
           {activeTab === 2 && (
             <div>
-              <label className={labelCls}>
-                Tipo de Contrato <span style={{ color: '#ef4444' }}>*</span>
+              <label className={labelCls} style={{ color: 'var(--text-muted)' }}>
+                Tipo de Contrato <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
               <div className="space-y-2">
                 {(() => {
@@ -995,10 +986,10 @@ export function ContractCreateModal({
                     <input type="radio" name="contract_type_id" value={ct.id}
                       checked={String(form.contract_type_id) === String(ct.id)}
                       onChange={() => setForm(f => ({ ...f, contract_type_id: String(ct.id) }))} />
-                    <span className="text-sm text-zinc-300">{ct.name}</span>
+                    <span className="text-sm" style={{ color: 'var(--text)' }}>{ct.name}</span>
                   </label>
                 ))}
-                {contractTypes.length === 0 && <p className="text-xs text-zinc-500">Carregando...</p>}
+                {contractTypes.length === 0 && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando...</p>}
               </div>
             </div>
           )}
@@ -1009,11 +1000,11 @@ export function ContractCreateModal({
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.cobra_despesa_cliente}
                   onChange={e => setForm(f => ({ ...f, cobra_despesa_cliente: e.target.checked }))} />
-                <span className="text-sm text-zinc-300">Cobrar despesas do cliente</span>
+                <span className="text-sm" style={{ color: 'var(--text)' }}>Cobrar despesas do cliente</span>
               </label>
               {form.cobra_despesa_cliente && (
                 <div>
-                  <label className={labelCls}>Limite de despesas (R$)</label>
+                  <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Limite de despesas (R$)</label>
                   <input type="number" min="0" step="0.01" placeholder="Ex: 5000.00"
                     value={form.limite_despesa}
                     onChange={e => setForm(f => ({ ...f, limite_despesa: e.target.value }))}
@@ -1027,7 +1018,7 @@ export function ContractCreateModal({
           {activeTab === 4 && (
             <div className="space-y-4">
               <div>
-                <label className={labelCls}>Arquiteto</label>
+                <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Arquiteto</label>
                 <SearchSelect
                   value={form.architect_id}
                   onChange={v => setForm(f => ({ ...f, architect_id: v }))}
@@ -1036,13 +1027,13 @@ export function ContractCreateModal({
                 />
               </div>
               <div>
-                <label className={labelCls}>Tipo de Alocação</label>
+                <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Tipo de Alocação</label>
                 <div className="flex gap-4">
                   {(['remoto', 'presencial', 'ambos'] as const).map(v => (
                     <label key={v} className="flex items-center gap-2 cursor-pointer">
                       <input type="radio" name="tipo_alocacao" value={v} checked={form.tipo_alocacao === v}
                         onChange={() => setForm(f => ({ ...f, tipo_alocacao: v }))} />
-                      <span className="text-sm text-zinc-300 capitalize">{v}</span>
+                      <span className="text-sm capitalize" style={{ color: 'var(--text)' }}>{v}</span>
                     </label>
                   ))}
                 </div>
@@ -1051,48 +1042,48 @@ export function ContractCreateModal({
               {form.parent_project_id && (
                 <div className="rounded-xl p-3" style={{
                   background: parentBalance
-                    ? parentBalance.balance > 0 ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.08)'
-                    : 'rgba(255,255,255,0.04)',
+                    ? parentBalance.balance > 0 ? 'var(--success-bg)' : 'var(--danger-bg)'
+                    : 'var(--surface-sunken)',
                   border: `1px solid ${parentBalance
-                    ? parentBalance.balance > 0 ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.35)'
-                    : 'var(--brand-border)'}`,
+                    ? parentBalance.balance > 0 ? 'var(--success-border)' : 'var(--danger-border)'
+                    : 'var(--border)'}`,
                 }}>
                   {parentBalanceLoading ? (
-                    <p className="text-xs animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Verificando saldo do projeto pai...</p>
+                    <p className="text-xs animate-pulse" style={{ color: 'var(--text-light)' }}>Verificando saldo do projeto pai...</p>
                   ) : parentBalance ? (
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5"
-                          style={{ color: parentBalance.balance > 0 ? '#86efac' : '#fca5a5' }}>
+                          style={{ color: parentBalance.balance > 0 ? 'var(--success)' : 'var(--danger)' }}>
                           Saldo do Projeto Pai
                         </p>
                         <p className="text-lg font-bold tabular-nums"
-                          style={{ color: parentBalance.balance > 0 ? '#22c55e' : '#ef4444' }}>
+                          style={{ color: parentBalance.balance > 0 ? 'var(--success)' : 'var(--danger)' }}>
                           {parentBalance.balance.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h
                         </p>
                       </div>
                       {isOnDemand && (
                         <div className="text-right">
-                          <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>On Demand</p>
-                          <p className="text-xs font-semibold" style={{ color: '#22c55e' }}>
+                          <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>On Demand</p>
+                          <p className="text-xs font-semibold" style={{ color: 'var(--success)' }}>
                             Não consome saldo do pai
                           </p>
                         </div>
                       )}
                       {!isOnDemand && parentBalance.balance <= 0 && (
                         <div className="text-right">
-                          <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo negativo</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Saldo negativo</p>
                           <p className="text-xs font-semibold"
-                            style={{ color: parentBalance.allow_negative ? '#f59e0b' : '#ef4444' }}>
+                            style={{ color: parentBalance.allow_negative ? 'var(--warning)' : 'var(--danger)' }}>
                             {parentBalance.allow_negative ? 'Permitido' : 'Bloqueado'}
                           </p>
                         </div>
                       )}
                       {!isOnDemand && parentBalance.balance > 0 && Number(form.horas_contratadas) > 0 && (
                         <div className="text-right">
-                          <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Este subprojeto</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Este subprojeto</p>
                           <p className="text-xs font-semibold"
-                            style={{ color: Number(form.horas_contratadas) <= parentBalance.balance ? '#22c55e' : '#ef4444' }}>
+                            style={{ color: Number(form.horas_contratadas) <= parentBalance.balance ? 'var(--success)' : 'var(--danger)' }}>
                             {Number(form.horas_contratadas).toLocaleString('pt-BR', { minimumFractionDigits: 1 })}h
                             {Number(form.horas_contratadas) > parentBalance.balance && ' ⚠ Excede saldo'}
                           </p>
@@ -1106,7 +1097,7 @@ export function ContractCreateModal({
               <div className="grid grid-cols-2 gap-4">
                 {!isOnDemand && !isMensalidade && (
                   <div>
-                    <label className={labelCls}>Horas Contratadas *</label>
+                    <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Horas Contratadas *</label>
                     <input {...numInput('horas_contratadas', raw =>
                       setForm(f => {
                         const vh = Number(f.valor_hora)
@@ -1117,23 +1108,21 @@ export function ContractCreateModal({
                   </div>
                 )}
                 <div>
-                  <label className={labelCls}>
-                    Expectativa de Início <span style={{ color: '#ef4444' }}>*</span>
+                  <label className={labelCls} style={{ color: 'var(--text-muted)' }}>
+                    Expectativa de Início <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <input type="date" value={form.expectativa_inicio}
                     onChange={e => setForm(f => ({ ...f, expectativa_inicio: e.target.value }))}
-                    className={inputCls} style={{ ...inputStyle, borderColor: !form.expectativa_inicio ? 'rgba(239,68,68,0.5)' : undefined }} />
+                    className={inputCls} style={{ ...inputStyle, borderColor: !form.expectativa_inicio ? 'var(--danger-border)' : undefined }} />
                 </div>
               </div>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Valores</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-muted)' }}>Valores</p>
                 <div className="grid grid-cols-3 gap-3">
-                  {/* Subprojeto On Demand não tem Valor do Projeto — fechamento financeiro fica no pai */}
-                  {!(isOnDemand && form.is_subproject) && (
                   <div>
-                    <label className={labelCls}>
+                    <label className={labelCls} style={{ color: 'var(--text-muted)' }}>
                       {isMensalidade ? 'Valor do Contrato (R$) — mensalidade' : 'Valor do Projeto (R$)'}
-                      {(isMensalidade || isOnDemand) && <span style={{ color: '#ef4444' }}> *</span>}
+                      {(isMensalidade || isOnDemand) && <span style={{ color: 'var(--danger)' }}> *</span>}
                     </label>
                     <input {...numInput('valor_projeto', vp =>
                       setForm(f => {
@@ -1143,11 +1132,10 @@ export function ContractCreateModal({
                       })
                     )} placeholder="0,00" />
                   </div>
-                  )}
                   {!isMensalidade && !isOnDemand && (
                     <div>
-                      <label className={labelCls}>
-                        Valor da Hora (R$) <span style={{ color: '#ef4444' }}>*</span>
+                      <label className={labelCls} style={{ color: 'var(--text-muted)' }}>
+                        Valor da Hora (R$) <span style={{ color: 'var(--danger)' }}>*</span>
                       </label>
                       <input {...numInput('valor_hora', vh =>
                         setForm(f => {
@@ -1160,35 +1148,71 @@ export function ContractCreateModal({
                   )}
                   {!isOnDemand && !isMensalidade && (
                     <div>
-                      <label className={labelCls}>Hora Adicional (R$)</label>
+                      <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Hora Adicional (R$)</label>
                       <input {...numInput('hora_adicional')} placeholder="0,00" />
-                    </div>
-                  )}
-                  {!isOnDemand && !isMensalidade && (
-                    <div>
-                      <label className={labelCls}>% Horas Coordenador</label>
-                      <input {...numInput('pct_horas_coordenador')} placeholder="0,00" />
-                    </div>
-                  )}
-                  {!isOnDemand && (
-                    <div>
-                      <label className={labelCls}>Horas de Coordenação</label>
-                      <input {...numInput('horas_coordenacao')} placeholder="0,00" />
-                      <p className="text-[10px] mt-1 text-zinc-500">Banco fixo de horas do coordenador (governança). Copiado pro projeto ao gerar.</p>
                     </div>
                   )}
                   {(isFechado || isBhFixo) && (
                     <div>
-                      <label className={labelCls}>Horas Consultor</label>
+                      <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Percentual Gestão (%)</label>
+                      <input {...numInput('pct_horas_coordenador', raw => { setGestaoDraft(null); setForm(f => ({ ...f, pct_horas_coordenador: raw })) })} placeholder="0,00" />
+                    </div>
+                  )}
+                  {(isFechado || isBhFixo) && (() => {
+                    // Horas de Gestão = (Percentual Gestão / 100) × Horas Vendidas (contratadas).
+                    // Bidirecional: editar aqui recalcula o %; editar o % recalcula isto.
+                    const base = Number(form.horas_contratadas) || 0
+                    const pct  = Number(form.pct_horas_coordenador) || 0
+                    const derived = base > 0 ? Math.round((pct / 100) * base * 100) / 100 : 0
+                    const shown = gestaoDraft ?? (derived ? String(derived) : '')
+                    return (
+                      <div>
+                        <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Horas de Gestão</label>
+                        <input type="number" value={shown} min="0" step="0.5" disabled={base <= 0}
+                          className={inputCls} style={inputStyle}
+                          onChange={e => {
+                            const v = e.target.value
+                            setGestaoDraft(v)
+                            const h = Number(v) || 0
+                            if (base > 0) setForm(f => ({ ...f, pct_horas_coordenador: String(Math.round((h / base) * 100 * 100) / 100) }))
+                          }}
+                          onBlur={() => setGestaoDraft(null)}
+                          placeholder="0" />
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                          {base > 0 ? `${pct || 0}% de ${base}h (vendidas)` : 'Informe Horas Contratadas para calcular'}
+                        </p>
+                      </div>
+                    )
+                  })()}
+                  {(isFechado || isBhFixo) && (
+                    <div>
+                      <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Horas Consultor</label>
                       <input {...numInput('horas_consultor')} placeholder="0,00" />
                     </div>
                   )}
-                  {isFechado && (
+                  {(isFechado || isBhFixo) && (() => {
+                    // Saving ERPSERV = Horas Vendidas − Consultor − Horas de Gestão (% × Vendidas).
+                    const sold    = Number(form.horas_contratadas) || 0
+                    const consult = Number(form.horas_consultor) || 0
+                    const pct     = Number(form.pct_horas_coordenador) || 0
+                    const gestao  = sold > 0 ? (pct / 100) * sold : 0
+                    const sobra   = Math.round((sold - consult - gestao) * 100) / 100
+                    return (
+                      <div>
+                        <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Saving ERPSERV</label>
+                        <input readOnly tabIndex={-1} value={`${sobra}h`}
+                          className={inputCls} style={{ ...inputStyle, opacity: 0.6, cursor: 'default' }} />
+                      </div>
+                    )
+                  })()}
+                  {(isFechado || isBhFixo) && (
                     <div>
-                      <label className={labelCls}>Save ERPSERV</label>
-                      <input readOnly
-                        value={saveErpserv != null ? saveErpserv.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''}
-                        className={inputCls} style={{ ...inputStyle, opacity: 0.5, cursor: 'not-allowed' }} />
+                      <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Horas Apontáveis <span style={{ color: 'var(--danger)' }}>*</span></label>
+                      <input {...numInput('horas_coordenacao')} placeholder="0,00" />
+                      <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>Banco de horas apontáveis (copiado pro projeto ao gerar).</p>
+                      {form.horas_coordenacao !== '' && form.horas_contratadas !== '' && Number(form.horas_coordenacao) > Number(form.horas_contratadas) && (
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--danger)' }}>Não pode exceder as horas vendidas ({form.horas_contratadas}h).</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1201,24 +1225,24 @@ export function ContractCreateModal({
             <div className="space-y-4">
               {customerContacts.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Do cadastro do cliente</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Do cadastro do cliente</p>
                   <div className="space-y-1.5">
                     {customerContacts.map(cc => {
                       const already = contacts.some(c => c.name === cc.name && c.email === cc.email)
                       return (
                         <div key={cc.id}
                           className="flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer transition-colors"
-                          style={{ borderColor: already ? 'rgba(0,245,255,0.4)' : 'var(--brand-border)', background: already ? 'rgba(0,245,255,0.06)' : 'transparent' }}
+                          style={{ borderColor: already ? 'var(--primary)' : 'var(--border)', background: already ? 'var(--primary-soft)' : 'transparent' }}
                           onClick={() => already
                             ? setContacts(cs => cs.filter(c => !(c.name === cc.name && c.email === cc.email)))
                             : setContacts(cs => [...cs, { name: cc.name, cargo: cc.cargo ?? '', email: cc.email ?? '', phone: cc.phone ?? '' }])}>
                           <div>
-                            <p className="text-xs font-medium text-zinc-200">{cc.name}</p>
-                            <p className="text-[10px] text-zinc-500">{[cc.cargo, cc.email].filter(Boolean).join(' · ')}</p>
+                            <p className="text-xs font-medium" style={{ color: 'var(--text)' }}>{cc.name}</p>
+                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{[cc.cargo, cc.email].filter(Boolean).join(' · ')}</p>
                           </div>
                           <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-                            style={{ background: already ? '#00F5FF' : 'transparent', border: already ? 'none' : '1px solid #52525b' }}>
-                            {already && <CheckCircle size={12} style={{ color: '#000' }} />}
+                            style={{ background: already ? 'var(--primary)' : 'transparent', border: already ? 'none' : '1px solid var(--border-strong)' }}>
+                            {already && <CheckCircle size={12} style={{ color: 'var(--primary-fg)' }} />}
                           </div>
                         </div>
                       )
@@ -1228,27 +1252,27 @@ export function ContractCreateModal({
               )}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Contatos selecionados ({contacts.length})</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Contatos selecionados ({contacts.length})</p>
                   <button onClick={addContact}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium"
-                    style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: '#00F5FF' }}>
+                    style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
                     <Plus size={10} /> Adicionar manual
                   </button>
                 </div>
                 {contacts.map((ct, i) => (
-                  <div key={i} className="rounded-lg border p-3 space-y-2 mb-2" style={{ borderColor: 'var(--brand-border)' }}>
+                  <div key={i} className="rounded-lg border p-3 space-y-2 mb-2" style={{ borderColor: 'var(--border)' }}>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-zinc-300">Contato {i + 1}</span>
-                      <button onClick={() => removeContact(i)} className="text-zinc-600 hover:text-red-400 transition-colors"><X size={12} /></button>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text)' }}>Contato {i + 1}</span>
+                      <button onClick={() => removeContact(i)} className="transition-colors" style={{ color: 'var(--text-light)' }}><X size={12} /></button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <div><label className={labelCls}>Nome *</label>
+                      <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Nome *</label>
                         <input value={ct.name} onChange={e => updateContact(i, 'name', e.target.value)} className={inputCls} style={inputStyle} placeholder="Nome completo" /></div>
-                      <div><label className={labelCls}>Cargo</label>
+                      <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Cargo</label>
                         <input value={ct.cargo} onChange={e => updateContact(i, 'cargo', e.target.value)} className={inputCls} style={inputStyle} placeholder="Cargo / Função" /></div>
-                      <div><label className={labelCls}>Email</label>
+                      <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Email</label>
                         <input type="email" value={ct.email} onChange={e => updateContact(i, 'email', e.target.value)} className={inputCls} style={inputStyle} placeholder="email@empresa.com" /></div>
-                      <div><label className={labelCls}>Telefone</label>
+                      <div><label className={labelCls} style={{ color: 'var(--text-muted)' }}>Telefone</label>
                         <input type="tel" value={ct.phone} onChange={e => updateContact(i, 'phone', e.target.value.replace(/\D/g, ''))} className={inputCls} style={inputStyle} placeholder="11999999999" maxLength={15} /></div>
                     </div>
                   </div>
@@ -1260,14 +1284,14 @@ export function ContractCreateModal({
           {/* Tab 6: Financeiro */}
           {activeTab === 6 && (
             <div>
-              <label className={labelCls}>Condição de Pagamento <span style={{ color: '#ef4444' }}>*</span></label>
+              <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Condição de Pagamento <span style={{ color: 'var(--danger)' }}>*</span></label>
               <textarea value={form.condicao_pagamento}
                 onChange={e => setForm(f => ({ ...f, condicao_pagamento: e.target.value }))}
                 rows={5} placeholder="Ex: 30 dias após entrega da NF..."
                 className={inputCls}
-                style={{ ...inputStyle, resize: 'vertical', ...(!form.condicao_pagamento.trim() ? { borderColor: 'rgba(239,68,68,0.5)' } : {}) }} />
+                style={{ ...inputStyle, resize: 'vertical', ...(!form.condicao_pagamento.trim() ? { borderColor: 'var(--danger-border)' } : {}) }} />
               {!form.condicao_pagamento.trim() && (
-                <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>Obrigatório</p>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--danger)' }}>Obrigatório</p>
               )}
             </div>
           )}
@@ -1275,7 +1299,7 @@ export function ContractCreateModal({
           {/* Tab 7: Comercial */}
           {activeTab === 7 && (
             <div>
-              <label className={labelCls}>Vendedor</label>
+              <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Vendedor</label>
               <SearchSelect
                 value={form.vendedor_id}
                 onChange={v => setForm(f => ({ ...f, vendedor_id: v }))}
@@ -1288,51 +1312,51 @@ export function ContractCreateModal({
           {/* Tab 8: Observações */}
           {activeTab === 8 && (
             <div>
-              <label className={labelCls}>
-                Observações <span style={{ color: '#ef4444' }}>*</span>
-                <span className="ml-1 text-yellow-500 text-[10px]">(será copiado ao projeto)</span>
+              <label className={labelCls} style={{ color: 'var(--text-muted)' }}>
+                Observações <span style={{ color: 'var(--danger)' }}>*</span>
+                <span className="ml-1 text-[10px]" style={{ color: 'var(--warning)' }}>(será copiado ao projeto)</span>
               </label>
               <textarea value={form.observacoes}
                 onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
                 rows={10} placeholder="Descreva o escopo, premissas, restrições..."
                 className={inputCls}
-                style={{ ...inputStyle, resize: 'vertical', borderColor: !form.observacoes.trim() ? 'rgba(239,68,68,0.5)' : undefined }} />
+                style={{ ...inputStyle, resize: 'vertical', borderColor: !form.observacoes.trim() ? 'var(--danger-border)' : undefined }} />
               {!form.observacoes.trim() && (
-                <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>Obrigatório</p>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--danger)' }}>Obrigatório</p>
               )}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2">
             {!form.is_aporte && activeTab > tabOffset && (
               <button onClick={() => setActiveTab(t => t - 1)}
-                className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition-colors"
-                style={{ border: '1px solid var(--brand-border)' }}>
+                className="px-4 py-2 rounded-lg text-sm transition-colors"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                 ← Anterior
               </button>
             )}
             {!form.is_aporte && activeTab < TABS.length - 1 && (
               <button onClick={() => { if (validateCurrentTab()) setActiveTab(t => t + 1) }}
-                className="px-4 py-2 rounded-lg text-sm text-zinc-300 hover:text-white transition-colors"
-                style={{ border: '1px solid var(--brand-border)' }}>
+                className="px-4 py-2 rounded-lg text-sm transition-colors"
+                style={{ border: '1px solid var(--border)', color: 'var(--text)' }}>
                 Próximo →
               </button>
             )}
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition-colors">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm transition-colors" style={{ color: 'var(--text-muted)' }}>
               Cancelar
             </button>
             {(form.is_aporte || activeTab === TABS.length - 1) && (
               <button onClick={save} disabled={saving || codeExists}
                 className="px-5 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
                 style={{
-                  background: form.is_aporte ? 'rgba(34,197,94,0.15)' : 'rgba(0,245,255,0.15)',
-                  border: `1px solid ${form.is_aporte ? 'rgba(34,197,94,0.45)' : 'rgba(0,245,255,0.3)'}`,
-                  color: form.is_aporte ? '#22c55e' : '#00F5FF',
+                  background: form.is_aporte ? 'var(--success-bg)' : 'var(--primary-soft)',
+                  border: `1px solid ${form.is_aporte ? 'var(--success-border)' : 'var(--primary)'}`,
+                  color: form.is_aporte ? 'var(--success)' : 'var(--primary)',
                 }}>
                 {saving ? (form.is_aporte ? 'Criando aporte...' : 'Criando...') : form.is_aporte ? 'Criar aporte' : 'Criar Contrato'}
               </button>

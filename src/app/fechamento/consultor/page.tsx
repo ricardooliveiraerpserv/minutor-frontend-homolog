@@ -465,13 +465,6 @@ export default function FechamentoConsultorPage() {
   // true só no primeiro fetch (sem mensagem) — usado pra semear o textarea com o padrão.
   const previewSeededRef = useRef(false)
   const reportIframeRef = useRef<HTMLIFrameElement>(null)
-  // Buffer de edição dos ajustes (desconto/adiantamento/adicional) por consultor.
-  // A página remonta os componentes inline (AjusteCols) a cada re-render — ex.: quando
-  // o auth-context refaz loadUser() no visibilitychange, ou ao abrir o relatório
-  // (setPrintingUser). Sem este buffer, o valor digitado e ainda não salvo é perdido
-  // na remontagem (o useState volta ao valor do servidor). Guardamos o rascunho num
-  // ref (não dispara render) e o lemos na (re)montagem. Limpo no save e no load().
-  const ajusteDraftRef = useRef<Record<number, { desconto: string; adiantamento: string; adicional: string }>>({})
   // True só quando o press (mousedown) começou no próprio backdrop do compose.
   // Evita fechar o dialog quando uma seleção de texto no textarea termina (mouseup) sobre o backdrop.
   const composePressOnBackdrop = useRef(false)
@@ -549,7 +542,6 @@ export default function FechamentoConsultorPage() {
     if (!yearMonth) return
     setLoading(true)
     setData(null)
-    ajusteDraftRef.current = {} // novo período → descarta rascunhos de ajustes pendentes
     try {
       const res = await api.get<{ data: IndexData }>(`/fechamento-consultor/${yearMonth}`)
       setData(res.data)
@@ -850,20 +842,12 @@ export default function FechamentoConsultorPage() {
   // O Total exibe o Recebimento e recalcula AO VIVO conforme edita.
   function AjusteCols({ c, totalExtra }: { c: ConsultorBase; totalExtra?: ReactNode }) {
     const editable = canSendEmail
-    // Rascunho pendente (digitado e ainda não salvo) tem prioridade sobre o valor do
-    // servidor, para sobreviver às remontagens da tabela. Limpo no save bem-sucedido.
-    const draft = ajusteDraftRef.current[c.user_id]
-    const [desconto, setDesconto] = useState<string>(draft?.desconto ?? String(c.desconto ?? 0))
+    const [desconto, setDesconto] = useState<string>(String(c.desconto ?? 0))
     const [descontoDesc, setDescontoDesc] = useState<string>(c.desconto_desc ?? '')
-    const [adiantamento, setAdiantamento] = useState<string>(draft?.adiantamento ?? String(c.adiantamento ?? 0))
-    const [adicional, setAdicional] = useState<string>(draft?.adicional ?? String(c.adicional ?? 0))
+    const [adiantamento, setAdiantamento] = useState<string>(String(c.adiantamento ?? 0))
+    const [adicional, setAdicional] = useState<string>(String(c.adicional ?? 0))
     const [adicionalDesc, setAdicionalDesc] = useState<string>(c.adicional_desc ?? '')
     const [saving, setSaving] = useState(false)
-
-    // Persiste o que está digitado num ref (não re-renderiza) para resistir à remontagem.
-    const writeDraft = (patch: Partial<{ desconto: string; adiantamento: string; adicional: string }>) => {
-      ajusteDraftRef.current[c.user_id] = { desconto, adiantamento, adicional, ...patch }
-    }
 
     const [descModal, setDescModal] = useState<null | 'desconto' | 'adicional'>(null)
     const [descDraft, setDescDraft] = useState('')
@@ -885,7 +869,6 @@ export default function FechamentoConsultorPage() {
           `/fechamento-consultor/${c.user_id}/${yearMonth}/ajustes`, payload,
         )
         patchAjustes(c.user_id, { ...payload, recebimento: res.recebimento })
-        delete ajusteDraftRef.current[c.user_id] // salvo: servidor passa a ser a fonte
         toast.success('Ajustes salvos', { duration: 1500 })
       } catch (err: unknown) {
         toast.error(`Erro ao salvar ajustes: ${err instanceof Error ? err.message : 'falha na API'}`)
@@ -925,20 +908,20 @@ export default function FechamentoConsultorPage() {
         <Td right className="align-top">
           <div className="flex flex-col items-end">
             <input type="number" step="0.01" value={desconto} disabled={!editable || saving}
-              onChange={e => { setDesconto(e.target.value); writeDraft({ desconto: e.target.value }) }} onBlur={() => save()}
+              onChange={e => setDesconto(e.target.value)} onBlur={() => save()}
               className={inputCls} style={inputStyle} />
             {descBtn('desconto', descontoDesc)}
           </div>
         </Td>
         <Td right className="align-top">
           <input type="number" step="0.01" value={adiantamento} disabled={!editable || saving}
-            onChange={e => { setAdiantamento(e.target.value); writeDraft({ adiantamento: e.target.value }) }} onBlur={() => save()}
+            onChange={e => setAdiantamento(e.target.value)} onBlur={() => save()}
             className={inputCls} style={inputStyle} />
         </Td>
         <Td right className="align-top">
           <div className="flex flex-col items-end">
             <input type="number" step="0.01" value={adicional} disabled={!editable || saving}
-              onChange={e => { setAdicional(e.target.value); writeDraft({ adicional: e.target.value }) }} onBlur={() => save()}
+              onChange={e => setAdicional(e.target.value)} onBlur={() => save()}
               className={inputCls} style={inputStyle} />
             {descBtn('adicional', adicionalDesc)}
           </div>

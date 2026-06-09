@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { uploadDirect } from '@/lib/upload'
 import { previewText } from '@/lib/sanitize'
-import { fmtDateBR, parseDateLocal } from '@/lib/date-only'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText } from 'lucide-react'
@@ -93,7 +92,7 @@ interface ProjectEditForm {
 // ─── Helpers (duplicados da página do kanban — manter idênticos) ─────────────────
 
 function endDateStyle(dateStr: string): { color: string; bg: string; label: string } {
-  const diff = Math.floor((parseDateLocal(dateStr).getTime() - Date.now()) / 86400000)
+  const diff = Math.floor((new Date(dateStr).getTime() - Date.now()) / 86400000)
   if (diff < 0)   return { color: '#ef4444', bg: '#ef444420', label: `Venceu há ${Math.abs(diff)}d` }
   if (diff <= 7)  return { color: '#f97316', bg: '#f9731620', label: `Vence em ${diff}d` }
   if (diff <= 30) return { color: '#eab308', bg: '#eab30820', label: `${diff}d` }
@@ -370,7 +369,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                           return (
                             <Row label="Data de Conclusão" value={
                               <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: ds.bg, color: ds.color }}>
-                                {fmtDateBR(p.expected_end_date)} — {ds.label}
+                                {new Date(p.expected_end_date).toLocaleDateString('pt-BR')} — {ds.label}
                               </span>
                             } />
                           )
@@ -613,7 +612,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                           return (
                             <tr key={a.id} style={{ borderTop: '1px solid var(--brand-border)' }}>
                               <td className="px-3 py-2" style={{ color: 'var(--brand-text)' }}>
-                                {a.contributed_at ? fmtDateBR(a.contributed_at) : '—'}
+                                {a.contributed_at ? new Date(a.contributed_at).toLocaleDateString('pt-BR') : '—'}
                               </td>
                               <td className="px-3 py-2" style={{ color: 'var(--brand-text)' }}>{motivoLabel[a.motivo] ?? a.motivo}</td>
                               <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--brand-text)' }}>{h.toFixed(1)}h</td>
@@ -1304,27 +1303,17 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                   </button>
                 ))}
               </div>
-              {teamTab !== 'coord' && (
-                <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder="Buscar..."
-                  className="w-full text-xs px-3 py-2 rounded-xl outline-none mb-2"
-                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
-              )}
+              <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder="Buscar..."
+                className="w-full text-xs px-3 py-2 rounded-xl outline-none mb-2"
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
               <div className="flex-1 overflow-y-auto space-y-1 rounded-xl p-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', maxHeight: 520 }}>
-                {teamTab === 'coord' && (
-                  <div className="px-1 py-1">
-                    {form.coordinator_ids.length === 0 ? (
-                      <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum coordenador definido.</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5">
-                        {form.coordinator_ids.map(cid => {
-                          const c = optCoordinators.find(o => o.id === cid)
-                          return <span key={cid} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{c?.name ?? `#${cid}`}</span>
-                        })}
-                      </div>
-                    )}
-                    <p className="text-[10px] mt-3 leading-relaxed" style={{ color: 'var(--brand-subtle)' }}>🔒 O coordenador é definido no Kanban de Contratos e não pode ser editado aqui.</p>
-                  </div>
-                )}
+                {teamTab === 'coord' && filteredCoords.map(c => {
+                  const sel = form.coordinator_ids.includes(c.id)
+                  return <button key={c.id} onClick={() => setForm(p => ({ ...p, coordinator_ids: toggleId(p.coordinator_ids, c.id) }))} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ background: sel ? 'var(--primary-soft)' : 'transparent', border: `1px solid ${sel ? 'var(--ring)' : 'transparent'}` }}>
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'var(--ring)' : 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>{sel && <Check size={10} style={{ color: 'var(--primary)' }} />}</div>
+                    <span className="text-xs" style={{ color: sel ? 'var(--primary)' : 'var(--brand-text)' }}>{c.name}</span>
+                  </button>
+                })}
                 {teamTab === 'consult' && filteredConsults.map(c => {
                   const sel = form.consultant_ids.includes(c.id)
                   return <button key={c.id} onClick={() => setForm(p => ({ ...p, consultant_ids: toggleId(p.consultant_ids, c.id) }))} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
@@ -1339,6 +1328,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                     <span className="text-xs" style={{ color: sel ? '#f59e0b' : 'var(--brand-text)' }}>{g.name}</span>
                   </button>
                 })}
+                {teamTab === 'coord' && filteredCoords.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>}
                 {teamTab === 'consult' && filteredConsults.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>}
                 {teamTab === 'group' && filteredGroups.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>}
               </div>
