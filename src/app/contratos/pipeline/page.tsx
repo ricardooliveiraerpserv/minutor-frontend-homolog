@@ -1246,7 +1246,10 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
               <div className="grid grid-cols-2 gap-3 text-sm">
                 {([
                   ['Código', card.code],
-                  ['Horas Vendidas', card.sold_hours ? `${card.sold_hours}h` : '—'],
+                  // Coordenador NUNCA vê Horas Vendidas (comercial) — só as Apontáveis (banco de coordenação).
+                  userRole === 'coordenador'
+                    ? ['Horas Apontáveis', `${(card.coordination_hours ?? 0) > 0 ? (card.coordination_hours ?? 0) : (card.sold_hours ?? 0)}h`]
+                    : ['Horas Vendidas', card.sold_hours ? `${card.sold_hours}h` : '—'],
                   ['Executivo', card.executivo_conta_name || '—'],
                   ['Coordenadores', card.coordinators?.join(', ') || '—'],
                   ['Consultores', card.consultants?.join(', ') || '—'],
