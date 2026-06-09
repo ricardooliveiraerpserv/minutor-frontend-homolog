@@ -47,6 +47,8 @@ export interface ScheduleResponse {
   alerts?: CronogramaAlert[]
   /** Fase 10: ocupação por consultor envolvido no cronograma. */
   team_load?: TeamLoadItem[]
+  /** Etapas do cronograma (árvore plana com parent_stage_id). */
+  stages: ScheduleStage[]
 }
 
 export interface ExecutiveSummary {
@@ -90,7 +92,6 @@ export interface TeamLoadItem {
   remaining_hours: number
   usage_pct: number
   overloaded: boolean
-  stages: ScheduleStage[]
 }
 
 export function useProjectSchedule(projectId: number | null | undefined) {

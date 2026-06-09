@@ -79,7 +79,7 @@ export function ProjectScheduleGantt({ stages, projectWindow, canEdit = true, on
   dragRef.current = drag
 
   // Janela do Gantt: usa projectWindow + padding de 7 dias antes/depois pra dar respiro
-  const window = useMemo(() => {
+  const timeWindow = useMemo(() => {
     const start = parseDate(projectWindow?.start ?? null) ?? new Date()
     const end   = parseDate(projectWindow?.end ?? null) ?? addDays(start, 30)
     return {
@@ -89,7 +89,7 @@ export function ProjectScheduleGantt({ stages, projectWindow, canEdit = true, on
   }, [projectWindow?.start, projectWindow?.end])
 
   const dayWidth = ZOOM_PX[zoom]
-  const totalDays = Math.max(1, daysBetween(window.start, window.end) + 1)
+  const totalDays = Math.max(1, daysBetween(timeWindow.start, timeWindow.end) + 1)
   const widthPx = totalDays * dayWidth
 
   // Collapse/expand por etapa (persistido em sessionStorage por projeto)
@@ -153,10 +153,10 @@ export function ProjectScheduleGantt({ stages, projectWindow, canEdit = true, on
   // Header columns (month labels + day grid)
   const months = useMemo(() => {
     const result: { label: string; offsetPx: number }[] = []
-    let cur = new Date(window.start)
+    let cur = new Date(timeWindow.start)
     cur.setDate(1) // primeiro dia do mês
-    while (cur <= window.end) {
-      const offset = daysBetween(window.start, cur)
+    while (cur <= timeWindow.end) {
+      const offset = daysBetween(timeWindow.start, cur)
       if (offset >= 0) {
         result.push({
           label: cur.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
@@ -166,21 +166,21 @@ export function ProjectScheduleGantt({ stages, projectWindow, canEdit = true, on
       cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1)
     }
     return result
-  }, [window.start, window.end, dayWidth])
+  }, [timeWindow.start, timeWindow.end, dayWidth])
 
   // Today indicator
   const today = new Date()
-  const todayOffset = daysBetween(window.start, today)
+  const todayOffset = daysBetween(timeWindow.start, today)
   const todayVisible = todayOffset >= 0 && todayOffset <= totalDays
 
   // Alinha o background-image (pattern de fim de semana) ao calendário real:
   // pattern = 5 dias transparente + 2 dias surface-hover, repetindo a cada 7 dias.
   // Quero que esses 2 dias caiam em sábado/domingo reais. getDay(): 0=dom,1=seg,...,6=sab.
   const weekendOffsetPx = useMemo(() => {
-    const startDOW = window.start.getDay()
+    const startDOW = timeWindow.start.getDay()
     const daysToSat = (6 - startDOW + 7) % 7
     return (daysToSat - 5) * dayWidth
-  }, [window.start, dayWidth])
+  }, [timeWindow.start, dayWidth])
 
   // ─── Drag temporal ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -411,7 +411,7 @@ export function ProjectScheduleGantt({ stages, projectWindow, canEdit = true, on
             {/* Sub-linha de dia (zoom Dia: número de cada dia; Semana: a cada 2 dias) */}
             {(zoom === 'day' || zoom === 'week') && Array.from({ length: totalDays }).map((_, i) => {
               if (zoom === 'week' && i % 2 !== 0) return null
-              const d = addDays(window.start, i)
+              const d = addDays(timeWindow.start, i)
               const dow = d.getDay()
               const isWeekend = dow === 0 || dow === 6
               return (
@@ -525,7 +525,7 @@ export function ProjectScheduleGantt({ stages, projectWindow, canEdit = true, on
                     key={`s-${row.stage.id}`}
                     stage={row.stage}
                     rowIdx={rowIdx}
-                    windowStart={window.start}
+                    windowStart={timeWindow.start}
                     dayWidth={dayWidth}
                     canEdit={canEdit}
                     drag={drag && drag.kind === 'stage' && drag.id === row.stage.id ? drag : null}
@@ -538,7 +538,7 @@ export function ProjectScheduleGantt({ stages, projectWindow, canEdit = true, on
                   key={`a-${row.activity.id}`}
                   activity={row.activity}
                   rowIdx={rowIdx}
-                  windowStart={window.start}
+                  windowStart={timeWindow.start}
                   dayWidth={dayWidth}
                   canEdit={canEdit}
                   drag={drag && drag.kind === 'activity' && drag.id === row.activity.id ? drag : null}
@@ -572,9 +572,9 @@ export function ProjectScheduleGantt({ stages, projectWindow, canEdit = true, on
                 const toStart = parseDate(row.activity.planned_start_at)
                 if (!fromEnd || !toStart) return null
 
-                const x1 = (daysBetween(window.start, fromEnd) + 1) * dayWidth
+                const x1 = (daysBetween(timeWindow.start, fromEnd) + 1) * dayWidth
                 const y1 = depRow * ROW_HEIGHT + ROW_HEIGHT / 2
-                const x2 = daysBetween(window.start, toStart) * dayWidth
+                const x2 = daysBetween(timeWindow.start, toStart) * dayWidth
                 const y2 = rowIdx * ROW_HEIGHT + ROW_HEIGHT / 2
 
                 // Linha vermelha se a dependência termina depois do dependente começar
