@@ -384,6 +384,13 @@ function ContractKanbanCard({
             )}
           </div>
 
+          {card.executivo_conta_name && (
+            <div className="flex items-center gap-1 mb-1.5 min-w-0">
+              <span className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }} title={`Executivo: ${card.executivo_conta_name}`}>
+                🎯 Exec: {card.executivo_conta_name}
+              </span>
+            </div>
+          )}
           <div className="flex items-center justify-between mt-1 pt-2" style={{ borderTop: '1px solid var(--brand-border)' }}>
             <div className="flex items-center gap-3 text-[11px]" style={{ color: 'var(--brand-subtle)' }}>
               {!!card.horas_contratadas && card.horas_contratadas > 0 && (
@@ -745,10 +752,15 @@ function ProjectKanbanCard({
             )
           })()}
           <div className="flex items-center justify-between mt-1 pt-2" style={{ borderTop: '1px solid rgba(99,102,241,0.15)' }}>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-0.5 min-w-0">
               {card.coordinators && card.coordinators.length > 0 && (
-                <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>
+                <span className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }}>
                   👤 {card.coordinators[0]}
+                </span>
+              )}
+              {card.executivo_conta_name && (
+                <span className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }} title={`Executivo: ${card.executivo_conta_name}`}>
+                  🎯 Exec: {card.executivo_conta_name}
                 </span>
               )}
             </div>
@@ -1250,6 +1262,7 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
                 {([
                   ['Código', card.code],
                   ['Horas Vendidas', card.sold_hours ? `${card.sold_hours}h` : '—'],
+                  ['Executivo', card.executivo_conta_name || '—'],
                   ['Coordenadores', card.coordinators?.join(', ') || '—'],
                   ['Consultores', card.consultants?.join(', ') || '—'],
                 ] as [string, string][]).map(([label, value]) => (
@@ -1990,6 +2003,7 @@ interface ProjectFull {
   coordinators?: { id: number; name: string; email: string }[]
   consultants?: { id: number; name: string; email: string }[]
   approvers?: { id: number; name: string; email: string }[]
+  executivo_conta?: { id: number; name: string } | null
 }
 
 interface ConsultantBreakdown {
@@ -2362,6 +2376,14 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Equipe</p>
                     <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--brand-border)' }}>
+                      {p.executivo_conta?.name && (
+                        <div>
+                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Executivo</p>
+                          <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium w-fit" style={{ background: 'rgba(34,197,94,0.10)', color: '#22c55e' }}>
+                            🎯 {p.executivo_conta.name}
+                          </span>
+                        </div>
+                      )}
                       {(p.coordinators?.length ?? 0) > 0 && (
                         <div>
                           <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Coordenadores</p>
