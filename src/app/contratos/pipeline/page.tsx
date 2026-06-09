@@ -725,7 +725,7 @@ function ProjectKanbanCard({
           {(() => {
             // Lente do coordenador: se o usuário logado é coordenador do projeto e há banco
             // de coordenação, mostra consumo/banco de coordenação no lugar do operacional.
-            const isCoordViewer = !!viewerUser?.id && (card.coordinator_ids ?? []).includes(viewerUser.id) && Number(card.coordination_hours ?? 0) > 0
+            const isCoordViewer = viewerUser?.type === 'coordenador' && Number(card.coordination_hours ?? 0) > 0
             const sold = isCoordViewer ? Number(card.coordination_hours ?? 0) : Number(card.sold_hours ?? 0)
             const consumed = isCoordViewer ? Number(card.coordination_consumed_hours ?? 0) : Number(card.consumed_hours ?? 0)
             const pct = sold > 0 ? Math.min(100, Math.round((consumed / sold) * 100)) : 0
@@ -2110,12 +2110,15 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   // Banco apontável = Horas Apontáveis informadas + APORTE (aporte soma com as contratadas).
   const coordRaw = Number((p as any)?.coordination_hours ?? 0)
   const coordHoursBank = coordRaw > 0 ? coordRaw + Math.max(0, totalAvail - Number(p?.sold_hours ?? 0)) : 0
-  const isCoordViewer = !isClienteViewer && !!viewerUser?.id && !!p?.coordinators?.some((c: any) => c.id === viewerUser.id) && coordHoursBank > 0
+  // Lente por PAPEL (não por filiação ao projeto): coordenador NUNCA vê Horas Vendidas,
+  // só as Horas Apontáveis (banco de coordenação + aporte; cai pras vendidas quando não há banco).
+  const isCoordViewer = !isClienteViewer && viewerUser?.type === 'coordenador'
   const coordConsumedVal = Number((p as any)?.coordination_consumed_hours ?? 0)
-  const cardVendidas = isCoordViewer ? coordHoursBank : (p?.sold_hours ?? 0)
-  const cardConsumed = isCoordViewer ? coordConsumedVal : consumed
-  const cardSaldo    = isCoordViewer ? Math.round((cardVendidas - cardConsumed) * 100) / 100 : (p?.general_hours_balance ?? 0)
-  const pct = isCoordViewer ? (cardVendidas > 0 ? (cardConsumed / cardVendidas) * 100 : 0)
+  const coordPool = coordHoursBank > 0 ? coordHoursBank : (p?.sold_hours ?? 0)
+  const cardVendidas = isCoordViewer ? coordPool : (p?.sold_hours ?? 0)
+  const cardConsumed = isCoordViewer ? (coordHoursBank > 0 ? coordConsumedVal : consumed) : consumed
+  const cardSaldo    = isCoordViewer ? Math.round((coordPool - cardConsumed) * 100) / 100 : (p?.general_hours_balance ?? 0)
+  const pct = isCoordViewer ? (coordPool > 0 ? (cardConsumed / coordPool) * 100 : 0)
                             : (totalAvail > 0 ? (consumed / totalAvail) * 100 : 0)
   const bar = healthColor(pct)
   const sc = p ? (statusColors[p.status] ?? statusColors.awaiting_start) : statusColors.awaiting_start
@@ -2210,7 +2213,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                 {/* KPI strip */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
-                    { label: isCoordViewer ? 'Horas Vendidas (Coord.)' : 'Horas Vendidas',
+                    { label: isCoordViewer ? 'Horas Apontáveis' : 'Horas Vendidas',
                       value: fmt(cardVendidas, 1) + 'h',  color: 'var(--brand-text)', bg: 'rgba(255,255,255,0.03)' },
                     { label: 'Horas Consumidas', value: fmt(cardConsumed, 1) + 'h',       color: 'var(--brand-muted)', bg: 'rgba(255,255,255,0.03)' },
                     { label: 'Saldo',            value: fmt(cardSaldo, 1) + 'h',
@@ -2249,7 +2252,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                       <span className="text-xs font-semibold" style={{ color: bar }}>{riskLabel(pct)}</span>
                     </div>
                     <span className="text-xs font-bold tabular-nums" style={{ color: bar }}>
-                      {totalAvail > 0 ? `${Math.round(pct)}% consumido` : 'Sem horas'}
+                      {(isCoordViewer ? coordPool : totalAvail) > 0 ? `${Math.round(pct)}% consumido` : 'Sem horas'}
                     </span>
                   </div>
                   <div className="w-full h-4 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
@@ -2258,9 +2261,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     </div>
                   </div>
                   <div className="flex justify-between text-[10px] mt-1.5" style={{ color: 'var(--brand-subtle)' }}>
-                    <span>{fmt(consumed, 1)}h utilizadas</span>
+                    <span>{fmt(isCoordViewer ? cardConsumed : consumed, 1)}h utilizadas</span>
                     <span>🟢 &lt;70% · 🟡 70-90% · 🔴 &gt;90%</span>
-                    <span>{fmt(totalAvail, 1)}h disponíveis</span>
+                    <span>{fmt(isCoordViewer ? coordPool : totalAvail, 1)}h disponíveis</span>
                   </div>
                 </div>
 
