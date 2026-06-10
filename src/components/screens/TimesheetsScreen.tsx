@@ -34,7 +34,7 @@ import { ReasonTooltip } from '@/components/ui/reason-tooltip'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type SortField = 'date' | 'status' | 'user.name' | 'project.name' | 'customer.name' | 'effort_hours'
+type SortField = 'date' | 'status' | 'user.name' | 'project.name' | 'customer.name' | 'effort_hours' | 'ticket' | 'origin' | 'observation' | 'created_at'
 type SortDir   = 'asc' | 'desc'
 
 interface SelectOption { id: number; name: string }
@@ -875,6 +875,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [extraPctModalData, setExtraPctModalData] = useState<{ ids: number[]; ts?: Timesheet } | null>(null)
   const [bulkPcOpen, setBulkPcOpen] = useState(false)
+  const [bulkReversing, setBulkReversing] = useState(false)
   const [reprocessing, setReprocessing] = useState(false)
   const [reprocessResult, setReprocessResult] = useState<string | null>(null)
   const [reverseRejectionModal, setReverseRejectionModal] = useState<{ open: boolean; tsId?: number }>({ open: false })
@@ -1140,16 +1141,30 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   }
 
   const handleReverseApproval = async (id: number) => {
-    const reason = window.prompt('Informe o motivo do estorno da aprovação:')
-    if (reason == null) return // cancelou
-    if (!reason.trim()) { toast.error('Informe um motivo para estornar a aprovação.'); return }
+    // Estorno de aprovação NÃO pede mais motivo (removido a pedido).
+    if (!window.confirm('Estornar a aprovação deste apontamento?')) return
     try {
-      await api.post(`/timesheets/${id}/reverse-approval`, { reason: reason.trim() })
+      await api.post(`/timesheets/${id}/reverse-approval`, {})
       toast.success('Aprovação estornada!')
       refetch()
     } catch {
       toast.error('Erro ao estornar aprovação')
     }
+  }
+
+  // Estorno de aprovação EM MASSA: estorna todos os selecionados que estão APROVADOS (sem motivo).
+  const handleBulkReverseApproval = async () => {
+    const ids = (data?.items ?? []).filter(ts => selectedIds.has(ts.id) && ts.status === 'approved').map(ts => ts.id)
+    if (ids.length === 0) { toast.error('Nenhum apontamento aprovado selecionado.'); return }
+    if (!window.confirm(`Estornar a aprovação de ${ids.length} apontamento${ids.length > 1 ? 's' : ''}?`)) return
+    setBulkReversing(true)
+    const results = await Promise.allSettled(ids.map(id => api.post(`/timesheets/${id}/reverse-approval`, {})))
+    setBulkReversing(false)
+    const ok = results.filter(r => r.status === 'fulfilled').length
+    if (ok) toast.success(`${ok} aprovação${ok > 1 ? 'ões' : ''} estornada${ok > 1 ? 's' : ''}!`)
+    if (ok < ids.length) toast.error(`${ids.length - ok} não puderam ser estornadas.`)
+    setSelectedIds(new Set())
+    refetch()
   }
 
   const confirmReverseRejection = async () => {
@@ -1567,7 +1582,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                     Hist. de Hs Tikets
                   </th>
                 )}
-                <Th>Status</Th>
+                <Th sortable active={sortField === 'status'} dir={sortDir} onClick={() => handleSort('status')}>Status</Th>
                 {(isAdmin || isCoordenador) && (
                   <Th sortable active={sortField === 'user.name'} dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
                 )}
@@ -1575,8 +1590,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 <Th className="hidden md:table-cell">Início</Th>
                 <Th className="hidden md:table-cell">Fim</Th>
                 <Th right sortable active={sortField === 'effort_hours'} dir={sortDir} onClick={() => handleSort('effort_hours')}>Tempo</Th>
-                <Th className="hidden lg:table-cell">Ticket #</Th>
-                <Th className="hidden sm:table-cell">Origem</Th>
+                <Th sortable active={sortField === 'ticket'} dir={sortDir} onClick={() => handleSort('ticket')} className="hidden lg:table-cell">Ticket #</Th>
+                <Th sortable active={sortField === 'origin'} dir={sortDir} onClick={() => handleSort('origin')} className="hidden sm:table-cell">Origem</Th>
                 {!(isAdmin || isCoordenador) && (
                   <Th sortable active={sortField === 'user.name'} dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
                 )}
@@ -1585,11 +1600,11 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 )}
                 <Th sortable active={sortField === 'project.name'}  dir={sortDir} onClick={() => handleSort('project.name')}>Projeto</Th>
                 <Th className="hidden lg:table-cell">Título</Th>
-                <Th className="hidden xl:table-cell">Descrição</Th>
+                <Th sortable active={sortField === 'observation'} dir={sortDir} onClick={() => handleSort('observation')} className="hidden xl:table-cell">Descrição</Th>
                 <Th className="hidden xl:table-cell">Solicitante</Th>
                 <Th className="hidden xl:table-cell">Tipo de Serviço</Th>
                 <Th className="hidden xl:table-cell">Contrato</Th>
-                <Th className="hidden lg:table-cell">Inclusão</Th>
+                <Th sortable active={sortField === 'created_at'} dir={sortDir} onClick={() => handleSort('created_at')} className="hidden lg:table-cell">Inclusão</Th>
               </tr>
             </Thead>
             <Tbody>
@@ -1895,6 +1910,16 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           >
             <RefreshCw size={11} className={reprocessing ? 'animate-spin' : ''} /> Reprocessar Movidesk
           </button>
+          {selectedApprovedCount > 0 && (
+            <button
+              onClick={handleBulkReverseApproval}
+              disabled={bulkReversing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
+              style={{ background: 'var(--danger, #ef4444)', color: '#fff' }}
+            >
+              <RotateCcw size={11} className={bulkReversing ? 'animate-spin' : ''} /> Estornar aprovação ({selectedApprovedCount})
+            </button>
+          )}
           <button
             onClick={() => setSelectedIds(new Set())}
             className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
