@@ -117,7 +117,7 @@ interface TicketSummaryRow {
 }
 
 // Estrutura mínima do /fechamento-contrato (on_demand only)
-interface ProjetoGlobal { projeto_id: number; nome: string; codigo: string; horas: number; valor_hora: number; total_receita: number; invoiced?: boolean }
+interface ProjetoGlobal { projeto_id: number; nome: string; codigo: string; horas: number; valor_hora: number; total_receita: number; invoiced?: boolean; is_investimento?: boolean }
 interface ClienteGlobal  { customer_id: number; nome: string; projetos: ProjetoGlobal[]; total_horas: number; total_receita: number }
 interface GlobalData     { tipos: { code: string; nome: string; clientes: ClienteGlobal[]; total_clientes: number; total_horas: number; total_receita: number }[]; total_geral: number }
 
@@ -1120,12 +1120,18 @@ export default function FechamentoClientePage() {
             type ClienteAgg = { customer_id: number; nome: string; projetos: ProjDisp[]; total_horas: number; total_receita: number }
             const clientMap = new Map<number, ClienteAgg>()
             ;(globalData?.tipos ?? []).forEach(tipo => {
+              // Fechamento On Demand: só contratos On Demand entram aqui. Banco de Horas
+              // (fixed_hours/monthly_hours), Fechado e demais tipos saem fora desta visão.
+              if (tipo.code !== 'on_demand') return
               tipo.clientes.forEach(c => {
                 if (!clientMap.has(c.customer_id)) {
                   clientMap.set(c.customer_id, { customer_id: c.customer_id, nome: c.nome, projetos: [], total_horas: 0, total_receita: 0 })
                 }
                 const entry = clientMap.get(c.customer_id)!
                 c.projetos.forEach(p => {
+                  // Buckets internos de investimento (Investimento Comercial/Suporte/Projetos)
+                  // têm contract_type on_demand mas NÃO são contratos com o cliente.
+                  if (p.is_investimento) return
                   const display = Math.round(p.horas * p.valor_hora * 100) / 100
                   if (p.horas > 0) {
                     entry.projetos.push({ ...p, tipo_nome: tipo.nome, tipo_code: tipo.code, total_display: display })
