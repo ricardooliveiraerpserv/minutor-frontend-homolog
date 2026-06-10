@@ -31,6 +31,7 @@ interface ProjectWithTeam extends Project {
   contract_type?: { id: number; name: string } | null
   contract_type_display?: string
   parent_project?: { id: number; name: string; code: string } | null
+  consumo_mensal?: number | null
 }
 
 interface ProjectFull extends ProjectWithTeam {
@@ -642,6 +643,11 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
           )}
         </td>
 
+        {/* Consumo Mensal */}
+        <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+          {project.consumo_mensal != null ? fmt(project.consumo_mensal, 1) : '—'}
+        </td>
+
         {/* Saldo */}
         <td className="py-3 px-4 text-[13px] text-right tabular-nums font-semibold"
           style={{ color: (saldoNeg || hasUnbilled) ? 'var(--danger-border)' : 'var(--text)' }}>
@@ -766,7 +772,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
       {expanded && (teamCount > 0 || hasChildConsumption) && (
         <tr style={{ background: 'var(--surface-hover)' }}>
           <td /><td />
-          <td colSpan={12} className="py-3 px-4">
+          <td colSpan={13} className="py-3 px-4">
             <div className="flex flex-wrap gap-4">
               {(project.coordinators ?? []).length > 0 && (
                 <div>
@@ -2051,9 +2057,10 @@ export default function GestaoProjetosPage() {
       filterServiceTypes: [] as string[],
       filterCoordinators: [] as string[],
       filterExecutives:   [] as string[],
+      yearMonth:          new Date().toISOString().slice(0, 7),
     },
   )
-  const { search, statusFilters, clienteFilters, saudeFilter, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives } = flt
+  const { search, statusFilters, clienteFilters, saudeFilter, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, yearMonth } = flt
   const setSearch             = (v: string)   => setFilter('search', v)
   const setStatus             = (v: string[]) => setFilter('statusFilters', v)
   const setCliente            = (v: string[]) => setFilter('clienteFilters', v)
@@ -2063,6 +2070,7 @@ export default function GestaoProjetosPage() {
   const setFilterServiceType  = (v: string[]) => setFilter('filterServiceTypes', v)
   const setFilterCoordinators = (v: string[]) => setFilter('filterCoordinators', v)
   const setFilterExecutives   = (v: string[]) => setFilter('filterExecutives', v)
+  const setYearMonth          = (v: string)   => setFilter('yearMonth', v)
 
   const clearAllFilters = () => {
     setSearch('')
@@ -2244,6 +2252,7 @@ export default function GestaoProjetosPage() {
   useEffect(() => {
     setLoading(true)
     const qs = new URLSearchParams({ pageSize: '200', gestao: 'true' })
+    if (yearMonth) qs.set('year_month', yearMonth) // alimenta a coluna Consumo Mensal
     if (multiContratual) { qs.set('parent_projects_only', 'true'); qs.set('with_children_only', 'true') }
     api.get<PaginatedResponse<ProjectWithTeam>>(`/projects?${qs}`)
       .then(res => {
@@ -2253,7 +2262,7 @@ export default function GestaoProjetosPage() {
       })
       .catch(() => toast.error('Erro ao carregar projetos'))
       .finally(() => setLoading(false))
-  }, [multiContratual, refreshKey])
+  }, [multiContratual, refreshKey, yearMonth])
 
   useEffect(() => {
     api.get<any>('/customers?pageSize=500').then(r => {
@@ -2785,8 +2794,8 @@ export default function GestaoProjetosPage() {
       <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-8">
         <PageHeader
           icon={Layers}
-          title="Gestão de Projetos"
-          subtitle="Visão operacional dos projetos sob sua coordenação"
+          title="Gestão de Contratos"
+          subtitle="Visão operacional dos contratos sob sua coordenação"
         />
 
         {/* ── Cards de Resumo ── */}
@@ -2836,6 +2845,14 @@ export default function GestaoProjetosPage() {
               style={{ ...inputStyle }}
             />
           </div>
+          <input
+            type="month"
+            value={yearMonth}
+            onChange={e => setYearMonth(e.target.value)}
+            title="Mês de referência da coluna Consumo Mensal"
+            className="h-9 rounded-xl text-xs outline-none px-3"
+            style={{ ...inputStyle }}
+          />
           <MultiSelect
             value={clienteFilters}
             onChange={v => setCliente(v)}
@@ -3071,6 +3088,7 @@ export default function GestaoProjetosPage() {
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="sold_hours"    onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center">HS Vendidas</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="total_cont"    onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center">Total Cont.</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="consumed"      onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center">HS Consumidas</SortableTh>
+                  <th className="py-3 px-4 text-xs font-semibold text-center" style={{ color: 'var(--text-muted)' }}>Consumo Mensal</th>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="balance"       onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center">Saldo</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="pct"           onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center" minWidth={140}>% Uso</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="coord"         onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center" minWidth={140}>Coord.</SortableTh>

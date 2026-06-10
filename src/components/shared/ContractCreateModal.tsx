@@ -53,6 +53,9 @@ type FormState = {
   aditivo_field: '' | 'valor_hora' | 'horas_contratadas' | 'valor_projeto'
   aditivo_value: string
   aditivo_effective_from: string // YYYY-MM (vigência; só valor_hora/horas)
+  // Multi-alteração (Banco de Horas Mensal): novo valor-hora e/ou novas horas no mesmo aditivo.
+  aditivo_m_rate: string
+  aditivo_m_horas: string
 }
 
 const CURRENT_YEAR_2D = new Date().getFullYear().toString().slice(-2)
@@ -71,6 +74,7 @@ const EMPTY_FORM: FormState = {
   aporte_valor_hora: '', aporte_motivo: 'aporte', aporte_descricao: '',
   is_aditivo: false, aditivo_target_project_id: '', aditivo_field: '',
   aditivo_value: '', aditivo_effective_from: new Date().toISOString().slice(0, 7),
+  aditivo_m_rate: '', aditivo_m_horas: '',
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -555,30 +559,50 @@ export function ContractCreateModal({
     // ── Ramo ADITIVO — altera projeto pai/independente (não cria projeto comum) ──
     if (form.is_aditivo) {
       if (!form.aditivo_target_project_id)                                 { toast.error('Selecione o projeto do aditivo'); return }
-      if (!form.aditivo_field)                                            { toast.error('Selecione o que será alterado'); return }
-      if (!form.aditivo_value || Number(form.aditivo_value) <= 0)         { toast.error('Informe o novo valor'); return }
+      const selAditProj = aditivoProjects.find(p => String(p.id) === form.aditivo_target_project_id)
+      const isMensalAdit = (selAditProj?.allowed_fields?.length ?? 0) === 2 // Banco de Horas Mensal: valor-hora + horas
       if (!form.observacoes.trim())                                       { toast.error('Informe a observação'); return }
       if (!clientApprovalFile)                                            { toast.error('Anexe a aprovação do cliente / proposta assinada'); return }
-      setSaving(true)
-      try {
-        const payload: Record<string, unknown> = {
-          aditivo_project_id: Number(form.aditivo_target_project_id),
-          aditivo_field:      form.aditivo_field,
-          aditivo_value:      Number(form.aditivo_value),
-          condicao_pagamento: form.condicao_pagamento || null,
-          observacoes:        form.observacoes || null,
+
+      const payload: Record<string, unknown> = {
+        aditivo_project_id: Number(form.aditivo_target_project_id),
+        condicao_pagamento: form.condicao_pagamento || null,
+        observacoes:        form.observacoes || null,
+      }
+      if (isMensalAdit) {
+        // Mensal: valor-hora E/OU horas no mesmo aditivo — envia só os que mudaram.
+        const changes: { field: string; value: number }[] = []
+        if (form.aditivo_m_rate !== '' && Number(form.aditivo_m_rate) !== Number(selAditProj?.hourly_rate ?? 0)) {
+          if (Number(form.aditivo_m_rate) < 0) { toast.error('Valor da hora inválido'); return }
+          changes.push({ field: 'valor_hora', value: Number(form.aditivo_m_rate) })
         }
-        // valor_projeto (Cloud) não tem vigência mensal.
+        if (form.aditivo_m_horas !== '' && Number(form.aditivo_m_horas) !== Number(selAditProj?.sold_hours ?? 0)) {
+          if (Number(form.aditivo_m_horas) < 0) { toast.error('Quantidade de horas inválida'); return }
+          changes.push({ field: 'horas_contratadas', value: Number(form.aditivo_m_horas) })
+        }
+        if (changes.length === 0) { toast.error('Altere o valor-hora e/ou a quantidade de horas'); return }
+        payload.aditivo_changes        = changes
+        payload.aditivo_effective_from = `${form.aditivo_effective_from}-01`
+      } else {
+        if (!form.aditivo_field)                                          { toast.error('Selecione o que será alterado'); return }
+        if (!form.aditivo_value || Number(form.aditivo_value) <= 0)       { toast.error('Informe o novo valor'); return }
+        payload.aditivo_field = form.aditivo_field
+        payload.aditivo_value = Number(form.aditivo_value)
         if (form.aditivo_field !== 'valor_projeto') {
           payload.aditivo_effective_from = `${form.aditivo_effective_from}-01`
         }
+      }
+      setSaving(true)
+      try {
         const res = await api.post<{ id: number }>('/contracts/aditivo', payload)
         // Anexa a aprovação do cliente / proposta ao contrato aditivo criado.
         if (clientApprovalFile) {
           const fd = new FormData()
           fd.append('file', clientApprovalFile)
           fd.append('type', 'aprovacao_cliente')
-          try { await uploadDirect(`/contracts/${res.id}/attachments`, fd) } catch { /* não bloqueia o aditivo já aplicado */ }
+          // Não bloqueia o aditivo já aplicado, mas AVISA (antes falhava em silêncio).
+          try { await uploadDirect(`/contracts/${res.id}/attachments`, fd) }
+          catch (e: any) { toast.warning(`Aditivo aplicado, mas falha ao anexar o arquivo: ${e?.message ?? 'erro'}. Anexe manualmente na lista de contratos.`) }
         }
         toast.success('Aditivo aplicado ao projeto')
         onSuccess(res.id)
@@ -823,7 +847,52 @@ export function ContractCreateModal({
                       }
                     </div>
 
-                    {selProj && (
+                    {selProj && (allowed.length === 2 ? (
+                      // ── Banco de Horas Mensal: multi-alteração (valor-hora E/OU horas) ──
+                      (() => {
+                        const newRate  = form.aditivo_m_rate  !== '' ? Number(form.aditivo_m_rate)  : Number(selProj.hourly_rate ?? 0)
+                        const newHoras = form.aditivo_m_horas !== '' ? Number(form.aditivo_m_horas) : Number(selProj.sold_hours ?? 0)
+                        const oldContract = Number(selProj.hourly_rate ?? 0) * Number(selProj.sold_hours ?? 0)
+                        const newContract = newRate * newHoras
+                        return (
+                          <>
+                            <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                              Banco de Horas Mensal — altere o valor-hora e/ou a quantidade de horas (impacta o valor do contrato). Preencha só o que muda.
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Novo Valor da Hora (R$)</label>
+                                <input type="number" min="0" step="0.01"
+                                  value={form.aditivo_m_rate}
+                                  onChange={e => setForm(f => ({ ...f, aditivo_m_rate: e.target.value }))}
+                                  placeholder={`Atual: ${selProj.hourly_rate ?? 0}`} className={inputCls} style={inputStyle} />
+                              </div>
+                              <div>
+                                <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Nova Quantidade de Horas</label>
+                                <input type="number" min="0" step="1"
+                                  value={form.aditivo_m_horas}
+                                  onChange={e => setForm(f => ({ ...f, aditivo_m_horas: e.target.value }))}
+                                  placeholder={`Atual: ${selProj.sold_hours ?? 0}`} className={inputCls} style={inputStyle} />
+                              </div>
+                            </div>
+                            <div>
+                              <label className={labelCls} style={{ color: 'var(--text-muted)' }}>A partir do mês <span style={{ color: 'var(--danger)' }}>*</span></label>
+                              <input type="month" value={form.aditivo_effective_from} min={new Date().toISOString().slice(0, 7)}
+                                onChange={e => setForm(f => ({ ...f, aditivo_effective_from: e.target.value }))}
+                                className={inputCls} style={inputStyle} />
+                              <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Meses anteriores não mudam.</p>
+                            </div>
+                            <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Valor do Contrato (mensal)</span>
+                              <span className="text-sm font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                                R$ {oldContract.toFixed(2)} → R$ {newContract.toFixed(2)}
+                              </span>
+                            </div>
+                          </>
+                        )
+                      })()
+                    ) : (
+                      // ── On Demand / Cloud: alteração única (fluxo original) ──
                       <>
                         <div>
                           <label className={labelCls} style={{ color: 'var(--text-muted)' }}>O que alterar <span style={{ color: 'var(--danger)' }}>*</span></label>
@@ -867,15 +936,7 @@ export function ContractCreateModal({
                           </div>
                         )}
                       </>
-                    )}
-
-                    <div>
-                      <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Forma de pagamento <span style={{ color: 'var(--text-light)' }}>(opcional)</span></label>
-                      <input type="text"
-                        value={form.condicao_pagamento}
-                        onChange={e => setForm(f => ({ ...f, condicao_pagamento: e.target.value }))}
-                        placeholder="Ex.: 30 dias" className={inputCls} style={inputStyle} />
-                    </div>
+                    ))}
 
                     <div>
                       <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Observação <span style={{ color: 'var(--danger)' }}>*</span></label>

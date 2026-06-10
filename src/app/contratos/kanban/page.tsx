@@ -47,6 +47,7 @@ interface ContractCard {
   sustentacao_column?: string | null
   is_aditivo?: boolean
   aditivo_field?: string | null
+  aditivo_changes?: { field: string; label: string; old: number; new: number }[] | null
   aditivo_old_value?: number | null
   aditivo_new_value?: number | null
   aditivo_project_code?: string | null
@@ -741,9 +742,29 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
           </div>
 
           {card.is_aditivo && (() => {
-            const fieldLabel: Record<string, string> = { valor_hora: 'Valor-hora', horas_contratadas: 'Horas', valor_projeto: 'Valor do contrato' }
+            const fieldLabel: Record<string, string> = { valor_hora: 'Valor-hora', horas_contratadas: 'Horas', valor_projeto: 'Valor do contrato', multiplo: 'Valor do contrato' }
+            const money = (n?: number | null) => n == null ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+            const horas = (n?: number | null) => n == null ? '—' : `${Number(n)}h`
             const isHours = card.aditivo_field === 'horas_contratadas'
-            const fmt = (n?: number | null) => n == null ? '—' : isHours ? `${Number(n)}h` : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+            const fmt = (n?: number | null) => n == null ? '—' : isHours ? horas(n) : money(n)
+            // Multi (Mensal): mostra o breakdown (valor-hora + horas) + o valor do contrato.
+            if (card.aditivo_field === 'multiplo') {
+              return (
+                <div className="rounded-lg px-2 py-1.5 mb-2" style={{ background: `${ADITIVO_COLOR}14`, border: `1px solid ${ADITIVO_COLOR}40` }}>
+                  {card.aditivo_project_code && (
+                    <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>Projeto: <span style={{ color: 'var(--text)' }}>{card.aditivo_project_code}</span></p>
+                  )}
+                  {(card.aditivo_changes ?? []).map((c, i) => (
+                    <p key={i} className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                      {c.label}: {c.field === 'valor_hora' ? money(c.old) : horas(c.old)} → {c.field === 'valor_hora' ? money(c.new) : horas(c.new)}
+                    </p>
+                  ))}
+                  <p className="text-[11px] font-semibold" style={{ color: ADITIVO_COLOR }}>
+                    Valor do contrato: {money(card.aditivo_old_value)} → {money(card.aditivo_new_value)}
+                  </p>
+                </div>
+              )
+            }
             return (
               <div className="rounded-lg px-2 py-1.5 mb-2" style={{ background: `${ADITIVO_COLOR}14`, border: `1px solid ${ADITIVO_COLOR}40` }}>
                 {card.aditivo_project_code && (
@@ -1152,7 +1173,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
               {!full && <p className="text-xs text-center" style={{ color: 'var(--brand-muted)' }}>Carregando...</p>}
               {/* Aditivo: visão objetiva do que foi alterado (pro administrativo cobrar) */}
               {card.is_aditivo && (() => {
-                const fieldLabel: Record<string, string> = { valor_hora: 'Valor da Hora', horas_contratadas: 'Quantidade de Horas', valor_projeto: 'Valor do Contrato' }
+                const fieldLabel: Record<string, string> = { valor_hora: 'Valor da Hora', horas_contratadas: 'Quantidade de Horas', valor_projeto: 'Valor do Contrato', multiplo: 'Valor do Contrato' }
                 const isHours = card.aditivo_field === 'horas_contratadas'
                 const fmt = (n?: number | null) => n == null ? '—' : isHours ? `${Number(n)}h` : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
                 const lbl = 'text-[10px] font-semibold uppercase tracking-wider'
@@ -1179,7 +1200,19 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
                         </div>
                       </div>
                       {effMonth && <p className="text-[11px] mt-2" style={{ color: 'var(--brand-muted)' }}>Vigência: a partir de <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>{effMonth}</span></p>}
-                      {card.aditivo_contract_new != null && (
+                      {card.aditivo_field === 'multiplo' && (card.aditivo_changes?.length ?? 0) > 0 ? (
+                        <div className="mt-2 pt-2" style={{ borderTop: '1px dashed var(--brand-border)' }}>
+                          <p className={lbl} style={{ color: 'var(--brand-subtle)' }}>Alterações</p>
+                          {card.aditivo_changes!.map((c, i) => {
+                            const f = (n: number) => c.field === 'valor_hora' ? Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : `${Number(n)}h`
+                            return (
+                              <p key={i} className="text-sm" style={{ color: 'var(--brand-text)' }}>
+                                {c.label}: <span className="line-through" style={{ color: 'var(--brand-muted)' }}>{f(c.old)}</span> → <span style={{ color: ADITIVO_COLOR }}>{f(c.new)}</span>
+                              </p>
+                            )
+                          })}
+                        </div>
+                      ) : card.aditivo_contract_new != null ? (
                         <div className="mt-2 pt-2" style={{ borderTop: '1px dashed var(--brand-border)' }}>
                           <p className={lbl} style={{ color: 'var(--brand-subtle)' }}>Valor do contrato (horas × valor-hora)</p>
                           <p className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>
@@ -1188,7 +1221,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
                             <span style={{ color: ADITIVO_COLOR }}>{Number(card.aditivo_contract_new).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                           </p>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm mt-3">
                       <div><p className={lbl} style={{ color: 'var(--brand-subtle)' }}>Cond. Pagamento</p><p style={{ color: 'var(--brand-text)' }}>{card.aditivo_cond_pagamento || '—'}</p></div>
@@ -2320,14 +2353,16 @@ function KanbanContent() {
                       <Trash2 size={16} style={{ color: '#ef4444' }} />
                     </div>
                     <div>
-                      <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Excluir Contrato</p>
+                      <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{card.is_aditivo ? 'Excluir Aditivo' : 'Excluir Contrato'}</p>
                       <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{card.customer_name}</p>
                     </div>
                   </div>
                 </div>
                 <div className="px-6 py-4">
                   <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
-                    Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.
+                    {card.is_aditivo
+                      ? 'Excluir este aditivo vai REVERTER a alteração no projeto: valor-hora, horas e valor do contrato voltam ao anterior, e a vigência daquele mês é removida. Só o aditivo mais recente do projeto pode ser excluído.'
+                      : 'Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.'}
                   </p>
                 </div>
                 <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
@@ -2428,9 +2463,13 @@ function AditivoEditModal({ contract, onClose, onSaved }: { contract: any; onClo
   const [cond, setCond] = useState<string>(contract.condicao_pagamento ?? '')
   const [obs, setObs]   = useState<string>(contract.observacoes ?? '')
   const [saving, setSaving] = useState(false)
+  // Aditivo Mensal "multiplo": valor-hora + horas editáveis (reaplica só o mais recente).
+  const isMultiplo = contract.aditivo_field === 'multiplo'
+  const [mRate, setMRate]   = useState<string>(contract.valor_hora != null ? String(contract.valor_hora) : '')
+  const [mHoras, setMHoras] = useState<string>(contract.horas_contratadas != null ? String(contract.horas_contratadas) : '')
 
   const field = contract.aditivo_field as string
-  const fieldLabel: Record<string, string> = { valor_hora: 'Valor da Hora', horas_contratadas: 'Quantidade de Horas', valor_projeto: 'Valor do Contrato' }
+  const fieldLabel: Record<string, string> = { valor_hora: 'Valor da Hora', horas_contratadas: 'Quantidade de Horas', valor_projeto: 'Valor do Contrato', multiplo: 'Valor do Contrato' }
   const isHours = field === 'horas_contratadas'
   const newVal = field === 'valor_hora' ? contract.valor_hora : field === 'horas_contratadas' ? contract.horas_contratadas : contract.valor_projeto
   const fmt = (n: any) => n == null ? '—' : isHours ? `${Number(n)}h` : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -2440,7 +2479,14 @@ function AditivoEditModal({ contract, onClose, onSaved }: { contract: any; onClo
   const save = async () => {
     setSaving(true)
     try {
-      await api.put(`/contracts/${contract.id}`, { condicao_pagamento: cond || null, observacoes: obs || null })
+      const body: any = { condicao_pagamento: cond || null, observacoes: obs || null }
+      if (isMultiplo) {
+        body.aditivo_changes = [
+          { field: 'valor_hora', value: Number(mRate) || 0 },
+          { field: 'horas_contratadas', value: Number(mHoras) || 0 },
+        ]
+      }
+      await api.put(`/contracts/aditivo/${contract.id}`, body)
       toast.success('Aditivo atualizado')
       onSaved(); onClose()
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar') }
@@ -2461,15 +2507,48 @@ function AditivoEditModal({ contract, onClose, onSaved }: { contract: any; onClo
           <div className="rounded-xl p-4" style={{ background: `${ADITIVO_COLOR}10`, border: `1px solid ${ADITIVO_COLOR}55` }}>
             <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Projeto</p>
             <p className="text-sm mb-3" style={{ color: 'var(--text)' }}>{[proj?.code, proj?.name ?? contract.project_name].filter(Boolean).join(' — ') || '—'}</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>O que foi alterado</p>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{fieldLabel[field] ?? '—'}</p>
-            <div className="flex items-center gap-4 mt-1">
-              <span className="text-lg font-bold line-through" style={{ color: 'var(--text-muted)' }}>{fmt(contract.aditivo_old_value)}</span>
-              <span className="text-lg font-bold" style={{ color: ADITIVO_COLOR }}>→</span>
-              <span className="text-lg font-bold" style={{ color: ADITIVO_COLOR }}>{fmt(newVal)}</span>
-            </div>
-            {effMonth && <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>Vigência: a partir de <span className="font-semibold" style={{ color: 'var(--text)' }}>{effMonth}</span></p>}
-            <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>Valor/campo não são editáveis aqui — para alterar de novo, crie um novo aditivo.</p>
+            {isMultiplo ? (() => {
+              const money = (n: any) => n == null ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+              const ch = contract.aditivo_changes ?? []
+              const oldRate = ch.find((c: any) => c.field === 'valor_hora')?.old
+              const oldHoras = ch.find((c: any) => c.field === 'horas_contratadas')?.old
+              const newContract = (Number(mRate) || 0) * (Number(mHoras) || 0)
+              return (
+                <>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>O que alterar (Banco de Horas Mensal)</p>
+                  <div className="grid grid-cols-2 gap-3 mt-1">
+                    <div>
+                      <label className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Novo Valor da Hora (R$)</label>
+                      <input type="number" min="0" step="0.01" value={mRate} onChange={e => setMRate(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm mt-1 outline-none" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                      {oldRate != null && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>Antes: {money(oldRate)}</p>}
+                    </div>
+                    <div>
+                      <label className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Nova Quantidade de Horas</label>
+                      <input type="number" min="0" step="1" value={mHoras} onChange={e => setMHoras(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm mt-1 outline-none" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                      {oldHoras != null && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>Antes: {Number(oldHoras)}h</p>}
+                    </div>
+                  </div>
+                  {effMonth && <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>Vigência: a partir de <span className="font-semibold" style={{ color: 'var(--text)' }}>{effMonth}</span></p>}
+                  <div className="mt-2 pt-2 flex items-center justify-between" style={{ borderTop: '1px dashed var(--brand-border)' }}>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Valor do Contrato</span>
+                    <span className="text-sm font-semibold" style={{ color: ADITIVO_COLOR }}>{money(contract.aditivo_old_value)} → {money(newContract)}</span>
+                  </div>
+                  <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>Reaplica no projeto (sobrescreve a vigência do mês). Só o aditivo mais recente do projeto pode ser editado.</p>
+                </>
+              )
+            })() : (
+              <>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>O que foi alterado</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{fieldLabel[field] ?? '—'}</p>
+                <div className="flex items-center gap-4 mt-1">
+                  <span className="text-lg font-bold line-through" style={{ color: 'var(--text-muted)' }}>{fmt(contract.aditivo_old_value)}</span>
+                  <span className="text-lg font-bold" style={{ color: ADITIVO_COLOR }}>→</span>
+                  <span className="text-lg font-bold" style={{ color: ADITIVO_COLOR }}>{fmt(newVal)}</span>
+                </div>
+                {effMonth && <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>Vigência: a partir de <span className="font-semibold" style={{ color: 'var(--text)' }}>{effMonth}</span></p>}
+                <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>Valor/campo não são editáveis aqui — para alterar de novo, crie um novo aditivo.</p>
+              </>
+            )}
           </div>
           <div>
             <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Forma de pagamento (opcional)</label>

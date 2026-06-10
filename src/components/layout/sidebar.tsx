@@ -114,7 +114,7 @@ const NAV: NavEntry[] = [
     label: 'Projetos',
     icon: FolderOpen,
     items: [
-      { label: 'Gestão de Projetos',       href: '/gestao-projetos',          icon: Layers },
+      { label: 'Gestão de Contratos',       href: '/gestao-projetos',          icon: Layers },
       { label: 'Kanban Contratos',         href: '/contratos/kanban',         icon: LayoutGrid },
       { label: 'Demandas e Projetos',      href: '/contratos/pipeline',       icon: Layers },
       { label: 'Investimento Interno',      href: '/investimento-comercial',   icon: TrendingUp },
@@ -316,7 +316,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       // Permissão via grupo libera "Gestão de Projetos" pra coordenadores que NÃO
       // sejam do tipo "projetos" (esses entram via Demandas e Projetos abaixo).
       if (user?.coordinator_type !== 'projetos' && (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update'))) {
-        nav.splice(1, 0, { type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers })
+        nav.splice(1, 0, { type: 'item', label: 'Gestão de Contratos', href: '/gestao-projetos', icon: Layers })
       }
 
       // Meu Painel — primeiro item para TODOS os coordenadores
@@ -422,7 +422,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       ]
       // Gestão de Projetos — libera via permissão de grupo (mesmo padrão de outros perfis)
       if (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update')) {
-        nav.splice(3, 0, { type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers })
+        nav.splice(3, 0, { type: 'item', label: 'Gestão de Contratos', href: '/gestao-projetos', icon: Layers })
       }
       return nav
     }
