@@ -34,7 +34,7 @@ import { ReasonTooltip } from '@/components/ui/reason-tooltip'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type SortField = 'date' | 'status' | 'user.name' | 'project.name' | 'customer.name' | 'effort_hours' | 'ticket' | 'origin' | 'observation' | 'created_at'
+type SortField = 'date' | 'status' | 'user.name' | 'project.name' | 'customer.name' | 'effort_hours' | 'ticket' | 'origin' | 'observation' | 'created_at' | 'titulo' | 'solicitante' | 'service_type' | 'contract'
 type SortDir   = 'asc' | 'desc'
 
 interface SelectOption { id: number; name: string }
@@ -1599,11 +1599,11 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   <Th sortable active={sortField === 'customer.name'} dir={sortDir} onClick={() => handleSort('customer.name')}>Cliente</Th>
                 )}
                 <Th sortable active={sortField === 'project.name'}  dir={sortDir} onClick={() => handleSort('project.name')}>Projeto</Th>
-                <Th className="hidden lg:table-cell">Título</Th>
+                <Th sortable active={sortField === 'titulo'} dir={sortDir} onClick={() => handleSort('titulo')} className="hidden lg:table-cell">Título</Th>
                 <Th sortable active={sortField === 'observation'} dir={sortDir} onClick={() => handleSort('observation')} className="hidden xl:table-cell">Descrição</Th>
-                <Th className="hidden xl:table-cell">Solicitante</Th>
-                <Th className="hidden xl:table-cell">Tipo de Serviço</Th>
-                <Th className="hidden xl:table-cell">Contrato</Th>
+                <Th sortable active={sortField === 'solicitante'} dir={sortDir} onClick={() => handleSort('solicitante')} className="hidden xl:table-cell">Solicitante</Th>
+                <Th sortable active={sortField === 'service_type'} dir={sortDir} onClick={() => handleSort('service_type')} className="hidden xl:table-cell">Tipo de Serviço</Th>
+                <Th sortable active={sortField === 'contract'} dir={sortDir} onClick={() => handleSort('contract')} className="hidden xl:table-cell">Contrato</Th>
                 <Th sortable active={sortField === 'created_at'} dir={sortDir} onClick={() => handleSort('created_at')} className="hidden lg:table-cell">Inclusão</Th>
               </tr>
             </Thead>
