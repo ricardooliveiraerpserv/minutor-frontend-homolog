@@ -190,6 +190,14 @@ export default function FechamentoFolhaPage() {
   const [edits, setEdits] = useState<Record<string, EditState>>({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Estado "salvo": snapshot dos edits no último load/save (detecta alterações pendentes)
+  // + info do último Salvar (legenda "✓ Salvo — R$ X · HH:MM").
+  const [savedSnapshot, setSavedSnapshot] = useState('')
+  const [savedInfo, setSavedInfo] = useState<{ at: string; total: number } | null>(null)
+  const hasUnsaved = useMemo(
+    () => savedSnapshot !== '' && JSON.stringify(edits) !== savedSnapshot,
+    [edits, savedSnapshot],
+  )
   const [exporting, setExporting] = useState(false)
   // Filtro de consultores (somente visual / client-side): user_ids selecionados.
   // Vazio = mostra todos (comportamento atual).
@@ -292,6 +300,8 @@ export default function FechamentoFolhaPage() {
         }
       }
       setEdits(seed)
+      setSavedSnapshot(JSON.stringify(seed))
+      setSavedInfo(null)
     } catch (err: unknown) {
       toast.error(`Erro ao carregar a folha: ${err instanceof Error ? err.message : 'falha na API'}`)
     } finally {
@@ -626,6 +636,11 @@ export default function FechamentoFolhaPage() {
         }
       }))
       toast.success(`${res?.saved ?? entries.length} salvos`)
+      setSavedSnapshot(JSON.stringify(edits))
+      setSavedInfo({
+        at: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        total: totals.liq,
+      })
     } catch (err: unknown) {
       toast.error(`Erro ao salvar: ${err instanceof Error ? err.message : 'falha na API'}`)
     } finally {
@@ -809,16 +824,25 @@ export default function FechamentoFolhaPage() {
               >
                 {exporting ? 'Gerando…' : 'Gerar planilha (.xls)'}
               </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                icon={Save}
-                loading={saving}
-                disabled={saving || rows.length === 0}
-                onClick={save}
-              >
-                {saving ? 'Salvando…' : 'Salvar'}
-              </Button>
+              <div className="flex flex-col items-end gap-0.5">
+                <span title="Grava na folha do mês os valores ajustados na grade (produção, dias, descontos, adiantamentos, etc.). Vira o valor OFICIAL do mês — alimenta os cards de totais e a planilha (.xls). Sem salvar, as edições se perdem ao recarregar ou clicar em Atualizar.">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    icon={Save}
+                    loading={saving}
+                    disabled={saving || rows.length === 0}
+                    onClick={save}
+                  >
+                    {saving ? 'Salvando…' : 'Salvar'}
+                  </Button>
+                </span>
+                {hasUnsaved ? (
+                  <span className="text-[10px] whitespace-nowrap" style={{ color: 'var(--warning)' }}>● alterações não salvas</span>
+                ) : savedInfo ? (
+                  <span className="text-[10px] whitespace-nowrap" style={{ color: 'var(--success)' }}>✓ Salvo — {formatBRL(savedInfo.total)} · {savedInfo.at}</span>
+                ) : null}
+              </div>
         </div>
 
         {/* Cards de totais da folha */}
