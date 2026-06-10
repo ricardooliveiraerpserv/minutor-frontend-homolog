@@ -47,6 +47,13 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // Build standalone só no caminho Docker/VPS (Dockerfile seta
+  // NEXT_OUTPUT_STANDALONE=true): o Next traça só as deps de runtime para
+  // `.next/standalone` (~73MB) em vez de copiar `node_modules` inteiro (~1,7GB)
+  // na imagem — encolhe push/pull da imagem no deploy de produção.
+  // Render (homolog/dev) roda `next start`, que NÃO suporta standalone, então
+  // lá a env não é setada e o output fica padrão.
+  output: process.env.NEXT_OUTPUT_STANDALONE === 'true' ? 'standalone' : undefined,
   // Permite build em DEV mesmo com erros TS — corrigir tipos não é prioridade do ambiente de teste
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },

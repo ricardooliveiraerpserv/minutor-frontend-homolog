@@ -8,6 +8,9 @@ COPY package.json package-lock.json* ./
 RUN --mount=type=cache,id=minutor-npm,target=/root/.npm \
     npm ci --cache /root/.npm
 COPY . .
+# Ativa o output standalone só neste build (Docker/VPS). Render não seta isso
+# e segue com `next start`.
+ENV NEXT_OUTPUT_STANDALONE=true
 # Sem cache mount em .next/cache: Next.js às vezes reusa chunks
 # compilados antigos mesmo após mudança de source. Build limpo
 # garante que o source pushed é o que vai pra produção.
@@ -16,11 +19,14 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/package-lock.json* ./
-COPY --from=builder /app/.next ./.next
+# server.js do standalone respeita PORT/HOSTNAME; 0.0.0.0 é obrigatório p/ a
+# rede do container (default localhost não aceita conexão de fora).
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+# Standalone: só os arquivos traçados + server.js mínimo (sem node_modules
+# inteiro). public/ e .next/static não entram no trace — copiados à mão.
+COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/next.config.ts ./
+COPY --from=builder /app/.next/static ./.next/static
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
