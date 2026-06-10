@@ -439,10 +439,11 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
 // ─── Modal: ajuste em massa de Cliente/Projeto ───────────────────────────────
 // Reatribui cliente+projeto dos apontamentos selecionados (incl. APROVADOS — o
 // endpoint bulk-update-project-customer não checa status). Cores via tokens DS.
-function BulkProjectCustomerModal({ ids, customers, approvedCount, onClose, onSaved }: {
+function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUserId, onClose, onSaved }: {
   ids: number[]
   customers: SelectOption[]
   approvedCount: number
+  consultantUserId?: number | null
   onClose: () => void
   onSaved: () => void
 }) {
@@ -459,11 +460,13 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, onClose, onSa
     if (!customerId) return
     setLoadingProjects(true)
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-    api.get<any>(`/projects?minimal=true&pageSize=2000&customer_id=${customerId}`)
+    // Quando há 1 só consultor na seleção, oferece apenas projetos em que ele está ALOCADO.
+    const allocParam = consultantUserId ? `&consultant_user_id=${consultantUserId}` : ''
+    api.get<any>(`/projects?minimal=true&pageSize=2000&customer_id=${customerId}${allocParam}`)
       .then(r => setProjects(items(r).map((p: any) => ({ id: p.id, name: p.code ? `${p.code} — ${p.name}` : p.name }))))
       .catch(() => setProjects([]))
       .finally(() => setLoadingProjects(false))
-  }, [customerId])
+  }, [customerId, consultantUserId])
 
   const save = async () => {
     if (!customerId) { toast.error('Selecione o cliente'); return }
@@ -1189,6 +1192,17 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
     () => (data?.items ?? []).filter(ts => selectedIds.has(ts.id) && ts.status === 'approved').length,
     [data?.items, selectedIds]
   )
+  // Consultor único da seleção → no modal de realocação, oferece só projetos em que ele
+  // está alocado. Null quando a seleção mistura consultores (não dá pra filtrar por um só).
+  const selectedConsultantId = useMemo(() => {
+    const uids = new Set(
+      (data?.items ?? [])
+        .filter(ts => selectedIds.has(ts.id))
+        .map(ts => ts.user?.id)
+        .filter((v): v is number => typeof v === 'number'),
+    )
+    return uids.size === 1 ? (Array.from(uids)[0] as number) : null
+  }, [data?.items, selectedIds])
 
   return (
     <div className="w-full max-w-full overflow-x-hidden">
@@ -1935,6 +1949,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           ids={Array.from(selectedIds)}
           customers={customers}
           approvedCount={selectedApprovedCount}
+          consultantUserId={selectedConsultantId}
           onClose={() => setBulkPcOpen(false)}
           onSaved={async () => {
             const changed = Array.from(selectedIds)
