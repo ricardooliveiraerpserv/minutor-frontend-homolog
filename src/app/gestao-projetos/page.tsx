@@ -2251,7 +2251,7 @@ export default function GestaoProjetosPage() {
 
   useEffect(() => {
     setLoading(true)
-    const qs = new URLSearchParams({ pageSize: '200', gestao: 'true' })
+    const qs = new URLSearchParams({ pageSize: '1000', gestao: 'true' })
     if (yearMonth) qs.set('year_month', yearMonth) // alimenta a coluna Consumo Mensal
     if (multiContratual) { qs.set('parent_projects_only', 'true'); qs.set('with_children_only', 'true') }
     api.get<PaginatedResponse<ProjectWithTeam>>(`/projects?${qs}`)
