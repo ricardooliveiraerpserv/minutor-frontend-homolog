@@ -29,6 +29,7 @@ interface SummaryData {
   contracted_hours: number
   extrato_visivel_cliente?: boolean
   monthly_statement?: any
+  monthly_increments?: { year_month: string; hours: number }[] | null
   accumulated_contracted_hours?: number
   contributed_hours?: number
   consumed_hours: number
@@ -638,6 +639,7 @@ export default function BankHoursMonthlyPage() {
                         hoursPerMonth={summary.contracted_hours ?? 0}
                         accumulated={summary.accumulated_contracted_hours ?? null}
                         statement={summary.monthly_statement ?? null}
+                        monthlyIncrements={summary.monthly_increments ?? null}
                       />
                     )}
 

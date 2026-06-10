@@ -795,9 +795,16 @@ export default function FechamentoClientePage() {
       setReportHtml(null)
       const isServ = tab === 'relatorio'
       const isDesp = tab === 'cobranca'
-      if ((!isServ && !isDesp) || !customerId) return
-      if (isServ && projetos.length === 0) return
-      if (isDesp && despesas.length === 0) return
+      // Saídas "não vai carregar" precisam zerar o loading também: se um run anterior
+      // ligou reportHtmlLoading e foi cancelado (cancelled=true), o finally guardado
+      // por !cancelled não desliga o flag — e este run, ao dar return cedo, deixaria o
+      // skeleton preso pra sempre (relatório não abre após refetch/troca de valor).
+      if ((!isServ && !isDesp) || !customerId
+          || (isServ && projetos.length === 0)
+          || (isDesp && despesas.length === 0)) {
+        setReportHtmlLoading(false)
+        return
+      }
       setReportHtmlLoading(true)
       try {
         // Filtro de contrato (projetoFilter) propaga pro BE: senão o relatório/PDF
