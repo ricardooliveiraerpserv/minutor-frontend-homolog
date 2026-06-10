@@ -1034,6 +1034,31 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     }
   }
 
+  // Vigência das horas vendidas (Banco de Horas Mensal): quando sold_hours muda,
+  // perguntamos a partir de qual mês passa a valer (espelha o valor-hora).
+  const [soldHoursModalOpen, setSoldHoursModalOpen] = useState(false)
+  const [soldHoursEffectiveMonth, setSoldHoursEffectiveMonth] = useState<string>(() => new Date().toISOString().slice(0, 7))
+  // Vigência(s) já confirmada(s) carregada(s) entre os modais (rate + horas) num mesmo save.
+  const [pendingEff, setPendingEff] = useState<{ rate?: string; sold?: string }>({})
+
+  // Histórico de horas vendidas (somente leitura) — GET /projects/{id}/sold-hours-history
+  const [soldHoursHistoryOpen, setSoldHoursHistoryOpen] = useState(false)
+  const [soldHoursHistory, setSoldHoursHistory] = useState<any[]>([])
+  const [soldHoursHistoryLoading, setSoldHoursHistoryLoading] = useState(false)
+  const openSoldHoursHistory = async () => {
+    setSoldHoursHistoryOpen(true)
+    setSoldHoursHistoryLoading(true)
+    try {
+      const res = await api.get<any[]>(`/projects/${project.id}/sold-hours-history`)
+      setSoldHoursHistory(Array.isArray(res) ? res : [])
+    } catch {
+      setSoldHoursHistory([])
+      toast.error('Erro ao carregar histórico de horas')
+    } finally {
+      setSoldHoursHistoryLoading(false)
+    }
+  }
+
   const selectedCustomerObj = useMemo(() => optCustomers.find(c => String(c.id) === form.customer_id), [optCustomers, form.customer_id])
   // Use prefix from selected customer, or fall back to original code prefix
   const codePrefix  = selectedCustomerObj?.code_prefix?.toUpperCase() ?? (d.code ?? '').match(/^([A-Za-z]+)/)?.[1]?.toUpperCase() ?? ''
@@ -1072,7 +1097,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   // Draft local pra permitir digitar suave; quando null, mostra o valor derivado do %.
   const [gestaoDraft, setGestaoDraft] = useState<string | null>(null)
 
-  const handleSave = async (hourlyRateEffectiveFrom?: string) => {
+  const handleSave = async (eff: { rate?: string; sold?: string } = {}) => {
     if (!form.name.trim()) { toast.error('Nome obrigatório'); return }
     if (codeExists) { toast.error('Código já existe em outro projeto. Altere o código antes de salvar.'); return }
     // Horas de coordenação obrigatórias para projetos que não são On Demand
@@ -1139,10 +1164,15 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       payload.kanban_coordinator_override_id = form.kanban_coordinator_override_id === ''
         ? null
         : Number(form.kanban_coordinator_override_id)
-      // Mudou o valor-hora? Abre o modal de vigência antes de enviar (fechamentos passados não mudam).
+      // Mudou o valor-hora e/ou as horas vendidas (BH Mensal)? Abre o modal de vigência
+      // antes de enviar (fechamentos de meses anteriores não mudam). Se ambos mudaram,
+      // pede um mês de cada vez, carregando o já confirmado em pendingEff.
       const rateChanged = form.hourly_rate !== '' && Number(form.hourly_rate) !== Number(d.hourly_rate ?? 0)
-      if (rateChanged && !hourlyRateEffectiveFrom) { setSaving(false); setRateModalOpen(true); return }
-      if (rateChanged && hourlyRateEffectiveFrom) { payload.hourly_rate_effective_from = hourlyRateEffectiveFrom }
+      const soldChanged = editIsBhMensal && form.sold_hours !== '' && Number(form.sold_hours) !== Number(d.sold_hours ?? 0)
+      if (rateChanged && !eff.rate) { setSaving(false); setPendingEff(eff); setRateModalOpen(true); return }
+      if (soldChanged && !eff.sold) { setSaving(false); setPendingEff(eff); setSoldHoursModalOpen(true); return }
+      if (rateChanged && eff.rate) { payload.hourly_rate_effective_from = eff.rate }
+      if (soldChanged && eff.sold) { payload.sold_hours_effective_from = eff.sold }
       try {
         await api.put(`/projects/${project.id}`, payload)
       } catch (err: any) {
@@ -1471,15 +1501,26 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                   <div><label style={lStyle}>Hora Adicional (R$)</label><input type="number" value={form.additional_hourly_rate} onChange={setF('additional_hourly_rate')} style={iStyle} placeholder="0.00" step="0.01" /></div>
                 )}
                 {!isOnDemandForm && (
-                  <div><label style={lStyle}>Horas Contratadas</label><input type="number" value={form.sold_hours} onChange={e => {
-                    const hrs = e.target.value
-                    const hr = Number(form.hourly_rate)
-                    setForm(prev => ({
-                      ...prev,
-                      sold_hours: hrs,
-                      project_value: hr > 0 && hrs !== '' ? String(+(hr * Number(hrs)).toFixed(2)) : prev.project_value,
-                    }))
-                  }} style={iStyle} placeholder="0" step="1" /></div>
+                  <div>
+                    <div className="flex items-center justify-between" style={{ marginBottom: '0.375rem' }}>
+                      <label style={{ ...lStyle, marginBottom: 0 }}>Horas Contratadas</label>
+                      {d.id != null && editIsBhMensal && (
+                        <button type="button" onClick={openSoldHoursHistory}
+                          className="text-[10px] font-medium hover:underline" style={{ color: 'var(--primary)' }}>
+                          Histórico de horas
+                        </button>
+                      )}
+                    </div>
+                    <input type="number" value={form.sold_hours} onChange={e => {
+                      const hrs = e.target.value
+                      const hr = Number(form.hourly_rate)
+                      setForm(prev => ({
+                        ...prev,
+                        sold_hours: hrs,
+                        project_value: hr > 0 && hrs !== '' ? String(+(hr * Number(hrs)).toFixed(2)) : prev.project_value,
+                      }))
+                    }} style={iStyle} placeholder="0" step="1" />
+                  </div>
                 )}
                 {showApontaveis && (
                   <div><label style={lStyle}>Percentual Gestão (%)</label><input type="number" value={form.coordinator_hours}
@@ -1815,7 +1856,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
             <div className="flex items-center justify-end gap-3">
               <button onClick={() => setRateModalOpen(false)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
               <button
-                onClick={() => { setRateModalOpen(false); handleSave(`${rateEffectiveMonth}-01`) }}
+                onClick={() => { setRateModalOpen(false); handleSave({ ...pendingEff, rate: `${rateEffectiveMonth}-01` }) }}
                 disabled={!rateEffectiveMonth}
                 className="px-5 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
                 style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--ring)' }}
@@ -1873,6 +1914,88 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
             )}
             <div className="flex items-center justify-end mt-5">
               <button onClick={() => setRateHistoryOpen(false)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vigência da nova quantidade de horas vendidas (BH Mensal) */}
+      {soldHoursModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text)' }}>Vigência das horas vendidas</p>
+            <p className="text-[13px] leading-relaxed mb-4" style={{ color: 'var(--brand-muted)' }}>
+              A partir de qual mês essa nova quantidade de horas passa a valer? Meses anteriores (fechamentos já feitos) não mudam.
+            </p>
+            <div className="mb-5">
+              <label style={lStyle}>Mês de vigência</label>
+              <input
+                type="month"
+                value={soldHoursEffectiveMonth}
+                min={new Date().toISOString().slice(0, 7)}
+                onChange={e => setSoldHoursEffectiveMonth(e.target.value)}
+                style={iStyle}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button onClick={() => setSoldHoursModalOpen(false)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+              <button
+                onClick={() => { setSoldHoursModalOpen(false); handleSave({ ...pendingEff, sold: `${soldHoursEffectiveMonth}-01` }) }}
+                disabled={!soldHoursEffectiveMonth}
+                className="px-5 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--ring)' }}
+              >Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Histórico de horas vendidas (somente leitura) */}
+      {soldHoursHistoryOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Histórico de horas vendidas</p>
+              <button onClick={() => setSoldHoursHistoryOpen(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+            </div>
+            {soldHoursHistoryLoading ? (
+              <p className="text-sm py-6 text-center animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando...</p>
+            ) : soldHoursHistory.length === 0 ? (
+              <p className="text-sm py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhuma alteração registrada.</p>
+            ) : (
+              <div className="max-h-[60vh] overflow-y-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>
+                      <th className="text-left font-semibold px-3 py-2">Vigência</th>
+                      <th className="text-left font-semibold px-3 py-2">Horas</th>
+                      <th className="text-left font-semibold px-3 py-2">Alterado por</th>
+                      <th className="text-left font-semibold px-3 py-2">Em</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {soldHoursHistory.map((h: any, i: number) => (
+                      <tr key={h.id ?? i} style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {h.effective_from
+                            ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
+                            : <span title="vigência não informada (legado)" style={{ color: 'var(--text-light)' }}>—</span>}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums whitespace-nowrap">
+                          {h.sold_hours != null ? `${Number(h.sold_hours)}h` : '—'}
+                        </td>
+                        <td className="px-3 py-2">{h.changer?.name ?? '—'}</td>
+                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+                          {h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex items-center justify-end mt-5">
+              <button onClick={() => setSoldHoursHistoryOpen(false)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Fechar</button>
             </div>
           </div>
         </div>
