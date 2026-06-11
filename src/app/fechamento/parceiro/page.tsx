@@ -39,6 +39,7 @@ interface ParceiroStatus {
   desconto?: number
   desconto_desc?: string | null
   adiantamento?: number
+  adiantamento_desc?: string | null  // descrição das parcelas de adiantamento do mês
   adicional?: number
   adicional_desc?: string | null
   recebimento?: number          // total_a_pagar − desconto − adiantamento + adicional
@@ -474,7 +475,7 @@ export default function FechamentoParceiroPage() {
             <tr class="main-row"><td>Serviço</td><td>—</td><td class="right">${formatBRL(totalServicos)}</td></tr>
             ${mode !== 'servicos' && saldoDesp > 0 ? `<tr class="main-row"><td>Despesa</td><td>—</td><td class="right" style="color:#16a34a">+ ${formatBRL(saldoDesp)}</td></tr>` : ''}
             ${ajDesconto !== 0 ? `<tr class="main-row"><td>Desconto</td><td>${status.desconto_desc ?? '—'}</td><td class="right">− ${formatBRL(ajDesconto)}</td></tr>` : ''}
-            ${ajAdiantamento !== 0 ? `<tr class="main-row"><td>Adiantamento</td><td>—</td><td class="right">− ${formatBRL(ajAdiantamento)}</td></tr>` : ''}
+            ${ajAdiantamento !== 0 ? `<tr class="main-row"><td>Adiantamento</td><td>${status.adiantamento_desc ?? '—'}</td><td class="right">− ${formatBRL(ajAdiantamento)}</td></tr>` : ''}
             ${ajAdicional !== 0 ? `<tr class="main-row"><td>Adicional</td><td>${status.adicional_desc ?? '—'}</td><td class="right">+ ${formatBRL(ajAdicional)}</td></tr>` : ''}
             <tr><td colspan="2" class="right" style="font-weight:bold">Recebimento</td><td class="right" style="font-weight:bold;color:#7c3aed">${formatBRL(Math.round(recebimentoRep * 100) / 100)}</td></tr>
           </tbody>

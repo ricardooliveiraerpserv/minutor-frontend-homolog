@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { api, ApiError } from '@/lib/api'
@@ -11,7 +11,7 @@ import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { Project, PaginatedResponse, HourContribution } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download } from 'lucide-react'
+import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { ProjectViewModal } from '@/components/projects/project-view-modal'
@@ -2245,9 +2245,11 @@ export default function GestaoProjetosPage() {
   const [contributions, setContributions]     = useState<HourContribution[]>([])
   const [contribLoading, setContribLoading]   = useState(false)
   const [contribModal, setContribModal]       = useState<{ open: boolean; item?: HourContribution }>({ open: false })
-  const [contribForm, setContribForm]         = useState({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte' })
+  const [contribForm, setContribForm]         = useState({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte', reason: '' })
   const [contribSaving, setContribSaving]     = useState(false)
   const [contribDeleteConfirm, setContribDeleteConfirm] = useState<HourContribution | null>(null)
+  // Aporte cujo histórico de auditoria está expandido (id) — null = nenhum.
+  const [contribHistoryOpen, setContribHistoryOpen] = useState<number | null>(null)
 
   // Abre modal de Aportes do projeto se URL contém ?aportes=ID.
   // Fallback: a navegação principal usa o modal do ProjectViewModal (aba Aportes)
@@ -2504,7 +2506,7 @@ export default function GestaoProjetosPage() {
     }
     setContribSaving(true)
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         contributed_hours: Number(contribForm.contributed_hours),
         hourly_rate: Number(contribForm.hourly_rate),
         contributed_at: contribForm.contributed_at,
@@ -2512,6 +2514,8 @@ export default function GestaoProjetosPage() {
         motivo: contribForm.motivo || 'aporte',
       }
       if (contribModal.item) {
+        // Auditoria: motivo da alteração (opcional) vai pro histórico.
+        if (contribForm.reason.trim()) payload.reason = contribForm.reason.trim()
         await api.put(`/projects/${aportesProject.id}/hour-contributions/${contribModal.item.id}`, payload)
         toast.success('Aporte atualizado')
       } else {
@@ -3411,7 +3415,7 @@ export default function GestaoProjetosPage() {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => {
-                  setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: new Date().toISOString().slice(0, 10), description: '', motivo: 'aporte' })
+                  setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: new Date().toISOString().slice(0, 10), description: '', motivo: 'aporte', reason: '' })
                   setContribModal({ open: true })
                 }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:opacity-90"
                   style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--ring)' }}>
@@ -3464,8 +3468,12 @@ export default function GestaoProjetosPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {contributions.map(c => (
-                            <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          {contributions.map(c => {
+                            const logs = c.change_logs ?? []
+                            const histOpen = contribHistoryOpen === c.id
+                            return (
+                            <Fragment key={c.id}>
+                            <tr style={{ borderBottom: histOpen ? 'none' : '1px solid var(--border)' }}>
                               <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
                                 {c.contributed_at ? c.contributed_at.slice(0, 10).split('-').reverse().join('/') : '—'}
                               </td>
@@ -3475,6 +3483,15 @@ export default function GestaoProjetosPage() {
                               <td className="px-3 py-2.5 max-w-[160px] truncate" style={{ color: 'var(--text-muted)' }}>{c.description ?? '—'}</td>
                               <td className="px-3 py-2.5">
                                 <div className="flex items-center gap-1">
+                                  {logs.length > 0 && (
+                                    <button onClick={() => setContribHistoryOpen(histOpen ? null : c.id)}
+                                      title={`${logs.length} alteração(ões) — ver histórico`}
+                                      className="p-1 rounded hover:bg-[var(--surface-hover)] transition-colors flex items-center gap-0.5"
+                                      style={{ color: histOpen ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                      <History size={12} />
+                                      <span className="text-[9px] font-bold tabular-nums">{logs.length}</span>
+                                    </button>
+                                  )}
                                   <button onClick={() => {
                                     setContribModal({ open: true, item: c })
                                     setContribForm({
@@ -3483,6 +3500,7 @@ export default function GestaoProjetosPage() {
                                       contributed_at: c.contributed_at?.slice(0, 10) ?? '',
                                       description: c.description ?? '',
                                       motivo: (c as any).motivo ?? 'aporte',
+                                      reason: '',
                                     })
                                   }} className="p-1 rounded hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)' }}>
                                     <Pencil size={12} />
@@ -3493,7 +3511,38 @@ export default function GestaoProjetosPage() {
                                 </div>
                               </td>
                             </tr>
-                          ))}
+                            {histOpen && (
+                              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+                                <td colSpan={6} className="px-3 py-3">
+                                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+                                    <History size={11} /> Histórico de alterações
+                                  </p>
+                                  <div className="space-y-1.5">
+                                    {logs.map(l => (
+                                      <div key={l.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[11px]">
+                                        <span className="font-semibold" style={{ color: 'var(--text)' }}>{l.field_label}:</span>
+                                        {l.field_name === 'deleted' ? (
+                                          <span className="text-red-400 font-medium">aporte excluído ({l.old_value})</span>
+                                        ) : (
+                                          <span style={{ color: 'var(--text-muted)' }}>
+                                            <span className="line-through opacity-70">{l.old_value_formatted ?? '—'}</span>
+                                            <span className="mx-1">→</span>
+                                            <span className="font-semibold" style={{ color: 'var(--primary)' }}>{l.new_value_formatted ?? '—'}</span>
+                                          </span>
+                                        )}
+                                        <span style={{ color: 'var(--text-light)' }}>
+                                          · {l.changed_by_user?.name ?? 'sistema'}
+                                          {l.created_at ? ' · ' + new Date(l.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                                        </span>
+                                        {l.reason && <span className="italic" style={{ color: 'var(--text-light)' }}>— {l.reason}</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                            </Fragment>
+                          )})}
                         </tbody>
                       </table>
                     </div>
@@ -3518,7 +3567,7 @@ export default function GestaoProjetosPage() {
               </h3>
               <button onClick={() => {
                 setContribModal({ open: false })
-                setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte' })
+                setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte', reason: '' })
               }} className="p-1 rounded hover:bg-[var(--surface-hover)]"><X size={14} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
             <div className="px-5 py-4 space-y-3">
@@ -3541,11 +3590,14 @@ export default function GestaoProjetosPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Data *</label>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Data / Mês de vigência *</label>
                 <input type="date" value={contribForm.contributed_at}
                   onChange={e => setContribForm(f => ({ ...f, contributed_at: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg text-xs outline-none"
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', colorScheme: 'dark' }} />
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
+                  Define a competência do aporte: o valor vale a partir deste mês e <strong>não altera os meses anteriores</strong>.
+                </p>
               </div>
               <div>
                 <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Motivo *</label>
@@ -3566,11 +3618,22 @@ export default function GestaoProjetosPage() {
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                   placeholder="Opcional" />
               </div>
+              {/* Auditoria: ao EDITAR um aporte, registra o motivo no histórico. */}
+              {contribModal.item && (
+                <div>
+                  <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Motivo da alteração</label>
+                  <input type="text" value={contribForm.reason}
+                    onChange={e => setContribForm(f => ({ ...f, reason: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-xs outline-none"
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                    placeholder="Opcional — fica registrado no histórico" />
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 px-5 py-4" style={{ borderTop: '1px solid var(--border)' }}>
               <button onClick={() => {
                 setContribModal({ open: false })
-                setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte' })
+                setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte', reason: '' })
               }} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
               <button onClick={saveContrib} disabled={contribSaving}
                 className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"

@@ -44,6 +44,7 @@ import {
   Search,
   Inbox,
   Mail,
+  Banknote,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -186,6 +187,8 @@ const NAV: NavEntry[] = [
       { label: 'Clientes',            href: '/fechamento/cliente',      icon: Building2  },
       { label: 'Parceiros',           href: '/fechamento/parceiro',     icon: Handshake  },
       { label: 'Consultores',         href: '/fechamento/consultor',    icon: UserCheck  },
+      { label: 'Adiantamentos',       href: '/fechamento/adiantamentos', icon: Banknote },
+      { label: 'Diretoria',           href: '/fechamento/diretoria',    icon: Briefcase },
       { label: 'Folha Cooperativa',   href: '/fechamento/folha',        icon: FileSpreadsheet },
       { label: 'Contratos',           href: '/fechamento/contratos',    icon: FileText   },
       { label: 'Reajuste de Contrato', href: '/fechamento/reajustes',   icon: TrendingUp },
@@ -406,6 +409,8 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             { label: 'Clientes',           href: '/fechamento/cliente',   icon: Building2 },
             { label: 'Parceiros',          href: '/fechamento/parceiro',  icon: Handshake },
             { label: 'Consultores',        href: '/fechamento/consultor', icon: Users },
+            { label: 'Adiantamentos',      href: '/fechamento/adiantamentos', icon: Banknote },
+            { label: 'Diretoria',          href: '/fechamento/diretoria', icon: Briefcase },
             { label: 'Folha Cooperativa',  href: '/fechamento/folha',     icon: FileSpreadsheet },
             { label: 'Contratos',          href: '/fechamento/contratos', icon: FileText  },
             { label: 'Reajuste de Contrato', href: '/fechamento/reajustes', icon: TrendingUp },

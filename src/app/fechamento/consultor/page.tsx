@@ -35,7 +35,8 @@ interface ConsultorBase {
   total_despesas: number    // despesas pagar_no_fechamento (não pagas avulso) somadas
   desconto: number          // ajuste manual: desconto
   desconto_desc: string | null
-  adiantamento: number      // ajuste manual: adiantamento
+  adiantamento: number      // ajuste manual: adiantamento + parcelas da rotina
+  adiantamento_desc?: string | null  // descrição das parcelas de adiantamento do mês
   adicional: number         // ajuste manual: adicional
   adicional_desc: string | null
   recebimento: number       // total + despesas − desconto − adiantamento + adicional
@@ -371,7 +372,7 @@ function buildReport(
           <tr class="main-row"><td>Serviço</td><td>—</td><td class="right">${formatBRL(servTotal)}</td></tr>
           ${isDesp && despTot > 0 ? `<tr class="main-row"><td>Despesa</td><td>—</td><td class="right" style="color:#16a34a">+ ${formatBRL(despTot)}</td></tr>` : ''}
           <tr class="main-row"><td>Desconto</td><td>${consultor.desconto_desc ?? '—'}</td><td class="right" style="color:#dc2626">− ${formatBRL(desconto)}</td></tr>
-          <tr class="main-row"><td>Adiantamento</td><td>—</td><td class="right" style="color:#dc2626">− ${formatBRL(adiantamento)}</td></tr>
+          <tr class="main-row"><td>Adiantamento</td><td>${consultor.adiantamento_desc ?? '—'}</td><td class="right" style="color:#dc2626">− ${formatBRL(adiantamento)}</td></tr>
           <tr class="main-row"><td>Adicional</td><td>${consultor.adicional_desc ?? '—'}</td><td class="right" style="color:#16a34a">+ ${formatBRL(adicional)}</td></tr>
         </tbody>
       </table>

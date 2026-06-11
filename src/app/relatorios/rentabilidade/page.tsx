@@ -26,15 +26,25 @@ interface DisplayRow extends Row { key: string; n_consultores: number }
 // Aba "Clientes": rentabilidade por cliente cruzada com o RECEBIMENTO do Keruak
 // (por CNPJ). O recebido é sempre do mês seguinte ao apontamento (trabalha em M,
 // recebe em M+1): apontamentos de maio ↔ recebimento de junho.
+interface ConsultorRent { user_id: number; consultor: string; valor_hora: number; horas: number; custo: number }
 interface ClienteRow {
-  customer_id: number | null; cliente: string; cnpj: string
+  customer_id: number | null; cliente: string; cnpj: string; executivo: string | null
   horas: number; receita: number; custo: number; margem: number; margem_pct: number | null
   recebido: number; margem_real: number; margem_real_pct: number | null; no_minutor: boolean
+  consultores: ConsultorRent[]
+  // +40% Custo = 40% do Valor Recebido; Custo Total = Custo Operação + 40%; Resultado = Recebido − Custo Total.
+  custo40: number; custo_total: number; resultado: number; resultado_pct: number | null
 }
 
 const fmtH = (h: number) => `${h.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}h`
-const fmtCnpj = (c: string) => c && c.length === 14 ? c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (c || '—')
 const pctColor = (p: number | null) => p == null ? 'var(--text-light)' : p < 0 ? 'var(--danger)' : p < 20 ? 'var(--warning)' : 'var(--success)'
+
+// Cores das colunas (mesmo conceito do BI): cabeçalho forte + célula tonalizada.
+const COL_HEAD = { recebido: '#38761d', custo: '#bf9000', custo40: '#d9683a', total: '#cc0000', resultado: '#1f6fbf', margem: '#bf9000' }
+const COL_CELL = { recebido: '#d9ead3', custo: '#fff2cc', custo40: '#fce5cd', total: '#f4cccc', resultado: '#cfe2f3' }
+const margemBg = (pct: number | null) => pct == null ? '#e5e7eb' : pct < 0 ? '#e06666' : pct < 5 ? '#f6b26b' : '#93c47d'
+const thCol = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.25)', position: 'sticky', top: 0, zIndex: 2 })
+const tdCol = (bg: string, color = '#111827'): React.CSSProperties => ({ background: bg, color, padding: '6px 10px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(0,0,0,0.06)', whiteSpace: 'nowrap' })
 
 export default function RentabilidadePage() {
   const now = new Date()
@@ -52,11 +62,14 @@ export default function RentabilidadePage() {
   const [fCliente, setFCliente]     = useState('')
   const [fProjeto, setFProjeto]     = useState('')
   const [fConsultor, setFConsultor] = useState('')
-  const [visao, setVisao] = useState<'consultor' | 'projeto' | 'clientes'>('consultor')
+  const [visao] = useState<'consultor' | 'projeto' | 'clientes'>('clientes')
   const [clientesRows, setClientesRows] = useState<ClienteRow[]>([])
   const [clientesLoading, setClientesLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [soMinutor, setSoMinutor] = useState(false)
+  const [fExecutivo, setFExecutivo] = useState('')
+  const [fConsultorCli, setFConsultorCli] = useState('')
+  const [expandedCli, setExpandedCli] = useState<Set<string>>(new Set())
 
   const monthsToFetch = useMemo(() => {
     if (mode === 'mes') return [`${year}-${String(month).padStart(2, '0')}`]
@@ -108,19 +121,29 @@ export default function RentabilidadePage() {
       for (const r of all) {
         const k = r.cnpj || (r.customer_id != null ? 'c' + r.customer_id : r.cliente)
         const e = map.get(k)
-        if (!e) map.set(k, { ...r })
+        if (!e) map.set(k, { ...r, consultores: (r.consultores || []).map(c => ({ ...c })) })
         else {
           e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.recebido += r.recebido
           e.no_minutor = e.no_minutor || r.no_minutor
+          if (!e.executivo && r.executivo) e.executivo = r.executivo
+          for (const c of (r.consultores || [])) {
+            const ex = e.consultores.find(x => x.user_id === c.user_id)
+            if (ex) { ex.horas += c.horas; ex.custo += c.custo } else e.consultores.push({ ...c })
+          }
         }
       }
       setClientesRows([...map.values()].map(r => {
         const horas = r2(r.horas), receita = r2(r.receita), custo = r2(r.custo), recebido = r2(r.recebido)
         const margem = r2(receita - custo), margem_real = r2(recebido - custo)
+        // +40% Custo = 40% do Valor Recebido; Custo Total = Custo Operação + 40%; Resultado = Recebido − Custo Total.
+        const custo40 = r2(recebido * 0.40)
+        const custo_total = r2(custo + custo40)
+        const resultado = r2(recebido - custo_total)
         return {
           ...r, horas, receita, custo, recebido, margem,
           margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
           margem_real, margem_real_pct: recebido > 0 ? Math.round(margem_real / recebido * 1000) / 10 : null,
+          custo40, custo_total, resultado, resultado_pct: recebido > 0 ? Math.round(resultado / recebido * 1000) / 10 : null,
         }
       }))
     }).finally(() => { setClientesLoading(false); setRefreshing(false) })
@@ -242,22 +265,35 @@ export default function RentabilidadePage() {
   const clientesFiltered = useMemo(() => clientesRows.filter(r => {
     if (soReceita && r.receita === 0 && r.recebido === 0) return false
     if (soMinutor && !r.no_minutor) return false
+    if (fExecutivo && (r.executivo ?? '') !== fExecutivo) return false
+    if (fConsultorCli && !(r.consultores ?? []).some(c => String(c.user_id) === fConsultorCli)) return false
     if (busca.trim()) {
       const q = busca.trim().toLowerCase()
       if (!r.cliente.toLowerCase().includes(q) && !r.cnpj.includes(busca.replace(/\D/g, ''))) return false
     }
     return true
-  }), [clientesRows, soReceita, soMinutor, busca])
+  }), [clientesRows, soReceita, soMinutor, fExecutivo, fConsultorCli, busca])
+  const executivos = useMemo(() => [...new Set(clientesRows.map(r => r.executivo).filter(Boolean) as string[])].sort(), [clientesRows])
+  const consultoresCli = useMemo(() => {
+    const m = new Map<number, string>()
+    clientesRows.forEach(r => (r.consultores ?? []).forEach(c => m.set(c.user_id, c.consultor)))
+    return [...m.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [clientesRows])
   const { sorted: clientesSorted, thProps: cliThProps } = useTableSort(clientesFiltered)
   const clientesTot = useMemo(() => {
     const receita = clientesFiltered.reduce((s, r) => s + r.receita, 0)
     const custo = clientesFiltered.reduce((s, r) => s + r.custo, 0)
     const recebido = clientesFiltered.reduce((s, r) => s + r.recebido, 0)
-    return { receita, custo, recebido, margemReal: recebido - custo, pct: recebido > 0 ? (recebido - custo) / recebido * 100 : null }
+    const custo40 = clientesFiltered.reduce((s, r) => s + r.custo40, 0)
+    const custoTotal = custo + custo40
+    const resultado = recebido - custoTotal
+    // Margem operacional = resultado SEM os 40% (só custo operação).
+    const margemOpPct = recebido > 0 ? (recebido - custo) / recebido * 100 : null
+    return { receita, custo, recebido, custo40, custoTotal, resultado, pct: recebido > 0 ? resultado / recebido * 100 : null, margemOpPct }
   }, [clientesFiltered])
 
-  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true); setSoMinutor(false) }
-  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita || soMinutor)
+  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true); setSoMinutor(false); setFExecutivo(''); setFConsultorCli('') }
+  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita || soMinutor || fExecutivo || fConsultorCli)
 
   const fmtYm = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) }
   const fmtMes = () => monthsToFetch.length === 1
@@ -273,9 +309,10 @@ export default function RentabilidadePage() {
   const exportExcel = () => {
     if (visao === 'clientes') {
       const data = clientesSorted.map(r => ({
-        Cliente: r.cliente, CNPJ: r.cnpj, 'No Minutor': r.no_minutor ? 'Sim' : 'Não',
-        Horas: r.horas, Custo: r.custo,
-        'Recebido (M+1)': r.recebido, 'Margem Real': r.margem_real, 'Margem Real %': r.margem_real_pct,
+        Cliente: r.cliente, 'No Minutor': r.no_minutor ? 'Sim' : 'Não',
+        'Valor Recebido': r.recebido, 'Custo Operação': r.custo, '+40% Custo': r.custo40,
+        'Custo Total': r.custo_total, Resultado: r.resultado,
+        'Margem Operacional %': r.margem_real_pct, 'Margem Total %': r.resultado_pct,
       }))
       const ws = XLSX.utils.json_to_sheet(data)
       const wb = XLSX.utils.book_new()
@@ -296,10 +333,12 @@ export default function RentabilidadePage() {
   const exportPdf = () => {
     if (visao === 'clientes') {
       const linhas = clientesSorted.map(r => `
-        <tr><td>${r.cliente}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td><td>${fmtCnpj(r.cnpj)}</td>
-        <td class="r">${fmtH(r.horas)}</td><td class="r">${formatBRL(r.custo)}</td>
-        <td class="r">${formatBRL(r.recebido)}</td><td class="r">${formatBRL(r.margem_real)}</td>
-        <td class="r">${r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</td></tr>`).join('')
+        <tr><td>${r.cliente}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td>
+        <td class="r">${formatBRL(r.recebido)}</td><td class="r">${formatBRL(r.custo)}</td>
+        <td class="r">${formatBRL(r.custo40)}</td><td class="r">${formatBRL(r.custo_total)}</td>
+        <td class="r">${formatBRL(r.resultado)}</td>
+        <td class="r">${r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</td>
+        <td class="r">${r.resultado_pct == null ? '—' : r.resultado_pct + '%'}</td></tr>`).join('')
       const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Rentabilidade Clientes — ${fmtMes()}</title>
         <style>body{font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;font-size:11px;padding:20px;}
         h1{font-size:18px;color:#5b21b6;margin:0 0 2px;} .sub{color:#6b7280;font-size:11px;margin-bottom:14px;}
@@ -308,9 +347,9 @@ export default function RentabilidadePage() {
         @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>
         <h1>Rentabilidade por Cliente</h1>
         <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesSorted.length} cliente(s)</div>
-        <table><thead><tr><th>Cliente</th><th>CNPJ</th><th class="r">Horas</th><th class="r">Custo</th><th class="r">Recebido (M+1)</th><th class="r">Margem Real</th><th class="r">%</th></tr></thead>
+        <table><thead><tr><th>Cliente</th><th class="r">Valor Recebido</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Resultado</th><th class="r">Margem Operacional</th><th class="r">Margem Total</th></tr></thead>
         <tbody>${linhas}</tbody>
-        <tfoot><tr><td colspan="3" class="r">Total</td><td class="r">${formatBRL(clientesTot.custo)}</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.margemReal)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
+        <tfoot><tr><td class="r">Total</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.custo)}</td><td class="r">${formatBRL(clientesTot.custo40)}</td><td class="r">${formatBRL(clientesTot.custoTotal)}</td><td class="r">${formatBRL(clientesTot.resultado)}</td><td class="r">${clientesTot.margemOpPct == null ? '—' : clientesTot.margemOpPct.toFixed(1) + '%'}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
         <script>window.onload=function(){window.print();}</script></body></html>`
       const w = window.open('', '_blank')
       if (w) { w.document.write(html); w.document.close() }
@@ -385,17 +424,6 @@ export default function RentabilidadePage() {
         />
 
         <div className="flex flex-wrap items-end gap-3 mb-4">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Visão</p>
-            <div className="inline-flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-              {([['consultor', 'Consultor × Projeto'], ['projeto', 'Por projeto'], ['clientes', 'Clientes']] as const).map(([v, label], i) => (
-                <button key={v} onClick={() => setVisao(v)} className="px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap"
-                  style={{ background: visao === v ? 'var(--primary)' : 'transparent', color: visao === v ? 'var(--primary-fg)' : 'var(--text-muted)', borderLeft: i > 0 ? '1px solid var(--border)' : undefined }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
           {visao !== 'clientes' && (<>
             <div className="min-w-[180px]">
               <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Cliente</p>
@@ -420,6 +448,16 @@ export default function RentabilidadePage() {
               Só clientes do Minutor
             </label>
           )}
+          {visao === 'clientes' && (
+            <div className="w-48 pb-2">
+              <SearchSelect value={fExecutivo} onChange={setFExecutivo} options={executivos.map(e => ({ id: e, name: e }))} placeholder="Executivo (todos)" />
+            </div>
+          )}
+          {visao === 'clientes' && (
+            <div className="w-52 pb-2">
+              <SearchSelect value={fConsultorCli} onChange={setFConsultorCli} options={consultoresCli} placeholder="Consultor (todos)" />
+            </div>
+          )}
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..."
             className="flex-1 min-w-[160px] px-3 py-2 rounded-xl text-xs outline-none"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
@@ -429,10 +467,11 @@ export default function RentabilidadePage() {
         {/* Cards de total */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           {(visao === 'clientes' ? [
-            // Receita (Minutor) removida: p/ cliente a apuração é o recebido do Keruak (M+1).
-            { label: 'Custo', value: formatBRL(clientesTot.custo), color: 'var(--text)' },
-            { label: 'Recebido (M+1)', value: formatBRL(clientesTot.recebido), color: 'var(--brand-primary)' },
-            { label: 'Margem Real %', value: clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%', color: pctColor(clientesTot.pct) },
+            // Valor Recebido (Keruak M+1) − Custo Total (Operação + 40% do recebido).
+            { label: 'Valor Recebido', value: formatBRL(clientesTot.recebido), color: 'var(--brand-primary)' },
+            { label: 'Custo Operacional', value: formatBRL(clientesTot.custo), color: 'var(--text)' },
+            { label: 'Resultado', value: formatBRL(clientesTot.resultado), color: pctColor(clientesTot.pct) },
+            { label: 'Margem', value: clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%', color: pctColor(clientesTot.pct) },
           ] : [
             { label: 'Receita', value: formatBRL(tot.receita), color: 'var(--text)' },
             { label: 'Custo', value: formatBRL(tot.custo), color: 'var(--text)' },
@@ -448,39 +487,104 @@ export default function RentabilidadePage() {
 
         {visao === 'clientes' ? (
           clientesLoading && clientesRows.length === 0 ? (
-            <SkeletonTable rows={8} cols={7} />
+            <SkeletonTable rows={8} cols={9} />
           ) : clientesFiltered.length === 0 ? (
             <EmptyState icon={TrendingUp} title="Sem dados" description="Nenhum cliente/recebimento para o mês/filtros." />
           ) : (
-            <Table>
-              <Thead>
-                <tr>
-                  <Th {...cliThProps('cliente')}>Cliente</Th>
-                  <Th {...cliThProps('cnpj')}>CNPJ</Th>
-                  <Th right {...cliThProps('horas')}>Horas</Th>
-                  <Th right {...cliThProps('custo')}>Custo</Th>
-                  <Th right {...cliThProps('recebido')}>Recebido (M+1)</Th>
-                  <Th right {...cliThProps('margem_real')}>Margem Real</Th>
-                  <Th right {...cliThProps('margem_real_pct')}>%</Th>
-                </tr>
-              </Thead>
-              <Tbody>
-                {clientesSorted.map(r => (
-                  <Tr key={r.cnpj || `c${r.customer_id}` || r.cliente}>
-                    <Td className="font-medium" style={{ color: 'var(--text)' }}>
-                      <span className="truncate max-w-[240px] inline-block align-bottom">{r.cliente}</span>
-                      {!r.no_minutor && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>(fora do Minutor)</span>}
-                    </Td>
-                    <Td muted className="tabular-nums">{fmtCnpj(r.cnpj)}</Td>
-                    <Td right muted className="tabular-nums">{fmtH(r.horas)}</Td>
-                    <Td right muted className="tabular-nums">{formatBRL(r.custo)}</Td>
-                    <Td right className="font-semibold tabular-nums" style={{ color: 'var(--brand-primary)' }}>{formatBRL(r.recebido)}</Td>
-                    <Td right className="font-semibold tabular-nums">{formatBRL(r.margem_real)}</Td>
-                    <Td right className="font-semibold tabular-nums" style={{ color: pctColor(r.margem_real_pct) }}>{r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
+            <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)', maxHeight: '70vh' }}>
+              <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th onClick={cliThProps('cliente').onClick} style={{ background: 'var(--surface)', color: 'var(--text-light)', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', textAlign: 'left', cursor: 'pointer', position: 'sticky', top: 0, zIndex: 2 }}>Cliente</th>
+                    <th onClick={cliThProps('executivo').onClick} style={{ background: 'var(--surface)', color: 'var(--text-light)', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', textAlign: 'center', cursor: 'pointer', position: 'sticky', top: 0, zIndex: 2 }}>Executivo</th>
+                    <th onClick={cliThProps('recebido').onClick} style={thCol(COL_HEAD.recebido)}>Valor Recebido</th>
+                    <th onClick={cliThProps('custo').onClick} style={thCol(COL_HEAD.custo)}>Custo Operação</th>
+                    <th onClick={cliThProps('custo40').onClick} style={thCol(COL_HEAD.custo40)}>+40% Custo</th>
+                    <th onClick={cliThProps('custo_total').onClick} style={thCol(COL_HEAD.total)}>Custo Total</th>
+                    <th onClick={cliThProps('resultado').onClick} style={thCol(COL_HEAD.resultado)}>Resultado</th>
+                    <th onClick={cliThProps('margem_real_pct').onClick} style={thCol('#674ea7')}>Margem Operacional</th>
+                    <th onClick={cliThProps('resultado_pct').onClick} style={thCol(COL_HEAD.margem)}>Margem Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientesSorted.map(r => {
+                    const ck = r.cnpj || `c${r.customer_id}` || r.cliente
+                    const open = expandedCli.has(ck)
+                    const temConsultores = (r.consultores?.length ?? 0) > 0
+                    return (
+                    <Fragment key={ck}>
+                    <tr style={{ cursor: temConsultores ? 'pointer' : 'default' }}
+                      onClick={() => { if (temConsultores) setExpandedCli(prev => { const n = new Set(prev); n.has(ck) ? n.delete(ck) : n.add(ck); return n }) }}>
+                      <td style={{ padding: '6px 10px', color: 'var(--text)', fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
+                        {temConsultores && (open ? <ChevronDown size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
+                        <span className="truncate max-w-[220px] inline-block align-bottom">{r.cliente}</span>
+                        {!r.no_minutor && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>(fora do Minutor)</span>}
+                      </td>
+                      <td style={{ padding: '6px 10px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', textAlign: 'center' }}>{r.executivo || '—'}</td>
+                      <td style={tdCol(COL_CELL.recebido)}>{formatBRL(r.recebido)}</td>
+                      <td style={tdCol(COL_CELL.custo)}>{formatBRL(r.custo)}</td>
+                      <td style={tdCol(COL_CELL.custo40)}>{formatBRL(r.custo40)}</td>
+                      <td style={tdCol(COL_CELL.total)}>{formatBRL(r.custo_total)}</td>
+                      <td style={tdCol(COL_CELL.resultado, r.resultado < 0 ? '#cc0000' : '#111827')}>{formatBRL(r.resultado)}</td>
+                      <td style={tdCol(margemBg(r.margem_real_pct), '#fff')}><strong>{r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</strong></td>
+                      <td style={tdCol(margemBg(r.resultado_pct), '#fff')}><strong>{r.resultado_pct == null ? '—' : r.resultado_pct + '%'}</strong></td>
+                    </tr>
+                    {open && temConsultores && (
+                      <tr>
+                        <td colSpan={9} style={{ padding: '0 0 8px 28px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                          <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ color: 'var(--text-light)' }}>
+                                <th style={{ textAlign: 'left', padding: '6px 8px' }}>Consultor</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Horas</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>% Particip.</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Receita (rateio)</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Custo</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Margem</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>% Margem</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {[...r.consultores].sort((a, b) => b.horas - a.horas).map(c => {
+                                const pct = r.horas > 0 ? c.horas / r.horas : 0
+                                const receitaC = Math.round(r.recebido * pct * 100) / 100
+                                const margemC = Math.round((receitaC - c.custo) * 100) / 100
+                                const margemPctC = receitaC > 0 ? Math.round(margemC / receitaC * 1000) / 10 : null
+                                return (
+                                  <tr key={c.user_id} style={{ borderTop: '1px solid var(--border)' }}>
+                                    <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>{c.consultor} <span style={{ color: 'var(--text-light)', fontSize: 11 }}>({formatBRL(c.valor_hora)}/h)</span></td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{fmtH(c.horas)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{(pct * 100).toFixed(1)}%</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(receitaC)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(c.custo)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: margemC < 0 ? 'var(--danger)' : 'var(--text)' }} className="tabular-nums">{formatBRL(margemC)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', fontWeight: 700, color: pctColor(margemPctC) }} className="tabular-nums">{margemPctC == null ? '—' : margemPctC + '%'}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
+                    )
+                  })}
+                  {/* Total */}
+                  <tr>
+                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text)', borderTop: '2px solid var(--border)' }}>Total</td>
+                    <td style={{ borderTop: '2px solid var(--border)' }}></td>
+                    <td style={{ ...tdCol(COL_HEAD.recebido, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.recebido)}</td>
+                    <td style={{ ...tdCol(COL_HEAD.custo, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custo)}</td>
+                    <td style={{ ...tdCol(COL_HEAD.custo40, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custo40)}</td>
+                    <td style={{ ...tdCol(COL_HEAD.total, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custoTotal)}</td>
+                    <td style={{ ...tdCol(COL_HEAD.resultado, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.resultado)}</td>
+                    <td style={{ ...tdCol(margemBg(clientesTot.margemOpPct), '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{clientesTot.margemOpPct == null ? '—' : clientesTot.margemOpPct.toFixed(1) + '%'}</td>
+                    <td style={{ ...tdCol(margemBg(clientesTot.pct), '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           )
         ) : loading ? (
           <SkeletonTable rows={8} cols={10} />

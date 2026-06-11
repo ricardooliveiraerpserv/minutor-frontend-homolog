@@ -200,6 +200,22 @@ export interface HourContribution {
   contributed_at: string
   contributed_by_user?: { id: number; name: string; email: string }
   total_value?: number
+  motivo?: string | null
+  change_logs?: HourContributionChangeLog[]
+}
+
+export interface HourContributionChangeLog {
+  id: number
+  field_name: string
+  field_label: string
+  old_value: string | null
+  new_value: string | null
+  old_value_formatted: string | null
+  new_value_formatted: string | null
+  reason: string | null
+  effective_from: string | null
+  created_at: string | null
+  changed_by_user?: { id: number; name: string; email: string } | null
 }
 
 export interface UserHourlyRateLog {
