@@ -111,7 +111,7 @@ const NAV: NavEntry[] = [
   ] : []),
   {
     type: 'group',
-    label: 'Projetos',
+    label: 'Projetos e Contratos',
     icon: FolderOpen,
     items: [
       { label: 'Gestão de Contratos',       href: '/gestao-projetos',          icon: Layers },

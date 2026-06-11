@@ -2057,10 +2057,10 @@ export default function GestaoProjetosPage() {
       filterServiceTypes: [] as string[],
       filterCoordinators: [] as string[],
       filterExecutives:   [] as string[],
-      yearMonth:          new Date().toISOString().slice(0, 7),
+      yearMonths:         [new Date().toISOString().slice(0, 7)] as string[],
     },
   )
-  const { search, statusFilters, clienteFilters, saudeFilter, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, yearMonth } = flt
+  const { search, statusFilters, clienteFilters, saudeFilter, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, yearMonths } = flt
   const setSearch             = (v: string)   => setFilter('search', v)
   const setStatus             = (v: string[]) => setFilter('statusFilters', v)
   const setCliente            = (v: string[]) => setFilter('clienteFilters', v)
@@ -2070,7 +2070,21 @@ export default function GestaoProjetosPage() {
   const setFilterServiceType  = (v: string[]) => setFilter('filterServiceTypes', v)
   const setFilterCoordinators = (v: string[]) => setFilter('filterCoordinators', v)
   const setFilterExecutives   = (v: string[]) => setFilter('filterExecutives', v)
-  const setYearMonth          = (v: string)   => setFilter('yearMonth', v)
+  const setYearMonths         = (v: string[]) => setFilter('yearMonths', v)
+
+  // Opções de mês p/ a coluna Consumo (multi-mês). Componente custom (Safari não
+  // suporta <input type="month"> — renderizava como texto). Últimos 24 meses.
+  const monthOptions = useMemo(() => {
+    const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+    const out: { id: string; name: string }[] = []
+    const now = new Date()
+    let y = now.getFullYear(), m = now.getMonth()
+    for (let i = 0; i < 24; i++) {
+      out.push({ id: `${y}-${String(m + 1).padStart(2, '0')}`, name: `${MES[m]}/${y}` })
+      m--; if (m < 0) { m = 11; y-- }
+    }
+    return out
+  }, [])
 
   const clearAllFilters = () => {
     setSearch('')
@@ -2252,7 +2266,7 @@ export default function GestaoProjetosPage() {
   useEffect(() => {
     setLoading(true)
     const qs = new URLSearchParams({ pageSize: '1000', gestao: 'true' })
-    if (yearMonth) qs.set('year_month', yearMonth) // alimenta a coluna Consumo Mensal
+    if (yearMonths.length) qs.set('year_months', yearMonths.join(',')) // alimenta a coluna Consumo Mensal (soma dos meses selecionados)
     if (multiContratual) { qs.set('parent_projects_only', 'true'); qs.set('with_children_only', 'true') }
     api.get<PaginatedResponse<ProjectWithTeam>>(`/projects?${qs}`)
       .then(res => {
@@ -2262,7 +2276,7 @@ export default function GestaoProjetosPage() {
       })
       .catch(() => toast.error('Erro ao carregar projetos'))
       .finally(() => setLoading(false))
-  }, [multiContratual, refreshKey, yearMonth])
+  }, [multiContratual, refreshKey, yearMonths.join(',')])
 
   useEffect(() => {
     api.get<any>('/customers?pageSize=500').then(r => {
@@ -2845,13 +2859,11 @@ export default function GestaoProjetosPage() {
               style={{ ...inputStyle }}
             />
           </div>
-          <input
-            type="month"
-            value={yearMonth}
-            onChange={e => setYearMonth(e.target.value)}
-            title="Mês de referência da coluna Consumo Mensal"
-            className="h-9 rounded-xl text-xs outline-none px-3"
-            style={{ ...inputStyle }}
+          <MultiSelect
+            value={yearMonths}
+            onChange={v => setYearMonths(v)}
+            options={monthOptions}
+            placeholder="Mês (Consumo)"
           />
           <MultiSelect
             value={clienteFilters}
