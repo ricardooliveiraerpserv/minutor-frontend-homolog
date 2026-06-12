@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import Link from 'next/link'
 import { ProjectStagesSidePanel } from '@/components/projects/project-stages-side-panel'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -5365,5 +5365,9 @@ function KanbanContent() {
 }
 
 export default function KanbanPage() {
-  return <KanbanContent />
+  return (
+    <Suspense fallback={null}>
+      <KanbanContent />
+    </Suspense>
+  )
 }
