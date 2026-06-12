@@ -785,11 +785,14 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
           <div className="flex flex-wrap gap-1 mb-2">
             {card.categoria && (() => {
               const svL = card.service_type?.toLowerCase() ?? ''
+              const isBizify = svL.includes('bizify')
               const effectivelySust = card.categoria === 'sustentacao'
                 || svL.includes('sustent') || svL.includes('cloud') || svL.includes('bizify')
+              // Bizify é tipo próprio (fila/cor dedicada no kanban) — não colapsa em "Sustentação".
+              const catLabel = isBizify ? 'Bizify' : (effectivelySust ? 'Sustentação' : 'Projeto')
               return (
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-                  {effectivelySust ? 'Sustentação' : 'Projeto'}
+                  {catLabel}
                 </span>
               )
             })()}
@@ -798,7 +801,7 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                 {card.contract_type}
               </span>
             )}
-            {card.service_type && card.service_type.toLowerCase() !== 'projeto' && card.service_type.toLowerCase() !== 'sustentação' && card.service_type.toLowerCase() !== 'sustentacao' && (
+            {card.service_type && card.service_type.toLowerCase() !== 'projeto' && card.service_type.toLowerCase() !== 'sustentação' && card.service_type.toLowerCase() !== 'sustentacao' && card.service_type.toLowerCase() !== 'bizify' && (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
                 {card.service_type}
               </span>
