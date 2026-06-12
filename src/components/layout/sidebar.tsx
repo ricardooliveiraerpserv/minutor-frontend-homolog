@@ -223,6 +223,7 @@ const NAV: NavEntry[] = [
       { label: 'Clientes',              href: '/clientes',                         icon: Users },
       { label: 'Contatos de Clientes', href: '/cadastros?tab=customer_contacts',  icon: Contact },
       { label: 'Executivos',            href: '/cadastros?tab=executives',        icon: Star },
+      { label: 'Workflows de E-mail',   href: '/cadastros/workflows',             icon: Mail },
       { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
       { label: 'Feriados',              href: '/cadastros?tab=holidays',          icon: CalendarDays },
       { label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag },
