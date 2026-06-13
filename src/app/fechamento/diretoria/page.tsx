@@ -11,7 +11,8 @@ import { SearchSelect } from '@/components/ui/search-select'
 import { Button, SkeletonTable, EmptyState, Modal, Badge } from '@/components/ds'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
-interface ApiLanc { descricao: string | null; valor: number | null }
+type Coop = 'erpserv' | 'bizify'
+interface ApiLanc { descricao: string | null; valor: number | null; coop?: Coop | null }
 interface FolhaResumo {
   nome: string | null
   producao: number; variavel: number; reemb: number; reemb_auto: number
@@ -19,9 +20,9 @@ interface FolhaResumo {
 }
 type Status = 'aberto' | 'finalizado' | 'sem_registro'
 interface Diretor { id: number; nome: string; status: Status }
-interface Lanc { descricao: string; valor: string }
+interface Lanc { descricao: string; valor: string; coop: Coop }
 
-const emptyLanc = (): Lanc => ({ descricao: '', valor: '' })
+const emptyLanc = (): Lanc => ({ descricao: '', valor: '', coop: 'erpserv' })
 const numOrNull = (s: string): number | null => {
   const t = s.trim()
   if (t === '' || t === '-') return null
@@ -43,7 +44,7 @@ const numOrNull = (s: string): number | null => {
 const num = (s: string) => numOrNull(s) ?? 0
 const fmt = (n: number) => formatBRL(n)
 const toStr = (n: number) => String(Math.round(n * 100) / 100)
-const mapLancs = (arr: ApiLanc[]): Lanc[] => arr.map(l => ({ descricao: l.descricao ?? '', valor: l.valor != null ? String(l.valor) : '' }))
+const mapLancs = (arr: ApiLanc[]): Lanc[] => arr.map(l => ({ descricao: l.descricao ?? '', valor: l.valor != null ? String(l.valor) : '', coop: l.coop === 'bizify' ? 'bizify' : 'erpserv' }))
 
 // Remuneração por Produção (base do INSS) por faixa da Remuneração Total — regra do simulador.
 const producaoFaixa = (t: number): number =>
@@ -52,6 +53,47 @@ const producaoFaixa = (t: number): number =>
 const INSS_TETO = 8157.41
 const INSS_TETO_VALOR = 1631.48
 const TX_ADM_DIRETORIA = 1 // %
+
+// Desconto (INSS + Taxa Adm) de um REPASSE (bruto).
+const descontoDe = (B: number): number => {
+  if (!(B > 0)) return 0
+  const P = Math.min(producaoFaixa(B), B)
+  const inss = P >= INSS_TETO ? INSS_TETO_VALOR : Math.round(P * 0.20 * 100) / 100
+  const taxaAdm = Math.round(B * (TX_ADM_DIRETORIA / 100) * 100) / 100
+  return Math.round((inss + taxaAdm) * 100) / 100
+}
+// Desconto de um REPASSE quando a coop NÃO paga INSS (só Taxa Adm).
+const descontoSemInss = (B: number): number =>
+  B > 0 ? Math.round(B * (TX_ADM_DIRETORIA / 100) * 100) / 100 : 0
+// Gross-up: acha o REPASSE cujo líquido (repasse − desconto) = alvo (valor a receber).
+// `desc` permite gross-up com INSS (padrão) ou sem INSS (coop que não recolhe).
+const grossUp = (alvo: number, desc: (b: number) => number = descontoDe): number => {
+  if (!(alvo > 0)) return 0
+  const hi = Math.round(alvo * 1.10 * 100) + 500
+  for (let c = Math.round(alvo * 100); c <= hi; c++) {
+    const B = c / 100
+    if (Math.round((B - desc(B)) * 100) / 100 >= alvo) return B
+  }
+  return alvo
+}
+
+// Seletor compacto ERPSERV/BIZIFY por lançamento.
+function CoopPills({ value, onChange, disabled }: { value: Coop; onChange: (c: Coop) => void; disabled?: boolean }) {
+  return (
+    <div className="inline-flex rounded-md overflow-hidden shrink-0" style={{ border: '1px solid var(--border)' }}>
+      {(['erpserv', 'bizify'] as const).map(c => (
+        <button key={c} type="button" disabled={disabled} onClick={() => onChange(c)}
+          className="px-2 py-1 text-[10px] font-semibold uppercase transition-colors disabled:opacity-60"
+          title={c === 'erpserv' ? 'ERPSERV' : 'BIZIFY'}
+          style={value === c
+            ? { background: 'var(--brand-primary)', color: '#000' }
+            : { background: 'transparent', color: 'var(--text-muted)' }}>
+          {c === 'erpserv' ? 'ERP' : 'BIZ'}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 export default function FechamentoDiretoriaPage() {
   const now = new Date()
@@ -67,7 +109,11 @@ export default function FechamentoDiretoriaPage() {
   const [valCoopBiz, setValCoopBiz] = useState('')
   const [taxCoopErp, setTaxCoopErp] = useState('')
   const [taxCoopBiz, setTaxCoopBiz] = useState('')
+  const [inssCoop, setInssCoop] = useState<'erpserv' | 'bizify'>('erpserv') // qual coop paga o INSS
   const [lancs, setLancs] = useState<Lanc[]>([])
+  const [adiantamento, setAdiantamento] = useState(0)         // parcelas da rotina no mês (desconto)
+  const [adiantamentoDesc, setAdiantamentoDesc] = useState<string | null>(null)
+  const [adtoCoop, setAdtoCoop] = useState<Coop>('erpserv')   // coop que recebe o desconto do adiantamento
   const [folha, setFolha] = useState<FolhaResumo | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -94,25 +140,23 @@ export default function FechamentoDiretoriaPage() {
   const ro = finalizado
   const diretorNome = diretores.find(d => String(d.id) === userId)?.nome ?? ''
 
-  // TOTAL = soma dos lançamentos + Taxa+INSS (a taxa é uma linha vinda do campo).
+  // Lançamentos (salário − descontos) somam o VALOR A RECEBER (líquido do diretor).
+  // O REPASSE à cooperativa é o gross-up disso; a TAXA + INSS incide sobre o REPASSE.
   const taxa = num(taxaInss)
-  const somaLanc = Math.round(lancs.reduce((a, l) => a + num(l.valor), 0) * 100) / 100
-  const total = Math.round((somaLanc + taxa) * 100) / 100
+  const somaLanc = Math.round((lancs.reduce((a, l) => a + num(l.valor), 0) - adiantamento) * 100) / 100 // = VALOR A RECEBER (− adiantamento)
+  const valorReceber = somaLanc
+  const repasse = Math.round((somaLanc + taxa) * 100) / 100 // REPASSE = valor a receber + taxa
+  const total = repasse // "Remuneração Total" exibida = REPASSE
 
-  // Cálculo do simulador (base = Remuneração Total = soma dos lançamentos):
-  // Produção por faixa → INSS 20% (teto) ; Taxa Administrativa = 1% do total.
-  const producao = Math.min(somaLanc, producaoFaixa(somaLanc))
+  // Cálculo do simulador: gross-up do valor a receber → repasse; taxa incide no repasse.
+  const repasseCalc = grossUp(somaLanc)
+  const producao = Math.min(repasseCalc, producaoFaixa(repasseCalc))
   const inssCalc = producao >= INSS_TETO ? INSS_TETO_VALOR : Math.round(producao * 0.20 * 100) / 100
-  const taxaAdmCalc = Math.round(somaLanc * (TX_ADM_DIRETORIA / 100) * 100) / 100
-  const taxaInssCalc = Math.round((inssCalc + taxaAdmCalc) * 100) / 100
-  // Líquido a receber = total ignorando a taxa.
-  const liquido = Math.round((total - taxa) * 100) / 100
+  const taxaAdmCalc = Math.round(repasseCalc * (TX_ADM_DIRETORIA / 100) * 100) / 100
+  const taxaInssCalc = Math.round((inssCalc + taxaAdmCalc) * 100) / 100 // = repasseCalc − somaLanc
+  const liquido = valorReceber
 
-  // Divisão por cooperativa: ao digitar um lado, o outro fecha o alvo (líquido / taxa).
-  const setValErp = (v: string) => { setValCoopErp(v); setValCoopBiz(toStr(liquido - num(v))) }
-  const setValBiz = (v: string) => { setValCoopBiz(v); setValCoopErp(toStr(liquido - num(v))) }
-  const setTaxErp = (v: string) => { setTaxCoopErp(v); setTaxCoopBiz(toStr(taxa - num(v))) }
-  const setTaxBiz = (v: string) => { setTaxCoopBiz(v); setTaxCoopErp(toStr(taxa - num(v))) }
+  // Divisão por cooperativa: valores derivados dos lançamentos (cada um marcado p/ uma coop).
   const valSum = Math.round((num(valCoopErp) + num(valCoopBiz)) * 100) / 100
   const taxSum = Math.round((num(taxCoopErp) + num(taxCoopBiz)) * 100) / 100
   const valBate = Math.abs(valSum - liquido) < 0.01
@@ -121,6 +165,35 @@ export default function FechamentoDiretoriaPage() {
   const prodErp = Math.round((num(valCoopErp) + num(taxCoopErp)) * 100) / 100
   const prodBiz = Math.round((num(valCoopBiz) + num(taxCoopBiz)) * 100) / 100
 
+  // Divisão por cooperativa AUTOMÁTICA: cada lançamento é marcado p/ uma coop e soma no
+  // valor líquido dela; o adiantamento (desconto) sai da coop escolhida em `adtoCoop`.
+  useEffect(() => {
+    if (ro) return
+    const r2 = (n: number) => Math.round(n * 100) / 100
+    let sErp = lancs.filter(l => l.coop === 'erpserv').reduce((a, l) => a + num(l.valor), 0)
+    let sBiz = lancs.filter(l => l.coop === 'bizify').reduce((a, l) => a + num(l.valor), 0)
+    if (adtoCoop === 'bizify') sBiz -= adiantamento; else sErp -= adiantamento
+    setValCoopErp(toStr(r2(sErp))); setValCoopBiz(toStr(r2(sBiz)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lancs, adiantamento, adtoCoop, ro])
+
+  // Taxa por cooperativa AUTOMÁTICA: cada coop é calculada de forma INDEPENDENTE com a
+  // mesma montagem (gross-up) sobre o SEU próprio valor — uma coop não influencia a outra.
+  // A coop escolhida recolhe o INSS (gross-up completo); a outra leva só a taxa adm
+  // (gross-up sem INSS). taxa da coop = repasse(gross-up do seu valor) − seu valor.
+  useEffect(() => {
+    if (ro) return
+    const r2 = (n: number) => Math.round(n * 100) / 100
+    const vErp = num(valCoopErp), vBiz = num(valCoopBiz)
+    if (vErp <= 0 && vBiz <= 0) return // sem divisão por coop → não mexe na taxa
+    const taxaCoop = (v: number, paysInss: boolean) =>
+      v > 0 ? r2(grossUp(v, paysInss ? descontoDe : descontoSemInss) - v) : 0
+    const tErp = taxaCoop(vErp, inssCoop === 'erpserv')
+    const tBiz = taxaCoop(vBiz, inssCoop === 'bizify')
+    setTaxCoopErp(toStr(tErp)); setTaxCoopBiz(toStr(tBiz)); setTaxaInss(toStr(r2(tErp + tBiz)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valCoopErp, valCoopBiz, inssCoop, ro])
+
   const loadDiretores = useCallback(() => {
     api.get<{ data: Diretor[] }>(`/fechamento-diretoria/diretores?year_month=${yearMonth}`)
       .then(r => setDiretores(r.data ?? [])).catch(() => {})
@@ -128,10 +201,13 @@ export default function FechamentoDiretoriaPage() {
   useEffect(() => { loadDiretores() }, [loadDiretores])
 
   const loadDiretor = useCallback(() => {
-    if (!userId) { setLancs([]); setStatus('sem_registro'); setCooperativa(''); setTaxaInss(''); setValCoopErp(''); setValCoopBiz(''); setTaxCoopErp(''); setTaxCoopBiz(''); setFolha(null); return }
+    if (!userId) { setLancs([]); setStatus('sem_registro'); setCooperativa(''); setTaxaInss(''); setValCoopErp(''); setValCoopBiz(''); setTaxCoopErp(''); setTaxCoopBiz(''); setFolha(null); setAdiantamento(0); setAdiantamentoDesc(null); setAdtoCoop('erpserv'); return }
     setLoading(true)
-    api.get<{ status: Status; cooperativa: string | null; taxa_inss: number | null; valor_coop_erpserv: number | null; valor_coop_bizify: number | null; taxa_coop_erpserv: number | null; taxa_coop_bizify: number | null; diretor_email: string | null; envio_em: string | null; envio_por: string | null; lancamentos: ApiLanc[] }>(`/fechamento-diretoria/${userId}/${yearMonth}`)
+    api.get<{ status: Status; cooperativa: string | null; taxa_inss: number | null; valor_coop_erpserv: number | null; valor_coop_bizify: number | null; taxa_coop_erpserv: number | null; taxa_coop_bizify: number | null; diretor_email: string | null; envio_em: string | null; envio_por: string | null; adiantamento_coop?: Coop | null; lancamentos: ApiLanc[]; adiantamento?: number; adiantamento_desc?: string | null }>(`/fechamento-diretoria/${userId}/${yearMonth}`)
       .then(r => {
+        setAdiantamento(r.adiantamento ?? 0)
+        setAdiantamentoDesc(r.adiantamento_desc ?? null)
+        setAdtoCoop(r.adiantamento_coop === 'bizify' ? 'bizify' : 'erpserv')
         setStatus(r.status ?? 'sem_registro')
         setCooperativa(r.cooperativa ?? '')
         setDiretorEmail(r.diretor_email ?? '')
@@ -142,6 +218,12 @@ export default function FechamentoDiretoriaPage() {
         setValCoopBiz(r.valor_coop_bizify != null ? String(r.valor_coop_bizify) : '')
         setTaxCoopErp(r.taxa_coop_erpserv != null ? String(r.taxa_coop_erpserv) : '')
         setTaxCoopBiz(r.taxa_coop_bizify != null ? String(r.taxa_coop_bizify) : '')
+        // Deriva qual coop paga o INSS: a que tem taxa acima de 1% do seu valor.
+        {
+          const inssErp = (r.taxa_coop_erpserv ?? 0) - (r.valor_coop_erpserv ?? 0) * (TX_ADM_DIRETORIA / 100)
+          const inssBiz = (r.taxa_coop_bizify ?? 0) - (r.valor_coop_bizify ?? 0) * (TX_ADM_DIRETORIA / 100)
+          setInssCoop(inssBiz > inssErp + 0.01 ? 'bizify' : 'erpserv')
+        }
         const ls = mapLancs(r.lancamentos ?? [])
         if (ls.length) { setLancs(ls); setLoading(false); return }
         // Sem dados no mês → replica do mês anterior (só pra ajustar e salvar).
@@ -164,13 +246,26 @@ export default function FechamentoDiretoriaPage() {
   }, [userId, yearMonth, prevYM])
   useEffect(() => { loadDiretor() }, [loadDiretor])
 
-  // Prévia da página = o relatório que vai em PDF anexo (reflete o que está salvo).
+  // Prévia da página = o relatório que vai em PDF anexo — AO VIVO (reflete a tela atual).
   const loadReportPreview = useCallback(() => {
     if (!userId) { setReportPreview(null); return }
-    api.get<{ html: string }>(`/fechamento-diretoria/${userId}/${yearMonth}/report-html`)
+    const body = {
+      cooperativa: cooperativa.trim() || null,
+      taxa_inss: numOrNull(taxaInss),
+      valor_coop_erpserv: numOrNull(valCoopErp),
+      valor_coop_bizify: numOrNull(valCoopBiz),
+      taxa_coop_erpserv: numOrNull(taxCoopErp),
+      taxa_coop_bizify: numOrNull(taxCoopBiz),
+      adiantamento_coop: adtoCoop,
+      lancamentos: lancs.map(l => ({ descricao: l.descricao.trim() || null, valor: numOrNull(l.valor), coop: l.coop })),
+    }
+    api.post<{ html: string }>(`/fechamento-diretoria/${userId}/${yearMonth}/report-html`, body)
       .then(r => setReportPreview(r.html)).catch(() => setReportPreview(null))
-  }, [userId, yearMonth])
-  useEffect(() => { loadReportPreview() }, [loadReportPreview])
+  }, [userId, yearMonth, cooperativa, taxaInss, valCoopErp, valCoopBiz, taxCoopErp, taxCoopBiz, adtoCoop, lancs])
+  useEffect(() => {
+    const t = setTimeout(loadReportPreview, 350) // debounce nas edições
+    return () => clearTimeout(t)
+  }, [loadReportPreview])
 
   useEffect(() => {
     if (userId && !cooperativa && diretorNome) setCooperativa(diretorNome)
@@ -201,7 +296,8 @@ export default function FechamentoDiretoriaPage() {
     valor_coop_bizify: numOrNull(valCoopBiz),
     taxa_coop_erpserv: numOrNull(taxCoopErp),
     taxa_coop_bizify: numOrNull(taxCoopBiz),
-    lancamentos: lancs.map(l => ({ descricao: l.descricao.trim() || null, valor: numOrNull(l.valor) })),
+    adiantamento_coop: adtoCoop,
+    lancamentos: lancs.map(l => ({ descricao: l.descricao.trim() || null, valor: numOrNull(l.valor), coop: l.coop })),
   })
 
   const salvar = async () => {
@@ -228,7 +324,10 @@ export default function FechamentoDiretoriaPage() {
       setStatus(r.status ?? 'aberto'); toast.success('Reaberto'); loadDiretores()
     } catch { toast.error('Erro ao reabrir') }
   }
-  const openEmail = () => {
+  const openEmail = async () => {
+    if (!userId) return
+    // Salva (silencioso) antes de abrir — o corpo e o PDF anexo são montados do banco.
+    if (!ro) { try { await api.post(`/fechamento-diretoria/${userId}/${yearMonth}`, payload()) } catch {} }
     setEmailTo(diretorEmail || '')
     setEmailMsg('')
     setEmailPreviewHtml(null)
@@ -259,7 +358,7 @@ export default function FechamentoDiretoriaPage() {
     if (!folha?.liquido) return
     setLancs(prev => {
       const base = prev.filter(l => l.descricao.trim() || l.valor.trim())
-      return [...base, { descricao: 'Folha (líquido)', valor: String(folha.liquido) }]
+      return [...base, { descricao: 'Folha (líquido)', valor: String(folha.liquido), coop: 'erpserv' as Coop }]
     })
   }
 
@@ -347,15 +446,16 @@ export default function FechamentoDiretoriaPage() {
                   <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Taxa + INSS (campo)</div>
                   <input disabled={ro} className={`${inputStyle} text-right tabular-nums`} inputMode="decimal" value={taxaInss} onChange={e => setTaxaInss(e.target.value)} placeholder="0,00" />
                 </div>
-                {!ro && <Button variant="secondary" size="sm" icon={Calculator} onClick={() => setTaxaInss(String(taxaInssCalc))} title="Preenche com INSS (20% da produção) + Taxa Administrativa (1%)">Calcular Taxa + INSS</Button>}
+                {!ro && <Button variant="secondary" size="sm" icon={Calculator} onClick={() => setTaxaInss(String(taxaInssCalc))} title="Calcula a Taxa + INSS pelo gross-up: acha o repasse cujo líquido = soma dos lançamentos (INSS 20% da produção + Taxa Adm 1% sobre o repasse)">Calcular Taxa + INSS</Button>}
                 {!ro && <Button variant="secondary" size="sm" icon={Download} onClick={importarMesAnterior}>Importar do mês anterior</Button>}
               </div>
               {/* Memória de cálculo (base = soma dos lançamentos) */}
               <div className="rounded-lg px-3 py-2 text-[11px] flex flex-wrap items-center gap-x-4 gap-y-1" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                <span>Base (Remuneração Total): <strong style={{ color: 'var(--text)' }}>{fmt(somaLanc)}</strong></span>
+                <span>Valor a Receber (líquido): <strong style={{ color: 'var(--text)' }}>{fmt(somaLanc)}</strong></span>
+                <span>Repasse (gross-up): <strong style={{ color: 'var(--text)' }}>{fmt(repasseCalc)}</strong></span>
                 <span>Produção: {fmt(producao)}</span>
                 <span>INSS (20%): {fmt(inssCalc)}</span>
-                <span>Taxa Administrativa (1%): {fmt(taxaAdmCalc)}</span>
+                <span>Taxa Adm. (1%): {fmt(taxaAdmCalc)}</span>
                 <span>= Taxa + INSS: <strong style={{ color: 'var(--text)' }}>{fmt(taxaInssCalc)}</strong></span>
               </div>
 
@@ -373,26 +473,46 @@ export default function FechamentoDiretoriaPage() {
                     <tbody>
                       {lancs.map((l, i) => (
                         <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
-                          <td className="px-2 py-1.5"><input disabled={ro} className={inputStyle} value={l.descricao} onChange={e => setLanc(i, { descricao: e.target.value })} placeholder="Ex.: Pagamento, Convênio, Valor Elinton" /></td>
+                          <td className="px-2 py-1.5">
+                            <div className="flex items-center gap-2">
+                              <input disabled={ro} className={`${inputStyle} flex-1`} value={l.descricao} onChange={e => setLanc(i, { descricao: e.target.value })} placeholder="Ex.: Pagamento, Convênio, Valor Elinton" />
+                              <CoopPills value={l.coop} onChange={c => setLanc(i, { coop: c })} disabled={ro} />
+                            </div>
+                          </td>
                           <td className="px-2 py-1.5"><input disabled={ro} className={`${inputStyle} text-right tabular-nums`} inputMode="decimal" value={l.valor} onChange={e => setLanc(i, { valor: e.target.value })} placeholder="0,00 (negativo = desconto)" style={num(l.valor) < 0 ? { color: 'var(--danger)', fontWeight: 600 } : undefined} /></td>
                           {!ro && <td className="text-center px-2 py-1.5"><button onClick={() => removeLanc(i)} title="Remover" style={{ color: 'var(--danger)' }}><Trash2 size={15} /></button></td>}
                         </tr>
                       ))}
-                      {/* Taxa + INSS como linha (vem do campo) */}
-                      {temTaxa && (
+                      {/* Adiantamento (parcelas da rotina) — desconto automático, não editável; coop selecionável */}
+                      {adiantamento > 0 && (
                         <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
-                          <td className="px-2 py-2 text-sm" style={{ color: 'var(--text-muted)' }}>Taxa + INSS <span className="text-[10px]">(do campo)</span></td>
-                          <td className="px-2 py-2 text-right tabular-nums" style={{ color: taxa < 0 ? 'var(--danger)' : 'var(--text)' }}>{fmt(taxa)}</td>
+                          <td className="px-2 py-1.5 text-sm" style={{ color: 'var(--text-muted)' }}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span>Adiantamento{adiantamentoDesc ? ` (${adiantamentoDesc})` : ''} <span className="text-[10px]">— rotina de adiantamento</span></span>
+                              <CoopPills value={adtoCoop} onChange={setAdtoCoop} disabled={ro} />
+                            </div>
+                          </td>
+                          <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: 'var(--danger)', fontWeight: 600 }}>− {fmt(adiantamento)}</td>
                           {!ro && <td />}
                         </tr>
                       )}
+                      {/* REPASSE à cooperativa (gross-up) = Valor a Receber + Taxa + INSS */}
                       <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface)' }}>
-                        <td className="px-2 py-2 text-right text-xs font-bold uppercase" style={{ color: 'var(--text)' }}>TOTAL</td>
-                        <td className="px-2 py-2 text-right tabular-nums font-bold" style={{ color: total < 0 ? 'var(--danger)' : 'var(--success)' }}>{fmt(total)}</td>
+                        <td className="px-2 py-2 text-right text-xs font-bold uppercase" style={{ color: 'var(--text)' }}>Repasse à cooperativa</td>
+                        <td className="px-2 py-2 text-right tabular-nums font-bold" style={{ color: total < 0 ? 'var(--danger)' : 'var(--text)' }}>{fmt(total)}</td>
                         {!ro && <td />}
                       </tr>
+                      {/* (−) Taxa + INSS (incide sobre o repasse) */}
+                      {temTaxa && (
+                        <tr style={{ background: 'var(--bg)' }}>
+                          <td className="px-2 py-2 text-sm text-right" style={{ color: 'var(--text-muted)' }}>(−) Taxa + INSS <span className="text-[10px]">(desconto)</span></td>
+                          <td className="px-2 py-2 text-right tabular-nums" style={{ color: 'var(--danger)' }}>− {fmt(taxa)}</td>
+                          {!ro && <td />}
+                        </tr>
+                      )}
+                      {/* VALOR A RECEBER (líquido do diretor) = soma dos lançamentos */}
                       <tr style={{ background: 'var(--success-bg)' }}>
-                        <td className="px-2 py-2 text-right text-xs font-bold uppercase" style={{ color: 'var(--text)' }}>Líquido a receber (sem taxa)</td>
+                        <td className="px-2 py-2 text-right text-xs font-bold uppercase" style={{ color: 'var(--text)' }}>Valor a Receber (líquido)</td>
                         <td className="px-2 py-2 text-right tabular-nums font-bold" style={{ color: liquido < 0 ? 'var(--danger)' : 'var(--success)' }}>{fmt(liquido)}</td>
                         {!ro && <td />}
                       </tr>
@@ -424,7 +544,7 @@ export default function FechamentoDiretoriaPage() {
                   {/* Valor líquido */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Valor líquido a receber</span>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Valor líquido a receber <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}>(automático)</span></span>
                       <span className="text-[11px] tabular-nums" style={{ color: valBate ? 'var(--success)' : 'var(--danger)' }}>
                         {valBate ? '✓ ' : '✗ '}{fmt(valSum)} / {fmt(liquido)}
                       </span>
@@ -432,18 +552,18 @@ export default function FechamentoDiretoriaPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <div className="text-[10px] mb-1" style={{ color: 'var(--text-light)' }}>Coop ERPSERV</div>
-                        <input disabled={ro} className={`${inputStyle} text-right tabular-nums`} inputMode="decimal" value={valCoopErp} onChange={e => setValErp(e.target.value)} placeholder="0,00" />
+                        <input disabled readOnly className={`${inputStyle} text-right tabular-nums opacity-90`} value={fmt(num(valCoopErp))} tabIndex={-1} />
                       </div>
                       <div>
                         <div className="text-[10px] mb-1" style={{ color: 'var(--text-light)' }}>Coop BIZIFY</div>
-                        <input disabled={ro} className={`${inputStyle} text-right tabular-nums`} inputMode="decimal" value={valCoopBiz} onChange={e => setValBiz(e.target.value)} placeholder="0,00" />
+                        <input disabled readOnly className={`${inputStyle} text-right tabular-nums opacity-90`} value={fmt(num(valCoopBiz))} tabIndex={-1} />
                       </div>
                     </div>
                   </div>
-                  {/* Taxa */}
+                  {/* Taxa — preenchida automaticamente */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Taxa + INSS</span>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Taxa + INSS <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}>(automático)</span></span>
                       <span className="text-[11px] tabular-nums" style={{ color: taxBate ? 'var(--success)' : 'var(--danger)' }}>
                         {taxBate ? '✓ ' : '✗ '}{fmt(taxSum)} / {fmt(taxa)}
                       </span>
@@ -451,16 +571,35 @@ export default function FechamentoDiretoriaPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <div className="text-[10px] mb-1" style={{ color: 'var(--text-light)' }}>Taxa Coop ERPSERV</div>
-                        <input disabled={ro} className={`${inputStyle} text-right tabular-nums`} inputMode="decimal" value={taxCoopErp} onChange={e => setTaxErp(e.target.value)} placeholder="0,00" />
+                        <input disabled readOnly className={`${inputStyle} text-right tabular-nums opacity-90`} value={fmt(num(taxCoopErp))} tabIndex={-1} />
                       </div>
                       <div>
                         <div className="text-[10px] mb-1" style={{ color: 'var(--text-light)' }}>Taxa Coop BIZIFY</div>
-                        <input disabled={ro} className={`${inputStyle} text-right tabular-nums`} inputMode="decimal" value={taxCoopBiz} onChange={e => setTaxBiz(e.target.value)} placeholder="0,00" />
+                        <input disabled readOnly className={`${inputStyle} text-right tabular-nums opacity-90`} value={fmt(num(taxCoopBiz))} tabIndex={-1} />
                       </div>
                     </div>
                   </div>
                 </div>
-                <p className="text-[11px] mt-2" style={{ color: 'var(--text-light)' }}>Ao digitar um lado, o outro é completado para fechar o valor.</p>
+                <p className="text-[11px] mt-2" style={{ color: 'var(--text-light)' }}>Valores somados automaticamente pela coop marcada em cada lançamento (ERP/BIZ), incluindo o adiantamento.</p>
+
+                {/* INSS pago por UMA coop — a taxa de cada coop é recalculada automaticamente */}
+                {!ro && (
+                  <div className="mt-3 rounded-lg px-3 py-3 flex flex-wrap items-center gap-3" style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid var(--brand-primary)' }}>
+                    <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>INSS pago por:</span>
+                    <div className="flex gap-1">
+                      {(['erpserv', 'bizify'] as const).map(c => (
+                        <button key={c} onClick={() => setInssCoop(c)}
+                          className="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
+                          style={inssCoop === c
+                            ? { background: 'var(--brand-primary)', color: '#000' }
+                            : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                          {c === 'erpserv' ? 'ERPSERV' : 'BIZIFY'}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-[11px]" style={{ color: 'var(--brand-muted)' }}>Taxa adm rateada por coop + INSS inteiro na escolhida — fecha com a Taxa + INSS do cabeçalho.</span>
+                  </div>
+                )}
                 <div className="mt-3 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ borderTop: '1px solid var(--border)' }}>
                   <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                     <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Produção → Folha ERPSERV</span>

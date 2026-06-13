@@ -185,7 +185,7 @@ export default function AdiantamentosPage() {
             <div>
               <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>Adiantamentos</h1>
               <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                Adiantamentos a consultores e parceiros, parcelados — descontados no fechamento de cada mês.
+                Adiantamentos a colaboradores (consultores, diretores, coordenadores) e parceiros, parcelados — descontados no fechamento de cada mês.
               </p>
             </div>
           </div>
@@ -196,7 +196,7 @@ export default function AdiantamentosPage() {
           {loading ? <SkeletonTable rows={6} cols={6} /> :
             lista.length === 0 ? (
               <EmptyState icon={Banknote} title="Nenhum adiantamento"
-                description="Cadastre um adiantamento para consultor ou parceiro — as parcelas entram no fechamento." />
+                description="Cadastre um adiantamento para colaborador ou parceiro — as parcelas entram no fechamento." />
             ) : (
               <Table>
                 <Thead>
@@ -218,7 +218,7 @@ export default function AdiantamentosPage() {
                         <Td className="text-sm font-medium">{a.beneficiario_nome}</Td>
                         <Td>
                           <Badge variant={a.beneficiario_tipo === 'parceiro' ? 'purple' : 'primary'}>
-                            {a.beneficiario_tipo === 'parceiro' ? 'Parceiro' : 'Consultor'}
+                            {a.beneficiario_tipo === 'parceiro' ? 'Parceiro' : 'Colaborador'}
                           </Badge>
                         </Td>
                         <Td right className="tabular-nums text-sm font-semibold">{formatBRL(a.valor_total)}</Td>
@@ -255,7 +255,7 @@ export default function AdiantamentosPage() {
                   ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
                   : { background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
               >
-                {t === 'consultor' ? 'Consultor' : 'Parceiro'}
+                {t === 'consultor' ? 'Colaborador' : 'Parceiro'}
               </button>
             ))}
           </div>
@@ -265,7 +265,7 @@ export default function AdiantamentosPage() {
             value={beneficiarioId}
             onChange={setBeneficiarioId}
             options={beneficiarioOptions}
-            placeholder={`Selecionar ${tipo}...`}
+            placeholder={`Selecionar ${tipo === 'consultor' ? 'colaborador' : 'parceiro'}...`}
             fullWidth
           />
 
