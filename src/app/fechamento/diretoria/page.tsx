@@ -111,8 +111,7 @@ export default function FechamentoDiretoriaPage() {
   const [taxCoopBiz, setTaxCoopBiz] = useState('')
   const [inssCoop, setInssCoop] = useState<'erpserv' | 'bizify'>('erpserv') // qual coop paga o INSS
   const [lancs, setLancs] = useState<Lanc[]>([])
-  const [adiantamento, setAdiantamento] = useState(0)         // parcelas da rotina no mês (desconto)
-  const [adiantamentoDesc, setAdiantamentoDesc] = useState<string | null>(null)
+  const [adiantamentos, setAdiantamentos] = useState<{ legenda: string; valor: number }[]>([]) // 1 linha por adiantamento
   const [adtoCoop, setAdtoCoop] = useState<Coop>('erpserv')   // coop que recebe o desconto do adiantamento
   const [folha, setFolha] = useState<FolhaResumo | null>(null)
   const [loading, setLoading] = useState(false)
@@ -143,7 +142,8 @@ export default function FechamentoDiretoriaPage() {
   // Lançamentos (salário − descontos) somam o VALOR A RECEBER (líquido do diretor).
   // O REPASSE à cooperativa é o gross-up disso; a TAXA + INSS incide sobre o REPASSE.
   const taxa = num(taxaInss)
-  const somaLanc = Math.round((lancs.reduce((a, l) => a + num(l.valor), 0) - adiantamento) * 100) / 100 // = VALOR A RECEBER (− adiantamento)
+  const adiantamentoTotal = Math.round(adiantamentos.reduce((a, x) => a + x.valor, 0) * 100) / 100
+  const somaLanc = Math.round((lancs.reduce((a, l) => a + num(l.valor), 0) - adiantamentoTotal) * 100) / 100 // = VALOR A RECEBER (− adiantamento)
   const valorReceber = somaLanc
   const repasse = Math.round((somaLanc + taxa) * 100) / 100 // REPASSE = valor a receber + taxa
   const total = repasse // "Remuneração Total" exibida = REPASSE
@@ -175,10 +175,10 @@ export default function FechamentoDiretoriaPage() {
     const r2 = (n: number) => Math.round(n * 100) / 100
     let sErp = lancs.filter(l => l.coop === 'erpserv').reduce((a, l) => a + num(l.valor), 0)
     let sBiz = lancs.filter(l => l.coop === 'bizify').reduce((a, l) => a + num(l.valor), 0)
-    if (adtoCoop === 'bizify') sBiz -= adiantamento; else sErp -= adiantamento
+    if (adtoCoop === 'bizify') sBiz -= adiantamentoTotal; else sErp -= adiantamentoTotal
     setValCoopErp(toStr(r2(sErp))); setValCoopBiz(toStr(r2(sBiz)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lancs, adiantamento, adtoCoop, ro])
+  }, [lancs, adiantamentoTotal, adtoCoop, ro])
 
   // Taxa por cooperativa AUTOMÁTICA: cada coop é calculada de forma INDEPENDENTE com a
   // mesma montagem (gross-up) sobre o SEU próprio valor — uma coop não influencia a outra.
@@ -204,12 +204,11 @@ export default function FechamentoDiretoriaPage() {
   useEffect(() => { loadDiretores() }, [loadDiretores])
 
   const loadDiretor = useCallback(() => {
-    if (!userId) { setLancs([]); setStatus('sem_registro'); setCooperativa(''); setTaxaInss(''); setValCoopErp(''); setValCoopBiz(''); setTaxCoopErp(''); setTaxCoopBiz(''); setFolha(null); setAdiantamento(0); setAdiantamentoDesc(null); setAdtoCoop('erpserv'); return }
+    if (!userId) { setLancs([]); setStatus('sem_registro'); setCooperativa(''); setTaxaInss(''); setValCoopErp(''); setValCoopBiz(''); setTaxCoopErp(''); setTaxCoopBiz(''); setFolha(null); setAdiantamentos([]); setAdtoCoop('erpserv'); return }
     setLoading(true)
-    api.get<{ status: Status; cooperativa: string | null; taxa_inss: number | null; valor_coop_erpserv: number | null; valor_coop_bizify: number | null; taxa_coop_erpserv: number | null; taxa_coop_bizify: number | null; diretor_email: string | null; envio_em: string | null; envio_por: string | null; adiantamento_coop?: Coop | null; lancamentos: ApiLanc[]; adiantamento?: number; adiantamento_desc?: string | null }>(`/fechamento-diretoria/${userId}/${yearMonth}`)
+    api.get<{ status: Status; cooperativa: string | null; taxa_inss: number | null; valor_coop_erpserv: number | null; valor_coop_bizify: number | null; taxa_coop_erpserv: number | null; taxa_coop_bizify: number | null; diretor_email: string | null; envio_em: string | null; envio_por: string | null; adiantamento_coop?: Coop | null; lancamentos: ApiLanc[]; adiantamentos?: { legenda?: string; descricao?: string | null; parcela?: string; valor: number }[] }>(`/fechamento-diretoria/${userId}/${yearMonth}`)
       .then(r => {
-        setAdiantamento(r.adiantamento ?? 0)
-        setAdiantamentoDesc(r.adiantamento_desc ?? null)
+        setAdiantamentos((r.adiantamentos ?? []).map(a => ({ legenda: a.legenda || [a.descricao, a.parcela].filter(Boolean).join(' · '), valor: a.valor })))
         setAdtoCoop(r.adiantamento_coop === 'bizify' ? 'bizify' : 'erpserv')
         setStatus(r.status ?? 'sem_registro')
         setCooperativa(r.cooperativa ?? '')
@@ -486,19 +485,19 @@ export default function FechamentoDiretoriaPage() {
                           {!ro && <td className="text-center px-2 py-1.5"><button onClick={() => removeLanc(i)} title="Remover" style={{ color: 'var(--danger)' }}><Trash2 size={15} /></button></td>}
                         </tr>
                       ))}
-                      {/* Adiantamento (parcelas da rotina) — desconto automático, não editável; coop selecionável */}
-                      {adiantamento > 0 && (
-                        <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
+                      {/* Adiantamento (parcelas da rotina) — UMA linha por adiantamento; desconto automático, não editável; coop selecionável */}
+                      {adiantamentos.map((a, i) => (
+                        <tr key={`adto-${i}`} style={{ borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
                           <td className="px-2 py-1.5 text-sm" style={{ color: 'var(--text-muted)' }}>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span>Adiantamento{adiantamentoDesc ? ` (${adiantamentoDesc})` : ''} <span className="text-[10px]">— rotina de adiantamento</span></span>
-                              <CoopPills value={adtoCoop} onChange={setAdtoCoop} disabled={ro} />
+                              <span>Adiantamento{a.legenda ? ` (${a.legenda})` : ''} <span className="text-[10px]">— rotina de adiantamento</span></span>
+                              {i === 0 && <CoopPills value={adtoCoop} onChange={setAdtoCoop} disabled={ro} />}
                             </div>
                           </td>
-                          <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: 'var(--danger)', fontWeight: 600 }}>− {fmt(adiantamento)}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: 'var(--danger)', fontWeight: 600 }}>− {fmt(a.valor)}</td>
                           {!ro && <td />}
                         </tr>
-                      )}
+                      ))}
                       {/* REPASSE à cooperativa (gross-up) = Valor a Receber + Taxa + INSS */}
                       <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--surface)' }}>
                         <td className="px-2 py-2 text-right text-xs font-bold uppercase" style={{ color: 'var(--text)' }}>Repasse à cooperativa</td>
