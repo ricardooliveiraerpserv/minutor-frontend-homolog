@@ -164,6 +164,9 @@ export default function FechamentoDiretoriaPage() {
   // Produção que vai pra cada folha = valor a receber (coop) + taxa (coop) da empresa.
   const prodErp = Math.round((num(valCoopErp) + num(taxCoopErp)) * 100) / 100
   const prodBiz = Math.round((num(valCoopBiz) + num(taxCoopBiz)) * 100) / 100
+  // Dividido entre as 2 coops: a coop SEM INSS grava na VARIÁVEL da folha; a com INSS, na PRODUÇÃO.
+  const dividido = prodErp !== 0 && prodBiz !== 0
+  const folhaCol = (c: Coop) => (dividido && inssCoop !== c) ? 'Variável' : 'Produção'
 
   // Divisão por cooperativa AUTOMÁTICA: cada lançamento é marcado p/ uma coop e soma no
   // valor líquido dela; o adiantamento (desconto) sai da coop escolhida em `adtoCoop`.
@@ -602,11 +605,11 @@ export default function FechamentoDiretoriaPage() {
                 )}
                 <div className="mt-3 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ borderTop: '1px solid var(--border)' }}>
                   <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                    <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Produção → Folha ERPSERV</span>
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{folhaCol('erpserv')} → Folha ERPSERV</span>
                     <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{fmt(prodErp)}</span>
                   </div>
                   <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                    <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Produção → Folha BIZIFY</span>
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{folhaCol('bizify')} → Folha BIZIFY</span>
                     <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{fmt(prodBiz)}</span>
                   </div>
                 </div>
