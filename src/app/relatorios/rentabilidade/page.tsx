@@ -33,7 +33,7 @@ interface ClienteRow {
   recebido: number; margem_real: number; margem_real_pct: number | null; no_minutor: boolean
   consultores: ConsultorRent[]
   despesas?: { custo: number; projetos: DespesaProj[] }
-  investimento_custo?: number
+  investimento_mo?: number; investimento_desp?: number
   // +40% Custo = 40% do Valor Recebido; Custo Total = Custo Operação + 40%; Resultado = Recebido − Custo Total.
   custo40: number; custo_total: number; resultado: number; resultado_pct: number | null; custo40_pct: number | null
 }
@@ -46,6 +46,8 @@ const pctColor = (p: number | null) => p == null ? 'var(--text-light)' : p < 0 ?
 const COL_HEAD = { recebido: '#38761d', custo: '#bf9000', custo40: '#d9683a', total: '#cc0000', resultado: '#1f6fbf', margem: '#bf9000' }
 const COL_CELL = { recebido: '#d9ead3', custo: '#fff2cc', custo40: '#fce5cd', total: '#f4cccc', resultado: '#cfe2f3' }
 const margemBg = (pct: number | null) => pct == null ? '#e5e7eb' : pct < 0 ? '#e06666' : pct < 5 ? '#f6b26b' : '#93c47d'
+// Cor da legenda da Margem +40% (% mantido): <=49 vermelho, 50-79 amarelo, >=80 verde.
+const pct40Color = (p: number | null) => p == null ? 'rgba(0,0,0,0.4)' : p >= 80 ? '#2e7d32' : p >= 50 ? '#b8860b' : '#cc0000'
 const thCol = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.25)', position: 'sticky', top: 0, zIndex: 2 })
 const tdCol = (bg: string, color = '#111827'): React.CSSProperties => ({ background: bg, color, padding: '6px 10px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(0,0,0,0.06)', whiteSpace: 'nowrap' })
 
@@ -129,7 +131,8 @@ export default function RentabilidadePage() {
         })
         else {
           e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.recebido += r.recebido
-          e.investimento_custo = (e.investimento_custo ?? 0) + (r.investimento_custo ?? 0)
+          e.investimento_mo = (e.investimento_mo ?? 0) + (r.investimento_mo ?? 0)
+          e.investimento_desp = (e.investimento_desp ?? 0) + (r.investimento_desp ?? 0)
           e.no_minutor = e.no_minutor || r.no_minutor
           if (!e.executivo && r.executivo) e.executivo = r.executivo
           if (r.despesas) {
@@ -333,7 +336,9 @@ export default function RentabilidadePage() {
     const receita = base.reduce((s, r) => s + r.receita, 0)
     const custo = base.reduce((s, r) => s + r.custo, 0)
     const despesa = base.reduce((s, r) => s + (r.despesas?.custo ?? 0), 0)
-    const investimento = base.reduce((s, r) => s + (r.investimento_custo ?? 0), 0)
+    const investimentoMo = base.reduce((s, r) => s + (r.investimento_mo ?? 0), 0)
+    const investimentoDesp = base.reduce((s, r) => s + (r.investimento_desp ?? 0), 0)
+    const investimento = investimentoMo + investimentoDesp
     const recebido = base.reduce((s, r) => s + r.recebido, 0)
     const custo40 = base.reduce((s, r) => s + r.custo40, 0)
     const custoTotal = custo + custo40
@@ -343,7 +348,7 @@ export default function RentabilidadePage() {
     // Margem +40% total = +40% mantido (somado) ÷ +40% cheio (40% do recebido total).
     const custo40Full = recebido * 0.40
     const custo40Pct = custo40Full > 0 ? custo40 / custo40Full * 100 : null
-    return { receita, custo, despesa, investimento, recebido, custo40, custoTotal, resultado, pct: recebido > 0 ? resultado / recebido * 100 : null, margemOpPct, custo40Pct }
+    return { receita, custo, despesa, investimento, investimentoMo, investimentoDesp, recebido, custo40, custoTotal, resultado, pct: recebido > 0 ? resultado / recebido * 100 : null, margemOpPct, custo40Pct }
   }, [clientesSemErp, erpservRow, considerarErpserv])
   // Para exportar: clientes (sem ERPSERV) + a linha da ERPSERV no fim, espelhando a tela.
   const clientesExport = erpservRow ? [erpservRow, ...clientesSorted] : clientesSorted
@@ -390,10 +395,11 @@ export default function RentabilidadePage() {
     if (visao === 'clientes') {
       const linhas = clientesExport.map(r => `
         <tr><td>${r.cliente}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td>
-        <td class="r">${formatBRL(r.recebido)}</td><td class="r">${formatBRL(r.custo)}</td>
-        <td class="r">${formatBRL(r.custo40)}${r.custo40_pct == null ? '' : `<br><span style="color:#9ca3af">(${r.custo40_pct}%)</span>`}</td><td class="r">${formatBRL(r.custo_total)}</td>
-        <td class="r">${formatBRL(r.resultado)}${r.resultado_pct == null ? '' : `<br><span style="color:#9ca3af">(${r.resultado_pct}%)</span>`}</td>
-        <td class="r">${r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</td></tr>`).join('')
+        <td class="r">${formatBRL(r.recebido)}</td>
+        <td class="r">${formatBRL(r.custo)}${r.margem_real_pct == null ? '' : `<br><span style="color:${r.margem_real_pct < 0 ? '#cc0000' : '#9ca3af'}">Mg op. ${r.margem_real_pct}%</span>`}</td>
+        <td class="r">${formatBRL(r.custo40)}${r.custo40_pct == null ? '' : `<br><span style="color:${pct40Color(r.custo40_pct)}">(${r.custo40_pct}%)</span>`}</td><td class="r">${formatBRL(r.custo_total)}</td>
+        <td class="r">${formatBRL(r.resultado)}</td>
+        <td class="r">${r.resultado_pct == null ? '—' : r.resultado_pct + '%'}</td></tr>`).join('')
       const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Rentabilidade Clientes — ${fmtMes()}</title>
         <style>body{font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;font-size:11px;padding:20px;}
         h1{font-size:18px;color:#5b21b6;margin:0 0 2px;} .sub{color:#6b7280;font-size:11px;margin-bottom:14px;}
@@ -402,9 +408,9 @@ export default function RentabilidadePage() {
         @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>
         <h1>Rentabilidade por Cliente</h1>
         <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesExport.length} cliente(s)</div>
-        <table><thead><tr><th>Cliente</th><th class="r">Valor Recebido</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Resultado</th><th class="r">Margem Operacional</th></tr></thead>
+        <table><thead><tr><th>Cliente</th><th class="r">Valor Recebido</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Resultado</th><th class="r">Margem Total</th></tr></thead>
         <tbody>${linhas}</tbody>
-        <tfoot><tr><td class="r">Total</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.custo)}</td><td class="r">${formatBRL(clientesTot.custo40)}${clientesTot.custo40Pct == null ? '' : `<br><span style="color:#9ca3af">(${clientesTot.custo40Pct.toFixed(1)}%)</span>`}</td><td class="r">${formatBRL(clientesTot.custoTotal)}</td><td class="r">${formatBRL(clientesTot.resultado)}${clientesTot.pct == null ? '' : `<br><span style="color:#9ca3af">(${clientesTot.pct.toFixed(1)}%)</span>`}</td><td class="r">${clientesTot.margemOpPct == null ? '—' : clientesTot.margemOpPct.toFixed(1) + '%'}</td></tr></tfoot></table>
+        <tfoot><tr><td class="r">Total</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.custo)}${clientesTot.margemOpPct == null ? '' : `<br><span style="color:${clientesTot.margemOpPct < 0 ? '#cc0000' : '#9ca3af'}">Mg op. ${clientesTot.margemOpPct.toFixed(1)}%</span>`}</td><td class="r">${formatBRL(clientesTot.custo40)}${clientesTot.custo40Pct == null ? '' : `<br><span style="color:${pct40Color(clientesTot.custo40Pct)}">(${clientesTot.custo40Pct.toFixed(1)}%)</span>`}</td><td class="r">${formatBRL(clientesTot.custoTotal)}</td><td class="r">${formatBRL(clientesTot.resultado)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
         <script>window.onload=function(){window.print();}</script></body></html>`
       const w = window.open('', '_blank')
       if (w) { w.document.write(html); w.document.close() }
@@ -527,11 +533,11 @@ export default function RentabilidadePage() {
             // Valor Recebido (Keruak M+1) − Custo Total (Operação + Despesa + 40% do recebido).
             { label: 'Valor Recebido', value: formatBRL(clientesTot.recebido), color: 'var(--brand-primary)' },
             { label: 'Custo', lines: [
-              { k: 'Operação', v: formatBRL(clientesTot.custo - clientesTot.despesa) },
-              { k: 'Despesa', v: formatBRL(clientesTot.despesa) },
+              { k: 'Operação', v: formatBRL(clientesTot.custo - clientesTot.despesa - clientesTot.investimentoMo) },
+              { k: 'Despesa', v: formatBRL(clientesTot.despesa - clientesTot.investimentoDesp) },
               { k: '+40%', v: formatBRL(clientesTot.custo40) },
-              { k: 'Total', v: formatBRL(clientesTot.custoTotal), strong: true },
               { k: 'Investimento', v: formatBRL(clientesTot.investimento), invest: true },
+              { k: 'Total', v: formatBRL(clientesTot.custoTotal), strong: true },
             ] },
             { label: 'Resultado', value: formatBRL(clientesTot.resultado), color: pctColor(clientesTot.pct) },
             { label: 'Margem', value: clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%', color: pctColor(clientesTot.pct) },
@@ -547,8 +553,8 @@ export default function RentabilidadePage() {
                 <div className="mt-1 space-y-0.5">
                   {c.lines.map(l => (
                     <div key={l.k} className="flex items-baseline justify-between gap-2" style={'strong' in l && l.strong ? { borderTop: '1px solid var(--border)', paddingTop: 2, marginTop: 2 } : undefined}>
-                      <span className="text-[10px]" style={{ color: 'invest' in l && l.invest ? '#1f6fbf' : 'var(--text-light)' }}>{l.k}</span>
-                      <span className={`tabular-nums ${'strong' in l && l.strong ? 'text-sm font-bold' : 'text-xs font-semibold'}`} style={{ color: 'invest' in l && l.invest ? '#1f6fbf' : 'var(--text)' }}>{l.v}</span>
+                      <span className="text-[10px]" style={{ color: 'invest' in l && l.invest ? '#cc0000' : 'var(--text-light)' }}>{l.k}</span>
+                      <span className={`tabular-nums ${'strong' in l && l.strong ? 'text-sm font-bold' : 'text-xs font-semibold'}`} style={{ color: 'invest' in l && l.invest ? '#cc0000' : 'var(--text)' }}>{l.v}</span>
                     </div>
                   ))}
                 </div>
@@ -576,7 +582,7 @@ export default function RentabilidadePage() {
                     <th onClick={cliThProps('custo40').onClick} style={thCol(COL_HEAD.custo40)}>+40% Custo</th>
                     <th onClick={cliThProps('custo_total').onClick} style={thCol(COL_HEAD.total)}>Custo Total</th>
                     <th onClick={cliThProps('resultado').onClick} style={thCol(COL_HEAD.resultado)}>Resultado</th>
-                    <th onClick={cliThProps('margem_real_pct').onClick} style={thCol('#674ea7')}>Margem Operacional</th>
+                    <th onClick={cliThProps('resultado_pct').onClick} style={thCol(COL_HEAD.margem)}>Margem Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -596,11 +602,11 @@ export default function RentabilidadePage() {
                       </td>
                       <td style={{ padding: '8px 10px', color: 'var(--text-muted)', borderBottom: bb, textAlign: 'center' }}>{erpservRow.executivo || '—'}</td>
                       <td style={{ ...tdCol(COL_CELL.recebido), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.recebido)}</td>
-                      <td style={{ ...tdCol(COL_CELL.custo), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo)}</td>
-                      <td style={{ ...tdCol(COL_CELL.custo40), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo40)}{erpservRow.custo40_pct != null && <div style={{ color: 'rgba(0,0,0,0.5)', fontWeight: 600, fontSize: 10 }}>({erpservRow.custo40_pct}%)</div>}</td>
+                      <td style={{ ...tdCol(COL_CELL.custo), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo)}{erpservRow.margem_real_pct != null && <div style={{ fontSize: 10, fontWeight: 600, color: erpservRow.margem_real_pct < 0 ? '#cc0000' : 'rgba(0,0,0,0.5)' }}>Mg op. {erpservRow.margem_real_pct}%</div>}</td>
+                      <td style={{ ...tdCol(COL_CELL.custo40), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo40)}{erpservRow.custo40_pct != null && <div style={{ color: pct40Color(erpservRow.custo40_pct), fontWeight: 700, fontSize: 10 }}>({erpservRow.custo40_pct}%)</div>}</td>
                       <td style={{ ...tdCol(COL_CELL.total), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo_total)}</td>
-                      <td style={{ ...tdCol(COL_CELL.resultado, erpservRow.resultado < 0 ? '#cc0000' : '#111827'), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.resultado)}{erpservRow.resultado_pct != null && <div style={{ fontSize: 10, fontWeight: 600, color: erpservRow.resultado_pct < 0 ? '#cc0000' : 'rgba(0,0,0,0.5)' }}>({erpservRow.resultado_pct}%)</div>}</td>
-                      <td style={{ ...tdCol(margemBg(erpservRow.margem_real_pct), '#fff'), borderBottom: bb }}><strong>{erpservRow.margem_real_pct == null ? '—' : erpservRow.margem_real_pct + '%'}</strong></td>
+                      <td style={{ ...tdCol(COL_CELL.resultado, erpservRow.resultado < 0 ? '#cc0000' : '#111827'), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.resultado)}</td>
+                      <td style={{ ...tdCol(margemBg(erpservRow.resultado_pct), '#fff'), borderBottom: bb }}><strong>{erpservRow.resultado_pct == null ? '—' : erpservRow.resultado_pct + '%'}</strong></td>
                     </tr>
                     {erpOpen && erpTemCons && (
                       <tr>
@@ -699,11 +705,11 @@ export default function RentabilidadePage() {
                       </td>
                       <td style={{ padding: '6px 10px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', textAlign: 'center' }}>{r.executivo || '—'}</td>
                       <td style={tdCol(COL_CELL.recebido)}>{formatBRL(r.recebido)}</td>
-                      <td style={tdCol(COL_CELL.custo)}>{formatBRL(r.custo)}</td>
-                      <td style={tdCol(COL_CELL.custo40)}>{formatBRL(r.custo40)}{r.custo40_pct != null && <div style={{ color: 'rgba(0,0,0,0.5)', fontSize: 10, fontWeight: 600 }}>({r.custo40_pct}%)</div>}</td>
+                      <td style={tdCol(COL_CELL.custo)}>{formatBRL(r.custo)}{r.margem_real_pct != null && <div style={{ fontSize: 10, fontWeight: 600, color: r.margem_real_pct < 0 ? '#cc0000' : 'rgba(0,0,0,0.5)' }}>Mg op. {r.margem_real_pct}%</div>}</td>
+                      <td style={tdCol(COL_CELL.custo40)}>{formatBRL(r.custo40)}{r.custo40_pct != null && <div style={{ color: pct40Color(r.custo40_pct), fontSize: 10, fontWeight: 700 }}>({r.custo40_pct}%)</div>}</td>
                       <td style={tdCol(COL_CELL.total)}>{formatBRL(r.custo_total)}</td>
-                      <td style={tdCol(COL_CELL.resultado, r.resultado < 0 ? '#cc0000' : '#111827')}>{formatBRL(r.resultado)}{r.resultado_pct != null && <div style={{ fontSize: 10, fontWeight: 600, color: r.resultado_pct < 0 ? '#cc0000' : 'rgba(0,0,0,0.5)' }}>({r.resultado_pct}%)</div>}</td>
-                      <td style={tdCol(margemBg(r.margem_real_pct), '#fff')}><strong>{r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</strong></td>
+                      <td style={tdCol(COL_CELL.resultado, r.resultado < 0 ? '#cc0000' : '#111827')}>{formatBRL(r.resultado)}</td>
+                      <td style={tdCol(margemBg(r.resultado_pct), '#fff')}><strong>{r.resultado_pct == null ? '—' : r.resultado_pct + '%'}</strong></td>
                     </tr>
                     {open && temConsultores && (
                       <tr>
@@ -805,11 +811,11 @@ export default function RentabilidadePage() {
                     <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text)', borderTop: '2px solid var(--border)' }}>Total</td>
                     <td style={{ borderTop: '2px solid var(--border)' }}></td>
                     <td style={{ ...tdCol(COL_HEAD.recebido, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.recebido)}</td>
-                    <td style={{ ...tdCol(COL_HEAD.custo, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custo)}</td>
-                    <td style={{ ...tdCol(COL_HEAD.custo40, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custo40)}{clientesTot.custo40Pct != null && <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 10 }}>({clientesTot.custo40Pct.toFixed(1)}%)</div>}</td>
+                    <td style={{ ...tdCol(COL_HEAD.custo, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custo)}{clientesTot.margemOpPct != null && <div style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 600, fontSize: 10 }}>Mg op. {clientesTot.margemOpPct.toFixed(1)}%</div>}</td>
+                    <td style={{ ...tdCol(COL_HEAD.custo40, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custo40)}{clientesTot.custo40Pct != null && <div style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700, fontSize: 10 }}>({clientesTot.custo40Pct.toFixed(1)}%)</div>}</td>
                     <td style={{ ...tdCol(COL_HEAD.total, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custoTotal)}</td>
-                    <td style={{ ...tdCol(COL_HEAD.resultado, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.resultado)}{clientesTot.pct != null && <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600, fontSize: 10 }}>({clientesTot.pct.toFixed(1)}%)</div>}</td>
-                    <td style={{ ...tdCol(margemBg(clientesTot.margemOpPct), '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{clientesTot.margemOpPct == null ? '—' : clientesTot.margemOpPct.toFixed(1) + '%'}</td>
+                    <td style={{ ...tdCol(COL_HEAD.resultado, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.resultado)}</td>
+                    <td style={{ ...tdCol(margemBg(clientesTot.pct), '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td>
                   </tr>
                 </tbody>
               </table>
