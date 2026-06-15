@@ -246,7 +246,7 @@ function buildReport(
   } else if ('salario_mensal' in consultor) {
     const c = consultor as ConsultorFixo
     summaryExtra = `
-      <div class="summary-item"><div class="summary-label">Salário Mensal</div><div class="summary-value">${formatBRL(c.salario_mensal)}</div></div>
+      <div class="summary-item"><div class="summary-label">Repasse no Mês</div><div class="summary-value">${formatBRL(c.salario_mensal)}</div></div>
     `
   } else {
     const ch = consultor as ConsultorHorista
@@ -1150,7 +1150,7 @@ export default function FechamentoConsultorPage() {
             <tr>
               <Th {...thProps('nome')}>Consultor</Th>
               <Th right {...thProps('horas_trabalhadas')}>H Trabalhadas</Th>
-              <Th right {...thProps('salario_mensal')}>Salário Mensal</Th>
+              <Th right {...thProps('salario_mensal')}>Repasse no Mês</Th>
               <Th right>Desconto</Th>
               <Th right>Adiantamento</Th>
               <Th right>Adicional</Th>
