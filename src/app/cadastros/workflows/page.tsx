@@ -11,12 +11,13 @@ type Channel = 'off' | 'to' | 'cc'
 
 interface Audience { audience: string; label: string; channel: Channel; default: Channel; recommended?: boolean }
 interface ExtraEmail { email: string; channel: 'to' | 'cc' }
-interface Template { subject: string; body: string; variables: Record<string, string>; default_subject: string; default_body: string }
+interface Template { subject: string; body: string; variables: Record<string, string>; default_subject: string; default_body: string; recurrence_days?: number }
 interface WorkflowItem {
   key: string
   label: string
   domain: string
   description?: string | null
+  recurrence?: boolean
   audiences: Audience[]
   available: { audience: string; label: string }[]
   template: Template
@@ -37,8 +38,9 @@ const DOMAIN_LABELS: Record<string, string> = {
   'Fechamento':  'Fechamento',
   'Apontamento': 'Apontamento',
   'Triagem':     'Triagem',
+  'Despesas':    'Despesas',
 }
-const DOMAIN_ORDER = ['Requisições', 'Contratos', 'Projetos', 'Fechamento', 'Apontamento', 'Triagem']
+const DOMAIN_ORDER = ['Requisições', 'Contratos', 'Projetos', 'Fechamento', 'Apontamento', 'Triagem', 'Despesas']
 
 export default function WorkflowsPage() {
   const { user } = useAuth()
@@ -147,7 +149,9 @@ export default function WorkflowsPage() {
       const extra_emails = w.extra_emails
         .filter(e => e.email.trim())
         .map(e => ({ email: e.email.trim(), channel: e.channel }))
-      await api.put(`/workflows/${w.key}`, { audiences, extra_emails, subject: w.template.subject, body: w.template.body })
+      const payload: Record<string, unknown> = { audiences, extra_emails, subject: w.template.subject, body: w.template.body }
+      if (w.recurrence) payload.recurrence_days = Math.max(0, Number(w.template.recurrence_days) || 0)
+      await api.put(`/workflows/${w.key}`, payload)
       toast.success(`"${w.label}" salvo`)
     } catch {
       toast.error('Falha ao salvar')
@@ -227,6 +231,20 @@ export default function WorkflowsPage() {
                         {Object.entries(w.template.variables).map(([v, desc]) => (
                           <span key={v} title={desc} className="text-[11px] px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-emerald-400 font-mono cursor-default">{'{'}{v}{'}'}</span>
                         ))}
+                      </div>
+                    )}
+                    {w.recurrence && (
+                      <div className="mt-3 pt-3 border-t border-zinc-800">
+                        <label className="block text-xs text-zinc-400 mb-1">Recorrência — reenviar enquanto não for paga</label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-zinc-400">A cada</span>
+                          <input
+                            type="number" min={0} max={365}
+                            value={w.template.recurrence_days ?? 0}
+                            onChange={e => setTemplate(w.key, { recurrence_days: Math.max(0, Math.min(365, Number(e.target.value) || 0)) })}
+                            className="w-20 bg-zinc-800 border border-zinc-700 rounded-md px-2.5 py-1.5 text-sm text-zinc-100 text-center" />
+                          <span className="text-xs text-zinc-400">dia(s). Use <b>0</b> para enviar só o aviso na aprovação (sem repetir).</span>
+                        </div>
                       </div>
                     )}
                     <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center gap-2">
