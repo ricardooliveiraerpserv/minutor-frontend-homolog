@@ -372,7 +372,7 @@ export default function RentabilidadePage() {
       const data = clientesExport.map(r => ({
         Cliente: r.cliente, 'No Minutor': r.no_minutor ? 'Sim' : 'Não',
         'Valor Recebido': r.recebido, 'Custo Operação': r.custo, '+40% Custo': r.custo40,
-        'Custo Total': r.custo_total, Resultado: r.resultado,
+        'Custo Total': r.custo_total, Lucro: r.resultado,
         'Margem Operacional %': r.margem_real_pct, 'Margem +40% %': r.custo40_pct, 'Margem Total %': r.resultado_pct,
       }))
       const ws = XLSX.utils.json_to_sheet(data)
@@ -408,7 +408,7 @@ export default function RentabilidadePage() {
         @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>
         <h1>Rentabilidade por Cliente</h1>
         <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesExport.length} cliente(s)</div>
-        <table><thead><tr><th>Cliente</th><th class="r">Valor Recebido</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Resultado</th><th class="r">Margem Total</th></tr></thead>
+        <table><thead><tr><th>Cliente</th><th class="r">Valor Recebido</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Lucro</th><th class="r">Margem Total</th></tr></thead>
         <tbody>${linhas}</tbody>
         <tfoot><tr><td class="r">Total</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.custo)}${clientesTot.margemOpPct == null ? '' : `<br><span style="color:${clientesTot.margemOpPct < 0 ? '#cc0000' : '#9ca3af'}">Mg op. ${clientesTot.margemOpPct.toFixed(1)}%</span>`}</td><td class="r">${formatBRL(clientesTot.custo40)}${clientesTot.custo40Pct == null ? '' : `<br><span style="color:${pct40Color(clientesTot.custo40Pct)}">(${clientesTot.custo40Pct.toFixed(1)}%)</span>`}</td><td class="r">${formatBRL(clientesTot.custoTotal)}</td><td class="r">${formatBRL(clientesTot.resultado)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
         <script>window.onload=function(){window.print();}</script></body></html>`
@@ -539,7 +539,7 @@ export default function RentabilidadePage() {
               { k: 'Investimento', v: formatBRL(clientesTot.investimento), invest: true },
               { k: 'Total', v: formatBRL(clientesTot.custoTotal), strong: true },
             ] },
-            { label: 'Resultado', value: formatBRL(clientesTot.resultado), color: pctColor(clientesTot.pct) },
+            { label: 'Lucro', value: formatBRL(clientesTot.resultado), color: pctColor(clientesTot.pct) },
             { label: 'Margem', value: clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%', color: pctColor(clientesTot.pct) },
           ] : [
             { label: 'Receita', value: formatBRL(tot.receita), color: 'var(--text)' },
@@ -581,7 +581,7 @@ export default function RentabilidadePage() {
                     <th onClick={cliThProps('custo').onClick} style={thCol(COL_HEAD.custo)}>Custo Operação</th>
                     <th onClick={cliThProps('custo40').onClick} style={thCol(COL_HEAD.custo40)}>+40% Custo</th>
                     <th onClick={cliThProps('custo_total').onClick} style={thCol(COL_HEAD.total)}>Custo Total</th>
-                    <th onClick={cliThProps('resultado').onClick} style={thCol(COL_HEAD.resultado)}>Resultado</th>
+                    <th onClick={cliThProps('resultado').onClick} style={thCol(COL_HEAD.resultado)}>Lucro</th>
                     <th onClick={cliThProps('resultado_pct').onClick} style={thCol(COL_HEAD.margem)}>Margem Total</th>
                   </tr>
                 </thead>
