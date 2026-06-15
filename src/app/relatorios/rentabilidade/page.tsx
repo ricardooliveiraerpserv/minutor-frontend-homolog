@@ -67,6 +67,7 @@ export default function RentabilidadePage() {
   const [clientesLoading, setClientesLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [soMinutor, setSoMinutor] = useState(false)
+  const [considerarErpserv, setConsiderarErpserv] = useState(false) // ERPSERV vem separada; botão p/ incluí-la (ou não) nos totais
   const [fExecutivo, setFExecutivo] = useState('')
   const [fConsultorCli, setFConsultorCli] = useState('')
   const [expandedCli, setExpandedCli] = useState<Set<string>>(new Set())
@@ -265,32 +266,47 @@ export default function RentabilidadePage() {
   const clientesFiltered = useMemo(() => clientesRows.filter(r => {
     if (soReceita && r.receita === 0 && r.recebido === 0) return false
     if (soMinutor && !r.no_minutor) return false
+    if (fCliente && r.cliente !== fCliente) return false
     if (fExecutivo && (r.executivo ?? '') !== fExecutivo) return false
     if (fConsultorCli && !(r.consultores ?? []).some(c => String(c.user_id) === fConsultorCli)) return false
     if (busca.trim()) {
       const q = busca.trim().toLowerCase()
-      if (!r.cliente.toLowerCase().includes(q) && !r.cnpj.includes(busca.replace(/\D/g, ''))) return false
+      const digits = busca.replace(/\D/g, '')
+      const matchNome = r.cliente.toLowerCase().includes(q)
+      const matchCnpj = digits.length > 0 && r.cnpj.includes(digits)
+      if (!matchNome && !matchCnpj) return false
     }
     return true
-  }), [clientesRows, soReceita, soMinutor, fExecutivo, fConsultorCli, busca])
+  }), [clientesRows, soReceita, soMinutor, fCliente, fExecutivo, fConsultorCli, busca])
   const executivos = useMemo(() => [...new Set(clientesRows.map(r => r.executivo).filter(Boolean) as string[])].sort(), [clientesRows])
+  const clientesOpts = useMemo(() => [...new Set(clientesRows.map(r => r.cliente).filter(Boolean))].sort().map(c => ({ id: c, name: c })), [clientesRows])
   const consultoresCli = useMemo(() => {
     const m = new Map<number, string>()
     clientesRows.forEach(r => (r.consultores ?? []).forEach(c => m.set(c.user_id, c.consultor)))
     return [...m.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
   }, [clientesRows])
-  const { sorted: clientesSorted, thProps: cliThProps } = useTableSort(clientesFiltered)
+  // ERPSERV (empresa interna) vem SEPARADA da lista de clientes; só entra nos totais
+  // quando "Considerar ERPSERV" está ligado.
+  const isErpserv = (r: ClienteRow) => (r.cliente || '').toUpperCase().includes('ERPSERV')
+  // ERPSERV é fixada no TOPO, em evidência — vem da lista CRUA (clientesRows), sem sofrer
+  // os filtros (inclusive "Só com movimento", que ignora custo); sempre aparece se existir.
+  const erpservRow = useMemo(() => clientesRows.find(isErpserv) ?? null, [clientesRows])
+  const clientesSemErp = useMemo(() => clientesFiltered.filter(r => !isErpserv(r)), [clientesFiltered])
+  const { sorted: clientesSorted, thProps: cliThProps } = useTableSort(clientesSemErp)
   const clientesTot = useMemo(() => {
-    const receita = clientesFiltered.reduce((s, r) => s + r.receita, 0)
-    const custo = clientesFiltered.reduce((s, r) => s + r.custo, 0)
-    const recebido = clientesFiltered.reduce((s, r) => s + r.recebido, 0)
-    const custo40 = clientesFiltered.reduce((s, r) => s + r.custo40, 0)
+    const base = considerarErpserv && erpservRow ? [...clientesSemErp, erpservRow] : clientesSemErp
+    const receita = base.reduce((s, r) => s + r.receita, 0)
+    const custo = base.reduce((s, r) => s + r.custo, 0)
+    const recebido = base.reduce((s, r) => s + r.recebido, 0)
+    const custo40 = base.reduce((s, r) => s + r.custo40, 0)
     const custoTotal = custo + custo40
     const resultado = recebido - custoTotal
     // Margem operacional = resultado SEM os 40% (só custo operação).
     const margemOpPct = recebido > 0 ? (recebido - custo) / recebido * 100 : null
     return { receita, custo, recebido, custo40, custoTotal, resultado, pct: recebido > 0 ? resultado / recebido * 100 : null, margemOpPct }
-  }, [clientesFiltered])
+  }, [clientesSemErp, erpservRow, considerarErpserv])
+  // Para exportar: clientes (sem ERPSERV) + a linha da ERPSERV no fim, espelhando a tela.
+  const clientesExport = erpservRow ? [erpservRow, ...clientesSorted] : clientesSorted
 
   const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true); setSoMinutor(false); setFExecutivo(''); setFConsultorCli('') }
   const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita || soMinutor || fExecutivo || fConsultorCli)
@@ -308,7 +324,7 @@ export default function RentabilidadePage() {
 
   const exportExcel = () => {
     if (visao === 'clientes') {
-      const data = clientesSorted.map(r => ({
+      const data = clientesExport.map(r => ({
         Cliente: r.cliente, 'No Minutor': r.no_minutor ? 'Sim' : 'Não',
         'Valor Recebido': r.recebido, 'Custo Operação': r.custo, '+40% Custo': r.custo40,
         'Custo Total': r.custo_total, Resultado: r.resultado,
@@ -332,7 +348,7 @@ export default function RentabilidadePage() {
 
   const exportPdf = () => {
     if (visao === 'clientes') {
-      const linhas = clientesSorted.map(r => `
+      const linhas = clientesExport.map(r => `
         <tr><td>${r.cliente}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td>
         <td class="r">${formatBRL(r.recebido)}</td><td class="r">${formatBRL(r.custo)}</td>
         <td class="r">${formatBRL(r.custo40)}</td><td class="r">${formatBRL(r.custo_total)}</td>
@@ -346,7 +362,7 @@ export default function RentabilidadePage() {
         td{border-bottom:1px solid #f3f4f6;padding:5px 6px;} .r{text-align:right;} tfoot td{font-weight:bold;border-top:2px solid #7c3aed;}
         @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>
         <h1>Rentabilidade por Cliente</h1>
-        <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesSorted.length} cliente(s)</div>
+        <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesExport.length} cliente(s)</div>
         <table><thead><tr><th>Cliente</th><th class="r">Valor Recebido</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Resultado</th><th class="r">Margem Operacional</th><th class="r">Margem Total</th></tr></thead>
         <tbody>${linhas}</tbody>
         <tfoot><tr><td class="r">Total</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.custo)}</td><td class="r">${formatBRL(clientesTot.custo40)}</td><td class="r">${formatBRL(clientesTot.custoTotal)}</td><td class="r">${formatBRL(clientesTot.resultado)}</td><td class="r">${clientesTot.margemOpPct == null ? '—' : clientesTot.margemOpPct.toFixed(1) + '%'}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
@@ -449,6 +465,17 @@ export default function RentabilidadePage() {
             </label>
           )}
           {visao === 'clientes' && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
+              <input type="checkbox" checked={considerarErpserv} onChange={e => setConsiderarErpserv(e.target.checked)} />
+              Considerar ERPSERV
+            </label>
+          )}
+          {visao === 'clientes' && (
+            <div className="w-52 pb-2">
+              <SearchSelect value={fCliente} onChange={setFCliente} options={clientesOpts} placeholder="Cliente (todos)" />
+            </div>
+          )}
+          {visao === 'clientes' && (
             <div className="w-48 pb-2">
               <SearchSelect value={fExecutivo} onChange={setFExecutivo} options={executivos.map(e => ({ id: e, name: e }))} placeholder="Executivo (todos)" />
             </div>
@@ -465,11 +492,12 @@ export default function RentabilidadePage() {
         </div>
 
         {/* Cards de total */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className={`grid grid-cols-2 ${visao === 'clientes' ? 'md:grid-cols-3 lg:grid-cols-5' : 'md:grid-cols-4'} gap-3 mb-4`}>
           {(visao === 'clientes' ? [
             // Valor Recebido (Keruak M+1) − Custo Total (Operação + 40% do recebido).
             { label: 'Valor Recebido', value: formatBRL(clientesTot.recebido), color: 'var(--brand-primary)' },
             { label: 'Custo Operacional', value: formatBRL(clientesTot.custo), color: 'var(--text)' },
+            { label: '+40% Custo', value: formatBRL(clientesTot.custo40), color: 'var(--text)' },
             { label: 'Resultado', value: formatBRL(clientesTot.resultado), color: pctColor(clientesTot.pct) },
             { label: 'Margem', value: clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%', color: pctColor(clientesTot.pct) },
           ] : [
@@ -488,7 +516,7 @@ export default function RentabilidadePage() {
         {visao === 'clientes' ? (
           clientesLoading && clientesRows.length === 0 ? (
             <SkeletonTable rows={8} cols={9} />
-          ) : clientesFiltered.length === 0 ? (
+          ) : clientesSemErp.length === 0 && !erpservRow ? (
             <EmptyState icon={TrendingUp} title="Sem dados" description="Nenhum cliente/recebimento para o mês/filtros." />
           ) : (
             <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)', maxHeight: '70vh' }}>
@@ -507,6 +535,61 @@ export default function RentabilidadePage() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* ERPSERV — empresa interna, EM EVIDÊNCIA no topo; expande por consultores; entra nos totais só com "Considerar ERPSERV" */}
+                  {erpservRow && (() => {
+                    const erpOpen = expandedCli.has('erpserv')
+                    const erpTemCons = (erpservRow.consultores?.length ?? 0) > 0
+                    const bb = '2px solid var(--primary)'
+                    return (
+                    <Fragment key="erpserv">
+                    <tr style={{ background: 'var(--primary-soft)', opacity: considerarErpserv ? 1 : 0.7, cursor: erpTemCons ? 'pointer' : 'default' }}
+                      onClick={() => { if (erpTemCons) setExpandedCli(prev => { const n = new Set(prev); n.has('erpserv') ? n.delete('erpserv') : n.add('erpserv'); return n }) }}>
+                      <td style={{ padding: '8px 10px', color: 'var(--text)', fontWeight: 800, borderBottom: bb }}>
+                        {erpTemCons && (erpOpen ? <ChevronDown size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
+                        ★ {erpservRow.cliente}
+                        <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>— interno {considerarErpserv ? '(considerado nos totais)' : '(fora dos totais)'}</span>
+                      </td>
+                      <td style={{ padding: '8px 10px', color: 'var(--text-muted)', borderBottom: bb, textAlign: 'center' }}>{erpservRow.executivo || '—'}</td>
+                      <td style={{ ...tdCol(COL_CELL.recebido), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.recebido)}</td>
+                      <td style={{ ...tdCol(COL_CELL.custo), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo)}</td>
+                      <td style={{ ...tdCol(COL_CELL.custo40), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo40)}</td>
+                      <td style={{ ...tdCol(COL_CELL.total), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo_total)}</td>
+                      <td style={{ ...tdCol(COL_CELL.resultado, erpservRow.resultado < 0 ? '#cc0000' : '#111827'), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.resultado)}</td>
+                      <td style={{ ...tdCol(margemBg(erpservRow.margem_real_pct), '#fff'), borderBottom: bb }}><strong>{erpservRow.margem_real_pct == null ? '—' : erpservRow.margem_real_pct + '%'}</strong></td>
+                      <td style={{ ...tdCol(margemBg(erpservRow.resultado_pct), '#fff'), borderBottom: bb }}><strong>{erpservRow.resultado_pct == null ? '—' : erpservRow.resultado_pct + '%'}</strong></td>
+                    </tr>
+                    {erpOpen && erpTemCons && (
+                      <tr>
+                        <td colSpan={9} style={{ padding: '0 0 8px 28px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                          <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ color: 'var(--text-light)' }}>
+                                <th style={{ textAlign: 'left', padding: '6px 8px' }}>Consultor</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Horas</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>% Particip.</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Custo</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {[...erpservRow.consultores].sort((a, b) => b.horas - a.horas).map(c => {
+                                const pct = erpservRow.horas > 0 ? c.horas / erpservRow.horas : 0
+                                return (
+                                  <tr key={c.user_id} style={{ borderTop: '1px solid var(--border)' }}>
+                                    <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>{c.consultor} <span style={{ color: 'var(--text-light)', fontSize: 11 }}>({formatBRL(c.valor_hora)}/h)</span></td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{fmtH(c.horas)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{(pct * 100).toFixed(1)}%</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(c.custo)}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
+                    )
+                  })()}
                   {clientesSorted.map(r => {
                     const ck = r.cnpj || `c${r.customer_id}` || r.cliente
                     const open = expandedCli.has(ck)
