@@ -75,15 +75,15 @@ export default function RentabilidadePage() {
   const [expandedCons, setExpandedCons] = useState<Set<string>>(new Set()) // consultor expandido → projetos que atuou
 
   // Filtro ANUAL. Minutor a partir de maio/2026 (início dos dados); anos seguintes
-  // começam em janeiro. Acumula até o mês atual no ano corrente, dez nos anteriores.
-  // O endpoint de clientes pareia Minutor[M] × Keruak[M+1], então o recebido começa
-  // naturalmente em junho (M+1 de maio) e segue a regra "Keruak de junho pra frente".
+  // começam em janeiro. NUNCA traz o mês ATUAL — vai sempre até o mês ANTERIOR (mês
+  // corrente incompleto e recebimento Keruak M+1 ainda não chegou). Anos anteriores
+  // vão até dezembro. O endpoint de clientes pareia Minutor[M] × Keruak[M+1].
   const monthsToFetch = useMemo(() => {
     const startMonth = year <= 2026 ? 5 : 1
-    const endMonth = year === currentYear ? currentMonth : 12
+    const endMonth = year === currentYear ? currentMonth - 1 : 12
     const out: string[] = []
     for (let m = startMonth; m <= endMonth; m++) out.push(`${year}-${String(m).padStart(2, '0')}`)
-    return out.length ? out : [`${year}-${String(startMonth).padStart(2, '0')}`]
+    return out
   }, [year, currentYear, currentMonth])
 
   useEffect(() => {
@@ -463,6 +463,9 @@ export default function RentabilidadePage() {
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
+              <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--text-light)' }}>
+                {monthsToFetch.length ? `até ${fmtYm(monthsToFetch[monthsToFetch.length - 1])} · não inclui o mês atual` : 'sem mês fechado neste ano ainda'}
+              </span>
               {visao === 'clientes' && (
                 <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing}
                   onClick={() => loadClientes(true).then(() => toast.success('Recebimentos do Keruak atualizados'))}>
