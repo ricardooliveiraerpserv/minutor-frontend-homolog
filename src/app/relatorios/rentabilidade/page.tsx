@@ -7,7 +7,7 @@ import { SearchSelect } from '@/components/ui/search-select'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
+import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw, Check, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 
@@ -89,24 +89,51 @@ function deriveClienteRow(r: ClienteRow, init?: { custo_inicial: number; receita
 function InitialsEditor({ custoInicial, receitaInicial, onSave }: {
   custoInicial: number; receitaInicial: number; onSave: (custo: number, receita: number) => void
 }) {
+  const [editing, setEditing] = useState(false)
   const [custo, setCusto] = useState(custoInicial ? String(custoInicial) : '')
   const [receita, setReceita] = useState(receitaInicial ? String(receitaInicial) : '')
-  const commit = () => {
+  const startEdit = () => {
+    setCusto(custoInicial ? String(custoInicial) : '')
+    setReceita(receitaInicial ? String(receitaInicial) : '')
+    setEditing(true)
+  }
+  const save = () => {
     const c = Number(custo) || 0, rec = Number(receita) || 0
     if (c !== custoInicial || rec !== receitaInicial) onSave(c, rec)
+    setEditing(false)
   }
   const inp: React.CSSProperties = { width: 120, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, textAlign: 'right' }
+  const btn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)' }
   return (
     <div className="flex items-center gap-4 flex-wrap" style={{ padding: '8px 8px 10px' }} onClick={e => e.stopPropagation()}>
       <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Ajustes iniciais do ano</span>
-      <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-        Custo inicial
-        <input type="number" step="0.01" min="0" value={custo} onChange={e => setCusto(e.target.value)} onBlur={commit} placeholder="0,00" style={inp} />
-      </label>
-      <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
-        Receita inicial
-        <input type="number" step="0.01" min="0" value={receita} onChange={e => setReceita(e.target.value)} onBlur={commit} placeholder="0,00" style={inp} />
-      </label>
+      {editing ? (
+        <>
+          <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Custo inicial
+            <input autoFocus type="number" step="0.01" min="0" value={custo} onChange={e => setCusto(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') save() }} placeholder="0,00" style={inp} />
+          </label>
+          <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Receita inicial
+            <input type="number" step="0.01" min="0" value={receita} onChange={e => setReceita(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') save() }} placeholder="0,00" style={inp} />
+          </label>
+          <button type="button" onClick={save} title="Salvar e fechar"
+            style={{ ...btn, background: 'var(--success-bg)', borderColor: 'var(--success-border)', color: 'var(--success-border)' }}>
+            <Check size={15} strokeWidth={3} />
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Custo inicial <b style={{ color: 'var(--text)' }}>{formatBRL(custoInicial)}</b></span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Receita inicial <b style={{ color: 'var(--text)' }}>{formatBRL(receitaInicial)}</b></span>
+          <button type="button" onClick={startEdit} title="Editar"
+            style={{ ...btn, background: 'var(--primary-soft)', borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+            <Pencil size={14} />
+          </button>
+        </>
+      )}
       <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>Somam no Custo Operação e no Valor Recebido deste ano.</span>
     </div>
   )
@@ -439,7 +466,7 @@ export default function RentabilidadePage() {
       const data = clientesExport.map(r => ({
         Cliente: r.cliente, 'No Minutor': r.no_minutor ? 'Sim' : 'Não',
         'Valor Recebido': r.recebido, 'Custo Operação': r.custo, '+40% Custo': r.custo40,
-        'Custo Total': r.custo_total, Lucro: r.resultado,
+        'Custo Total': r.custo_total, 'Lucro/Prejuízo': r.resultado,
         'Margem Operacional %': r.margem_real_pct, 'Margem +40% %': r.custo40_pct, 'Margem Total %': r.resultado_pct,
       }))
       const ws = XLSX.utils.json_to_sheet(data)
@@ -475,7 +502,7 @@ export default function RentabilidadePage() {
         @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>
         <h1>Rentabilidade por Cliente</h1>
         <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesExport.length} cliente(s)</div>
-        <table><thead><tr><th>Cliente</th><th class="r">Valor Recebido</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Lucro</th><th class="r">Margem Total</th></tr></thead>
+        <table><thead><tr><th>Cliente</th><th class="r">Valor Recebido</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Lucro/Prejuízo</th><th class="r">Margem Total</th></tr></thead>
         <tbody>${linhas}</tbody>
         <tfoot><tr><td class="r">Total</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.custo)}${clientesTot.margemOpPct == null ? '' : `<br><span style="color:${mgOpColor(clientesTot.margemOpPct)}">Mg op. ${clientesTot.margemOpPct.toFixed(1)}%</span>`}</td><td class="r">${formatBRL(clientesTot.custo40)}${clientesTot.custo40Pct == null ? '' : `<br><span style="color:${pct40Color(clientesTot.custo40Pct)}">(${clientesTot.custo40Pct.toFixed(1)}%)</span>`}</td><td class="r">${formatBRL(clientesTot.custoTotal)}</td><td class="r">${formatBRL(clientesTot.resultado)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
         <script>window.onload=function(){window.print();}</script></body></html>`
@@ -617,7 +644,7 @@ export default function RentabilidadePage() {
               { k: 'Investimento', v: formatBRL(clientesTot.investimento), invest: true },
               { k: 'Total', v: formatBRL(clientesTot.custoTotal), strong: true },
             ] },
-            { label: 'Lucro', value: formatBRL(clientesTot.resultado), color: pctColor(clientesTot.pct) },
+            { label: 'Lucro/Prejuízo', value: formatBRL(clientesTot.resultado), color: pctColor(clientesTot.pct) },
             { label: 'Margem', value: clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%', color: pctColor(clientesTot.pct) },
           ] : [
             { label: 'Receita', value: formatBRL(tot.receita), color: 'var(--text)' },
@@ -659,7 +686,7 @@ export default function RentabilidadePage() {
                     <th onClick={cliThProps('custo').onClick} style={thCol(COL_HEAD.custo)}>Custo Operação</th>
                     <th onClick={cliThProps('custo40').onClick} style={thCol(COL_HEAD.custo40)}>+40% Custo</th>
                     <th onClick={cliThProps('custo_total').onClick} style={thCol(COL_HEAD.total)}>Custo Total</th>
-                    <th onClick={cliThProps('resultado').onClick} style={thCol(COL_HEAD.resultado)}>Lucro</th>
+                    <th onClick={cliThProps('resultado').onClick} style={thCol(COL_HEAD.resultado)}>Lucro/Prejuízo</th>
                     <th onClick={cliThProps('resultado_pct').onClick} style={thCol(COL_HEAD.margem)}>Margem Total</th>
                   </tr>
                 </thead>
