@@ -17,6 +17,7 @@ type FormState = {
   customer_id: string
   project_name: string
   is_subproject: boolean
+  sera_faturado: boolean   // subprojeto faturado → gera card de aporte (Novo Contrato) no pai
   sub_seq: string
   parent_project_id: string
   code_seq: string
@@ -61,7 +62,7 @@ type FormState = {
 const CURRENT_YEAR_2D = new Date().getFullYear().toString().slice(-2)
 
 const EMPTY_FORM: FormState = {
-  customer_id: '', project_name: '', is_subproject: false, sub_seq: '', parent_project_id: '',
+  customer_id: '', project_name: '', is_subproject: false, sera_faturado: false, sub_seq: '', parent_project_id: '',
   code_seq: '', code_year: CURRENT_YEAR_2D,
   categoria: 'projeto', service_type_id: '', contract_type_id: '',
   cobra_despesa_cliente: false, limite_despesa: '',
@@ -671,6 +672,8 @@ export function ContractCreateModal({
         executivo_conta_id:    form.executivo_conta_id ? Number(form.executivo_conta_id) : null,
         vendedor_id:           form.vendedor_id ? Number(form.vendedor_id) : null,
         observacoes:           form.observacoes || null,
+        // Só subprojeto faturado dispara o aporte no pai.
+        sera_faturado:         form.is_subproject && form.sera_faturado,
         contacts,
       }
 
@@ -1159,7 +1162,7 @@ export function ContractCreateModal({
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}
+                    onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sera_faturado: false, sub_seq: '', parent_project_id: '' }))}
                     className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
                     style={{ background: form.is_subproject ? 'var(--primary)' : 'var(--border)' }}
                   >
@@ -1168,7 +1171,7 @@ export function ContractCreateModal({
                   </button>
                   <label className="text-sm cursor-pointer select-none"
                     style={{ color: form.is_subproject ? 'var(--primary)' : 'var(--text-light)' }}
-                    onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}>
+                    onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sera_faturado: false, sub_seq: '', parent_project_id: '' }))}>
                     É subprojeto
                   </label>
                 </div>
@@ -1200,6 +1203,34 @@ export function ContractCreateModal({
                       </p>
                     )
                   })()}
+                </div>
+              )}
+
+              {/* Subprojeto faturado: cria também um card de APORTE em "Novo Contrato" no projeto pai,
+                  valorado pelas horas × valor-hora deste subprojeto. */}
+              {form.customer_id && form.is_subproject && (
+                <div className="rounded-lg p-3" style={{ background: form.sera_faturado ? 'var(--success-bg)' : 'var(--surface-sunken)', border: `1px solid ${form.sera_faturado ? 'var(--success-border)' : 'var(--border)'}` }}>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, sera_faturado: !f.sera_faturado }))}
+                      className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
+                      style={{ background: form.sera_faturado ? 'var(--success)' : 'var(--border)' }}
+                    >
+                      <span className="pointer-events-none inline-block h-4 w-4 rounded-full shadow transition-transform"
+                        style={{ background: '#fff', transform: form.sera_faturado ? 'translateX(16px)' : 'translateX(0)' }} />
+                    </button>
+                    <label className="text-sm cursor-pointer select-none font-medium"
+                      style={{ color: form.sera_faturado ? 'var(--success)' : 'var(--text-light)' }}
+                      onClick={() => setForm(f => ({ ...f, sera_faturado: !f.sera_faturado }))}>
+                      Será faturado?
+                    </label>
+                  </div>
+                  {form.sera_faturado && (
+                    <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
+                      Será criado um card de <b>Aporte</b> em <b>Novo Contrato</b> no projeto pai, com as horas e o valor-hora deste subprojeto (além do card do filho em Início Autorizado).
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1530,7 +1561,7 @@ export function ContractCreateModal({
                     placeholder={customerContacts.length ? 'Buscar e adicionar contato do cadastro...' : 'Nenhum contato cadastrado para este cliente'}
                   />
                   <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
-                    O contato escolhido entra na lista abaixo (editável). Cadastre novos contatos no cliente em Cadastros.
+                    O contato escolhido entra na lista abaixo (editável). Contatos novos digitados aqui são salvos no cadastro do cliente ao salvar o contrato.
                   </p>
                 </div>
               )}

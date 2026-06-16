@@ -730,9 +730,11 @@ function ProjectKanbanCard({
             </div>
           )}
           {(() => {
-            // Lente do coordenador: se o usuário logado é coordenador do projeto e há banco
-            // de coordenação, mostra consumo/banco de coordenação no lugar do operacional.
-            const isCoordViewer = viewerUser?.type === 'coordenador' && Number(card.coordination_hours ?? 0) > 0
+            // NESTA TELA (Demandas e Projetos): a lente de coordenação vale pra TODOS os
+            // perfis internos — inclusive admin — quando há banco de coordenação. Mostra
+            // só as horas disponibilizadas pra coordenação (não o operacional). Exceção:
+            // CLIENTE continua vendo as horas contratadas. (Demais telas: regra antiga.)
+            const isCoordViewer = !isCliente && Number(card.coordination_hours ?? 0) > 0
             const sold = isCoordViewer ? Number(card.coordination_hours ?? 0) : Number(card.sold_hours ?? 0)
             const consumed = isCoordViewer ? Number(card.coordination_consumed_hours ?? 0) : Number(card.consumed_hours ?? 0)
             const pct = sold > 0 ? Math.min(100, Math.round((consumed / sold) * 100)) : 0
@@ -2130,9 +2132,10 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   // Banco apontável = Horas Apontáveis informadas + APORTE (aporte soma com as contratadas).
   const coordRaw = Number((p as any)?.coordination_hours ?? 0)
   const coordHoursBank = coordRaw > 0 ? coordRaw + Math.max(0, totalAvail - Number(p?.sold_hours ?? 0)) : 0
-  // Lente por PAPEL (não por filiação ao projeto): coordenador NUNCA vê Horas Vendidas,
-  // só as Horas Apontáveis (banco de coordenação + aporte; cai pras vendidas quando não há banco).
-  const isCoordViewer = !isClienteViewer && viewerUser?.type === 'coordenador'
+  // NESTA TELA (Demandas e Projetos): a lente de coordenação vale pra TODOS os perfis
+  // internos — inclusive admin — quando há banco de coordenação. Mostra só as horas
+  // disponibilizadas pra coordenação. NUNCA aplica pra cliente (vê o sold_hours do contrato).
+  const isCoordViewer = !isClienteViewer && coordHoursBank > 0
   const coordConsumedVal = Number((p as any)?.coordination_consumed_hours ?? 0)
   const coordPool = coordHoursBank > 0 ? coordHoursBank : (p?.sold_hours ?? 0)
   const cardVendidas = isCoordViewer ? coordPool : (p?.sold_hours ?? 0)
