@@ -16,9 +16,8 @@ export interface TimesheetExportRow {
 }
 
 function minutesToHHMM(minutes: number): string {
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return `${h}:${String(m).padStart(2, '0')}`
+  // Tempo sempre em DECIMAL.
+  return (Number(minutes || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 function fmtDate(d: string): string {
@@ -29,11 +28,9 @@ function fmtDate(d: string): string {
 
 export function exportTimesheetsToExcel(rows: TimesheetExportRow[], filename = 'apontamentos') {
   const data = rows.map(r => {
-    const hours = r.effort_hours
-      ? r.effort_hours
-      : r.effort_minutes !== undefined
-        ? minutesToHHMM(r.effort_minutes)
-        : ''
+    const hours = r.effort_minutes !== undefined
+      ? minutesToHHMM(r.effort_minutes)
+      : (r.effort_hours ?? '')
 
     const row: Record<string, string> = {
       'Data':           fmtDate(r.date),

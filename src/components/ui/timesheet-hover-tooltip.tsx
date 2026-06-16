@@ -45,9 +45,8 @@ export function useTimesheetHover() {
 }
 
 function toHHMM(mins: number): string {
-  const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return `${h}h${String(m).padStart(2, '0')}`
+  // Duração sempre em DECIMAL (ex.: 1h45 → 1,75).
+  return (Number(mins || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 export function TimesheetHoverTooltip({ ts }: { ts: TimesheetPreview | null }) {

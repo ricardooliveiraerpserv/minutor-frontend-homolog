@@ -81,7 +81,7 @@ function fmtTimeHM(t: string | null | undefined): string {
 
 // Apuração 100% em horas DECIMAIS (não HH:MM) — ex.: 8h30 = 8,50h → "8.50h".
 function fmtHoras(minutes: number): string {
-  return `${((minutes ?? 0) / 60).toFixed(2)}h`
+  return (Number(minutes ?? 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 function parseRequester(v: RawTimesheet['ticket_solicitante']): string {
