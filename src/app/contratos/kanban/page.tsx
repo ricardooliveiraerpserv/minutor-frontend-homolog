@@ -26,6 +26,8 @@ interface ContractCard {
   customer_name: string
   customer_id: number
   project_name?: string
+  // Subprojeto faturado que gerou aporte automático no pai (badge verde na capa).
+  gerou_aporte?: boolean
   categoria?: string
   contract_type?: string
   contract_type_id?: number
@@ -608,6 +610,18 @@ function AporteKanbanCard({ aporte, onClick, onMoveToFinal, canWrite }: {
         </span>
       </div>
 
+      {/* Legenda: aporte gerado automaticamente por um subprojeto faturado (borda verde + código). */}
+      {(() => {
+        const m = /ref\. subprojeto faturado\s*\(([^\s)]+)/i.exec(aporte.description ?? '')
+        if (!m) return null
+        return (
+          <div className="mb-2 rounded-md px-2 py-1 text-[10px] font-medium"
+            style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}>
+            Criado automaticamente pelo subprojeto <span className="font-mono font-bold">{m[1]}</span>
+          </div>
+        )
+      })()}
+
       {/* Middle: horas e valor */}
       <div className="grid grid-cols-3 gap-1.5 mb-2">
         <div className="rounded-md px-2 py-1.5 text-center" style={{ background: `${APORTE_COLOR}10` }}>
@@ -697,9 +711,16 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
         >
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
-              <p className="text-title truncate">{card.customer_name}</p>
+              <p className="text-title break-normal">{card.customer_name}</p>
               {card.project_name && (
-                <p className="kpi-sub truncate">{card.project_name}</p>
+                <p className="kpi-sub break-normal">{card.project_name}</p>
+              )}
+              {card.gerou_aporte && (
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}
+                  title="Subprojeto faturado — gerou um aporte automático no projeto pai">
+                  Gerou aporte
+                </span>
               )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
@@ -921,10 +942,10 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
         >
           <div className="flex items-start justify-between gap-2 mb-1.5">
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
+              <p className="text-sm font-semibold break-normal" style={{ color: 'var(--brand-text)' }}>
                 {card.customer_name}
               </p>
-              <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
+              <p className="text-xs break-normal" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap"
@@ -982,7 +1003,7 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
             </span>
             <div className="flex items-center gap-1">
               {/* Ícone de chat removido (2026-05-28): após virar projeto, chat sai. Chat só na Requisição/Contrato. */}
-              <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                 {card.code}
               </span>
             </div>
@@ -1114,6 +1135,13 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
             <div>
               <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{card.customer_name}</p>
               {card.project_name && <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>{card.project_name}</p>}
+              {full?.generated_aporte && (
+                <span className="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}
+                  title="Subprojeto faturado — gerou um aporte automático no projeto pai">
+                  Gerou aporte automático
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs font-semibold px-2 py-1 rounded-full"
@@ -1242,6 +1270,25 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
                       <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
                     </div>
                   ))}
+                </div>
+              )}
+              {full && (
+                <div className="pt-3 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Contatos ({full.contacts?.length ?? 0})</p>
+                  {full.contacts?.length > 0 ? (
+                    <div className="space-y-2">
+                      {full.contacts.map((ct: any, i: number) => (
+                        <div key={ct.id ?? ct.email ?? i} className="px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
+                          <p className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>
+                            {ct.name}{ct.cargo ? <span style={{ color: 'var(--brand-subtle)' }}> · {ct.cargo}</span> : null}
+                          </p>
+                          <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{[ct.email, ct.phone].filter(Boolean).join(' · ') || '—'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum contato</p>
+                  )}
                 </div>
               )}
               {full && (

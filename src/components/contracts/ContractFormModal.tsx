@@ -221,6 +221,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
 
   // Contatos do cadastro do cliente selecionado
   const [customerContacts, setCustomerContacts] = useState<CustomerContact[]>([])
+  const [contactSearch, setContactSearch] = useState('')
 
   // Projetos pai disponíveis para o cliente selecionado
   const [parentProjects, setParentProjects] = useState<SelectOption[]>([])
@@ -1272,47 +1273,65 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
           {/* Tab 5: Contatos */}
           {activeTab === 5 && (
             <div className="space-y-4">
-              {/* Contatos do cadastro do cliente */}
-              {customerContacts.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Do cadastro do cliente</p>
-                  <div className="space-y-1.5">
-                    {customerContacts.map(cc => {
-                      const alreadyAdded = contacts.some(c => c.name === cc.name && c.email === cc.email)
-                      return (
-                        <div key={cc.id}
-                          className="flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer transition-colors"
-                          style={{
-                            borderColor: alreadyAdded ? 'rgba(0,245,255,0.4)' : 'var(--brand-border)',
-                            background: alreadyAdded ? 'rgba(0,245,255,0.06)' : 'transparent',
-                          }}
-                          onClick={() => {
-                            if (alreadyAdded) {
-                              setContacts(cs => cs.filter(c => !(c.name === cc.name && c.email === cc.email)))
-                            } else {
-                              setContacts(cs => [...cs, { name: cc.name, cargo: cc.cargo ?? '', email: cc.email ?? '', phone: cc.phone ?? '' }])
-                            }
-                          }}
-                        >
-                          <div>
-                            <p className="text-xs font-medium text-zinc-200">{cc.name}</p>
-                            <p className="text-[10px] text-zinc-500">{[cc.cargo, cc.email].filter(Boolean).join(' · ')}</p>
-                          </div>
-                          <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-                            style={{ background: alreadyAdded ? '#00F5FF' : 'transparent', border: alreadyAdded ? 'none' : '1px solid #52525b' }}>
-                            {alreadyAdded && <CheckCircle size={12} style={{ color: '#000' }} />}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-              {!form.customer_id && (
+              {/* Cadastro do cliente: UM botão (cadastra inline + grava no cadastro do cliente
+                  ao salvar, sem sair da página). Legenda quando não há cadastro; busca quando há. */}
+              {!form.customer_id ? (
                 <p className="text-xs text-zinc-600 py-2 text-center">Selecione um cliente na aba Cliente para carregar os contatos do cadastro.</p>
-              )}
-              {form.customer_id && customerContacts.length === 0 && (
-                <p className="text-[10px] text-zinc-600">Nenhum contato cadastrado para este cliente. <a href="/cadastros?tab=customer_contacts" target="_blank" className="text-cyan-500 hover:underline">Adicionar no cadastro →</a></p>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-2 gap-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Do cadastro do cliente</p>
+                    <button onClick={addContact}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium shrink-0"
+                      style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: '#00F5FF' }}>
+                      <Plus size={10} /> Adicionar contato
+                    </button>
+                  </div>
+                  {customerContacts.length === 0 ? (
+                    <p className="text-[10px] text-zinc-600">Nenhum contato cadastrado para este cliente. Use “Adicionar contato” para cadastrar — será gravado no cadastro do cliente ao salvar.</p>
+                  ) : (
+                    <>
+                      <input value={contactSearch} onChange={e => setContactSearch(e.target.value)}
+                        placeholder="Buscar contato do cadastro..."
+                        className={inputCls} style={inputStyle} />
+                      <div className="space-y-1.5 mt-2">
+                        {customerContacts
+                          .filter(cc => {
+                            const q = contactSearch.trim().toLowerCase()
+                            return !q || (cc.name ?? '').toLowerCase().includes(q) || (cc.email ?? '').toLowerCase().includes(q) || (cc.cargo ?? '').toLowerCase().includes(q)
+                          })
+                          .map(cc => {
+                            const alreadyAdded = contacts.some(c => c.name === cc.name && c.email === cc.email)
+                            return (
+                              <div key={cc.id}
+                                className="flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer transition-colors"
+                                style={{
+                                  borderColor: alreadyAdded ? 'rgba(0,245,255,0.4)' : 'var(--brand-border)',
+                                  background: alreadyAdded ? 'rgba(0,245,255,0.06)' : 'transparent',
+                                }}
+                                onClick={() => {
+                                  if (alreadyAdded) {
+                                    setContacts(cs => cs.filter(c => !(c.name === cc.name && c.email === cc.email)))
+                                  } else {
+                                    setContacts(cs => [...cs, { name: cc.name, cargo: cc.cargo ?? '', email: cc.email ?? '', phone: cc.phone ?? '' }])
+                                  }
+                                }}
+                              >
+                                <div>
+                                  <p className="text-xs font-medium text-zinc-200">{cc.name}</p>
+                                  <p className="text-[10px] text-zinc-500">{[cc.cargo, cc.email].filter(Boolean).join(' · ')}</p>
+                                </div>
+                                <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
+                                  style={{ background: alreadyAdded ? '#00F5FF' : 'transparent', border: alreadyAdded ? 'none' : '1px solid #52525b' }}>
+                                  {alreadyAdded && <CheckCircle size={12} style={{ color: '#000' }} />}
+                                </div>
+                              </div>
+                            )
+                          })}
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
 
               {/* Contatos adicionados */}
@@ -1321,11 +1340,6 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                     Contatos selecionados ({contacts.length})
                   </p>
-                  <button onClick={addContact}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium"
-                    style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: '#00F5FF' }}>
-                    <Plus size={10} /> Adicionar manual
-                  </button>
                 </div>
                 {contacts.length === 0 && <p className="text-xs text-zinc-600 py-2 text-center">Nenhum contato selecionado.</p>}
                 {contacts.map((ct, i) => (

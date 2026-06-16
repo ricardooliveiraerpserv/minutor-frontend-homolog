@@ -302,7 +302,7 @@ function ContractKanbanCard({
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <p className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+                <p className="text-sm font-semibold break-normal" style={{ color: 'var(--brand-text)' }}>
                   {card.customer_name}
                 </p>
                 {isNew && (
@@ -312,9 +312,11 @@ function ContractKanbanCard({
                   </span>
                 )}
               </div>
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
-                {card.project_name || card.customer_name}
-              </p>
+              {card.project_name && (
+                <p className="text-xs break-normal" style={{ color: 'var(--brand-subtle)' }}>
+                  {card.project_name}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span
@@ -452,12 +454,14 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
-          <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
-            {card.project_name || card.customer_name}
+          <p className="text-sm font-semibold break-normal" style={{ color: 'var(--brand-text)' }}>
+            {card.customer_name}
           </p>
-          <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>
-            {card.project_name ? card.customer_name : card.area_requisitante}
-          </p>
+          {(card.project_name || card.area_requisitante) && (
+            <p className="text-xs break-normal" style={{ color: 'var(--brand-subtle)' }}>
+              {card.project_name || card.area_requisitante}
+            </p>
+          )}
           {card.linked_contract_code && (
             <p className="text-[10px] font-mono mt-0.5" style={{ color: '#a78bfa' }}>
               {card.linked_contract_code}
@@ -654,7 +658,7 @@ function ProjectKanbanCard({
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <p className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+                <p className="text-sm font-semibold break-normal" style={{ color: 'var(--brand-text)' }}>
                   {card.customer_name}
                 </p>
                 {isNew && (
@@ -664,7 +668,9 @@ function ProjectKanbanCard({
                   </span>
                 )}
               </div>
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>{card.project_name}</p>
+              {card.project_name && (
+                <p className="text-xs break-normal" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
+              )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap"
@@ -784,7 +790,7 @@ function ProjectKanbanCard({
                   )}
                 </button>
               )}
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                 {card.code}
               </span>
             </div>

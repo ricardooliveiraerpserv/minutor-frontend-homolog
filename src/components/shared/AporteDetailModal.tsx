@@ -123,6 +123,17 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* Aporte gerado automaticamente por um subprojeto faturado (borda verde + código). */}
+          {(() => {
+            const m = /ref\. subprojeto faturado\s*\(([^\s)]+)/i.exec(aporte.description ?? '')
+            if (!m) return null
+            return (
+              <div className="rounded-lg px-3 py-2 text-xs font-medium"
+                style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}>
+                Criado automaticamente pelo subprojeto <span className="font-mono font-bold">{m[1]}</span>
+              </div>
+            )
+          })()}
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Status</span>
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
