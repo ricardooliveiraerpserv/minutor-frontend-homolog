@@ -112,6 +112,18 @@ export default function ClientesPage() {
     return matchSearch && matchExec && matchStatus
   })
 
+  // Validação do formulário do modal: nome, CPF/CNPJ e prefixo são obrigatórios.
+  // Prefixo precisa ter 3 letras e não pode colidir com o de outro cliente.
+  const prefixoEmUsoPor = form.code_prefix.length === 3
+    ? items.find(c => c.id !== modal.item?.id && (c.code_prefix ?? '').toUpperCase() === form.code_prefix)
+    : undefined
+  const prefixoDuplicado = !!prefixoEmUsoPor
+  const cgcDigits = form.cgc.replace(/\D/g, '')
+  const formValido = form.name.trim().length >= 2
+    && [11, 14].includes(cgcDigits.length)
+    && form.code_prefix.length === 3
+    && !prefixoDuplicado
+
   const exportExcel = () => {
     const rows = filtered.map(c => ({
       Nome:           c.name,
@@ -282,10 +294,14 @@ export default function ClientesPage() {
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">CPF/CNPJ</Label>
+                  <Label className="text-xs text-zinc-400">CPF/CNPJ *</Label>
                   <Input
                     value={form.cgc}
-                    onChange={e => setForm(f => ({ ...f, cgc: e.target.value }))}
+                    inputMode="numeric"
+                    placeholder="só números"
+                    maxLength={14}
+                    // Só dígitos: bloqueia ponto/traço ao digitar e remove a máscara ao colar.
+                    onChange={e => setForm(f => ({ ...f, cgc: e.target.value.replace(/\D/g, '').slice(0, 14) }))}
                     className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs font-mono"
                   />
                 </div>
@@ -313,15 +329,20 @@ export default function ClientesPage() {
                   <p className="mt-1 text-[11px] text-zinc-500">Une os recebimentos do Keruak (Rentabilidade › Clientes) destes CNPJs sob este cliente.</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Prefixo de Código (3 letras)</Label>
+                  <Label className="text-xs text-zinc-400">Prefixo de Código (3 letras) *</Label>
                   <Input
                     value={form.code_prefix}
                     onChange={e => setForm(f => ({ ...f, code_prefix: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) }))}
                     placeholder="ex: ABC"
                     maxLength={3}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs font-mono uppercase tracking-widest"
+                    aria-invalid={prefixoDuplicado}
+                    className={`mt-1 bg-zinc-800 text-white h-9 text-xs font-mono uppercase tracking-widest ${prefixoDuplicado ? 'border-red-500' : 'border-zinc-700'}`}
                   />
-                  <p className="mt-1 text-[11px] text-zinc-500">Usado para gerar códigos automáticos dos projetos (ex: ABC001-26)</p>
+                  {prefixoDuplicado ? (
+                    <p className="mt-1 text-[11px] text-red-400">Prefixo já usado por <strong>{prefixoEmUsoPor?.name}</strong>. Escolha outro.</p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-zinc-500">Usado para gerar códigos automáticos dos projetos (ex: ABC001-26)</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-xs text-zinc-400">Executivo</Label>
@@ -371,7 +392,7 @@ export default function ClientesPage() {
                 <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-zinc-700 text-zinc-300">
                   Cancelar
                 </Button>
-                <Button onClick={save} disabled={saving || !form.name} className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+                <Button onClick={save} disabled={saving || !formValido} className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
                   {saving ? 'Salvando...' : 'Salvar'}
                 </Button>
               </div>
