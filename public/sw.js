@@ -1,6 +1,6 @@
-const CACHE = 'minutor-v2'
+const CACHE = 'minutor-v3'
 
-// Recursos estáticos para cache offline
+// Recursos estáticos para cache offline (PWA mobile)
 const STATIC = [
   '/mobile',
   '/mobile/apontamento',
@@ -48,17 +48,18 @@ self.addEventListener('fetch', e => {
     return
   }
 
-  // Demais assets: cache-first
+  // Demais assets (JS/CSS/_next): NETWORK-FIRST. Cache-first servia bundle ANTIGO após
+  // deploy (chunks ficavam presos no cache 'minutor-vX'), fazendo features novas não
+  // aparecerem. Agora busca sempre o fresco; o cache só atende offline (fallback).
   e.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached
-      return fetch(request).then(res => {
+    fetch(request)
+      .then(res => {
         if (res.ok) {
           const clone = res.clone()
           caches.open(CACHE).then(c => c.put(request, clone))
         }
         return res
       })
-    })
+      .catch(() => caches.match(request))
   )
 })
