@@ -23,9 +23,8 @@ interface ExpItem { amount: number | string; status: string; expense_date?: stri
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtHours(min: number) {
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`
+  // Tempo sempre em DECIMAL.
+  return (Number(min || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 function sumMin(items: TsItem[])  { return items.reduce((a, t) => a + (t.effort_minutes ?? 0), 0) }

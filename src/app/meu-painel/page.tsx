@@ -1876,7 +1876,7 @@ export default function MeuPainelPage() {
     const proj = projects.find(p => p.id === item.project_id)
     const derivedTotal = item.start_time && item.end_time
       ? String(Math.round(timeDiffHours(item.start_time, item.end_time) * 10) / 10)
-      : item.effort_hours ? String(Math.round(parseFloat(item.effort_hours) * 10) / 10) : ''
+      : item.effort_hours ? String(Math.round(parseFloat(String(item.effort_hours).replace(',', '.')) * 10) / 10) : ''
     setTsModeTotal(!item.start_time && !!item.effort_hours)
     setTsForm({
       customer_id: proj?.customer ? String(proj.customer.id) : '',

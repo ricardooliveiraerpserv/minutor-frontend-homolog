@@ -234,7 +234,7 @@ export default function EditTimesheetPage() {
       const s = parseHHMM(form.start_time), e = parseHHMM(form.end_time)
       if (s !== null && e !== null && e > s) {
         const diff = e - s
-        const computed = `${Math.floor(diff / 60)}:${String(diff % 60).padStart(2, '0')}`
+        const computed = String(Math.round(diff / 60 * 100) / 100).replace('.', ',') // total em DECIMAL
         setForm(f => f.total_hours === computed ? f : { ...f, total_hours: computed })
       } else {
         setForm(f => f.total_hours ? { ...f, total_hours: '' } : f)

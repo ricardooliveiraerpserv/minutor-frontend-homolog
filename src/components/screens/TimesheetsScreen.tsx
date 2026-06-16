@@ -48,7 +48,8 @@ function formatDate(d: string | null | undefined) {
 }
 
 function formatMinutes(minutes: number) {
-  return `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}`
+  // Tempo/total sempre em DECIMAL (ex.: 4h00 → 4 ; 0h30 → 0,5 ; 1477h51 → 1477,85).
+  return (Number(minutes || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 // Cor semântica do Consumo do Ticket por faixa de horas:
