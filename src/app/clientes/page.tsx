@@ -299,8 +299,8 @@ export default function ClientesPage() {
                     value={form.cgc}
                     inputMode="numeric"
                     placeholder="só números"
-                    maxLength={14}
-                    // Só dígitos: bloqueia ponto/traço ao digitar e remove a máscara ao colar.
+                    // SEM maxLength: ele cortaria a string mascarada (ex: 21.160.979/0001-08, 18 chars)
+                    // antes do onChange rodar. O .slice(0,14) abaixo limita os DÍGITOS depois de tirar a máscara.
                     onChange={e => setForm(f => ({ ...f, cgc: e.target.value.replace(/\D/g, '').slice(0, 14) }))}
                     className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs font-mono"
                   />
