@@ -960,7 +960,10 @@ function HolidaysTab() {
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: deleting === item.id },
+                    // Feriado nacional (importado) não pode ser apagado — só desativado (status).
+                    ...(item.type === 'national'
+                      ? []
+                      : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: deleting === item.id }]),
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 font-mono text-zinc-200">
