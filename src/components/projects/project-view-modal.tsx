@@ -29,6 +29,8 @@ interface ProjectFull {
   contract_type_display?: string; contract_type?: { id: number; name: string } | null
   service_type?: { id: number; name: string } | null
   parent_project?: { id: number; name: string; code: string } | null
+  // Subprojeto faturado que gerou um aporte automático no pai (legenda verde).
+  generated_aporte?: { id: number; parent_id: number; kanban_status: string } | null
   coordinators?: { id: number; name: string; email: string }[]
   consultants?: { id: number; name: string; email: string }[]
   approvers?: { id: number; name: string; email: string }[]
@@ -253,6 +255,13 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                     <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--brand-subtle)' }}>{p.code}</span>
                     <span className="text-xs font-bold px-2.5 py-0.5 rounded-full" style={sc}>{p.status_display ?? statusLabel[p.status] ?? p.status}</span>
                     <span className="text-xs font-bold" title={`${Math.round(pct)}% consumido`}>{riskEmoji(pct)} {riskLabel(pct)}</span>
+                    {p.generated_aporte && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}
+                        title="Este subprojeto faturado gerou um aporte automático no projeto pai">
+                        Gerou aporte automático
+                      </span>
+                    )}
                   </div>
                   <h2 className="ds-text-h2 leading-tight truncate" style={{ color: 'var(--text)' }}>{p.name}</h2>
                   {p.customer?.name && <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>{p.customer.name}</p>}
