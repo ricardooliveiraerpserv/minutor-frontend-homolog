@@ -218,21 +218,21 @@ const NAV: NavEntry[] = [
     label: 'Cadastros',
     icon: Database,
     items: [
-      { label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',         icon: FileType },
-      { label: 'Tipos de Serviço',      href: '/cadastros?tab=services',          icon: Wrench },
+      { label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag },
       { label: 'Clientes',              href: '/clientes',                         icon: Users },
       { label: 'Contatos de Clientes', href: '/cadastros?tab=customer_contacts',  icon: Contact },
       { label: 'Executivos',            href: '/cadastros?tab=executives',        icon: Star },
-      { label: 'Workflows de E-mail',   href: '/cadastros/workflows',             icon: Mail },
-      { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
       { label: 'Feriados',              href: '/cadastros?tab=holidays',          icon: CalendarDays },
-      { label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag },
-      { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',     icon: Receipt },
       { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',   icon: CreditCard },
+      { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
+      { label: 'Integração Movidesk',   href: '/configuracoes/movidesk',          icon: Webhook },
       { label: 'Modelos de E-mail',     href: '/cadastros?tab=email_templates',   icon: Mail },
       { label: 'Parceiros',             href: '/partners',                        icon: Handshake },
       { label: 'Saldo Inicial de Tickets', href: '/cadastros/saldo-inicial-tickets', icon: Ticket },
-      { label: 'Integração Movidesk',   href: '/configuracoes/movidesk',          icon: Webhook },
+      { label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',         icon: FileType },
+      { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',     icon: Receipt },
+      { label: 'Tipos de Serviço',      href: '/cadastros?tab=services',          icon: Wrench },
+      { label: 'Workflows de E-mail',   href: '/cadastros/workflows',             icon: Mail },
     ],
   },
   { type: 'item', label: 'Usuários',      href: '/users',    icon: Users },
@@ -380,7 +380,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       // reset de senhas (a tela /users gateia as ações pra esse perfil).
       if (isCoordProjetos)                  cadastrosItems.push({ label: 'Usuários',              href: '/users',                            icon: Users })
       // 'Projetos' foi removido — inclusão agora é feita via Kanban (pipeline)
-      if (cadastrosItems.length > 0) nav.push({ type: 'group', label: 'Cadastros', icon: Database, items: cadastrosItems })
+      if (cadastrosItems.length > 0) nav.push({ type: 'group', label: 'Cadastros', icon: Database, items: cadastrosItems.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')) })
 
       // Usuários — após Cadastros (perfis com permissão dedicada; coord_projetos já entra via Cadastros acima)
       if (!isCoordProjetos && hasAnyUserPerm) nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
