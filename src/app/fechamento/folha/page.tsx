@@ -348,11 +348,12 @@ export default function FechamentoFolhaPage() {
       // Com filtro ativo, traz SOMENTE os consultores selecionados (sócios não são forçados).
       return r.user_id != null && set.has(String(r.user_id))
     })
-    // Partição estável: sócios (verde) primeiro, demais depois — cada grupo
-    // mantém a ordem atual (que já reflete o prepend das linhas manuais).
-    const socios = filtered.filter(r => r.is_socio)
-    const outros = filtered.filter(r => !r.is_socio)
-    return [...socios, ...outros]
+    // Partição estável: diretoria (roxo, read-only) no topo, depois sócios (verde),
+    // depois os demais — cada grupo mantém a ordem atual.
+    const diretoria = filtered.filter(r => r.from_diretoria)
+    const socios = filtered.filter(r => !r.from_diretoria && r.is_socio)
+    const outros = filtered.filter(r => !r.from_diretoria && !r.is_socio)
+    return [...diretoria, ...socios, ...outros]
   }, [rows, filterUserIds, tab, categoria, soComProducao])
 
   // Totais da folha (ao vivo, conforme o estado editável) — alimentam os cards do topo.
@@ -1023,6 +1024,8 @@ export default function FechamentoFolhaPage() {
                     //  • demais → padrão (transparente)
                     const rowBg = r.cancelado
                       ? 'var(--danger-bg)'
+                      : readOnly
+                        ? 'rgba(168,85,247,0.13)' // roxo — diretoria (read-only, no topo)
                       : r.is_raho
                         ? 'rgba(59,130,246,0.13)' // azul — parceiro Raho
                         : r.is_parceiro_total
@@ -1035,7 +1038,7 @@ export default function FechamentoFolhaPage() {
                     const busy = togglingKey === r.row_key
                     return (
                       <Tr key={r.row_key} baseBackground={rowBg}
-                        className={afastado ? '[border-left:3px_solid_var(--danger)]' : undefined}>
+                        className={readOnly ? '[border-left:3px_solid_#a855f7]' : afastado ? '[border-left:3px_solid_var(--danger)]' : undefined}>
                         {/* ── CPF: editável p/ sócio, read-only normal ── */}
                         <Td mono className={socio ? undefined : 'text-zinc-300'}>
                           {socio ? (
