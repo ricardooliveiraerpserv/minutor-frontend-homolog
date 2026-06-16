@@ -111,6 +111,8 @@ export default function RelatorioApontamentosPage() {
   // Digitação (created_at) — range opcional que filtra a lista; vazio = 100% da competência.
   const [digFrom, setDigFrom] = useState('')
   const [digTo,   setDigTo]   = useState('')
+  // Fechamento: troca o título do documento de "Apontamentos" para "Fechamento".
+  const [isFechamento, setIsFechamento] = useState(false)
 
   // Status fixo: relatório sempre considera pendentes + aprovados (sem toggle).
   const statuses: StatusKey[] = ['pending', 'approved']
@@ -174,6 +176,37 @@ export default function RelatorioApontamentosPage() {
   const competenciaEnd = filterMode === 'month' && refMonth && refYear
     ? `${refYear}-${String(refMonth).padStart(2, '0')}-${String(new Date(refYear, refMonth, 0).getDate()).padStart(2, '0')}`
     : endDate
+
+  // Título do documento (PDF + Excel + nome do arquivo). Mês por extenso + ano.
+  // Regra de período: se a DIGITAÇÃO foi usada (digFrom/digTo), o título olha a digitação
+  // (fallback p/ os bounds da competência no lado em branco); senão, olha a competência.
+  //  • Mês/Ano (mês fechado) → "Maio de 2026"
+  //  • Range, mesmo mês       → "01 a 02 de Maio de 2026"
+  //  • Range, meses dif.      → "01 de Maio a 02 de Junho de 2026"
+  //  • Range, anos dif.       → "01 de Maio de 2025 a 02 de Junho de 2026"
+  const reportTitle = useMemo(() => {
+    const noun = isFechamento ? 'Fechamento' : 'Apontamentos'
+    const dd = (n: number) => String(n).padStart(2, '0')
+    const fmtRange = (fromISO: string, toISO: string): string => {
+      const [sy, sm, sd] = fromISO.split('-').map(Number)
+      const [ey, em, ed] = toISO.split('-').map(Number)
+      if (!sy || !sm || !sd || !ey || !em || !ed) return ''
+      if (sy === ey && sm === em) return `${dd(sd)} a ${dd(ed)} de ${MONTHS_PT[sm - 1]} de ${sy}`
+      if (sy === ey)              return `${dd(sd)} de ${MONTHS_PT[sm - 1]} a ${dd(ed)} de ${MONTHS_PT[em - 1]} de ${sy}`
+      return `${dd(sd)} de ${MONTHS_PT[sm - 1]} de ${sy} a ${dd(ed)} de ${MONTHS_PT[em - 1]} de ${ey}`
+    }
+
+    let part = ''
+    if (digFrom || digTo) {
+      // Digitação usada: range pela data de digitação (lados vazios herdam a competência).
+      part = fmtRange(digFrom || competenciaStart, digTo || competenciaEnd)
+    } else if (filterMode === 'month' && refMonth && refYear) {
+      part = `${MONTHS_PT[refMonth - 1]} de ${refYear}`
+    } else if (filterMode === 'period') {
+      part = fmtRange(startDate, endDate)
+    }
+    return part ? `Relatório de ${noun} — ${part}` : `Relatório de ${noun}`
+  }, [filterMode, refMonth, refYear, startDate, endDate, digFrom, digTo, competenciaStart, competenciaEnd, isFechamento])
 
   const customerName = useMemo(
     () => customers.find(c => String(c.id) === String(customerId))?.name ?? '',
@@ -340,9 +373,11 @@ export default function RelatorioApontamentosPage() {
   function buildMeta(): RelatorioMeta {
     return {
       client:       customerName,
+      title:        reportTitle,
       period:       periodInfo.label,
       emittedAt,
       totalHours:   totalHoras,
+      totalHoursDecimal: Math.round((totalMinutes / 60) * 100) / 100,
       totalRecords: items.length,
       ticketHeader: isVedamotors ? 'Ticket ERPSERV' : 'Ticket',
       titleHeader:  isVedamotors ? 'Ticket Vedamotors' : 'Título',
@@ -364,9 +399,13 @@ export default function RelatorioApontamentosPage() {
     clone.classList.add('print-clone')
     document.body.appendChild(clone)
     document.body.dataset.print = 'relatorio'
+    // O "Salvar como PDF" do navegador sugere o nome a partir do document.title.
+    const prevTitle = document.title
+    document.title = reportTitle
     const cleanup = () => {
       clone.remove()
       delete document.body.dataset.print
+      document.title = prevTitle
       window.removeEventListener('afterprint', cleanup)
     }
     window.addEventListener('afterprint', cleanup)
@@ -547,6 +586,26 @@ export default function RelatorioApontamentosPage() {
               Filtra por quando foi lançado; vazio traz 100% da competência. Digitados fora do mês ficam destacados.
             </p>
           </div>
+
+          {/* É FECHAMENTO? — troca o título do documento de "Apontamentos" para "Fechamento". */}
+          <div>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+              Tipo de documento
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isFechamento}
+                onChange={e => setIsFechamento(e.target.checked)}
+                className="h-4 w-4 rounded"
+                style={{ accentColor: 'var(--primary)' }}
+              />
+              <span className="text-sm" style={{ color: 'var(--brand-text)' }}>É fechamento?</span>
+            </label>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>
+              Título: <span style={{ color: 'var(--brand-text)' }}>{reportTitle}</span>
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-end gap-3 justify-between">
@@ -612,7 +671,7 @@ export default function RelatorioApontamentosPage() {
               >
                 <Image src="/logo.png" alt="ERPSERV" width={180} height={72} style={{ objectFit: 'contain' }} />
                 <div className="text-right">
-                  <div className="text-xl font-bold text-gray-800 mb-1">Relatório de Apontamentos</div>
+                  <div className="text-xl font-bold text-gray-800 mb-1">{reportTitle}</div>
                   <div className="text-sm text-gray-500 mb-2">Documento de cobrança e transparência</div>
                   <div className="text-sm text-gray-700">
                     <span className="font-semibold">Cliente:</span> {customerName}
