@@ -412,6 +412,9 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
     : isBhMensal
       ? ((project as any).accumulated_sold_hours ?? project.sold_hours ?? 0) + contributions
       : ((project as any).total_available_hours ?? project.sold_hours ?? 0)
+  // Destaque na coluna COORD: banco de horas do coordenador MENOR que as horas vendidas.
+  const coordHoursBank = Number((project as any).coordination_hours ?? 0)
+  const coordBelowSold = !isOnDemand && coordHoursBank > 0 && coordHoursBank < displaySold
   // gestaoMode já inclui initial_hours_consumed em consumed_hours — não somar de novo
   // Para sub-projetos filhos (sem consumed_hours), somar initial_hours_consumed ao fallback
   const consumedHours = project.consumed_hours != null
@@ -681,8 +684,11 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
           )}
         </td>
 
-        {/* Coord. — mini-barra de progresso do banco de coordenação + popover de hover */}
-        <td className="py-3 px-4 min-w-[140px] relative" onClick={e => e.stopPropagation()}>
+        {/* Coord. — mini-barra de progresso do banco de coordenação + popover de hover.
+            Destaque quando as horas de coordenação são MENORES que as horas vendidas. */}
+        <td className="py-3 px-4 min-w-[140px] relative" onClick={e => e.stopPropagation()}
+          title={coordBelowSold ? `Horas de coordenação (${fmt(coordHoursBank, 1)}h) menores que as vendidas (${fmt(displaySold, 1)}h)` : undefined}
+          style={coordBelowSold ? { background: 'var(--warning-bg)', boxShadow: 'inset 3px 0 0 var(--warning-border)' } : undefined}>
           {(() => {
             const cBank = Number((project as any).coordination_hours ?? 0)
             if (cBank <= 0) return <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>
@@ -697,6 +703,9 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                   <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-hover)' }}>
                     <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(cPct, 100)}%`, background: cColor }} />
                   </div>
+                  {coordBelowSold && (
+                    <span className="text-[10px] shrink-0" style={{ color: 'var(--warning-border)' }} title="Horas de coordenação menores que as vendidas">⚠</span>
+                  )}
                   <span className="text-[10px] tabular-nums font-semibold shrink-0" style={{ color: cColor }}>{Math.round(cPct)}%</span>
                 </div>
                 <div className="text-[9px] mt-0.5 tabular-nums" style={{ color: 'var(--text-light)' }}>
