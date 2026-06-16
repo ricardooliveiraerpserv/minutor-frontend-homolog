@@ -10,7 +10,7 @@ import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -4162,6 +4162,17 @@ function KanbanContent() {
   const showTransition = !isConsultor && !isCoord
   const visibleProjectCols = PROJECT_COLS
 
+  // Recolher o grupo Demanda + Autorização (Backlog → Início Autorizado) numa faixa fina.
+  const [demandCollapsed, setDemandCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('minutor_pipeline_demand_collapsed') === '1'
+  })
+  const toggleDemandCollapsed = () => setDemandCollapsed(v => {
+    const nv = !v
+    try { localStorage.setItem('minutor_pipeline_demand_collapsed', nv ? '1' : '0') } catch {}
+    return nv
+  })
+
   // IDs de contratos de sustentação — não exibidos em Demandas e Projetos
   const sustContractIds = new Set(
     [...demandCards, ...transitionCards]
@@ -4472,7 +4483,15 @@ function KanbanContent() {
   }
 
   const totalColumns = visibleDemandCols.length + (showTransition ? 1 : 0) + visibleProjectCols.length
-  const boardMinWidth = totalColumns * 264 + (totalColumns - 1) * 12 + (showTransition ? 60 : 0) + 64
+  const demandCount = (!isConsultor && !isCoord)
+    ? visibleDemandCols.reduce((n, col) =>
+        n + (REQ_ONLY_COLS.has(col.id) ? 0 : contractsInCol(col.id).length)
+          + requestCards.filter(r => (r.kanban_column ?? 'backlog') === col.id).length, 0)
+      + (showTransition ? contractsInCol('inicio_autorizado').length : 0)
+    : 0
+  const boardMinWidth = demandCollapsed
+    ? 56 + visibleProjectCols.length * 264 + Math.max(0, visibleProjectCols.length - 1) * 12 + 64
+    : totalColumns * 264 + (totalColumns - 1) * 12 + (showTransition ? 60 : 0) + 64
 
   if (loading) {
     return (
@@ -4987,8 +5006,34 @@ function KanbanContent() {
           <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0">
             <div className="flex gap-3 p-4 h-full items-stretch" style={{ minWidth: `${boardMinWidth}px` }}>
 
+              {/* ── Demanda + Autorização recolhida (faixa em evidência) ── */}
+              {!isConsultor && !isCoord && demandCollapsed && (
+                <button onClick={toggleDemandCollapsed} title="Expandir Demanda + Autorização"
+                  className="group shrink-0 w-14 self-stretch rounded-xl flex flex-col items-center justify-between py-4 transition-all hover:w-16"
+                  style={{ border: '2px solid var(--brand-primary)', background: 'rgba(0,245,255,0.10)', color: 'var(--brand-primary)' }}>
+                  <span className="flex flex-col items-center gap-1">
+                    <span className="flex items-center justify-center w-7 h-7 rounded-full" style={{ background: 'var(--brand-primary)', color: '#000' }}>
+                      <ChevronRight size={18} strokeWidth={3} />
+                    </span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-80">expandir</span>
+                  </span>
+                  <span style={{ writingMode: 'vertical-rl' }} className="text-[12px] font-extrabold tracking-wide whitespace-nowrap">Demanda + Autorização</span>
+                  <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full" style={{ background: 'var(--brand-primary)', color: '#000' }}>{demandCount}</span>
+                </button>
+              )}
+
+              {/* ── Handle de recolher (quando expandido) ── */}
+              {!isConsultor && !isCoord && !demandCollapsed && (
+                <button onClick={toggleDemandCollapsed} title="Recolher Demanda + Autorização"
+                  className="shrink-0 w-9 self-stretch rounded-xl flex flex-col items-center justify-center gap-2 transition-colors hover:opacity-90"
+                  style={{ border: '1px solid var(--brand-primary)', background: 'rgba(0,245,255,0.06)', color: 'var(--brand-primary)' }}>
+                  <ChevronLeft size={18} strokeWidth={3} />
+                  <span style={{ writingMode: 'vertical-rl' }} className="text-[9px] font-bold uppercase tracking-widest opacity-80">recolher</span>
+                </button>
+              )}
+
               {/* ── Demand Phase ── */}
-              {visibleDemandCols.map(col => (
+              {!demandCollapsed && visibleDemandCols.map(col => (
                 <KanbanColumn
                   key={col.id}
                   col={col}
@@ -5022,7 +5067,7 @@ function KanbanContent() {
               ))}
 
               {/* ── Transition Phase ── */}
-              {showTransition && (
+              {!demandCollapsed && showTransition && (
                 <>
                   <PhaseSeparator label="Autorização" icon={<ChevronRight />} />
                   <KanbanColumn
