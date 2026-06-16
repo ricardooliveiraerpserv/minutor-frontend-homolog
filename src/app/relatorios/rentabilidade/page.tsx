@@ -36,6 +36,8 @@ interface ClienteRow {
   investimento_mo?: number; investimento_desp?: number
   // +40% Custo = 40% do Valor Recebido; Custo Total = Custo Operação + 40%; Resultado = Recebido − Custo Total.
   custo40: number; custo_total: number; resultado: number; resultado_pct: number | null; custo40_pct: number | null
+  // Ajustes iniciais do ano (somados no custo/recebido): só p/ cliente cadastrado.
+  custo_inicial?: number; receita_inicial?: number
 }
 interface DespesaProj { project_id: number; projeto: string; custo: number; is_investimento: boolean }
 
@@ -50,6 +52,65 @@ const margemBg = (pct: number | null) => pct == null ? '#e5e7eb' : pct < 0 ? '#e
 const pct40Color = (p: number | null) => p == null ? 'rgba(0,0,0,0.4)' : p >= 80 ? '#2e7d32' : p >= 50 ? '#b8860b' : '#cc0000'
 // Cor da margem operacional ("Mg op."): >= 50% verde | 0 a 50% laranja | < 0 vermelho.
 const mgOpColor = (p: number | null) => p == null ? 'rgba(0,0,0,0.4)' : p >= 50 ? '#2e7d32' : p >= 0 ? '#b8860b' : '#cc0000'
+
+// Deriva a linha do cliente: injeta os AJUSTES INICIAIS do ano (custo inicial → Custo Operação,
+// receita inicial → Valor Recebido) e recalcula todas as margens. Recebe a linha CRUA (soma dos
+// meses) e o ajuste do cliente. Manter em sincronia com o cálculo do +40% no fechamento.
+function deriveClienteRow(r: ClienteRow, init?: { custo_inicial: number; receita_inicial: number }): ClienteRow {
+  const r2 = (n: number) => Math.round(n * 100) / 100
+  const custoInicial = init?.custo_inicial ?? 0
+  const receitaInicial = init?.receita_inicial ?? 0
+  const horas = r2(r.horas), receita = r2(r.receita)
+  const custo = r2(r.custo + custoInicial)        // Custo Operação += custo inicial
+  const recebido = r2(r.recebido + receitaInicial) // Valor Recebido += receita inicial
+  const margem = r2(receita - custo), margem_real = r2(recebido - custo)
+  const custo40Full = r2(recebido * 0.40)
+  let custo40 = custo40Full
+  let resultado = r2(recebido - custo - custo40)
+  if (resultado < 0) {
+    const absorvido = Math.min(-resultado, custo40)
+    custo40 = r2(custo40 - absorvido)
+    resultado = r2(resultado + absorvido)
+  }
+  const custo_total = r2(custo + custo40)
+  const custo40_pct = custo40Full > 0 ? Math.round(custo40 / custo40Full * 1000) / 10 : null
+  return {
+    ...r, horas, receita, custo, recebido, margem,
+    margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
+    margem_real, margem_real_pct: recebido > 0 ? Math.round(margem_real / recebido * 1000) / 10 : null,
+    custo40, custo_total, resultado,
+    resultado_pct: recebido > 0 ? Math.round(resultado / recebido * 1000) / 10 : (resultado < 0 ? -100 : null),
+    custo40_pct,
+    custo_inicial: custoInicial, receita_inicial: receitaInicial,
+  }
+}
+
+// Editor inline dos ajustes iniciais do ano (custo/receita) de um cliente. Salva no blur.
+function InitialsEditor({ custoInicial, receitaInicial, onSave }: {
+  custoInicial: number; receitaInicial: number; onSave: (custo: number, receita: number) => void
+}) {
+  const [custo, setCusto] = useState(custoInicial ? String(custoInicial) : '')
+  const [receita, setReceita] = useState(receitaInicial ? String(receitaInicial) : '')
+  const commit = () => {
+    const c = Number(custo) || 0, rec = Number(receita) || 0
+    if (c !== custoInicial || rec !== receitaInicial) onSave(c, rec)
+  }
+  const inp: React.CSSProperties = { width: 120, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, textAlign: 'right' }
+  return (
+    <div className="flex items-center gap-4 flex-wrap" style={{ padding: '8px 8px 10px' }} onClick={e => e.stopPropagation()}>
+      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Ajustes iniciais do ano</span>
+      <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+        Custo inicial
+        <input type="number" step="0.01" min="0" value={custo} onChange={e => setCusto(e.target.value)} onBlur={commit} placeholder="0,00" style={inp} />
+      </label>
+      <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+        Receita inicial
+        <input type="number" step="0.01" min="0" value={receita} onChange={e => setReceita(e.target.value)} onBlur={commit} placeholder="0,00" style={inp} />
+      </label>
+      <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>Somam no Custo Operação e no Valor Recebido deste ano.</span>
+    </div>
+  )
+}
 const thCol = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.25)', position: 'sticky', top: 0, zIndex: 2 })
 const tdCol = (bg: string, color = '#111827'): React.CSSProperties => ({ background: bg, color, padding: '6px 10px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(0,0,0,0.06)', whiteSpace: 'nowrap' })
 
@@ -66,7 +127,11 @@ export default function RentabilidadePage() {
   const [fProjeto, setFProjeto]     = useState('')
   const [fConsultor, setFConsultor] = useState('')
   const [visao] = useState<'consultor' | 'projeto' | 'clientes'>('clientes')
-  const [clientesRows, setClientesRows] = useState<ClienteRow[]>([])
+  // Linhas CRUAS (agregadas dos meses, sem ajuste inicial). A derivação (que injeta os
+  // iniciais do ano e calcula margens) é feita em useMemo abaixo → editar é instantâneo.
+  const [rawClientesRows, setRawClientesRows] = useState<ClienteRow[]>([])
+  // Ajustes iniciais do ANO por cliente: { customer_id: { custo_inicial, receita_inicial } }.
+  const [initials, setInitials] = useState<Record<number, { custo_inicial: number; receita_inicial: number }>>({})
   const [clientesLoading, setClientesLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [soMinutor, setSoMinutor] = useState(false)
@@ -123,7 +188,6 @@ export default function RentabilidadePage() {
         .then(r => r?.data?.rows ?? []).catch(() => [] as ClienteRow[])
     )).then(results => {
       const all = results.flat()
-      const r2 = (n: number) => Math.round(n * 100) / 100
       const map = new Map<string, ClienteRow>()
       for (const r of all) {
         const k = r.cnpj || (r.customer_id != null ? 'c' + r.customer_id : r.cliente)
@@ -161,38 +225,37 @@ export default function RentabilidadePage() {
           }
         }
       }
-      setClientesRows([...map.values()].map(r => {
-        const horas = r2(r.horas), receita = r2(r.receita), custo = r2(r.custo), recebido = r2(r.recebido)
-        const margem = r2(receita - custo), margem_real = r2(recebido - custo)
-        // +40% Custo = 40% do Valor Recebido; Custo Total = Custo Operação + 40%; Resultado = Recebido − Custo Total.
-        const custo40Full = r2(recebido * 0.40) // +40% "cheio" (antes da absorção)
-        let custo40 = custo40Full
-        let resultado = r2(recebido - custo - custo40)
-        // O "+40% Custo" funciona como colchão: se o resultado ficar NEGATIVO, abate o
-        // déficit do +40% antes de mostrar prejuízo. Zera o +40% e só o excedente do
-        // negativo permanece no Resultado. Ex.: +40%=1000 e resultado=-200 → +40%=800,
-        // resultado=0; se o negativo superar o +40% → +40%=0 e o resto fica negativo.
-        if (resultado < 0) {
-          const absorvido = Math.min(-resultado, custo40)
-          custo40 = r2(custo40 - absorvido)
-          resultado = r2(resultado + absorvido)
-        }
-        const custo_total = r2(custo + custo40)
-        // Margem +40% = quanto do +40% cheio sobrou após a absorção (1000→1000=100%, 1000→700=70%, 0=0%).
-        const custo40_pct = custo40Full > 0 ? Math.round(custo40 / custo40Full * 1000) / 10 : null
-        return {
-          ...r, horas, receita, custo, recebido, margem,
-          margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
-          margem_real, margem_real_pct: recebido > 0 ? Math.round(margem_real / recebido * 1000) / 10 : null,
-          // Margem Total: sem recebido mas com custo = perda total → -100% (em vez de "—").
-          custo40, custo_total, resultado, resultado_pct: recebido > 0 ? Math.round(resultado / recebido * 1000) / 10 : (resultado < 0 ? -100 : null),
-          custo40_pct,
-        }
-      }))
+      // Guarda CRU; a derivação (injeção dos iniciais + margens) é o useMemo clientesRows.
+      setRawClientesRows([...map.values()])
     }).finally(() => { setClientesLoading(false); setRefreshing(false) })
   }, [monthsToFetch])
 
   useEffect(() => { if (visao === 'clientes') void loadClientes(false) }, [visao, loadClientes])
+
+  // Ajustes iniciais do ano (custo/receita inicial por cliente). Buscados 1x por ano.
+  useEffect(() => {
+    if (visao !== 'clientes') return
+    api.get<{ data: Record<number, { custo_inicial: number; receita_inicial: number }> }>(`/relatorios/rentabilidade/initials/${year}`)
+      .then(r => setInitials(r?.data ?? {}))
+      .catch(() => setInitials({}))
+  }, [visao, year])
+
+  // Derivação: injeta os iniciais do ano e calcula margens (instantâneo ao editar).
+  const clientesRows = useMemo(
+    () => rawClientesRows.map(r => deriveClienteRow(r, r.customer_id != null ? initials[r.customer_id] : undefined)),
+    [rawClientesRows, initials],
+  )
+
+  // Salva o ajuste inicial de um cliente (upsert) e atualiza local (re-deriva na hora).
+  const saveInitial = useCallback(async (customerId: number, custo: number, receita: number) => {
+    try {
+      await api.put('/relatorios/rentabilidade/initials', { customer_id: customerId, year, custo_inicial: custo, receita_inicial: receita })
+      setInitials(prev => ({ ...prev, [customerId]: { custo_inicial: custo, receita_inicial: receita } }))
+      toast.success('Ajuste inicial salvo')
+    } catch {
+      toast.error('Erro ao salvar ajuste inicial')
+    }
+  }, [year])
 
   // Opções dos filtros (distintos, derivados das linhas carregadas).
   const optClientes = useMemo(() => {
@@ -709,12 +772,14 @@ export default function RentabilidadePage() {
                     const ck = r.cnpj || `c${r.customer_id}` || r.cliente
                     const open = expandedCli.has(ck)
                     const temConsultores = (r.consultores?.length ?? 0) > 0
+                    // Cliente cadastrado pode expandir p/ editar os ajustes iniciais do ano (mesmo sem consultores).
+                    const canExpand = temConsultores || r.customer_id != null
                     return (
                     <Fragment key={ck}>
-                    <tr style={{ cursor: temConsultores ? 'pointer' : 'default' }}
-                      onClick={() => { if (temConsultores) setExpandedCli(prev => { const n = new Set(prev); n.has(ck) ? n.delete(ck) : n.add(ck); return n }) }}>
+                    <tr style={{ cursor: canExpand ? 'pointer' : 'default' }}
+                      onClick={() => { if (canExpand) setExpandedCli(prev => { const n = new Set(prev); n.has(ck) ? n.delete(ck) : n.add(ck); return n }) }}>
                       <td style={{ padding: '6px 10px', color: 'var(--text)', fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
-                        {temConsultores && (open ? <ChevronDown size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
+                        {canExpand && (open ? <ChevronDown size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
                         <span className="truncate max-w-[220px] inline-block align-bottom">{r.cliente}</span>
                         {!r.no_minutor && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>(fora do Minutor)</span>}
                       </td>
@@ -726,9 +791,18 @@ export default function RentabilidadePage() {
                       <td style={tdCol(COL_CELL.resultado, r.resultado < 0 ? '#cc0000' : '#111827')}>{formatBRL(r.resultado)}</td>
                       <td style={tdCol(margemBg(r.resultado_pct), '#fff')}><strong>{r.resultado_pct == null ? '—' : r.resultado_pct + '%'}</strong></td>
                     </tr>
-                    {open && temConsultores && (
+                    {open && canExpand && (
                       <tr>
                         <td colSpan={8} style={{ padding: '0 0 8px 28px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                          {r.customer_id != null && (
+                            <InitialsEditor
+                              key={`init-${r.customer_id}`}
+                              custoInicial={r.custo_inicial ?? 0}
+                              receitaInicial={r.receita_inicial ?? 0}
+                              onSave={(c, rec) => saveInitial(r.customer_id as number, c, rec)}
+                            />
+                          )}
+                          {temConsultores && (
                           <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
                             <thead>
                               <tr style={{ color: 'var(--text-light)' }}>
@@ -815,6 +889,7 @@ export default function RentabilidadePage() {
                               })()}
                             </tbody>
                           </table>
+                          )}
                         </td>
                       </tr>
                     )}
