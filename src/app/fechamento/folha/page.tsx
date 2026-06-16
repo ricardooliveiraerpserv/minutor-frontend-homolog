@@ -36,6 +36,9 @@ interface FolhaRow {
   is_raho?: boolean
   // Linha consolidada do parceiro (exceto Raho): apuração total no parceiro admin.
   is_parceiro_total?: boolean
+  // Linha de diretor: identidade vem do cadastro do usuário e valores do Fechamento
+  // Diretoria. SOMENTE-LEITURA na folha — nenhum campo é editável aqui.
+  from_diretoria?: boolean
   partner_label?: string | null
   // Valores ORIGINAIS calculados do mês (Raho) — p/ legenda "original" quando alterado.
   producao_calc?: number
@@ -549,8 +552,9 @@ export default function FechamentoFolhaPage() {
       // O contrato da API muda conforme o tipo da linha: o backend faz switch em
       // socio_key vs user_id. Linhas normais mandam o subset atual; sócios mandam
       // TODOS os campos manuais (inclusive horas, que neles é editável).
-      // Linhas canceladas (ocultadas) NÃO entram no save.
-      const entries = rows.filter(r => !r.cancelado).map(r => {
+      // Linhas canceladas (ocultadas) e linhas de diretor (somente-leitura, vindas do
+      // Fechamento Diretoria + cadastro) NÃO entram no save.
+      const entries = rows.filter(r => !r.cancelado && !r.from_diretoria).map(r => {
         const e = edits[r.row_key]
         if (r.is_socio) {
           return {
@@ -1002,8 +1006,11 @@ export default function FechamentoFolhaPage() {
                     if (!e) return null
                     const { totalRend, totalDebitos, liquido, reembAuto } = calc(r, e)
                     const socio = r.is_socio
+                    // Diretor: linha 100% somente-leitura (identidade do cadastro, valores do
+                    // Fechamento Diretoria). Nenhum input/ação de edição é renderizado.
+                    const readOnly = !!r.from_diretoria
                     // Raho: identidade (cpf/nome/status) read-only do usuário, mas VALORES editáveis.
-                    const valEditable = socio || !!r.is_raho
+                    const valEditable = (socio || !!r.is_raho) && !readOnly
                     // Linha por socio_key (sócios migrados + manuais) pode ser excluída.
                     const manual = !!r.socio_key
                     // Usuário desativado => "em afastamento": borda vermelha + badge; ocultação manual.
@@ -1093,6 +1100,13 @@ export default function FechamentoFolhaPage() {
                                   {r.partner_label ?? 'Parceiro'}
                                 </span>
                               )}
+                              {readOnly && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                                  style={{ background: 'rgba(168,85,247,0.2)', color: '#a855f7' }}
+                                  title="Diretor — dados do Fechamento Diretoria + cadastro (somente leitura)">
+                                  Diretoria
+                                </span>
+                              )}
                               {afastado && (
                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
                                   style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
@@ -1104,15 +1118,17 @@ export default function FechamentoFolhaPage() {
                           )}
                         </Td>
 
-                        {/* ── Editável (sempre): Dias ── */}
-                        <Td right>
-                          <MaskedNum
-                            value={e.dias}
-                            decimals={0}
-                            onChange={v => setEdit(r.row_key, 'dias', v)}
-                            className={`${cellInputClass} w-16`}
-                            style={cellInputStyle}
-                          />
+                        {/* ── Dias: editável (sempre), exceto diretor (read-only) ── */}
+                        <Td right mono className={readOnly ? 'text-zinc-300 tabular-nums' : undefined}>
+                          {readOnly ? fmtNum(r.dias, 0) : (
+                            <MaskedNum
+                              value={e.dias}
+                              decimals={0}
+                              onChange={v => setEdit(r.row_key, 'dias', v)}
+                              className={`${cellInputClass} w-16`}
+                              style={cellInputStyle}
+                            />
+                          )}
                         </Td>
 
                         {/* ── Horas: editável p/ sócio e Raho; normal = 160 fixo ── */}
@@ -1141,16 +1157,20 @@ export default function FechamentoFolhaPage() {
                           ) : r.is_parceiro_total ? '—' : fmtNum(r.valor_hora, 2)}
                         </Td>
 
-                        {/* ── Produção: editável p/ todos; legendas = produção calculada + despesa do mês ── */}
+                        {/* ── Produção: editável p/ todos (exceto diretor); legendas = produção calculada + despesa do mês ── */}
                         <Td right>
                           <div className="flex flex-col items-end gap-0.5">
-                            <MaskedNum
-                              value={e.producao}
-                              decimals={2}
-                              onChange={v => setEdit(r.row_key, 'producao', v)}
-                              className={cellInputClass}
-                              style={cellInputStyle}
-                            />
+                            {readOnly ? (
+                              <span className="tabular-nums font-medium" style={{ color: 'var(--text)' }}>{formatBRL(e.producao || 0)}</span>
+                            ) : (
+                              <MaskedNum
+                                value={e.producao}
+                                decimals={2}
+                                onChange={v => setEdit(r.row_key, 'producao', v)}
+                                className={cellInputClass}
+                                style={cellInputStyle}
+                              />
+                            )}
                             {(() => {
                               const prod = e.producao || 0
                               const serv = r.fech_serv ?? 0
@@ -1203,15 +1223,17 @@ export default function FechamentoFolhaPage() {
                           </div>
                         </Td>
 
-                        {/* ── Editável (sempre): Variável ── */}
-                        <Td right>
-                          <MaskedNum
-                            value={e.variavel}
-                            decimals={2}
-                            onChange={v => setEdit(r.row_key, 'variavel', v)}
-                            className={cellInputClass}
-                            style={cellInputStyle}
-                          />
+                        {/* ── Variável: editável (sempre), exceto diretor (read-only) ── */}
+                        <Td right mono className={readOnly ? 'text-zinc-300 tabular-nums' : undefined}>
+                          {readOnly ? fmtNum(r.variavel) : (
+                            <MaskedNum
+                              value={e.variavel}
+                              decimals={2}
+                              onChange={v => setEdit(r.row_key, 'variavel', v)}
+                              className={cellInputClass}
+                              style={cellInputStyle}
+                            />
+                          )}
                         </Td>
 
                         {/* ── Editável (sempre): Reemb (manual + auto) ──
@@ -1220,13 +1242,17 @@ export default function FechamentoFolhaPage() {
                             Input continua editando só a parte manual (admin pode ajustar a diferença). */}
                         <Td right>
                           <div className="flex flex-col items-end gap-0.5" title="Reemb = manual (input) + auto (despesas 'pagar no fechamento' do mês)">
-                            <MaskedNum
-                              value={e.reemb}
-                              decimals={2}
-                              onChange={v => setEdit(r.row_key, 'reemb', v)}
-                              className={cellInputClass}
-                              style={cellInputStyle}
-                            />
+                            {readOnly ? (
+                              <span className="tabular-nums text-zinc-300">{fmtNum(r.reemb)}</span>
+                            ) : (
+                              <MaskedNum
+                                value={e.reemb}
+                                decimals={2}
+                                onChange={v => setEdit(r.row_key, 'reemb', v)}
+                                className={cellInputClass}
+                                style={cellInputStyle}
+                              />
+                            )}
                           </div>
                         </Td>
 
@@ -1235,26 +1261,30 @@ export default function FechamentoFolhaPage() {
                           {formatBRL(totalRend)}
                         </Td>
 
-                        {/* ── Editável (sempre): Descontos Diversos ── */}
-                        <Td right>
-                          <MaskedNum
-                            value={e.descontos}
-                            decimals={2}
-                            onChange={v => setEdit(r.row_key, 'descontos', v)}
-                            className={cellInputClass}
-                            style={cellInputStyle}
-                          />
+                        {/* ── Descontos Diversos: editável (sempre), exceto diretor (read-only) ── */}
+                        <Td right mono className={readOnly ? 'text-zinc-300 tabular-nums' : undefined}>
+                          {readOnly ? fmtNum(r.descontos) : (
+                            <MaskedNum
+                              value={e.descontos}
+                              decimals={2}
+                              onChange={v => setEdit(r.row_key, 'descontos', v)}
+                              className={cellInputClass}
+                              style={cellInputStyle}
+                            />
+                          )}
                         </Td>
 
-                        {/* ── Editável (sempre): Adiantamento ── */}
-                        <Td right>
-                          <MaskedNum
-                            value={e.adiantamento}
-                            decimals={2}
-                            onChange={v => setEdit(r.row_key, 'adiantamento', v)}
-                            className={cellInputClass}
-                            style={cellInputStyle}
-                          />
+                        {/* ── Adiantamento: editável (sempre), exceto diretor (read-only) ── */}
+                        <Td right mono className={readOnly ? 'text-zinc-300 tabular-nums' : undefined}>
+                          {readOnly ? fmtNum(r.adiantamento) : (
+                            <MaskedNum
+                              value={e.adiantamento}
+                              decimals={2}
+                              onChange={v => setEdit(r.row_key, 'adiantamento', v)}
+                              className={cellInputClass}
+                              style={cellInputStyle}
+                            />
+                          )}
                         </Td>
 
                         {/* ── Calculado: Total Débitos ── */}
@@ -1267,17 +1297,19 @@ export default function FechamentoFolhaPage() {
                           {formatBRL(liquido)}
                         </Td>
 
-                        {/* ── Editável (sempre): Horista/Mensalista ── */}
-                        <Td>
-                          <select
-                            value={e.horista_mensalista}
-                            onChange={ev => setEdit(r.row_key, 'horista_mensalista', ev.target.value)}
-                            className="rounded-md px-2 py-1 text-xs cursor-pointer appearance-none ds-input focus:outline-none"
-                            style={cellInputStyle}
-                          >
-                            <option value="Horista">Horista</option>
-                            <option value="Mensalista">Mensalista</option>
-                          </select>
+                        {/* ── Horista/Mensalista: editável (sempre), exceto diretor (read-only) ── */}
+                        <Td className={readOnly ? 'text-zinc-300' : undefined}>
+                          {readOnly ? (r.horista_mensalista || '—') : (
+                            <select
+                              value={e.horista_mensalista}
+                              onChange={ev => setEdit(r.row_key, 'horista_mensalista', ev.target.value)}
+                              className="rounded-md px-2 py-1 text-xs cursor-pointer appearance-none ds-input focus:outline-none"
+                              style={cellInputStyle}
+                            >
+                              <option value="Horista">Horista</option>
+                              <option value="Mensalista">Mensalista</option>
+                            </select>
+                          )}
                         </Td>
 
                         {/* ── Ações da linha ── */}
@@ -1338,6 +1370,9 @@ export default function FechamentoFolhaPage() {
                                 <Trash2 size={15} />
                               </button>
                             </div>
+                          ) : readOnly ? (
+                            // Linha de diretor → somente-leitura (dados do Fechamento Diretoria + cadastro).
+                            <span className="text-[11px] italic" style={{ color: 'var(--text-light)' }}>somente leitura</span>
                           ) : (
                             // Linha normal/inativa → Cancelar (oculta da folha do mês).
                             <button
