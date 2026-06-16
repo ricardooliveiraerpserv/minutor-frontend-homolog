@@ -26,6 +26,9 @@ interface BizRow {
   adto: number
   descontos: number
   adiantamento: number
+  // Linha de diretor: valor vem do Fechamento Diretoria + cadastro. Read-only (não edita/salva).
+  from_diretoria?: boolean
+  user_id?: number | null
 }
 type BizEdit = Omit<BizRow, 'row_key' | 'socio_key' | 'cancelado'>
 
@@ -120,10 +123,13 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
     return { cred, deb, liq: cred - deb }
   }
 
-  const visibleRows = useMemo(
-    () => rows.filter(r => r.cancelado === (tab === 'canceladas')),
-    [rows, tab],
-  )
+  const visibleRows = useMemo(() => {
+    const filtered = rows.filter(r => r.cancelado === (tab === 'canceladas'))
+    // Diretoria (roxo, read-only) no topo; demais mantêm a ordem atual.
+    const diretoria = filtered.filter(r => r.from_diretoria)
+    const outros = filtered.filter(r => !r.from_diretoria)
+    return [...diretoria, ...outros]
+  }, [rows, tab])
   const ativosCount = useMemo(() => rows.filter(r => !r.cancelado).length, [rows])
   const canceladasCount = useMemo(() => rows.filter(r => r.cancelado).length, [rows])
 
@@ -183,6 +189,7 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
       const entries: Array<Record<string, unknown>> = []
       let skipped = 0
       for (const r of rows) {
+        if (r.from_diretoria) continue // linha de diretor é read-only (vem do Fechamento Diretoria)
         const e = edits[r.row_key]
         if (!e) continue
         const mat = (e.matricula ?? '').trim()
@@ -390,32 +397,52 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
                   const e = edits[r.row_key] ?? (r as unknown as BizEdit)
                   const t = totals(e)
                   const busy = togglingKey === r.row_key
-                  const rowBg = r.cancelado ? 'var(--danger-bg)' : undefined
+                  // Diretor: linha read-only (valor do Fechamento Diretoria + cadastro).
+                  const readOnly = !!r.from_diretoria
+                  const rowBg = r.cancelado ? 'var(--danger-bg)' : readOnly ? 'rgba(168,85,247,0.13)' : undefined
+                  const num = (v: number) => <span className="tabular-nums" style={{ color: 'var(--text-muted)' }}>{formatBRL(v)}</span>
                   return (
-                    <Tr key={r.row_key} baseBackground={rowBg}>
+                    <Tr key={r.row_key} baseBackground={rowBg}
+                      className={readOnly ? '[border-left:3px_solid_#a855f7]' : undefined}>
                       <Td mono>
-                        <input type="text" value={e.matricula} onChange={ev => setEdit(r.row_key, 'matricula', ev.target.value)}
-                          className={`${cellInputClassText} w-24`} style={cellInputStyle} placeholder="matrícula" />
+                        {readOnly ? <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{e.matricula || '—'}</span> : (
+                          <input type="text" value={e.matricula} onChange={ev => setEdit(r.row_key, 'matricula', ev.target.value)}
+                            className={`${cellInputClassText} w-24`} style={cellInputStyle} placeholder="matrícula" />
+                        )}
                       </Td>
                       <Td>
-                        <input type="text" value={e.nome} onChange={ev => setEdit(r.row_key, 'nome', ev.target.value)}
-                          className={cellInputClassText} style={cellInputStyle} placeholder="nome" />
+                        {readOnly ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color: 'var(--text)' }}>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                              style={{ background: 'rgba(168,85,247,0.2)', color: '#a855f7' }}
+                              title="Diretor — Fechamento Diretoria + cadastro (somente leitura)">Diretoria</span>
+                            {e.nome || '—'}
+                          </span>
+                        ) : (
+                          <input type="text" value={e.nome} onChange={ev => setEdit(r.row_key, 'nome', ev.target.value)}
+                            className={cellInputClassText} style={cellInputStyle} placeholder="nome" />
+                        )}
                       </Td>
                       <Td>
-                        <input type="text" value={e.status} onChange={ev => setEdit(r.row_key, 'status', ev.target.value)}
-                          className={`${cellInputClassText} w-28`} style={cellInputStyle} />
+                        {readOnly ? <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{e.status || '—'}</span> : (
+                          <input type="text" value={e.status} onChange={ev => setEdit(r.row_key, 'status', ev.target.value)}
+                            className={`${cellInputClassText} w-28`} style={cellInputStyle} />
+                        )}
                       </Td>
-                      <Td right><MaskedNum value={e.producao} onChange={v => setEdit(r.row_key, 'producao', v)} className={cellInputClass} style={cellInputStyle} /></Td>
-                      <Td right><MaskedNum value={e.variavel} onChange={v => setEdit(r.row_key, 'variavel', v)} className={cellInputClass} style={cellInputStyle} /></Td>
-                      <Td right><MaskedNum value={e.aj_custo} onChange={v => setEdit(r.row_key, 'aj_custo', v)} className={cellInputClass} style={cellInputStyle} /></Td>
-                      <Td right><MaskedNum value={e.reemb} onChange={v => setEdit(r.row_key, 'reemb', v)} className={cellInputClass} style={cellInputStyle} /></Td>
-                      <Td right><MaskedNum value={e.adto} onChange={v => setEdit(r.row_key, 'adto', v)} className={cellInputClass} style={cellInputStyle} /></Td>
+                      <Td right>{readOnly ? num(e.producao) : <MaskedNum value={e.producao} onChange={v => setEdit(r.row_key, 'producao', v)} className={cellInputClass} style={cellInputStyle} />}</Td>
+                      <Td right>{readOnly ? num(e.variavel) : <MaskedNum value={e.variavel} onChange={v => setEdit(r.row_key, 'variavel', v)} className={cellInputClass} style={cellInputStyle} />}</Td>
+                      <Td right>{readOnly ? num(e.aj_custo) : <MaskedNum value={e.aj_custo} onChange={v => setEdit(r.row_key, 'aj_custo', v)} className={cellInputClass} style={cellInputStyle} />}</Td>
+                      <Td right>{readOnly ? num(e.reemb) : <MaskedNum value={e.reemb} onChange={v => setEdit(r.row_key, 'reemb', v)} className={cellInputClass} style={cellInputStyle} />}</Td>
+                      <Td right>{readOnly ? num(e.adto) : <MaskedNum value={e.adto} onChange={v => setEdit(r.row_key, 'adto', v)} className={cellInputClass} style={cellInputStyle} />}</Td>
                       <Td right mono className="tabular-nums" style={{ color: 'var(--text-muted)' }}>{formatBRL(t.cred)}</Td>
-                      <Td right><MaskedNum value={e.descontos} onChange={v => setEdit(r.row_key, 'descontos', v)} className={cellInputClass} style={cellInputStyle} /></Td>
-                      <Td right><MaskedNum value={e.adiantamento} onChange={v => setEdit(r.row_key, 'adiantamento', v)} className={cellInputClass} style={cellInputStyle} /></Td>
+                      <Td right>{readOnly ? num(e.descontos) : <MaskedNum value={e.descontos} onChange={v => setEdit(r.row_key, 'descontos', v)} className={cellInputClass} style={cellInputStyle} />}</Td>
+                      <Td right>{readOnly ? num(e.adiantamento) : <MaskedNum value={e.adiantamento} onChange={v => setEdit(r.row_key, 'adiantamento', v)} className={cellInputClass} style={cellInputStyle} />}</Td>
                       <Td right mono className="tabular-nums" style={{ color: 'var(--text-muted)' }}>{formatBRL(t.deb)}</Td>
                       <Td right mono className="tabular-nums font-semibold">{formatBRL(t.liq)}</Td>
                       <Td>
+                        {readOnly ? (
+                          <span className="text-[11px] italic" style={{ color: 'var(--text-light)' }}>somente leitura</span>
+                        ) : (
                         <div className="inline-flex items-center gap-1">
                           {r.cancelado ? (
                             <button type="button" onClick={() => setCancelado(r, false)} disabled={busy}
@@ -439,6 +466,7 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
                             <Trash2 size={15} />
                           </button>
                         </div>
+                        )}
                       </Td>
                     </Tr>
                   )
