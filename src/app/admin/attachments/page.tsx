@@ -123,7 +123,7 @@ export default function AdminAttachmentsPage() {
 
   return (
     <AppLayout title="Anexos — Admin">
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 md:px-6 space-y-6">
         <PageHeader
           icon={Database}
           title="Anexos — Observabilidade"
@@ -385,7 +385,7 @@ function EventsTimeline({ events, total, loading }: { events: EventsResponse['da
         <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{total.toLocaleString('pt-BR')} eventos no total</span>
       </div>
       {loading ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando…</p> : (
-        <div className="max-h-96 overflow-y-auto">
+        <div className="max-h-96 overflow-y-auto overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
               <tr style={{ color: 'var(--text-light)', borderBottom: '1px solid var(--border)' }}>
@@ -427,6 +427,7 @@ function IntegrityFailuresPanel({ health }: { health: HealthResponse['data'] | n
         <AlertCircle size={14} />
         Falhas de integridade recentes
       </p>
+      <div className="overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
           <tr style={{ color: 'var(--text-light)', borderBottom: '1px solid var(--danger-border)' }}>
@@ -451,6 +452,7 @@ function IntegrityFailuresPanel({ health }: { health: HealthResponse['data'] | n
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

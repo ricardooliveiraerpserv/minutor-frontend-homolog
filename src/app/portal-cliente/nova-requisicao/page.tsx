@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
-import { CheckCircle, ChevronLeft, AlertCircle, Send } from 'lucide-react'
+import { CheckCircle, ChevronLeft, AlertCircle, Send, X, UserCheck, Mail } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -158,6 +158,57 @@ function NovaRequisicaoContent() {
     cenario_desejado:   '',
   })
 
+  // ── E-mails em cópia (acompanhamento) ─────────────────────────────────────
+  type CcEmail = { email: string; user: { id: number; name: string } | null; resolving?: boolean }
+  const [ccEmails, setCcEmails] = useState<CcEmail[]>([])
+  const [ccDraft, setCcDraft] = useState('')
+
+  const effectiveCustomerId = isCliente ? null : (customerId ? Number(customerId) : null)
+
+  const addCcEmail = (raw: string) => {
+    const email = raw.trim().toLowerCase()
+    if (!email) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error(`E-mail inválido: ${raw}`)
+      return
+    }
+    if (ccEmails.some(e => e.email === email)) return
+    setCcEmails(prev => [...prev, { email, user: null, resolving: !isCliente ? !!effectiveCustomerId : true }])
+    if (isCliente || effectiveCustomerId) {
+      api.post<{ results: { email: string; user: { id: number; name: string } | null }[] }>(
+        '/contract-requests/resolve-emails',
+        { emails: [email], ...(effectiveCustomerId ? { customer_id: effectiveCustomerId } : {}) }
+      )
+        .then(r => {
+          const found = r.results.find(x => x.email === email)
+          setCcEmails(prev => prev.map(e => e.email === email ? { email, user: found?.user ?? null, resolving: false } : e))
+        })
+        .catch(() => {
+          setCcEmails(prev => prev.map(e => e.email === email ? { ...e, resolving: false } : e))
+        })
+    }
+  }
+
+  const removeCcEmail = (email: string) => setCcEmails(prev => prev.filter(e => e.email !== email))
+
+  // Re-resolve quando customer muda (admin/coord trocou cliente)
+  useEffect(() => {
+    if (isCliente || !effectiveCustomerId || ccEmails.length === 0) return
+    setCcEmails(prev => prev.map(e => ({ ...e, resolving: true })))
+    api.post<{ results: { email: string; user: { id: number; name: string } | null }[] }>(
+      '/contract-requests/resolve-emails',
+      { emails: ccEmails.map(e => e.email), customer_id: effectiveCustomerId }
+    )
+      .then(r => {
+        setCcEmails(prev => prev.map(e => {
+          const f = r.results.find(x => x.email === e.email)
+          return { email: e.email, user: f?.user ?? null, resolving: false }
+        }))
+      })
+      .catch(() => setCcEmails(prev => prev.map(e => ({ ...e, resolving: false }))))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveCustomerId])
+
   const set = (field: keyof typeof form) => (value: string) =>
     setForm(prev => ({ ...prev, [field]: value }))
 
@@ -184,6 +235,7 @@ function NovaRequisicaoContent() {
     try {
       const payload: any = { ...form }
       if (!isCliente && customerId) payload.customer_id = Number(customerId)
+      if (ccEmails.length) payload.cc_emails = ccEmails.map(e => e.email)
       await api.post('/contract-requests', payload)
       setSubmitted(true)
     } catch (e: any) {
@@ -196,6 +248,8 @@ function NovaRequisicaoContent() {
   const resetForm = () => {
     setForm({ area_requisitante: '', project_name: '', product_owner: '', modulo_tecnologia: '', tipo_necessidade: '', tipo_necessidade_outro: '', nivel_urgencia: '', descricao: '', cenario_atual: '', cenario_desejado: '' })
     setCustomerId('')
+    setCcEmails([])
+    setCcDraft('')
     setSubmitted(false)
   }
 
@@ -203,7 +257,7 @@ function NovaRequisicaoContent() {
     <AppLayout>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-4 md:px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div className="flex items-center gap-3">
             <button onClick={() => router.back()} className="p-1.5 rounded-lg transition-opacity hover:opacity-70" style={{ color: 'var(--brand-muted)' }}>
               <ChevronLeft size={16} />
@@ -219,7 +273,7 @@ function NovaRequisicaoContent() {
           <SuccessScreen onNew={resetForm} onClose={() => router.back()} />
         ) : (
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-2xl mx-auto px-6 py-8 space-y-8">
+            <div className="max-w-2xl mx-auto px-4 md:px-6 py-8 space-y-8">
 
               {/* Seletor de cliente (apenas para admin/coordenador) */}
               {!isCliente && (
@@ -259,7 +313,7 @@ function NovaRequisicaoContent() {
                     <Label required>Área Requisitante</Label>
                     <Input value={form.area_requisitante} onChange={set('area_requisitante')} placeholder="Ex: Financeiro, RH, TI..." />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label required>Product Owner</Label>
                       <Input value={form.product_owner} onChange={set('product_owner')} placeholder="Nome do responsável" />
@@ -272,10 +326,72 @@ function NovaRequisicaoContent() {
                 </div>
               </div>
 
+              {/* Seção 2: Em cópia (acompanhamento) */}
+              <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                <SectionTitle number="2" title="Em cópia (acompanhamento)" />
+                <p className="text-xs mb-3" style={{ color: 'var(--brand-subtle)' }}>
+                  Adicione e-mails de pessoas que devem acompanhar esta requisição.
+                  Quem já tem usuário no Minutor entra automaticamente no chat e segue o projeto.
+                  Quem não tem cadastro fica registrado, mas não recebe acesso.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 min-h-[42px]"
+                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                  {ccEmails.map(e => {
+                    const linked = !!e.user
+                    const bg = e.resolving
+                      ? 'rgba(255,255,255,0.04)'
+                      : linked
+                        ? 'rgba(34,197,94,0.08)'
+                        : 'rgba(234,179,8,0.08)'
+                    const border = e.resolving
+                      ? 'var(--brand-border)'
+                      : linked
+                        ? 'rgba(34,197,94,0.35)'
+                        : 'rgba(234,179,8,0.35)'
+                    const fg = e.resolving ? 'var(--brand-muted)' : linked ? '#22c55e' : '#eab308'
+                    return (
+                      <span key={e.email}
+                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px]"
+                        style={{ background: bg, border: `1px solid ${border}`, color: fg }}>
+                        {linked ? <UserCheck size={11} /> : <Mail size={11} />}
+                        <span className="font-medium">{e.email}</span>
+                        {e.user && <span style={{ color: 'var(--brand-muted)' }}>· {e.user.name}</span>}
+                        <button type="button" onClick={() => removeCcEmail(e.email)}
+                          className="ml-1 opacity-60 hover:opacity-100 transition-opacity">
+                          <X size={11} />
+                        </button>
+                      </span>
+                    )
+                  })}
+                  <input
+                    value={ccDraft}
+                    onChange={ev => setCcDraft(ev.target.value)}
+                    onKeyDown={ev => {
+                      if (ev.key === 'Enter' || ev.key === ',' || ev.key === ' ') {
+                        ev.preventDefault()
+                        if (ccDraft.trim()) { addCcEmail(ccDraft); setCcDraft('') }
+                      } else if (ev.key === 'Backspace' && !ccDraft && ccEmails.length) {
+                        removeCcEmail(ccEmails[ccEmails.length - 1].email)
+                      }
+                    }}
+                    onBlur={() => { if (ccDraft.trim()) { addCcEmail(ccDraft); setCcDraft('') } }}
+                    placeholder={ccEmails.length ? '' : 'email@exemplo.com — Enter para adicionar'}
+                    className="flex-1 min-w-[200px] bg-transparent outline-none text-sm px-1"
+                    style={{ color: 'var(--brand-text)' }}
+                  />
+                </div>
+                {ccEmails.some(e => e.user === null && !e.resolving) && (
+                  <p className="text-[11px] mt-2 flex items-center gap-1" style={{ color: '#eab308' }}>
+                    <AlertCircle size={11} /> E-mails sem cadastro ficam registrados mas não verão a requisição.
+                  </p>
+                )}
+              </div>
+
               {/* Seção 4: Tipo de Necessidade */}
               <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                 <SectionTitle number="4" title="Tipo de Necessidade" />
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {TIPOS.map(t => (
                     <button
                       key={t.value}

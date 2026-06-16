@@ -27,14 +27,22 @@ interface MonthlyAccrualTableProps {
   projectId?: number
   /** Permite editar o consumo dos meses anteriores ao corte (admin/coord). */
   canEditConsumption?: boolean
+  /** Statement já pronto (ex.: perfil do cliente — vem do summary, sem fetch nem edição). */
+  statement?: Statement | null
+  /** Breakdown mensal vigência-aware vindo do backend (soma das horas vendidas vigentes
+   *  por mês). Quando presente, o modo legado usa isto em vez da derivação naive. */
+  monthlyIncrements?: { year_month: string; hours: number }[] | null
 }
 
 type StatementType = 'monthly' | 'fixed' | 'on_demand' | 'none'
 interface StatementRow {
   year_month: string
   vendidas_hours: number | null
+  /** Incremento de horas vendidas deste mês (BH Mensal): valor VIGENTE na competência. */
+  monthly_hours?: number | null
   aporte_hours?: number
   consumption_hours: number
+  child_block_hours?: number
   accumulated_consumption_hours: number
   balance_hours: number | null
   editable: boolean
@@ -57,7 +65,7 @@ function tokens(variant: 'brand' | 'default') {
 const fmtMonth = (ym: string) => { const [y, m] = ym.split('-'); return `${m}/${y}` }
 const fmtH = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)}h`
 
-export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated, endDate, variant = 'default', projectId, canEditConsumption }: MonthlyAccrualTableProps) {
+export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated, endDate, variant = 'default', projectId, canEditConsumption, statement, monthlyIncrements }: MonthlyAccrualTableProps) {
   const t = tokens(variant)
 
   // ── Estado do modo extrato (hooks sempre chamados; corpo é condicional) ──
@@ -99,22 +107,25 @@ export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated,
   }
 
   // ───────────────────────── MODO EXTRATO ─────────────────────────
-  if (projectId) {
-    if (loading && !stmt) {
+  // projectId → busca o statement (admin, com edição); `statement` pronto → só exibe (cliente).
+  if (projectId || statement) {
+    if (projectId && loading && !stmt) {
       return (
         <div className="rounded-xl px-4 py-6 text-center text-xs" style={{ border: `1px solid ${t.border}`, background: t.surface, color: t.subtle }}>
           Carregando extrato…
         </div>
       )
     }
-    if (!stmt || stmt.rows.length === 0) return null
+    const s = projectId ? stmt : statement
+    const editable = !!projectId && !!canEditConsumption
+    if (!s || s.rows.length === 0) return null
 
     // Colunas por tipo: Mensal/Fixo/Fechado mostram Vendidas+Saldo; On Demand só Consumo.
-    const showVendidas = stmt.statement_type === 'monthly' || stmt.statement_type === 'fixed'
-    const vendidasLabel = stmt.statement_type === 'monthly' ? 'Vendidas (acum.)' : 'Vendidas'
+    const showVendidas = s.statement_type === 'monthly' || s.statement_type === 'fixed'
+    const vendidasLabel = s.statement_type === 'monthly' ? 'Vendidas (acum.)' : 'Vendidas'
     const headerRight = showVendidas
-      ? `${stmt.rows.length} ${stmt.rows.length === 1 ? 'mês' : 'meses'} · ${fmtH(stmt.total_vendidas_hours ?? 0)} vendidas`
-      : `${stmt.rows.length} ${stmt.rows.length === 1 ? 'mês' : 'meses'} · ${fmtH(stmt.total_consumption_hours)} consumidas`
+      ? `${s.rows.length} ${s.rows.length === 1 ? 'mês' : 'meses'} · ${fmtH(s.total_vendidas_hours ?? 0)} vendidas`
+      : `${s.rows.length} ${s.rows.length === 1 ? 'mês' : 'meses'} · ${fmtH(s.total_consumption_hours)} consumidas`
     const thCls = 'px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wider'
 
     return (
@@ -134,15 +145,18 @@ export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated,
               </tr>
             </thead>
             <tbody>
-              {stmt.rows.map(r => {
+              {s.rows.map(r => {
                 const negative = (r.balance_hours ?? 0) < 0
-                const canEdit = r.editable && !!canEditConsumption
+                const canEdit = r.editable && editable
                 return (
                   <tr key={r.year_month} style={{ borderBottom: `1px solid ${t.border}` }}>
                     <td className="px-3 py-2 tabular-nums" style={{ color: t.muted }}>{fmtMonth(r.year_month)}</td>
                     {showVendidas && (
                       <td className="px-3 py-2 text-right tabular-nums font-semibold" style={{ color: t.text }}>
                         {fmtH(r.vendidas_hours ?? 0)}
+                        {(r.monthly_hours ?? 0) > 0 && (
+                          <span className="block text-[10px] font-medium" style={{ color: 'var(--primary)' }}>+{fmtH(r.monthly_hours ?? 0)} mensal</span>
+                        )}
                         {(r.aporte_hours ?? 0) > 0 && (
                           <span className="block text-[10px] font-medium" style={{ color: 'var(--success)' }}>+{fmtH(r.aporte_hours ?? 0)} aporte</span>
                         )}
@@ -171,6 +185,9 @@ export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated,
                       ) : (
                         <span className="font-semibold">{fmtH(r.consumption_hours)}</span>
                       )}
+                      {(r.child_block_hours ?? 0) > 0 && (
+                        <span className="block text-[10px] font-medium" style={{ color: 'var(--warning)' }}>+{fmtH(r.child_block_hours ?? 0)} filho</span>
+                      )}
                     </td>
                     {showVendidas && <td className="px-3 py-2 text-right tabular-nums font-semibold" style={{ color: negative ? 'var(--danger)' : t.text }}>{r.balance_hours != null ? fmtH(r.balance_hours) : '—'}</td>}
                   </tr>
@@ -180,14 +197,14 @@ export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated,
             <tfoot>
               <tr style={{ borderTop: `1px solid ${t.border}` }}>
                 <td className="px-3 py-2.5 text-right text-[13px] font-bold" style={{ color: t.text }}>Total</td>
-                {showVendidas && <td className="px-3 py-2.5 text-right tabular-nums font-bold" style={{ color: t.text }}>{fmtH(stmt.total_vendidas_hours ?? 0)}</td>}
-                <td className="px-3 py-2.5 text-right tabular-nums font-bold" style={{ color: t.text }}>{fmtH(stmt.total_consumption_hours)}</td>
-                {showVendidas && <td className="px-3 py-2.5 text-right tabular-nums font-bold" style={{ color: (stmt.balance_hours ?? 0) < 0 ? 'var(--danger)' : t.text }}>{stmt.balance_hours != null ? fmtH(stmt.balance_hours) : '—'}</td>}
+                {showVendidas && <td className="px-3 py-2.5 text-right tabular-nums font-bold" style={{ color: t.text }}>{fmtH(s.total_vendidas_hours ?? 0)}</td>}
+                <td className="px-3 py-2.5 text-right tabular-nums font-bold" style={{ color: t.text }}>{fmtH(s.total_consumption_hours)}</td>
+                {showVendidas && <td className="px-3 py-2.5 text-right tabular-nums font-bold" style={{ color: (s.balance_hours ?? 0) < 0 ? 'var(--danger)' : t.text }}>{s.balance_hours != null ? fmtH(s.balance_hours) : '—'}</td>}
               </tr>
             </tfoot>
           </table>
         </div>
-        {canEditConsumption && (
+        {editable && (
           <div className="px-4 py-2 text-[10px]" style={{ borderTop: `1px solid ${t.border}`, color: t.subtle }}>
             Consumo editável até 04/2026 (histórico). De 05/2026 em diante vem dos apontamentos.
           </div>
@@ -197,26 +214,34 @@ export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated,
   }
 
   // ───────────────────────── MODO LEGADO (derivado) ─────────────────────────
-  // Nº de meses: preferir o acumulado (congela no encerramento); senão, do
-  // início até hoje (ou até o encerramento, se informado).
-  let months = 0
-  if (hoursPerMonth > 0) {
-    if (accumulated != null && accumulated > 0) {
-      months = Math.max(0, Math.round(accumulated / hoursPerMonth))
-    } else if (startDate) {
-      const start = new Date(startDate + 'T00:00:00')
-      const end = endDate ? new Date(endDate + 'T00:00:00') : new Date()
-      months = Math.max(0, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1)
+  // Preferir o breakdown vigência-aware do backend (monthlyIncrements): cada mês com
+  // a quantidade VIGENTE — não muda os meses anteriores ao alterar as horas. Sem ele,
+  // cai na derivação naive (start_date + horas/mês constante).
+  let rows: { label: string; hours: number }[] = []
+  if (monthlyIncrements && monthlyIncrements.length > 0) {
+    rows = monthlyIncrements.map(mi => ({ label: fmtMonth(mi.year_month), hours: mi.hours }))
+  } else {
+    // Nº de meses: preferir o acumulado (congela no encerramento); senão, do
+    // início até hoje (ou até o encerramento, se informado).
+    let months = 0
+    if (hoursPerMonth > 0) {
+      if (accumulated != null && accumulated > 0) {
+        months = Math.max(0, Math.round(accumulated / hoursPerMonth))
+      } else if (startDate) {
+        const s = new Date(startDate + 'T00:00:00')
+        const end = endDate ? new Date(endDate + 'T00:00:00') : new Date()
+        months = Math.max(0, (end.getFullYear() - s.getFullYear()) * 12 + (end.getMonth() - s.getMonth()) + 1)
+      }
     }
+    if (!startDate || hoursPerMonth <= 0 || months <= 0) return null
+    const s = new Date(startDate + 'T00:00:00')
+    rows = Array.from({ length: months }, (_, i) => {
+      const d = new Date(s.getFullYear(), s.getMonth() + i, 1)
+      return { label: `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`, hours: hoursPerMonth }
+    })
   }
 
-  if (!startDate || hoursPerMonth <= 0 || months <= 0) return null
-
-  const start = new Date(startDate + 'T00:00:00')
-  const rows = Array.from({ length: months }, (_, i) => {
-    const d = new Date(start.getFullYear(), start.getMonth() + i, 1)
-    return { label: `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`, hours: hoursPerMonth }
-  })
+  if (rows.length === 0) return null
   const total = rows.reduce((s, r) => s + r.hours, 0)
 
   return (

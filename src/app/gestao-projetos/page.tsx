@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { api, ApiError } from '@/lib/api'
@@ -11,9 +11,10 @@ import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { Project, PaginatedResponse, HourContribution } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download } from 'lucide-react'
+import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
+import { ProjectViewModal } from '@/components/projects/project-view-modal'
 import { ProjectDataModal } from '@/components/shared/ProjectDataModal'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { PageHeader } from '@/components/ds'
@@ -30,6 +31,7 @@ interface ProjectWithTeam extends Project {
   contract_type?: { id: number; name: string } | null
   contract_type_display?: string
   parent_project?: { id: number; name: string; code: string } | null
+  consumo_mensal?: number | null
 }
 
 interface ProjectFull extends ProjectWithTeam {
@@ -164,6 +166,32 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
     ? p.consumed_hours
     : (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0) + ((p as any).initial_hours_consumed ?? 0)
   return { displaySold, consumedHours }
+}
+
+// Saúde + % de uso. Banco de Horas MENSAL considera o PRÓXIMO aporte mensal
+// (= sold_hours por mês), pois todo mês entra um lote novo:
+//   verde   : saldo de hoje >= 0 (tem folga agora)
+//   amarelo : saldo de hoje < 0, mas o próximo aporte cobre (saldo projetado >= 0)
+//   vermelho: nem com o próximo aporte fecha (saldo projetado < 0)
+// O % de uso usa (disponível + próximo aporte) como base, então 100% = saldo projetado 0.
+function projectHealth(p: ProjectWithTeam, displaySold: number, consumed: number, considerUnbilled = false): { pct: number; color: 'green' | 'yellow' | 'red' } {
+  const ctName = ((p as any).contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
+  if (ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand') {
+    // On Demand pai com horas de meses encerrados NÃO faturadas → Crítico (só admin).
+    if (considerUnbilled && Number((p as any).unbilled_hours ?? 0) > 0) return { pct: 100, color: 'red' }
+    return { pct: 100, color: 'green' }
+  }
+  if (ctName.includes('mensal')) {
+    const aporteMensal = Number(p.sold_hours ?? 0)
+    const dispProx   = displaySold + aporteMensal
+    const saldoHoje  = displaySold - consumed
+    const saldoProj  = saldoHoje + aporteMensal
+    const pct = dispProx > 0 ? (consumed / dispProx) * 100 : 0
+    const color: 'green' | 'yellow' | 'red' = saldoProj < 0 ? 'red' : (saldoHoje < 0 ? 'yellow' : 'green')
+    return { pct, color }
+  }
+  const pct = displaySold > 0 ? (consumed / displaySold) * 100 : 0
+  return { pct, color: healthColor(pct) }
 }
 
 // Banco de horas de coordenação (lente do coordenador). "Vendidas" = coordination_hours;
@@ -370,9 +398,11 @@ interface ProjectRowProps {
   isSelected?: boolean
   onSelect?: (id: number) => void
   onConsultantManualToggle?: (userId: number, allow: boolean) => void
+  /** admin/administrativo — só eles veem horas não faturadas (cliente/coord não). */
+  showUnbilled?: boolean
 }
 
-function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, canDetach, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect, onConsultantManualToggle }: ProjectRowProps) {
+function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, canDetach, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect, onConsultantManualToggle, showUnbilled }: ProjectRowProps) {
   const ctName = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (project as any).tipo_faturamento === 'on_demand'
   const isBhMensal = ctName.includes('mensal')
@@ -388,8 +418,10 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
     ? project.consumed_hours
     : (project.total_logged_minutes != null ? project.total_logged_minutes / 60 : 0) + ((project as any).initial_hours_consumed ?? 0)
   const displaySaldo = isOnDemand ? 0 : (project.general_hours_balance ?? null)
-  const pct = isOnDemand ? 100 : (displaySold > 0 ? (consumedHours / displaySold) * 100 : 0)
-  const color = isOnDemand ? 'green' : healthColor(pct)
+  // On Demand pai: horas de meses encerrados ainda NÃO faturados (informativo, só admin).
+  const unbilledHrs  = Number((project as any).unbilled_hours ?? 0)
+  const hasUnbilled  = !!showUnbilled && isOnDemand && unbilledHrs > 0
+  const { pct, color } = projectHealth(project, displaySold, consumedHours, !!showUnbilled)
   const hs    = healthStyles[color]
 
   const saldo    = displaySaldo
@@ -578,7 +610,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
             <span style={{ color: 'var(--text-light)', fontSize: 11 }}>= consumo</span>
           ) : (
             <div className="flex flex-col items-center leading-tight">
-              <span>{fmt(displaySold)}</span>
+              <span>{fmt(displaySold, Number.isInteger(displaySold) ? 0 : 1)}</span>
               {(project.vendidas_aporte_hours ?? 0) > 0 && (
                 <>
                   <span style={{ fontSize: 10, color: 'var(--text-light)' }}>Projeto {fmt(project.vendidas_projeto_hours ?? 0, 1)}</span>
@@ -611,16 +643,27 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
           )}
         </td>
 
+        {/* Consumo Mensal */}
+        <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+          {project.consumo_mensal != null ? fmt(project.consumo_mensal, 1) : '—'}
+        </td>
+
         {/* Saldo */}
         <td className="py-3 px-4 text-[13px] text-right tabular-nums font-semibold"
-          style={{ color: saldoNeg ? 'var(--danger-border)' : 'var(--text)' }}>
-          {isOnDemand ? <span style={{ color: 'var(--text-light)' }}>0,0</span> : (saldo != null ? fmt(saldo, 1) : '—')}
+          style={{ color: (saldoNeg || hasUnbilled) ? 'var(--danger-border)' : 'var(--text)' }}>
+          {isOnDemand
+            ? (hasUnbilled
+                ? <span title="Horas de meses encerrados ainda não faturados" style={{ color: 'var(--danger-border)' }}>-{fmt(unbilledHrs, 1)}</span>
+                : <span style={{ color: 'var(--text-light)' }}>0,0</span>)
+            : (saldo != null ? fmt(saldo, 1) : '—')}
         </td>
 
         {/* % Uso + barra */}
         <td className="py-3 px-4 min-w-[140px]">
           {isOnDemand ? (
-            <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>
+            hasUnbilled
+              ? <span className="text-xs font-semibold" style={{ color: 'var(--danger-border)' }}>Crítico</span>
+              : <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>
           ) : (
             <>
               <div className="flex items-center gap-2">
@@ -703,12 +746,23 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
             }
             const s = stMap[project.status] ?? stMap.finished
             return (
-              <span
-                className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center"
-                style={{ background: s.bg, color: s.fg, border: `1px solid ${s.bd}` }}
-              >
-                {project.status_display ?? statusLabel[project.status] ?? project.status}
-              </span>
+              <div className="flex flex-col items-start gap-1">
+                <span
+                  className="text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center"
+                  style={{ background: s.bg, color: s.fg, border: `1px solid ${s.bd}` }}
+                >
+                  {project.status_display ?? statusLabel[project.status] ?? project.status}
+                </span>
+                {hasUnbilled && (
+                  <span
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap inline-flex items-center"
+                    style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}
+                    title={`${fmt(unbilledHrs, 1)}h de meses encerrados ainda não faturados`}
+                  >
+                    Crítico — não faturado
+                  </span>
+                )}
+              </div>
             )
           })()}
         </td>
@@ -718,7 +772,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
       {expanded && (teamCount > 0 || hasChildConsumption) && (
         <tr style={{ background: 'var(--surface-hover)' }}>
           <td /><td />
-          <td colSpan={12} className="py-3 px-4">
+          <td colSpan={13} className="py-3 px-4">
             <div className="flex flex-wrap gap-4">
               {(project.coordinators ?? []).length > 0 && (
                 <div>
@@ -819,6 +873,7 @@ interface ProjectEditForm {
   timesheet_retroactive_limit_days: string
   allow_manual_timesheets: boolean; allow_negative_balance: boolean; client_follows_timesheets: boolean
   movidesk_integration_enabled: boolean
+  extrato_visivel_cliente: boolean
   coordinator_ids: number[]; consultant_ids: number[]; consultant_group_ids: number[]
   kanban_coordinator_override_id: string
 }
@@ -882,6 +937,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     allow_negative_balance:          d.allow_negative_balance ?? false,
     client_follows_timesheets:       (d as any).client_follows_timesheets ?? true,
     movidesk_integration_enabled:    (d as any).movidesk_integration_enabled ?? false,
+    extrato_visivel_cliente:         (d as any).extrato_visivel_cliente ?? true,
     coordinator_ids:                 (d.coordinators ?? d.approvers ?? []).map((c: any) => c.id),
     consultant_ids:                  (d.consultants ?? []).map((c: any) => c.id),
     consultant_group_ids:            (d.consultant_groups ?? []).map((g: any) => g.id),
@@ -984,6 +1040,31 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     }
   }
 
+  // Vigência das horas vendidas (Banco de Horas Mensal): quando sold_hours muda,
+  // perguntamos a partir de qual mês passa a valer (espelha o valor-hora).
+  const [soldHoursModalOpen, setSoldHoursModalOpen] = useState(false)
+  const [soldHoursEffectiveMonth, setSoldHoursEffectiveMonth] = useState<string>(() => new Date().toISOString().slice(0, 7))
+  // Vigência(s) já confirmada(s) carregada(s) entre os modais (rate + horas) num mesmo save.
+  const [pendingEff, setPendingEff] = useState<{ rate?: string; sold?: string }>({})
+
+  // Histórico de horas vendidas (somente leitura) — GET /projects/{id}/sold-hours-history
+  const [soldHoursHistoryOpen, setSoldHoursHistoryOpen] = useState(false)
+  const [soldHoursHistory, setSoldHoursHistory] = useState<any[]>([])
+  const [soldHoursHistoryLoading, setSoldHoursHistoryLoading] = useState(false)
+  const openSoldHoursHistory = async () => {
+    setSoldHoursHistoryOpen(true)
+    setSoldHoursHistoryLoading(true)
+    try {
+      const res = await api.get<any[]>(`/projects/${project.id}/sold-hours-history`)
+      setSoldHoursHistory(Array.isArray(res) ? res : [])
+    } catch {
+      setSoldHoursHistory([])
+      toast.error('Erro ao carregar histórico de horas')
+    } finally {
+      setSoldHoursHistoryLoading(false)
+    }
+  }
+
   const selectedCustomerObj = useMemo(() => optCustomers.find(c => String(c.id) === form.customer_id), [optCustomers, form.customer_id])
   // Use prefix from selected customer, or fall back to original code prefix
   const codePrefix  = selectedCustomerObj?.code_prefix?.toUpperCase() ?? (d.code ?? '').match(/^([A-Za-z]+)/)?.[1]?.toUpperCase() ?? ''
@@ -1022,7 +1103,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   // Draft local pra permitir digitar suave; quando null, mostra o valor derivado do %.
   const [gestaoDraft, setGestaoDraft] = useState<string | null>(null)
 
-  const handleSave = async (hourlyRateEffectiveFrom?: string) => {
+  const handleSave = async (eff: { rate?: string; sold?: string } = {}) => {
     if (!form.name.trim()) { toast.error('Nome obrigatório'); return }
     if (codeExists) { toast.error('Código já existe em outro projeto. Altere o código antes de salvar.'); return }
     // Horas de coordenação obrigatórias para projetos que não são On Demand
@@ -1055,6 +1136,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
         allow_negative_balance:  form.allow_negative_balance,
         client_follows_timesheets: form.client_follows_timesheets,
         movidesk_integration_enabled: form.movidesk_integration_enabled,
+        extrato_visivel_cliente: form.extrato_visivel_cliente,
         cobra_despesa_cliente:   form.cobra_despesa_cliente,
         observacoes_contrato: form.observacoes_contrato || null,
         condicao_pagamento:   form.condicao_pagamento || null,
@@ -1088,10 +1170,15 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       payload.kanban_coordinator_override_id = form.kanban_coordinator_override_id === ''
         ? null
         : Number(form.kanban_coordinator_override_id)
-      // Mudou o valor-hora? Abre o modal de vigência antes de enviar (fechamentos passados não mudam).
+      // Mudou o valor-hora e/ou as horas vendidas (BH Mensal)? Abre o modal de vigência
+      // antes de enviar (fechamentos de meses anteriores não mudam). Se ambos mudaram,
+      // pede um mês de cada vez, carregando o já confirmado em pendingEff.
       const rateChanged = form.hourly_rate !== '' && Number(form.hourly_rate) !== Number(d.hourly_rate ?? 0)
-      if (rateChanged && !hourlyRateEffectiveFrom) { setSaving(false); setRateModalOpen(true); return }
-      if (rateChanged && hourlyRateEffectiveFrom) { payload.hourly_rate_effective_from = hourlyRateEffectiveFrom }
+      const soldChanged = editIsBhMensal && form.sold_hours !== '' && Number(form.sold_hours) !== Number(d.sold_hours ?? 0)
+      if (rateChanged && !eff.rate) { setSaving(false); setPendingEff(eff); setRateModalOpen(true); return }
+      if (soldChanged && !eff.sold) { setSaving(false); setPendingEff(eff); setSoldHoursModalOpen(true); return }
+      if (rateChanged && eff.rate) { payload.hourly_rate_effective_from = eff.rate }
+      if (soldChanged && eff.sold) { payload.sold_hours_effective_from = eff.sold }
       try {
         await api.put(`/projects/${project.id}`, payload)
       } catch (err: any) {
@@ -1420,15 +1507,26 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                   <div><label style={lStyle}>Hora Adicional (R$)</label><input type="number" value={form.additional_hourly_rate} onChange={setF('additional_hourly_rate')} style={iStyle} placeholder="0.00" step="0.01" /></div>
                 )}
                 {!isOnDemandForm && (
-                  <div><label style={lStyle}>Horas Contratadas</label><input type="number" value={form.sold_hours} onChange={e => {
-                    const hrs = e.target.value
-                    const hr = Number(form.hourly_rate)
-                    setForm(prev => ({
-                      ...prev,
-                      sold_hours: hrs,
-                      project_value: hr > 0 && hrs !== '' ? String(+(hr * Number(hrs)).toFixed(2)) : prev.project_value,
-                    }))
-                  }} style={iStyle} placeholder="0" step="1" /></div>
+                  <div>
+                    <div className="flex items-center justify-between" style={{ marginBottom: '0.375rem' }}>
+                      <label style={{ ...lStyle, marginBottom: 0 }}>Horas Contratadas</label>
+                      {d.id != null && editIsBhMensal && (
+                        <button type="button" onClick={openSoldHoursHistory}
+                          className="text-[10px] font-medium hover:underline" style={{ color: 'var(--primary)' }}>
+                          Histórico de horas
+                        </button>
+                      )}
+                    </div>
+                    <input type="number" value={form.sold_hours} onChange={e => {
+                      const hrs = e.target.value
+                      const hr = Number(form.hourly_rate)
+                      setForm(prev => ({
+                        ...prev,
+                        sold_hours: hrs,
+                        project_value: hr > 0 && hrs !== '' ? String(+(hr * Number(hrs)).toFixed(2)) : prev.project_value,
+                      }))
+                    }} style={iStyle} placeholder="0" step="1" />
+                  </div>
                 )}
                 {showApontaveis && (
                   <div><label style={lStyle}>Percentual Gestão (%)</label><input type="number" value={form.coordinator_hours}
@@ -1562,6 +1660,11 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 onChange={v => setForm(p => ({ ...p, movidesk_integration_enabled: v }))}
                 label="Receber integração Movidesk (apontamentos importados deste cliente caem neste projeto)"
               />
+              <Toggle2
+                checked={form.extrato_visivel_cliente}
+                onChange={v => setForm(p => ({ ...p, extrato_visivel_cliente: v }))}
+                label="Cliente vê o Extrato (Situação do Contrato mês a mês) no perfil dele"
+              />
 
               {/* Override de Coordenador (sustentação) — só admin */}
               {(() => {
@@ -1631,24 +1734,28 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                   </div>
                 )
               })()}
-              <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)}
-                placeholder="Buscar..."
-                className="w-full text-xs px-3 py-2 rounded-xl outline-none mb-2"
-                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              {teamTab !== 'coord' && (
+                <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)}
+                  placeholder="Buscar..."
+                  className="w-full text-xs px-3 py-2 rounded-xl outline-none mb-2"
+                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+              )}
               <div className="flex-1 overflow-y-auto space-y-1 rounded-xl p-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', maxHeight: 520 }}>
-                {teamTab === 'coord' && filteredCoords.map(c => {
-                  const sel = form.coordinator_ids.includes(c.id)
-                  return (
-                    <button key={c.id} onClick={() => setForm(p => ({ ...p, coordinator_ids: toggleId(p.coordinator_ids, c.id) }))}
-                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]"
-                      style={{ background: sel ? 'var(--primary-soft)' : 'transparent', border: `1px solid ${sel ? 'var(--ring)' : 'transparent'}` }}>
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'var(--ring)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                        {sel && <Check size={10} style={{ color: 'var(--primary)' }} />}
+                {teamTab === 'coord' && (
+                  <div className="px-1 py-1">
+                    {form.coordinator_ids.length === 0 ? (
+                      <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum coordenador definido.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {form.coordinator_ids.map(cid => {
+                          const c = optCoordinators.find(o => o.id === cid)
+                          return <span key={cid} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{c?.name ?? `#${cid}`}</span>
+                        })}
                       </div>
-                      <span className="text-xs" style={{ color: sel ? 'var(--primary)' : 'var(--text)' }}>{c.name}</span>
-                    </button>
-                  )
-                })}
+                    )}
+                    <p className="text-[10px] mt-3 leading-relaxed" style={{ color: 'var(--text-light)' }}>🔒 O coordenador é definido no Kanban de Contratos e não pode ser editado aqui.</p>
+                  </div>
+                )}
                 {teamTab === 'consult' && filteredConsults.map(c => {
                   const sel = form.consultant_ids.includes(c.id)
                   return (
@@ -1675,7 +1782,6 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                     </button>
                   )
                 })}
-                {teamTab === 'coord'   && filteredCoords.length   === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>}
                 {teamTab === 'consult' && filteredConsults.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>}
                 {teamTab === 'group'   && filteredGroups.length   === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>}
               </div>
@@ -1756,7 +1862,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
             <div className="flex items-center justify-end gap-3">
               <button onClick={() => setRateModalOpen(false)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
               <button
-                onClick={() => { setRateModalOpen(false); handleSave(`${rateEffectiveMonth}-01`) }}
+                onClick={() => { setRateModalOpen(false); handleSave({ ...pendingEff, rate: `${rateEffectiveMonth}-01` }) }}
                 disabled={!rateEffectiveMonth}
                 className="px-5 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
                 style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--ring)' }}
@@ -1818,6 +1924,88 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
           </div>
         </div>
       )}
+
+      {/* Vigência da nova quantidade de horas vendidas (BH Mensal) */}
+      {soldHoursModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text)' }}>Vigência das horas vendidas</p>
+            <p className="text-[13px] leading-relaxed mb-4" style={{ color: 'var(--brand-muted)' }}>
+              A partir de qual mês essa nova quantidade de horas passa a valer? Meses anteriores (fechamentos já feitos) não mudam.
+            </p>
+            <div className="mb-5">
+              <label style={lStyle}>Mês de vigência</label>
+              <input
+                type="month"
+                value={soldHoursEffectiveMonth}
+                min={new Date().toISOString().slice(0, 7)}
+                onChange={e => setSoldHoursEffectiveMonth(e.target.value)}
+                style={iStyle}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button onClick={() => setSoldHoursModalOpen(false)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+              <button
+                onClick={() => { setSoldHoursModalOpen(false); handleSave({ ...pendingEff, sold: `${soldHoursEffectiveMonth}-01` }) }}
+                disabled={!soldHoursEffectiveMonth}
+                className="px-5 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--ring)' }}
+              >Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Histórico de horas vendidas (somente leitura) */}
+      {soldHoursHistoryOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
+          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Histórico de horas vendidas</p>
+              <button onClick={() => setSoldHoursHistoryOpen(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+            </div>
+            {soldHoursHistoryLoading ? (
+              <p className="text-sm py-6 text-center animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando...</p>
+            ) : soldHoursHistory.length === 0 ? (
+              <p className="text-sm py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhuma alteração registrada.</p>
+            ) : (
+              <div className="max-h-[60vh] overflow-y-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>
+                      <th className="text-left font-semibold px-3 py-2">Vigência</th>
+                      <th className="text-left font-semibold px-3 py-2">Horas</th>
+                      <th className="text-left font-semibold px-3 py-2">Alterado por</th>
+                      <th className="text-left font-semibold px-3 py-2">Em</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {soldHoursHistory.map((h: any, i: number) => (
+                      <tr key={h.id ?? i} style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {h.effective_from
+                            ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
+                            : <span title="vigência não informada (legado)" style={{ color: 'var(--text-light)' }}>—</span>}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums whitespace-nowrap">
+                          {h.sold_hours != null ? `${Number(h.sold_hours)}h` : '—'}
+                        </td>
+                        <td className="px-3 py-2">{h.changer?.name ?? '—'}</td>
+                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+                          {h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex items-center justify-end mt-5">
+              <button onClick={() => setSoldHoursHistoryOpen(false)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1869,9 +2057,10 @@ export default function GestaoProjetosPage() {
       filterServiceTypes: [] as string[],
       filterCoordinators: [] as string[],
       filterExecutives:   [] as string[],
+      yearMonths:         [new Date().toISOString().slice(0, 7)] as string[],
     },
   )
-  const { search, statusFilters, clienteFilters, saudeFilter, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives } = flt
+  const { search, statusFilters, clienteFilters, saudeFilter, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, yearMonths } = flt
   const setSearch             = (v: string)   => setFilter('search', v)
   const setStatus             = (v: string[]) => setFilter('statusFilters', v)
   const setCliente            = (v: string[]) => setFilter('clienteFilters', v)
@@ -1881,6 +2070,21 @@ export default function GestaoProjetosPage() {
   const setFilterServiceType  = (v: string[]) => setFilter('filterServiceTypes', v)
   const setFilterCoordinators = (v: string[]) => setFilter('filterCoordinators', v)
   const setFilterExecutives   = (v: string[]) => setFilter('filterExecutives', v)
+  const setYearMonths         = (v: string[]) => setFilter('yearMonths', v)
+
+  // Opções de mês p/ a coluna Consumo (multi-mês). Componente custom (Safari não
+  // suporta <input type="month"> — renderizava como texto). Últimos 24 meses.
+  const monthOptions = useMemo(() => {
+    const MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+    const out: { id: string; name: string }[] = []
+    const now = new Date()
+    let y = now.getFullYear(), m = now.getMonth()
+    for (let i = 0; i < 24; i++) {
+      out.push({ id: `${y}-${String(m + 1).padStart(2, '0')}`, name: `${MES[m]}/${y}` })
+      m--; if (m < 0) { m = 11; y-- }
+    }
+    return out
+  }, [])
 
   const clearAllFilters = () => {
     setSearch('')
@@ -2041,9 +2245,11 @@ export default function GestaoProjetosPage() {
   const [contributions, setContributions]     = useState<HourContribution[]>([])
   const [contribLoading, setContribLoading]   = useState(false)
   const [contribModal, setContribModal]       = useState<{ open: boolean; item?: HourContribution }>({ open: false })
-  const [contribForm, setContribForm]         = useState({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte' })
+  const [contribForm, setContribForm]         = useState({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte', reason: '' })
   const [contribSaving, setContribSaving]     = useState(false)
   const [contribDeleteConfirm, setContribDeleteConfirm] = useState<HourContribution | null>(null)
+  // Aporte cujo histórico de auditoria está expandido (id) — null = nenhum.
+  const [contribHistoryOpen, setContribHistoryOpen] = useState<number | null>(null)
 
   // Abre modal de Aportes do projeto se URL contém ?aportes=ID.
   // Fallback: a navegação principal usa o modal do ProjectViewModal (aba Aportes)
@@ -2061,7 +2267,8 @@ export default function GestaoProjetosPage() {
 
   useEffect(() => {
     setLoading(true)
-    const qs = new URLSearchParams({ pageSize: '200', gestao: 'true' })
+    const qs = new URLSearchParams({ pageSize: '1000', gestao: 'true' })
+    if (yearMonths.length) qs.set('year_months', yearMonths.join(',')) // alimenta a coluna Consumo Mensal (soma dos meses selecionados)
     if (multiContratual) { qs.set('parent_projects_only', 'true'); qs.set('with_children_only', 'true') }
     api.get<PaginatedResponse<ProjectWithTeam>>(`/projects?${qs}`)
       .then(res => {
@@ -2071,7 +2278,7 @@ export default function GestaoProjetosPage() {
       })
       .catch(() => toast.error('Erro ao carregar projetos'))
       .finally(() => setLoading(false))
-  }, [multiContratual, refreshKey])
+  }, [multiContratual, refreshKey, yearMonths.join(',')])
 
   useEffect(() => {
     api.get<any>('/customers?pageSize=500').then(r => {
@@ -2139,9 +2346,7 @@ export default function GestaoProjetosPage() {
       }
       if (saudeFilter) {
         const { displaySold, consumedHours } = calcProjHours(p)
-        const pct = displaySold > 0 ? (consumedHours / displaySold) * 100 : 0
-        const color = healthColor(pct)
-        if (color !== saudeFilter) return false
+        if (projectHealth(p, displaySold, consumedHours, isAdmin).color !== saudeFilter) return false
       }
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
@@ -2177,7 +2382,7 @@ export default function GestaoProjetosPage() {
         case 'balance':       return (p as any).general_hours_balance ?? 0
         case 'pct': {
           const { displaySold, consumedHours } = calcProjHours(p)
-          return displaySold > 0 ? (consumedHours / displaySold) * 100 : 0
+          return projectHealth(p, displaySold, consumedHours).pct
         }
         case 'coord': {
           const bank = Number((p as any).coordination_hours ?? 0)
@@ -2230,8 +2435,7 @@ export default function GestaoProjetosPage() {
       }
       if (saudeFilter) {
         const { displaySold, consumedHours } = calcProjHours(p)
-        const pct = displaySold > 0 ? (consumedHours / displaySold) * 100 : 0
-        if (healthColor(pct) !== saudeFilter) return false
+        if (projectHealth(p, displaySold, consumedHours, isAdmin).color !== saudeFilter) return false
       }
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
@@ -2270,11 +2474,14 @@ export default function GestaoProjetosPage() {
     const vendidas  = base.reduce((s, p) => s + calcProjHours(p).displaySold, 0)
     const consumidas = base.reduce((s, p) => s + calcProjHours(p).consumedHours, 0)
     const saldo     = base.reduce((s, p) => s + (p.general_hours_balance ?? 0), 0)
+    // % médio e contagem de críticos seguem a saúde efetiva (BH Mensal já considera
+    // o próximo aporte) em vez do balance_percentage cru do backend.
+    const healthOf = (p: ProjectWithTeam) => { const h = calcProjHours(p); return projectHealth(p, h.displaySold, h.consumedHours, isAdmin) }
     const comPct    = base.filter(p => calcProjHours(p).displaySold > 0)
     const avgPct    = comPct.length
-      ? comPct.reduce((s, p) => s + (p.balance_percentage ?? 0), 0) / comPct.length
+      ? comPct.reduce((s, p) => s + healthOf(p).pct, 0) / comPct.length
       : 0
-    const criticos  = base.filter(p => (p.balance_percentage ?? 0) >= 90).length
+    const criticos  = base.filter(p => healthOf(p).color === 'red').length
     return { ativos, vendidas, consumidas, saldo, avgPct, criticos }
   }, [filtered])
 
@@ -2299,7 +2506,7 @@ export default function GestaoProjetosPage() {
     }
     setContribSaving(true)
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         contributed_hours: Number(contribForm.contributed_hours),
         hourly_rate: Number(contribForm.hourly_rate),
         contributed_at: contribForm.contributed_at,
@@ -2307,6 +2514,8 @@ export default function GestaoProjetosPage() {
         motivo: contribForm.motivo || 'aporte',
       }
       if (contribModal.item) {
+        // Auditoria: motivo da alteração (opcional) vai pro histórico.
+        if (contribForm.reason.trim()) payload.reason = contribForm.reason.trim()
         await api.put(`/projects/${aportesProject.id}/hour-contributions/${contribModal.item.id}`, payload)
         toast.success('Aporte atualizado')
       } else {
@@ -2600,11 +2809,11 @@ export default function GestaoProjetosPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-[1400px] mx-auto px-6 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-8">
         <PageHeader
           icon={Layers}
-          title="Gestão de Projetos"
-          subtitle="Visão operacional dos projetos sob sua coordenação"
+          title="Gestão de Contratos"
+          subtitle="Visão operacional dos contratos sob sua coordenação"
         />
 
         {/* ── Cards de Resumo ── */}
@@ -2618,7 +2827,7 @@ export default function GestaoProjetosPage() {
           <SummaryCard
             icon={<Clock size={15} color="var(--primary)" />}
             label="Horas Vendidas"
-            value={fmt(stats.vendidas)}
+            value={fmt(stats.vendidas, Number.isInteger(stats.vendidas) ? 0 : 1)}
             sub="horas contratadas"
           />
           <SummaryCard
@@ -2654,6 +2863,12 @@ export default function GestaoProjetosPage() {
               style={{ ...inputStyle }}
             />
           </div>
+          <MultiSelect
+            value={yearMonths}
+            onChange={v => setYearMonths(v)}
+            options={monthOptions}
+            placeholder="Mês (Consumo)"
+          />
           <MultiSelect
             value={clienteFilters}
             onChange={v => setCliente(v)}
@@ -2889,6 +3104,7 @@ export default function GestaoProjetosPage() {
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="sold_hours"    onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center">HS Vendidas</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="total_cont"    onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center">Total Cont.</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="consumed"      onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center">HS Consumidas</SortableTh>
+                  <th className="py-3 px-4 text-xs font-semibold text-center" style={{ color: 'var(--text-muted)' }}>Consumo Mensal</th>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="balance"       onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center">Saldo</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="pct"           onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center" minWidth={140}>% Uso</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="coord"         onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center" minWidth={140}>Coord.</SortableTh>
@@ -2917,6 +3133,7 @@ export default function GestaoProjetosPage() {
                       isSelected={selectedProjectIds.has(project.id)}
                       onSelect={toggleProjectSelect}
                       onConsultantManualToggle={canEdit ? (userId, allow) => handleConsultantManualToggle(project.id, userId, allow) : undefined}
+                      showUnbilled={isAdmin || isAdministrativo}
                     />
                   )
                 })}
@@ -3049,7 +3266,7 @@ export default function GestaoProjetosPage() {
                     {/* Bloco 5 — HORAS */}
                     <div className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                       <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Horas</p>
-                      <div className="grid grid-cols-5 gap-2 mb-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
                         {[
                           { label: 'Iniciais',    value: `${hoursIniciais.toFixed(1)}h`,          color: 'var(--text)' },
                           { label: 'Apontadas',   value: `${hs.total_logged_hours.toFixed(1)}h`,  color: 'var(--text)' },
@@ -3080,7 +3297,7 @@ export default function GestaoProjetosPage() {
 
                     {/* Tabela de custo por consultor */}
                     {cb.length > 0 && (
-                      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                      <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
                         <div className="px-4 py-3" style={{ background: 'var(--surface)' }}>
                           <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}>
                             <UserCheck size={11} />Custo por Consultor
@@ -3198,7 +3415,7 @@ export default function GestaoProjetosPage() {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={() => {
-                  setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: new Date().toISOString().slice(0, 10), description: '', motivo: 'aporte' })
+                  setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: new Date().toISOString().slice(0, 10), description: '', motivo: 'aporte', reason: '' })
                   setContribModal({ open: true })
                 }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:opacity-90"
                   style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--ring)' }}>
@@ -3241,7 +3458,7 @@ export default function GestaoProjetosPage() {
                         <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--warning-border)' }}>{totalValor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                       </div>
                     </div>
-                    <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--border)' }}>
+                    <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
                       <table className="w-full text-xs">
                         <thead className="sticky top-0 z-10" style={{ background: 'var(--surface)' }}>
                           <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
@@ -3251,8 +3468,12 @@ export default function GestaoProjetosPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {contributions.map(c => (
-                            <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                          {contributions.map(c => {
+                            const logs = c.change_logs ?? []
+                            const histOpen = contribHistoryOpen === c.id
+                            return (
+                            <Fragment key={c.id}>
+                            <tr style={{ borderBottom: histOpen ? 'none' : '1px solid var(--border)' }}>
                               <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
                                 {c.contributed_at ? c.contributed_at.slice(0, 10).split('-').reverse().join('/') : '—'}
                               </td>
@@ -3262,6 +3483,15 @@ export default function GestaoProjetosPage() {
                               <td className="px-3 py-2.5 max-w-[160px] truncate" style={{ color: 'var(--text-muted)' }}>{c.description ?? '—'}</td>
                               <td className="px-3 py-2.5">
                                 <div className="flex items-center gap-1">
+                                  {logs.length > 0 && (
+                                    <button onClick={() => setContribHistoryOpen(histOpen ? null : c.id)}
+                                      title={`${logs.length} alteração(ões) — ver histórico`}
+                                      className="p-1 rounded hover:bg-[var(--surface-hover)] transition-colors flex items-center gap-0.5"
+                                      style={{ color: histOpen ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                      <History size={12} />
+                                      <span className="text-[9px] font-bold tabular-nums">{logs.length}</span>
+                                    </button>
+                                  )}
                                   <button onClick={() => {
                                     setContribModal({ open: true, item: c })
                                     setContribForm({
@@ -3270,6 +3500,7 @@ export default function GestaoProjetosPage() {
                                       contributed_at: c.contributed_at?.slice(0, 10) ?? '',
                                       description: c.description ?? '',
                                       motivo: (c as any).motivo ?? 'aporte',
+                                      reason: '',
                                     })
                                   }} className="p-1 rounded hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)' }}>
                                     <Pencil size={12} />
@@ -3280,7 +3511,38 @@ export default function GestaoProjetosPage() {
                                 </div>
                               </td>
                             </tr>
-                          ))}
+                            {histOpen && (
+                              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+                                <td colSpan={6} className="px-3 py-3">
+                                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
+                                    <History size={11} /> Histórico de alterações
+                                  </p>
+                                  <div className="space-y-1.5">
+                                    {logs.map(l => (
+                                      <div key={l.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[11px]">
+                                        <span className="font-semibold" style={{ color: 'var(--text)' }}>{l.field_label}:</span>
+                                        {l.field_name === 'deleted' ? (
+                                          <span className="text-red-400 font-medium">aporte excluído ({l.old_value})</span>
+                                        ) : (
+                                          <span style={{ color: 'var(--text-muted)' }}>
+                                            <span className="line-through opacity-70">{l.old_value_formatted ?? '—'}</span>
+                                            <span className="mx-1">→</span>
+                                            <span className="font-semibold" style={{ color: 'var(--primary)' }}>{l.new_value_formatted ?? '—'}</span>
+                                          </span>
+                                        )}
+                                        <span style={{ color: 'var(--text-light)' }}>
+                                          · {l.changed_by_user?.name ?? 'sistema'}
+                                          {l.created_at ? ' · ' + new Date(l.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                                        </span>
+                                        {l.reason && <span className="italic" style={{ color: 'var(--text-light)' }}>— {l.reason}</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                            </Fragment>
+                          )})}
                         </tbody>
                       </table>
                     </div>
@@ -3305,7 +3567,7 @@ export default function GestaoProjetosPage() {
               </h3>
               <button onClick={() => {
                 setContribModal({ open: false })
-                setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte' })
+                setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte', reason: '' })
               }} className="p-1 rounded hover:bg-[var(--surface-hover)]"><X size={14} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
             <div className="px-5 py-4 space-y-3">
@@ -3328,11 +3590,14 @@ export default function GestaoProjetosPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Data *</label>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Data / Mês de vigência *</label>
                 <input type="date" value={contribForm.contributed_at}
                   onChange={e => setContribForm(f => ({ ...f, contributed_at: e.target.value }))}
                   className="w-full px-3 py-2 rounded-lg text-xs outline-none"
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', colorScheme: 'dark' }} />
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
+                  Define a competência do aporte: o valor vale a partir deste mês e <strong>não altera os meses anteriores</strong>.
+                </p>
               </div>
               <div>
                 <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Motivo *</label>
@@ -3353,11 +3618,22 @@ export default function GestaoProjetosPage() {
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                   placeholder="Opcional" />
               </div>
+              {/* Auditoria: ao EDITAR um aporte, registra o motivo no histórico. */}
+              {contribModal.item && (
+                <div>
+                  <label className="block text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Motivo da alteração</label>
+                  <input type="text" value={contribForm.reason}
+                    onChange={e => setContribForm(f => ({ ...f, reason: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-xs outline-none"
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                    placeholder="Opcional — fica registrado no histórico" />
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 px-5 py-4" style={{ borderTop: '1px solid var(--border)' }}>
               <button onClick={() => {
                 setContribModal({ open: false })
-                setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte' })
+                setContribForm({ contributed_hours: '', hourly_rate: '', contributed_at: '', description: '', motivo: 'aporte', reason: '' })
               }} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
               <button onClick={saveContrib} disabled={contribSaving}
                 className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
@@ -3424,522 +3700,14 @@ export default function GestaoProjetosPage() {
       )}
 
       {/* ── Modal de Visualização ── */}
-      {viewProject && (() => {
-        const base = viewProject
-        const p: ProjectFull = viewProjectFull ?? base
-        const consumed = p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0)
-        const totalAvail = p.total_available_hours ?? ((p.sold_hours ?? 0) + (p.hour_contribution ?? 0))
-        const pct = totalAvail > 0 ? (consumed / totalAvail) * 100 : 0
-        const color = healthColor(pct)
-        const hs = healthStyles[color]
-        const statusLabel: Record<string, string> = {
-          active: 'Ativo', started: 'Em Andamento', awaiting_start: 'Aguardando Início',
-          paused: 'Pausado', finished: 'Finalizado', cancelled: 'Cancelado',
-        }
-        const fmtDate = (d?: string | null) => d ? d.slice(0,10).split('-').reverse().join('/') : '—'
-        const fmtBRL  = (v?: number | null) => v != null ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'
-        const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-          <div className="flex items-start justify-between py-2 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
-            <span className="text-xs shrink-0 w-40" style={{ color: 'var(--text-light)' }}>{label}</span>
-            <span className="text-xs font-semibold text-right" style={{ color: 'var(--text)' }}>{value ?? '—'}</span>
-          </div>
-        )
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }}>
-            <div className="flex flex-col rounded-2xl w-full max-w-3xl max-h-[92vh]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-1.5 h-12 rounded-full" style={{ background: hs.bar }} />
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>{p.code}</p>
-                    <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>{p.name}</h2>
-                    {p.parent_project && (
-                      <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>Subprojeto de: {p.parent_project.name} ({p.parent_project.code})</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => { setDataModal({ project: base, tab: 'timesheets' }) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}><Clock size={11} /> Apontamentos</button>
-                  <button onClick={() => { setDataModal({ project: base, tab: 'expenses' }) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}><BarChart2 size={11} /> Despesas</button>
-                  <button onClick={() => { setMessagesProject(base) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}><MessageCircle size={11} /> Mensagens</button>
-                  {canEdit && (
-                    <button onClick={() => { setEditProjectId(p.id) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--ring)' }}><Edit2 size={11} /> Editar</button>
-                  )}
-                  <button onClick={() => { setViewProject(null); setViewProjectFull(null) }} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
-                </div>
-              </div>
-
-              {/* Status badge row */}
-              <div className="flex items-center gap-3 px-6 py-3 border-b shrink-0 flex-wrap" style={{ borderColor: 'var(--border)', background: 'var(--surface-hover)' }}>
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold"
-                  style={{
-                    background: p.status === 'started' ? 'var(--primary-soft)' : p.status === 'paused' ? 'var(--warning-bg)' : p.status === 'cancelled' ? 'var(--danger-bg)' : p.status === 'finished' ? 'var(--surface-hover)' : 'var(--surface-hover)',
-                    color: p.status === 'started' ? 'var(--primary)' : p.status === 'paused' ? 'var(--warning-border)' : p.status === 'cancelled' ? 'var(--danger-border)' : p.status === 'finished' ? 'var(--text-light)' : 'var(--brand-purple)',
-                  }}>
-                  {p.status_display ?? statusLabel[p.status] ?? p.status}
-                </span>
-                {p.customer?.name && <span className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{p.customer.name}</span>}
-                {(p.contract_type_display ?? p.contract_type?.name) && <span className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{p.contract_type_display ?? p.contract_type?.name}</span>}
-                {p.service_type?.name && <span className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{p.service_type.name}</span>}
-                {viewProjectLoading && <span className="text-[10px] animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando detalhes...</span>}
-              </div>
-
-              {/* Tab nav */}
-              <div className="flex gap-1 px-6 border-b" style={{ borderColor: 'var(--border)' }}>
-                {(['overview', 'extrato', 'cost'] as const).filter(t => t !== 'cost' || user?.type !== 'coordenador').map(t => (
-                  <button key={t} onClick={() => {
-                    setViewProjectTab(t)
-                    if (t === 'cost' && !viewCostSummary && !viewCostLoading) {
-                      setViewCostLoading(true)
-                      api.get<CostSummary>(`/projects/${base.id}/cost-summary`)
-                        .then(r => setViewCostSummary(r))
-                        .catch(() => {})
-                        .finally(() => setViewCostLoading(false))
-                    }
-                  }}
-                    className="px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap"
-                    style={{ color: viewProjectTab === t ? 'var(--text)' : 'var(--text-muted)', borderBottom: viewProjectTab === t ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: '-1px' }}>
-                    {t === 'overview' ? 'Visão Geral' : t === 'extrato' ? 'Extrato' : 'Custo'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Body */}
-              <div className="flex-1 overflow-y-auto">
-                {viewProjectTab === 'cost' && user?.type !== 'coordenador' && (
-                  <div className="p-6 space-y-5">
-                    {viewCostLoading && <p className="text-xs text-center py-8" style={{ color: 'var(--text-light)' }}>Calculando custos...</p>}
-                    {!viewCostLoading && !viewCostSummary && <p className="text-xs text-center py-8" style={{ color: 'var(--text-light)' }}>Nenhum dado de custo disponível.</p>}
-                    {!viewCostLoading && viewCostSummary && (() => {
-                      const { project_info: pi, hours_summary: hs, cost_calculation: cc, consultant_breakdown: cb } = viewCostSummary
-                      const isPositive = cc.margin >= 0
-                      const marginColor = isPositive ? 'var(--success-border)' : 'var(--danger-border)'
-                      const hoursIniciais = Number((pi as any).initial_hours_consumed) || Math.abs(Number(pi.initial_hours_balance) || 0)
-                      const horasConsumidas = hoursIniciais + hs.total_logged_hours
-                      const totalDisp = hs.total_available_hours ?? pi.total_available_hours ?? 0
-                      const horasRestantes = Math.max(0, totalDisp - horasConsumidas)
-                      const pctUso = totalDisp > 0 ? Math.min(100, (horasConsumidas / totalDisp) * 100) : 0
-                      const hoursBarColor = pctUso >= 90 ? 'var(--danger-border)' : pctUso >= 70 ? 'var(--warning-border)' : 'var(--success-border)'
-                      const showHistorico = hoursIniciais !== 0 || (pi.initial_cost ?? 0) !== 0
-                      const isOnDemand = cc.is_on_demand
-                      return (
-                        <>
-                          {/* Bloco 1 — RECEITA */}
-                          <div className="rounded-xl p-4" style={{ background: 'var(--primary-soft)', border: '1px solid var(--ring)' }}>
-                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--primary)' }}>
-                              <DollarSign size={11} />Receita {isOnDemand && <span className="text-[9px] font-normal ml-1 opacity-70">(On Demand — horas × R$/h)</span>}
-                            </p>
-                            <div className="grid grid-cols-3 gap-3">
-                              {[
-                                { label: isOnDemand ? 'Horas × R$/h' : 'Valor Projeto', value: fmtBRL(cc.project_revenue) },
-                                { label: 'Aportes',        value: fmtBRL(cc.aportes_total) },
-                                { label: 'Receita Total',  value: fmtBRL(cc.receita_total), highlight: true },
-                              ].map(c => (
-                                <div key={c.label} className="rounded-lg p-2.5" style={{ background: 'var(--bg)', border: `1px solid ${c.highlight ? 'var(--ring)' : 'var(--border)'}` }}>
-                                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>{c.label}</p>
-                                  <p className="text-sm font-bold tabular-nums" style={{ color: c.highlight ? 'var(--primary)' : 'var(--text)' }}>{c.value}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Bloco 2 — CUSTO */}
-                          <div className="rounded-xl p-4" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
-                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--warning-border)' }}>
-                              <TrendingUp size={11} />Custo
-                            </p>
-                            <div className="grid grid-cols-3 gap-3">
-                              {[
-                                { label: 'Custo Inicial',     value: fmtBRL(pi.initial_cost ?? 0) },
-                                { label: 'Custo Operacional', value: fmtBRL(cc.custo_operacional) },
-                                { label: 'Custo Total',        value: fmtBRL(cc.custo_total), highlight: true },
-                              ].map(c => (
-                                <div key={c.label} className="rounded-lg p-2.5" style={{ background: 'var(--bg)', border: `1px solid ${c.highlight ? 'var(--warning-border)' : 'var(--border)'}` }}>
-                                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>{c.label}</p>
-                                  <p className="text-sm font-bold tabular-nums" style={{ color: c.highlight ? 'var(--warning-border)' : 'var(--text)' }}>{c.value}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Bloco 3 — RESULTADO */}
-                          <div className="rounded-xl p-4" style={{ background: isPositive ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${isPositive ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
-                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: marginColor }}>
-                              <BarChart2 size={11} />Resultado
-                            </p>
-                            <p className="text-[10px] tabular-nums mb-3" style={{ color: 'var(--text-light)' }}>
-                              {fmtBRL(cc.receita_total)} <span className="opacity-50">−</span> {fmtBRL(cc.custo_total)} <span className="opacity-50">=</span> <span style={{ color: marginColor }}>{fmtBRL(cc.margin)}</span>
-                            </p>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="rounded-lg p-3.5" style={{ background: 'var(--bg)', border: `1px solid ${isPositive ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
-                                <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Margem R$</p>
-                                <p className="text-xl font-bold tabular-nums" style={{ color: marginColor }}>{fmtBRL(cc.margin)}</p>
-                              </div>
-                              <div className="rounded-lg p-3.5" style={{ background: 'var(--bg)', border: `1px solid ${isPositive ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
-                                <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Margem %</p>
-                                <p className="text-xl font-bold tabular-nums" style={{ color: marginColor }}>{cc.margin_percentage.toFixed(1)}%</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Bloco 4 — COORDENADOR (condicional) */}
-                          {cc.coordinator_percentage > 0 && (
-                            <div className="rounded-xl p-4" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-purple)' }}>
-                              <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--brand-purple)' }}>
-                                <UserCheck size={11} />Coordenador
-                              </p>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="rounded-lg p-2.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>% da Margem</p>
-                                  <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-purple)' }}>{cc.coordinator_percentage.toFixed(1)}%</p>
-                                </div>
-                                <div className="rounded-lg p-2.5" style={{ background: 'var(--bg)', border: '1px solid var(--brand-purple)' }}>
-                                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Valor a Receber</p>
-                                  <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-purple)' }}>{fmtBRL(cc.valor_coordenador)}</p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Bloco 5 — HORAS */}
-                          <div className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Horas</p>
-                            <div className="grid grid-cols-5 gap-2 mb-3">
-                              {[
-                                { label: 'Iniciais',    value: `${hoursIniciais.toFixed(1)}h`,          color: 'var(--text)' },
-                                { label: 'Apontadas',   value: `${hs.total_logged_hours.toFixed(1)}h`,  color: 'var(--text)' },
-                                { label: 'Consumido',   value: `${horasConsumidas.toFixed(1)}h`,        color: 'var(--text)' },
-                                { label: '% Uso',       value: `${pctUso.toFixed(1)}%`,                 color: hoursBarColor },
-                                { label: 'Restantes',   value: `${horasRestantes.toFixed(1)}h`,         color: horasRestantes < 10 ? 'var(--danger-border)' : 'var(--text)' },
-                              ].map(c => (
-                                <div key={c.label}>
-                                  <p className="text-[9px]" style={{ color: 'var(--text-light)' }}>{c.label}</p>
-                                  <p className="font-bold tabular-nums mt-0.5 text-xs" style={{ color: c.color }}>{c.value}</p>
-                                </div>
-                              ))}
-                            </div>
-                            <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--border)' }}>
-                              <div className="h-1.5 rounded-full transition-all" style={{ width: `${pctUso}%`, background: hoursBarColor }} />
-                            </div>
-                            <p className="text-[10px] tabular-nums" style={{ color: 'var(--text-light)' }}>{pctUso.toFixed(1)}% das horas utilizadas</p>
-                          </div>
-
-                          {/* Bloco 6 — HISTÓRICO */}
-                          {showHistorico && (
-                            <div className="rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-1" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                              <p className="text-[9px] font-semibold uppercase tracking-wider w-full mb-0.5" style={{ color: 'var(--text-light)' }}>Saldo do sistema anterior</p>
-                              <span className="text-xs tabular-nums" style={{ color: 'var(--text-light)' }}>HS consumidas iniciais: <strong>{hoursIniciais.toFixed(1)}h</strong></span>
-                              <span className="text-xs tabular-nums" style={{ color: 'var(--text-light)' }}>Custo inicial: <strong>{fmtBRL(pi.initial_cost ?? 0)}</strong></span>
-                            </div>
-                          )}
-
-                          {/* Tabela de custo por consultor */}
-                          {cb.length > 0 && (
-                            <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--border)' }}>
-                              <div className="px-4 py-3" style={{ background: 'var(--surface)' }}>
-                                <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}>
-                                  <UserCheck size={11} />Custo por Consultor
-                                </p>
-                              </div>
-                              <table className="w-full text-xs">
-                                <thead className="sticky top-0 z-10" style={{ background: 'var(--bg)' }}>
-                                  <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                                    {['Consultor','Hs Total','Aprovadas','Pendentes','Taxa/h','Custo'].map(h => (
-                                      <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{h}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {cb.map((c, i) => (
-                                    <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                                      <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--text)' }}>{c.consultant_name}</td>
-                                      <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--text)' }}>{c.total_hours.toFixed(1)}h</td>
-                                      <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--success-border)' }}>{c.approved_hours.toFixed(1)}h</td>
-                                      <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--warning-border)' }}>{c.pending_hours.toFixed(1)}h</td>
-                                      <td className="px-3 py-2.5 tabular-nums text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                                        {c.consultant_hourly_rate != null ? fmtBRL(c.consultant_hourly_rate) : '—'}
-                                        {c.consultant_rate_type === 'monthly' && <span className="ml-1 opacity-60">÷160</span>}
-                                      </td>
-                                      <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--text)' }}>{fmtBRL(c.cost)}</td>
-                                    </tr>
-                                  ))}
-                                  <tr style={{ background: 'var(--primary-soft)', borderTop: '1px solid var(--border)' }}>
-                                    <td className="px-3 py-2.5 font-bold text-[11px] uppercase" style={{ color: 'var(--text-light)' }} colSpan={5}>Total Operacional</td>
-                                    <td className="px-3 py-2.5 font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtBRL(cc.custo_operacional)}</td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </>
-                      )
-                    })()}
-                  </div>
-                )}
-                {viewProjectTab === 'extrato' && (
-                  <div className="p-6">
-                    <MonthlyAccrualTable projectId={p.id} canEditConsumption={isAdmin || isCoordenador} />
-                  </div>
-                )}
-
-                {viewProjectTab === 'overview' && (
-                <div className="grid grid-cols-2 gap-0 divide-x" style={{ borderColor: 'var(--border)' }}>
-
-                  {/* Coluna esquerda */}
-                  <div className="p-5 space-y-5">
-
-                    {/* Identificação */}
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Identificação</p>
-                      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-                        <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                          <Row label="Código" value={<span className="font-mono">{p.code}</span>} />
-                          <Row label="Cliente" value={p.customer?.name} />
-                          <Row label="Tipo de Serviço" value={p.service_type?.name} />
-                          <Row label="Tipo de Contrato" value={p.contract_type_display ?? p.contract_type?.name} />
-                          <Row label="Projeto Pai" value={p.parent_project ? `${p.parent_project.name} (${p.parent_project.code})` : null} />
-                          <Row label="Data de Início" value={fmtDate(p.start_date)} />
-                          {p.proj_year && <Row label="Ano / Seq." value={`${p.proj_year} / ${p.proj_sequence ?? '—'}`} />}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Contatos do cliente */}
-                    <CustomerContactsSection customerId={p.customer?.id ?? p.customer_id} customerName={p.customer?.name} />
-
-                    {/* Descrição */}
-                    {p.description && (
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Descrição</p>
-                        <div className="rounded-xl p-3 text-xs leading-relaxed" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                          {p.description}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Financeiro — oculto p/ coordenador (acesso restrito a valores R$) */}
-                    {user?.type !== 'coordenador' && (
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Financeiro</p>
-                      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-                        <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                          <Row label="Valor do Projeto" value={<span style={{ color: 'var(--primary)' }}>{fmtBRL(p.project_value)}</span>} />
-                          {p.total_project_value != null && p.total_project_value !== p.project_value && (
-                            <Row label="Valor Total (c/ aportes)" value={<span style={{ color: 'var(--primary)' }}>{fmtBRL(p.total_project_value)}</span>} />
-                          )}
-                          <Row label="Valor da Hora" value={
-                            <span className="inline-flex items-center gap-2">
-                              {fmtBRL(p.hourly_rate)}
-                              <button type="button" onClick={() => openRateHistory(p.id)} className="text-[11px] font-medium hover:underline" style={{ color: 'var(--primary)' }}>Histórico de valores</button>
-                            </span>
-                          } />
-                          {p.weighted_hourly_rate != null && <Row label="Taxa Média Ponderada" value={fmtBRL(p.weighted_hourly_rate)} />}
-                          <Row label="Hora Adicional" value={fmtBRL(p.additional_hourly_rate)} />
-                          <Row label="Custo Inicial" value={fmtBRL(p.initial_cost)} />
-                          {p.max_expense_per_consultant != null && <Row label="Limite Despesa/Consultor" value={fmtBRL(p.max_expense_per_consultant)} />}
-                          {p.expense_responsible_party && <Row label="Resp. Despesas" value={p.expense_responsible_party === 'client' ? 'Cliente' : 'Consultoria'} />}
-                        </div>
-                      </div>
-                    </div>
-                    )}
-                  </div>
-
-                  {/* Coluna direita */}
-                  <div className="p-5 space-y-5">
-
-                    {/* Horas — swap p/ coordenação quando o usuário logado é coordenador do projeto */}
-                    {(() => {
-                      // Preferir viewProjectFull (do /projects/{id}) sobre o cache da lista (viewProject)
-                      // — garante que mudanças no DB (ex: accumulated_sold_hours recalculado) chegam à modal
-                      // sem depender do TTL da listagem.
-                      const vp: any = viewProjectFull ?? viewProject
-                      const operationalVendidas = ((vp?.vendidas_projeto_hours ?? p.sold_hours) ?? 0) + (vp?.vendidas_aporte_hours ?? 0)
-                      const isCoordView = isCoordinatorOf(p, user?.id)
-                      const cm = isCoordView ? coordinationMeta(p, operationalVendidas) : null
-                      const cardVendidas = isCoordView ? cm!.bank : operationalVendidas
-                      // initial_hours_consumed (HS Consumidas Iniciais) entra no consumido só
-                      // no fallback logado — quando vem consumed_hours (gestaoMode) já está somado.
-                      // Sem isso, "Consumidas" mostrava só o logado e divergia do Saldo (que já
-                      // subtrai a inicial via general_hours_balance).
-                      const cardInitialConsumed = Number((vp as any)?.initial_hours_consumed ?? (p as any)?.initial_hours_consumed) || 0
-                      const cardConsumed = isCoordView ? cm!.consumed : (vp?.consumed_hours ?? p.consumed_hours ?? (consumed + cardInitialConsumed))
-                      const cardTotal    = cardVendidas
-                      const cardSaldo    = isCoordView ? cm!.saldo : (vp?.general_hours_balance ?? (cardVendidas - cardConsumed))
-                      const cardPct      = cardTotal > 0 ? (cardConsumed / cardTotal) * 100 : 0
-                      const barColor     = isCoordView ? cm!.color : hs.bar
-                      const textColor    = isCoordView ? cm!.color : hs.text
-                      const headerLabel  = isCoordView ? 'Horas de Coordenação' : 'Horas'
-                      return (
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>{headerLabel}</p>
-                      <div className="rounded-xl p-4 mb-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
-                        <div className="grid grid-cols-3 gap-3 mb-4 items-start">
-                          {/* Vendidas */}
-                          <div className="text-center flex flex-col items-center leading-tight">
-                            <p className="text-[10px] mb-1" style={{ color: 'var(--text-light)' }}>Vendidas</p>
-                            <p className="text-base font-bold tabular-nums" style={{ color: 'var(--text)' }}>{fmt(cardVendidas, 1) + 'h'}</p>
-                            {!isCoordView && (vp?.vendidas_aporte_hours ?? 0) > 0 && (
-                              <>
-                                <span style={{ fontSize: 10, color: 'var(--text-light)' }}>Projeto {fmt(vp?.vendidas_projeto_hours ?? 0, 1)}</span>
-                                <span style={{ fontSize: 10, color: 'var(--text-light)' }}>Aporte {fmt(vp?.vendidas_aporte_hours ?? 0, 1)}</span>
-                              </>
-                            )}
-                            {isCoordView && !cm!.explicit && (
-                              <span style={{ fontSize: 10, color: 'var(--text-light)' }}>(fallback p/ vendidas)</span>
-                            )}
-                          </div>
-                          {/* Consumidas */}
-                          <div className="text-center flex flex-col items-center leading-tight">
-                            <p className="text-[10px] mb-1" style={{ color: 'var(--text-light)' }}>Consumidas</p>
-                            <p className="text-base font-bold tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmt(cardConsumed, 1) + 'h'}</p>
-                            {!isCoordView && (vp?.children_consumed_hours ?? 0) > 0 && (
-                              <>
-                                <span style={{ fontSize: 10, color: 'var(--text-light)' }}>Pai {fmt(vp?.own_consumed_hours ?? 0, 1)}</span>
-                                <span style={{ fontSize: 10, color: 'var(--text-light)' }}>Filhos {fmt(vp?.children_consumed_hours ?? 0, 1)}</span>
-                              </>
-                            )}
-                          </div>
-                          {/* Saldo */}
-                          <div className="text-center flex flex-col items-center leading-tight">
-                            <p className="text-[10px] mb-1" style={{ color: 'var(--text-light)' }}>Saldo</p>
-                            <p className="text-base font-bold tabular-nums" style={{ color: cardSaldo < 0 ? 'var(--danger-border)' : 'var(--success-border)' }}>{fmt(cardSaldo, 1) + 'h'}</p>
-                          </div>
-                        </div>
-                        <div className="w-full h-2 rounded-full overflow-hidden mb-1" style={{ background: 'var(--surface-hover)' }}>
-                          <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(cardPct, 100)}%`, background: barColor }} />
-                        </div>
-                        <div className="flex justify-between text-[10px]" style={{ color: textColor }}>
-                          <span>{cardTotal > 0 ? `${Math.round(cardPct)}% consumido` : 'Sem horas'}</span>
-                          <span>{(isCoordView && cm!.alertText) || `${fmt(cardSaldo, 1)}h disponíveis`}</span>
-                        </div>
-                      </div>
-                      {/* Detalhes de horas */}
-                      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-                        <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
-                          <Row label="Horas Contratadas" value={p.sold_hours != null ? `${p.sold_hours}h` : null} />
-                          {p.hour_contribution != null && p.hour_contribution > 0 && <Row label="Aporte Inicial" value={`${p.hour_contribution}h`} />}
-                          {viewProjectFull?.full_contributions_hours != null && viewProjectFull.full_contributions_hours > 0 && <Row label="Total Aportes" value={`${fmt(viewProjectFull.full_contributions_hours, 1)}h`} />}
-                          {p.exceeded_hour_contribution != null && <Row label="Aporte Excedido" value={`${p.exceeded_hour_contribution}h`} />}
-                          {p.coordinator_hours != null && <Row label="Percentual Gestão" value={`${p.coordinator_hours}%`} />}
-                          {p.coordinator_hours != null && p.sold_hours != null && <Row label="Horas de Gestão" value={`${Math.round((Number(p.coordinator_hours) / 100) * Number(p.sold_hours) * 100) / 100}h`} />}
-                          {p.consultant_hours != null && <Row label="Horas Consultores" value={`${p.consultant_hours}h`} />}
-                          {p.sold_hours != null && p.consultant_hours != null && p.coordinator_hours != null && <Row label="Saving ERPSERV" value={`${Math.round((Number(p.sold_hours) - Number(p.consultant_hours) - (Number(p.coordinator_hours) / 100) * Number(p.sold_hours)) * 100) / 100}h`} />}
-                          {p.initial_hours_consumed != null && p.initial_hours_consumed > 0 && <Row label="HS Consumidas Iniciais" value={`${p.initial_hours_consumed}h`} />}
-                          <Row label="% Consumido" value={<span style={{ color: hs.text }}>{totalAvail > 0 ? `${Math.round(pct)}%` : '—'}</span>} />
-                        </div>
-                      </div>
-                    </div>
-                      )
-                    })()}
-
-                    {/* Extrato mês a mês migrou para a aba "Extrato" do modal. */}
-
-                    {/* Horas de Coordenação — card de governança p/ admin (quando há banco explícito).
-                        Pro coordenador o TOP Horas já faz o swap, então omite aqui. */}
-                    {!((p.contract_type_display ?? p.contract_type?.name ?? '').toLowerCase().includes('on demand')) && (() => {
-                      const cm = coordinationMeta(p, totalAvail)
-                      if (!cm.explicit) return null
-                      if (isCoordinatorOf(p, user?.id)) return null
-                      return (
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Horas Apontáveis</p>
-                          <div className="rounded-xl p-4" style={{ border: `1px solid ${cm.color}55`, background: 'var(--surface)' }}>
-                            <div className="grid grid-cols-3 gap-2 mb-3">
-                              <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Vendidas</p><p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{fmt(cm.bank, 1)}h</p></div>
-                              <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Consumidas</p><p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{fmt(cm.consumed, 1)}h</p></div>
-                              <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Saldo</p><p className="text-sm font-bold" style={{ color: cm.saldo < 0 ? 'var(--danger-border)' : 'var(--text)' }}>{fmt(cm.saldo, 1)}h</p></div>
-                            </div>
-                            <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--border)' }}>
-                              <div className="h-1.5 rounded-full transition-all" style={{ width: `${Math.min(cm.pct, 100)}%`, background: cm.color }} />
-                            </div>
-                            <div className="flex justify-between text-[10px]" style={{ color: cm.color }}>
-                              <span>{Math.round(cm.pct)}% consumido</span>
-                              <span>{cm.alertText || `${fmt(cm.saldo, 1)}h disponíveis`}</span>
-                            </div>
-                            {!cm.explicit && <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>Sem banco próprio — usando as horas vendidas do projeto.</p>}
-                          </div>
-                        </div>
-                      )
-                    })()}
-
-                    {/* Equipe */}
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Equipe</p>
-                      <div className="rounded-xl p-3 space-y-3" style={{ border: '1px solid var(--border)' }}>
-                        {(p.coordinators?.length ?? 0) > 0 && (
-                          <div>
-                            <p className="text-[10px] mb-1.5 font-medium" style={{ color: 'var(--text-light)' }}>Coordenadores</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {p.coordinators!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{u.name}</span>)}
-                            </div>
-                          </div>
-                        )}
-                        {(p.consultants?.length ?? 0) > 0 && (
-                          <div>
-                            <p className="text-[10px] mb-1.5 font-medium" style={{ color: 'var(--text-light)' }}>Consultores</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {p.consultants!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{u.name}</span>)}
-                            </div>
-                          </div>
-                        )}
-                        {(viewProjectFull?.approvers?.length ?? 0) > 0 && (
-                          <div>
-                            <p className="text-[10px] mb-1.5 font-medium" style={{ color: 'var(--text-light)' }}>Aprovadores</p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {viewProjectFull!.approvers!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--surface-hover)', color: 'var(--brand-purple)' }}>{u.name}</span>)}
-                            </div>
-                          </div>
-                        )}
-                        {(p.coordinators?.length ?? 0) === 0 && (p.consultants?.length ?? 0) === 0 && (
-                          <p className="text-xs text-center py-2" style={{ color: 'var(--text-light)' }}>Sem equipe cadastrada</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Anexos — oculto p/ coordenador */}
-                    {user?.type !== 'coordenador' && (
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Anexos</p>
-                      {viewAttachments.length > 0 ? (
-                        <div className="space-y-1.5">
-                          {viewAttachments.map(att => (
-                            <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
-                              <div className="flex items-center gap-2 min-w-0">
-                                <FileText size={13} className="shrink-0" style={{ color: 'var(--brand-subtle)' }} />
-                                <div className="min-w-0">
-                                  <p className="text-xs truncate" style={{ color: 'var(--brand-text)' }}>{att.original_name}</p>
-                                  <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{att.type ?? 'anexo'}{att.source === 'contract' ? ' · do contrato' : ''}</p>
-                                </div>
-                              </div>
-                              <button type="button" onClick={() => downloadViewAtt(p.id, att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-white/10" style={{ color: 'var(--brand-subtle)' }}><Download size={13} /></button>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum anexo</p>
-                      )}
-                    </div>
-                    )}
-
-                  </div>
-                </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between px-6 py-3 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
-                <div className="flex gap-2">
-                  {/* Botão 'Aportes' removido (2026-05-28): aporte agora se cria via Kanban Contratos ("É aporte?") e visualiza pela aba Aportes do modal Visualizar. */}
-                  <button onClick={() => { handleMenuAction('team', base) }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}><Users size={11} /> Equipe</button>
-                </div>
-                <button onClick={() => { setViewProject(null); setViewProjectFull(null) }} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Fechar</button>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
+      {viewProject && (
+        <ProjectViewModal
+          projectId={viewProject.id}
+          onClose={() => { setViewProject(null); setViewProjectFull(null) }}
+          userRole={user?.type ?? undefined}
+          initialTab={viewProjectTab}
+        />
+      )}
 
       {/* ── Histórico de valores-hora (somente leitura) ── */}
       {rateHistoryOpen && (

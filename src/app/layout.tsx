@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, Geist } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
@@ -28,6 +28,14 @@ export const metadata: Metadata = {
     'apple-touch-icon': '/apple-touch-icon.png',
     'mobile-web-app-capable': 'yes',
   },
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 }
 
 // Banner de ambiente — NUNCA renderiza em produção. Texto definido por env.

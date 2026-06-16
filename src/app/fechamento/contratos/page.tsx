@@ -354,7 +354,7 @@ export default function FechamentoContratosPage() {
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
 
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div className="flex flex-wrap items-center gap-3">
             <FileText size={20} style={{ color: 'var(--brand-primary)' }} />
             <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>
@@ -395,7 +395,7 @@ export default function FechamentoContratosPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 px-6 border-b overflow-x-auto"
+        <div className="flex gap-1 px-4 md:px-6 border-b overflow-x-auto"
           style={{ borderColor: 'var(--brand-border)' }}>
           {tabs.map(t => (
             <TabButton
@@ -409,7 +409,7 @@ export default function FechamentoContratosPage() {
         </div>
 
         {/* Conteúdo */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto px-4 py-6 md:px-6">
           {loading ? (
             <SkeletonTable rows={6} cols={4} />
           ) : !data ? (

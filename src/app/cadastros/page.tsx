@@ -1,7 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense, type ChangeEvent } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { api, ApiError } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { FileType, Wrench, Users, Star, UserCheck, CalendarDays, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Check, Tag, CreditCard, Receipt, Contact, Download } from 'lucide-react'
+import { FileType, Wrench, Users, Star, UserCheck, CalendarDays, Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Check, Tag, CreditCard, Receipt, Contact, Download, Mail, Copy } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -61,6 +61,7 @@ const TABS = [
   { id: 'groups',             label: 'Grupos de Consultor',   icon: UserCheck },
   { id: 'holidays',           label: 'Feriados',              icon: CalendarDays },
   { id: 'expense_categories', label: 'Categorias de Despesa', icon: Tag },
+  { id: 'email_templates',    label: 'Modelos de E-mail',     icon: Mail },
 ]
 
 // ─── TAB: CRUD (Tipos de Contrato e Serviço) ─────────────────────────────────
@@ -1031,6 +1032,238 @@ function HolidaysTab() {
   )
 }
 
+// ─── TAB: Modelos de E-mail dos Fechamentos ──────────────────────────────────
+interface EmailTpl { id: number; categoria: string; contract_type: string | null; empresa: string | null; nome: string | null; subject: string; body: string; pay_day: number | null; active: boolean }
+const TPL_CATEGORIAS = [{ value: 'consultor', label: 'Consultor' }, { value: 'parceiro', label: 'Parceiro' }, { value: 'cliente', label: 'Cliente' }]
+const TPL_CONTRATOS  = [{ value: 'cooperado', label: 'Cooperado' }, { value: 'clt', label: 'CLT' }, { value: 'pj', label: 'PJ' }]
+const TPL_EMPRESAS   = [{ value: 'erpserv', label: 'ERPSERV' }, { value: 'bizify', label: 'Bizify' }]
+
+function EmailTemplatesTab() {
+  const [items, setItems] = useState<EmailTpl[]>([])
+  const [loading, setLoading] = useState(true)
+  const [modal, setModal] = useState<{ open: boolean; item?: EmailTpl }>({ open: false })
+  const [form, setForm] = useState({ categoria: 'consultor', contract_type: 'cooperado', empresa: 'erpserv', nome: '', subject: '', body: '', pay_day: '', active: true })
+  const [saving, setSaving] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
+
+  // Autocomplete de variáveis ao digitar "{".
+  const subjectRef = useRef<HTMLInputElement>(null)
+  const bodyRef = useRef<HTMLTextAreaElement>(null)
+  const [varMenu, setVarMenu] = useState<'subject' | 'body' | null>(null)
+  const VAR_DESC: Record<string, string> = {
+    nome: 'nome do destinatário (cliente = nome da empresa)', periodo: 'mês/ano (ex.: Maio de 2026)',
+    valor: 'valor total (R$)', data: 'data do "dia do mês" no mês seguinte (dia útil)',
+    empresa: 'nome de exibição da empresa', razao_social: 'razão social (cai pro nome se vazio)',
+  }
+  const availableVars = ['nome', 'periodo', 'valor',
+    ...(form.categoria === 'cliente' ? ['empresa', 'razao_social'] : []),
+    ...(form.pay_day.trim() !== '' ? ['data'] : [])]
+
+  const onVarField = (field: 'subject' | 'body', e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const value = e.target.value
+    const pos = e.target.selectionStart ?? value.length
+    setForm(f => ({ ...f, [field]: value }))
+    setVarMenu(value[pos - 1] === '{' ? field : null)
+  }
+  const insertVar = (field: 'subject' | 'body', name: string) => {
+    const ref = field === 'subject' ? subjectRef.current : bodyRef.current
+    const cur = form[field]
+    const pos = ref?.selectionStart ?? cur.length // cursor logo após o "{"
+    const next = cur.slice(0, pos) + name + '}' + cur.slice(pos)
+    setForm(f => ({ ...f, [field]: next }))
+    setVarMenu(null)
+    setTimeout(() => { if (ref) { ref.focus(); const c = pos + name.length + 1; ref.setSelectionRange(c, c) } }, 0)
+  }
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try { const r = await api.get<{ data: EmailTpl[] }>('/fechamento-email-templates'); setItems(r.data ?? []) }
+    catch { toast.error('Erro ao carregar modelos') } finally { setLoading(false) }
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  const openCreate = () => { setVarMenu(null); setForm({ categoria: 'consultor', contract_type: 'cooperado', empresa: 'erpserv', nome: '', subject: '', body: '', pay_day: '', active: true }); setModal({ open: true }) }
+  const openEdit = (it: EmailTpl) => { setVarMenu(null); setForm({ categoria: it.categoria, contract_type: it.contract_type ?? 'cooperado', empresa: it.empresa ?? 'erpserv', nome: it.nome ?? '', subject: it.subject, body: it.body, pay_day: it.pay_day != null ? String(it.pay_day) : '', active: it.active }); setModal({ open: true, item: it }) }
+  // Duplica: abre como NOVO modelo (sem item) com o conteúdo copiado, inativo p/ não derrubar o ativo atual.
+  const openDuplicate = (it: EmailTpl) => { setVarMenu(null); setForm({ categoria: it.categoria, contract_type: it.contract_type ?? 'cooperado', empresa: it.empresa ?? 'erpserv', nome: (it.nome ? it.nome + ' (cópia)' : 'Cópia'), subject: it.subject, body: it.body, pay_day: it.pay_day != null ? String(it.pay_day) : '', active: false }); setModal({ open: true }) }
+
+  const save = async () => {
+    if (!form.subject.trim() || !form.body.trim()) { toast.error('Preencha assunto e corpo'); return }
+    setSaving(true)
+    try {
+      const payload = { categoria: form.categoria, contract_type: form.categoria === 'cliente' ? null : form.contract_type, empresa: form.categoria === 'consultor' ? form.empresa : 'erpserv', nome: form.nome || null, subject: form.subject, body: form.body, pay_day: form.pay_day.trim() === '' ? null : Number(form.pay_day), active: form.active }
+      if (modal.item) await api.put(`/fechamento-email-templates/${modal.item.id}`, payload)
+      else await api.post('/fechamento-email-templates', payload)
+      toast.success('Modelo salvo'); setModal({ open: false }); load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') } finally { setSaving(false) }
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.id) return
+    setDeleteConfirm({ open: false })
+    try { await api.delete(`/fechamento-email-templates/${deleteConfirm.id}`); toast.success('Excluído'); load() }
+    catch { toast.error('Erro ao excluir') }
+  }
+
+  const catLabel = (c: string) => TPL_CATEGORIAS.find(x => x.value === c)?.label ?? c
+  const ctLabel  = (c: string | null) => c ? (TPL_CONTRATOS.find(x => x.value === c)?.label ?? c) : '—'
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+          Variáveis: <code>{'{nome}'}</code> <code>{'{periodo}'}</code> <code>{'{valor}'}</code> <code>{'{data}'}</code> (dia do mês configurado, no mês seguinte). Consultor distingue por empresa (ERPSERV/Bizify). Só 1 ativo por tipo+empresa.
+        </p>
+        <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5"><Plus size={13} /> Novo modelo</Button>
+      </div>
+      <div className="rounded-lg border border-zinc-800 overflow-clip">
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 z-10 bg-zinc-900">
+            <tr className="border-b border-zinc-800 bg-zinc-900">
+              <th className="px-3 py-2.5 w-10"></th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Categoria</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Tipo</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Empresa</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Assunto</th>
+              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? <TableSkeleton cols={7} /> : items.length === 0 ? (
+              <tr><td colSpan={7} className="px-3 py-8 text-center text-zinc-500">Nenhum modelo cadastrado</td></tr>
+            ) : items.map(it => (
+              <tr key={it.id} className="border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors">
+                <td className="px-2 py-2.5 w-10"><RowMenu items={[
+                  { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(it) },
+                  { label: 'Duplicar', icon: <Copy size={12} />, onClick: () => openDuplicate(it) },
+                  { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: it.id }), danger: true },
+                ]} /></td>
+                <td className="px-3 py-2.5 text-zinc-200">{catLabel(it.categoria)}</td>
+                <td className="px-3 py-2.5 text-zinc-400">{ctLabel(it.contract_type)}</td>
+                <td className="px-3 py-2.5 text-zinc-400">{it.categoria === 'consultor' ? (it.empresa === 'bizify' ? 'Bizify' : 'ERPSERV') : '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-400">{it.nome || '—'}</td>
+                <td className="px-3 py-2.5 text-zinc-200 max-w-[280px] truncate">{it.subject}</td>
+                <td className="px-3 py-2.5"><ActiveBadge active={it.active} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {modal.open && (
+        <ModalOverlay onClose={() => setModal({ open: false })}>
+          <div className="p-5">
+            <h3 className="text-sm font-semibold text-white mb-4">{modal.item ? 'Editar Modelo' : 'Novo Modelo de E-mail'}</h3>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-zinc-400">Categoria *</Label>
+                  <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-md text-xs bg-zinc-800 border border-zinc-700 text-white outline-none">
+                    {TPL_CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
+                {form.categoria !== 'cliente' && (
+                  <div>
+                    <Label className="text-xs text-zinc-400">Tipo de contrato *</Label>
+                    <select value={form.contract_type} onChange={e => setForm(f => ({ ...f, contract_type: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 rounded-md text-xs bg-zinc-800 border border-zinc-700 text-white outline-none">
+                      {TPL_CONTRATOS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                  </div>
+                )}
+                {form.categoria === 'consultor' && (
+                  <div>
+                    <Label className="text-xs text-zinc-400">Empresa *</Label>
+                    <select value={form.empresa} onChange={e => setForm(f => ({ ...f, empresa: e.target.value }))}
+                      className="mt-1 w-full px-3 py-2 rounded-md text-xs bg-zinc-800 border border-zinc-700 text-white outline-none">
+                      {TPL_EMPRESAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-zinc-400">Nome (rótulo)</Label>
+                  <Input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" placeholder="Ex: Cooperado padrão" />
+                </div>
+                <div>
+                  <Label className="text-xs text-zinc-400">Dia do mês (variável {'{data}'})</Label>
+                  <Input type="number" min={1} max={31} value={form.pay_day}
+                    onChange={e => setForm(f => ({ ...f, pay_day: e.target.value.replace(/[^0-9]/g, '').slice(0, 2) }))}
+                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" placeholder="Ex: 19 (cooperado) / 20 (PJ)" />
+                  <p className="mt-1 text-[10px] text-zinc-500">Vira o dia no mês seguinte; em fds/feriado recua pro dia útil anterior. Deixe vazio se não usar {'{data}'}.</p>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-zinc-400">Assunto *</Label>
+                <div className="relative">
+                  <input ref={subjectRef} value={form.subject}
+                    onChange={e => onVarField('subject', e)}
+                    onBlur={() => setTimeout(() => setVarMenu(m => m === 'subject' ? null : m), 150)}
+                    className="mt-1 w-full px-3 py-2 rounded-md bg-zinc-800 border border-zinc-700 text-white h-9 text-xs outline-none"
+                    placeholder="Fechamento {periodo} - {nome}" />
+                  {varMenu === 'subject' && (
+                    <div className="absolute z-30 left-0 top-full mt-1 rounded-md border border-zinc-700 bg-zinc-900 shadow-xl text-xs overflow-hidden min-w-[220px]">
+                      {availableVars.map(v => (
+                        <button key={v} type="button" onMouseDown={e => { e.preventDefault(); insertVar('subject', v) }}
+                          className="block w-full text-left px-3 py-1.5 hover:bg-zinc-800">
+                          <span className="font-mono text-blue-300">{'{' + v + '}'}</span>
+                          <span className="text-zinc-500 ml-2">{VAR_DESC[v]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs text-zinc-400">Corpo *</Label>
+                <div className="relative">
+                  <textarea ref={bodyRef} value={form.body}
+                    onChange={e => onVarField('body', e)}
+                    onBlur={() => setTimeout(() => setVarMenu(m => m === 'body' ? null : m), 150)}
+                    rows={7}
+                    className="mt-1 w-full px-3 py-2 rounded-md text-xs bg-zinc-800 border border-zinc-700 text-white outline-none resize-y"
+                    placeholder={'Olá {nome},\nSegue o fechamento de {periodo}. Total: {valor}.'} />
+                  {varMenu === 'body' && (
+                    <div className="absolute z-30 left-0 top-full mt-1 rounded-md border border-zinc-700 bg-zinc-900 shadow-xl text-xs overflow-hidden min-w-[220px]">
+                      {availableVars.map(v => (
+                        <button key={v} type="button" onMouseDown={e => { e.preventDefault(); insertVar('body', v) }}
+                          className="block w-full text-left px-3 py-1.5 hover:bg-zinc-800">
+                          <span className="font-mono text-blue-300">{'{' + v + '}'}</span>
+                          <span className="text-zinc-500 ml-2">{VAR_DESC[v]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="mt-1 text-[10px] text-zinc-500">Digite <code>{'{'}</code> para escolher uma variável. Disponíveis: {availableVars.map(v => '{' + v + '}').join('  ')}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}
+                  className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-blue-600' : 'bg-zinc-700'}`}>
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
+                </button>
+                <Label className="text-xs text-zinc-400">Ativo (desativa os outros do mesmo tipo)</Label>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5 justify-end">
+              <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+              <Button onClick={save} disabled={saving || !form.subject.trim() || !form.body.trim()} className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+                {saving ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      <ConfirmDeleteModal open={deleteConfirm.open} message="Excluir este modelo de e-mail?" onClose={() => setDeleteConfirm({ open: false })} onConfirm={confirmDelete} />
+    </div>
+  )
+}
+
 // ─── TAB: Categorias / Tipos de Despesa / Formas de Pagamento ────────────────
 
 interface IsActiveItem { id: number; name: string; code: string; description?: string; is_active: boolean; created_at: string }
@@ -1440,6 +1673,7 @@ function CadastrosContent() {
           {activeTab === 'groups'             && <ConsultantGroupsTab />}
           {activeTab === 'holidays'           && <HolidaysTab />}
           {activeTab === 'expense_categories' && <IsActiveCrudTab endpoint="expense-categories" label="Categoria de Despesa" />}
+          {activeTab === 'email_templates'    && <EmailTemplatesTab />}
         </div>
       </div>
     </AppLayout>

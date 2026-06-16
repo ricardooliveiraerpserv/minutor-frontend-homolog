@@ -6,7 +6,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
-import { Eye } from 'lucide-react'
+import { Eye, AlertTriangle } from 'lucide-react'
 import DashboardIndicators from '@/components/dashboard/DashboardIndicators'
 import ProjectTimesheetsModal from '@/components/dashboard/ProjectTimesheetsModal'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
@@ -27,6 +27,9 @@ interface Executive { id: number; name: string }
 
 interface SummaryData {
   contracted_hours: number
+  extrato_visivel_cliente?: boolean
+  monthly_statement?: any
+  monthly_increments?: { year_month: string; hours: number }[] | null
   accumulated_contracted_hours?: number
   contributed_hours?: number
   consumed_hours: number
@@ -80,6 +83,16 @@ interface ProjectItem {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function fmtH(h: number | null | undefined) { return (h ?? 0).toFixed(1) + 'h' }
+
+// ── Card informativo FIXO do saldo devedor da CONCRESERV (customer_id 215). ──
+// Valores CONGELADOS manualmente (consumo até abr/2026, SEM maio):
+//   contratadas = 5653 − 160 (mês maio) = 5493
+//   consumidas  = 6199,1 − 168 (apont. maio) = 6031,1
+//   saldo       = 5493 − 6031,1 = −538,1
+// Fica hardcoded de propósito: quando o cadastro for limpo (aporte/apontamentos
+// iniciais), o cálculo dinâmico muda, mas este informativo permanece.
+const CONCRESERV_CUSTOMER_ID = 215
+const CONCRESERV_SALDO_DEVEDOR = { contratadas: 5493.0, consumidas: 6031.1, saldo: -538.1, referencia: 'consumo até abr/2026' }
 function fmtBRL(v: number | null | undefined) {
   if (v == null) return '—'
   return formatBRL(v ?? 0)
@@ -343,6 +356,12 @@ export default function BankHoursMonthlyPage() {
           <div>
             <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>Banco de Horas Mensais</h1>
             <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>Consumo e saldo de horas por mês e projeto</p>
+            {summary && (summary.contracted_hours ?? 0) > 0 && (
+              <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-xs font-medium"
+                style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: 'var(--brand-primary)' }}>
+                Contrato mensal · {fmtH(summary.contracted_hours)} contratadas por mês
+              </span>
+            )}
           </div>
         </div>
 
@@ -490,6 +509,34 @@ export default function BankHoursMonthlyPage() {
             {/* Total Tab */}
             {activeTab === 'total' && (
               <div className="space-y-4">
+                {/* Saldo devedor INFORMATIVO — fixo, só CONCRESERV (não recalcula) */}
+                {Number(selectedCustomer || user?.customer_id) === CONCRESERV_CUSTOMER_ID && (
+                  <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle size={14} style={{ color: '#EF4444' }} />
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+                        Saldo Devedor — ERPSERV <span style={{ opacity: 0.7 }}>(informativo)</span>
+                      </span>
+                    </div>
+                    <span className="text-3xl font-extrabold tracking-tight" style={{ color: '#EF4444', lineHeight: 1 }}>
+                      {fmtH(CONCRESERV_SALDO_DEVEDOR.saldo)}
+                    </span>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-1 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Horas contratadas</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmtH(CONCRESERV_SALDO_DEVEDOR.contratadas)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Horas consumidas</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmtH(CONCRESERV_SALDO_DEVEDOR.consumidas)}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Referência</p>
+                        <p className="text-sm font-medium" style={{ color: 'var(--brand-muted)' }}>{CONCRESERV_SALDO_DEVEDOR.referencia}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {loadingSummary ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {Array.from({ length: 5 }).map((_, i) => (
@@ -583,13 +630,18 @@ export default function BankHoursMonthlyPage() {
                       />
                     </div>
 
-                    {/* Horas mensais incrementadas (acúmulo do banco mensal) — acima dos aportes */}
-                    <MonthlyAccrualTable
-                      variant="brand"
-                      startDate={summary.start_date}
-                      hoursPerMonth={summary.contracted_hours ?? 0}
-                      accumulated={summary.accumulated_contracted_hours ?? null}
-                    />
+                    {/* Horas mensais incrementadas (acúmulo do banco mensal) — acima dos aportes.
+                        Para o CLIENTE só aparece se a chave extrato_visivel_cliente estiver ligada. */}
+                    {(!isCliente || summary.extrato_visivel_cliente !== false) && (
+                      <MonthlyAccrualTable
+                        variant="brand"
+                        startDate={summary.start_date}
+                        hoursPerMonth={summary.contracted_hours ?? 0}
+                        accumulated={summary.accumulated_contracted_hours ?? null}
+                        statement={summary.monthly_statement ?? null}
+                        monthlyIncrements={summary.monthly_increments ?? null}
+                      />
+                    )}
 
                     {/* Histórico de Aporte — sempre exibido (com estado vazio). */}
                     <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
@@ -654,7 +706,7 @@ export default function BankHoursMonthlyPage() {
             {activeTab === 'maintenance' && isSustentacaoContract && (
               <div className="space-y-4">
                 {summary && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <KpiCard label="Consumo Acumulado" value={fmtH(summary.maintenance_consumed_hours ?? 0)} accent="primary" />
                     <KpiCard label="Consumo do Mês"    value={fmtH(summary.maintenance_month_consumed_hours ?? 0)} hint={monthConsumptionHint} />
                   </div>

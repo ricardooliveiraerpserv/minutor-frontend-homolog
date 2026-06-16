@@ -11,7 +11,7 @@ import {
   Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
   Trash2, X, Globe, Webhook, MoreVertical, Eye, Search, ChevronDown,
   Paperclip, Calendar, Building2, FolderOpen, Ticket, Hash,
-  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign, TrendingUp, RotateCcw, AlertTriangle,
+  FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign, TrendingUp, RotateCcw, AlertTriangle, SlidersHorizontal,
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
@@ -34,7 +34,7 @@ import { ReasonTooltip } from '@/components/ui/reason-tooltip'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type SortField = 'date' | 'status' | 'user.name' | 'project.name' | 'customer.name' | 'effort_hours'
+type SortField = 'date' | 'status' | 'user.name' | 'project.name' | 'customer.name' | 'effort_hours' | 'ticket' | 'origin' | 'observation' | 'created_at' | 'titulo' | 'solicitante' | 'service_type' | 'contract'
 type SortDir   = 'asc' | 'desc'
 
 interface SelectOption { id: number; name: string }
@@ -48,7 +48,8 @@ function formatDate(d: string | null | undefined) {
 }
 
 function formatMinutes(minutes: number) {
-  return `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}`
+  // Tempo/total sempre em DECIMAL (ex.: 4h00 → 4 ; 0h30 → 0,5 ; 1477h51 → 1477,85).
+  return (Number(minutes || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 // Cor semântica do Consumo do Ticket por faixa de horas:
@@ -439,10 +440,11 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
 // ─── Modal: ajuste em massa de Cliente/Projeto ───────────────────────────────
 // Reatribui cliente+projeto dos apontamentos selecionados (incl. APROVADOS — o
 // endpoint bulk-update-project-customer não checa status). Cores via tokens DS.
-function BulkProjectCustomerModal({ ids, customers, approvedCount, onClose, onSaved }: {
+function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUserId, onClose, onSaved }: {
   ids: number[]
   customers: SelectOption[]
   approvedCount: number
+  consultantUserId?: number | null
   onClose: () => void
   onSaved: () => void
 }) {
@@ -459,11 +461,13 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, onClose, onSa
     if (!customerId) return
     setLoadingProjects(true)
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-    api.get<any>(`/projects?minimal=true&pageSize=2000&customer_id=${customerId}`)
+    // Quando há 1 só consultor na seleção, oferece apenas projetos em que ele está ALOCADO.
+    const allocParam = consultantUserId ? `&consultant_user_id=${consultantUserId}` : ''
+    api.get<any>(`/projects?minimal=true&pageSize=2000&customer_id=${customerId}${allocParam}`)
       .then(r => setProjects(items(r).map((p: any) => ({ id: p.id, name: p.code ? `${p.code} — ${p.name}` : p.name }))))
       .catch(() => setProjects([]))
       .finally(() => setLoadingProjects(false))
-  }, [customerId])
+  }, [customerId, consultantUserId])
 
   const save = async () => {
     if (!customerId) { toast.error('Selecione o cliente'); return }
@@ -786,7 +790,7 @@ function toHHMM(mins: number): string {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'sustentacao'; embedded?: boolean; triagemPadrao?: boolean } = {}) {
+function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: { scope?: 'sustentacao' | 'investimento'; embedded?: boolean; triagemPadrao?: boolean; leadOptions?: { id: number; name: string }[] } = {}) {
   // Filtro de dimensão pra modo Triagem: '' = todos (OR), ou 'user'|'customer'|'project'
   const [triagemField, setTriagemField] = useState<string>('')
   const { user } = useAuth()
@@ -817,7 +821,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
       origins:          [] as string[],
       serviceTypeIds:   [] as string[],
       contractTypeIds:  [] as string[],
-      categoriaServico: '' as '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento',
+      categoriaServico: (scope === 'investimento' ? 'investimento' : '') as '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento',
       customerIds:      spCustomerId ? [spCustomerId] : [] as string[],
       coordinatorIds:   [] as string[],
       executiveIds:     [] as string[],
@@ -868,11 +872,14 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
   const [coordinators, setCoordinators] = useState<SelectOption[]>([])
   const [executives, setExecutives]     = useState<SelectOption[]>([])
   const [consultants, setConsultants]   = useState<SelectOption[]>([])
+  // Mobile: painel de filtros vira Drawer (off-canvas) acionado pelo botão "Filtros".
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [viewItem, setViewItem]       = useState<Timesheet | null>(null)
   const [viewLoading, setViewLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [extraPctModalData, setExtraPctModalData] = useState<{ ids: number[]; ts?: Timesheet } | null>(null)
   const [bulkPcOpen, setBulkPcOpen] = useState(false)
+  const [bulkReversing, setBulkReversing] = useState(false)
   const [reprocessing, setReprocessing] = useState(false)
   const [reprocessResult, setReprocessResult] = useState<string | null>(null)
   const [reverseRejectionModal, setReverseRejectionModal] = useState<{ open: boolean; tsId?: number }>({ open: false })
@@ -881,6 +888,15 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
   const [logsModalTsId, setLogsModalTsId] = useState<number | null>(null)
   // Hover preview do apontamento (tooltip fixo no canto superior direito)
   const hover = useTimesheetHover()
+  // Em telas de toque o hover do card é desligado: no iOS o 1º toque viraria "hover"
+  // (mostra tooltip) e suprimiria o clique, impedindo o modal de abrir.
+  const [isTouch, setIsTouch] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)')
+    const s = () => setIsTouch(mq.matches); s()
+    mq.addEventListener('change', s)
+    return () => mq.removeEventListener('change', s)
+  }, [])
   const [conflictItem, setConflictItem]   = useState<ConflictTimesheet | null>(null)
 
   const handleReprocessMovidesk = async (ids?: number[]) => {
@@ -985,6 +1001,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
   // Sem cliente selecionado: traz todos. Com 1+ clientes: traz só os daquele(s) cliente(s).
   useEffect(() => {
     if (isCliente) return
+    // Escopo investimento: o filtro de projeto vira filtro de LEAD (opções = leads).
+    if (scope === 'investimento' && leadOptions) { setProjectsList(leadOptions); return }
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
     const params = new URLSearchParams({ minimal: 'true', pageSize: '2000' })
     if (customerIds.length === 1) {
@@ -1002,7 +1020,29 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
         setProjectsList(list)
       })
       .catch(() => {})
-  }, [isCliente, customerIds])
+  }, [isCliente, customerIds, scope, leadOptions])
+
+  // Opções do filtro de projeto em árvore: filho aparece sob o pai com seta ↳ (azul).
+  const projectTreeOptions = useMemo(() => {
+    const list = projectsList as Array<{ id: number; name: string; parent_project_id?: number | null }>
+    const ids = new Set(list.map(p => p.id))
+    const byParent = new Map<number | null, typeof list>()
+    for (const p of list) {
+      const key = p.parent_project_id && ids.has(p.parent_project_id) ? p.parent_project_id : null
+      const arr = byParent.get(key) ?? []
+      arr.push(p); byParent.set(key, arr)
+    }
+    const sortName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'pt-BR')
+    const out: { id: number; name: string; depth: number }[] = []
+    const walk = (parentId: number | null, depth: number) => {
+      for (const p of (byParent.get(parentId) ?? []).sort(sortName)) {
+        out.push({ id: p.id, name: p.name, depth })
+        walk(p.id, depth + 1)
+      }
+    }
+    walk(null, 0)
+    return out
+  }, [projectsList])
 
   // Limpa seleção de projetos quando o cliente muda (evita IDs órfãos).
   useEffect(() => {
@@ -1019,7 +1059,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
     origins.forEach(v => p.append('origin[]', v))
     serviceTypeIds.forEach(v => p.append('service_type_id[]', v))
     contractTypeIds.forEach(v => p.append('contract_type_id[]', v))
-    if (categoriaServico) p.set('categoria_servico', categoriaServico)
+    if (scope === 'investimento') p.set('categoria_servico', 'investimento')
+    else if (categoriaServico) p.set('categoria_servico', categoriaServico)
     if (isCliente && user?.customer_id) p.set('customer_id', String(user.customer_id))
     else customerIds.forEach(v => p.append('customer_id[]', v))
     coordinatorIds.forEach(v => p.append('coordinator_id[]', v))
@@ -1038,13 +1079,13 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
     if (projectId)     p.set('project_id', projectId)
     projectIds.forEach(v => p.append('project_id[]', v))
     if (sortField)     p.set('order', sortDir === 'desc' ? `-${sortField}` : sortField)
-    if (scope)         p.set('scope', scope)
+    if (scope === 'sustentacao') p.set('scope', scope)
     if (triagemPadrao) p.set('triagem_padrao', '1')
     if (triagemPadrao && triagemField) p.set('triagem_field', triagemField)
     return p.toString()
   }, [page, status, origins, serviceTypeIds, contractTypeIds, categoriaServico, customerIds, coordinatorIds, executiveIds, userIds, projectId, projectIds, startDate, endDate, ticket, requester, ticketService, sortField, sortDir, isCliente, user?.customer_id, user?.id, scope, triagemPadrao, triagemField, isCoordenador, coordScope])
 
-  const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<Timesheet>>(
+  const { data, loading, error, refetch, setData } = useApiQuery<PaginatedResponse<Timesheet>>(
     `/timesheets?${params}`, [params]
   )
 
@@ -1104,16 +1145,30 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
   }
 
   const handleReverseApproval = async (id: number) => {
-    const reason = window.prompt('Informe o motivo do estorno da aprovação:')
-    if (reason == null) return // cancelou
-    if (!reason.trim()) { toast.error('Informe um motivo para estornar a aprovação.'); return }
+    // Estorno de aprovação NÃO pede mais motivo (removido a pedido).
+    if (!window.confirm('Estornar a aprovação deste apontamento?')) return
     try {
-      await api.post(`/timesheets/${id}/reverse-approval`, { reason: reason.trim() })
+      await api.post(`/timesheets/${id}/reverse-approval`, {})
       toast.success('Aprovação estornada!')
       refetch()
     } catch {
       toast.error('Erro ao estornar aprovação')
     }
+  }
+
+  // Estorno de aprovação EM MASSA: estorna todos os selecionados que estão APROVADOS (sem motivo).
+  const handleBulkReverseApproval = async () => {
+    const ids = (data?.items ?? []).filter(ts => selectedIds.has(ts.id) && ts.status === 'approved').map(ts => ts.id)
+    if (ids.length === 0) { toast.error('Nenhum apontamento aprovado selecionado.'); return }
+    if (!window.confirm(`Estornar a aprovação de ${ids.length} apontamento${ids.length > 1 ? 's' : ''}?`)) return
+    setBulkReversing(true)
+    const results = await Promise.allSettled(ids.map(id => api.post(`/timesheets/${id}/reverse-approval`, {})))
+    setBulkReversing(false)
+    const ok = results.filter(r => r.status === 'fulfilled').length
+    if (ok) toast.success(`${ok} aprovação${ok > 1 ? 'ões' : ''} estornada${ok > 1 ? 's' : ''}!`)
+    if (ok < ids.length) toast.error(`${ids.length - ok} não puderam ser estornadas.`)
+    setSelectedIds(new Set())
+    refetch()
   }
 
   const confirmReverseRejection = async () => {
@@ -1138,10 +1193,21 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
     () => (data?.items ?? []).filter(ts => selectedIds.has(ts.id) && ts.status === 'approved').length,
     [data?.items, selectedIds]
   )
+  // Consultor único da seleção → no modal de realocação, oferece só projetos em que ele
+  // está alocado. Null quando a seleção mistura consultores (não dá pra filtrar por um só).
+  const selectedConsultantId = useMemo(() => {
+    const uids = new Set(
+      (data?.items ?? [])
+        .filter(ts => selectedIds.has(ts.id))
+        .map(ts => ts.user?.id)
+        .filter((v): v is number => typeof v === 'number'),
+    )
+    return uids.size === 1 ? (Array.from(uids)[0] as number) : null
+  }, [data?.items, selectedIds])
 
   return (
-    <div>
-      <div className={embedded ? '' : 'max-w-7xl mx-auto'}>
+    <div className="w-full max-w-full overflow-x-hidden">
+      <div className={embedded ? 'min-w-0' : 'max-w-7xl mx-auto min-w-0'}>
         <PageHeader
           icon={Clock}
           title="Apontamentos"
@@ -1158,7 +1224,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
                 </Button>
               )}
               {!isCliente && (
-                <Button variant="primary" size="sm" icon={Plus} onClick={() => setNewModalOpen(true)}>Novo</Button>
+                <Button variant="primary" size="sm" icon={Plus} onClick={() => setNewModalOpen(true)} className="w-full sm:w-auto">Novo</Button>
               )}
             </>
           }
@@ -1173,14 +1239,39 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
           </div>
         )}
 
-        {/* Filters */}
+        {/* Botão "Filtros" — só mobile (abre o Drawer) */}
+        <div className="md:hidden mb-3">
+          <button
+            onClick={() => setFiltersOpen(true)}
+            className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-medium"
+            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--text)' }}
+          >
+            <SlidersHorizontal size={15} /> Filtros{hasFilters ? ' • ativos' : ''}
+          </button>
+        </div>
+
+        {/* Backdrop do Drawer (mobile) */}
+        {filtersOpen && (
+          <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setFiltersOpen(false)} />
+        )}
+
+        {/* Filters — inline no desktop/tablet, Drawer off-canvas no mobile */}
         <div
-          className="p-4 rounded-2xl mb-4 space-y-3"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+          className={`p-4 mb-4 space-y-3 ${filtersOpen ? 'block' : 'hidden'} md:block
+            fixed inset-y-0 left-0 z-50 w-[86%] max-w-xs overflow-y-auto rounded-none shadow-2xl
+            md:static md:z-auto md:w-auto md:max-w-none md:overflow-visible md:rounded-2xl md:shadow-none`}
+          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', WebkitOverflowScrolling: 'touch' }}
         >
+          {/* Cabeçalho do Drawer (mobile) */}
+          <div className="flex items-center justify-between md:hidden">
+            <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Filtros</span>
+            <button onClick={() => setFiltersOpen(false)} className="p-1 rounded-lg" style={{ color: 'var(--text-muted)' }} aria-label="Fechar filtros">
+              <X size={16} />
+            </button>
+          </div>
           {/* Chips de categoria de serviço */}
           {/* Linha 1: selects */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
             {isCliente ? (
               // Filtros para cliente: apenas Projeto
               <>
@@ -1209,8 +1300,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
                 <MultiSelect
                   value={projectIds}
                   onChange={v => { setProjectIds(v); resetPage() }}
-                  options={projectsList}
-                  placeholder="Todos os projetos"
+                  options={projectTreeOptions}
+                  placeholder={scope === 'investimento' ? 'Todos os leads' : 'Todos os projetos'}
                 />
                 {!triagemPadrao && coordinators.length > 0 && (
                   <MultiSelect
@@ -1289,7 +1380,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
                 onChange={(f, t) => { setStartDate(f); setEndDate(t); setRefMonth(null); setRefYear(null); resetPage() }}
               />
             )}
-            {!isCliente && ([
+            {!isCliente && scope !== 'investimento' && ([
               { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
               { id: 'projeto',      label: 'Projeto',     color: '#00F5FF',            bg: 'rgba(0,245,255,0.12)',   border: 'rgba(0,245,255,0.35)' },
               { id: 'bizify',       label: 'Bizify',      color: '#a78bfa',            bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },
@@ -1349,7 +1440,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
 
         {/* Pills de tipo de contrato — apenas para cliente */}
         {isCliente && clienteContractTypes.length > 0 && (
-          <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-4"
+          <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-4"
             style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
             <button
               onClick={() => { setContractTypeIds([]); resetPage() }}
@@ -1375,7 +1466,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
         )}
 
         {/* Status pills — oculto para clientes e em modo Triagem */}
-        {!isCliente && !triagemPadrao && <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        {!isCliente && !triagemPadrao && <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           {STATUS_PILLS.map(s => (
             <button
               key={s.value}
@@ -1393,7 +1484,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
         </div>}
 
         {/* Pills Triagem: filtra por dimensão padrão (user/customer/project) */}
-        {triagemPadrao && <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        {triagemPadrao && <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           {[
             { value: '',         label: 'Todos' },
             { value: 'user',     label: 'Usuário' },
@@ -1478,6 +1569,9 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
         ) : error ? (
           <div className="py-10 text-center text-sm" style={{ color: 'var(--brand-danger)' }}>{error}</div>
         ) : (
+          <>
+          {/* Desktop: tabela (inalterada) */}
+          <div className="hidden md:block">
           <Table>
             <Thead>
               <tr>
@@ -1503,7 +1597,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
                     Hist. de Hs Tikets
                   </th>
                 )}
-                <Th>Status</Th>
+                <Th sortable active={sortField === 'status'} dir={sortDir} onClick={() => handleSort('status')}>Status</Th>
                 {(isAdmin || isCoordenador) && (
                   <Th sortable active={sortField === 'user.name'} dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
                 )}
@@ -1511,8 +1605,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
                 <Th className="hidden md:table-cell">Início</Th>
                 <Th className="hidden md:table-cell">Fim</Th>
                 <Th right sortable active={sortField === 'effort_hours'} dir={sortDir} onClick={() => handleSort('effort_hours')}>Tempo</Th>
-                <Th className="hidden lg:table-cell">Ticket #</Th>
-                <Th className="hidden sm:table-cell">Origem</Th>
+                <Th sortable active={sortField === 'ticket'} dir={sortDir} onClick={() => handleSort('ticket')} className="hidden lg:table-cell">Ticket #</Th>
+                <Th sortable active={sortField === 'origin'} dir={sortDir} onClick={() => handleSort('origin')} className="hidden sm:table-cell">Origem</Th>
                 {!(isAdmin || isCoordenador) && (
                   <Th sortable active={sortField === 'user.name'} dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
                 )}
@@ -1520,12 +1614,12 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
                   <Th sortable active={sortField === 'customer.name'} dir={sortDir} onClick={() => handleSort('customer.name')}>Cliente</Th>
                 )}
                 <Th sortable active={sortField === 'project.name'}  dir={sortDir} onClick={() => handleSort('project.name')}>Projeto</Th>
-                <Th className="hidden lg:table-cell">Título</Th>
-                <Th className="hidden xl:table-cell">Descrição</Th>
-                <Th className="hidden xl:table-cell">Solicitante</Th>
-                <Th className="hidden xl:table-cell">Tipo de Serviço</Th>
-                <Th className="hidden xl:table-cell">Contrato</Th>
-                <Th className="hidden lg:table-cell">Inclusão</Th>
+                <Th sortable active={sortField === 'titulo'} dir={sortDir} onClick={() => handleSort('titulo')} className="hidden lg:table-cell">Título</Th>
+                <Th sortable active={sortField === 'observation'} dir={sortDir} onClick={() => handleSort('observation')} className="hidden xl:table-cell">Descrição</Th>
+                <Th sortable active={sortField === 'solicitante'} dir={sortDir} onClick={() => handleSort('solicitante')} className="hidden xl:table-cell">Solicitante</Th>
+                <Th sortable active={sortField === 'service_type'} dir={sortDir} onClick={() => handleSort('service_type')} className="hidden xl:table-cell">Tipo de Serviço</Th>
+                <Th sortable active={sortField === 'contract'} dir={sortDir} onClick={() => handleSort('contract')} className="hidden xl:table-cell">Contrato</Th>
+                <Th sortable active={sortField === 'created_at'} dir={sortDir} onClick={() => handleSort('created_at')} className="hidden lg:table-cell">Inclusão</Th>
               </tr>
             </Thead>
             <Tbody>
@@ -1698,6 +1792,63 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
               ))}
             </Tbody>
           </Table>
+          </div>
+
+          {/* Mobile: cards compactos — toca p/ abrir detalhe (igual desktop), muda de cor ao tocar */}
+          <div className="md:hidden space-y-2">
+            {(data?.items.length ?? 0) === 0 ? (
+              <EmptyState icon={Clock} title="Nenhum apontamento encontrado" description="Tente ajustar os filtros ou criar um novo apontamento." />
+            ) : data?.items.map(ts => {
+              const cliente = ts.customer?.name ?? ts.project?.customer?.name ?? null
+              const projeto = ts.project?.name ?? `Projeto #${ts.project_id}`
+              return (
+                <div key={ts.id} onClick={() => openView(ts)} {...(isTouch ? {} : hover.bind(ts))}
+                  className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)]"
+                  style={{ borderColor: 'var(--brand-border)' }}>
+                  {/* Linha 1: [checkbox] colaborador/projeto + menu */}
+                  <div className="flex items-center gap-2">
+                    {(isAdmin || isCoordenador) && (
+                      <input type="checkbox" className="w-3.5 h-3.5 accent-cyan-400 shrink-0 cursor-pointer"
+                        checked={selectedIds.has(ts.id)} onClick={e => e.stopPropagation()}
+                        onChange={e => setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(ts.id); else next.delete(ts.id); return next })} />
+                    )}
+                    <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--brand-text)' }}>
+                      {(isAdmin || isCoordenador) ? (ts.user?.name ?? '—') : projeto}
+                    </span>
+                    <div onClick={e => e.stopPropagation()} className="shrink-0">
+                      <RowActions
+                        id={ts.id}
+                        onView={() => openView(ts)}
+                        onDeleted={refetch}
+                        viewOnly={isCliente}
+                        onShowLogs={(isAdmin || isCoordenador) ? () => setLogsModalTsId(ts.id) : undefined}
+                        onShowConflict={ts.status === 'conflicted' ? () => setConflictItem(ts as unknown as ConflictTimesheet) : undefined}
+                        onExtraPct={(isAdmin || isCoordenador) ? () => setExtraPctModalData({ ids: [ts.id], ts }) : undefined}
+                        onRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'internal' ? () => handleRelease(ts.id) : undefined}
+                        onReverseApproval={(isAdmin || isCoordenador) && ts.status === 'approved' ? () => handleReverseApproval(ts.id) : undefined}
+                        onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
+                        onReverseRejection={(isAdmin || isCoordenador) && (ts.status === 'rejected' || ts.status === 'adjustment_requested') ? () => { setReverseRejectionModal({ open: true, tsId: ts.id }); setReverseRejectionReason('') } : undefined}
+                      />
+                    </div>
+                  </div>
+                  {/* Linha 2: status */}
+                  <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                    {ts.is_internal_action
+                      ? (<><Badge variant="internal">Ação Interna</Badge>{ts.status === 'released' && <Badge variant="approved">Liberado</Badge>}</>)
+                      : (<ReasonTooltip status={ts.status} reason={ts.rejection_reason}><Badge variant={ts.status}>{ts.status_display ?? ts.status}</Badge></ReasonTooltip>)}
+                    {ts.is_paid && <Badge variant="success">Pago</Badge>}
+                  </div>
+                  {/* Linha 3: resumo (data · tempo · cliente · projeto) */}
+                  <div className="mt-1.5 text-[11px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+                    {formatDate(ts.date)} · <span style={{ color: 'var(--brand-primary)' }}>{formatMinutes(ts.effort_minutes)}</span>
+                    {(isAdmin || isCoordenador) && cliente ? ` · ${cliente}` : ''}
+                    {(isAdmin || isCoordenador) ? ` · ${projeto}` : ''}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          </>
         )}
 
         {/* Pagination */}
@@ -1774,6 +1925,16 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
           >
             <RefreshCw size={11} className={reprocessing ? 'animate-spin' : ''} /> Reprocessar Movidesk
           </button>
+          {selectedApprovedCount > 0 && (
+            <button
+              onClick={handleBulkReverseApproval}
+              disabled={bulkReversing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
+              style={{ background: 'var(--danger, #ef4444)', color: '#fff' }}
+            >
+              <RotateCcw size={11} className={bulkReversing ? 'animate-spin' : ''} /> Estornar aprovação ({selectedApprovedCount})
+            </button>
+          )}
           <button
             onClick={() => setSelectedIds(new Set())}
             className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
@@ -1789,8 +1950,29 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
           ids={Array.from(selectedIds)}
           customers={customers}
           approvedCount={selectedApprovedCount}
+          consultantUserId={selectedConsultantId}
           onClose={() => setBulkPcOpen(false)}
-          onSaved={() => { refetch(); setSelectedIds(new Set()) }}
+          onSaved={async () => {
+            const changed = Array.from(selectedIds)
+            setSelectedIds(new Set())
+            // Otimista: tira já da lista os apontamentos alterados. A tela é escopada/
+            // filtrada (ex.: Portal de Sustentação só mostra projetos de sustentação),
+            // então ao trocar cliente/projeto eles podem não pertencer mais a este filtro.
+            // Sem isto o refetch parecia "não mudar nada" e a linha ficava no projeto antigo.
+            setData(prev => prev ? { ...prev, items: prev.items.filter(t => !changed.includes(t.id)) } : prev)
+            // Reconcilia com o servidor: os que AINDA batem com o filtro voltam (com o
+            // projeto/cliente novos); os que saíram do escopo ficam de fora.
+            const fresh = await refetch()
+            const back = (fresh?.items ?? []).filter(t => changed.includes(t.id)).length
+            const gone = changed.length - back
+            if (gone > 0) {
+              toast.info(
+                `${gone} apontamento${gone > 1 ? 's' : ''} sa${gone > 1 ? 'íram' : 'iu'} deste filtro/escopo após a alteração — ` +
+                `verifique no cliente/projeto de destino.`,
+                { duration: 6000 },
+              )
+            }
+          }}
         />
       )}
 
@@ -1862,16 +2044,18 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao }: { scope?: 'su
 }
 
 export interface TimesheetsScreenProps {
-  scope?: 'sustentacao'
+  scope?: 'sustentacao' | 'investimento'
   embedded?: boolean
   /** Filtra timesheets atribuídos ao Usuário/Cliente/Projeto Padrão Movidesk (OR). Usado pela rotina Triagem. */
   triagemPadrao?: boolean
+  /** No escopo investimento, transforma o filtro de Projeto em filtro de Lead. */
+  leadOptions?: { id: number; name: string }[]
 }
 
 export function TimesheetsScreen(props: TimesheetsScreenProps = {}) {
   return (
     <Suspense>
-      <TimesheetsPageContent scope={props.scope} embedded={props.embedded} triagemPadrao={props.triagemPadrao} />
+      <TimesheetsPageContent scope={props.scope} embedded={props.embedded} triagemPadrao={props.triagemPadrao} leadOptions={props.leadOptions} />
     </Suspense>
   )
 }

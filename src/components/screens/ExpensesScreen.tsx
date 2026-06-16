@@ -826,7 +826,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
               <MultiSelect value={executiveIds}   onChange={v => { setExecutiveIds(v);   setPage(1) }} options={executives}   placeholder="Todos os executivos"   />
             </div>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
               {(['month', 'period'] as const).map((mode) => (
                 <button key={mode} onClick={() => setFilterMode(mode)}
@@ -960,7 +960,12 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
         {/* Tabela */}
         {loading ? (
           <SkeletonTable rows={8} cols={7} />
+        ) : sortedItems.length === 0 ? (
+          <EmptyState icon={Receipt} title="Nenhuma despesa encontrada" description="Tente ajustar os filtros ou criar uma nova despesa." />
         ) : (
+          <>
+          {/* Desktop: tabela (inalterada) */}
+          <div className="hidden md:block">
           <Table>
             <Thead>
               <tr>
@@ -979,13 +984,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
               </tr>
             </Thead>
             <Tbody>
-              {sortedItems.length === 0 ? (
-                <tr>
-                  <td colSpan={isCliente ? 4 : 11}>
-                    <EmptyState icon={Receipt} title="Nenhuma despesa encontrada" description="Tente ajustar os filtros ou criar uma nova despesa." />
-                  </td>
-                </tr>
-              ) : sortedItems.map(exp => (
+              {sortedItems.map(exp => (
                 <Tr key={exp.id} onClick={() => setViewItem(exp)} {...expHover.bind(exp)}>
                   {!isCliente && (
                     <Td className="w-10">
@@ -1049,6 +1048,96 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
               ))}
             </Tbody>
           </Table>
+          </div>
+
+          {/* Mobile: cards (um por despesa, sem scroll horizontal) */}
+          <div className="md:hidden space-y-2">
+            {sortedItems.map(exp => (
+              <div
+                key={exp.id}
+                onClick={() => setViewItem(exp)}
+                className="rounded-xl border p-3 active:opacity-80 transition"
+                style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}
+              >
+                {/* Linha 1: descrição + valor (+ menu) */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {isCliente ? (
+                      <span className="font-medium truncate" style={{ color: 'var(--brand-text)' }}>
+                        {exp.project?.name ?? '—'}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="font-medium truncate" style={{ color: 'var(--brand-text)' }}>
+                          {exp.description}
+                        </span>
+                        {exp.receipt_url && (
+                          <Paperclip size={11} aria-label="Tem comprovante" style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className={`font-bold text-sm ${exp.is_paid ? 'opacity-40' : ''}`}
+                      style={{ color: exp.is_paid ? 'var(--brand-muted)' : 'var(--brand-primary)' }}>
+                      {formatCurrency(isCliente && (exp.project as any)?.max_expense_per_consultant != null
+                        ? Number((exp.project as any).max_expense_per_consultant)
+                        : Number(exp.amount))}
+                    </span>
+                    {!isCliente && (
+                      <div onClick={e => e.stopPropagation()}>
+                        <RowMenu items={[
+                          { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) },
+                          ...(canEdit(exp) ? [
+                            { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) },
+                            { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true },
+                          ] : []),
+                          ...(exp.receipt_url ? [
+                            { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
+                          ] : []),
+                          ...(canPay && (exp.status === 'approved' || exp.is_paid) ? [
+                            { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
+                          ] : []),
+                          ...(canPay && exp.status === 'approved' && !exp.is_paid ? [
+                            { label: 'Estornar Aprovação', icon: <Undo2 size={12} />, onClick: () => setRevertTarget(exp), danger: true },
+                          ] : []),
+                        ]} />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Linha 2: meta (Data · Colaborador · Projeto) */}
+                <div className="mt-1 text-[11px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+                  {isCliente ? (
+                    <>{formatDate(exp.expense_date)}</>
+                  ) : (
+                    <>
+                      {formatDate(exp.expense_date)}
+                      {exp.user?.name && <> · {exp.user.name}</>}
+                      {exp.project?.name && <> · {exp.project.name}</>}
+                    </>
+                  )}
+                </div>
+
+                {/* Linha 3: status + pagamento (oculto p/ cliente) */}
+                {!isCliente && (
+                  <div className="mt-2 flex items-center gap-2 flex-wrap">
+                    <ReasonTooltip status={exp.status} reason={exp.rejection_reason}>
+                      <Badge variant={exp.status as any}>{STATUS_LABEL[exp.status] ?? exp.status}</Badge>
+                    </ReasonTooltip>
+                    {exp.is_paid
+                      ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400">Pago</span>
+                      : (exp.user?.partner_id != null && exp.status === 'approved')
+                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400">Pago no fechamento</span>
+                        : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-950 text-amber-400">Em aberto</span>
+                    }
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          </>
         )}
 
         {/* Paginação */}

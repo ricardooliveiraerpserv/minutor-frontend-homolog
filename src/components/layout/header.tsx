@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, LogOut, User, MessageCircle, X } from 'lucide-react'
+import { Bell, LogOut, User, MessageCircle, X, Menu } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,10 +14,12 @@ import { useRouter } from 'next/navigation'
 import { secureUrl, api } from '@/lib/api'
 import { useState, useEffect, useRef } from 'react'
 import { ThemeToggle } from './ThemeToggle'
+import { MentionsBell } from './mentions-bell'
 
 interface HeaderProps {
   title?: string
   actions?: React.ReactNode
+  onMenuClick?: () => void
 }
 
 interface Notification {
@@ -32,7 +34,7 @@ interface Notification {
   created_at: string
 }
 
-export function Header({ title, actions }: HeaderProps) {
+export function Header({ title, actions, onMenuClick }: HeaderProps) {
   const { user, logout } = useAuth()
   const router = useRouter()
   const [unread, setUnread] = useState(0)
@@ -86,10 +88,20 @@ export function Header({ title, actions }: HeaderProps) {
     .toUpperCase() ?? 'U'
 
   return (
-    <header className="flex items-center justify-between h-14 px-6 border-b shrink-0" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-      <div className="flex items-center gap-3">
+    <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b shrink-0" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+      <div className="flex items-center gap-2 min-w-0">
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            aria-label="Abrir menu"
+            className="md:hidden p-1.5 rounded-md transition-colors hover:bg-zinc-800 shrink-0"
+            style={{ color: 'var(--brand-text)' }}
+          >
+            <Menu size={18} />
+          </button>
+        )}
         {title && (
-          <h1 className="text-sm font-semibold" style={{ color: 'var(--brand-text)', letterSpacing: '-0.01em' }}>{title}</h1>
+          <h1 className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)', letterSpacing: '-0.01em' }}>{title}</h1>
         )}
       </div>
 
@@ -98,6 +110,11 @@ export function Header({ title, actions }: HeaderProps) {
 
         {/* Theme toggle — sun/moon */}
         <ThemeToggle />
+
+        {/* Mentions bell — todos os perfis (cliente também, pra fases que ele recebe mensagens:
+            chat de requisição até req_decided_at + chat de contrato com visibility=client).
+            Backend /me/mentions filtra mentions de chat de projeto pro cliente (regra ADR cards). */}
+        {user && <MentionsBell />}
 
         {/* Bell notification — visible for all logged-in users; content scoped server-side */}
         {user && (

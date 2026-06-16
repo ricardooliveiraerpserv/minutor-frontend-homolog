@@ -104,7 +104,8 @@ function fmtDateTime(d: string | null | undefined) {
 }
 
 function fmtMin(minutes: number) {
-  return `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}`
+  // Tempo/total sempre em DECIMAL (ex.: 4h00 → 4 ; 0h30 → 0,5 ; 449h15 → 449,25).
+  return (Number(minutes || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 // Cor semântica do Consumo do Ticket por faixa de horas:
@@ -640,7 +641,9 @@ export default function ApprovalsPage() {
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setCoordinators(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
-    api.get<any>('/users?pageSize=100&is_executive=true').then(r => {
+    // Canônico: exclui parceiro_admin (gestores) e users de cliente — /users?is_executive=true
+    // traria os Parceiros Gestores (mesma flag) por engano.
+    api.get<any>('/executives?pageSize=100').then(r => {
       const l = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
       setExecutives(l.map((u: any) => ({ id: u.id, name: u.name })))
     }).catch(() => {})
@@ -1089,8 +1092,8 @@ export default function ApprovalsPage() {
         </div>
       )}
 
-      {/* ── Table ── */}
-      <div className="rounded-xl border border-zinc-800 overflow-x-auto overflow-y-clip">
+      {/* ── Table (desktop) ── */}
+      <div className="hidden md:block rounded-xl border border-zinc-800 overflow-x-auto overflow-y-clip">
         <table className="w-full min-w-max text-xs">
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-zinc-800 bg-zinc-900">
@@ -1297,6 +1300,70 @@ export default function ApprovalsPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* ── Cards (mobile) — mesmo formato dos Apontamentos: toca abre modal, realce no toque ── */}
+      <div className="md:hidden space-y-2">
+        {currentLoading && Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="rounded-lg border p-2.5" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+            <div className="flex items-center justify-between gap-2 mb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-5" /></div>
+            <Skeleton className="h-4 w-20 mb-2" /><Skeleton className="h-3 w-full" />
+          </div>
+        ))}
+        {!currentLoading && currentItems.length === 0 && (
+          <div className="rounded-lg border px-3 py-16 text-center text-zinc-500" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+            <CheckSquare size={28} className="mx-auto mb-2 opacity-20" />
+            <p className="text-sm">Nenhum item pendente de aprovação</p>
+            {hasFilters && <button onClick={clearFilters} className="mt-2 text-xs text-blue-400 hover:text-blue-300">Limpar filtros</button>}
+          </div>
+        )}
+        {!currentLoading && tab === 'timesheets' && tsItems.map(ts => (
+          <div key={ts.id} onClick={() => openTsView(ts)}
+            className={`rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)] ${selected.includes(ts.id) ? 'ring-1 ring-blue-500/40' : ''}`}
+            style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="flex items-center gap-2">
+              <span onClick={e => e.stopPropagation()} className="shrink-0 flex">
+                <input type="checkbox" checked={selected.includes(ts.id)} onChange={() => toggleOne(ts.id)} className="rounded border-zinc-600 bg-zinc-800 accent-blue-500" />
+              </span>
+              <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--brand-text)' }}>{ts.user?.name ?? '—'}</span>
+              <div onClick={e => e.stopPropagation()} className="shrink-0">
+                <RowMenu items={[
+                  { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openTsView(ts) },
+                  { label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTs(ts.id), disabled: actioning === ts.id },
+                  { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: ts.id, type: 'timesheet' }); setAdjReason('') } },
+                  { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }, danger: true },
+                ]} />
+              </div>
+            </div>
+            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap"><TsStatusBadge status={ts.status} display={ts.status_display} /></div>
+            <div className="mt-1.5 text-[11px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+              {fmt(ts.date)}{ts.ticket ? ` · #${ts.ticket}` : ''} · {fmtMin(ts.effort_minutes)}{ts.project?.customer?.name ? ` · ${ts.project.customer.name}` : ''}{ts.project?.name ? ` · ${ts.project.name}` : ''}
+            </div>
+          </div>
+        ))}
+        {!currentLoading && tab === 'expenses' && expItems.map(exp => (
+          <div key={exp.id} onClick={() => openExpApprove(exp)}
+            className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)]"
+            style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--brand-text)' }}>{exp.user?.name ?? '—'}</span>
+              <div onClick={e => e.stopPropagation()} className="shrink-0">
+                <RowMenu items={[
+                  { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openExpApprove(exp) },
+                  { label: 'Aprovar', icon: <Check size={12} />, onClick: () => openExpApprove(exp) },
+                  { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: exp.id, type: 'expense' }); setAdjReason('') } },
+                  { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [exp.id] }); setRejectReason('') }, danger: true },
+                  ...(exp.receipt_url ? [{ label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceiptUrl(exp.receipt_url!) }] : []),
+                ]} />
+              </div>
+            </div>
+            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap"><TsStatusBadge status={exp.status} display={exp.status_display} /></div>
+            <div className="mt-1.5 text-[11px] truncate flex items-center gap-1" style={{ color: 'var(--brand-subtle)' }}>
+              {exp.receipt_url && <Paperclip size={10} className="shrink-0" />}
+              {fmt(exp.expense_date)} · {fmtBRL(parseFloat(String(exp.amount)) || 0)}{exp.category?.name ? ` · ${exp.category.name}` : ''}{exp.project?.customer?.name ? ` · ${exp.project.customer.name}` : ''}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ── Pagination ── */}

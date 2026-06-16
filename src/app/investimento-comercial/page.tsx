@@ -11,6 +11,8 @@ import {
   CalendarPlus, CalendarOff,
 } from 'lucide-react'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, Button, SkeletonTable, EmptyState } from '@/components/ds'
+import { TimesheetsScreen } from '@/components/screens/TimesheetsScreen'
+import { ApprovalsScreen } from '@/components/screens/ApprovalsScreen'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -27,6 +29,8 @@ interface ICProject {
   categoria_interna: string | null
   customer: { id: number; name: string } | null
   consultants: Consultant[]
+  coordinators: Consultant[]
+  parent_project_id: number | null
   has_open_period?: boolean
 }
 
@@ -84,10 +88,12 @@ function MiniBar({ value, max, color = 'var(--primary)' }: { value: number; max:
 
 // ─── Abas ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'projetos' | 'clientes' | 'consultores' | 'mensal' | 'detalhe'
+type Tab = 'projetos' | 'apontamentos' | 'aprovacoes' | 'clientes' | 'consultores' | 'mensal' | 'detalhe'
 
 const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
   { id: 'projetos',    label: 'Projetos',         icon: TrendingUp as LucideIcon },
+  { id: 'apontamentos', label: 'Apontamentos',     icon: Clock      as LucideIcon },
+  { id: 'aprovacoes',  label: 'Aprovações',        icon: Check      as LucideIcon },
   { id: 'clientes',    label: 'Por Cliente',       icon: Building2  as LucideIcon },
   { id: 'consultores', label: 'Por Consultor',     icon: User       as LucideIcon },
   { id: 'mensal',      label: 'Evolução Mensal',   icon: BarChart2  as LucideIcon },
@@ -112,6 +118,8 @@ export default function InvestimentoComercialPage() {
   const [hoursLoading, setHoursLoading] = useState(false)
   const [loading,      setLoading]      = useState(true)
   const [allUsers,     setAllUsers]     = useState<Consultant[]>([])
+  // Aprovadores possíveis (coordenadores + admins) — quem pode aprovar os apontamentos.
+  const [approvers,    setApprovers]    = useState<Consultant[]>([])
   const [groups,       setGroups]       = useState<ConsultantGroup[]>([])
   const [modal,        setModal]        = useState<{ open: boolean; project: ICProject | null }>({ open: false, project: null })
   const [selected,     setSelected]     = useState<number[]>([])
@@ -121,14 +129,25 @@ export default function InvestimentoComercialPage() {
   // Modal de criação de projeto interno (ERPSERV)
   const [newProjectOpen,      setNewProjectOpen]      = useState(false)
   const [newProjectName,      setNewProjectName]      = useState('')
-  const [newProjectCategoria, setNewProjectCategoria] = useState<'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial'>('Projeto')
+  const [newProjectCategoria, setNewProjectCategoria] = useState<'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads'>('Projeto')
+  const [newProjectApprover,  setNewProjectApprover]  = useState('')
+  const [newProjectParent,    setNewProjectParent]    = useState('')
+  const [leadMode,            setLeadMode]            = useState(false) // criação de Lead (nome=cliente, sempre Leads)
   const [creatingProject,     setCreatingProject]     = useState(false)
 
+  // Opções de aprovador (coordenadores+admins), garantindo o usuário logado na lista.
+  const approverOptions = useMemo(() => {
+    const opts = approvers.map(a => ({ id: a.id as number | string, name: a.name }))
+    if (user && !opts.some(o => String(o.id) === String(user.id))) opts.unshift({ id: user.id, name: user.name })
+    return opts
+  }, [approvers, user])
+
   // Modal de edição de projeto interno
-  type EditableCategoria = '' | 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial'
+  type EditableCategoria = '' | 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads'
   const [editProject,     setEditProject]     = useState<ICProject | null>(null)
   const [editName,        setEditName]        = useState('')
   const [editCategoria,   setEditCategoria]   = useState<EditableCategoria>('')
+  const [editApprover,    setEditApprover]    = useState('')
   // Modal de abertura/fechamento de mês (períodos abertos) — igual aos projetos tradicionais
   const [openPeriodProject, setOpenPeriodProject] = useState<ICProject | null>(null)
   const [savingEdit,      setSavingEdit]      = useState(false)
@@ -137,21 +156,24 @@ export default function InvestimentoComercialPage() {
     setEditProject(p)
     setEditName(p.name ?? '')
     setEditCategoria(((p.categoria_interna ?? '') as EditableCategoria))
+    setEditApprover(p.coordinators?.[0]?.id ? String(p.coordinators[0].id) : '')
   }
-  const closeEditModal = () => { setEditProject(null); setEditName(''); setEditCategoria('') }
+  const closeEditModal = () => { setEditProject(null); setEditName(''); setEditCategoria(''); setEditApprover('') }
   const handleSaveEdit = async () => {
     if (!editProject) return
     const name = editName.trim()
     if (name.length < 2) { toast.error('Informe um nome válido (mín. 2 caracteres)'); return }
     setSavingEdit(true)
     try {
-      const payload: { name: string; categoria_interna: string | null } = {
+      const payload: { name: string; categoria_interna: string | null; coordinator_ids: number[] } = {
         name,
         categoria_interna: editCategoria === '' ? null : editCategoria,
+        coordinator_ids: editApprover ? [Number(editApprover)] : [],
       }
       await api.patch(`/projects/${editProject.id}`, payload)
+      const newCoords = editApprover ? approvers.filter(a => String(a.id) === editApprover) : []
       setProjects(prev => prev.map(p => p.id === editProject.id
-        ? { ...p, name, categoria_interna: payload.categoria_interna }
+        ? { ...p, name, categoria_interna: payload.categoria_interna, coordinators: newCoords }
         : p))
       toast.success('Projeto atualizado')
       closeEditModal()
@@ -181,7 +203,7 @@ export default function InvestimentoComercialPage() {
   // Árvore: clientes expandidos
   const [expandedCustomers, setExpandedCustomers] = useState<Set<number>>(new Set())
   // Filtro de categoria
-  const [categoriaFilter, setCategoriaFilter] = useState<'todas' | 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'sem'>('todas')
+  const [categoriaFilter, setCategoriaFilter] = useState<'todas' | 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads' | 'sem'>('todas')
   const toggleCustomerExpand = (customerId: number) => {
     setExpandedCustomers(prev => {
       const next = new Set(prev)
@@ -196,15 +218,19 @@ export default function InvestimentoComercialPage() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [expandedConsultant, setExpandedConsultant] = useState<number | null>(null)
 
+  const isAdmin = user?.type === 'admin'
+
   useEffect(() => {
-    if (user && user.type !== 'admin') router.replace('/dashboard')
+    // Rotina disponível para admin e TODOS os coordenadores. Ações de gestão
+    // (criar/editar/alocar/abrir mês) ficam só para admin (gated por isAdmin).
+    if (user && user.type !== 'admin' && user.type !== 'coordenador') router.replace('/dashboard')
   }, [user, router])
 
   const reloadProjects = async () => {
     try {
       const projRes = await api.get<any>('/projects?only_investimento_comercial=true&pageSize=2000&gestao=true&with_team=true')
       const rawProjects: any[] = projRes?.items ?? projRes?.data ?? []
-      setProjects(rawProjects.map(p => ({ id: p.id, name: p.name ?? '', code: p.code, status: p.status, categoria_interna: p.categoria_interna ?? null, customer: p.customer ?? null, consultants: p.consultants ?? [], has_open_period: p.has_open_period ?? false })))
+      setProjects(rawProjects.map(p => ({ id: p.id, name: p.name ?? '', code: p.code, status: p.status, categoria_interna: p.categoria_interna ?? null, customer: p.customer ?? null, consultants: p.consultants ?? [], coordinators: p.coordinators ?? [], parent_project_id: p.parent_project_id ?? null, has_open_period: p.has_open_period ?? false })))
     } catch {
       toast.error('Erro ao recarregar projetos')
     }
@@ -212,16 +238,26 @@ export default function InvestimentoComercialPage() {
 
   useEffect(() => {
     let cancelled = false
+    // Cada request com catch próprio: falha de uma lista (ex.: /users sem permissão
+    // para o coordenador) não pode derrubar a lista de projetos nem as abas novas.
     Promise.all([
-      api.get<any>('/projects?only_investimento_comercial=true&pageSize=2000&gestao=true&with_team=true'),
-      api.get<any>('/users?exclude_type=cliente&pageSize=500'),
-      api.get<any>('/consultant-groups?pageSize=200&with_users=true'),
-    ]).then(([projRes, usersRes, groupsRes]) => {
+      api.get<any>('/projects?only_investimento_comercial=true&pageSize=2000&gestao=true&with_team=true').catch(() => ({})),
+      api.get<any>('/users?exclude_type=cliente&pageSize=500').catch(() => ({})),
+      api.get<any>('/consultant-groups?pageSize=200&with_users=true').catch(() => ({})),
+      api.get<any>('/users?type=coordenador&pageSize=300').catch(() => ({})),
+      api.get<any>('/users?type=admin&pageSize=100').catch(() => ({})),
+    ]).then(([projRes, usersRes, groupsRes, coordsRes, adminsRes]) => {
       if (cancelled) return
       const rawProjects: any[] = projRes?.items ?? projRes?.data ?? []
-      setProjects(rawProjects.map(p => ({ id: p.id, name: p.name ?? '', code: p.code, status: p.status, categoria_interna: p.categoria_interna ?? null, customer: p.customer ?? null, consultants: p.consultants ?? [], has_open_period: p.has_open_period ?? false })))
+      setProjects(rawProjects.map(p => ({ id: p.id, name: p.name ?? '', code: p.code, status: p.status, categoria_interna: p.categoria_interna ?? null, customer: p.customer ?? null, consultants: p.consultants ?? [], coordinators: p.coordinators ?? [], parent_project_id: p.parent_project_id ?? null, has_open_period: p.has_open_period ?? false })))
       const rawUsers: any[] = usersRes?.items ?? usersRes?.data ?? []
       setAllUsers(rawUsers.map((u: any) => ({ id: u.id, name: u.name, email: u.email })))
+      // Aprovadores = coordenadores + admins (dedup por id).
+      const rawCoords: any[] = coordsRes?.items ?? coordsRes?.data ?? []
+      const rawAdmins: any[] = adminsRes?.items ?? adminsRes?.data ?? []
+      const byId = new Map<number, Consultant>()
+      ;[...rawCoords, ...rawAdmins].forEach((u: any) => byId.set(u.id, { id: u.id, name: u.name, email: u.email }))
+      setApprovers([...byId.values()].sort((a, b) => a.name.localeCompare(b.name)))
       const rawGroups: any[] = groupsRes?.data ?? groupsRes?.items ?? []
       setGroups(rawGroups.map((g: any) => ({
         id: g.id,
@@ -245,11 +281,18 @@ export default function InvestimentoComercialPage() {
     if (name.length < 2) { toast.error('Informe um nome válido (mín. 2 caracteres)'); return }
     setCreatingProject(true)
     try {
-      await api.post('/investimento-interno/projects', { name, categoria: newProjectCategoria })
+      await api.post('/investimento-interno/projects', {
+        name,
+        categoria: newProjectCategoria,
+        approver_id: newProjectApprover ? Number(newProjectApprover) : undefined,
+        parent_project_id: newProjectParent ? Number(newProjectParent) : undefined,
+      })
       toast.success('Projeto interno criado')
       setNewProjectOpen(false)
       setNewProjectName('')
       setNewProjectCategoria('Projeto')
+      setNewProjectApprover('')
+      setNewProjectParent('')
       await reloadProjects()
     } catch (err: any) {
       toast.error(err?.message ?? 'Erro ao criar projeto')
@@ -301,6 +344,12 @@ export default function InvestimentoComercialPage() {
     })
   }, [projects, clientSearch, categoriaFilter])
 
+  // Opções de Lead (categoria Leads) p/ o filtro das abas Apontamentos/Aprovações.
+  const leadOptions = useMemo(
+    () => projects.filter(p => p.categoria_interna === 'Leads').map(p => ({ id: p.id, name: p.name || p.code })),
+    [projects],
+  )
+
   const filteredUsers = useMemo(() => {
     const q = userSearch.toLowerCase()
     return allUsers.filter(u => !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
@@ -323,6 +372,84 @@ export default function InvestimentoComercialPage() {
       closeModal()
     } catch { toast.error('Erro ao salvar equipe') }
     finally { setSaving(false) }
+  }
+
+  // Abre o modal de criação já aninhado abaixo de um investimento pai (lead).
+  const addLead = (parent: ICProject) => {
+    setLeadMode(true)
+    setNewProjectParent(String(parent.id))
+    setNewProjectCategoria('Leads')
+    setNewProjectName('')
+    setNewProjectApprover('')
+    setNewProjectOpen(true)
+  }
+
+  // Linha de um mini-projeto. depth 0 = topo (investimento); depth 1 = lead (filho).
+  function renderProjectRow(project: ICProject, depth: number) {
+    const hours = hoursMap[project.id] ?? 0
+    const nameIndent = depth === 0 ? 'pl-6' : 'pl-12'
+    const subIndent  = depth === 0 ? 'pl-12' : 'pl-[4.5rem]'
+    return (
+      <Tr key={project.id}>
+        <Td>
+          <span className={`flex items-center gap-2 ${nameIndent}`}>
+            <span className="text-zinc-600">{depth === 0 ? '└' : '↳'}</span>
+            <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{project.name || '—'}</span>
+            {project.categoria_interna && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider"
+                style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+                {project.categoria_interna}
+              </span>
+            )}
+          </span>
+          <span className={`block ${subIndent} text-[10px] mt-0.5`} style={{ color: 'var(--brand-subtle)' }}>
+            Aprovador: {project.coordinators?.[0]?.name ?? '— (só admin)'}
+          </span>
+        </Td>
+        <Td><span className="text-xs font-mono font-medium px-2 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{project.code}</span></Td>
+        <Td>
+          {project.consultants.length === 0
+            ? <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum alocado</span>
+            : <div className="flex flex-wrap gap-1">
+                {project.consultants.slice(0, 4).map(c => (
+                  <span key={c.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)' }}>{c.name.split(' ')[0]}</span>
+                ))}
+                {project.consultants.length > 4 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--brand-subtle)' }}>+{project.consultants.length - 4}</span>}
+              </div>
+          }
+        </Td>
+        <Td>
+          {hoursLoading
+            ? <span className="text-xs" style={{ color: 'var(--text-light)' }}>…</span>
+            : <span className="text-sm font-semibold tabular-nums" style={{ color: hours > 0 ? 'var(--text)' : 'var(--text-light)' }}>{fmtHours(hours)}</span>
+          }
+        </Td>
+        <Td>
+          <div className="flex items-center gap-1 justify-end">
+            {isAdmin && (<>
+              {depth === 0 && project.categoria_interna === 'Comercial' && (
+                <Button size="sm" variant="ghost" onClick={() => addLead(project)} aria-label="Adicionar lead">
+                  <Plus size={13} className="mr-1" /> Lead
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={() => openEditModal(project)} aria-label="Editar projeto">
+                <Pencil size={13} className="mr-1" /> Editar
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => openModal(project)}>
+                <Users size={13} className="mr-1" /> Alocação
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setOpenPeriodProject(project)}
+                aria-label={project.has_open_period ? 'Fechar mês' : 'Abrir mês'}
+                style={project.has_open_period ? { color: 'var(--warning)' } : undefined}>
+                {project.has_open_period
+                  ? <><CalendarOff size={13} className="mr-1" /> Fechar Mês</>
+                  : <><CalendarPlus size={13} className="mr-1" /> Abrir Mês</>}
+              </Button>
+            </>)}
+          </div>
+        </Td>
+      </Tr>
+    )
   }
 
   // ── Conteúdo de cada aba ─────────────────────────────────────────────────────
@@ -409,61 +536,25 @@ export default function InvestimentoComercialPage() {
                   </Td>
                   <Td></Td>
                 </Tr>
-                {/* Linhas dos projetos (filhos) */}
-                {expanded && projects.map(project => {
-                  const hours = hoursMap[project.id] ?? 0
-                  return (
-                    <Tr key={project.id}>
-                      <Td>
-                        <span className="flex items-center gap-2 pl-6">
-                          <span className="text-zinc-600">└</span>
-                          <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{project.name || '—'}</span>
-                          {project.categoria_interna && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider"
-                              style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-                              {project.categoria_interna}
-                            </span>
-                          )}
-                        </span>
-                      </Td>
-                      <Td><span className="text-xs font-mono font-medium px-2 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{project.code}</span></Td>
-                      <Td>
-                        {project.consultants.length === 0
-                          ? <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum alocado</span>
-                          : <div className="flex flex-wrap gap-1">
-                              {project.consultants.slice(0, 4).map(c => (
-                                <span key={c.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)' }}>{c.name.split(' ')[0]}</span>
-                              ))}
-                              {project.consultants.length > 4 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--brand-subtle)' }}>+{project.consultants.length - 4}</span>}
-                            </div>
-                        }
-                      </Td>
-                      <Td>
-                        {hoursLoading
-                          ? <span className="text-xs" style={{ color: 'var(--text-light)' }}>…</span>
-                          : <span className="text-sm font-semibold tabular-nums" style={{ color: hours > 0 ? 'var(--text)' : 'var(--text-light)' }}>{fmtHours(hours)}</span>
-                        }
-                      </Td>
-                      <Td>
-                        <div className="flex items-center gap-1 justify-end">
-                          <Button size="sm" variant="ghost" onClick={() => openEditModal(project)} aria-label="Editar projeto">
-                            <Pencil size={13} className="mr-1" /> Editar
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => openModal(project)}>
-                            <Users size={13} className="mr-1" /> Alocação
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setOpenPeriodProject(project)}
-                            aria-label={project.has_open_period ? 'Fechar mês' : 'Abrir mês'}
-                            style={project.has_open_period ? { color: 'var(--warning)' } : undefined}>
-                            {project.has_open_period
-                              ? <><CalendarOff size={13} className="mr-1" /> Fechar Mês</>
-                              : <><CalendarPlus size={13} className="mr-1" /> Abrir Mês</>}
-                          </Button>
-                        </div>
-                      </Td>
-                    </Tr>
-                  )
-                })}
+                {/* Linhas dos projetos — topo + leads aninhados abaixo do pai */}
+                {expanded && (() => {
+                  const childrenByParent = new Map<number, ICProject[]>()
+                  const tops: ICProject[] = []
+                  for (const p of projects) {
+                    if (p.parent_project_id && projects.some(x => x.id === p.parent_project_id)) {
+                      const arr = childrenByParent.get(p.parent_project_id) ?? []
+                      arr.push(p); childrenByParent.set(p.parent_project_id, arr)
+                    } else {
+                      tops.push(p)
+                    }
+                  }
+                  const rows: ReturnType<typeof renderProjectRow>[] = []
+                  for (const t of tops) {
+                    rows.push(renderProjectRow(t, 0))
+                    for (const c of (childrenByParent.get(t.id) ?? [])) rows.push(renderProjectRow(c, 1))
+                  }
+                  return rows
+                })()}
               </Fragment>
             )
           })}
@@ -482,7 +573,7 @@ export default function InvestimentoComercialPage() {
     const totalC = data.reduce((s, r) => s + r.total_cost, 0)
     return (
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="rounded-xl px-4 py-3" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
             <p className="text-[10px] uppercase tracking-widest mb-1 font-semibold" style={{ color: 'var(--text-muted)' }}>Total Horas</p>
             <p className="text-xl font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtHours(totalH)}</p>
@@ -680,9 +771,14 @@ export default function InvestimentoComercialPage() {
                 <span> · <span className="font-semibold" style={{ color: 'var(--text)' }}>{fmtHours(totalHours)}</span> total</span>
               )}
             </span>
-            <Button size="sm" variant="primary" onClick={() => setNewProjectOpen(true)}>
-              <Plus size={13} className="mr-1" /> Novo Projeto Interno (ERPSERV)
-            </Button>
+            {isAdmin && (
+              <Button size="sm" variant="primary" onClick={() => {
+                setLeadMode(false); setNewProjectParent(''); setNewProjectCategoria('Projeto')
+                setNewProjectName(''); setNewProjectApprover(''); setNewProjectOpen(true)
+              }}>
+                <Plus size={13} className="mr-1" /> Novo Projeto Interno (ERPSERV)
+              </Button>
+            )}
           </>
         )}
       </div>
@@ -711,6 +807,7 @@ export default function InvestimentoComercialPage() {
           {([
             { id: 'todas',       label: 'Todas as categorias' },
             { id: 'Comercial',   label: 'Comercial' },
+            { id: 'Leads',       label: 'Leads' },
             { id: 'Sustentação', label: 'Sustentação' },
             { id: 'Projeto',     label: 'Projeto' },
             { id: 'Suporte',     label: 'Suporte' },
@@ -732,6 +829,8 @@ export default function InvestimentoComercialPage() {
 
       {/* Conteúdo */}
       {activeTab === 'projetos'    && renderProjetos()}
+      {activeTab === 'apontamentos' && <TimesheetsScreen scope="investimento" embedded leadOptions={leadOptions} />}
+      {activeTab === 'aprovacoes'  && <ApprovalsScreen scope="investimento" embedded leadOptions={leadOptions} />}
       {activeTab === 'clientes'    && renderClientes()}
       {activeTab === 'consultores' && renderConsultores()}
       {activeTab === 'mensal'      && renderMensal()}
@@ -744,7 +843,7 @@ export default function InvestimentoComercialPage() {
           <div className="flex flex-col rounded-2xl w-full max-w-md" onClick={e => e.stopPropagation()}
             style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-              <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>Novo Projeto Interno</h2>
+              <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{leadMode ? 'Novo Lead' : 'Novo Projeto Interno'}</h2>
               <button onClick={() => !creatingProject && setNewProjectOpen(false)} className="p-1.5 rounded-lg hover:bg-white/5">
                 <X size={16} style={{ color: 'var(--brand-muted)' }} />
               </button>
@@ -753,34 +852,77 @@ export default function InvestimentoComercialPage() {
               <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
                 Cliente: <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>ERPSERV</span> · sem horas e sem valor de contrato
               </p>
+              {leadMode ? (
+                <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                  Lead abaixo de: <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>
+                    {projects.find(p => String(p.id) === newProjectParent)?.name ?? 'Investimento Comercial'}
+                  </span>
+                </p>
+              ) : (
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+                    Investimento pai (opcional)
+                  </label>
+                  <SearchSelect
+                    fullWidth
+                    value={newProjectParent}
+                    onChange={setNewProjectParent}
+                    options={projects
+                      .filter(p => (p.customer?.name ?? '').toUpperCase().includes('ERPSERV') && !p.parent_project_id)
+                      .map(p => ({ id: p.id, name: p.name || p.code }))}
+                    placeholder="Aninhar abaixo de um investimento (ex.: Investimento Leads)..."
+                  />
+                  <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Deixe vazio para um projeto de topo. Selecione p/ criar um lead abaixo do investimento.</p>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
-                  Nome do Projeto <span style={{ color: '#ef4444' }}>*</span>
+                  {leadMode ? 'Nome do Cliente' : 'Nome do Projeto'} <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input type="text" autoFocus value={newProjectName}
                   onChange={e => setNewProjectName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !creatingProject) handleCreateProject() }}
-                  placeholder="Ex: Desenvolvimento Minutor"
+                  placeholder={leadMode ? 'Ex: Acme Indústria' : 'Ex: Desenvolvimento Minutor'}
                   className="w-full px-3 h-9 rounded-xl text-sm outline-none" style={inputStyle} />
               </div>
+              {!leadMode && (
+                <div>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+                    Categoria <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <select value={newProjectCategoria}
+                    onChange={e => setNewProjectCategoria(e.target.value as 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial' | 'Leads')}
+                    className="w-full px-3 h-9 rounded-xl text-sm outline-none" style={inputStyle}>
+                    <option value="Sustentação">Sustentação</option>
+                    <option value="Projeto">Projeto</option>
+                    <option value="Suporte">Suporte</option>
+                    <option value="Comercial">Comercial</option>
+                    <option value="Leads">Leads</option>
+                  </select>
+                </div>
+              )}
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
-                  Categoria <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <select value={newProjectCategoria}
-                  onChange={e => setNewProjectCategoria(e.target.value as 'Sustentação' | 'Projeto' | 'Suporte' | 'Comercial')}
-                  className="w-full px-3 h-9 rounded-xl text-sm outline-none" style={inputStyle}>
-                  <option value="Sustentação">Sustentação</option>
-                  <option value="Projeto">Projeto</option>
-                  <option value="Suporte">Suporte</option>
-                  <option value="Comercial">Comercial</option>
-                </select>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium" style={{ color: 'var(--brand-muted)' }}>Aprovador</label>
+                  <button type="button" onClick={() => setNewProjectApprover(String(user?.id ?? ''))}
+                    className="text-[11px] font-medium transition-colors" style={{ color: 'var(--brand-primary)' }}>
+                    → Me colocar como aprovador
+                  </button>
+                </div>
+                <SearchSelect
+                  fullWidth
+                  value={newProjectApprover}
+                  onChange={setNewProjectApprover}
+                  options={approverOptions}
+                  placeholder="Quem aprova os apontamentos (coordenador)..."
+                />
+                <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Sem aprovador, só admin aprova os apontamentos deste projeto.</p>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
               <Button variant="ghost" onClick={() => setNewProjectOpen(false)} disabled={creatingProject}>Cancelar</Button>
               <Button variant="primary" onClick={handleCreateProject} disabled={creatingProject || newProjectName.trim().length < 2}>
-                {creatingProject ? 'Criando...' : 'Criar Projeto'}
+                {creatingProject ? 'Criando...' : (leadMode ? 'Criar Lead' : 'Criar Projeto')}
               </Button>
             </div>
           </div>
@@ -823,7 +965,24 @@ export default function InvestimentoComercialPage() {
                   <option value="Projeto">Projeto</option>
                   <option value="Suporte">Suporte</option>
                   <option value="Comercial">Comercial</option>
+                  <option value="Leads">Leads</option>
                 </select>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-medium" style={{ color: 'var(--brand-muted)' }}>Aprovador</label>
+                  <button type="button" onClick={() => setEditApprover(String(user?.id ?? ''))}
+                    className="text-[11px] font-medium transition-colors" style={{ color: 'var(--brand-primary)' }}>
+                    → Me colocar como aprovador
+                  </button>
+                </div>
+                <SearchSelect
+                  fullWidth
+                  value={editApprover}
+                  onChange={setEditApprover}
+                  options={approverOptions}
+                  placeholder="Quem aprova os apontamentos (coordenador)..."
+                />
               </div>
             </div>
             <div className="flex items-center justify-between gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>

@@ -54,6 +54,8 @@ interface ClienteStatus {
   total_servicos: number
   total_despesas: number
   total_geral: number
+  desconto?: number
+  desconto_descricao?: string | null
   closed_at?: string
   closed_by_name?: string
   envio_em?: string | null   // ISO do último envio por e-mail; null = não enviado
@@ -117,7 +119,7 @@ interface TicketSummaryRow {
 }
 
 // Estrutura mínima do /fechamento-contrato (on_demand only)
-interface ProjetoGlobal { projeto_id: number; nome: string; codigo: string; horas: number; valor_hora: number; total_receita: number }
+interface ProjetoGlobal { projeto_id: number; nome: string; codigo: string; horas: number; valor_hora: number; total_receita: number; invoiced?: boolean; is_investimento?: boolean }
 interface ClienteGlobal  { customer_id: number; nome: string; projetos: ProjetoGlobal[]; total_horas: number; total_receita: number }
 interface GlobalData     { tipos: { code: string; nome: string; clientes: ClienteGlobal[]; total_clientes: number; total_horas: number; total_receita: number }[]; total_geral: number }
 
@@ -187,6 +189,7 @@ const CLOSING_YEAR  = closingRef.getFullYear()
 export default function FechamentoClientePage() {
   const { user } = useAuth()
   const isAdmin = (user as any)?.type === 'admin'
+  const canInvoice = isAdmin || (user as any)?.type === 'administrativo'
 
   const { filters: flt, set: setFilter } = usePersistedFilters(
     'fechamento_cliente',
@@ -249,6 +252,14 @@ export default function FechamentoClientePage() {
   // preview na tela e o PDF anexado ficam byte-idênticos pois nascem da mesma fonte.
   const [reportHtml, setReportHtml] = useState<string | null>(null)
   const [reportHtmlLoading, setReportHtmlLoading] = useState(false)
+  // Contador que força refetch do relatório (ex.: após salvar desconto).
+  const [reportReload, setReportReload] = useState(0)
+
+  // Desconto do fechamento (valor + descritivo) — abate o total de serviços no
+  // relatório/PDF/e-mail. Persistido por (cliente, competência).
+  const [descontoValor, setDescontoValor] = useState('')
+  const [descontoDesc, setDescontoDesc]   = useState('')
+  const [savingDesconto, setSavingDesconto] = useState(false)
 
   // Dialog de composição/preview do e-mail.
   const [composeOpen, setComposeOpen] = useState(false)
@@ -329,6 +340,37 @@ export default function FechamentoClientePage() {
       .catch(() => {})
       .finally(() => setLoadingGlobal(false))
   }, [toYM])
+
+  // Flag "Faturado / NFS-e enviada" por projeto On Demand (pai) no mês selecionado.
+  const setProjetoInvoiced = (projetoId: number, val: boolean) =>
+    setGlobalData(prev => prev ? { ...prev, tipos: prev.tipos.map(t => ({ ...t,
+      clientes: t.clientes.map(c => ({ ...c, projetos: c.projetos.map(p => p.projeto_id === projetoId ? { ...p, invoiced: val } : p) })) })) } : prev)
+
+  const toggleInvoiced = async (projetoId: number, current: boolean) => {
+    const next = !current
+    setProjetoInvoiced(projetoId, next) // otimista
+    try {
+      await api.post('/on-demand/invoiced', { project_id: projetoId, year_month: toYM, invoiced: next })
+    } catch {
+      toast.error('Erro ao atualizar faturamento')
+      setProjetoInvoiced(projetoId, current) // reverte
+    }
+  }
+
+  const renderInvoiceToggle = (projetoId: number, invoiced: boolean, isOd: boolean) => {
+    if (!isOd) return <span style={{ color: 'var(--brand-muted)' }}>—</span>
+    return (
+      <button type="button" disabled={!canInvoice}
+        onClick={e => { e.stopPropagation(); toggleInvoiced(projetoId, invoiced) }}
+        className="text-[11px] font-semibold px-2.5 py-1 rounded-full inline-flex items-center gap-1 disabled:opacity-60 disabled:cursor-default"
+        title={invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada'}
+        style={invoiced
+          ? { background: 'var(--success-bg)', color: 'var(--success-border)', border: '1px solid var(--success-border)' }
+          : { background: 'transparent', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+        {invoiced ? <><Check size={11} /> Faturado</> : 'Marcar faturado'}
+      </button>
+    )
+  }
 
   const loadServicos = useCallback(() => {
     if (!customerId || !fromYM || !toYM) return
@@ -748,6 +790,9 @@ export default function FechamentoClientePage() {
   // Status de envio por cliente (legenda nas listas) — do /fechamento-cliente.
   const enviadoMap = new Map(clientes.map(c => [c.customer_id, { envio_em: c.envio_em, envio_por: c.envio_por }]))
 
+  // Desconto por cliente (valor + descritivo) — do /fechamento-cliente.
+  const descontoMap = new Map(clientes.map(c => [c.customer_id, { valor: c.desconto ?? 0, descricao: c.desconto_descricao ?? null }]))
+
   // Ordenação client-side das tabelas (clique no cabeçalho).
   const apontamentosSort = useTableSort(apsFiltered)
   const servicosSort     = useTableSort(clientesServicos)
@@ -763,9 +808,16 @@ export default function FechamentoClientePage() {
       setReportHtml(null)
       const isServ = tab === 'relatorio'
       const isDesp = tab === 'cobranca'
-      if ((!isServ && !isDesp) || !customerId) return
-      if (isServ && projetos.length === 0) return
-      if (isDesp && despesas.length === 0) return
+      // Saídas "não vai carregar" precisam zerar o loading também: se um run anterior
+      // ligou reportHtmlLoading e foi cancelado (cancelled=true), o finally guardado
+      // por !cancelled não desliga o flag — e este run, ao dar return cedo, deixaria o
+      // skeleton preso pra sempre (relatório não abre após refetch/troca de valor).
+      if ((!isServ && !isDesp) || !customerId
+          || (isServ && projetos.length === 0)
+          || (isDesp && despesas.length === 0)) {
+        setReportHtmlLoading(false)
+        return
+      }
       setReportHtmlLoading(true)
       try {
         // Filtro de contrato (projetoFilter) propaga pro BE: senão o relatório/PDF
@@ -785,12 +837,53 @@ export default function FechamentoClientePage() {
     }
     void run()
     return () => { cancelled = true }
-  }, [tab, customerId, toYM, projetos.length, despesas.length, projetoFilter])
+  }, [tab, customerId, toYM, projetos.length, despesas.length, projetoFilter, reportReload])
+
+  // Pré-preenche os campos de desconto com o valor persistido do cliente/mês.
+  useEffect(() => {
+    const d = status?.desconto ?? 0
+    setDescontoValor(d ? String(d) : '')
+    setDescontoDesc(status?.desconto_descricao ?? '')
+  }, [status?.customer_id, status?.desconto, status?.desconto_descricao])
+
+  // Salva o desconto (valor + descritivo) do cliente/competência e recarrega o
+  // relatório pra refletir o abatimento. Update otimista no status local.
+  const salvarDesconto = async () => {
+    if (!customerId) return
+    const valor = parseFloat(descontoValor.replace(',', '.')) || 0
+    if (valor < 0) { toast.error('Desconto não pode ser negativo'); return }
+    const descricao = descontoDesc.trim() || null
+    setSavingDesconto(true)
+    try {
+      await api.post(`/fechamento-cliente/${customerId}/${toYM}/desconto`, {
+        desconto: valor,
+        desconto_descricao: descricao,
+      })
+      setStatus(prev => (prev && prev.customer_id === customerId
+        ? { ...prev, desconto: valor, desconto_descricao: descricao } : prev))
+      setReportReload(n => n + 1)
+      toast.success('Desconto salvo')
+    } catch {
+      toast.error('Erro ao salvar o desconto')
+    } finally {
+      setSavingDesconto(false)
+    }
+  }
 
   // ── Detalhe (tela tradicional): preview do relatório + ações (imprimir/email/excel) ──
   const renderDetail = (mode: 'servicos' | 'despesa') => {
     const isDesp = mode === 'despesa'
-    const total  = isDesp ? totalDespesas : totalGeral
+    const descontoAtual = status?.desconto ?? 0
+    const total  = isDesp ? totalDespesas : Math.max(0, totalGeral - descontoAtual)
+
+    // Projetos On Demand (pai, não-investimento) deste cliente/mês — fonte do
+    // toggle "Faturado / NFS-e" (mesmo flag da Visão Global, via globalData).
+    const odProjetos = (globalData?.tipos ?? [])
+      .filter(t => t.code === 'on_demand')
+      .flatMap(t => t.clientes)
+      .filter(c => c.customer_id === customerId)
+      .flatMap(c => c.projetos)
+      .filter(p => !p.is_investimento)
 
     // Enquanto carrega (dados/despesas/relatório), mostra skeleton — o "vazio" só
     // vale depois do load, senão pisca a mensagem de vazio durante o fetch.
@@ -836,7 +929,77 @@ export default function FechamentoClientePage() {
               {isDesp ? 'Total a cobrar' : 'Valor a pagar'}
             </p>
             <p className="text-lg font-bold" style={{ color: isDesp ? '#0e7490' : 'var(--primary)' }}>{formatBRL(total)}</p>
+            {!isDesp && descontoAtual > 0 && (
+              <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                Subtotal {formatBRL(totalGeral)} − desconto {formatBRL(descontoAtual)}
+              </p>
+            )}
           </div>
+
+          {/* Desconto do fechamento (valor + descritivo) — entra no relatório/PDF/e-mail */}
+          {!isDesp && canSendEmail && (
+            <div className="rounded-lg p-3 flex flex-col gap-2"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+              <p className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: 'var(--text-light)' }}>
+                Desconto
+              </p>
+              <div>
+                <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Valor (R$)</label>
+                <input
+                  type="number" min="0" step="0.01" inputMode="decimal"
+                  value={descontoValor}
+                  onChange={e => setDescontoValor(e.target.value)}
+                  placeholder="0,00"
+                  className="ds-input w-full mt-1"
+                />
+              </div>
+              <div>
+                <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Descritivo</label>
+                <textarea
+                  value={descontoDesc}
+                  onChange={e => setDescontoDesc(e.target.value)}
+                  rows={2}
+                  placeholder="Motivo do desconto (aparece no relatório)"
+                  className="ds-input w-full mt-1 resize-none"
+                />
+              </div>
+              <Button
+                size="sm"
+                icon={Save}
+                loading={savingDesconto}
+                className="w-full !justify-center"
+                onClick={salvarDesconto}
+              >
+                {savingDesconto ? 'Salvando…' : 'Salvar desconto'}
+              </Button>
+            </div>
+          )}
+
+          {/* Faturamento (NFS-e) — mesmo toggle por projeto On Demand da Visão Global */}
+          {!isDesp && odProjetos.length > 0 && (
+            <div className="rounded-lg p-3 flex flex-col gap-2"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+              <p className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: 'var(--text-light)' }}>
+                Faturamento (NFS-e)
+              </p>
+              {odProjetos.map(p => (
+                <button
+                  key={p.projeto_id}
+                  type="button"
+                  disabled={!canInvoice}
+                  onClick={() => toggleInvoiced(p.projeto_id, !!p.invoiced)}
+                  title={p.invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada'}
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={p.invoiced
+                    ? { background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)' }
+                    : { background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                >
+                  {p.invoiced ? <Check size={13} /> : null}
+                  {odProjetos.length > 1 ? `${p.codigo}: ` : ''}{p.invoiced ? 'Faturado' : 'Marcar como faturado'}
+                </button>
+              ))}
+            </div>
+          )}
 
           <Button
             variant="primary"
@@ -917,7 +1080,7 @@ export default function FechamentoClientePage() {
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
 
         {/* ── Header ── */}
-        <div className="px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div className="flex flex-wrap items-center gap-3">
             <Building2 size={20} style={{ color: 'var(--brand-primary)' }} />
             <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>
@@ -990,7 +1153,7 @@ export default function FechamentoClientePage() {
 
         {/* ── Cards de pendências (apontamentos + despesas a cobrar não aprovados) — topo, sempre visíveis ── */}
         {customerId && pendData && (
-          <div className="px-6 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="px-4 md:px-6 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Card 1 — apontamentos pendentes */}
             <div
               className="ds-card flex items-center justify-between gap-3 px-4 py-3"
@@ -1055,7 +1218,7 @@ export default function FechamentoClientePage() {
         )}
 
         {/* ── Tabs — sempre visíveis ── */}
-        <div className="flex gap-1 px-6 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex gap-1 px-4 md:px-6 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
           {([
             { key: 'global',    label: 'Visão Global' },
             { key: 'servicos',  label: 'Apontamentos' },
@@ -1088,12 +1251,18 @@ export default function FechamentoClientePage() {
             type ClienteAgg = { customer_id: number; nome: string; projetos: ProjDisp[]; total_horas: number; total_receita: number }
             const clientMap = new Map<number, ClienteAgg>()
             ;(globalData?.tipos ?? []).forEach(tipo => {
+              // Fechamento On Demand: só contratos On Demand entram aqui. Banco de Horas
+              // (fixed_hours/monthly_hours), Fechado e demais tipos saem fora desta visão.
+              if (tipo.code !== 'on_demand') return
               tipo.clientes.forEach(c => {
                 if (!clientMap.has(c.customer_id)) {
                   clientMap.set(c.customer_id, { customer_id: c.customer_id, nome: c.nome, projetos: [], total_horas: 0, total_receita: 0 })
                 }
                 const entry = clientMap.get(c.customer_id)!
                 c.projetos.forEach(p => {
+                  // Buckets internos de investimento (Investimento Comercial/Suporte/Projetos)
+                  // têm contract_type on_demand mas NÃO são contratos com o cliente.
+                  if (p.is_investimento) return
                   const display = Math.round(p.horas * p.valor_hora * 100) / 100
                   if (p.horas > 0) {
                     entry.projetos.push({ ...p, tipo_nome: tipo.nome, tipo_code: tipo.code, total_display: display })
@@ -1116,11 +1285,16 @@ export default function FechamentoClientePage() {
             }
             const totalHoras   = lista.reduce((s, c) => s + c.total_horas, 0)
             const totalReceita = lista.reduce((s, c) => s + c.total_receita, 0)
+            // Desconto por cliente (do /fechamento-cliente) e líquido (cheio − desconto).
+            const descClienteVG = (cid: number) => descontoMap.get(cid)?.valor ?? 0
+            const liquidoCliente = (c: ClienteAgg) => Math.max(0, c.total_receita - descClienteVG(c.customer_id))
+            const totalDesconto  = lista.reduce((s, c) => s + descClienteVG(c.customer_id), 0)
+            const totalLiquido   = lista.reduce((s, c) => s + liquidoCliente(c), 0)
             const statusMap = new Map(clientes.map(c => [c.customer_id, c.status]))
             return (
               <div>
                 {/* Cards de resumo */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                   <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                     <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Clientes com movimento</div>
                     <div className="text-2xl font-bold" style={{ color: 'var(--brand-text)' }}>{lista.length}</div>
@@ -1132,10 +1306,17 @@ export default function FechamentoClientePage() {
                     </div>
                   </div>
                   <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Total Geral</div>
-                    <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
-                      {formatBRL(totalReceita)}
+                    <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>
+                      {totalDesconto > 0 ? 'Total Geral (com desconto)' : 'Total Geral'}
                     </div>
+                    <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+                      {formatBRL(totalLiquido)}
+                    </div>
+                    {totalDesconto > 0 && (
+                      <div className="text-xs mt-1 tabular-nums" style={{ color: 'var(--brand-muted)' }}>
+                        Cheio {formatBRL(totalReceita)} · <span style={{ color: 'var(--danger)' }}>desconto −{formatBRL(totalDesconto)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1148,6 +1329,9 @@ export default function FechamentoClientePage() {
                       <Th right>Horas</Th>
                       <Th right>Valor/h</Th>
                       <Th right>Total Serviços</Th>
+                      <Th right>Desconto</Th>
+                      <Th right>Com Desconto</Th>
+                      <Th>Faturado (NFS-e)</Th>
                     </tr>
                   </Thead>
                   <Tbody>
@@ -1193,6 +1377,19 @@ export default function FechamentoClientePage() {
                             <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--brand-primary)' }}>
                               {formatBRL(c.total_receita)}
                             </td>
+                            <td className="px-5 py-3 text-right tabular-nums text-sm">
+                              {descClienteVG(c.customer_id) > 0
+                                ? <span title={descontoMap.get(c.customer_id)?.descricao ?? undefined} style={{ color: 'var(--danger)' }}>− {formatBRL(descClienteVG(c.customer_id))}</span>
+                                : <span style={{ color: 'var(--brand-muted)' }}>—</span>}
+                            </td>
+                            <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--brand-text)' }}>
+                              {formatBRL(liquidoCliente(c))}
+                            </td>
+                            <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
+                              {!hasMult && c.projetos[0]
+                                ? renderInvoiceToggle(c.projetos[0].projeto_id, !!c.projetos[0].invoiced, c.projetos[0].tipo_code === 'on_demand')
+                                : <span style={{ color: 'var(--brand-muted)' }}>—</span>}
+                            </td>
                           </tr>
                           {/* Linhas dos projetos (expandido ou multi-projeto) */}
                           {expanded && hasMult && c.projetos.map(p => (
@@ -1217,6 +1414,13 @@ export default function FechamentoClientePage() {
                               <td className="px-5 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: 'var(--brand-primary)' }}>
                                 {formatBRL(p.total_display)}
                               </td>
+                              <td className="px-5 py-2.5 text-right" style={{ color: 'var(--brand-muted)' }}>—</td>
+                              <td className="px-5 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: 'var(--brand-muted)' }}>
+                                {formatBRL(p.total_display)}
+                              </td>
+                              <td className="px-5 py-2.5">
+                                {renderInvoiceToggle(p.projeto_id, !!p.invoiced, p.tipo_code === 'on_demand')}
+                              </td>
                             </tr>
                           ))}
                         </>
@@ -1227,14 +1431,34 @@ export default function FechamentoClientePage() {
 
                 {/* Rodapé */}
                 <div className="flex justify-end pt-4">
-                  <div className="px-5 py-3 rounded-xl"
+                  <div className="px-5 py-3 rounded-xl flex items-center gap-4 flex-wrap"
                     style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    <span className="text-sm font-semibold mr-4" style={{ color: 'var(--brand-muted)' }}>
-                      {totalHoras.toFixed(2)}h · Total Geral
+                    <span className="text-sm font-semibold" style={{ color: 'var(--brand-muted)' }}>
+                      {totalHoras.toFixed(2)}h
                     </span>
-                    <span className="text-base font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
-                      {formatBRL(totalReceita)}
-                    </span>
+                    {totalDesconto > 0 ? (
+                      <>
+                        <span className="text-sm tabular-nums" style={{ color: 'var(--brand-muted)' }}>
+                          Cheio <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>{formatBRL(totalReceita)}</span>
+                        </span>
+                        <span className="text-sm tabular-nums" style={{ color: 'var(--danger)' }}>
+                          Desconto −{formatBRL(totalDesconto)}
+                        </span>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--brand-muted)' }}>
+                          Com desconto
+                        </span>
+                        <span className="text-base font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+                          {formatBRL(totalLiquido)}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--brand-muted)' }}>Total Geral</span>
+                        <span className="text-base font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+                          {formatBRL(totalReceita)}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1318,6 +1542,8 @@ export default function FechamentoClientePage() {
                             <Th>Tipo de contrato</Th>
                             <Th right {...servicosSort.thProps('total_horas')}>Horas</Th>
                             <Th right {...servicosSort.thProps('total_receita')}>Total Serviços</Th>
+                            <Th right>Desconto</Th>
+                            <Th right>Com Desconto</Th>
                             <Th>Envio</Th>
                             <Th right>Ação</Th>
                           </tr>
@@ -1338,6 +1564,17 @@ export default function FechamentoClientePage() {
                                 </Td>
                                 <Td right muted className="tabular-nums text-xs">{c.total_horas.toFixed(2)}h</Td>
                                 <Td right className="tabular-nums text-sm font-semibold">{formatBRL(c.total_receita)}</Td>
+                                <Td right className="tabular-nums text-xs">
+                                  {(() => {
+                                    const d = descontoMap.get(c.customer_id)
+                                    return d && d.valor > 0
+                                      ? <span title={d.descricao ?? undefined} style={{ color: 'var(--danger)' }}>− {formatBRL(d.valor)}</span>
+                                      : <span style={{ color: 'var(--text-light)' }}>—</span>
+                                  })()}
+                                </Td>
+                                <Td right className="tabular-nums text-sm font-semibold">
+                                  {formatBRL(Math.max(0, c.total_receita - (descontoMap.get(c.customer_id)?.valor ?? 0)))}
+                                </Td>
                                 <Td>{env?.envio_em
                                   ? <Badge variant="success"><Check size={10} className="mr-1" />{fmtDateTime(env.envio_em)}{env.envio_por ? ` · ${env.envio_por}` : ''}</Badge>
                                   : <span className="text-xs" style={{ color: 'var(--text-light)' }}>não enviado</span>}
@@ -1352,6 +1589,15 @@ export default function FechamentoClientePage() {
                             <td className="px-5 py-3 text-right text-xs font-bold" style={{ color: 'var(--brand-muted)' }} colSpan={2}>TOTAL GERAL</td>
                             <Td right muted className="tabular-nums text-xs">{clientesServicos.reduce((s, c) => s + c.total_horas, 0).toFixed(2)}h</Td>
                             <Td right className="tabular-nums font-bold" style={{ color: 'var(--brand-primary)' }}>{formatBRL(clientesServicos.reduce((s, c) => s + c.total_receita, 0))}</Td>
+                            <Td right className="tabular-nums text-xs font-bold" style={{ color: 'var(--danger)' }}>
+                              {(() => {
+                                const tot = clientesServicos.reduce((s, c) => s + (descontoMap.get(c.customer_id)?.valor ?? 0), 0)
+                                return tot > 0 ? <>− {formatBRL(tot)}</> : '—'
+                              })()}
+                            </Td>
+                            <Td right className="tabular-nums font-bold" style={{ color: 'var(--brand-primary)' }}>
+                              {formatBRL(clientesServicos.reduce((s, c) => s + Math.max(0, c.total_receita - (descontoMap.get(c.customer_id)?.valor ?? 0)), 0))}
+                            </Td>
                             <Td /><Td right />
                           </Tr>
                         </Tbody>

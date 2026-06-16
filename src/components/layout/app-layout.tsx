@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
 import { useAuth } from '@/hooks/use-auth'
@@ -33,7 +33,12 @@ interface AppLayoutProps {
 export function AppLayout({ children, title, actions, fullBleed = false }: AppLayoutProps) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
   const [companyName, setCompanyName] = useState<string | null>(null)
+  // Drawer de navegação no mobile (sidebar off-canvas).
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  // Fecha o drawer ao trocar de rota.
+  useEffect(() => { setMobileNavOpen(false) }, [pathname])
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
@@ -83,14 +88,14 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
       )}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <Sidebar user={user} />
+        <Sidebar user={user} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <Header title={title} actions={actions} />
+          <Header title={title} actions={actions} onMenuClick={() => setMobileNavOpen(true)} />
 
           {/* ── Faixa de identidade ── */}
           {displayName && (
             <div
-              className="shrink-0 flex items-center gap-3 px-6 py-2 border-b"
+              className="shrink-0 flex items-center gap-3 px-4 md:px-6 py-2 border-b"
               style={{
                 borderColor: isCliente
                   ? 'color-mix(in srgb, var(--primary) 25%, transparent)'
@@ -130,7 +135,7 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
             </div>
           )}
 
-          <main className={fullBleed ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 overflow-y-auto p-8'}>
+          <main className={fullBleed ? 'flex-1 min-h-0 overflow-hidden' : 'flex-1 overflow-y-auto p-4 md:p-8'}>
             {children}
           </main>
         </div>

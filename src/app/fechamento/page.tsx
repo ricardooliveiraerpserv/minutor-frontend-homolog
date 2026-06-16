@@ -314,7 +314,7 @@ function TabConsolidado({ data, loading }: { data: Consolidado | null; loading: 
 
   return (
     <div className="space-y-5 max-w-2xl mx-auto">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
           { label: 'Custo Interno',   value: formatBRL(data.total_custo_interno),   icon: UserCheck,  color: '#00F5FF' },
           { label: 'Custo Parceiros', value: formatBRL(data.total_custo_parceiros), icon: UserCheck,  color: '#a78bfa' },
@@ -366,7 +366,7 @@ function TabRelatorio({ data, loading }: { data: Consolidado | null; loading: bo
 
   return (
     <div className="max-w-lg mx-auto">
-      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+      <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
         <div className="px-4 py-3" style={{ background: 'var(--brand-bg)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Relatório Financeiro do Período</p>
         </div>
@@ -592,7 +592,7 @@ export default function FechamentoPage() {
 
   return (
     <AppLayout title="Fechamento">
-      <div className="flex flex-col gap-5 p-6 h-full">
+      <div className="flex flex-col gap-5 p-4 md:p-6 h-full">
 
         {/* Header */}
         <PageHeader
@@ -654,7 +654,7 @@ export default function FechamentoPage() {
         )}
 
         {/* Tab bar */}
-        <div className="flex gap-1 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
           {TABS.map(t => {
             const active = tab === t.id
             return (

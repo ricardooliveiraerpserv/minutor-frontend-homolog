@@ -43,6 +43,8 @@ import {
   UserPlus,
   Search,
   Inbox,
+  Mail,
+  Banknote,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -110,10 +112,10 @@ const NAV: NavEntry[] = [
   ] : []),
   {
     type: 'group',
-    label: 'Projetos',
+    label: 'Projetos e Contratos',
     icon: FolderOpen,
     items: [
-      { label: 'Gestão de Projetos',       href: '/gestao-projetos',          icon: Layers },
+      { label: 'Gestão de Contratos',       href: '/gestao-projetos',          icon: Layers },
       { label: 'Kanban Contratos',         href: '/contratos/kanban',         icon: LayoutGrid },
       { label: 'Demandas e Projetos',      href: '/contratos/pipeline',       icon: Layers },
       { label: 'Investimento Interno',      href: '/investimento-comercial',   icon: TrendingUp },
@@ -185,6 +187,8 @@ const NAV: NavEntry[] = [
       { label: 'Clientes',            href: '/fechamento/cliente',      icon: Building2  },
       { label: 'Parceiros',           href: '/fechamento/parceiro',     icon: Handshake  },
       { label: 'Consultores',         href: '/fechamento/consultor',    icon: UserCheck  },
+      { label: 'Adiantamentos',       href: '/fechamento/adiantamentos', icon: Banknote },
+      { label: 'Diretoria',           href: '/fechamento/diretoria',    icon: Briefcase },
       { label: 'Folha Cooperativa',   href: '/fechamento/folha',        icon: FileSpreadsheet },
       { label: 'Contratos',           href: '/fechamento/contratos',    icon: FileText   },
       { label: 'Reajuste de Contrato', href: '/fechamento/reajustes',   icon: TrendingUp },
@@ -196,7 +200,9 @@ const NAV: NavEntry[] = [
     label: 'Relatórios',
     icon: FileText,
     items: [
-      { label: 'Apontamentos', href: '/relatorios/apontamentos', icon: Clock },
+      { label: 'Apontamentos',  href: '/relatorios/apontamentos',  icon: Clock },
+      { label: 'Pagamentos',    href: '/relatorios/pagamentos',    icon: DollarSign },
+      { label: 'Rentabilidade', href: '/relatorios/rentabilidade', icon: TrendingUp },
     ],
   },
   // 🧪 Features experimentais — só em DEV1 (escondidas em homolog/prod)
@@ -212,19 +218,21 @@ const NAV: NavEntry[] = [
     label: 'Cadastros',
     icon: Database,
     items: [
-      { label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',         icon: FileType },
-      { label: 'Tipos de Serviço',      href: '/cadastros?tab=services',          icon: Wrench },
+      { label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag },
       { label: 'Clientes',              href: '/clientes',                         icon: Users },
       { label: 'Contatos de Clientes', href: '/cadastros?tab=customer_contacts',  icon: Contact },
       { label: 'Executivos',            href: '/cadastros?tab=executives',        icon: Star },
-      { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
       { label: 'Feriados',              href: '/cadastros?tab=holidays',          icon: CalendarDays },
-      { label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag },
-      { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',     icon: Receipt },
       { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',   icon: CreditCard },
+      { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
+      { label: 'Integração Movidesk',   href: '/configuracoes/movidesk',          icon: Webhook },
+      { label: 'Modelos de E-mail',     href: '/cadastros?tab=email_templates',   icon: Mail },
       { label: 'Parceiros',             href: '/partners',                        icon: Handshake },
       { label: 'Saldo Inicial de Tickets', href: '/cadastros/saldo-inicial-tickets', icon: Ticket },
-      { label: 'Integração Movidesk',   href: '/configuracoes/movidesk',          icon: Webhook },
+      { label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',         icon: FileType },
+      { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',     icon: Receipt },
+      { label: 'Tipos de Serviço',      href: '/cadastros?tab=services',          icon: Wrench },
+      { label: 'Workflows de E-mail',   href: '/cadastros/workflows',             icon: Mail },
     ],
   },
   { type: 'item', label: 'Usuários',      href: '/users',    icon: Users },
@@ -243,11 +251,21 @@ function itemClass(active: boolean): string {
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
-function SidebarInner({ user }: { user: User }) {
+function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobileOpen?: boolean; onClose?: () => void }) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
-  const [collapsed,   setCollapsed]   = useState(false)
+  const [collapsedRaw, setCollapsed]  = useState(false)
   const [openGroups,  setOpenGroups]  = useState<string[]>([])
+  // No mobile o menu é um drawer de largura cheia — nunca colapsado (ícones-só é coisa de desktop).
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const sync = () => setIsMobile(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+  const collapsed = collapsedRaw && !isMobile
 
   const isConsultor        = user?.type === 'consultor'
   const isCoordenador      = user?.type === 'coordenador'
@@ -302,11 +320,15 @@ function SidebarInner({ user }: { user: User }) {
       // Permissão via grupo libera "Gestão de Projetos" pra coordenadores que NÃO
       // sejam do tipo "projetos" (esses entram via Demandas e Projetos abaixo).
       if (user?.coordinator_type !== 'projetos' && (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update'))) {
-        nav.splice(1, 0, { type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers })
+        nav.splice(1, 0, { type: 'item', label: 'Gestão de Contratos', href: '/gestao-projetos', icon: Layers })
       }
 
       // Meu Painel — primeiro item para TODOS os coordenadores
       nav.unshift({ type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard })
+
+      // Investimento Interno — disponível para TODOS os coordenadores (apontamentos,
+      // aprovação e gestão dos investimentos internos / leads da ERPSERV).
+      nav.push({ type: 'item', label: 'Investimento Interno', href: '/investimento-comercial', icon: TrendingUp })
 
       // Demandas e Projetos — posição 2 para coordenador de projetos
       // ("Gestão de Projetos" foi removida — governança ficou no painel/Demandas)
@@ -358,7 +380,7 @@ function SidebarInner({ user }: { user: User }) {
       // reset de senhas (a tela /users gateia as ações pra esse perfil).
       if (isCoordProjetos)                  cadastrosItems.push({ label: 'Usuários',              href: '/users',                            icon: Users })
       // 'Projetos' foi removido — inclusão agora é feita via Kanban (pipeline)
-      if (cadastrosItems.length > 0) nav.push({ type: 'group', label: 'Cadastros', icon: Database, items: cadastrosItems })
+      if (cadastrosItems.length > 0) nav.push({ type: 'group', label: 'Cadastros', icon: Database, items: cadastrosItems.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')) })
 
       // Usuários — após Cadastros (perfis com permissão dedicada; coord_projetos já entra via Cadastros acima)
       if (!isCoordProjetos && hasAnyUserPerm) nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
@@ -388,6 +410,8 @@ function SidebarInner({ user }: { user: User }) {
             { label: 'Clientes',           href: '/fechamento/cliente',   icon: Building2 },
             { label: 'Parceiros',          href: '/fechamento/parceiro',  icon: Handshake },
             { label: 'Consultores',        href: '/fechamento/consultor', icon: Users },
+            { label: 'Adiantamentos',      href: '/fechamento/adiantamentos', icon: Banknote },
+            { label: 'Diretoria',          href: '/fechamento/diretoria', icon: Briefcase },
             { label: 'Folha Cooperativa',  href: '/fechamento/folha',     icon: FileSpreadsheet },
             { label: 'Contratos',          href: '/fechamento/contratos', icon: FileText  },
             { label: 'Reajuste de Contrato', href: '/fechamento/reajustes', icon: TrendingUp },
@@ -404,7 +428,7 @@ function SidebarInner({ user }: { user: User }) {
       ]
       // Gestão de Projetos — libera via permissão de grupo (mesmo padrão de outros perfis)
       if (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update')) {
-        nav.splice(3, 0, { type: 'item', label: 'Gestão de Projetos', href: '/gestao-projetos', icon: Layers })
+        nav.splice(3, 0, { type: 'item', label: 'Gestão de Contratos', href: '/gestao-projetos', icon: Layers })
       }
       return nav
     }
@@ -524,10 +548,39 @@ function SidebarInner({ user }: { user: User }) {
   )
 
   return (
+    <>
+      {/* Backdrop do drawer (só mobile, quando aberto) */}
+      <div
+        onClick={onClose}
+        className={cn('fixed inset-0 z-40 bg-black/50 md:hidden transition-opacity duration-200',
+          mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none')}
+        aria-hidden
+      />
+    {/* Container que CLIPA o drawer off-screen no mobile — é `fixed` (fora da
+        cadeia de altura do conteúdo, então não quebra `h-full`/h:100% no iOS).
+        No desktop vira `contents` e some, deixando o <aside> fluir normalmente. */}
+    <div className="fixed inset-0 z-50 overflow-x-hidden pointer-events-none md:static md:inset-auto md:z-auto md:overflow-visible md:pointer-events-auto md:contents">
     <aside
-      className={cn('flex flex-col h-screen border-r transition-all duration-200 shrink-0', collapsed ? 'w-[60px]' : 'w-[248px]')}
+      className={cn(
+        'flex flex-col border-r transition-transform duration-200',
+        // Mobile: drawer off-canvas (absolute dentro do container fixo → clipado)
+        'absolute inset-y-0 left-0 w-[248px] pointer-events-auto',
+        mobileOpen ? 'translate-x-0' : '-translate-x-full',
+        // Desktop: estático no fluxo, altura cheia, colapso opcional
+        'md:static md:h-screen md:shrink-0 md:translate-x-0 md:transition-all',
+        collapsedRaw ? 'md:w-[60px]' : 'md:w-[248px]',
+      )}
       style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}
     >
+      {/* Fechar (só mobile) */}
+      <button
+        onClick={onClose}
+        aria-label="Fechar menu"
+        className="md:hidden absolute top-3 right-3 z-10 p-1.5 rounded-md transition-colors hover:bg-zinc-800"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <ChevronLeft size={16} />
+      </button>
       {/* ── Logo ── */}
       <div
         className="flex items-center gap-8 h-18 px-5 border-b shrink-0"
@@ -733,10 +786,10 @@ function SidebarInner({ user }: { user: User }) {
         </div>
       )}
 
-      {/* ── Collapse toggle ── */}
+      {/* ── Collapse toggle (só desktop) ── */}
       <button
         onClick={() => setCollapsed(c => !c)}
-        className="flex items-center justify-center h-10 border-t transition-colors"
+        className="hidden md:flex items-center justify-center h-10 border-t transition-colors"
         style={{ borderColor: 'var(--brand-border)', color: 'var(--text-muted)' }}
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -744,13 +797,15 @@ function SidebarInner({ user }: { user: User }) {
         {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
     </aside>
+    </div>
+    </>
   )
 }
 
-export function Sidebar({ user }: { user: User }) {
+export function Sidebar({ user, mobileOpen, onClose }: { user: User; mobileOpen?: boolean; onClose?: () => void }) {
   return (
     <Suspense>
-      <SidebarInner user={user} />
+      <SidebarInner user={user} mobileOpen={mobileOpen} onClose={onClose} />
     </Suspense>
   )
 }

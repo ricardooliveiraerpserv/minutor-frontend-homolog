@@ -342,7 +342,7 @@ function DebugClientesTab({ rows, onSync }: { rows: DebugClienteRow[]; onSync: (
         </div>
       </div>
 
-      <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="rounded-xl border overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
         <table className="w-full text-xs">
           <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
@@ -479,7 +479,7 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
         </div>
       </div>
 
-      <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="rounded-xl border overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
         <table className="w-full text-xs">
           <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
@@ -946,7 +946,7 @@ export default function SustentacaoPage() {
     <AppLayout>
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--brand-bg)' }}>
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="flex items-center justify-between gap-3 flex-wrap px-4 md:px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
         <div>
           <h1 className="text-lg font-bold text-white">Portal de Sustentação</h1>
           <p className="text-xs text-zinc-500">Central operacional de suporte — Movidesk + Minutor</p>
@@ -987,7 +987,7 @@ export default function SustentacaoPage() {
       </div>
 
       {/* ── Central de Lançamentos — sempre visível (navegação entre rotinas) ── */}
-      <div className="px-6 pt-3 shrink-0">
+      <div className="px-4 md:px-6 pt-3 shrink-0">
         <div
           className="rounded-xl px-3 py-2 flex items-center gap-2 flex-wrap"
           style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
@@ -1035,7 +1035,7 @@ export default function SustentacaoPage() {
 
       {/* ── Tabs (Indicadores) — escondidas quando uma rotina está ativa ── */}
       {!routineTab && (
-        <div className="flex gap-1 px-6 pt-3 pb-0 border-b shrink-0 overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex gap-1 px-4 md:px-6 pt-3 pb-0 border-b shrink-0 overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
           {TABS.map(t => {
             const Icon = t.icon
             const active = tab === t.id
@@ -1059,7 +1059,7 @@ export default function SustentacaoPage() {
           Lançamentos + o botão "Voltar à Home do Portal" já fazem o papel. */}
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {!routineTab && loading && (
           <div className="flex items-center gap-2 text-zinc-500 text-sm mb-4">
             <RefreshCw size={14} className="animate-spin" /> Carregando...

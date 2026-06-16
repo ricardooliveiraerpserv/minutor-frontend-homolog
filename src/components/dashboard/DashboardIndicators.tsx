@@ -93,7 +93,7 @@ const STATUS_COLOR: Record<string, string> = {
   conflicting: '#F97316', adjustment_requested: '#8B5CF6',
 }
 
-function fmtMinutes(m: number) { return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` }
+function fmtMinutes(m: number) { return (Number(m || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }
 function fmtDate(d: string)    { return d.split('-').reverse().join('/') }
 
 function TimesheetsModal({

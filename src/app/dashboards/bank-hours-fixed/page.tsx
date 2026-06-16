@@ -2,7 +2,7 @@
 
 import { formatBRL } from '@/lib/format'
 import { AppLayout } from '@/components/layout/app-layout'
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { sanitizeHtml, previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
@@ -521,6 +521,54 @@ export default function BankHoursFixedPage() {
       .finally(() => setLoadingMaint(false))
   }, [baseParams, resolveMonthYear, hasFilters, dateFilterCleared, dateFrom, dateTo])
 
+  // Aba Projetos: por padrão lista TODOS os projetos (all-time). Só na Auster o
+  // filtro de data (mês/ano ou período) recorta a lista pela DATA DE INÍCIO do
+  // projeto — pedido específico do cliente Auster.
+  const displayedProjects = useMemo(() => {
+    if (!isAusterContext) return projectsList
+    if (dateFrom && dateTo) {
+      return projectsList.filter(p => p.start_date && p.start_date >= dateFrom && p.start_date <= dateTo)
+    }
+    if (refMonth && refYear) {
+      const ym = `${refYear}-${String(refMonth).padStart(2, '0')}`
+      return projectsList.filter(p => p.start_date && p.start_date.slice(0, 7) === ym)
+    }
+    return projectsList
+  }, [isAusterContext, projectsList, dateFrom, dateTo, refMonth, refYear])
+
+  const projectsFilterHint = (() => {
+    if (!isAusterContext) return null
+    if (dateFrom && dateTo) {
+      const fmt = (s: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s); return m ? `${m[3]}/${m[2]}/${m[1]}` : s }
+      return `Início entre ${fmt(dateFrom)} e ${fmt(dateTo)}`
+    }
+    if (refMonth && refYear) return `Início em ${MONTH_NAMES_PT[refMonth - 1]} ${refYear}`
+    return null
+  })()
+
+  function exportProjectsToXLSX() {
+    if (displayedProjects.length === 0) return
+    const data = displayedProjects.map(p => {
+      const contributions = p.total_contributions_hours || p.hour_contribution || 0
+      return {
+        'Código': p.code ?? '',
+        'Projeto': p.name ?? '',
+        'Status': p.status_display ?? '',
+        'Tipo': p.contract_type_display ?? '',
+        'Horas Vendidas': p.sold_hours ?? 0,
+        'Aporte (h)': contributions || 0,
+        'Consumo (h)': Number((p.consumed_hours ?? 0).toFixed(2)),
+        'Saldo (h)': Number((p.hours_balance ?? 0).toFixed(2)),
+        'Início': p.start_date ? fmtDate(p.start_date) : '',
+      }
+    })
+    const ws = XLSX.utils.json_to_sheet(data)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Projetos')
+    const stamp = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(wb, `projetos_${stamp}.xlsx`)
+  }
+
   useEffect(() => { fetchSummary() }, [fetchSummary])
   useEffect(() => { if (activeTab === 'projects')    fetchProjects()    }, [fetchProjects, activeTab])
   useEffect(() => { if (activeTab === 'maintenance') fetchMaintenance() }, [fetchMaintenance, activeTab])
@@ -890,9 +938,8 @@ export default function BankHoursFixedPage() {
 
             {/* ── PROJETOS ── */}
             {activeTab === 'projects' && (
-              // A aba Projetos IGNORA o filtro de data (mês/período) — sempre lista
-              // TODOS os projetos do contrato com seu consumo acumulado (all-time).
-              // O filtro de data continua valendo só nas outras abas (Total Geral etc).
+              // Por padrão lista TODOS os projetos (all-time, consumo acumulado).
+              // Exceção Auster: o filtro de data recorta a lista pela data de início.
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4">
                   <KpiCard
@@ -902,7 +949,16 @@ export default function BankHoursFixedPage() {
                     accent="primary"
                   />
                 </div>
-                <ProjectsTable items={projectsList} loading={loadingProjects} />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {projectsFilterHint ? (
+                    <span className="text-xs px-3 py-1.5 rounded-full font-medium inline-flex items-center gap-1.5"
+                      style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                      <Calendar size={13} /> {projectsFilterHint} · {displayedProjects.length} projeto{displayedProjects.length === 1 ? '' : 's'}
+                    </span>
+                  ) : <span />}
+                  <ExportButton onClick={exportProjectsToXLSX} disabled={displayedProjects.length === 0} />
+                </div>
+                <ProjectsTable items={displayedProjects} loading={loadingProjects} />
               </div>
             )}
 
@@ -1435,11 +1491,8 @@ function InlineTimesheetsTable({ rows, loading, variant = 'maintenance', onRowCl
 }
 
 function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loading: boolean }) {
-  const fmtH = (mins: number) => {
-    const h = Math.floor(mins / 60)
-    const m = Math.abs(mins % 60)
-    return `${h}:${String(m).padStart(2, '0')}`
-  }
+  // Apuração em horas DECIMAIS (não HH:MM) — ex.: 44h42min = 44,70h → "44.70h".
+  const fmtH = (mins: number) => `${((mins ?? 0) / 60).toFixed(2)}h`
   if (!loading && rows.length === 0) return null
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>

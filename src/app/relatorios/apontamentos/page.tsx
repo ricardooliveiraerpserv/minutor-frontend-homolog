@@ -27,7 +27,7 @@ type DateField  = 'date' | 'created_at'
 type StatusKey  = 'pending' | 'approved'
 
 interface Customer    { id: number; name: string }
-interface Project     { id: number; name: string }
+interface Project     { id: number; name: string; parent_project_id?: number | null }
 interface ServiceType { id: number; name: string }
 
 interface TicketSummaryRow {
@@ -79,10 +79,9 @@ function fmtTimeHM(t: string | null | undefined): string {
   return t.length >= 5 ? t.slice(0, 5) : t
 }
 
-function minutesToHHMM(minutes: number): string {
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return `${h}:${String(m).padStart(2, '0')}`
+// Apuração 100% em horas DECIMAIS (não HH:MM) — ex.: 8h30 = 8,50h → "8.50h".
+function fmtHoras(minutes: number): string {
+  return (Number(minutes ?? 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 function parseRequester(v: RawTimesheet['ticket_solicitante']): string {
@@ -113,7 +112,8 @@ export default function RelatorioApontamentosPage() {
   const [digFrom, setDigFrom] = useState('')
   const [digTo,   setDigTo]   = useState('')
 
-  const [statuses, setStatuses] = useState<StatusKey[]>(['pending', 'approved'])
+  // Status fixo: relatório sempre considera pendentes + aprovados (sem toggle).
+  const statuses: StatusKey[] = ['pending', 'approved']
 
   const [items,    setItems]    = useState<RawTimesheet[]>([])
   const [ticketSummary, setTicketSummary] = useState<TicketSummaryRow[]>([])
@@ -150,7 +150,7 @@ export default function RelatorioApontamentosPage() {
     api.get<any>(`/projects?customer_id=${customerId}&pageSize=500`)
       .then(r => {
         const list: any[] = Array.isArray(r) ? r : r?.items ?? r?.data ?? []
-        setProjects(list.map(p => ({ id: p.id, name: p.name })).sort((a, b) => a.name.localeCompare(b.name)))
+        setProjects(list.map(p => ({ id: p.id, name: p.name, parent_project_id: p.parent_project_id ?? null })))
       })
       .catch(() => setProjects([]))
     setProjectIds([])
@@ -180,6 +180,27 @@ export default function RelatorioApontamentosPage() {
     [customers, customerId],
   )
 
+  // Opções do seletor de projetos em árvore: filho aparece sob o pai com "↳".
+  const projectOptions = useMemo(() => {
+    const ids = new Set(projects.map(p => p.id))
+    const byParent = new Map<number | null, Project[]>()
+    for (const p of projects) {
+      const key = p.parent_project_id && ids.has(p.parent_project_id) ? p.parent_project_id : null
+      const arr = byParent.get(key) ?? []
+      arr.push(p); byParent.set(key, arr)
+    }
+    const sortName = (a: Project, b: Project) => a.name.localeCompare(b.name, 'pt-BR')
+    const out: { id: number; name: string; depth: number }[] = []
+    const walk = (parentId: number | null, depth: number) => {
+      for (const p of (byParent.get(parentId) ?? []).sort(sortName)) {
+        out.push({ id: p.id, name: p.name, depth })
+        walk(p.id, depth + 1)
+      }
+    }
+    walk(null, 0)
+    return out
+  }, [projects])
+
   // Regra especial VEDAMOTORS: coluna "Título" do relatório vira "TICKET ERPSERV".
   // Quando o ticket bate o padrão (5 dígitos), mantém o título original.
   // Quando NÃO bate, prefixa com "sem ticket".
@@ -201,14 +222,6 @@ export default function RelatorioApontamentosPage() {
     const original = (t.ticket_subject ?? '').trim()
     const match = original.match(VEDAMOTORS_PATTERN)
     return match ? match[0] : 'Sem ticket'
-  }
-
-  const toggleStatus = (s: StatusKey) => {
-    setStatuses(prev => {
-      const has = prev.includes(s)
-      if (has && prev.length === 1) return prev // não deixa zerar
-      return has ? prev.filter(x => x !== s) : [...prev, s]
-    })
   }
 
   async function loadReport() {
@@ -277,7 +290,7 @@ export default function RelatorioApontamentosPage() {
     () => items.reduce((acc, t) => acc + (t.effort_minutes ?? 0), 0),
     [items],
   )
-  const totalHHMM = minutesToHHMM(totalMinutes)
+  const totalHoras = fmtHoras(totalMinutes)
   const emittedAt = fmtDateBR(today.toISOString().slice(0, 10))
 
   // Ordenação por coluna (só na TABELA da tela; o relatório/PDF mantém a ordem por serviço).
@@ -318,7 +331,7 @@ export default function RelatorioApontamentosPage() {
       description:    previewText(t.observation),
       start_time:     fmtTimeHM(t.start_time),
       end_time:       fmtTimeHM(t.end_time),
-      effort_hours:   t.effort_hours ?? minutesToHHMM(t.effort_minutes ?? 0),
+      effort_hours:   fmtHoras(t.effort_minutes ?? 0),
       effort_decimal: Math.round(((t.effort_minutes ?? 0) / 60) * 100) / 100,
       date_service:   fmtDateBR(t.date),
     }))
@@ -329,7 +342,7 @@ export default function RelatorioApontamentosPage() {
       client:       customerName,
       period:       periodInfo.label,
       emittedAt,
-      totalHours:   totalHHMM,
+      totalHours:   totalHoras,
       totalRecords: items.length,
       ticketHeader: isVedamotors ? 'Ticket ERPSERV' : 'Ticket',
       titleHeader:  isVedamotors ? 'Ticket Vedamotors' : 'Título',
@@ -444,7 +457,7 @@ export default function RelatorioApontamentosPage() {
             <MultiSelect
               value={projectIds}
               onChange={setProjectIds}
-              options={projects}
+              options={projectOptions}
               placeholder={projects.length === 0 ? 'Selecione um cliente' : 'Todos os projetos'}
               fullWidth
               disabled={!customerId || projects.length === 0}
@@ -538,28 +551,6 @@ export default function RelatorioApontamentosPage() {
 
         <div className="flex flex-wrap items-end gap-3 justify-between">
           <div className="flex items-end gap-3 flex-wrap">
-            <div>
-              <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>Status</label>
-              <div className="flex gap-2">
-                {(['pending', 'approved'] as StatusKey[]).map(s => {
-                  const active = statuses.includes(s)
-                  const styles = s === 'pending'
-                    ? { color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)' }
-                    : { color: '#10B981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)' }
-                  return (
-                    <button
-                      key={s} type="button" onClick={() => toggleStatus(s)}
-                      className="px-3 h-8 rounded-lg text-xs font-medium transition-colors"
-                      style={active
-                        ? { background: styles.bg, color: styles.color, border: `1px solid ${styles.border}` }
-                        : { background: 'transparent', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}
-                    >
-                      {STATUS_LABEL[s]}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
             <Button variant="primary" icon={Search} loading={loading} onClick={loadReport} disabled={!customerId}>
               {loading ? 'Carregando...' : 'Gerar relatório'}
             </Button>
@@ -592,7 +583,7 @@ export default function RelatorioApontamentosPage() {
               <div>Competência: <span style={{ color: 'var(--brand-text)' }}>{periodInfo.label || '—'}</span></div>
               <div>Emitido em: <span style={{ color: 'var(--brand-text)' }}>{emittedAt}</span></div>
               <div>
-                Total: <span className="font-semibold" style={{ color: 'var(--brand-primary)' }}>{totalHHMM}</span>
+                Total: <span className="font-semibold" style={{ color: 'var(--brand-primary)' }}>{totalHoras}</span>
                 <span className="mx-2" style={{ color: 'var(--brand-subtle)' }}>•</span>
                 <span style={{ color: 'var(--brand-text)' }}>{items.length}</span> registro{items.length === 1 ? '' : 's'}
               </div>
@@ -714,7 +705,7 @@ export default function RelatorioApontamentosPage() {
                                   <td className="px-3 pt-2 pb-1 text-xs text-gray-700 text-center whitespace-nowrap">{fmtTimeHM(t.start_time) || '—'}</td>
                                   <td className="px-3 pt-2 pb-1 text-xs text-gray-700 text-center whitespace-nowrap">{fmtTimeHM(t.end_time) || '—'}</td>
                                   <td className="px-3 pt-2 pb-1 text-xs text-center font-semibold text-gray-800 tabular-nums whitespace-nowrap">
-                                    {t.effort_hours ?? minutesToHHMM(t.effort_minutes ?? 0)}
+                                    {fmtHoras(t.effort_minutes ?? 0)}
                                   </td>
                                   <td className="px-3 pt-2 pb-1 text-xs text-gray-700 text-center whitespace-nowrap">{fmtDateBR(t.date)}</td>
                                 </tr>
@@ -729,7 +720,7 @@ export default function RelatorioApontamentosPage() {
                           })}
                           <tr style={{ background: '#faf9ff', borderBottom: '2px solid #c4b5fd', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
                             <td colSpan={7} className="px-3 py-1.5 text-right text-xs font-semibold text-gray-600">Subtotal — {g.name} ({g.rows.length} reg.)</td>
-                            <td className="px-3 py-1.5 text-right text-xs font-bold tabular-nums" style={{ color: '#5b21b6' }}>{minutesToHHMM(g.mins)}</td>
+                            <td className="px-3 py-1.5 text-right text-xs font-bold tabular-nums" style={{ color: '#5b21b6' }}>{fmtHoras(g.mins)}</td>
                             <td />
                           </tr>
                         </Fragment>
@@ -742,7 +733,7 @@ export default function RelatorioApontamentosPage() {
                         Total ({items.length} registro{items.length === 1 ? '' : 's'})
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-bold tabular-nums" style={{ color: '#5b21b6' }}>
-                        {totalHHMM}
+                        {totalHoras}
                       </td>
                       <td />
                     </tr>
@@ -782,27 +773,14 @@ export default function RelatorioApontamentosPage() {
                           <td className="px-3 py-2 text-xs text-gray-700">{tk.title ?? '—'}</td>
                           <td className="px-3 py-2 text-xs text-gray-700">{tk.requester ?? '—'}</td>
                           <td className="px-3 py-2 text-xs text-right font-semibold text-gray-800 tabular-nums whitespace-nowrap">
-                            {minutesToHHMM(tk.period_minutes)}
+                            {fmtHoras(tk.period_minutes)}
                           </td>
                           <td className="px-3 py-2 text-xs text-right font-semibold tabular-nums whitespace-nowrap" style={{ color: '#5b21b6' }}>
-                            {minutesToHHMM(tk.lifetime_minutes)}
+                            {fmtHoras(tk.lifetime_minutes)}
                           </td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot>
-                      <tr style={{ background: '#ede9fe', borderTop: '2px solid #5b21b6', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}>
-                        <td colSpan={3} className="px-3 py-2 text-right text-sm font-semibold text-gray-700">
-                          Totais ({ticketSummary.length} ticket{ticketSummary.length === 1 ? '' : 's'})
-                        </td>
-                        <td className="px-3 py-2 text-right text-sm font-bold tabular-nums text-gray-800 whitespace-nowrap">
-                          {minutesToHHMM(ticketSummary.reduce((acc, t) => acc + t.period_minutes, 0))}
-                        </td>
-                        <td className="px-3 py-2 text-right text-sm font-bold tabular-nums whitespace-nowrap" style={{ color: '#5b21b6' }}>
-                          {minutesToHHMM(ticketSummary.reduce((acc, t) => acc + t.lifetime_minutes, 0))}
-                        </td>
-                      </tr>
-                    </tfoot>
                   </table>
                 </div>
               )}
@@ -879,7 +857,7 @@ export default function RelatorioApontamentosPage() {
                   </Td>
                   <Td className="text-center">{fmtTimeHM(t.start_time)}</Td>
                   <Td className="text-center">{fmtTimeHM(t.end_time)}</Td>
-                  <Td right className="font-semibold">{t.effort_hours ?? minutesToHHMM(t.effort_minutes ?? 0)}</Td>
+                  <Td right className="font-semibold">{fmtHoras(t.effort_minutes ?? 0)}</Td>
                 </Tr>
               ))}
               <tr style={{ background: 'var(--brand-bg)', borderTop: '2px solid var(--brand-border)' }}>
@@ -891,7 +869,7 @@ export default function RelatorioApontamentosPage() {
                   Total
                 </td>
                 <td className="px-5 py-3.5 text-right font-bold" style={{ color: 'var(--brand-primary)' }}>
-                  {totalHHMM}
+                  {totalHoras}
                 </td>
               </tr>
             </Tbody>
