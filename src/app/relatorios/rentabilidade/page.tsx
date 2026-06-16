@@ -184,7 +184,8 @@ export default function RentabilidadePage() {
           ...r, horas, receita, custo, recebido, margem,
           margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
           margem_real, margem_real_pct: recebido > 0 ? Math.round(margem_real / recebido * 1000) / 10 : null,
-          custo40, custo_total, resultado, resultado_pct: recebido > 0 ? Math.round(resultado / recebido * 1000) / 10 : null,
+          // Margem Total: sem recebido mas com custo = perda total → -100% (em vez de "—").
+          custo40, custo_total, resultado, resultado_pct: recebido > 0 ? Math.round(resultado / recebido * 1000) / 10 : (resultado < 0 ? -100 : null),
           custo40_pct,
         }
       }))
