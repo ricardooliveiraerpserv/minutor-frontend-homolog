@@ -104,7 +104,8 @@ function fmtDateTime(d: string | null | undefined) {
 }
 
 function fmtMin(minutes: number) {
-  return `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}`
+  // Tempo/total sempre em DECIMAL (ex.: 4h00 → 4 ; 0h30 → 0,5 ; 449h15 → 449,25).
+  return (Number(minutes || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 // Cor semântica do Consumo do Ticket por faixa de horas:

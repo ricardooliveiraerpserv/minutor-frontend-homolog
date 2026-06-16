@@ -1342,7 +1342,7 @@ export default function PartnerDashboardPage() {
                         {
                           icon: Zap, color: '#f59e0b',
                           label: 'Média por Apontamento',
-                          value: `${Math.floor(indEfficiency.avgPerEntry / 60)}h${String(Math.round(indEfficiency.avgPerEntry % 60)).padStart(2, '0')}`,
+                          value: (Number(indEfficiency.avgPerEntry || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
                           sub: `${indEfficiency.entries} apontamentos`,
                         },
                         {
