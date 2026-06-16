@@ -68,6 +68,7 @@ export default function RentabilidadePage() {
   const [clientesLoading, setClientesLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [soMinutor, setSoMinutor] = useState(false)
+  const [soForaMinutor, setSoForaMinutor] = useState(false)
   const [considerarErpserv, setConsiderarErpserv] = useState(false) // ERPSERV vem separada; botão p/ incluí-la (ou não) nos totais
   const [fExecutivo, setFExecutivo] = useState('')
   const [fConsultorCli, setFConsultorCli] = useState('')
@@ -302,8 +303,8 @@ export default function RentabilidadePage() {
 
   // ── Aba Clientes: filtro/ordenação/total ──
   const clientesFiltered = useMemo(() => clientesRows.filter(r => {
-    if (soReceita && r.receita === 0 && r.recebido === 0) return false
     if (soMinutor && !r.no_minutor) return false
+    if (soForaMinutor && r.no_minutor) return false
     if (fCliente && r.cliente !== fCliente) return false
     if (fExecutivo && (r.executivo ?? '') !== fExecutivo) return false
     if (fConsultorCli && !(r.consultores ?? []).some(c => String(c.user_id) === fConsultorCli)) return false
@@ -315,7 +316,7 @@ export default function RentabilidadePage() {
       if (!matchNome && !matchCnpj) return false
     }
     return true
-  }), [clientesRows, soReceita, soMinutor, fCliente, fExecutivo, fConsultorCli, busca])
+  }), [clientesRows, soMinutor, soForaMinutor, fCliente, fExecutivo, fConsultorCli, busca])
   const executivos = useMemo(() => [...new Set(clientesRows.map(r => r.executivo).filter(Boolean) as string[])].sort(), [clientesRows])
   const clientesOpts = useMemo(() => [...new Set(clientesRows.map(r => r.cliente).filter(Boolean))].sort().map(c => ({ id: c, name: c })), [clientesRows])
   const consultoresCli = useMemo(() => {
@@ -353,8 +354,8 @@ export default function RentabilidadePage() {
   // Para exportar: clientes (sem ERPSERV) + a linha da ERPSERV no fim, espelhando a tela.
   const clientesExport = erpservRow ? [erpservRow, ...clientesSorted] : clientesSorted
 
-  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true); setSoMinutor(false); setFExecutivo(''); setFConsultorCli('') }
-  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita || soMinutor || fExecutivo || fConsultorCli)
+  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true); setSoMinutor(false); setSoForaMinutor(false); setFExecutivo(''); setFConsultorCli('') }
+  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita || soMinutor || soForaMinutor || fExecutivo || fConsultorCli)
 
   const fmtYm = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) }
   const fmtMes = () => monthsToFetch.length
@@ -493,14 +494,22 @@ export default function RentabilidadePage() {
               <SearchSelect value={fConsultor} onChange={setFConsultor} options={[{ id: '', name: 'Todos os consultores' }, ...optConsultores]} placeholder="Todos os consultores" />
             </div>
           </>)}
-          <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
-            <input type="checkbox" checked={soReceita} onChange={e => setSoReceita(e.target.checked)} />
-            {visao === 'clientes' ? 'Só com movimento' : 'Só com receita'}
-          </label>
+          {visao !== 'clientes' && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
+              <input type="checkbox" checked={soReceita} onChange={e => setSoReceita(e.target.checked)} />
+              Só com receita
+            </label>
+          )}
           {visao === 'clientes' && (
             <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
-              <input type="checkbox" checked={soMinutor} onChange={e => setSoMinutor(e.target.checked)} />
+              <input type="checkbox" checked={soMinutor} onChange={e => { setSoMinutor(e.target.checked); if (e.target.checked) setSoForaMinutor(false) }} />
               Só clientes do Minutor
+            </label>
+          )}
+          {visao === 'clientes' && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
+              <input type="checkbox" checked={soForaMinutor} onChange={e => { setSoForaMinutor(e.target.checked); if (e.target.checked) setSoMinutor(false) }} />
+              Fora do Minutor
             </label>
           )}
           {visao === 'clientes' && (
