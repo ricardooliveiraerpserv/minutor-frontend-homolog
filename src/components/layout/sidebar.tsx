@@ -202,7 +202,9 @@ const NAV: NavEntry[] = [
     items: [
       { label: 'Apontamentos',  href: '/relatorios/apontamentos',  icon: Clock },
       { label: 'Pagamentos',    href: '/relatorios/pagamentos',    icon: DollarSign },
-      { label: 'Rentabilidade', href: '/relatorios/rentabilidade', icon: TrendingUp },
+      { label: 'Rent. Consultor × Projeto', href: '/relatorios/rentabilidade/consultor', icon: Users },
+      { label: 'Rent. por Projeto',         href: '/relatorios/rentabilidade/projeto',   icon: FolderOpen },
+      { label: 'Rent. Clientes',            href: '/relatorios/rentabilidade',           icon: TrendingUp, exactMatch: true },
     ],
   },
   // 🧪 Features experimentais — só em DEV1 (escondidas em homolog/prod)

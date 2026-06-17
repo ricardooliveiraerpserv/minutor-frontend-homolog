@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback, Fragment } from 'react'
+import { usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable, Button } from '@/components/ds'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -153,7 +154,16 @@ export default function RentabilidadePage() {
   const [fCliente, setFCliente]     = useState('')
   const [fProjeto, setFProjeto]     = useState('')
   const [fConsultor, setFConsultor] = useState('')
-  const [visao] = useState<'consultor' | 'projeto' | 'clientes'>('clientes')
+  // Cada visão é uma rotina própria no menu Relatórios (sub-rotas que reusam este
+  // componente). A visão é derivada do pathname:
+  //   /relatorios/rentabilidade            → Clientes (BI Keruak)
+  //   /relatorios/rentabilidade/consultor  → Consultor × Projeto
+  //   /relatorios/rentabilidade/projeto    → Por projeto
+  const pathname = usePathname()
+  const visao: 'consultor' | 'projeto' | 'clientes' =
+    pathname?.endsWith('/rentabilidade/consultor') ? 'consultor'
+    : pathname?.endsWith('/rentabilidade/projeto') ? 'projeto'
+    : 'clientes'
   // Linhas CRUAS (agregadas dos meses, sem ajuste inicial). A derivação (que injeta os
   // iniciais do ano e calcula margens) é feita em useMemo abaixo → editar é instantâneo.
   const [rawClientesRows, setRawClientesRows] = useState<ClienteRow[]>([])
