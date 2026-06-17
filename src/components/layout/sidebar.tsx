@@ -48,7 +48,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
-import { useState, useMemo, useEffect, Suspense } from 'react'
+import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LucideIcon } from 'lucide-react'
 import type { User } from '@/types'
@@ -248,6 +248,10 @@ function itemClass(active: boolean): string {
   return active ? 'sidebar-item-active' : ''
 }
 
+// Normaliza p/ busca: minúsculo + sem acento (casa "fechamento" digitando "fechament")
+const normalizeForSearch = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobileOpen?: boolean; onClose?: () => void }) {
@@ -255,6 +259,20 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const searchParams = useSearchParams()
   const [collapsedRaw, setCollapsed]  = useState(false)
   const [openGroups,  setOpenGroups]  = useState<string[]>([])
+  const [query, setQuery]             = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
+  // Atalho Ctrl/Cmd+K foca a busca do menu de qualquer lugar
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setCollapsed(false)        // garante o input visível antes de focar
+        searchRef.current?.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   // No mobile o menu é um drawer de largura cheia — nunca colapsado (ícones-só é coisa de desktop).
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -546,6 +564,35 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     isNavLink(i) ? isActive(i.href, undefined, i.exactMatch) : subGroupActive(i)
   )
 
+  // ── Busca no menu ──
+  // Filtra por label (sem acento/caixa). Grupo que casa no próprio nome é mantido
+  // inteiro; senão, mantém só os filhos que casam. Subgrupo idem.
+  const q = normalizeForSearch(query.trim())
+  const isSearching = q.length > 0
+  const filteredNav = useMemo(() => {
+    if (!q) return visibleNav
+    const match = (label: string) => normalizeForSearch(label).includes(q)
+    const out: NavEntry[] = []
+    for (const entry of visibleNav) {
+      if (entry.type === 'item') {
+        if (match(entry.label)) out.push(entry)
+        continue
+      }
+      if (match(entry.label)) { out.push(entry); continue }
+      const items = entry.items.flatMap((it): (NavLink | NavSubGroup)[] => {
+        if (isNavLink(it)) return match(it.label) ? [it] : []
+        if (match(it.label)) return [it]
+        const leaves = it.items.filter(l => match(l.label))
+        return leaves.length ? [{ ...it, items: leaves }] : []
+      })
+      if (items.length) out.push({ ...entry, items })
+    }
+    return out
+  }, [visibleNav, q])
+
+  // No colapsado não há input visível — mantém a lista completa (só ícones).
+  const navToRender = collapsed ? visibleNav : filteredNav
+
   return (
     <>
       {/* Backdrop do drawer (só mobile, quando aberto) */}
@@ -626,9 +673,37 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         </div>
       )}
 
+      {/* ── Busca no menu ── */}
+      {!collapsed && (
+        <div className="px-3 pt-3 shrink-0">
+          <div className="relative">
+            <Search
+              size={14}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: 'var(--text-muted)' }}
+            />
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Escape') { setQuery(''); e.currentTarget.blur() } }}
+              placeholder="Buscar no menu…"
+              aria-label="Buscar no menu"
+              className="w-full pl-8 pr-3 py-2 rounded-lg text-sm outline-none border"
+              style={{ background: 'var(--surface-hover)', color: 'var(--text)', borderColor: 'var(--brand-border)' }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* ── Nav ── */}
       <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
-        {visibleNav.map(entry => {
+        {!collapsed && isSearching && navToRender.length === 0 && (
+          <p className="px-3 py-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+            Nenhum item encontrado
+          </p>
+        )}
+        {navToRender.map(entry => {
           // ── Plain item ──
           if (entry.type === 'item') {
             const active = isActive(entry.href, entry.matchPaths)
@@ -658,7 +733,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           const group = entry as NavGroup
           const GroupIcon = group.icon
           const active = groupActive(group)
-          const open   = openGroups.includes(group.label)
+          const open   = openGroups.includes(group.label) || isSearching
 
           // Lista plana de links (descendo recursivamente em subgrupos) — usada no modo collapsed.
           const flatLinks = (entries: (NavLink | NavSubGroup)[]): NavLink[] =>
@@ -711,7 +786,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                     if (!isNavLink(sub)) {
                       const subgroupKey = `${group.label}/${sub.label}`
                       const SubGroupIcon = sub.icon
-                      const sgOpen = openGroups.includes(subgroupKey)
+                      const sgOpen = openGroups.includes(subgroupKey) || isSearching
                       const sgActive = subGroupActive(sub)
                       return (
                         <div key={sub.label}>
