@@ -59,7 +59,7 @@ import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LucideIcon } from 'lucide-react'
 import type { User } from '@/types'
-import { type ModuleId, modulesForUser } from '@/lib/modules'
+import { type ModuleId } from '@/lib/modules'
 import { useModules } from '@/contexts/module-context'
 
 import { MinutorIcon } from '@/components/branding/MinutorIcon'
@@ -74,6 +74,9 @@ type NavItem = {
   matchPaths?: string[]
   exactMatch?: boolean
   module?: ModuleId
+  // Visível em qualquer módulo (ignora o filtro de módulo) — p/ itens de sistema
+  // que precisam ser alcançáveis independentemente do módulo do perfil.
+  alwaysVisible?: boolean
 }
 type NavLink = { label: string; href: string; icon: LucideIcon; exactMatch?: boolean }
 type NavSubGroup = {
@@ -141,6 +144,7 @@ function filterNavByModule(nav: NavEntry[], mod: ModuleId): NavEntry[] {
   const out: NavEntry[] = []
   for (const entry of nav) {
     if (entry.type === 'item') {
+      if (entry.alwaysVisible) { out.push(entry); continue }
       const m = entry.module ?? moduleForHref(entry.href)
       if (m === null || m === mod) out.push(entry)
       continue
@@ -515,14 +519,11 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       if (cadastrosItems.length > 0) nav.push({ type: 'group', label: 'Cadastros', icon: Database, items: cadastrosItems.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')) })
 
       // Usuários — após Cadastros (perfis com permissão dedicada; coord_projetos já entra via Cadastros acima)
-      // /users vive no módulo Administrativo; se o perfil NÃO tem esse módulo
-      // (ex.: coordenador só de Serviços com reset_password via Grupo), o item
-      // sumiria da sidebar — então o exibimos no módulo que ele de fato possui.
-      if (!isCoordProjetos && hasAnyUserPerm) {
-        const mods = modulesForUser(user)
-        const usersModule: ModuleId | undefined = mods.includes('administrativo') ? undefined : mods[0]
-        nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users, module: usersModule })
-      }
+      // /users vive no módulo Administrativo; um coordenador com permissão de
+      // usuários (ex.: reset_password via Grupo) mas que opera só no módulo
+      // Serviços não veria o item. Como gerir senha da equipe é transversal,
+      // exibimos sempre (independente do módulo selecionado).
+      if (!isCoordProjetos && hasAnyUserPerm) nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users, alwaysVisible: true })
 
       // Configurações
       if (has('settings.view')) nav.push({ type: 'item', label: 'Configurações', href: '/settings', icon: Settings })
