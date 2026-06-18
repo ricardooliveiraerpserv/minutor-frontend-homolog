@@ -238,9 +238,9 @@ export default function CrmPipelinePage() {
 
       {newOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setNewOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4"><h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Nova oportunidade</h2><button onClick={() => setNewOpen(false)} style={{ color: 'var(--text-muted)' }}><X size={18} /></button></div>
-            <div className="space-y-3">
+          <div className="w-full max-w-md rounded-2xl flex flex-col max-h-[90vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0"><h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Nova oportunidade</h2><button onClick={() => setNewOpen(false)} style={{ color: 'var(--text-muted)' }}><X size={18} /></button></div>
+            <div className="space-y-3 overflow-y-auto px-5 flex-1">
               <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Pipeline *</label>
                 <select value={nf.pipeline_id} onChange={e => pickPipeline(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
                   <option value="">Selecione o pipeline…</option>
@@ -321,7 +321,7 @@ export default function CrmPipelinePage() {
                 <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Data da próxima ação *</label><input type="date" value={nf.proxima_acao_at} onChange={e => setNf(f => ({ ...f, proxima_acao_at: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-5"><button onClick={() => setNewOpen(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button><button onClick={createOpp} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Criar</button></div>
+            <div className="flex justify-end gap-2 px-5 py-3 shrink-0" style={{ borderTop: '1px solid var(--border)' }}><button onClick={() => setNewOpen(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button><button onClick={createOpp} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Criar</button></div>
           </div>
         </div>
       )}
