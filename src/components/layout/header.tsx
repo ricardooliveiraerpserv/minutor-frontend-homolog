@@ -15,6 +15,7 @@ import { secureUrl, api } from '@/lib/api'
 import { useState, useEffect, useRef } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 import { MentionsBell } from './mentions-bell'
+import { AppsMenu } from './apps-menu'
 
 interface HeaderProps {
   title?: string
@@ -106,6 +107,9 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Launcher de apps (módulos) — estilo ERP */}
+        <AppsMenu />
+
         {actions}
 
         {/* Theme toggle — sun/moon */}
