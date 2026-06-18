@@ -177,7 +177,7 @@ export default function RentabilidadePage() {
   const [considerarErpserv, setConsiderarErpserv] = useState(false) // ERPSERV vem separada; botão p/ incluí-la (ou não) nos totais
   const [fExecutivo, setFExecutivo] = useState('')
   // Drill-down: títulos do Keruak ao clicar no Valor Recebido de um cliente.
-  const [keruakModal, setKeruakModal] = useState<{ cliente: string; cnpjs: string[] } | null>(null)
+  const [keruakModal, setKeruakModal] = useState<{ cliente: string; cnpjs: string[]; valorInicial: number } | null>(null)
   const [fConsultorCli, setFConsultorCli] = useState('')
   const [expandedCli, setExpandedCli] = useState<Set<string>>(new Set())
   const [expandedCons, setExpandedCons] = useState<Set<string>>(new Set()) // consultor expandido → projetos que atuou
@@ -836,7 +836,7 @@ export default function RentabilidadePage() {
                       <td
                         style={{ ...tdCol(COL_CELL.recebido), cursor: r.recebido > 0 ? 'pointer' : undefined, textDecoration: r.recebido > 0 ? 'underline dotted' : undefined }}
                         title={r.recebido > 0 ? 'Ver títulos do Keruak' : undefined}
-                        onClick={r.recebido > 0 ? (e) => { e.stopPropagation(); setKeruakModal({ cliente: r.cliente, cnpjs: (r.cnpjs?.length ? r.cnpjs : [r.cnpj]).filter(Boolean) }) } : undefined}
+                        onClick={r.recebido > 0 ? (e) => { e.stopPropagation(); setKeruakModal({ cliente: r.cliente, cnpjs: (r.cnpjs?.length ? r.cnpjs : [r.cnpj]).filter(Boolean), valorInicial: r.receita_inicial ?? 0 }) } : undefined}
                       >{formatBRL(r.recebido)}</td>
                       <td style={tdCol(COL_CELL.custo)}>{formatBRL(r.custo)}{r.margem_real_pct != null && <div style={{ fontSize: 10, fontWeight: 600, color: mgOpColor(r.margem_real_pct) }}>Mg op. {r.margem_real_pct}%</div>}</td>
                       <td style={tdCol(COL_CELL.custo40)}>{formatBRL(r.custo40)}{r.custo40_pct != null && <div style={{ color: pct40Color(r.custo40_pct), fontSize: 10, fontWeight: 700 }}>({r.custo40_pct}%)</div>}</td>
@@ -1039,6 +1039,7 @@ export default function RentabilidadePage() {
           cliente={keruakModal.cliente}
           cnpjs={keruakModal.cnpjs}
           recebMonths={recebMonths}
+          valorInicial={keruakModal.valorInicial}
           onClose={() => setKeruakModal(null)}
         />
       )}

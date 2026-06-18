@@ -17,6 +17,7 @@ interface Props {
   cliente: string
   cnpjs: string[]
   recebMonths: string[]
+  valorInicial?: number  // ajuste inicial do ano (receita inicial) somado ao Valor Recebido
   onClose: () => void
 }
 
@@ -30,7 +31,7 @@ const fmtYm = (ym: string | null) => {
   return m ? `${m}/${y}` : ym
 }
 
-export function KeruakTitulosModal({ cliente, cnpjs, onClose }: Props) {
+export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }: Props) {
   const [titulos, setTitulos] = useState<Titulo[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -59,7 +60,8 @@ export function KeruakTitulosModal({ cliente, cnpjs, onClose }: Props) {
     return true
   }), [titulos, from, to])
 
-  const total = useMemo(() => filtered.reduce((s, t) => s + (t.valor || 0), 0), [filtered])
+  const total = useMemo(() => filtered.reduce((s, t) => s + (t.valor || 0), 0) + valorInicial, [filtered, valorInicial])
+  const hasContent = filtered.length > 0 || valorInicial > 0
 
   const inputStyle: React.CSSProperties = {
     background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)',
@@ -118,7 +120,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, onClose }: Props) {
             <div className="p-10 text-center">
               <div className="animate-pulse h-4 w-32 mx-auto rounded" style={{ background: 'var(--border)' }} />
             </div>
-          ) : filtered.length === 0 ? (
+          ) : !hasContent ? (
             <div className="p-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
               Nenhum título do Keruak no período para este cliente.
             </div>
@@ -133,6 +135,15 @@ export function KeruakTitulosModal({ cliente, cnpjs, onClose }: Props) {
                 </tr>
               </thead>
               <tbody>
+                {valorInicial > 0 && (
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>—</td>
+                    <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>—</td>
+                    <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>—</td>
+                    <td className="px-3 py-2 italic" style={{ color: 'var(--text)' }}>Valor inicial (ajuste do ano)</td>
+                    <td className="px-3 py-2 tabular-nums font-semibold text-right" style={{ color: 'var(--primary)' }}>{fmtBRL(valorInicial)}</td>
+                  </tr>
+                )}
                 {filtered.map((t, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtYm(t.emissao)}</td>
@@ -146,7 +157,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, onClose }: Props) {
               <tfoot>
                 <tr style={{ borderTop: '2px solid var(--border)' }}>
                   <td className="px-3 py-2.5 font-bold" style={{ color: 'var(--text)' }} colSpan={4}>
-                    Total ({filtered.length} {filtered.length === 1 ? 'título' : 'títulos'})
+                    Total ({filtered.length} {filtered.length === 1 ? 'título' : 'títulos'}{valorInicial > 0 ? ' + valor inicial' : ''})
                   </td>
                   <td className="px-3 py-2.5 tabular-nums font-bold text-right" style={{ color: 'var(--primary)' }}>{fmtBRL(total)}</td>
                 </tr>
