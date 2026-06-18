@@ -41,8 +41,11 @@ export default function CrmPipelinePage() {
   const [sources, setSources] = useState<Source[]>([])
   const [crmUsers, setCrmUsers] = useState<CrmUser[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
-  const NL0 = { open: false, empresa: '', contato: '', email: '', telefone: '', lead_source_id: '' }
+  const NL0 = { open: false, empresa: '', cnpj: '', contato: '', email: '', telefone: '', lead_source_id: '' }
   const [novoLead, setNovoLead] = useState(NL0)
+  // Novo contato inline (criar contato da empresa sem sair da tela).
+  const NC0 = { open: false, name: '', email: '', phone: '', cargo: '' }
+  const [novoContato, setNovoContato] = useState(NC0)
   const [lossReasons, setLossReasons] = useState<{ id: number; name: string }[]>([])
   const [lossModal, setLossModal] = useState<{ oppId: number; stageId: number } | null>(null)
   const [wonModal, setWonModal] = useState<{ oppId: number; valor: number | null } | null>(null)
@@ -68,9 +71,10 @@ export default function CrmPipelinePage() {
   // Cliente novo: cadastra o lead sem sair da tela e já o seleciona.
   const createLeadInline = async () => {
     if (!novoLead.empresa.trim()) { toast.error('Informe o nome da empresa'); return }
+    if (!novoLead.cnpj.trim()) { toast.error('Informe o CNPJ'); return }
     try {
       const r = await api.post<{ data: { customer_id: number } }>('/crm/leads', {
-        empresa: novoLead.empresa, contato: novoLead.contato || null, email: novoLead.email || null,
+        empresa: novoLead.empresa, cnpj: novoLead.cnpj, contato: novoLead.contato || null, email: novoLead.email || null,
         telefone: novoLead.telefone || null, lead_source_id: novoLead.lead_source_id ? Number(novoLead.lead_source_id) : null,
       })
       const id = r.data.customer_id
@@ -80,6 +84,25 @@ export default function CrmPipelinePage() {
       setNovoLead(NL0)
       toast.success('Lead cadastrado e selecionado')
     } catch { toast.error('Erro ao cadastrar lead') }
+  }
+
+  // Novo contato da empresa selecionada, sem sair da tela; já seleciona como principal.
+  const createContatoInline = async () => {
+    if (!nf.customer_id) { toast.error('Selecione a empresa primeiro'); return }
+    if (!novoContato.name.trim()) { toast.error('Informe o nome do contato'); return }
+    try {
+      const r = await api.post<{ data?: { id: number }; id?: number }>('/customer-contacts', {
+        customer_id: Number(nf.customer_id), name: novoContato.name,
+        email: novoContato.email || null, phone: novoContato.phone || null, cargo: novoContato.cargo || null,
+      })
+      const novo = (r as any)?.data ?? r
+      if (novo?.id) {
+        setContacts(cs => [...cs, { id: novo.id, name: novoContato.name }])
+        setNf(f => ({ ...f, customer_contact_id: String(novo.id) }))
+      } else { loadContacts(nf.customer_id) }
+      setNovoContato(NC0)
+      toast.success('Contato criado e selecionado')
+    } catch { toast.error('Erro ao criar contato') }
   }
 
   const loadBoard = useCallback(() => {
@@ -239,6 +262,7 @@ export default function CrmPipelinePage() {
                 {novoLead.open && (
                   <div className="mt-2 p-3 rounded-lg space-y-2" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
                     <input value={novoLead.empresa} onChange={e => setNovoLead(n => ({ ...n, empresa: e.target.value }))} placeholder="Empresa *" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                    <input value={novoLead.cnpj} onChange={e => setNovoLead(n => ({ ...n, cnpj: e.target.value }))} placeholder="CNPJ *" className="w-full px-3 py-2 rounded-lg text-sm outline-none mt-2" style={inputStyle} />
                     <div className="grid grid-cols-2 gap-2">
                       <input value={novoLead.contato} onChange={e => setNovoLead(n => ({ ...n, contato: e.target.value }))} placeholder="Contato" className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
                       <input value={novoLead.telefone} onChange={e => setNovoLead(n => ({ ...n, telefone: e.target.value }))} placeholder="Telefone" className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
@@ -254,11 +278,30 @@ export default function CrmPipelinePage() {
                   </div>
                 )}
               </div>
-              <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Contato principal *</label>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs" style={{ color: 'var(--text-muted)' }}>Contato principal *</label>
+                  {nf.customer_id && <button type="button" onClick={() => setNovoContato(n => ({ ...NC0, open: !n.open }))} className="text-[11px] flex items-center gap-1" style={{ color: 'var(--primary)' }}><UserPlus size={12} /> Novo contato</button>}
+                </div>
                 <select value={nf.customer_contact_id} onChange={e => setNf(f => ({ ...f, customer_contact_id: e.target.value }))} disabled={!nf.customer_id} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                  <option value="">{!nf.customer_id ? 'Selecione a empresa primeiro' : contacts.length ? 'Selecione…' : 'Empresa sem contatos — cadastre em Contatos'}</option>
+                  <option value="">{!nf.customer_id ? 'Selecione a empresa primeiro' : contacts.length ? 'Selecione…' : 'Empresa sem contatos — cadastre um ao lado'}</option>
                   {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select></div>
+                </select>
+                {novoContato.open && (
+                  <div className="mt-2 p-2 rounded-lg space-y-2" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+                    <input value={novoContato.name} onChange={e => setNovoContato(n => ({ ...n, name: e.target.value }))} placeholder="Nome do contato *" className="w-full px-3 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
+                    <div className="grid grid-cols-3 gap-2">
+                      <input value={novoContato.cargo} onChange={e => setNovoContato(n => ({ ...n, cargo: e.target.value }))} placeholder="Cargo" className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
+                      <input value={novoContato.email} onChange={e => setNovoContato(n => ({ ...n, email: e.target.value }))} placeholder="E-mail" className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
+                      <input value={novoContato.phone} onChange={e => setNovoContato(n => ({ ...n, phone: e.target.value }))} placeholder="Telefone" className="px-2 py-1.5 rounded-lg text-sm outline-none" style={inputStyle} />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => setNovoContato(NC0)} className="px-3 py-1 rounded-lg text-xs" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+                      <button type="button" onClick={createContatoInline} className="px-3 py-1 rounded-lg text-xs font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Incluir contato</button>
+                    </div>
+                  </div>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Origem *</label>
                   <select value={nf.lead_source_id} onChange={e => setNf(f => ({ ...f, lead_source_id: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
