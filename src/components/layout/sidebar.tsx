@@ -497,14 +497,13 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       // Contatos de Clientes: mais restritivo — exige nível de edição/gerência.
       const hasCustomersView = ['customers.view', 'customers.create', 'customers.update', 'customers.delete', 'customers.manage'].some(p => ep.includes(p))
       const hasCustomersEdit = ['customers.create', 'customers.update', 'customers.delete', 'customers.manage'].some(p => ep.includes(p))
-      // Coordenador de projetos: nunca vê cadastro de Clientes/Contatos de Clientes
-      // (governança de clientes fica fora do escopo dele).
-      const isCoordProjetos = user?.coordinator_type === 'projetos'
       const cadastrosItems: { label: string; href: string; icon: typeof Users }[] = []
       if (has('contracts.manage'))          cadastrosItems.push({ label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',          icon: FileType })
       if (has('services.manage'))           cadastrosItems.push({ label: 'Tipos de Serviço',      href: '/cadastros?tab=services',           icon: Wrench })
-      if (!isCoordProjetos && hasCustomersView) cadastrosItems.push({ label: 'Clientes',              href: '/clientes',                         icon: Users })
-      if (!isCoordProjetos && hasCustomersEdit) cadastrosItems.push({ label: 'Contatos de Clientes',  href: '/cadastros?tab=customer_contacts',   icon: Contact })
+      // Menu guiado por permissão: se o perfil/grupo concede a permissão, o item aparece
+      // (sem exclusões por tipo — coord. de projetos também segue a permissão concedida).
+      if (hasCustomersView) cadastrosItems.push({ label: 'Clientes',              href: '/clientes',                         icon: Users })
+      if (hasCustomersEdit) cadastrosItems.push({ label: 'Contatos de Clientes',  href: '/cadastros?tab=customer_contacts',   icon: Contact })
       if (has('executives.manage'))         cadastrosItems.push({ label: 'Executivos',            href: '/cadastros?tab=executives',         icon: Star })
       if (has('groups.manage'))             cadastrosItems.push({ label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',             icon: UserCheck })
       if (has('holidays.manage'))           cadastrosItems.push({ label: 'Feriados',              href: '/cadastros?tab=holidays',           icon: CalendarDays })
@@ -633,7 +632,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const { allowedModules, selectedModule } = useModules()
   // Nav já filtrada pelo módulo (mantém o gating de perfil/permissão do visibleNav).
   const moduleNav = useMemo(
-    () => (selectedModule && allowedModules.length > 0) ? filterNavByModule(visibleNav, selectedModule) : visibleNav,
+    () => (selectedModule && allowedModules.length > 1) ? filterNavByModule(visibleNav, selectedModule) : visibleNav,
     [visibleNav, selectedModule, allowedModules],
   )
 
