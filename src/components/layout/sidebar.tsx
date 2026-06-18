@@ -59,7 +59,7 @@ import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LucideIcon } from 'lucide-react'
 import type { User } from '@/types'
-import { type ModuleId } from '@/lib/modules'
+import { type ModuleId, modulesForUser } from '@/lib/modules'
 import { useModules } from '@/contexts/module-context'
 
 import { MinutorIcon } from '@/components/branding/MinutorIcon'
@@ -515,7 +515,14 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       if (cadastrosItems.length > 0) nav.push({ type: 'group', label: 'Cadastros', icon: Database, items: cadastrosItems.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')) })
 
       // Usuários — após Cadastros (perfis com permissão dedicada; coord_projetos já entra via Cadastros acima)
-      if (!isCoordProjetos && hasAnyUserPerm) nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
+      // /users vive no módulo Administrativo; se o perfil NÃO tem esse módulo
+      // (ex.: coordenador só de Serviços com reset_password via Grupo), o item
+      // sumiria da sidebar — então o exibimos no módulo que ele de fato possui.
+      if (!isCoordProjetos && hasAnyUserPerm) {
+        const mods = modulesForUser(user)
+        const usersModule: ModuleId | undefined = mods.includes('administrativo') ? undefined : mods[0]
+        nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users, module: usersModule })
+      }
 
       // Configurações
       if (has('settings.view')) nav.push({ type: 'item', label: 'Configurações', href: '/settings', icon: Settings })
