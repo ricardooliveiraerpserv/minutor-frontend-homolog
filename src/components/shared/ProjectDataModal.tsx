@@ -54,11 +54,18 @@ function fmtBRL(v: number) {
 }
 
 function parseEffortToDecimal(effortHours: string, effortMinutes: number): number {
-  if (effortHours.includes(':')) {
+  // effort_minutes é a FONTE CANÔNICA da duração; effort_hours é só uma
+  // representação redundante (decimal "20" OU "HH:MM"). NÃO somar os dois —
+  // antes dava 40h para um apontamento de 20h ajustado (effort_hours="20" +
+  // effort_minutes=1200 → 20 + 1200/60 = 40). Usa effort_minutes quando houver.
+  if (typeof effortMinutes === 'number' && effortMinutes > 0) {
+    return effortMinutes / 60
+  }
+  if (effortHours && effortHours.includes(':')) {
     const [hStr, mStr] = effortHours.split(':')
     return parseInt(hStr, 10) + parseInt(mStr || '0', 10) / 60
   }
-  return (parseFloat(effortHours) || 0) + (effortMinutes || 0) / 60
+  return parseFloat(effortHours) || 0
 }
 
 function fmtHours(effortHours: string, effortMinutes: number) {
