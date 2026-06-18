@@ -42,7 +42,7 @@ interface ProjectHealth {
   name: string
   contract_type: string | null
   is_closed: boolean
-  sold_hours: number
+  sold_hours: number | null
   consumed_hours: number | null
   balance_hours: number | null
   percentage: number | null
@@ -209,10 +209,12 @@ function ProjectTreeNode({
   childExpanded: (id: number) => boolean
   onToggleChild: (id: number) => void
 }) {
-  const meta = HEALTH_META[p.status]
   const hasChildren = !isChild && (p.children?.length ?? 0) > 0
   // On Demand: sem banco/saldo — não mostra HealthBar, saldo nem chip de saúde.
   const isOnDemand = (p.contract_type ?? '').toLowerCase().includes('on demand')
+  // Fechado: cliente NÃO vê horas (sem controle de saldo/consumo).
+  const isClosed = p.is_closed || (p.contract_type ?? '').toLowerCase().includes('fechad')
+  const meta = isClosed ? (HEALTH_META.closed ?? HEALTH_META[p.status]) : HEALTH_META[p.status]
 
   return (
     <>
@@ -240,14 +242,13 @@ function ProjectTreeNode({
               </span>
             )}
           </div>
-          {!p.is_closed && !isOnDemand && <HealthBar pct={p.percentage} />}
+          {!isClosed && !isOnDemand && <HealthBar pct={p.percentage} />}
         </div>
 
         <div className="text-right shrink-0">
-          {p.is_closed ? (
-            <p className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--brand-text)' }}>
-              {fmtH(p.sold_hours)}
-            </p>
+          {isClosed ? (
+            /* Cliente não vê horas em contrato Fechado — só o selo de status. */
+            null
           ) : isOnDemand ? (
             <p className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--brand-text)' }}>
               {fmtH(p.consumed_hours)} consumido
@@ -259,7 +260,7 @@ function ProjectTreeNode({
               </p>
               {p.balance_hours !== null && (
                 <p className="text-[11px] font-semibold mt-0.5" style={{
-                  color: p.balance_hours < 0 ? '#EF4444' : p.balance_hours <= 0.1 * p.sold_hours ? '#F59E0B' : '#10B981',
+                  color: p.balance_hours < 0 ? '#EF4444' : p.balance_hours <= 0.1 * (p.sold_hours ?? 0) ? '#F59E0B' : '#10B981',
                 }}>
                   Saldo: {fmtH(p.balance_hours)}
                 </p>
@@ -274,7 +275,7 @@ function ProjectTreeNode({
           ) : (
             <span className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
               style={{ background: meta.bg, color: meta.color }}>
-              {meta.label}{!p.is_closed && p.percentage !== null && ` · ${p.percentage.toFixed(0)}%`}
+              {meta.label}{!isClosed && p.percentage !== null && ` · ${p.percentage.toFixed(0)}%`}
             </span>
           )}
         </div>
