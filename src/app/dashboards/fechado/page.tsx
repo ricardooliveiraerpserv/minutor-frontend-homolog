@@ -104,7 +104,11 @@ export default function FechadoPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>Fechado</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>Projetos com contrato fechado — horas vendidas por projeto e período de início</p>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>
+              {isCliente
+                ? 'Projetos com contrato fechado — período de início'
+                : 'Projetos com contrato fechado — horas vendidas por projeto e período de início'}
+            </p>
           </div>
         </div>
 
@@ -157,7 +161,11 @@ export default function FechadoPage() {
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                 <tr style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                  {['Código', 'Projeto', 'Status', 'Horas Base', 'Aportes', 'Total', 'Início'].map(h => (
+                  {/* Cliente NÃO vê informação de horas em contrato Fechado. */}
+                  {(isCliente
+                    ? ['Código', 'Projeto', 'Status', 'Início']
+                    : ['Código', 'Projeto', 'Status', 'Horas Base', 'Aportes', 'Total', 'Início']
+                  ).map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
                   ))}
                 </tr>
@@ -178,9 +186,14 @@ export default function FechadoPage() {
                         {row.status === 'active' ? 'Ativo' : row.status === 'closed' ? 'Encerrado' : row.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtH(row.base_hours)} h</td>
-                    <td className="px-4 py-3 tabular-nums" style={{ color: '#8B5CF6' }}>{fmtH(row.contribution_hours)} h</td>
-                    <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: '#00F5FF' }}>{fmtH(row.sold_hours)} h</td>
+                    {/* Cliente NÃO vê Horas Base / Aportes / Total em contrato Fechado. */}
+                    {!isCliente && (
+                      <>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtH(row.base_hours)} h</td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: '#8B5CF6' }}>{fmtH(row.contribution_hours)} h</td>
+                        <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: '#00F5FF' }}>{fmtH(row.sold_hours)} h</td>
+                      </>
+                    )}
                     <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-muted)' }}>
                       {row.start_date ? new Date(row.start_date + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
                     </td>
