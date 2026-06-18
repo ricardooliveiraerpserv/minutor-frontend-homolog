@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { X, Receipt } from 'lucide-react'
 import { api } from '@/lib/api'
 
@@ -32,24 +32,38 @@ const fmtYm = (ym: string | null) => {
 
 export function KeruakTitulosModal({ cliente, cnpjs, recebMonths, onClose }: Props) {
   const [titulos, setTitulos] = useState<Titulo[]>([])
-  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+
+  // Filtro de data (mês de recebimento). Abre no período da tela (total bate
+  // com a célula), mas permite explorar outros meses.
+  const sorted = [...recebMonths].sort()
+  const [from, setFrom] = useState(sorted[0] ?? '')
+  const [to, setTo] = useState(sorted[sorted.length - 1] ?? '')
 
   useEffect(() => {
     let alive = true
     const qs = new URLSearchParams()
     qs.set('cnpjs', cnpjs.filter(Boolean).join(','))
-    if (recebMonths.length) qs.set('receb', recebMonths.join(','))
-    api.get<{ data: { titulos: Titulo[]; total: number } }>(`/relatorios/rentabilidade/keruak-titulos?${qs}`)
-      .then(r => {
-        if (!alive) return
-        setTitulos(r?.data?.titulos ?? [])
-        setTotal(r?.data?.total ?? 0)
-      })
-      .catch(() => { if (alive) { setTitulos([]); setTotal(0) } })
+    // Busca TODOS os títulos do cliente; o filtro de data é aplicado aqui no modal.
+    api.get<{ data: { titulos: Titulo[] } }>(`/relatorios/rentabilidade/keruak-titulos?${qs}`)
+      .then(r => { if (alive) setTitulos(r?.data?.titulos ?? []) })
+      .catch(() => { if (alive) setTitulos([]) })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [cnpjs, recebMonths])
+  }, [cnpjs])
+
+  const filtered = useMemo(() => titulos.filter(t => {
+    if (from && t.recebimento < from) return false
+    if (to && t.recebimento > to) return false
+    return true
+  }), [titulos, from, to])
+
+  const total = useMemo(() => filtered.reduce((s, t) => s + (t.valor || 0), 0), [filtered])
+
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)',
+    borderRadius: 8, padding: '4px 8px', fontSize: 12,
+  }
 
   return (
     <div
@@ -75,13 +89,35 @@ export function KeruakTitulosModal({ cliente, cnpjs, recebMonths, onClose }: Pro
           </button>
         </div>
 
+        {/* Filtro de data (recebimento) */}
+        <div className="flex items-center gap-3 px-6 py-3 border-b shrink-0 flex-wrap" style={{ borderColor: 'var(--border)' }}>
+          <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Recebimento</span>
+          <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Início
+            <input type="month" value={from} onChange={e => setFrom(e.target.value)} style={inputStyle} />
+          </label>
+          <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Fim
+            <input type="month" value={to} onChange={e => setTo(e.target.value)} style={inputStyle} />
+          </label>
+          {(from || to) && (
+            <button
+              onClick={() => { setFrom(''); setTo('') }}
+              className="text-xs px-2 py-1 rounded-lg"
+              style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+
         {/* Body */}
         <div className="overflow-auto p-4">
           {loading ? (
             <div className="p-10 text-center">
               <div className="animate-pulse h-4 w-32 mx-auto rounded" style={{ background: 'var(--border)' }} />
             </div>
-          ) : titulos.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className="p-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
               Nenhum título do Keruak no período para este cliente.
             </div>
@@ -96,7 +132,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, recebMonths, onClose }: Pro
                 </tr>
               </thead>
               <tbody>
-                {titulos.map((t, idx) => (
+                {filtered.map((t, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtYm(t.emissao)}</td>
                     <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtYm(t.recebimento)}</td>
@@ -109,7 +145,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, recebMonths, onClose }: Pro
               <tfoot>
                 <tr style={{ borderTop: '2px solid var(--border)' }}>
                   <td className="px-3 py-2.5 font-bold" style={{ color: 'var(--text)' }} colSpan={4}>
-                    Total ({titulos.length} {titulos.length === 1 ? 'título' : 'títulos'})
+                    Total ({filtered.length} {filtered.length === 1 ? 'título' : 'títulos'})
                   </td>
                   <td className="px-3 py-2.5 tabular-nums font-bold text-right" style={{ color: 'var(--primary)' }}>{fmtBRL(total)}</td>
                 </tr>
