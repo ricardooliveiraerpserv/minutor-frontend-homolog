@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable, Button } from '@/components/ds'
 import { SearchSelect } from '@/components/ui/search-select'
+import { KeruakTitulosModal } from '@/components/shared/KeruakTitulosModal'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
@@ -29,7 +30,7 @@ interface DisplayRow extends Row { key: string; n_consultores: number }
 interface ProjetoRent { project_id: number; projeto: string; horas: number; custo: number; is_investimento: boolean }
 interface ConsultorRent { user_id: number; consultor: string; valor_hora: number; horas: number; custo: number; tem_investimento?: boolean; projetos?: ProjetoRent[] }
 interface ClienteRow {
-  customer_id: number | null; cliente: string; cnpj: string; executivo: string | null
+  customer_id: number | null; cliente: string; cnpj: string; cnpjs?: string[]; executivo: string | null
   horas: number; receita: number; custo: number; margem: number; margem_pct: number | null
   recebido: number; margem_real: number; margem_real_pct: number | null; no_minutor: boolean
   consultores: ConsultorRent[]
@@ -175,6 +176,8 @@ export default function RentabilidadePage() {
   const [soForaMinutor, setSoForaMinutor] = useState(false)
   const [considerarErpserv, setConsiderarErpserv] = useState(false) // ERPSERV vem separada; botão p/ incluí-la (ou não) nos totais
   const [fExecutivo, setFExecutivo] = useState('')
+  // Drill-down: títulos do Keruak ao clicar no Valor Recebido de um cliente.
+  const [keruakModal, setKeruakModal] = useState<{ cliente: string; cnpjs: string[] } | null>(null)
   const [fConsultorCli, setFConsultorCli] = useState('')
   const [expandedCli, setExpandedCli] = useState<Set<string>>(new Set())
   const [expandedCons, setExpandedCons] = useState<Set<string>>(new Set()) // consultor expandido → projetos que atuou
@@ -190,6 +193,15 @@ export default function RentabilidadePage() {
     for (let m = startMonth; m <= endMonth; m++) out.push(`${year}-${String(m).padStart(2, '0')}`)
     return out
   }, [year, currentYear, currentMonth])
+
+  // Meses de recebimento Keruak (M+1) que compõem o Valor Recebido exibido —
+  // usados pelo drill-down de títulos pra o total bater com a célula.
+  const recebMonths = useMemo(() => monthsToFetch.map(ym => {
+    const [y, m] = ym.split('-').map(Number)
+    const ny = m === 12 ? y + 1 : y
+    const nm = m === 12 ? 1 : m + 1
+    return `${ny}-${String(nm).padStart(2, '0')}`
+  }), [monthsToFetch])
 
   useEffect(() => {
     setLoading(true)
@@ -821,7 +833,11 @@ export default function RentabilidadePage() {
                         {!r.no_minutor && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>(fora do Minutor)</span>}
                       </td>
                       <td style={{ padding: '6px 10px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', textAlign: 'center' }}>{r.executivo || '—'}</td>
-                      <td style={tdCol(COL_CELL.recebido)}>{formatBRL(r.recebido)}</td>
+                      <td
+                        style={{ ...tdCol(COL_CELL.recebido), cursor: r.recebido > 0 ? 'pointer' : undefined, textDecoration: r.recebido > 0 ? 'underline dotted' : undefined }}
+                        title={r.recebido > 0 ? 'Ver títulos do Keruak' : undefined}
+                        onClick={r.recebido > 0 ? (e) => { e.stopPropagation(); setKeruakModal({ cliente: r.cliente, cnpjs: (r.cnpjs?.length ? r.cnpjs : [r.cnpj]).filter(Boolean) }) } : undefined}
+                      >{formatBRL(r.recebido)}</td>
                       <td style={tdCol(COL_CELL.custo)}>{formatBRL(r.custo)}{r.margem_real_pct != null && <div style={{ fontSize: 10, fontWeight: 600, color: mgOpColor(r.margem_real_pct) }}>Mg op. {r.margem_real_pct}%</div>}</td>
                       <td style={tdCol(COL_CELL.custo40)}>{formatBRL(r.custo40)}{r.custo40_pct != null && <div style={{ color: pct40Color(r.custo40_pct), fontSize: 10, fontWeight: 700 }}>({r.custo40_pct}%)</div>}</td>
                       <td style={tdCol(COL_CELL.total)}>{formatBRL(r.custo_total)}</td>
@@ -1017,6 +1033,15 @@ export default function RentabilidadePage() {
           </Table>
         )}
       </div>
+
+      {keruakModal && (
+        <KeruakTitulosModal
+          cliente={keruakModal.cliente}
+          cnpjs={keruakModal.cnpjs}
+          recebMonths={recebMonths}
+          onClose={() => setKeruakModal(null)}
+        />
+      )}
     </AppLayout>
   )
 }
