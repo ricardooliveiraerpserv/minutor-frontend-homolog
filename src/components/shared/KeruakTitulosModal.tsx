@@ -30,15 +30,16 @@ const fmtYm = (ym: string | null) => {
   return m ? `${m}/${y}` : ym
 }
 
-export function KeruakTitulosModal({ cliente, cnpjs, recebMonths, onClose }: Props) {
+export function KeruakTitulosModal({ cliente, cnpjs, onClose }: Props) {
   const [titulos, setTitulos] = useState<Titulo[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Filtro de data (mês de recebimento). Abre no período da tela (total bate
-  // com a célula), mas permite explorar outros meses.
-  const sorted = [...recebMonths].sort()
-  const [from, setFrom] = useState(sorted[0] ?? '')
-  const [to, setTo] = useState(sorted[sorted.length - 1] ?? '')
+  // Filtro de data (mês de recebimento) — por padrão SEMPRE o mês atual.
+  // O usuário pode ampliar o período ou limpar p/ ver todos os títulos.
+  const now = new Date()
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const [from, setFrom] = useState(currentMonth)
+  const [to, setTo] = useState(currentMonth)
 
   useEffect(() => {
     let alive = true
