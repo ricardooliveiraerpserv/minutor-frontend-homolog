@@ -35,12 +35,15 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }
   const [titulos, setTitulos] = useState<Titulo[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Filtro de data (mês de recebimento) — por padrão SEMPRE o mês atual.
+  // Filtro de data via calendário (type=date) — por padrão SEMPRE o mês atual
+  // (do 1º ao último dia). A comparação é por mês de recebimento (YYYY-MM).
   // O usuário pode ampliar o período ou limpar p/ ver todos os títulos.
   const now = new Date()
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const [from, setFrom] = useState(currentMonth)
-  const [to, setTo] = useState(currentMonth)
+  const y = now.getFullYear()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const lastDay = new Date(y, now.getMonth() + 1, 0).getDate()
+  const [from, setFrom] = useState(`${y}-${mm}-01`)
+  const [to, setTo] = useState(`${y}-${mm}-${String(lastDay).padStart(2, '0')}`)
 
   useEffect(() => {
     let alive = true
@@ -54,11 +57,15 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }
     return () => { alive = false }
   }, [cnpjs])
 
-  const filtered = useMemo(() => titulos.filter(t => {
-    if (from && t.recebimento < from) return false
-    if (to && t.recebimento > to) return false
-    return true
-  }), [titulos, from, to])
+  const filtered = useMemo(() => {
+    const fromYm = from.slice(0, 7) // YYYY-MM
+    const toYm = to.slice(0, 7)
+    return titulos.filter(t => {
+      if (fromYm && t.recebimento < fromYm) return false
+      if (toYm && t.recebimento > toYm) return false
+      return true
+    })
+  }, [titulos, from, to])
 
   const total = useMemo(() => filtered.reduce((s, t) => s + (t.valor || 0), 0) + valorInicial, [filtered, valorInicial])
   const hasContent = filtered.length > 0 || valorInicial > 0
@@ -97,11 +104,11 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }
           <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Recebimento</span>
           <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
             Início
-            <input type="month" value={from} onChange={e => setFrom(e.target.value)} style={inputStyle} />
+            <input type="date" value={from} onChange={e => setFrom(e.target.value)} style={inputStyle} />
           </label>
           <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
             Fim
-            <input type="month" value={to} onChange={e => setTo(e.target.value)} style={inputStyle} />
+            <input type="date" value={to} onChange={e => setTo(e.target.value)} style={inputStyle} />
           </label>
           {(from || to) && (
             <button
