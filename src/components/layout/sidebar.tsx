@@ -512,18 +512,16 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       if (has('expense_types.manage'))      cadastrosItems.push({ label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',      icon: Receipt })
       if (has('payment_methods.manage'))    cadastrosItems.push({ label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',    icon: CreditCard })
       if (has('partners.manage'))   cadastrosItems.push({ label: 'Parceiros',           href: '/partners',                 icon: Handshake })
-      // Coordenador de projetos: vê "Usuários" sob Cadastros com função restrita a
-      // reset de senhas (a tela /users gateia as ações pra esse perfil).
-      if (isCoordProjetos)                  cadastrosItems.push({ label: 'Usuários',              href: '/users',                            icon: Users })
       // 'Projetos' foi removido — inclusão agora é feita via Kanban (pipeline)
       if (cadastrosItems.length > 0) nav.push({ type: 'group', label: 'Cadastros', icon: Database, items: cadastrosItems.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')) })
 
-      // Usuários — após Cadastros (perfis com permissão dedicada; coord_projetos já entra via Cadastros acima)
-      // /users vive no módulo Administrativo; um coordenador com permissão de
-      // usuários (ex.: reset_password via Grupo) mas que opera só no módulo
-      // Serviços não veria o item. Como gerir senha da equipe é transversal,
-      // exibimos sempre (independente do módulo selecionado).
-      if (!isCoordProjetos && hasAnyUserPerm) nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users, alwaysVisible: true })
+      // Usuários — qualquer coordenador com permissão de usuários (reset de senha):
+      // coord. de projetos (recebe users.view_all/reset_password pelo PermissionService)
+      // ou coord. com reset_password via Grupo. /users vive no módulo Administrativo,
+      // mas o perfil coordenador só tem o módulo Serviços — como gerir senha da equipe
+      // é transversal, exibimos SEMPRE (alwaysVisible), independente do módulo. A tela
+      // /users gateia as ações (modo "só redefinir senha") pra esses perfis.
+      if (hasAnyUserPerm) nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users, alwaysVisible: true })
 
       // Configurações
       if (has('settings.view')) nav.push({ type: 'item', label: 'Configurações', href: '/settings', icon: Settings })
