@@ -36,6 +36,7 @@ export default function CrmPipelinePage() {
   const [customers, setCustomers] = useState<Customer[]>([])
 
   const [newOpen, setNewOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
   const NF0 = { title: '', descricao: '', pipeline_id: '', customer_id: '', customer_contact_id: '', lead_source_id: '', responsavel_id: '', valor: '', previsao_fechamento: '', proxima_acao: '', proxima_acao_at: '' }
   const [nf, setNf] = useState(NF0)
   const [sources, setSources] = useState<Source[]>([])
@@ -116,9 +117,11 @@ export default function CrmPipelinePage() {
   useEffect(() => { loadBoard() }, [loadBoard])
 
   const createOpp = async () => {
+    if (creating) return // trava duplo-clique → evita oportunidade duplicada
     if (!nf.title.trim() || !nf.customer_id || !nf.pipeline_id || !nf.customer_contact_id || !nf.lead_source_id || !nf.responsavel_id || !nf.proxima_acao.trim() || !nf.proxima_acao_at) {
       toast.error('Preencha título, pipeline, empresa, contato, origem, responsável e a próxima ação'); return
     }
+    setCreating(true)
     try {
       await api.post('/crm/opportunities', {
         title: nf.title, pipeline_id: Number(nf.pipeline_id), customer_id: Number(nf.customer_id),
@@ -135,6 +138,7 @@ export default function CrmPipelinePage() {
       setNewOpen(false); setNf(NF0); setContacts([])
       if (destino && destino.id !== pipeId) setPipeId(destino.id); else loadBoard()
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao criar') }
+    finally { setCreating(false) }
   }
 
   // Abre o modal com defaults inteligentes (reduz atrito — Fase A/UX).
@@ -200,7 +204,7 @@ export default function CrmPipelinePage() {
               </div>
               {/* Indicadores da etapa (Fase 4) */}
               <div className="px-3 py-1 text-[10px] space-y-0.5" style={{ borderBottom: '1px solid var(--border)' }}>
-                {col.total_valor > 0 && <div className="flex justify-between tabular-nums" style={{ color: 'var(--text-light)' }}><span>{fmtBRL(col.total_valor)}</span><span title="forecast">fc {fmtBRL(col.forecast ?? 0)}</span></div>}
+                <div className="flex justify-between tabular-nums" style={{ color: 'var(--text-light)' }}><span title="Soma do valor de todos os cards desta etapa">Total {fmtBRL(col.total_valor)}</span><span title="Previsão = soma de (valor × probabilidade da etapa)">Prev. {fmtBRL(col.forecast ?? 0)}</span></div>
                 <div className="flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-light)' }}>
                   {!!col.tempo_medio_dias && <span title="tempo médio na etapa">⏱ {col.tempo_medio_dias}d</span>}
                   {!!col.vencidos && <span style={{ color: 'var(--danger-border)' }} title="vencidos (SLA)">⚠ {col.vencidos} venc.</span>}
@@ -321,7 +325,7 @@ export default function CrmPipelinePage() {
                 <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Data da próxima ação *</label><input type="date" value={nf.proxima_acao_at} onChange={e => setNf(f => ({ ...f, proxima_acao_at: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 px-5 py-3 shrink-0" style={{ borderTop: '1px solid var(--border)' }}><button onClick={() => setNewOpen(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button><button onClick={createOpp} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>Criar</button></div>
+            <div className="flex justify-end gap-2 px-5 py-3 shrink-0" style={{ borderTop: '1px solid var(--border)' }}><button onClick={() => setNewOpen(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button><button onClick={createOpp} disabled={creating} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{creating ? 'Criando…' : 'Criar'}</button></div>
           </div>
         </div>
       )}
@@ -608,6 +612,12 @@ function OppDetail({ id, onClose }: { id: number; onClose: () => void }) {
     } catch { toast.error('Erro ao gerar PDF') } finally { setGenId(null) }
   }
 
+  const EVT_LABEL: Record<string, string> = {
+    created: 'Criada', stage_changed: 'Mudou de etapa', valor_alterado: 'Valor alterado',
+    task_done: 'Tarefa concluída', automacao: 'Automação', automacao_erro: 'Falha em automação',
+    won: 'Ganha', lost: 'Perdida',
+  }
+
   // Abas do card + tipo da nova proposta
   const [tab, setTab] = useState<'resumo' | 'timeline' | 'followups' | 'propostas' | 'anexos'>('resumo')
   const [novoTipo, setNovoTipo] = useState('bh_fixo')
@@ -620,6 +630,15 @@ function OppDetail({ id, onClose }: { id: number; onClose: () => void }) {
     setDescrSaving(true)
     try { await api.put(`/crm/opportunities/${id}`, { descricao: descr }); toast.success('Descrição salva'); load() }
     catch { toast.error('Erro ao salvar descrição') } finally { setDescrSaving(false) }
+  }
+
+  const [valorEdit, setValorEdit] = useState('')
+  const [valorSaving, setValorSaving] = useState(false)
+  useEffect(() => { setValorEdit(o?.valor != null ? String(o.valor) : '') }, [o?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const saveValor = async () => {
+    setValorSaving(true)
+    try { await api.put(`/crm/opportunities/${id}`, { valor: valorEdit === '' ? 0 : Number(valorEdit) }); toast.success('Valor atualizado'); load() }
+    catch { toast.error('Erro ao salvar valor') } finally { setValorSaving(false) }
   }
 
   // Anexos da oportunidade
@@ -694,7 +713,14 @@ function OppDetail({ id, onClose }: { id: number; onClose: () => void }) {
             </div>
 
             <div className="text-xs space-y-1 rounded-lg px-3 py-2" style={{ background: 'var(--brand-bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-              <div className="flex justify-between"><span>Valor</span><b style={{ color: 'var(--primary)' }}>{fmtBRL(o.valor)}</b></div>
+              <div className="flex items-center justify-between gap-2">
+                <span>Valor</span>
+                <div className="flex items-center gap-1.5">
+                  <span style={{ color: 'var(--text-light)' }}>R$</span>
+                  <input type="number" step="0.01" value={valorEdit} onChange={e => setValorEdit(e.target.value)} className="w-28 px-2 py-1 rounded-lg text-sm outline-none text-right tabular-nums" style={inputStyle} />
+                  {String(o.valor ?? '') !== valorEdit && <button onClick={saveValor} disabled={valorSaving} className="px-2 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{valorSaving ? '…' : 'Salvar'}</button>}
+                </div>
+              </div>
               <div className="flex justify-between"><span>Previsão de fechamento</span><span style={{ color: 'var(--text)' }}>{o.previsao_fechamento ? new Date(o.previsao_fechamento).toLocaleDateString('pt-BR') : '—'}</span></div>
               <div className="flex justify-between"><span>Próxima ação</span><span style={{ color: 'var(--text)' }}>{o.proxima_acao || '—'}{o.proxima_acao_at ? ` · ${fmtDt(o.proxima_acao_at)}` : ''}</span></div>
             </div>
@@ -797,7 +823,7 @@ function OppDetail({ id, onClose }: { id: number; onClose: () => void }) {
               {(o.events ?? []).slice().reverse().map(e => (
                 <div key={e.id} className="text-[11px] flex gap-2" style={{ color: 'var(--text-muted)' }}>
                   <span style={{ color: 'var(--text-light)' }}>{fmtDt(e.created_at)}</span>
-                  <span><b>{e.event_type}</b>{e.to_value ? `: ${e.to_value}` : ''}{e.triggered_by ? ` (${e.triggered_by.name.split(' ')[0]})` : ''}</span>
+                  <span><b>{EVT_LABEL[e.event_type] ?? e.event_type}</b>{e.event_type === 'valor_alterado' ? `: R$ ${e.from_value ?? '0'} → R$ ${e.to_value ?? '0'}` : (e.to_value ? `: ${e.to_value}` : '')}{e.triggered_by ? ` (${e.triggered_by.name.split(' ')[0]})` : ''}</span>
                 </div>
               ))}
               {(o.events ?? []).length === 0 && <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem histórico.</p>}
