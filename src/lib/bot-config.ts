@@ -11,15 +11,21 @@ export const updateBotConfig = (payload: Partial<BotGeneralConfig> & { active_pr
 
 // Providers
 export const listProviders   = (): Promise<{ data: BotProvider[] }>   => api.get('/bot/providers')
+export const createProvider  = (payload: Partial<BotProvider>): Promise<{ data: BotProvider[] }> => api.post('/bot/providers', payload)
 export const updateProvider  = (id: number, payload: Partial<BotProvider>) => api.put<{ data: BotProvider[] }>(`/bot/providers/${id}`, payload)
+export const deleteProvider  = (id: number): Promise<{ data: BotProvider[] }> => api.delete(`/bot/providers/${id}`)
 
 // Agents
 export const listAgents      = (): Promise<{ data: BotAgent[] }>      => api.get('/bot/agents')
+export const createAgent     = (payload: Partial<BotAgent>): Promise<{ data: BotAgent[] }> => api.post('/bot/agents', payload)
 export const updateAgent     = (id: number, payload: Partial<BotAgent>) => api.put<{ data: BotAgent[] }>(`/bot/agents/${id}`, payload)
+export const deleteAgent     = (id: number): Promise<{ data: BotAgent[] }> => api.delete(`/bot/agents/${id}`)
 
 // Skills
 export const listSkills      = (): Promise<{ data: BotSkill[] }>      => api.get('/bot/skills')
+export const createSkill     = (payload: Partial<BotSkill>): Promise<{ data: BotSkill[] }> => api.post('/bot/skills', payload)
 export const updateSkill     = (id: number, payload: Partial<BotSkill>) => api.put<{ data: BotSkill[] }>(`/bot/skills/${id}`, payload)
+export const deleteSkill     = (id: number): Promise<{ data: BotSkill[] }> => api.delete(`/bot/skills/${id}`)
 
 // Rules — CRUD completo
 export const listRules       = (): Promise<{ data: BotRule[] }>       => api.get('/bot/rules')

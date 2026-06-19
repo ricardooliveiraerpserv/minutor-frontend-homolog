@@ -1,10 +1,10 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bot, ChevronDown, ChevronRight, Save } from 'lucide-react'
+import { Bot, ChevronDown, ChevronRight, Save, Trash2, Plus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { listAgents, listProviders, updateAgent } from '@/lib/bot-config'
+import { createAgent, deleteAgent, listAgents, updateAgent } from '@/lib/bot-config'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { BotAgent } from '@/types/bot'
 
@@ -55,6 +55,20 @@ function AgentCard({ agent }: { agent: BotAgent }) {
     }
   }
 
+  const remove = async () => {
+    if (!confirm(`Excluir o agent "${agent.name}"? Esta ação é permanente.`)) return
+    setBusy(true)
+    try {
+      await deleteAgent(agent.id)
+      await qc.invalidateQueries({ queryKey: ['bot-agents'] })
+      toast.success('Agent excluído')
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="border border-zinc-800 rounded-md bg-zinc-900/30">
       <div className="flex items-start gap-3 p-4">
@@ -77,19 +91,34 @@ function AgentCard({ agent }: { agent: BotAgent }) {
             {expanded ? <ChevronDown size={11}/> : <ChevronRight size={11}/>} {expanded ? 'fechar configuração' : 'configurar'}
           </button>
         </div>
-        <label className="inline-flex items-center gap-2 text-xs text-zinc-300 cursor-pointer shrink-0">
-          <input
-            type="checkbox"
-            checked={active}
-            onChange={e => setActive(e.target.checked)}
-            className="accent-emerald-500"
-          />
-          {active ? 'Ativo' : 'Inativo'}
-        </label>
+        <div className="flex items-center gap-2 shrink-0">
+          <label className="inline-flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={active}
+              onChange={e => setActive(e.target.checked)}
+              className="accent-emerald-500"
+            />
+            {active ? 'Ativo' : 'Inativo'}
+          </label>
+          <button
+            type="button"
+            onClick={remove}
+            disabled={busy}
+            title="Excluir agent"
+            className="p-1.5 rounded text-zinc-500 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+          >
+            <Trash2 size={14}/>
+          </button>
+        </div>
       </div>
 
       {expanded && (
         <div className="px-4 pb-4 space-y-4 border-t border-zinc-800/50 pt-4">
+          <div>
+            <label className="text-[11px] text-zinc-500 uppercase tracking-wider">Nome</label>
+            <input value={name} onChange={e => setName(e.target.value)} className={input} />
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="text-[11px] text-zinc-500 uppercase tracking-wider">Prioridade</label>
@@ -149,18 +178,118 @@ function AgentCard({ agent }: { agent: BotAgent }) {
   )
 }
 
+function NewAgentModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient()
+  const [busy, setBusy] = useState(false)
+  const [slug, setSlug] = useState('')
+  const [name, setName] = useState('')
+  const [roleDesc, setRoleDesc] = useState('')
+  const [prompt, setPrompt] = useState('Você é um analista. Responda em português brasileiro, conciso e acionável.')
+  const [minSev, setMinSev] = useState<typeof SEVERITIES[number]>('info')
+  const [priority, setPriority] = useState(100)
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    try {
+      await createAgent({
+        slug: slug.trim(),
+        name: name.trim(),
+        role_description: roleDesc.trim() || null,
+        system_prompt: prompt,
+        priority,
+        min_severity: minSev,
+        active: true,
+      })
+      await qc.invalidateQueries({ queryKey: ['bot-agents'] })
+      toast.success('Agent criado')
+      onClose()
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <form
+        onSubmit={submit}
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-2xl bg-zinc-950 border border-zinc-800 rounded-lg p-5 space-y-4 max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-zinc-100">Novo Agent</h2>
+          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-zinc-200"><X size={16}/></button>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[11px] text-zinc-500 uppercase tracking-wider">Slug *</label>
+            <input value={slug} onChange={e => setSlug(e.target.value)} className={input} placeholder="ex: marketing_intel" required pattern="[a-z0-9_-]+" />
+          </div>
+          <div>
+            <label className="text-[11px] text-zinc-500 uppercase tracking-wider">Nome *</label>
+            <input value={name} onChange={e => setName(e.target.value)} className={input} placeholder="ex: Marketing Intelligence" required />
+          </div>
+        </div>
+        <div>
+          <label className="text-[11px] text-zinc-500 uppercase tracking-wider">Descrição do papel</label>
+          <input value={roleDesc} onChange={e => setRoleDesc(e.target.value)} className={input} placeholder="ex: Analisa funil e oportunidades comerciais." />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-[11px] text-zinc-500 uppercase tracking-wider">Severidade mín.</label>
+            <select value={minSev} onChange={e => setMinSev(e.target.value as typeof SEVERITIES[number])} className={input}>
+              {SEVERITIES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] text-zinc-500 uppercase tracking-wider">Prioridade</label>
+            <input type="number" value={priority} onChange={e => setPriority(Number(e.target.value))} className={input} />
+          </div>
+        </div>
+        <div>
+          <label className="text-[11px] text-zinc-500 uppercase tracking-wider">System Prompt *</label>
+          <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={8} className={`${input} font-mono leading-relaxed`} required />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="px-4 py-1.5 rounded text-xs text-zinc-300 hover:bg-zinc-800">Cancelar</button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded bg-emerald-500 text-zinc-950 text-xs font-semibold hover:bg-emerald-400 disabled:opacity-50"
+          >
+            <Save size={12}/> Criar Agent
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 export function AgentsTab() {
   const { data, isLoading } = useQuery({ queryKey: ['bot-agents'], queryFn: listAgents })
+  const [newOpen, setNewOpen] = useState(false)
 
   if (isLoading) return <Skeleton className="h-40 bg-zinc-800" />
   const items = data?.data ?? []
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-zinc-500">
-        Agents executam em ordem de prioridade. Cooldown e máx./dia protegem contra ruído e custo de IA.
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs text-zinc-500 flex-1">
+          Agents executam em ordem de prioridade. Cooldown e máx./dia protegem contra ruído e custo de IA.
+        </p>
+        <button
+          type="button"
+          onClick={() => setNewOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-500 text-zinc-950 text-xs font-semibold hover:bg-emerald-400 shrink-0"
+        >
+          <Plus size={12}/> Novo Agent
+        </button>
+      </div>
       {items.map(a => <AgentCard key={a.id} agent={a} />)}
+      {newOpen && <NewAgentModal onClose={() => setNewOpen(false)} />}
     </div>
   )
 }
