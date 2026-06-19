@@ -51,12 +51,15 @@ export default function CrmPipelinePage() {
   const [lossModal, setLossModal] = useState<{ oppId: number; stageId: number } | null>(null)
   const [wonModal, setWonModal] = useState<{ oppId: number; valor: number | null } | null>(null)
   const [detailId, setDetailId] = useState<number | null>(null)
+  const [produtos, setProdutos] = useState<{ id: number; name: string }[]>([])
+  const [nfProdutos, setNfProdutos] = useState<number[]>([])
 
   useEffect(() => {
     api.get<{ data: Pipeline[] }>('/crm/pipelines').then(r => { setPipelines(r?.data ?? []); if (r?.data?.[0]) setPipeId(r.data[0].id) }).catch(() => toast.error('Erro ao carregar funis'))
     api.get<any>('/customers?pageSize=500').then(r => setCustomers((Array.isArray(r) ? r : r?.data ?? r?.items ?? []).map((c: any) => ({ id: c.id, name: c.name, crm_status: c.crm_status })).sort((a: Customer, b: Customer) => a.name.localeCompare(b.name)))).catch(() => {})
     api.get<{ data: Source[] }>('/crm/lead-sources').then(r => setSources((r?.data ?? []).filter(s => s.active !== false))).catch(() => {})
     api.get<{ data: CrmUser[] }>('/crm/users').then(r => setCrmUsers(r?.data ?? [])).catch(() => {})
+    api.get<{ data: { id: number; name: string; ativo?: boolean }[] }>('/crm/products').then(r => setProdutos((r?.data ?? []).filter(p => p.ativo !== false).map(p => ({ id: p.id, name: p.name })))).catch(() => {})
     api.get<{ data: { id: number; name: string; active?: boolean }[] }>('/crm/loss-reasons').then(r => setLossReasons((r?.data ?? []).filter(x => x.active !== false))).catch(() => {})
     // "Converter em Oportunidade" vindo da ficha do Lead (já qualificado a prospect).
     const opp_for = new URLSearchParams(window.location.search).get('opp_for')
@@ -123,7 +126,7 @@ export default function CrmPipelinePage() {
     }
     setCreating(true)
     try {
-      await api.post('/crm/opportunities', {
+      const r = await api.post<{ data: { id: number } }>('/crm/opportunities', {
         title: nf.title, pipeline_id: Number(nf.pipeline_id), customer_id: Number(nf.customer_id),
         customer_contact_id: Number(nf.customer_contact_id), lead_source_id: Number(nf.lead_source_id),
         responsavel_id: Number(nf.responsavel_id), valor: nf.valor ? Number(nf.valor) : 0,
@@ -131,6 +134,10 @@ export default function CrmPipelinePage() {
         previsao_fechamento: nf.previsao_fechamento || null,
         proxima_acao: nf.proxima_acao, proxima_acao_at: nf.proxima_acao_at,
       })
+      const novoId = r?.data?.id
+      if (novoId && nfProdutos.length) {
+        await Promise.all(nfProdutos.map(pid => api.post(`/crm/opportunities/${novoId}/products`, { crm_product_id: pid }).catch(() => {})))
+      }
       toast.success('Oportunidade criada')
       try { if (nf.lead_source_id) localStorage.setItem('crm:last_origem', nf.lead_source_id) } catch {} // origem lembrada
       // Vai para a aba do pipeline escolhido para exibir a nova oportunidade.
@@ -148,7 +155,7 @@ export default function CrmPipelinePage() {
     const euResponsavel = crmUsers.some(u => u.id === user?.id) ? String(user?.id) : ''
     const em2dias = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10)
     setNf({ ...NF0, responsavel_id: euResponsavel, lead_source_id: origem, proxima_acao: 'Primeiro contato', proxima_acao_at: em2dias })
-    setContacts([]); setNovoLead(NL0); setNewOpen(true)
+    setContacts([]); setNovoLead(NL0); setNfProdutos([]); setNewOpen(true)
   }
 
   const moveStage = async (opp: Opp, stageId: number) => {
@@ -320,6 +327,17 @@ export default function CrmPipelinePage() {
                 <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Valor (R$)</label><input type="number" value={nf.valor} onChange={e => setNf(f => ({ ...f, valor: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
                 <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Previsão fechamento</label><input type="date" value={nf.previsao_fechamento} onChange={e => setNf(f => ({ ...f, previsao_fechamento: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
               </div>
+              {produtos.length > 0 && (
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Produtos / Serviços</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {produtos.map(p => {
+                      const on = nfProdutos.includes(p.id)
+                      return <button key={p.id} type="button" onClick={() => setNfProdutos(xs => on ? xs.filter(x => x !== p.id) : [...xs, p.id])} className="px-2.5 py-1 rounded-full text-[11px] font-semibold" style={{ background: on ? 'var(--primary)' : 'var(--surface-sunken)', color: on ? 'var(--primary-fg)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>{p.name}</button>
+                    })}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Próxima ação *</label><input value={nf.proxima_acao} onChange={e => setNf(f => ({ ...f, proxima_acao: e.target.value }))} placeholder="Ex.: Ligar para alinhar escopo" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
                 <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Data da próxima ação *</label><input type="date" value={nf.proxima_acao_at} onChange={e => setNf(f => ({ ...f, proxima_acao_at: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
