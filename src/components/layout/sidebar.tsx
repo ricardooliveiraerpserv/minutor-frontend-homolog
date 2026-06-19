@@ -46,6 +46,8 @@ import {
   Mail,
   Banknote,
   Bot,
+  Activity,
+  MessageCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -107,6 +109,8 @@ const NAV_COORDINATOR: NavEntry[] = [
 const NAV: NavEntry[] = [
   { type: 'item', label: 'Meu Painel',            href: '/meu-painel',      icon: LayoutDashboard },
   { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
+  { type: 'item', label: 'Feed Operacional',      href: '/feed-operacional', icon: Activity },
+  { type: 'item', label: 'Chat',                  href: '/inbox',           icon: MessageCircle },
   ...(IS_DEV1 ? [
     { type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox },
     { type: 'item' as const, label: 'Capacidade', href: '/capacidade', icon: Users },
