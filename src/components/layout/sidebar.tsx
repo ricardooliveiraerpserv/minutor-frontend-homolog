@@ -226,7 +226,6 @@ const NAV: NavEntry[] = [
       { label: 'Feriados',              href: '/cadastros?tab=holidays',          icon: CalendarDays },
       { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',   icon: CreditCard },
       { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
-      { label: 'BOT Minutor',           href: '/configuracoes/bot-minutor',       icon: Bot },
       { label: 'Integração Movidesk',   href: '/configuracoes/movidesk',          icon: Webhook },
       { label: 'Modelos de E-mail',     href: '/cadastros?tab=email_templates',   icon: Mail },
       { label: 'Parceiros',             href: '/partners',                        icon: Handshake },
@@ -238,7 +237,15 @@ const NAV: NavEntry[] = [
     ],
   },
   { type: 'item', label: 'Usuários',      href: '/users',    icon: Users },
-  { type: 'item', label: 'Configurações', href: '/settings', icon: Settings },
+  {
+    type: 'group',
+    label: 'Configurações',
+    icon: Settings,
+    items: [
+      { label: 'Geral',        href: '/settings',                  icon: Settings },
+      { label: 'BOT Minutor',  href: '/configuracoes/bot-minutor', icon: Bot },
+    ],
+  },
 ]
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
