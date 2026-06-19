@@ -202,11 +202,15 @@ interface ContractFormModalProps {
   editContract?: Contract | null
   onClose: () => void
   onSaved: () => void
+  // Pré-preenchimento ao criar (ex.: oportunidade CRM GANHA → Novo Contrato).
+  prefill?: Partial<FormState>
+  prefillContacts?: ContractContact[]
+  opportunityId?: number
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ContractFormModal({ open, editContract, onClose, onSaved }: ContractFormModalProps) {
+export function ContractFormModal({ open, editContract, onClose, onSaved, prefill, prefillContacts, opportunityId }: ContractFormModalProps) {
   // Master data
   const [customers, setCustomers]         = useState<SelectOption[]>([])
   const [users, setUsers]                 = useState<SelectOption[]>([])
@@ -304,8 +308,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
       }).catch(() => toast.error('Erro ao carregar contrato'))
     } else {
       setInternalEdit(null)
-      setForm({ ...EMPTY_FORM })
-      setContacts([])
+      setForm({ ...EMPTY_FORM, ...(prefill ?? {}) })
+      setContacts(prefillContacts ?? [])
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editContract])
@@ -536,6 +540,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
         observacoes:           form.observacoes || null,
         contacts,
       }
+      // Criação a partir de oportunidade GANHA → vincula a opp (backend faz o convert idempotente).
+      if (!internalEdit && opportunityId) payload.opportunity_id = opportunityId
 
       let contract: Contract
       if (internalEdit) {
@@ -603,7 +609,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
 
   if (!open) return null
 
-  const TABS = ['Cliente', 'Classificação', 'Faturamento', 'Despesas', 'Operacional', 'Contatos', 'Financeiro', 'Comercial', 'Observações', 'Anexos']
+  // Aba "Anexos" removida: o upload da Proposta/Aprovação já fica na 1ª aba (Cliente) e alimenta o mesmo pendingFiles.
+  const TABS = ['Cliente', 'Classificação', 'Faturamento', 'Despesas', 'Operacional', 'Contatos', 'Financeiro', 'Comercial', 'Observações']
 
   const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-cyan-500/40'
   const inputStyle = { border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }

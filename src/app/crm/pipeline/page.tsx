@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, X, Clock, AlertTriangle, Check, UserPlus, FileDown } from 'lucide-react'
+import { Plus, X, Clock, AlertTriangle, Check, UserPlus, FileDown, Trash2 } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
+import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 
 interface Stage { id: number; name: string; is_won: boolean; is_lost: boolean }
 interface Pipeline { id: number; name: string; code: string; stages: Stage[] }
@@ -26,6 +27,104 @@ interface CrmUser { id: number; name: string }
 interface Contact { id: number; name: string }
 
 const fmtBRL = (n: number) => (Number(n) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+// Mapeia o tipo da proposta p/ o ID do tipo de contrato cadastrado (match por nome).
+function matchCType(ctypes: any[], tipo: string): string {
+  const want: Record<string, string> = { bh_fixo: 'fixo', bh_mensal: 'mensal', on_demand: 'demand', projeto_fechado: 'fechad' }
+  const w = want[tipo]; if (!w) return ''
+  const m = (ctypes || []).find(c => (c?.name || '').toLowerCase().includes(w))
+  return m ? String(m.id) : ''
+}
+function scopeText(conteudo: any, defaults?: any): string {
+  const esc = conteudo?.escopo ?? {}
+  const def = defaults?.escopo ?? {}
+  const parts: string[] = []
+  const objetivo = String(esc.objetivo ?? '').trim()
+  if (objetivo) parts.push('OBJETIVO: ' + objetivo)
+  const blocks = esc.blocks
+  if (Array.isArray(blocks) && blocks.length) {
+    const body = blocks.filter((b: any) => b.tipo === 'texto' || b.tipo === 'titulo').map((b: any) => b.conteudo).filter(Boolean).join('\n')
+    if (body.trim()) parts.push(body)
+  } else {
+    // sem blocos próprios → usa o override OU o texto-padrão do deck (defaults), igual ao render da proposta.
+    const funcional = String(esc.escopo_funcional ?? def.escopo_funcional ?? '').trim()
+    if (funcional) parts.push(funcional)
+  }
+  return parts.join('\n\n')
+}
+// Extrai o valor numérico (R$) de um texto de despesa da proposta (ex.: "Será cobrado R$170,00 por visita").
+function parseBRL(text: string): number {
+  const m = String(text || '').match(/R\$\s?([\d.]*,?\d+)/)
+  return m ? (Number(m[1].replace(/\./g, '').replace(',', '.')) || 0) : 0
+}
+// Monta o pré-preenchimento do Novo Contrato a partir da oportunidade GANHA + sua proposta mais recente.
+// Reusado pelo board (ao marcar GANHO) e pelo drawer (botão "Gerar contrato").
+async function buildWonPrefill(opp: { id: number; title?: string; valor?: number | null; customer?: { id: number } | null; responsavel?: { id: number } | null; responsavel_id?: number | null }): Promise<{ prefill: any; prefillContacts: any[] }> {
+  const cid = opp.customer?.id
+  const respId = opp.responsavel?.id ?? opp.responsavel_id ?? null
+  const prefill: any = {
+    customer_id: cid ? String(cid) : '',
+    project_name: opp.title ?? '',
+    categoria: 'projeto',
+    valor_projeto: opp.valor != null ? String(opp.valor) : '',
+    vendedor_id: respId ? String(respId) : '',
+  }
+  let prefillContacts: any[] = []
+  try {
+    const [propsList, ctypes, stypes, contacts] = await Promise.all([
+      api.get<{ data: any[] }>(`/crm/proposals?opportunity_id=${opp.id}`).then(r => r?.data ?? []).catch(() => []),
+      api.get<any>('/contract-types?pageSize=100').then(r => r?.items ?? r?.data ?? r ?? []).catch(() => []),
+      api.get<any>('/service-types?pageSize=100').then(r => r?.items ?? r?.data ?? r ?? []).catch(() => []),
+      cid ? api.get<any>(`/customer-contacts?customer_id=${cid}`).then(r => (Array.isArray(r) ? r : r?.data ?? [])).catch(() => []) : Promise.resolve([]),
+    ])
+    prefillContacts = (contacts as any[]).map(c => ({ name: c.name, cargo: c.cargo ?? '', email: c.email ?? '', phone: c.phone ?? '' }))
+    const latest = (propsList as any[])[0]
+    if (latest?.id) {
+      const det = await api.get<{ data: any }>(`/crm/proposals/${latest.id}`).then(r => r?.data).catch(() => null)
+      if (det) {
+        const tipo = det.tipo
+        const inputs = det.inputs ?? {}
+        const conteudo = det.conteudo ?? {}
+        const horas = Number(inputs.horas_consultoria ?? 0)
+        const vh = Number(inputs.valor_hora_cliente ?? inputs.venda_h ?? 0)
+        const total = Number(det.total ?? det.valor ?? horas * vh) || 0
+        const inv = conteudo.investimento ?? {}
+        const meta = conteudo.contrato ?? {}
+        // Tipo de Contrato / Serviço: usa o DEFINIDO na proposta (garante 100%); fallback por nome.
+        prefill.contract_type_id = meta.contract_type_id ? String(meta.contract_type_id) : matchCType(ctypes as any[], tipo)
+        const stProjeto = (stypes as any[]).find(s => (s?.name || '').toLowerCase().includes('projeto'))
+        prefill.service_type_id = meta.service_type_id ? String(meta.service_type_id) : (stProjeto ? String(stProjeto.id) : '')
+        prefill.horas_contratadas = tipo === 'on_demand' || tipo === 'projeto_fechado' ? '0' : String(horas || '')
+        prefill.valor_hora = vh ? String(vh) : ''
+        prefill.valor_projeto = tipo === 'projeto_fechado'
+          ? String(Number(inputs.valor_projeto ?? inputs.valor_fixo ?? total) || '')
+          : tipo === 'on_demand' ? String(total || '') : (total ? String(total) : prefill.valor_projeto)
+        // Despesa do contrato: seletor da proposta (sp/fora/nenhum). Fallback p/ chave antiga (despesas_sp_contrato).
+        const despSel = meta.despesa ?? (inv.despesas_sp_on !== false && inv.despesas_sp_contrato !== false ? 'sp' : 'nenhum')
+        if (despSel === 'nenhum') {
+          prefill.cobra_despesa_cliente = false
+        } else {
+          prefill.cobra_despesa_cliente = true
+          const dtxt = despSel === 'fora' ? (inv.despesas_fora ?? det.defaults?.investimento?.despesas_fora) : (inv.despesas_sp ?? det.defaults?.investimento?.despesas_sp)
+          const dval = parseBRL(String(dtxt ?? ''))
+          if (dval) prefill.limite_despesa = String(dval)
+        }
+        const esc = scopeText(conteudo, det.defaults)
+        if (esc) prefill.observacoes = esc
+        // Condição de Pagamento = junção da tabela de Prazo (Parcelas + Valor % + Vencimento).
+        // Só p/ tipos que têm a tabela de parcelas (BH Fixo / Projeto Fechado). Usa override OU default.
+        if (tipo === 'bh_fixo' || tipo === 'projeto_fechado') {
+          const prazo = { ...(det.defaults?.prazo ?? {}), ...(conteudo.prazo ?? {}) }
+          const head = [prazo.parcelas, prazo.valor_pct].map((s: any) => (s ? String(s).trim() : '')).filter(Boolean).join(' — ')
+          const venc = prazo.vencimento ? `Vencimento: ${String(prazo.vencimento).trim()}` : ''
+          const cond = [head, venc].filter(Boolean).join('. ')
+          if (cond) prefill.condicao_pagamento = cond.endsWith('.') ? cond : cond + '.'
+        }
+      }
+    }
+  } catch { /* o prefill mínimo (cliente/nome/valor) já basta */ }
+  return { prefill, prefillContacts }
+}
 
 export default function CrmPipelinePage() {
   const { user } = useAuth()
@@ -49,10 +148,10 @@ export default function CrmPipelinePage() {
   const [novoContato, setNovoContato] = useState(NC0)
   const [lossReasons, setLossReasons] = useState<{ id: number; name: string }[]>([])
   const [lossModal, setLossModal] = useState<{ oppId: number; stageId: number } | null>(null)
-  const [wonModal, setWonModal] = useState<{ oppId: number; valor: number | null } | null>(null)
+  const [wonModal, setWonModal] = useState<{ oppId: number; prefill: any; prefillContacts: any[] } | null>(null)
   const [detailId, setDetailId] = useState<number | null>(null)
-  const [produtos, setProdutos] = useState<{ id: number; name: string }[]>([])
-  const [nfProdutos, setNfProdutos] = useState<number[]>([])
+  const [produtos, setProdutos] = useState<{ id: number; name: string }[]>([]) // catálogo de Produtos/Serviços
+  const [nfProdutos, setNfProdutos] = useState<number[]>([]) // produtos selecionados ao criar a oportunidade
 
   useEffect(() => {
     api.get<{ data: Pipeline[] }>('/crm/pipelines').then(r => { setPipelines(r?.data ?? []); if (r?.data?.[0]) setPipeId(r.data[0].id) }).catch(() => toast.error('Erro ao carregar funis'))
@@ -134,6 +233,7 @@ export default function CrmPipelinePage() {
         previsao_fechamento: nf.previsao_fechamento || null,
         proxima_acao: nf.proxima_acao, proxima_acao_at: nf.proxima_acao_at,
       })
+      // Anexa os produtos selecionados à oportunidade recém-criada.
       const novoId = r?.data?.id
       if (novoId && nfProdutos.length) {
         await Promise.all(nfProdutos.map(pid => api.post(`/crm/opportunities/${novoId}/products`, { crm_product_id: pid }).catch(() => {})))
@@ -164,12 +264,17 @@ export default function CrmPipelinePage() {
     try {
       await api.patch(`/crm/opportunities/${opp.id}/stage`, { stage_id: stageId })
       await loadBoard()
-      // Ao marcar GANHO, já abre o modal de geração de contrato (só se ainda não convertida).
+      // Ao marcar GANHO, abre o modal COMPLETO de Novo Contrato já pré-preenchido com a proposta.
       if (stage?.is_won && !opp.contract_id) {
-        setWonModal({ oppId: opp.id, valor: opp.valor ?? null })
+        openWonContract(opp)
       }
     }
     catch (e: any) { toast.error(e?.message ?? 'Erro ao mover') } // Item 4: mensagem de produto obrigatório
+  }
+  // GANHO → monta o pré-preenchimento (proposta mais recente + contatos + tipo) e abre o Novo Contrato.
+  const openWonContract = async (opp: Opp) => {
+    const { prefill, prefillContacts } = await buildWonPrefill(opp)
+    setWonModal({ oppId: opp.id, prefill, prefillContacts })
   }
   const confirmLoss = async (loss_reason_id: number) => {
     if (!lossModal) return
@@ -353,8 +458,8 @@ export default function CrmPipelinePage() {
       )}
 
       {wonModal && (
-        <ContractModal oppId={wonModal.oppId} defaultValor={wonModal.valor}
-          onClose={() => setWonModal(null)} onDone={() => { setWonModal(null); loadBoard() }} />
+        <ContractFormModal open opportunityId={wonModal.oppId} prefill={wonModal.prefill} prefillContacts={wonModal.prefillContacts}
+          onClose={() => setWonModal(null)} onSaved={() => { setWonModal(null); loadBoard() }} />
       )}
 
       {detailId && <OppDetail id={detailId} onClose={() => { setDetailId(null); loadBoard() }} />}
@@ -378,57 +483,6 @@ function LossModal({ reasons, onCancel, onConfirm }: { reasons: { id: number; na
           <button onClick={onCancel} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
           <button onClick={() => reasonId ? onConfirm(Number(reasonId)) : toast.error('Selecione o motivo')} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--danger)', color: '#fff' }}>Confirmar perda</button>
         </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Modal de geração de contrato (reutilizado: botão do drawer + ao marcar Ganho no board) ──
-function ContractModal({ oppId, defaultValor, onClose, onDone }: { oppId: number; defaultValor?: number | null; onClose: () => void; onDone: () => void }) {
-  const [ctypes, setCtypes] = useState<{ id: number; name: string }[]>([])
-  const [cf, setCf] = useState({ categoria: 'projeto', contract_type_id: '', tipo_faturamento: '', horas_contratadas: '', valor_projeto: defaultValor != null ? String(defaultValor) : '' })
-  const [saving, setSaving] = useState(false)
-  useEffect(() => { api.get<any>('/contract-types').then(r => setCtypes((Array.isArray(r) ? r : r?.data ?? []).map((c: any) => ({ id: c.id, name: c.name })))).catch(() => {}) }, [])
-  const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
-  const doConvert = async () => {
-    setSaving(true)
-    try {
-      const r = await api.post<{ message: string }>(`/crm/opportunities/${oppId}/convert`, {
-        categoria: cf.categoria,
-        contract_type_id: cf.contract_type_id ? Number(cf.contract_type_id) : null,
-        tipo_faturamento: cf.tipo_faturamento || null,
-        horas_contratadas: cf.horas_contratadas ? Number(cf.horas_contratadas) : 0,
-        valor_projeto: cf.valor_projeto ? Number(cf.valor_projeto) : null,
-      })
-      toast.success(r?.message ?? 'Convertido em contrato')
-      onDone()
-    } catch (e: any) { toast.error(e?.data?.message ?? 'Erro ao converter') }
-    finally { setSaving(false) }
-  }
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4"><h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Gerar contrato (oportunidade ganha)</h2><button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button></div>
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Categoria</label>
-              <select value={cf.categoria} onChange={e => setCf(f => ({ ...f, categoria: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                <option value="projeto">Projeto</option><option value="sustentacao">Sustentação</option>
-              </select></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Tipo de contrato</label>
-              <select value={cf.contract_type_id} onChange={e => setCf(f => ({ ...f, contract_type_id: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                <option value="">—</option>{ctypes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Faturamento</label>
-              <select value={cf.tipo_faturamento} onChange={e => setCf(f => ({ ...f, tipo_faturamento: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                <option value="">—</option><option value="on_demand">On Demand</option><option value="banco_horas_fixo">Banco de Horas Fixo</option><option value="banco_horas_mensal">Banco de Horas Mensal</option><option value="por_servico">Por Serviço</option><option value="saas">SaaS</option>
-              </select></div>
-            <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Horas contratadas</label><input type="number" value={cf.horas_contratadas} onChange={e => setCf(f => ({ ...f, horas_contratadas: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
-          </div>
-          <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Valor do projeto (R$)</label><input type="number" value={cf.valor_projeto} onChange={e => setCf(f => ({ ...f, valor_projeto: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
-          <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>O contrato nasce em "Novo Contrato"; o projeto é gerado depois no Kanban de Contratos.</p>
-        </div>
-        <div className="flex justify-end gap-2 mt-5"><button onClick={onClose} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Agora não</button><button onClick={doConvert} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: 'var(--success)', color: '#fff' }}>{saving ? 'Gerando…' : 'Gerar contrato'}</button></div>
       </div>
     </div>
   )
@@ -610,6 +664,13 @@ function OppDetail({ id, onClose }: { id: number; onClose: () => void }) {
   const loadProps = useCallback(() => { api.get<{ data: Proposal[] }>(`/crm/proposals?opportunity_id=${id}`).then(r => setProposals(r?.data ?? [])).catch(() => {}) }, [id])
   useEffect(() => { load(); loadProps() }, [load, loadProps])
   const setPropStatus = async (p: Proposal, status: string) => { try { await api.put(`/crm/proposals/${p.id}`, { status }); loadProps() } catch { toast.error('Erro') } }
+  const [delId, setDelId] = useState<number | null>(null)
+  const excluirProposta = async (p: Proposal) => {
+    if (!confirm(`Excluir a proposta ${p.codigo || '#' + p.numero}.${p.versao}? Ela sai da oportunidade (pode ser recuperada no banco).`)) return
+    setDelId(p.id)
+    try { await api.delete(`/crm/proposals/${p.id}`); toast.success('Proposta excluída'); loadProps(); load() }
+    catch { toast.error('Erro ao excluir proposta') } finally { setDelId(null) }
+  }
   const [novaLoad, setNovaLoad] = useState(false)
   const novaProposta = async () => {
     setNovaLoad(true)
@@ -630,6 +691,7 @@ function OppDetail({ id, onClose }: { id: number; onClose: () => void }) {
     } catch { toast.error('Erro ao gerar PDF') } finally { setGenId(null) }
   }
 
+  // Rótulos amigáveis dos eventos da timeline.
   const EVT_LABEL: Record<string, string> = {
     created: 'Criada', stage_changed: 'Mudou de etapa', valor_alterado: 'Valor alterado',
     task_done: 'Tarefa concluída', automacao: 'Automação', automacao_erro: 'Falha em automação',
@@ -650,6 +712,7 @@ function OppDetail({ id, onClose }: { id: number; onClose: () => void }) {
     catch { toast.error('Erro ao salvar descrição') } finally { setDescrSaving(false) }
   }
 
+  // Valor da oportunidade — editável (a alteração é registrada na Timeline pelo backend).
   const [valorEdit, setValorEdit] = useState('')
   const [valorSaving, setValorSaving] = useState(false)
   useEffect(() => { setValorEdit(o?.valor != null ? String(o.valor) : '') }, [o?.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -671,8 +734,12 @@ function OppDetail({ id, onClose }: { id: number; onClose: () => void }) {
   }
   const delAtt = async (attId: number) => { try { await api.delete(`/crm/opportunities/${id}/attachments/${attId}`); loadAtts() } catch { toast.error('Erro') } }
 
-  // Conversão comercial → contrato (modal reutilizável ContractModal)
-  const [convOpen, setConvOpen] = useState(false)
+  // Conversão comercial → Novo Contrato completo (pré-preenchido com a proposta)
+  const [wonDrawer, setWonDrawer] = useState<{ prefill: any; prefillContacts: any[] } | null>(null)
+  const gerarContratoDrawer = async () => {
+    const { prefill, prefillContacts } = await buildWonPrefill({ id, title: o?.title, valor: o?.valor, customer: o?.customer, responsavel: (o as any)?.responsavel, responsavel_id: (o as any)?.responsavel_id })
+    setWonDrawer({ prefill, prefillContacts })
+  }
 
   const addTask = async () => {
     if (!nt.tipo) { toast.error('Selecione o tipo de contato'); return }
@@ -719,9 +786,9 @@ function OppDetail({ id, onClose }: { id: number; onClose: () => void }) {
                 <Check size={14} /> Convertida em contrato <b>#{o.contract_id}</b> — gere o projeto no Kanban de Contratos.
               </div>
             ) : o.status === 'ganho' ? (
-              <button onClick={() => setConvOpen(true)} className="mb-4 w-full py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--success)', color: '#fff' }}>Gerar contrato →</button>
+              <button onClick={gerarContratoDrawer} className="mb-4 w-full py-2 rounded-lg text-sm font-bold" style={{ background: 'var(--success)', color: '#fff' }}>Gerar contrato →</button>
             ) : null}
-            {convOpen && <ContractModal oppId={id} defaultValor={o.valor} onClose={() => setConvOpen(false)} onDone={() => { setConvOpen(false); load() }} />}
+            {wonDrawer && <ContractFormModal open opportunityId={id} prefill={wonDrawer.prefill} prefillContacts={wonDrawer.prefillContacts} onClose={() => setWonDrawer(null)} onSaved={() => { setWonDrawer(null); load() }} />}
 
             <div className="mb-4">
               <h3 className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Descrição da oportunidade</h3>
@@ -757,6 +824,9 @@ function OppDetail({ id, onClose }: { id: number; onClose: () => void }) {
                   </select>
                   <button onClick={e => { e.stopPropagation(); gerarPdf(p) }} disabled={genId === p.id || !p.codigo} title="Gerar / baixar PDF" className="disabled:opacity-40" style={{ color: 'var(--primary)' }}>
                     {genId === p.id ? <Clock size={13} className="animate-spin" /> : <FileDown size={13} />}
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); excluirProposta(p) }} disabled={delId === p.id} title="Excluir proposta" className="disabled:opacity-40" style={{ color: 'var(--danger)' }}>
+                    {delId === p.id ? <Clock size={13} className="animate-spin" /> : <Trash2 size={13} />}
                   </button>
                 </div>
               ))}
