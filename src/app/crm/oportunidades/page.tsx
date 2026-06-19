@@ -28,7 +28,8 @@ export default function CrmOportunidadesPage() {
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [customers, setCustomers] = useState<Opt[]>([])
   const [users, setUsers] = useState<Opt[]>([])
-  const [f, setF] = useState({ customer_id: '', responsavel_id: '', pipeline_id: '', stage_id: '', status: '', de: '', ate: '', search: '' })
+  const [produtos, setProdutos] = useState<Opt[]>([])
+  const [f, setF] = useState({ customer_id: '', responsavel_id: '', pipeline_id: '', stage_id: '', produto_id: '', status: '', de: '', ate: '', search: '' })
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v, ...(k === 'pipeline_id' ? { stage_id: '' } : {}) }))
 
   const qs = useMemo(() => {
@@ -48,6 +49,7 @@ export default function CrmOportunidadesPage() {
     api.get<any>('/customers?pageSize=500').then(r => setCustomers((Array.isArray(r) ? r : r?.data ?? r?.items ?? []).map((c: any) => ({ id: c.id, name: c.name })).sort((a: Opt, b: Opt) => a.name.localeCompare(b.name)))).catch(() => {})
     // Responsável: somente usuários marcados como responsáveis comerciais (não todos os usuários).
     api.get<{ data: any[] }>('/crm/users').then(r => setUsers((r?.data ?? []).map((u: any) => ({ id: u.id, name: u.name })))).catch(() => {})
+    api.get<{ data: any[] }>('/crm/products').then(r => setProdutos((r?.data ?? []).map((p: any) => ({ id: p.id, name: p.name })))).catch(() => {})
   }, [])
 
   // Etapa independente do Pipeline: sem pipeline selecionado, lista as etapas de todos
@@ -86,6 +88,7 @@ export default function CrmOportunidadesPage() {
         <select value={f.responsavel_id} onChange={e => set('responsavel_id', e.target.value)} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}><option value="">Responsável</option>{users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
         <select value={f.pipeline_id} onChange={e => set('pipeline_id', e.target.value)} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}><option value="">Pipeline</option>{pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
         <select value={f.stage_id} onChange={e => set('stage_id', e.target.value)} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}><option value="">Etapa</option>{stageOpts.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
+        <select value={f.produto_id} onChange={e => set('produto_id', e.target.value)} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}><option value="">Produto</option>{produtos.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
         <select value={f.status} onChange={e => set('status', e.target.value)} className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}><option value="">Status</option>{STATUS.map(s => <option key={s} value={s}>{s}</option>)}</select>
         <input type="date" value={f.de} onChange={e => set('de', e.target.value)} title="Abertura de" className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
         <input type="date" value={f.ate} onChange={e => set('ate', e.target.value)} title="Abertura até" className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
