@@ -45,6 +45,7 @@ import {
   Inbox,
   Mail,
   Banknote,
+  Bot,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
@@ -225,6 +226,7 @@ const NAV: NavEntry[] = [
       { label: 'Feriados',              href: '/cadastros?tab=holidays',          icon: CalendarDays },
       { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',   icon: CreditCard },
       { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
+      { label: 'BOT Minutor',           href: '/configuracoes/bot-minutor',       icon: Bot },
       { label: 'Integração Movidesk',   href: '/configuracoes/movidesk',          icon: Webhook },
       { label: 'Modelos de E-mail',     href: '/cadastros?tab=email_templates',   icon: Mail },
       { label: 'Parceiros',             href: '/partners',                        icon: Handshake },
