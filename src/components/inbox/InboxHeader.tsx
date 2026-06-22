@@ -1,11 +1,47 @@
 'use client'
 
-import { Bot, Users, Zap } from 'lucide-react'
+import { useState } from 'react'
+import { Bot, Settings, Users, Zap } from 'lucide-react'
 import type { ConversationSummary, PresenceStatusValue } from '@/types/inbox'
 import { PresenceDot } from './PresenceDot'
+import { ManageGroupModal } from './ManageGroupModal'
 
 function initials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
+}
+
+function GroupHeader({ conversation: c }: { conversation: ConversationSummary }) {
+  const [manageOpen, setManageOpen] = useState(false)
+  return (
+    <>
+      <header className="h-16 border-b border-[var(--brand-border)] px-5 flex items-center gap-3 bg-[var(--surface)]">
+        <div className="w-10 h-10 rounded-md bg-violet-500/15 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30 flex items-center justify-center shrink-0">
+          <Users size={17} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-sm font-semibold truncate text-[var(--text)]">{c.title}</h2>
+          <p className="text-[11px] text-[var(--text-light)]">
+            Grupo · {c.participants_count ?? '?'} participantes
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setManageOpen(true)}
+          title="Gerenciar membros"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] border border-[var(--brand-border)]"
+        >
+          <Settings size={13}/> Gerenciar membros
+        </button>
+      </header>
+      {manageOpen && (
+        <ManageGroupModal
+          conversationId={c.id}
+          title={c.title ?? 'Grupo'}
+          onClose={() => setManageOpen(false)}
+        />
+      )}
+    </>
+  )
 }
 
 interface Props {
@@ -46,19 +82,7 @@ export function InboxHeader({ conversation, presenceByUser }: Props) {
   }
 
   if (c.type === 'group') {
-    return (
-      <header className="h-16 border-b border-[var(--brand-border)] px-5 flex items-center gap-3 bg-[var(--surface)]">
-        <div className="w-10 h-10 rounded-md bg-violet-500/15 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30 flex items-center justify-center shrink-0">
-          <Users size={17} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold truncate text-[var(--text)]">{c.title}</h2>
-          <p className="text-[11px] text-[var(--text-light)]">
-            Grupo · {c.participants_count ?? '?'} participantes
-          </p>
-        </div>
-      </header>
-    )
+    return <GroupHeader conversation={c} />
   }
 
   // direct
