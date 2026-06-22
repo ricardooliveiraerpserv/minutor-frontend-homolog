@@ -1,13 +1,72 @@
 'use client'
 
 import { useState } from 'react'
-import { Bot, Settings, Users, Zap } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { Bell, BellOff, Bot, Settings, Users, Zap } from 'lucide-react'
 import type { ConversationSummary, PresenceStatusValue } from '@/types/inbox'
+import { muteConversation } from '@/lib/inbox'
 import { PresenceDot } from './PresenceDot'
 import { ManageGroupModal } from './ManageGroupModal'
 
 function initials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
+}
+
+function MuteButton({ conv }: { conv: ConversationSummary }) {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const isMuted = !!conv.muted_until && new Date(conv.muted_until).getTime() > Date.now()
+
+  const apply = async (hours: number | null) => {
+    setOpen(false)
+    try {
+      await muteConversation(conv.id, hours)
+      await qc.invalidateQueries({ queryKey: ['inbox-conversations'] })
+      toast.success(hours ? `Silenciado por ${hours}h` : 'Silenciamento removido')
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        title={isMuted ? 'Silenciado — clique pra mudar' : 'Silenciar notificações'}
+        className={[
+          'inline-flex items-center justify-center w-8 h-8 rounded',
+          isMuted ? 'text-amber-500 bg-amber-500/10 hover:bg-amber-500/20' : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]',
+        ].join(' ')}
+      >
+        {isMuted ? <BellOff size={14}/> : <Bell size={14}/>}
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-48 rounded-md border border-[var(--brand-border)] bg-[var(--surface)] shadow-lg py-1 z-20" onMouseLeave={() => setOpen(false)}>
+          {[1, 8, 24, 168].map(h => (
+            <button
+              key={h}
+              type="button"
+              onClick={() => apply(h)}
+              className="w-full text-left px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--surface-hover)]"
+            >
+              Silenciar por {h < 24 ? `${h}h` : h === 24 ? '1 dia' : '7 dias'}
+            </button>
+          ))}
+          {isMuted && (
+            <button
+              type="button"
+              onClick={() => apply(null)}
+              className="w-full text-left px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/10 border-t border-[var(--brand-border)]"
+            >
+              Remover silenciamento
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function GroupHeader({ conversation: c }: { conversation: ConversationSummary }) {
@@ -24,6 +83,7 @@ function GroupHeader({ conversation: c }: { conversation: ConversationSummary })
             Grupo · {c.participants_count ?? '?'} participantes
           </p>
         </div>
+        <MuteButton conv={c} />
         <button
           type="button"
           onClick={() => setManageOpen(true)}
@@ -108,6 +168,7 @@ export function InboxHeader({ conversation, presenceByUser }: Props) {
             : 'Conversa direta'}
         </p>
       </div>
+      <MuteButton conv={c} />
     </header>
   )
 }

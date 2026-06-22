@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Archive, Inbox as InboxIcon, MessageSquare, Search, X } from 'lucide-react'
-import { listMessages, markRead } from '@/lib/inbox'
+import { Archive, Inbox as InboxIcon, MessageSquare, Pin, Search, X } from 'lucide-react'
+import { listMessages, listPinned, markRead } from '@/lib/inbox'
 import { MessageItem } from './MessageItem'
 import { ChatMessageItem } from './ChatMessageItem'
 import { Composer } from './Composer'
 import { Skeleton } from '@/components/ui/skeleton'
 import type {
-  ConversationSummary, NotificationStatusValue,
+  ConversationSummary, InboxMessage, NotificationStatusValue,
 } from '@/types/inbox'
 
 type Filter = 'active' | 'all' | 'resolved' | 'archived' | 'snoozed'
@@ -42,7 +42,16 @@ export function MessageList({ conversation, currentUserId }: Props) {
   const [filter, setFilter] = useState<Filter>('active')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [replyTo, setReplyTo] = useState<InboxMessage | null>(null)
   const bottomRef = useRef<HTMLDivElement | null>(null)
+
+  const { data: pinnedRes } = useQuery({
+    queryKey: ['inbox-pinned', conversation?.id],
+    queryFn: () => listPinned(conversation!.id),
+    enabled: !!conversation && conversation.type !== 'bot',
+    staleTime: 60_000,
+  })
+  const pinned = pinnedRes?.data ?? []
 
   const { data, isLoading } = useQuery({
     queryKey: ['inbox-messages', conversation?.id, isBot ? filter : 'chat'],
@@ -170,6 +179,28 @@ export function MessageList({ conversation, currentUserId }: Props) {
         </div>
       )}
 
+      {pinned.length > 0 && conversation?.type !== 'bot' && (
+        <div className="px-5 py-2 border-b border-[var(--brand-border)] bg-amber-500/5">
+          <div className="flex items-center gap-2 mb-1">
+            <Pin size={11} className="text-amber-500"/>
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-700 dark:text-amber-400">
+              {pinned.length === 1 ? 'Mensagem fixada' : `${pinned.length} mensagens fixadas`}
+            </span>
+          </div>
+          <div className="space-y-1">
+            {pinned.slice(0, 3).map(p => (
+              <div key={p.id} className="text-[11px] text-[var(--text-muted)] truncate">
+                <span className="font-semibold text-[var(--text)]">{p.sender?.name ?? '—'}:</span>{' '}
+                {p.body ? p.body.slice(0, 100) : '[anexo]'}
+              </div>
+            ))}
+            {pinned.length > 3 && (
+              <div className="text-[10px] text-[var(--text-light)]">+ {pinned.length - 3} mais</div>
+            )}
+          </div>
+        </div>
+      )}
+
       {isBot && (
         <div className="px-5 py-2 flex items-center gap-1 border-b border-[var(--brand-border)] bg-[var(--surface)]">
           {(Object.keys(FILTER_LABEL) as Filter[]).map(k => (
@@ -234,6 +265,7 @@ export function MessageList({ conversation, currentUserId }: Props) {
                     message={m}
                     isOwn={!!currentUserId && m.sender?.id === currentUserId}
                     compact={!!prev && sameSender && closeInTime}
+                    onReply={setReplyTo}
                   />
                 )
               })
@@ -243,7 +275,13 @@ export function MessageList({ conversation, currentUserId }: Props) {
         )}
       </div>
 
-      {isChat && <Composer conversationId={conversation.id} />}
+      {isChat && (
+        <Composer
+          conversationId={conversation.id}
+          replyTo={replyTo}
+          onCancelReply={() => setReplyTo(null)}
+        />
+      )}
     </div>
   )
 }

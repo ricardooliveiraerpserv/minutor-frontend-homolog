@@ -5,16 +5,19 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Bot, Download, Edit3, FileText, MoreVertical, Trash2, Wrench } from 'lucide-react'
+import { Bot, CornerUpLeft, Download, Edit3, FileText, MoreVertical, Pin, PinOff, Reply, Smile, Star, Trash2, Wrench } from 'lucide-react'
 import type { InboxMessage, MessageAttachment } from '@/types/inbox'
 import { MarkdownLite } from './MarkdownLite'
-import { deleteMessage, editMessage } from '@/lib/inbox'
+import { deleteMessage, editMessage, togglePin, toggleFavorite, toggleReaction } from '@/lib/inbox'
 import { ImageLightbox } from './ImageLightbox'
+
+const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '😢', '🚀']
 
 interface Props {
   message: InboxMessage
   isOwn: boolean
   compact?: boolean
+  onReply?: (m: InboxMessage) => void
 }
 
 const EDIT_WINDOW_MIN = 5
@@ -23,14 +26,16 @@ function initials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
 }
 
-export function ChatMessageItem({ message, isOwn, compact = false }: Props) {
+export function ChatMessageItem({ message, isOwn, compact = false, onReply }: Props) {
   const qc = useQueryClient()
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.body)
   const [busy, setBusy] = useState(false)
   const [lightbox, setLightbox] = useState<MessageAttachment | null>(null)
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
   const attachments = message.attachments ?? []
+  const reactions = message.reactions ?? []
   const hasOnlyAttachments = attachments.length > 0 && (!message.body || message.body.trim() === '')
 
   const sender = message.sender
@@ -45,7 +50,13 @@ export function ChatMessageItem({ message, isOwn, compact = false }: Props) {
   const minutesSinceCreated = Math.floor((Date.now() - new Date(message.created_at).getTime()) / 60000)
   const canEdit = isOwn && !isBotMsg && !isDeleted && minutesSinceCreated <= EDIT_WINDOW_MIN
   const canDelete = isOwn && !isBotMsg && !isDeleted
-  const hasActions = canEdit || canDelete
+  const canReply = !!onReply && !isDeleted
+  const canReact = !isDeleted
+  const canPin = !isDeleted
+  const canFavorite = !isDeleted
+  const isPinned = !!message.pinned_at
+  const isFavorite = !!message.is_favorite
+  const hasActions = canEdit || canDelete || canReply || canReact || canPin || canFavorite
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['inbox-messages', message.conversation_id] })
 
@@ -69,6 +80,40 @@ export function ChatMessageItem({ message, isOwn, compact = false }: Props) {
       toast.error((e as Error).message)
     } finally {
       setBusy(false)
+    }
+  }
+
+  const handleReact = async (emoji: string) => {
+    setEmojiPickerOpen(false)
+    setMenuOpen(false)
+    try {
+      await toggleReaction(message.id, emoji)
+      await refresh()
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  const handlePin = async () => {
+    setMenuOpen(false)
+    try {
+      const r = await togglePin(message.id)
+      await refresh()
+      await qc.invalidateQueries({ queryKey: ['inbox-pinned', message.conversation_id] })
+      toast.success(r.action === 'pinned' ? 'Mensagem fixada' : 'Mensagem desafixada')
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  const handleFavorite = async () => {
+    setMenuOpen(false)
+    try {
+      const r = await toggleFavorite(message.id)
+      await refresh()
+      toast.success(r.is_favorite ? 'Adicionado aos favoritos' : 'Removido dos favoritos')
+    } catch (e) {
+      toast.error((e as Error).message)
     }
   }
 
@@ -119,6 +164,8 @@ export function ChatMessageItem({ message, isOwn, compact = false }: Props) {
             {message.edited_at && !isDeleted && (
               <span className="text-[10px] text-[var(--text-light)] italic">(editada)</span>
             )}
+            {isPinned && <Pin size={10} className="text-amber-500" />}
+            {isFavorite && <Star size={10} className="fill-amber-400 text-amber-400" />}
           </div>
         )}
 
@@ -151,6 +198,17 @@ export function ChatMessageItem({ message, isOwn, compact = false }: Props) {
           </div>
         ) : (
           <>
+            {message.reply_to && !isDeleted && (
+              <div className="flex items-start gap-1.5 mb-1 px-2.5 py-1 rounded-md bg-[var(--surface-hover)] border-l-2 border-emerald-500/40 max-w-full">
+                <CornerUpLeft size={10} className="mt-0.5 text-[var(--text-light)] shrink-0"/>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    {message.reply_to.sender?.name ?? 'Mensagem'}
+                  </p>
+                  <p className="text-[11px] text-[var(--text-muted)] truncate">{message.reply_to.body}</p>
+                </div>
+              </div>
+            )}
             {(!hasOnlyAttachments || isDeleted) && (
               <div className={[
                 'rounded-lg px-3 py-2 text-sm leading-relaxed shadow-sm',
@@ -233,6 +291,58 @@ export function ChatMessageItem({ message, isOwn, compact = false }: Props) {
                 ].join(' ')}
                 onMouseLeave={() => setMenuOpen(false)}
               >
+                {canReply && (
+                  <button
+                    type="button"
+                    onClick={() => { onReply!(message); setMenuOpen(false) }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-2"
+                  >
+                    <Reply size={12}/> Responder
+                  </button>
+                )}
+                {canReact && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setEmojiPickerOpen(v => !v)}
+                      className="w-full text-left px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-2"
+                    >
+                      <Smile size={12}/> Reagir
+                    </button>
+                    {emojiPickerOpen && (
+                      <div className={['absolute z-20 mt-1 flex gap-0.5 p-1.5 rounded-md border border-[var(--brand-border)] bg-[var(--surface)] shadow-lg', isOwn ? 'right-full mr-1' : 'left-full ml-1'].join(' ')}>
+                        {QUICK_EMOJIS.map(e => (
+                          <button
+                            key={e}
+                            type="button"
+                            onClick={() => handleReact(e)}
+                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-[var(--surface-hover)] text-base"
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {canPin && (
+                  <button
+                    type="button"
+                    onClick={handlePin}
+                    className="w-full text-left px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-2"
+                  >
+                    {isPinned ? <><PinOff size={12}/> Desafixar</> : <><Pin size={12}/> Fixar</>}
+                  </button>
+                )}
+                {canFavorite && (
+                  <button
+                    type="button"
+                    onClick={handleFavorite}
+                    className="w-full text-left px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-2"
+                  >
+                    <Star size={12} className={isFavorite ? 'fill-amber-400 text-amber-400' : ''}/> {isFavorite ? 'Desfavoritar' : 'Favoritar'}
+                  </button>
+                )}
                 {canEdit && (
                   <button
                     type="button"
@@ -254,6 +364,28 @@ export function ChatMessageItem({ message, isOwn, compact = false }: Props) {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {reactions.length > 0 && !isDeleted && (
+          <div className={['mt-1 flex flex-wrap gap-1', isOwn ? 'justify-end' : ''].join(' ')}>
+            {reactions.map(r => (
+              <button
+                key={r.emoji}
+                type="button"
+                onClick={() => handleReact(r.emoji)}
+                title={r.users.map(u => u.name).join(', ')}
+                className={[
+                  'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border transition-colors',
+                  r.by_me
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                    : 'bg-[var(--surface-hover)] border-[var(--brand-border)] text-[var(--text-muted)] hover:border-emerald-500/40',
+                ].join(' ')}
+              >
+                <span>{r.emoji}</span>
+                <span className="font-semibold">{r.count}</span>
+              </button>
+            ))}
           </div>
         )}
 

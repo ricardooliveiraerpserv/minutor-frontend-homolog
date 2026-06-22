@@ -22,16 +22,21 @@ export function listMessages(conversationId: number, perPage = 50): Promise<Pagi
 export function sendMessage(
   conversationId: number,
   body: string,
-  opts?: { metadata?: Record<string, unknown>; files?: File[] },
+  opts?: { metadata?: Record<string, unknown>; files?: File[]; replyToId?: number },
 ): Promise<{ data: InboxMessage }> {
   const files = opts?.files ?? []
   if (files.length === 0) {
-    return api.post(`/inbox/conversations/${conversationId}/messages`, { body, metadata: opts?.metadata })
+    return api.post(`/inbox/conversations/${conversationId}/messages`, {
+      body,
+      metadata: opts?.metadata,
+      reply_to_id: opts?.replyToId ?? null,
+    })
   }
   // Multipart: corpo opcional, arquivos[] obrigatório
   const fd = new FormData()
   if (body) fd.append('body', body)
   if (opts?.metadata) fd.append('metadata', JSON.stringify(opts.metadata))
+  if (opts?.replyToId) fd.append('reply_to_id', String(opts.replyToId))
   files.forEach(f => fd.append('files[]', f))
   return api.post(`/inbox/conversations/${conversationId}/messages`, fd)
 }
@@ -46,6 +51,34 @@ export function editMessage(messageId: number, body: string): Promise<{ data: In
 
 export function deleteMessage(messageId: number): Promise<{ data: { id: number; deleted: boolean } }> {
   return api.delete(`/inbox/messages/${messageId}`)
+}
+
+export function toggleReaction(messageId: number, emoji: string): Promise<{ action: 'added'|'removed'; reactions: import('@/types/inbox').ReactionGroup[] }> {
+  return api.post(`/inbox/messages/${messageId}/reactions`, { emoji })
+}
+
+export function togglePin(messageId: number): Promise<{ action: 'pinned'|'unpinned'; message_id: number }> {
+  return api.post(`/inbox/messages/${messageId}/pin`, {})
+}
+
+export function listPinned(conversationId: number): Promise<{ data: InboxMessage[] }> {
+  return api.get(`/inbox/conversations/${conversationId}/pinned`)
+}
+
+export function muteConversation(conversationId: number, hours: number | null): Promise<{ muted_until: string | null }> {
+  return api.post(`/inbox/conversations/${conversationId}/mute`, { hours })
+}
+
+export function getReadStatus(conversationId: number): Promise<{ data: { user_id: number; name: string; last_read_at: string | null }[] }> {
+  return api.get(`/inbox/conversations/${conversationId}/read-status`)
+}
+
+export function toggleFavorite(messageId: number): Promise<{ action: 'added'|'removed'; is_favorite: boolean }> {
+  return api.post(`/inbox/messages/${messageId}/favorite`, {})
+}
+
+export function listFavorites(): Promise<{ data: InboxMessage[] }> {
+  return api.get('/inbox/favorites')
 }
 
 export function updateMessageStatus(

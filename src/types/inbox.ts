@@ -34,6 +34,7 @@ export interface ConversationSummary {
   unread_count: number
   unread_by_severity: SeverityBreakdown
   last_message_at: string | null
+  muted_until?: string | null
 }
 
 export interface ChatUser {
@@ -79,6 +80,24 @@ export interface InboxMessage {
   edited_at?: string | null
   deleted_at?: string | null
   attachments?: MessageAttachment[]
+  reply_to?: ReplyToSummary | null
+  reactions?: ReactionGroup[]
+  pinned_at?: string | null
+  pinned_by?: number | null
+  is_favorite?: boolean
+}
+
+export interface ReactionGroup {
+  emoji: string
+  count: number
+  by_me: boolean
+  users: { id: number; name: string }[]
+}
+
+export interface ReplyToSummary {
+  id: number
+  body: string
+  sender: { id: number; name: string } | null
 }
 
 export interface MessageAttachment {

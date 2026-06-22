@@ -2,15 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bot, FileText, Image as ImageIcon, Paperclip, Send, X } from 'lucide-react'
+import { Bot, CornerUpLeft, FileText, Image as ImageIcon, Paperclip, Send, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { botQuery, listChatUsers, sendMessage } from '@/lib/inbox'
+import type { InboxMessage } from '@/types/inbox'
 
 interface ComposerProps {
   conversationId: number
   placeholder?: string
   autoFocus?: boolean
+  replyTo?: InboxMessage | null
+  onCancelReply?: () => void
 }
 
 const BOT_PREFIX = /^@bot\b/i
@@ -21,7 +24,7 @@ function initials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
 }
 
-export function Composer({ conversationId, placeholder, autoFocus = true }: ComposerProps) {
+export function Composer({ conversationId, placeholder, autoFocus = true, replyTo, onCancelReply }: ComposerProps) {
   const qc = useQueryClient()
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
@@ -123,10 +126,14 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
         }
         await botQuery(conversationId, body)
       } else {
-        await sendMessage(conversationId, body, hasFiles ? { files } : undefined)
+        await sendMessage(conversationId, body, {
+          files: hasFiles ? files : undefined,
+          replyToId: replyTo?.id,
+        })
       }
       setValue('')
       setFiles([])
+      onCancelReply?.()
       await qc.invalidateQueries({ queryKey: ['inbox-messages', conversationId] })
       await qc.invalidateQueries({ queryKey: ['inbox-conversations'] })
     } catch (e) {
@@ -184,6 +191,25 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
         accept="image/*,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv"
       />
       <div className="max-w-4xl mx-auto space-y-1.5">
+        {replyTo && (
+          <div className="flex items-start gap-2 px-3 py-2 rounded-md bg-[var(--surface-hover)] border-l-2 border-emerald-500/60">
+            <CornerUpLeft size={12} className="mt-0.5 text-emerald-500 shrink-0"/>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">
+                Respondendo a {replyTo.sender?.name ?? 'mensagem'}
+              </p>
+              <p className="text-[11px] text-[var(--text-muted)] truncate">{replyTo.body}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onCancelReply?.()}
+              className="text-[var(--text-light)] hover:text-[var(--text)] shrink-0"
+              title="Cancelar resposta"
+            >
+              <X size={12}/>
+            </button>
+          </div>
+        )}
         {files.length > 0 && (
           <div className="flex flex-wrap gap-2 pb-1">
             {files.map((f, i) => {
