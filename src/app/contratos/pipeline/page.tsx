@@ -2045,7 +2045,7 @@ interface TimesheetEntry {
 function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projectId: number; onClose: () => void; userRole?: string; initialTab?: string }) {
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes'>((initialTab as any) ?? 'overview')
+  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'chat'>((initialTab as any) ?? 'overview')
   const [breakdown, setBreakdown] = useState<ConsultantBreakdown[]>([])
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
@@ -2174,6 +2174,10 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
     ...(isCoordRole ? [] : [
       { id: 'financial'   as const, label: 'Financeiro' },
       { id: 'cost'        as const, label: 'Custo' },
+    ]),
+    // Chat (coordenador + executivos; cliente não participa nem vê) — espelha o ProjectDetailModal
+    ...(isClienteViewer ? [] : [
+      { id: 'chat'        as const, label: 'Chat' },
     ]),
   ]
 
@@ -2782,6 +2786,12 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     </>
                   )
                 })()}
+              </div>
+            )}
+
+            {tab === 'chat' && !isClienteViewer && (
+              <div className="-m-6 h-[60vh] min-h-[360px]">
+                <ProjectMessages projectId={projectId} userRole={userRole} />
               </div>
             )}
           </div>
