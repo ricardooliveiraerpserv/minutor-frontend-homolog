@@ -781,10 +781,10 @@ function ProjectKanbanCard({
               )}
             </div>
             <div className="flex items-center gap-1">
-              {/* Chat reativado (2026-06-12): coordenador + executivos; cliente não participa nem vê. */}
+              {/* Diário do Projeto reativado (2026-06-12): coordenador + executivos; cliente não participa nem vê. */}
               {!isCliente && (
                 <button onClick={e => { e.stopPropagation(); onAction('chat') }}
-                  className="relative p-1 rounded-md hover:bg-white/10 transition-colors" title="Abrir Chat"
+                  className="relative p-1 rounded-md hover:bg-white/10 transition-colors" title="Abrir Diário do Projeto"
                   style={{ color: 'var(--brand-subtle)' }}>
                   <MessageSquare size={11} />
                   {hasUnread && (
@@ -1100,7 +1100,7 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
   const tabs = [
     { id: 'details', label: 'Detalhes', icon: <ExternalLink size={11} /> },
     ...(hasReq ? [{ id: 'req', label: 'Requisição', icon: <Layers size={11} /> }] : []),
-    { id: 'chat', label: isCliente ? 'Histórico de Mensagens' : 'Chat', icon: <MessageSquare size={11} /> },
+    { id: 'chat', label: isCliente ? 'Histórico de Mensagens' : 'Diário do Projeto', icon: <MessageSquare size={11} /> },
     { id: 'log', label: 'Histórico', icon: <Clock size={11} /> },
   ] as const
 
@@ -2179,7 +2179,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
     ]),
     // Chat (coordenador + executivos; cliente não participa nem vê) — espelha o ProjectDetailModal
     ...(isClienteViewer ? [] : [
-      { id: 'chat'        as const, label: 'Chat' },
+      { id: 'chat'        as const, label: 'Diário do Projeto' },
     ]),
   ]
 
