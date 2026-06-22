@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bot, CornerUpLeft, FileText, Image as ImageIcon, Paperclip, Send, X } from 'lucide-react'
+import { Bot, CornerUpLeft, FileText, Image as ImageIcon, Mic, Paperclip, Send, Square, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { botQuery, listChatUsers, sendMessage, sendTyping } from '@/lib/inbox'
@@ -33,9 +33,15 @@ export function Composer({ conversationId, placeholder, autoFocus = true, replyT
   const [mentionIdx, setMentionIdx] = useState(0)
   const [files, setFiles] = useState<File[]>([])
   const [dragOver, setDragOver] = useState(false)
+  const [recording, setRecording] = useState(false)
+  const [recordSecs, setRecordSecs] = useState(0)
   const ref = useRef<HTMLTextAreaElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
   const lastTypingSentRef = useRef<number>(0)
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const recorderStreamRef = useRef<MediaStream | null>(null)
+  const recorderChunksRef = useRef<Blob[]>([])
+  const recorderTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const isBotQuery = BOT_PREFIX.test(value.trimStart())
 
@@ -86,6 +92,70 @@ export function Composer({ conversationId, placeholder, autoFocus = true, replyT
       ta.focus()
       ta.setSelectionRange(newPos, newPos)
     })
+  }
+
+  const startRecording = async () => {
+    if (recording) return
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      recorderStreamRef.current = stream
+      recorderChunksRef.current = []
+      // tenta formatos comuns; deixa o browser escolher se nenhum casa
+      const mimes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg']
+      const mime = mimes.find(m => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m))
+      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
+      rec.ondataavailable = e => { if (e.data.size > 0) recorderChunksRef.current.push(e.data) }
+      rec.onstop = () => {
+        const blob = new Blob(recorderChunksRef.current, { type: rec.mimeType || 'audio/webm' })
+        const ext = (rec.mimeType.includes('mp4') ? 'm4a' : (rec.mimeType.includes('ogg') ? 'ogg' : 'webm'))
+        const file = new File([blob], `audio_${Date.now()}.${ext}`, { type: rec.mimeType || 'audio/webm' })
+        setFiles(prev => [...prev, file].slice(0, 10))
+        stream.getTracks().forEach(t => t.stop())
+        recorderStreamRef.current = null
+        recorderRef.current = null
+        if (recorderTimerRef.current) { clearInterval(recorderTimerRef.current); recorderTimerRef.current = null }
+        setRecording(false)
+        setRecordSecs(0)
+      }
+      recorderRef.current = rec
+      rec.start()
+      setRecording(true)
+      setRecordSecs(0)
+      recorderTimerRef.current = setInterval(() => setRecordSecs(s => {
+        // limite 5 minutos
+        if (s >= 5 * 60 - 1) {
+          stopRecording()
+          return s
+        }
+        return s + 1
+      }), 1000)
+    } catch (e) {
+      toast.error('Não foi possível acessar o microfone. Verifique as permissões.')
+    }
+  }
+
+  const stopRecording = () => {
+    try {
+      recorderRef.current?.stop()
+    } catch { /* ignore */ }
+  }
+
+  const cancelRecording = () => {
+    if (recorderTimerRef.current) { clearInterval(recorderTimerRef.current); recorderTimerRef.current = null }
+    try {
+      const rec = recorderRef.current
+      if (rec) {
+        rec.ondataavailable = null
+        rec.onstop = null
+        rec.stop()
+      }
+    } catch { /* ignore */ }
+    recorderStreamRef.current?.getTracks().forEach(t => t.stop())
+    recorderStreamRef.current = null
+    recorderRef.current = null
+    recorderChunksRef.current = []
+    setRecording(false)
+    setRecordSecs(0)
   }
 
   const notifyTyping = () => {
@@ -222,9 +292,14 @@ export function Composer({ conversationId, placeholder, autoFocus = true, replyT
           <div className="flex flex-wrap gap-2 pb-1">
             {files.map((f, i) => {
               const isImg = f.type.startsWith('image/')
+              const isAud = f.type.startsWith('audio/')
               return (
                 <div key={i} className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[var(--surface-hover)] border border-[var(--brand-border)] text-xs text-[var(--text)] max-w-[240px]">
-                  {isImg ? <ImageIcon size={12} className="shrink-0 text-emerald-500"/> : <FileText size={12} className="shrink-0 text-[var(--text-muted)]"/>}
+                  {isImg
+                    ? <ImageIcon size={12} className="shrink-0 text-emerald-500"/>
+                    : isAud
+                      ? <Mic size={12} className="shrink-0 text-red-500"/>
+                      : <FileText size={12} className="shrink-0 text-[var(--text-muted)]"/>}
                   <span className="truncate">{f.name}</span>
                   <span className="text-[10px] text-[var(--text-light)] shrink-0">{(f.size / 1024).toFixed(0)}KB</span>
                   <button type="button" onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))} className="text-[var(--text-light)] hover:text-red-400">
@@ -282,16 +357,44 @@ export function Composer({ conversationId, placeholder, autoFocus = true, replyT
           </div>
         )}
 
+        {recording && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/30">
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"/>
+            <span className="text-xs text-red-700 dark:text-red-300 font-mono">
+              Gravando {String(Math.floor(recordSecs / 60)).padStart(2, '0')}:{String(recordSecs % 60).padStart(2, '0')}
+            </span>
+            <span className="text-[11px] text-[var(--text-light)] flex-1">Clique em ⏹ pra parar e revisar, ou X pra cancelar.</span>
+            <button type="button" onClick={cancelRecording} title="Cancelar gravação" className="text-red-400 hover:text-red-200">
+              <X size={14}/>
+            </button>
+          </div>
+        )}
+
         <div className="flex items-end gap-2">
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            disabled={busy || botThinking}
+            disabled={busy || botThinking || recording}
             title="Anexar arquivo (imagem, PDF, DOC, planilha)"
             aria-label="Anexar arquivo"
             className="p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-40 shrink-0"
           >
             <Paperclip size={16}/>
+          </button>
+          <button
+            type="button"
+            onClick={recording ? stopRecording : startRecording}
+            disabled={busy || botThinking}
+            title={recording ? 'Parar gravação' : 'Gravar áudio'}
+            aria-label={recording ? 'Parar gravação' : 'Gravar áudio'}
+            className={[
+              'p-2 rounded-md shrink-0 disabled:opacity-40',
+              recording
+                ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20'
+                : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]',
+            ].join(' ')}
+          >
+            {recording ? <Square size={14}/> : <Mic size={16}/>}
           </button>
           <textarea
             ref={ref}

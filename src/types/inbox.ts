@@ -108,6 +108,7 @@ export interface MessageAttachment {
   size: number
   url: string
   is_image: boolean
+  is_audio?: boolean
 }
 
 export interface PresenceEntry {

@@ -254,6 +254,18 @@ export function ChatMessageItem({ message, isOwn, compact = false, onReply, read
                         className="max-w-[280px] max-h-[200px] object-cover"
                       />
                     </button>
+                  ) : a.is_audio ? (
+                    <div key={a.id} className="rounded-md border border-[var(--brand-border)] bg-[var(--surface)] p-2 max-w-[300px]">
+                      <audio controls preload="metadata" src={a.url} className="w-full" style={{ height: 32 }}>
+                        Seu navegador não suporta áudio.
+                      </audio>
+                      <div className="flex items-center justify-between mt-1 text-[10px] text-[var(--text-light)]">
+                        <span className="truncate">{a.filename}</span>
+                        <a href={a.url} download={a.filename} title="Baixar" className="hover:text-[var(--text)] shrink-0">
+                          <Download size={11}/>
+                        </a>
+                      </div>
+                    </div>
                   ) : (
                     <a
                       key={a.id}
