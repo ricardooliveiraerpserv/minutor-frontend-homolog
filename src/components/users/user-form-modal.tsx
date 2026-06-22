@@ -16,6 +16,7 @@ interface UserData {
   name: string
   email: string
   enabled: boolean
+  can_use_bot?: boolean
   hourly_rate?: number
   rate_type?: string
   daily_hours?: number
@@ -304,6 +305,7 @@ const EMPTY_FORM = {
   password: '',
   smtp_app_password: '',
   enabled: true,
+  can_use_bot: false,
   hourly_rate: '',
   rate_type: 'hourly' as 'hourly' | 'monthly',
   daily_hours: '8',
@@ -418,6 +420,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           password:            '',
           smtp_app_password:   '', // write-only no BE — nunca retorna; mantém em branco
           enabled:             item.enabled,
+          can_use_bot:         item.can_use_bot ?? false,
           hourly_rate:         item.hourly_rate ? String(item.hourly_rate) : '',
           rate_type:           (item.rate_type as 'hourly' | 'monthly') ?? 'hourly',
           daily_hours:            item.daily_hours != null ? String(item.daily_hours) : '8',
@@ -461,6 +464,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         name:        form.name,
         email:       form.email,
         enabled:     form.enabled,
+        can_use_bot: form.can_use_bot,
         type:        resolveTypeForBackend(form.profiles[0]),
         customer_id:  form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
         partner_id:   needsPartnerField && form.partner_id ? form.partner_id : null,
@@ -977,6 +981,13 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
               value={form.enabled}
               onChange={() => setForm(f => ({ ...f, enabled: !f.enabled }))}
               label="Ativo"
+            />
+
+            {/* ── Permissão para chamar @bot no chat ── */}
+            <Toggle
+              value={form.can_use_bot}
+              onChange={() => setForm(f => ({ ...f, can_use_bot: !f.can_use_bot }))}
+              label="Pode usar @bot no chat (IA do Minutor)"
             />
           </>
         )}

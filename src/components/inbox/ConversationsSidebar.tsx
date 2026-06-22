@@ -177,8 +177,8 @@ export function ConversationsSidebar({
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Buscar conversa..."
-            aria-label="Buscar conversa"
+            placeholder="Buscar grupo, pessoa ou mensagem…"
+            aria-label="Buscar conversa, grupo, pessoa ou mensagem"
             className="w-full bg-[var(--bg)] border border-[var(--brand-border)] rounded pl-7 pr-2 py-1.5 text-xs text-[var(--text)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-emerald-500/50"
           />
         </div>

@@ -123,7 +123,7 @@ export function NewConversationModal({ onClose, onCreated }: Props) {
         </div>
 
         {mode === 'group' && (
-          <div className="px-4 pt-3">
+          <div className="px-4 pt-3 space-y-2">
             <input
               type="text"
               value={groupName}
@@ -131,6 +131,10 @@ export function NewConversationModal({ onClose, onCreated }: Props) {
               placeholder="Nome do grupo (ex.: Coordenadores)"
               className="w-full bg-zinc-900 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
             />
+            <p className="text-[11px] text-zinc-500 px-0.5">
+              Dê um nome ao grupo e selecione abaixo os <strong>usuários que farão parte</strong>. Para acessar grupos
+              já existentes, use a lista de conversas à esquerda.
+            </p>
           </div>
         )}
 
@@ -141,7 +145,7 @@ export function NewConversationModal({ onClose, onCreated }: Props) {
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar pessoa por nome ou e-mail..."
+              placeholder={mode === 'group' ? 'Buscar usuários para adicionar ao grupo…' : 'Buscar pessoa por nome ou e-mail…'}
               className="w-full bg-zinc-900 border border-zinc-700 rounded-md pl-9 pr-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500"
             />
           </div>
