@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import type { ProjectMessage } from '@/types'
-import { Send, Paperclip, X, Download, FileText, Eye, EyeOff, Lock } from 'lucide-react'
+import { Send, Paperclip, X, Download, FileText, Eye, EyeOff, Lock, Users } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface MentionUser { id: number; name: string }
@@ -29,12 +29,12 @@ interface Props {
 }
 
 function MessageText({ text }: { text: string }) {
-  const parts = text.split(/(@\[\d+:[^\]]+\])/)
+  const parts = text.split(/(@\[(?:\d+|all):[^\]]+\])/)
   return (
     <>
       {parts.map((part, i) => {
-        const m = part.match(/@\[(\d+):([^\]]+)\]/)
-        if (m) return <span key={i} style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>@{m[2]}</span>
+        const m = part.match(/@\[(?:\d+|all):([^\]]+)\]/)
+        if (m) return <span key={i} style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>@{m[1]}</span>
         return <span key={i}>{part}</span>
       })}
     </>
@@ -189,9 +189,24 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
     setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
+  // Menção "Todos" → token @[all:Todos]; backend expande pra todos os
+  // participantes internos do projeto (cliente nunca participa).
+  const insertAllMention = () => {
+    const token = `@[all:Todos] `
+    const pos = textareaRef.current?.selectionStart ?? input.length
+    const before = input.slice(0, mentionStart)
+    const after  = input.slice(pos)
+    setInput(before + token + after)
+    setMentionQuery(null)
+    setTimeout(() => textareaRef.current?.focus(), 0)
+  }
+
   const filteredMentions = mentionQuery !== null
     ? mentionUsers.filter(u => u.id !== currentUser?.id && u.name.toLowerCase().includes(mentionQuery))
     : []
+
+  // Mostra a opção "Todos" enquanto o que foi digitado após @ for prefixo de "todos".
+  const showAllMention = mentionQuery !== null && 'todos'.includes(mentionQuery)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? [])
@@ -316,8 +331,21 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
       </div>
 
       {/* Mention autocomplete */}
-      {filteredMentions.length > 0 && mentionQuery !== null && (
+      {(filteredMentions.length > 0 || showAllMention) && mentionQuery !== null && (
         <div className="mx-4 mb-1 rounded-lg border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+          {showAllMention && (
+            <button
+              onMouseDown={e => { e.preventDefault(); insertAllMention() }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-white/5 transition-colors"
+              style={{ color: 'var(--brand-text)', borderBottom: filteredMentions.length > 0 ? '1px solid var(--brand-border)' : undefined }}
+            >
+              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(0,245,255,0.15)', color: 'var(--brand-primary)' }}>
+                <Users size={11} />
+              </div>
+              <span className="font-semibold">Todos</span>
+              <span className="text-[10px] ml-auto" style={{ color: 'var(--brand-subtle)' }}>menciona os participantes</span>
+            </button>
+          )}
           {filteredMentions.slice(0, 6).map(u => (
             <button
               key={u.id}
