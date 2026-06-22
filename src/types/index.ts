@@ -267,6 +267,7 @@ export interface ProjectMessage {
   message: string
   priority: 'normal' | 'high'
   created_at: string
+  edited_at?: string | null
   author: { id: number; name: string; profile_photo: string | null }
   reads: { user_id: number }[]
   is_mentioned: boolean

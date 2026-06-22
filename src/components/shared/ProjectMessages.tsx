@@ -4,8 +4,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import type { ProjectMessage } from '@/types'
-import { Send, Paperclip, X, Download, FileText, Eye, EyeOff, Lock, Users } from 'lucide-react'
+import { Send, Paperclip, X, Download, FileText, Eye, EyeOff, Lock, Users, Pencil, Check } from 'lucide-react'
 import { toast } from 'sonner'
+
+// Janela (horas) para editar a própria última interação — espelha ProjectMessage::EDIT_WINDOW_HOURS no backend.
+const EDIT_WINDOW_HOURS = 3
 
 interface MentionUser { id: number; name: string }
 
@@ -114,6 +117,9 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
   const [mentionQuery, setMentionQuery]   = useState<string | null>(null)
   const [mentionStart, setMentionStart]   = useState(0)
   const [mentionUsers, setMentionUsers]   = useState<MentionUser[]>([])
+  const [editingId, setEditingId]         = useState<number | null>(null)
+  const [editText, setEditText]           = useState('')
+  const [savingEdit, setSavingEdit]       = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef   = useRef<HTMLDivElement>(null)
@@ -264,6 +270,41 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
+  // Editar: só a ÚLTIMA interação do próprio usuário e dentro da janela de 3h.
+  const lastOwnMsgId = messages.reduce(
+    (acc, m) => (m.user_id === currentUser?.id && m.id > acc ? m.id : acc), 0
+  )
+  const canEdit = (msg: MessageWithAttachments) => {
+    if (readOnly || isCliente || !currentUser) return false
+    if (msg.user_id !== currentUser.id || msg.id !== lastOwnMsgId) return false
+    const ageMs = Date.now() - new Date(msg.created_at).getTime()
+    return ageMs <= EDIT_WINDOW_HOURS * 3600_000
+  }
+
+  const startEdit = (msg: MessageWithAttachments) => {
+    setEditingId(msg.id)
+    setEditText(msg.message ?? '')
+  }
+  const cancelEdit = () => { setEditingId(null); setEditText('') }
+
+  const handleSaveEdit = async (msg: MessageWithAttachments) => {
+    const text = editText.trim()
+    if (!text) { toast.error('A interação não pode ficar vazia.'); return }
+    if (savingEdit) return
+    setSavingEdit(true)
+    try {
+      const updated = await api.patch<MessageWithAttachments>(
+        `/projects/${projectId}/messages/${msg.id}`, { message: text }
+      )
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...updated } : m))
+      cancelEdit()
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao editar interação')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full min-h-[400px]">
       {/* Feed */}
@@ -301,6 +342,11 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                 <span className="text-[10px]" style={{ color: 'var(--brand-muted)' }}>
                   {formatTime(msg.created_at)}
                 </span>
+                {msg.edited_at && (
+                  <span className="text-[10px] italic" style={{ color: 'var(--brand-subtle)' }} title={`Editado ${formatTime(msg.edited_at)}`}>
+                    (editado)
+                  </span>
+                )}
                 {!isCliente && msg.visibility === 'client' && (
                   <span className="text-[9px] px-1 py-0.5 rounded font-semibold" style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>
                     visível ao cliente
@@ -311,8 +357,47 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                     <Lock size={8} /> interno
                   </span>
                 )}
+                {canEdit(msg) && editingId !== msg.id && (
+                  <button
+                    onClick={() => startEdit(msg)}
+                    className="ml-auto p-0.5 rounded hover:bg-white/10 transition-colors shrink-0"
+                    title={`Editar (até ${EDIT_WINDOW_HOURS}h após o envio)`}
+                    style={{ color: 'var(--brand-subtle)' }}
+                  >
+                    <Pencil size={11} />
+                  </button>
+                )}
               </div>
-              {msg.message && (
+              {editingId === msg.id ? (
+                <div className="mt-1">
+                  <textarea
+                    value={editText}
+                    onChange={e => setEditText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(msg) }
+                      if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
+                    }}
+                    rows={2}
+                    autoFocus
+                    className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  />
+                  <div className="flex items-center gap-2 mt-1">
+                    <button
+                      onClick={() => handleSaveEdit(msg)}
+                      disabled={savingEdit || !editText.trim()}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all"
+                      style={editText.trim() ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' } : { background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}
+                    >
+                      <Check size={11} /> Salvar
+                    </button>
+                    <button onClick={cancelEdit} className="px-2.5 py-1 rounded-lg text-xs transition-colors hover:bg-white/5" style={{ color: 'var(--brand-subtle)' }}>
+                      Cancelar
+                    </button>
+                    <span className="text-[10px]" style={{ color: 'var(--brand-muted)' }}>Enter salva · Esc cancela</span>
+                  </div>
+                </div>
+              ) : msg.message && (
                 <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--brand-text)' }}>
                   <MessageText text={msg.message} />
                 </p>
