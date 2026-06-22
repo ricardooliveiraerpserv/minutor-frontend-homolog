@@ -73,6 +73,20 @@ export function MessageList({ conversation, currentUserId }: Props) {
     }
   }, [data?.data?.length, isChat])
 
+  // Filtro client-side de busca dentro da conversa.
+  // Importante: este hook precisa ficar ANTES dos early returns para manter
+  // a ordem de chamadas estável entre renders (React error #310).
+  const allItems = data?.data ?? []
+  const items = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return allItems
+    return allItems.filter(m =>
+      m.body?.toLowerCase().includes(q)
+      || m.sender?.name?.toLowerCase().includes(q)
+      || (m.attachments ?? []).some(a => a.filename.toLowerCase().includes(q))
+    )
+  }, [allItems, searchQuery])
+
   if (!conversation) {
     return (
       <div className="flex-1 flex items-center justify-center text-[var(--text-light)] p-8 bg-[var(--bg)]">
@@ -102,17 +116,6 @@ export function MessageList({ conversation, currentUserId }: Props) {
       </div>
     )
   }
-
-  const allItems = data?.data ?? []
-  const items = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    if (!q) return allItems
-    return allItems.filter(m =>
-      m.body?.toLowerCase().includes(q)
-      || m.sender?.name?.toLowerCase().includes(q)
-      || (m.attachments ?? []).some(a => a.filename.toLowerCase().includes(q))
-    )
-  }, [allItems, searchQuery])
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
