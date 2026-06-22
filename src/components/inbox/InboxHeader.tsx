@@ -74,9 +74,13 @@ function GroupHeader({ conversation: c }: { conversation: ConversationSummary })
   return (
     <>
       <header className="h-16 border-b border-[var(--brand-border)] px-5 flex items-center gap-3 bg-[var(--surface)]">
-        <div className="w-10 h-10 rounded-md bg-violet-500/15 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30 flex items-center justify-center shrink-0">
-          <Users size={17} />
-        </div>
+        {c.avatar_url ? (
+          <img src={c.avatar_url} alt={c.title} className="w-10 h-10 rounded-md object-cover shrink-0 ring-1 ring-violet-500/30"/>
+        ) : (
+          <div className="w-10 h-10 rounded-md bg-violet-500/15 text-violet-700 dark:text-violet-300 ring-1 ring-violet-500/30 flex items-center justify-center shrink-0">
+            <Users size={17} />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-semibold truncate text-[var(--text)]">{c.title}</h2>
           <p className="text-[11px] text-[var(--text-light)]">
@@ -97,6 +101,7 @@ function GroupHeader({ conversation: c }: { conversation: ConversationSummary })
         <ManageGroupModal
           conversationId={c.id}
           title={c.title ?? 'Grupo'}
+          avatarUrl={c.avatar_url}
           onClose={() => setManageOpen(false)}
         />
       )}

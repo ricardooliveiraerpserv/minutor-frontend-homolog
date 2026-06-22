@@ -68,6 +68,12 @@ export const listGroups        = (): Promise<{ data: AdminGroup[] }> => api.get(
 export const getGroupMembers   = (id: number): Promise<{ data: { id: number; title: string|null; members: GroupMember[] } }> => api.get(`/bot/groups/${id}/members`)
 export const createGroupAdmin  = (name: string, participantIds: number[] = []): Promise<{ data: { id: number; title: string } }> => api.post('/bot/groups', { name, participant_ids: participantIds })
 export const renameGroup       = (id: number, name: string): Promise<{ data: { id: number; title: string } }> => api.patch(`/bot/groups/${id}`, { name })
+export const uploadGroupAvatar = (id: number, file: File): Promise<{ data: { id: number; avatar_url: string | null } }> => {
+  const fd = new FormData()
+  fd.append('avatar', file)
+  return api.post(`/bot/groups/${id}/avatar`, fd)
+}
+export const deleteGroupAvatar = (id: number): Promise<{ data: { id: number; avatar_url: null } }> => api.delete(`/bot/groups/${id}/avatar`)
 export const deleteGroup       = (id: number): Promise<{ deleted: boolean }> => api.delete(`/bot/groups/${id}`)
 export const addGroupMember    = (id: number, userId: number) => api.post(`/bot/groups/${id}/members`, { user_id: userId })
 export const removeGroupMember = (id: number, userId: number) => api.delete(`/bot/groups/${id}/members/${userId}`)

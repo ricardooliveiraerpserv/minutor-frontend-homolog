@@ -35,6 +35,7 @@ export interface ConversationSummary {
   unread_by_severity: SeverityBreakdown
   last_message_at: string | null
   muted_until?: string | null
+  avatar_url?: string | null
 }
 
 export interface ChatUser {

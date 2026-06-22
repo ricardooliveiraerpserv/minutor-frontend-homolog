@@ -5,11 +5,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Bot, CornerUpLeft, Download, Edit3, FileText, MoreVertical, Pin, PinOff, Reply, Smile, Star, Trash2, Wrench } from 'lucide-react'
+import { Bot, Check, CheckCheck, CornerUpLeft, Download, Edit3, FileText, Forward, MoreVertical, Pin, PinOff, Reply, Smile, Star, Trash2, Wrench } from 'lucide-react'
 import type { InboxMessage, MessageAttachment } from '@/types/inbox'
 import { MarkdownLite } from './MarkdownLite'
 import { deleteMessage, editMessage, togglePin, toggleFavorite, toggleReaction } from '@/lib/inbox'
 import { ImageLightbox } from './ImageLightbox'
+import { ForwardMessageModal } from './ForwardMessageModal'
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '😢', '🚀']
 
@@ -18,6 +19,7 @@ interface Props {
   isOwn: boolean
   compact?: boolean
   onReply?: (m: InboxMessage) => void
+  readers?: { id: number; name: string; at: string }[]
 }
 
 const EDIT_WINDOW_MIN = 5
@@ -26,7 +28,7 @@ function initials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
 }
 
-export function ChatMessageItem({ message, isOwn, compact = false, onReply }: Props) {
+export function ChatMessageItem({ message, isOwn, compact = false, onReply, readers = [] }: Props) {
   const qc = useQueryClient()
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -34,6 +36,7 @@ export function ChatMessageItem({ message, isOwn, compact = false, onReply }: Pr
   const [busy, setBusy] = useState(false)
   const [lightbox, setLightbox] = useState<MessageAttachment | null>(null)
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
+  const [forwardOpen, setForwardOpen] = useState(false)
   const attachments = message.attachments ?? []
   const reactions = message.reactions ?? []
   const hasOnlyAttachments = attachments.length > 0 && (!message.body || message.body.trim() === '')
@@ -54,9 +57,11 @@ export function ChatMessageItem({ message, isOwn, compact = false, onReply }: Pr
   const canReact = !isDeleted
   const canPin = !isDeleted
   const canFavorite = !isDeleted
+  const canForward = !isDeleted && !isBotMsg
   const isPinned = !!message.pinned_at
   const isFavorite = !!message.is_favorite
-  const hasActions = canEdit || canDelete || canReply || canReact || canPin || canFavorite
+  const hasActions = canEdit || canDelete || canReply || canReact || canPin || canFavorite || canForward
+  const forwardedFromUser = (meta.forwarded_from_user as string | undefined)
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['inbox-messages', message.conversation_id] })
 
@@ -198,6 +203,11 @@ export function ChatMessageItem({ message, isOwn, compact = false, onReply }: Pr
           </div>
         ) : (
           <>
+            {forwardedFromUser && !isDeleted && (
+              <p className="text-[10px] italic text-[var(--text-light)] mb-0.5 inline-flex items-center gap-1">
+                <Forward size={10}/> Encaminhada de {forwardedFromUser}
+              </p>
+            )}
             {message.reply_to && !isDeleted && (
               <div className="flex items-start gap-1.5 mb-1 px-2.5 py-1 rounded-md bg-[var(--surface-hover)] border-l-2 border-emerald-500/40 max-w-full">
                 <CornerUpLeft size={10} className="mt-0.5 text-[var(--text-light)] shrink-0"/>
@@ -343,6 +353,15 @@ export function ChatMessageItem({ message, isOwn, compact = false, onReply }: Pr
                     <Star size={12} className={isFavorite ? 'fill-amber-400 text-amber-400' : ''}/> {isFavorite ? 'Desfavoritar' : 'Favoritar'}
                   </button>
                 )}
+                {canForward && (
+                  <button
+                    type="button"
+                    onClick={() => { setForwardOpen(true); setMenuOpen(false) }}
+                    className="w-full text-left px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--surface-hover)] inline-flex items-center gap-2"
+                  >
+                    <Forward size={12}/> Encaminhar
+                  </button>
+                )}
                 {canEdit && (
                   <button
                     type="button"
@@ -363,6 +382,21 @@ export function ChatMessageItem({ message, isOwn, compact = false, onReply }: Pr
                   </button>
                 )}
               </div>
+            )}
+          </div>
+        )}
+
+        {isOwn && !isBotMsg && !isDeleted && (
+          <div className="mt-0.5 flex items-center justify-end gap-1 text-[10px] text-[var(--text-light)]">
+            {readers.length > 0 ? (
+              <span title={readers.map(r => `${r.name} — ${format(new Date(r.at), 'dd/MM HH:mm', { locale: ptBR })}`).join('\n')} className="inline-flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400">
+                <CheckCheck size={11}/>
+                {readers.length === 1 ? `Lida por ${readers[0].name.split(' ')[0]}` : `Lida por ${readers.length}`}
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-0.5" title="Enviada">
+                <Check size={11}/>
+              </span>
             )}
           </div>
         )}
@@ -402,6 +436,9 @@ export function ChatMessageItem({ message, isOwn, compact = false, onReply }: Pr
       </div>
       {lightbox && (
         <ImageLightbox src={lightbox.url} filename={lightbox.filename} onClose={() => setLightbox(null)} />
+      )}
+      {forwardOpen && (
+        <ForwardMessageModal message={message} onClose={() => setForwardOpen(false)} />
       )}
     </div>
   )

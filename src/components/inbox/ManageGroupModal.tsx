@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Edit3, LogOut, Save, Search, UserMinus, UserPlus, X } from 'lucide-react'
+import { Camera, Edit3, LogOut, Save, Search, Trash2, UserMinus, UserPlus, X } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import {
-  addGroupMember, deleteGroup, getGroupMembers, listGroupUserOptions,
-  removeGroupMember, renameGroup,
+  addGroupMember, deleteGroup, deleteGroupAvatar, getGroupMembers, listGroupUserOptions,
+  removeGroupMember, renameGroup, uploadGroupAvatar,
 } from '@/lib/bot-config'
 
 function initials(name: string): string {
@@ -17,16 +17,18 @@ function initials(name: string): string {
 interface Props {
   conversationId: number
   title: string
+  avatarUrl?: string | null
   onClose: () => void
 }
 
-export function ManageGroupModal({ conversationId, title, onClose }: Props) {
+export function ManageGroupModal({ conversationId, title, avatarUrl, onClose }: Props) {
   const qc = useQueryClient()
   const { user } = useAuth()
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [newName, setNewName] = useState(title)
+  const fileRef = useRef<HTMLInputElement | null>(null)
 
   const { data: membersRes, refetch: refetchMembers } = useQuery({
     queryKey: ['inbox-group-members', conversationId],
@@ -111,6 +113,39 @@ export function ManageGroupModal({ conversationId, title, onClose }: Props) {
     }
   }
 
+  const onAvatarPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Imagem excede 5MB')
+      return
+    }
+    setBusy(true)
+    try {
+      await uploadGroupAvatar(conversationId, file)
+      await qc.invalidateQueries({ queryKey: ['inbox-conversations'] })
+      toast.success('Foto do grupo atualizada')
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const removeAvatar = async () => {
+    setBusy(true)
+    try {
+      await deleteGroupAvatar(conversationId)
+      await qc.invalidateQueries({ queryKey: ['inbox-conversations'] })
+      toast.success('Foto removida')
+    } catch (e) {
+      toast.error((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const destroy = async () => {
     if (!confirm(`Excluir o grupo "${title}" permanentemente? Todas as mensagens serão perdidas.`)) return
     setBusy(true)
@@ -135,6 +170,40 @@ export function ManageGroupModal({ conversationId, title, onClose }: Props) {
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-zinc-100">Gerenciar grupo</h2>
           <button type="button" onClick={onClose} className="text-zinc-500 hover:text-zinc-200"><X size={16}/></button>
+        </div>
+
+        {/* Avatar */}
+        <div className="flex items-center gap-3">
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onAvatarPick}/>
+          <div className="relative shrink-0">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={title} className="w-16 h-16 rounded-md object-cover ring-1 ring-zinc-800"/>
+            ) : (
+              <div className="w-16 h-16 rounded-md bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30 flex items-center justify-center text-xl font-semibold">
+                {(title || '?').slice(0, 1).toUpperCase()}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs text-zinc-300 hover:bg-zinc-800 border border-zinc-800 disabled:opacity-50"
+            >
+              <Camera size={12}/> {avatarUrl ? 'Trocar foto' : 'Adicionar foto'}
+            </button>
+            {avatarUrl && (
+              <button
+                type="button"
+                onClick={removeAvatar}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs text-red-300 hover:bg-red-500/10 border border-red-500/30 disabled:opacity-50"
+              >
+                <Trash2 size={12}/> Remover foto
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Renomear */}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Archive, Inbox as InboxIcon, MessageSquare, Pin, Search, X } from 'lucide-react'
-import { listMessages, listPinned, markRead } from '@/lib/inbox'
+import { getReadStatus, listMessages, listPinned, markRead } from '@/lib/inbox'
 import { MessageItem } from './MessageItem'
 import { ChatMessageItem } from './ChatMessageItem'
 import { Composer } from './Composer'
@@ -52,6 +52,16 @@ export function MessageList({ conversation, currentUserId }: Props) {
     staleTime: 60_000,
   })
   const pinned = pinnedRes?.data ?? []
+
+  // Read status (quem leu até quando) — apenas em direct/group
+  const { data: readStatusRes } = useQuery({
+    queryKey: ['inbox-read-status', conversation?.id],
+    queryFn: () => getReadStatus(conversation!.id),
+    enabled: !!conversation && conversation.type !== 'bot',
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  })
+  const readStatus = readStatusRes?.data ?? []
 
   const { data, isLoading } = useQuery({
     queryKey: ['inbox-messages', conversation?.id, isBot ? filter : 'chat'],
@@ -259,13 +269,19 @@ export function MessageList({ conversation, currentUserId }: Props) {
                 const closeInTime = prev
                   ? new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() < 2 * 60_000
                   : false
+                const isOwn = !!currentUserId && m.sender?.id === currentUserId
+                const readers = isOwn
+                  ? readStatus.filter(r => r.last_read_at && new Date(r.last_read_at) >= new Date(m.created_at))
+                      .map(r => ({ id: r.user_id, name: r.name, at: r.last_read_at! }))
+                  : []
                 return (
                   <ChatMessageItem
                     key={m.id}
                     message={m}
-                    isOwn={!!currentUserId && m.sender?.id === currentUserId}
+                    isOwn={isOwn}
                     compact={!!prev && sameSender && closeInTime}
                     onReply={setReplyTo}
+                    readers={readers}
                   />
                 )
               })
