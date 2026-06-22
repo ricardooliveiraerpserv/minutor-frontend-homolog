@@ -5,10 +5,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Bot, Edit3, MoreVertical, Trash2, Wrench, X } from 'lucide-react'
-import type { InboxMessage } from '@/types/inbox'
+import { Bot, Download, Edit3, FileText, MoreVertical, Trash2, Wrench } from 'lucide-react'
+import type { InboxMessage, MessageAttachment } from '@/types/inbox'
 import { MarkdownLite } from './MarkdownLite'
 import { deleteMessage, editMessage } from '@/lib/inbox'
+import { ImageLightbox } from './ImageLightbox'
 
 interface Props {
   message: InboxMessage
@@ -28,6 +29,9 @@ export function ChatMessageItem({ message, isOwn, compact = false }: Props) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(message.body)
   const [busy, setBusy] = useState(false)
+  const [lightbox, setLightbox] = useState<MessageAttachment | null>(null)
+  const attachments = message.attachments ?? []
+  const hasOnlyAttachments = attachments.length > 0 && (!message.body || message.body.trim() === '')
 
   const sender = message.sender
   const isBotMsg = ['bot', 'ai_insight', 'alert', 'system'].includes(message.type.value)
@@ -146,22 +150,65 @@ export function ChatMessageItem({ message, isOwn, compact = false }: Props) {
             </div>
           </div>
         ) : (
-          <div className={[
-            'rounded-lg px-3 py-2 text-sm leading-relaxed shadow-sm',
-            isDeleted
-              ? 'italic text-[var(--text-light)] bg-[var(--surface-hover)] border border-dashed border-[var(--brand-border)]'
-              : isOwn
-                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-900 dark:text-emerald-50 whitespace-pre-wrap'
-                : isBotMsg
-                  ? 'bg-[var(--surface)] border border-[var(--brand-border)] text-[var(--text)]'
-                  : 'bg-[var(--surface)] border border-[var(--brand-border)] text-[var(--text)] whitespace-pre-wrap',
-          ].join(' ')}>
-            {isBotMsg && !isOwn && !isDeleted
-              ? (pending
-                  ? <span className="inline-flex items-center gap-1.5 text-[var(--text-muted)]"><Bot size={13} className="animate-pulse" /> {message.body}</span>
-                  : <MarkdownLite source={message.body} />)
-              : message.body}
-          </div>
+          <>
+            {(!hasOnlyAttachments || isDeleted) && (
+              <div className={[
+                'rounded-lg px-3 py-2 text-sm leading-relaxed shadow-sm',
+                isDeleted
+                  ? 'italic text-[var(--text-light)] bg-[var(--surface-hover)] border border-dashed border-[var(--brand-border)]'
+                  : isOwn
+                    ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-900 dark:text-emerald-50 whitespace-pre-wrap'
+                    : isBotMsg
+                      ? 'bg-[var(--surface)] border border-[var(--brand-border)] text-[var(--text)]'
+                      : 'bg-[var(--surface)] border border-[var(--brand-border)] text-[var(--text)] whitespace-pre-wrap',
+              ].join(' ')}>
+                {isBotMsg && !isOwn && !isDeleted
+                  ? (pending
+                      ? <span className="inline-flex items-center gap-1.5 text-[var(--text-muted)]"><Bot size={13} className="animate-pulse" /> {message.body}</span>
+                      : <MarkdownLite source={message.body} />)
+                  : message.body}
+              </div>
+            )}
+            {attachments.length > 0 && !isDeleted && (
+              <div className={['mt-1 flex flex-col gap-1.5', isOwn ? 'items-end' : 'items-start'].join(' ')}>
+                {attachments.map(a => (
+                  a.is_image ? (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setLightbox(a)}
+                      title={a.filename}
+                      className="block rounded-md overflow-hidden border border-[var(--brand-border)] hover:border-emerald-500/50 transition-colors"
+                    >
+                      <img
+                        src={a.url}
+                        alt={a.filename}
+                        className="max-w-[280px] max-h-[200px] object-cover"
+                      />
+                    </button>
+                  ) : (
+                    <a
+                      key={a.id}
+                      href={a.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download={a.filename}
+                      className="inline-flex items-center gap-2.5 px-3 py-2 rounded-md bg-[var(--surface)] border border-[var(--brand-border)] hover:border-emerald-500/50 transition-colors max-w-[280px]"
+                    >
+                      <div className="w-8 h-8 rounded bg-[var(--surface-hover)] flex items-center justify-center shrink-0">
+                        <FileText size={14} className="text-[var(--text-muted)]"/>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-[var(--text)] truncate">{a.filename}</p>
+                        <p className="text-[10px] text-[var(--text-light)]">{(a.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                      <Download size={12} className="text-[var(--text-light)] shrink-0"/>
+                    </a>
+                  )
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Menu de ações (visível no hover, só se tem ações disponíveis) */}
@@ -221,6 +268,9 @@ export function ChatMessageItem({ message, isOwn, compact = false }: Props) {
           </div>
         )}
       </div>
+      {lightbox && (
+        <ImageLightbox src={lightbox.url} filename={lightbox.filename} onClose={() => setLightbox(null)} />
+      )}
     </div>
   )
 }

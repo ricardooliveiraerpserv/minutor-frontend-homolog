@@ -22,9 +22,18 @@ export function listMessages(conversationId: number, perPage = 50): Promise<Pagi
 export function sendMessage(
   conversationId: number,
   body: string,
-  metadata?: Record<string, unknown>,
+  opts?: { metadata?: Record<string, unknown>; files?: File[] },
 ): Promise<{ data: InboxMessage }> {
-  return api.post(`/inbox/conversations/${conversationId}/messages`, { body, metadata })
+  const files = opts?.files ?? []
+  if (files.length === 0) {
+    return api.post(`/inbox/conversations/${conversationId}/messages`, { body, metadata: opts?.metadata })
+  }
+  // Multipart: corpo opcional, arquivos[] obrigatório
+  const fd = new FormData()
+  if (body) fd.append('body', body)
+  if (opts?.metadata) fd.append('metadata', JSON.stringify(opts.metadata))
+  files.forEach(f => fd.append('files[]', f))
+  return api.post(`/inbox/conversations/${conversationId}/messages`, fd)
 }
 
 export function markRead(conversationId: number): Promise<{ marked_read: boolean }> {

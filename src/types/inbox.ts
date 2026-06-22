@@ -78,6 +78,16 @@ export interface InboxMessage {
   created_at: string
   edited_at?: string | null
   deleted_at?: string | null
+  attachments?: MessageAttachment[]
+}
+
+export interface MessageAttachment {
+  id: number
+  filename: string
+  mime: string
+  size: number
+  url: string
+  is_image: boolean
 }
 
 export interface PresenceEntry {

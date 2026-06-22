@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Bot, Send } from 'lucide-react'
+import { Bot, FileText, Image as ImageIcon, Paperclip, Send, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { botQuery, listChatUsers, sendMessage } from '@/lib/inbox'
@@ -28,7 +28,10 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
   const [botThinking, setBotThinking] = useState(false)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionIdx, setMentionIdx] = useState(0)
+  const [files, setFiles] = useState<File[]>([])
+  const [dragOver, setDragOver] = useState(false)
   const ref = useRef<HTMLTextAreaElement | null>(null)
+  const fileRef = useRef<HTMLInputElement | null>(null)
 
   const isBotQuery = BOT_PREFIX.test(value.trimStart())
 
@@ -81,9 +84,32 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
     })
   }
 
+  const addFiles = (incoming: File[]) => {
+    if (!incoming.length) return
+    const MAX = 20 * 1024 * 1024
+    const accepted: File[] = []
+    for (const f of incoming) {
+      if (f.size > MAX) { toast.error(`${f.name} excede 20MB`); continue }
+      accepted.push(f)
+    }
+    setFiles(prev => [...prev, ...accepted].slice(0, 10))
+  }
+
+  const onPickFiles = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) addFiles(Array.from(e.target.files))
+    e.target.value = ''
+  }
+
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setDragOver(false)
+    if (e.dataTransfer.files?.length) addFiles(Array.from(e.dataTransfer.files))
+  }
+
   const submit = async () => {
     const body = value.trim()
-    if (!body || busy) return
+    const hasFiles = files.length > 0
+    if ((!body && !hasFiles) || busy) return
 
     const asBot = BOT_PREFIX.test(body)
 
@@ -91,11 +117,16 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
     if (asBot) setBotThinking(true)
     try {
       if (asBot) {
+        if (hasFiles) {
+          toast.error('Anexos ainda não são suportados em perguntas ao @bot.')
+          return
+        }
         await botQuery(conversationId, body)
       } else {
-        await sendMessage(conversationId, body)
+        await sendMessage(conversationId, body, hasFiles ? { files } : undefined)
       }
       setValue('')
+      setFiles([])
       await qc.invalidateQueries({ queryKey: ['inbox-messages', conversationId] })
       await qc.invalidateQueries({ queryKey: ['inbox-conversations'] })
     } catch (e) {
@@ -130,8 +161,46 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
   }
 
   return (
-    <div className="border-t border-[var(--brand-border)] bg-[var(--surface)] px-4 py-3 relative">
+    <div
+      className={[
+        'border-t border-[var(--brand-border)] bg-[var(--surface)] px-4 py-3 relative transition-colors',
+        dragOver ? 'bg-emerald-500/10' : '',
+      ].join(' ')}
+      onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={onDrop}
+    >
+      {dragOver && (
+        <div className="absolute inset-0 flex items-center justify-center text-emerald-500 text-sm font-semibold border-2 border-dashed border-emerald-500/50 rounded-md pointer-events-none">
+          Solte aqui para anexar
+        </div>
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        onChange={onPickFiles}
+        className="hidden"
+        accept="image/*,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv"
+      />
       <div className="max-w-4xl mx-auto space-y-1.5">
+        {files.length > 0 && (
+          <div className="flex flex-wrap gap-2 pb-1">
+            {files.map((f, i) => {
+              const isImg = f.type.startsWith('image/')
+              return (
+                <div key={i} className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[var(--surface-hover)] border border-[var(--brand-border)] text-xs text-[var(--text)] max-w-[240px]">
+                  {isImg ? <ImageIcon size={12} className="shrink-0 text-emerald-500"/> : <FileText size={12} className="shrink-0 text-[var(--text-muted)]"/>}
+                  <span className="truncate">{f.name}</span>
+                  <span className="text-[10px] text-[var(--text-light)] shrink-0">{(f.size / 1024).toFixed(0)}KB</span>
+                  <button type="button" onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))} className="text-[var(--text-light)] hover:text-red-400">
+                    <X size={11}/>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
         {(isBotQuery || botThinking) && (
           <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
             <Bot size={12} className={botThinking ? 'animate-pulse' : ''} />
@@ -180,6 +249,16 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
         )}
 
         <div className="flex items-end gap-2">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy || botThinking}
+            title="Anexar arquivo (imagem, PDF, DOC, planilha)"
+            aria-label="Anexar arquivo"
+            className="p-2 rounded-md text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-40 shrink-0"
+          >
+            <Paperclip size={16}/>
+          </button>
           <textarea
             ref={ref}
             value={value}
@@ -202,7 +281,7 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
           />
           <button
             type="button"
-            disabled={busy || !value.trim()}
+            disabled={busy || (!value.trim() && files.length === 0)}
             onClick={submit}
             aria-label={isBotQuery ? 'Perguntar ao BOT' : 'Enviar mensagem'}
             className={[

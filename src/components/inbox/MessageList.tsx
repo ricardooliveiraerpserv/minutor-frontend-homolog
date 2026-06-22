@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Archive, Inbox as InboxIcon, MessageSquare } from 'lucide-react'
+import { Archive, Inbox as InboxIcon, MessageSquare, Search, X } from 'lucide-react'
 import { listMessages, markRead } from '@/lib/inbox'
 import { MessageItem } from './MessageItem'
 import { ChatMessageItem } from './ChatMessageItem'
@@ -40,6 +40,8 @@ export function MessageList({ conversation, currentUserId }: Props) {
   const isChat = conversation && conversation.type !== 'bot'
 
   const [filter, setFilter] = useState<Filter>('active')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
   const { data, isLoading } = useQuery({
@@ -101,10 +103,70 @@ export function MessageList({ conversation, currentUserId }: Props) {
     )
   }
 
-  const items = data?.data ?? []
+  const allItems = data?.data ?? []
+  const items = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return allItems
+    return allItems.filter(m =>
+      m.body?.toLowerCase().includes(q)
+      || m.sender?.name?.toLowerCase().includes(q)
+      || (m.attachments ?? []).some(a => a.filename.toLowerCase().includes(q))
+    )
+  }, [allItems, searchQuery])
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-[var(--bg)]">
+      {/* Barra de busca dentro da conversa (chat e bot) */}
+      {conversation && (
+        <div className="px-5 py-2 flex items-center gap-2 border-b border-[var(--brand-border)] bg-[var(--surface)]">
+          {searchOpen ? (
+            <>
+              <div className="relative flex-1 max-w-xl">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
+                <input
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  autoFocus
+                  placeholder="Buscar nesta conversa…"
+                  className="w-full bg-[var(--bg)] border border-[var(--brand-border)] rounded pl-7 pr-7 py-1 text-xs text-[var(--text)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-emerald-500/50"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-[var(--text-light)] hover:text-[var(--text)]"
+                    title="Limpar"
+                  >
+                    <X size={11}/>
+                  </button>
+                )}
+              </div>
+              {searchQuery && (
+                <span className="text-[10px] text-[var(--text-light)]">
+                  {items.length} resultado{items.length === 1 ? '' : 's'}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => { setSearchOpen(false); setSearchQuery('') }}
+                className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1 rounded"
+              >
+                Fechar busca
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)] hover:text-[var(--text)] px-2 py-1 rounded"
+              title="Buscar nesta conversa (Ctrl+F)"
+            >
+              <Search size={11}/> Buscar nesta conversa
+            </button>
+          )}
+        </div>
+      )}
+
       {isBot && (
         <div className="px-5 py-2 flex items-center gap-1 border-b border-[var(--brand-border)] bg-[var(--surface)]">
           {(Object.keys(FILTER_LABEL) as Filter[]).map(k => (
