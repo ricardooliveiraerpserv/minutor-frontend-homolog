@@ -169,10 +169,12 @@ const TRANSITION_COL: Column = {
 // Fase Projeto enxuta (2026-05-21): andamento fino (planejamento/execução/homologação)
 // fica no CRONOGRAMA atrás do card → "Em Andamento" agrupa os status ativos.
 // Backend mantém todos os project.status; aqui é só reagrupamento do kanban.
-const ACTIVE_PROJECT_STATUSES = ['planning', 'awaiting_start', 'started', 'liberado_para_testes']
+// awaiting_start ("Aguardando Início") é pré-kanban — projeto ainda não iniciado.
+// Fica no Backlog (alinhado ao ProjectWorkflowService: IN_EXECUTION exclui awaiting_start).
+const ACTIVE_PROJECT_STATUSES = ['planning', 'started', 'liberado_para_testes']
 
 const PROJECT_COLS: Column[] = [
-  { id: 'proj_backlog',        label: 'Backlog',             phase: 'project', projectStatuses: ['backlog'],         color: '#94a3b8' },
+  { id: 'proj_backlog',        label: 'Backlog',             phase: 'project', projectStatuses: ['backlog', 'awaiting_start'], color: '#94a3b8' },
   { id: 'em_andamento',        label: 'Em Andamento',        phase: 'project', projectStatuses: ACTIVE_PROJECT_STATUSES, color: '#60a5fa' },
   { id: 'pausado',             label: 'Pausado',             phase: 'project', projectStatuses: ['paused'],     color: '#eab308' },
   { id: 'encerrado',           label: 'Encerrado',           phase: 'project', projectStatuses: ['finished'],   color: '#22c55e' },
@@ -181,8 +183,8 @@ const PROJECT_COLS: Column[] = [
 
 const PROJECT_STATUS_TO_COL: Record<string, string> = {
   backlog:              'proj_backlog',
+  awaiting_start:       'proj_backlog',
   planning:             'em_andamento',
-  awaiting_start:       'em_andamento',
   started:              'em_andamento',
   liberado_para_testes: 'em_andamento',
   paused:               'pausado',
