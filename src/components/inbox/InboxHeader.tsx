@@ -3,14 +3,52 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Bell, BellOff, Bot, Settings, Users, Zap } from 'lucide-react'
+import { Bell, BellOff, Bot, Download, Settings, Users, Zap } from 'lucide-react'
 import type { ConversationSummary, PresenceStatusValue } from '@/types/inbox'
-import { muteConversation } from '@/lib/inbox'
+import { exportConversationUrl, muteConversation } from '@/lib/inbox'
 import { PresenceDot } from './PresenceDot'
 import { ManageGroupModal } from './ManageGroupModal'
 
 function initials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
+}
+
+function ExportButton({ conv }: { conv: ConversationSummary }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        title="Exportar conversa"
+        className="inline-flex items-center justify-center w-8 h-8 rounded text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]"
+      >
+        <Download size={14}/>
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-44 rounded-md border border-[var(--brand-border)] bg-[var(--surface)] shadow-lg py-1 z-20" onMouseLeave={() => setOpen(false)}>
+          <a
+            href={exportConversationUrl(conv.id, 'txt')}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className="block w-full text-left px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--surface-hover)]"
+          >
+            Texto (.txt)
+          </a>
+          <a
+            href={exportConversationUrl(conv.id, 'json')}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className="block w-full text-left px-3 py-1.5 text-xs text-[var(--text)] hover:bg-[var(--surface-hover)]"
+          >
+            JSON (.json)
+          </a>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function MuteButton({ conv }: { conv: ConversationSummary }) {
@@ -87,6 +125,7 @@ function GroupHeader({ conversation: c }: { conversation: ConversationSummary })
             Grupo · {c.participants_count ?? '?'} participantes
           </p>
         </div>
+        <ExportButton conv={c} />
         <MuteButton conv={c} />
         <button
           type="button"
@@ -173,6 +212,7 @@ export function InboxHeader({ conversation, presenceByUser }: Props) {
             : 'Conversa direta'}
         </p>
       </div>
+      <ExportButton conv={c} />
       <MuteButton conv={c} />
     </header>
   )

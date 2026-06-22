@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Archive, Inbox as InboxIcon, MessageSquare, Pin, Search, X } from 'lucide-react'
-import { getReadStatus, listMessages, listPinned, markRead } from '@/lib/inbox'
+import { getReadStatus, listMessages, listPinned, listTyping, markRead } from '@/lib/inbox'
 import { MessageItem } from './MessageItem'
 import { ChatMessageItem } from './ChatMessageItem'
 import { Composer } from './Composer'
@@ -62,6 +62,16 @@ export function MessageList({ conversation, currentUserId }: Props) {
     staleTime: 15_000,
   })
   const readStatus = readStatusRes?.data ?? []
+
+  // Typing indicator — poll de 3s
+  const { data: typingRes } = useQuery({
+    queryKey: ['inbox-typing', conversation?.id],
+    queryFn: () => listTyping(conversation!.id),
+    enabled: !!conversation && conversation.type !== 'bot',
+    refetchInterval: 3_000,
+    staleTime: 1_000,
+  })
+  const typingUsers = typingRes?.data ?? []
 
   const { data, isLoading } = useQuery({
     queryKey: ['inbox-messages', conversation?.id, isBot ? filter : 'chat'],
@@ -290,6 +300,21 @@ export function MessageList({ conversation, currentUserId }: Props) {
           </>
         )}
       </div>
+
+      {isChat && typingUsers.length > 0 && (
+        <div className="px-5 py-1.5 text-[11px] text-[var(--text-light)] italic bg-[var(--surface)] border-t border-[var(--brand-border)]">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="flex gap-0.5">
+              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '0ms' }}/>
+              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '120ms' }}/>
+              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-bounce" style={{ animationDelay: '240ms' }}/>
+            </span>
+            {typingUsers.length === 1
+              ? `${typingUsers[0].name?.split(' ')[0] ?? 'Alguém'} está digitando…`
+              : `${typingUsers.length} pessoas estão digitando…`}
+          </span>
+        </div>
+      )}
 
       {isChat && (
         <Composer

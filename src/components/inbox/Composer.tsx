@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Bot, CornerUpLeft, FileText, Image as ImageIcon, Paperclip, Send, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { botQuery, listChatUsers, sendMessage } from '@/lib/inbox'
+import { botQuery, listChatUsers, sendMessage, sendTyping } from '@/lib/inbox'
 import type { InboxMessage } from '@/types/inbox'
 
 interface ComposerProps {
@@ -35,6 +35,7 @@ export function Composer({ conversationId, placeholder, autoFocus = true, replyT
   const [dragOver, setDragOver] = useState(false)
   const ref = useRef<HTMLTextAreaElement | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const lastTypingSentRef = useRef<number>(0)
 
   const isBotQuery = BOT_PREFIX.test(value.trimStart())
 
@@ -85,6 +86,13 @@ export function Composer({ conversationId, placeholder, autoFocus = true, replyT
       ta.focus()
       ta.setSelectionRange(newPos, newPos)
     })
+  }
+
+  const notifyTyping = () => {
+    const now = Date.now()
+    if (now - lastTypingSentRef.current < 3000) return
+    lastTypingSentRef.current = now
+    sendTyping(conversationId).catch(() => {/* silent */})
   }
 
   const addFiles = (incoming: File[]) => {
@@ -291,6 +299,7 @@ export function Composer({ conversationId, placeholder, autoFocus = true, replyT
             onChange={e => {
               setValue(e.target.value)
               updateMentionState(e.target.value, e.target.selectionStart ?? e.target.value.length)
+              if (e.target.value.trim().length > 0) notifyTyping()
             }}
             onKeyUp={e => updateMentionState(e.currentTarget.value, e.currentTarget.selectionStart ?? 0)}
             onKeyDown={onKeyDown}

@@ -81,6 +81,18 @@ export function listFavorites(): Promise<{ data: InboxMessage[] }> {
   return api.get('/inbox/favorites')
 }
 
+export function exportConversationUrl(conversationId: number, format: 'txt' | 'json'): string {
+  return `/api/v1/inbox/conversations/${conversationId}/export?format=${format}`
+}
+
+export function sendTyping(conversationId: number): Promise<{ ok: boolean }> {
+  return api.post(`/inbox/conversations/${conversationId}/typing`, {})
+}
+
+export function listTyping(conversationId: number): Promise<{ data: { user_id: number; name: string }[] }> {
+  return api.get(`/inbox/conversations/${conversationId}/typing`)
+}
+
 export function updateMessageStatus(
   messageId: number,
   status: NotificationStatusValue,
