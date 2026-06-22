@@ -76,6 +76,8 @@ export interface InboxMessage {
   snoozed_until?: string | null
   resolved_at?: string | null
   created_at: string
+  edited_at?: string | null
+  deleted_at?: string | null
 }
 
 export interface PresenceEntry {

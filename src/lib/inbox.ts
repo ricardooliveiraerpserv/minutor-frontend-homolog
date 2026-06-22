@@ -31,6 +31,14 @@ export function markRead(conversationId: number): Promise<{ marked_read: boolean
   return api.post(`/inbox/conversations/${conversationId}/read`, {})
 }
 
+export function editMessage(messageId: number, body: string): Promise<{ data: InboxMessage }> {
+  return api.patch(`/inbox/messages/${messageId}`, { body })
+}
+
+export function deleteMessage(messageId: number): Promise<{ data: { id: number; deleted: boolean } }> {
+  return api.delete(`/inbox/messages/${messageId}`)
+}
+
 export function updateMessageStatus(
   messageId: number,
   status: NotificationStatusValue,

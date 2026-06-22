@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Bot, Send } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { botQuery, sendMessage } from '@/lib/inbox'
+import { botQuery, listChatUsers, sendMessage } from '@/lib/inbox'
 
 interface ComposerProps {
   conversationId: number
@@ -13,20 +14,72 @@ interface ComposerProps {
 }
 
 const BOT_PREFIX = /^@bot\b/i
+// Detecta @palavra antes do cursor (palavra com letras/dígitos/_./-)
+const MENTION_AT_CURSOR = /@([A-Za-zÀ-ÿ0-9_.-]*)$/
+
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
+}
 
 export function Composer({ conversationId, placeholder, autoFocus = true }: ComposerProps) {
   const qc = useQueryClient()
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
   const [botThinking, setBotThinking] = useState(false)
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionIdx, setMentionIdx] = useState(0)
   const ref = useRef<HTMLTextAreaElement | null>(null)
 
   const isBotQuery = BOT_PREFIX.test(value.trimStart())
 
-  // Auto-focus quando troca de conversa
+  // Autocomplete @ — buscar usuários só quando há query ativa
+  const { data: mentionsRes } = useQuery({
+    queryKey: ['chat-mentions', mentionQuery],
+    queryFn: () => listChatUsers(mentionQuery ?? ''),
+    enabled: mentionQuery !== null,
+    staleTime: 30_000,
+  })
+  const candidates = useMemo(() => {
+    const q = (mentionQuery ?? '').toLowerCase()
+    const items = mentionsRes?.data ?? []
+    // Sempre exibir "bot" como primeira opção quando o filtro casa
+    const botMatch = 'bot'.startsWith(q) ? [{ id: -1, name: 'bot', email: 'IA do Minutor' }] : []
+    return [...botMatch, ...items].slice(0, 6)
+  }, [mentionsRes, mentionQuery])
+
   useEffect(() => {
     if (autoFocus && ref.current) ref.current.focus()
   }, [conversationId, autoFocus])
+
+  // Atualiza a query de menção a cada mudança de valor/seleção
+  const updateMentionState = (txt: string, cursor: number) => {
+    const before = txt.slice(0, cursor)
+    const m = MENTION_AT_CURSOR.exec(before)
+    if (m) {
+      setMentionQuery(m[1])
+      setMentionIdx(0)
+    } else {
+      setMentionQuery(null)
+    }
+  }
+
+  const insertMention = (handle: string) => {
+    const ta = ref.current
+    if (!ta) return
+    const cursor = ta.selectionStart ?? value.length
+    const before = value.slice(0, cursor)
+    const after = value.slice(cursor)
+    const replaced = before.replace(MENTION_AT_CURSOR, `@${handle} `)
+    const next = replaced + after
+    setValue(next)
+    setMentionQuery(null)
+    // Reposiciona cursor após a menção inserida
+    requestAnimationFrame(() => {
+      const newPos = replaced.length
+      ta.focus()
+      ta.setSelectionRange(newPos, newPos)
+    })
+  }
 
   const submit = async () => {
     const body = value.trim()
@@ -55,6 +108,21 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Navegação no autocomplete de menções
+    if (mentionQuery !== null && candidates.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIdx(i => Math.min(candidates.length - 1, i + 1)); return }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setMentionIdx(i => Math.max(0, i - 1));                    return }
+      if (e.key === 'Escape')    { e.preventDefault(); setMentionQuery(null); return }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        const sel = candidates[mentionIdx]
+        if (sel) {
+          e.preventDefault()
+          const handle = sel.id === -1 ? 'bot' : sel.name.split(' ')[0]
+          insertMention(handle)
+          return
+        }
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       submit()
@@ -62,7 +130,7 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
   }
 
   return (
-    <div className="border-t border-[var(--brand-border)] bg-[var(--surface)] px-4 py-3">
+    <div className="border-t border-[var(--brand-border)] bg-[var(--surface)] px-4 py-3 relative">
       <div className="max-w-4xl mx-auto space-y-1.5">
         {(isBotQuery || botThinking) && (
           <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
@@ -72,16 +140,59 @@ export function Composer({ conversationId, placeholder, autoFocus = true }: Comp
               : 'O BOT vai responder esta mensagem consultando dados do Minutor'}
           </div>
         )}
+
+        {/* Autocomplete de menções */}
+        {mentionQuery !== null && candidates.length > 0 && (
+          <div className="absolute bottom-full mb-1 left-4 right-4 max-w-md bg-[var(--surface)] border border-[var(--brand-border)] rounded-md shadow-lg overflow-hidden z-20">
+            <p className="text-[10px] text-[var(--text-light)] uppercase tracking-wider px-3 pt-2 pb-1">Mencionar</p>
+            {candidates.map((c, i) => (
+              <button
+                key={c.id}
+                type="button"
+                onMouseEnter={() => setMentionIdx(i)}
+                onClick={() => insertMention(c.id === -1 ? 'bot' : c.name.split(' ')[0])}
+                className={[
+                  'w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors',
+                  i === mentionIdx ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]',
+                ].join(' ')}
+              >
+                <div className={[
+                  'w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-semibold shrink-0',
+                  c.id === -1
+                    ? 'bg-gradient-to-br from-emerald-500/30 to-emerald-700/20 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/40'
+                    : 'bg-[var(--surface-hover)] text-[var(--text-muted)] ring-1 ring-[var(--brand-border)]',
+                ].join(' ')}>
+                  {c.id === -1 ? <Bot size={12}/> : initials(c.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-[var(--text)] truncate">
+                    {c.id === -1 ? 'bot' : c.name}
+                    {c.id === -1 && <span className="ml-2 text-[10px] text-emerald-700 dark:text-emerald-300">IA</span>}
+                  </p>
+                  <p className="text-[10px] text-[var(--text-light)] truncate">{c.email}</p>
+                </div>
+              </button>
+            ))}
+            <p className="text-[10px] text-[var(--text-light)] px-3 pb-2 pt-1 border-t border-[var(--brand-border)]">
+              ↑↓ navegar · Enter selecionar · Esc fechar
+            </p>
+          </div>
+        )}
+
         <div className="flex items-end gap-2">
           <textarea
             ref={ref}
             value={value}
-            onChange={e => setValue(e.target.value)}
+            onChange={e => {
+              setValue(e.target.value)
+              updateMentionState(e.target.value, e.target.selectionStart ?? e.target.value.length)
+            }}
+            onKeyUp={e => updateMentionState(e.currentTarget.value, e.currentTarget.selectionStart ?? 0)}
             onKeyDown={onKeyDown}
             rows={2}
             disabled={botThinking}
             aria-label="Escrever mensagem"
-            placeholder={placeholder ?? 'Mensagem... Use @bot para perguntar algo ao BOT (ex.: @bot projetos da VEDAMOTORS)'}
+            placeholder={placeholder ?? 'Mensagem... Use @bot para perguntar ao BOT ou @usuario para mencionar alguém'}
             className={[
               'flex-1 resize-none border rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-light)] focus:outline-none transition-colors disabled:opacity-60',
               isBotQuery
