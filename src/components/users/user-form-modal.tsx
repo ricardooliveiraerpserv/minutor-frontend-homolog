@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { X, ChevronDown, Search, Mail } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { BotScopesEditor } from './BotScopesEditor'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Subset do usuário usado pelo prefill em edição (GET /users/{id}).
@@ -17,6 +18,7 @@ interface UserData {
   email: string
   enabled: boolean
   can_use_bot?: boolean
+  bot_allowed_scopes?: string[] | null
   inbox_email_disabled?: boolean
   hourly_rate?: number
   rate_type?: string
@@ -307,6 +309,7 @@ const EMPTY_FORM = {
   smtp_app_password: '',
   enabled: true,
   can_use_bot: false,
+  bot_allowed_scopes: null as string[] | null,
   inbox_email_disabled: false,
   hourly_rate: '',
   rate_type: 'hourly' as 'hourly' | 'monthly',
@@ -423,6 +426,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           smtp_app_password:   '', // write-only no BE — nunca retorna; mantém em branco
           enabled:             item.enabled,
           can_use_bot:         item.can_use_bot ?? false,
+          bot_allowed_scopes:  item.bot_allowed_scopes ?? null,
           inbox_email_disabled: item.inbox_email_disabled ?? false,
           hourly_rate:         item.hourly_rate ? String(item.hourly_rate) : '',
           rate_type:           (item.rate_type as 'hourly' | 'monthly') ?? 'hourly',
@@ -468,6 +472,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         email:       form.email,
         enabled:     form.enabled,
         can_use_bot: form.can_use_bot,
+        bot_allowed_scopes: form.bot_allowed_scopes,
         inbox_email_disabled: form.inbox_email_disabled,
         type:        resolveTypeForBackend(form.profiles[0]),
         customer_id:  form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
@@ -993,6 +998,14 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
               onChange={() => setForm(f => ({ ...f, can_use_bot: !f.can_use_bot }))}
               label="Pode usar @bot no chat (IA do Minutor)"
             />
+
+            {/* ── Áreas que este user pode consultar via @bot ── */}
+            {form.can_use_bot && (
+              <BotScopesEditor
+                value={form.bot_allowed_scopes}
+                onChange={scopes => setForm(f => ({ ...f, bot_allowed_scopes: scopes }))}
+              />
+            )}
 
             {/* ── Desligar notificações de chat por email ── */}
             <Toggle
