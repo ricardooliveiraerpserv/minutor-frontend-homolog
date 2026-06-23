@@ -93,6 +93,18 @@ export function listTyping(conversationId: number): Promise<{ data: { user_id: n
   return api.get(`/inbox/conversations/${conversationId}/typing`)
 }
 
+export interface SearchHit {
+  id: number
+  snippet: string
+  sender: { id: number; name: string } | null
+  created_at: string | null
+  conversation: { id: number; type: string; title: string | null } | null
+}
+
+export function searchMessagesGlobal(q: string, limit = 50): Promise<{ data: SearchHit[]; query: string; count: number }> {
+  return api.get(`/inbox/search?q=${encodeURIComponent(q)}&limit=${limit}`)
+}
+
 export function updateMessageStatus(
   messageId: number,
   status: NotificationStatusValue,

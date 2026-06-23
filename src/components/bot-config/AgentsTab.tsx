@@ -10,6 +10,20 @@ import type { BotAgent } from '@/types/bot'
 
 const SEVERITIES = ['info', 'low', 'medium', 'high', 'critical'] as const
 
+const ALL_SCOPES = ['customer', 'project', 'contract', 'financial', 'billing', 'payroll', 'bankhours', 'approvals', 'overview'] as const
+
+const SCOPE_LABEL: Record<string, string> = {
+  customer:  'Clientes',
+  project:   'Projetos',
+  contract:  'Contratos',
+  financial: 'Apontamentos & Despesas',
+  billing:   'Faturamento (cliente)',
+  payroll:   'Pagamento (consultor)',
+  bankhours: 'Banco de horas',
+  approvals: 'Pendências de aprovação',
+  overview:  'Resumos gerais',
+}
+
 const input = 'w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500'
 
 function AgentCard({ agent }: { agent: BotAgent }) {
@@ -27,9 +41,14 @@ function AgentCard({ agent }: { agent: BotAgent }) {
   const [modelOverride, setModelOverride] = useState(agent.model_override ?? '')
   const [tempOverride, setTempOverride] = useState(agent.temperature_override?.toString() ?? '')
   const [prompt, setPrompt] = useState(agent.system_prompt)
+  const [scopes, setScopes] = useState<string[]>(agent.allowed_scopes ?? [...ALL_SCOPES])
 
-  useEffect(() => setDirty(true), [name, active, priority, minSev, cooldown, maxPerDay, modelOverride, tempOverride, prompt])
+  useEffect(() => setDirty(true), [name, active, priority, minSev, cooldown, maxPerDay, modelOverride, tempOverride, prompt, scopes])
   useEffect(() => setDirty(false), [agent])
+
+  const toggleScope = (s: string) => {
+    setScopes(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s])
+  }
 
   const save = async () => {
     setBusy(true)
@@ -44,6 +63,7 @@ function AgentCard({ agent }: { agent: BotAgent }) {
         model_override: modelOverride || null,
         temperature_override: tempOverride === '' ? null : Number(tempOverride),
         system_prompt: prompt,
+        allowed_scopes: scopes,
       })
       await qc.invalidateQueries({ queryKey: ['bot-agents'] })
       toast.success('Agent atualizado')
@@ -159,6 +179,35 @@ function AgentCard({ agent }: { agent: BotAgent }) {
               rows={8}
               className={`${input} font-mono leading-relaxed`}
             />
+          </div>
+
+          <div className="rounded border border-zinc-800 bg-zinc-900/40 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[11px] text-zinc-400 uppercase tracking-wider font-semibold">Áreas do Minutor que este agent pode consultar</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setScopes([...ALL_SCOPES])} className="text-[10px] text-emerald-300 hover:underline">Todas</button>
+                <button type="button" onClick={() => setScopes([])} className="text-[10px] text-zinc-500 hover:underline">Nenhuma</button>
+              </div>
+            </div>
+            <p className="text-[11px] text-zinc-500 mb-2">
+              Limita o que o BOT pode acessar ao responder. Áreas marcadas viram tools disponíveis pro modelo IA.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+              {ALL_SCOPES.map(s => {
+                const checked = scopes.includes(s)
+                return (
+                  <label key={s} className={[
+                    'flex items-center gap-2 px-2 py-1.5 rounded border text-xs cursor-pointer transition-colors',
+                    checked
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+                      : 'border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:border-zinc-700',
+                  ].join(' ')}>
+                    <input type="checkbox" checked={checked} onChange={() => toggleScope(s)} className="accent-emerald-500"/>
+                    <span>{SCOPE_LABEL[s] ?? s}</span>
+                  </label>
+                )
+              })}
+            </div>
           </div>
 
           <div className="flex items-center justify-between">

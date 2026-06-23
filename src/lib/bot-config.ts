@@ -16,7 +16,7 @@ export const updateProvider  = (id: number, payload: Partial<BotProvider>) => ap
 export const deleteProvider  = (id: number): Promise<{ data: BotProvider[] }> => api.delete(`/bot/providers/${id}`)
 
 // Agents
-export const listAgents      = (): Promise<{ data: BotAgent[] }>      => api.get('/bot/agents')
+export const listAgents      = (): Promise<{ data: BotAgent[]; all_scopes?: string[] }> => api.get('/bot/agents')
 export const createAgent     = (payload: Partial<BotAgent>): Promise<{ data: BotAgent[] }> => api.post('/bot/agents', payload)
 export const updateAgent     = (id: number, payload: Partial<BotAgent>) => api.put<{ data: BotAgent[] }>(`/bot/agents/${id}`, payload)
 export const deleteAgent     = (id: number): Promise<{ data: BotAgent[] }> => api.delete(`/bot/agents/${id}`)

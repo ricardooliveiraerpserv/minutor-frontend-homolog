@@ -163,6 +163,13 @@ export function ConversationsSidebar({
           <span className="text-[var(--text)] text-sm font-semibold">Conversas</span>
           <div className="flex items-center gap-2">
             <a
+              href="/inbox/buscar"
+              title="Buscar mensagens em todas conversas"
+              className="text-[var(--text-light)] hover:text-emerald-500 transition-colors"
+            >
+              <Search size={12}/>
+            </a>
+            <a
               href="/inbox/favoritos"
               title="Mensagens favoritas"
               className="text-[var(--text-light)] hover:text-amber-500 transition-colors"

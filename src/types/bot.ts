@@ -23,6 +23,7 @@ export interface BotAgent {
   cooldown_minutes: number
   max_per_day: number
   trigger_conditions: Record<string, unknown> | null
+  allowed_scopes?: string[] | null
 }
 
 export interface BotSkill {

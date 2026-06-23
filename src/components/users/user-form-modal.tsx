@@ -17,6 +17,7 @@ interface UserData {
   email: string
   enabled: boolean
   can_use_bot?: boolean
+  inbox_email_disabled?: boolean
   hourly_rate?: number
   rate_type?: string
   daily_hours?: number
@@ -306,6 +307,7 @@ const EMPTY_FORM = {
   smtp_app_password: '',
   enabled: true,
   can_use_bot: false,
+  inbox_email_disabled: false,
   hourly_rate: '',
   rate_type: 'hourly' as 'hourly' | 'monthly',
   daily_hours: '8',
@@ -421,6 +423,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           smtp_app_password:   '', // write-only no BE — nunca retorna; mantém em branco
           enabled:             item.enabled,
           can_use_bot:         item.can_use_bot ?? false,
+          inbox_email_disabled: item.inbox_email_disabled ?? false,
           hourly_rate:         item.hourly_rate ? String(item.hourly_rate) : '',
           rate_type:           (item.rate_type as 'hourly' | 'monthly') ?? 'hourly',
           daily_hours:            item.daily_hours != null ? String(item.daily_hours) : '8',
@@ -465,6 +468,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         email:       form.email,
         enabled:     form.enabled,
         can_use_bot: form.can_use_bot,
+        inbox_email_disabled: form.inbox_email_disabled,
         type:        resolveTypeForBackend(form.profiles[0]),
         customer_id:  form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
         partner_id:   needsPartnerField && form.partner_id ? form.partner_id : null,
@@ -988,6 +992,13 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
               value={form.can_use_bot}
               onChange={() => setForm(f => ({ ...f, can_use_bot: !f.can_use_bot }))}
               label="Pode usar @bot no chat (IA do Minutor)"
+            />
+
+            {/* ── Desligar notificações de chat por email ── */}
+            <Toggle
+              value={!form.inbox_email_disabled}
+              onChange={() => setForm(f => ({ ...f, inbox_email_disabled: !f.inbox_email_disabled }))}
+              label="Receber digest de mensagens não lidas por email"
             />
           </>
         )}
