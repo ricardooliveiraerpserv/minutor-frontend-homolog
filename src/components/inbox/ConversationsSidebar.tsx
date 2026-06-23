@@ -1,6 +1,6 @@
 'use client'
 
-import { Bot, MessageSquarePlus, Search, Users, User as UserIcon } from 'lucide-react'
+import { Bot, MessageSquarePlus, Search, Star, Users, User as UserIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -161,7 +161,16 @@ export function ConversationsSidebar({
       <div className="p-3 border-b border-[var(--brand-border)] space-y-2.5">
         <div className="flex items-center justify-between">
           <span className="text-[var(--text)] text-sm font-semibold">Conversas</span>
-          <span className="text-[10px] text-[var(--text-light)]">{conversations.length}</span>
+          <div className="flex items-center gap-2">
+            <a
+              href="/inbox/favoritos"
+              title="Mensagens favoritas"
+              className="text-[var(--text-light)] hover:text-amber-500 transition-colors"
+            >
+              <Star size={12}/>
+            </a>
+            <span className="text-[10px] text-[var(--text-light)]">{conversations.length}</span>
+          </div>
         </div>
         <button
           type="button"

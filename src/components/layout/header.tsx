@@ -15,6 +15,7 @@ import { secureUrl, api } from '@/lib/api'
 import { useState, useEffect, useRef } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 import { MentionsBell } from './mentions-bell'
+import { ChatBell } from './chat-bell'
 
 interface HeaderProps {
   title?: string
@@ -115,6 +116,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
             chat de requisição até req_decided_at + chat de contrato com visibility=client).
             Backend /me/mentions filtra mentions de chat de projeto pro cliente (regra ADR cards). */}
         {user && <MentionsBell />}
+        {user && <ChatBell />}
 
         {/* Bell notification — visible for all logged-in users; content scoped server-side */}
         {user && (
