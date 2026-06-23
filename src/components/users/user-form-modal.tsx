@@ -32,6 +32,7 @@ interface UserData {
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
   is_bizify?: boolean
+  is_diretor_projetos?: boolean
   full_name?: string | null
   cpf?: string | null
   matricula?: string | null
@@ -319,6 +320,7 @@ const EMPTY_FORM = {
   extra_permissions: [] as string[],
   can_timesheet_sustentacao: false,
   is_bizify: false,
+  is_diretor_projetos: false,
   // Folha de pagamento
   full_name: '',
   cpf: '',
@@ -432,6 +434,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           extra_permissions:          item.extra_permissions ?? [],
           can_timesheet_sustentacao:  item.can_timesheet_sustentacao ?? false,
           is_bizify:                  item.is_bizify ?? false,
+          is_diretor_projetos:        item.is_diretor_projetos ?? false,
           full_name:                  item.full_name ?? '',
           cpf:                        item.cpf ?? '',
           matricula:                  item.matricula ?? '',
@@ -467,6 +470,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       if (form.hourly_rate) payload.hourly_rate = parseFloat(form.hourly_rate)
       if (form.daily_hours) payload.daily_hours = parseFloat(form.daily_hours)
       payload.is_bizify = form.is_bizify
+      payload.is_diretor_projetos = form.is_diretor_projetos
       if (form.profiles.includes('consultor') && form.consultant_type) {
         payload.consultant_type       = form.consultant_type
         payload.bank_hours_start_date = form.bank_hours_start_date || null
@@ -956,6 +960,15 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 value={form.is_bizify}
                 onChange={() => setForm(f => ({ ...f, is_bizify: !f.is_bizify }))}
                 label="Funcionário Bizify (sai dos cards ERPSERV e vai pra aba Bizify no fechamento)"
+              />
+            )}
+
+            {/* ── Diretor de Projetos (recebe e-mails das fases do contrato — Triagem) ── */}
+            {!form.profiles.includes('cliente') && (
+              <Toggle
+                value={form.is_diretor_projetos}
+                onChange={() => setForm(f => ({ ...f, is_diretor_projetos: !f.is_diretor_projetos }))}
+                label="Diretor de Projetos (recebe os e-mails das fases do contrato)"
               />
             )}
 

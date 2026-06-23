@@ -10,11 +10,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Settings,
-  RefreshCw, CheckCircle, XCircle, Users, Shield, X,
+  RefreshCw, CheckCircle, XCircle, Users, Shield, X, LayoutGrid,
 } from 'lucide-react'
 import type { SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
 import { PermissionGroupsTab } from './PermissionGroupsTab'
+import { ProfileModulesTab } from './ProfileModulesTab'
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +23,7 @@ const TABS = [
   { id: 'general', label: 'Geral',               icon: Settings },
   { id: 'users',   label: 'Usuários',             icon: Users },
   { id: 'groups',  label: 'Grupos de Permissões', icon: Shield },
+  { id: 'perfis',  label: 'Cadastro de Perfil',   icon: LayoutGrid },
 ]
 
 // ─── TAB: GENERAL SETTINGS ───────────────────────────────────────────────────
@@ -264,6 +266,11 @@ function GeneralTab() {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
+  // Abre a tab vinda por ?tab= (ex.: "Cadastro de Perfil" → /settings?tab=perfis).
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    if (t && TABS.some(x => x.id === t)) setActiveTab(t)
+  }, [])
   const active = TABS.find(t => t.id === activeTab)!
 
   return (
@@ -319,6 +326,7 @@ export default function SettingsPage() {
           {activeTab === 'general' && <GeneralTab />}
           {activeTab === 'users'   && <UserManagementTab />}
           {activeTab === 'groups'  && <PermissionGroupsTab />}
+          {activeTab === 'perfis'  && <ProfileModulesTab />}
         </div>
       </div>
     </AppLayout>

@@ -26,6 +26,8 @@ interface ContractCard {
   customer_name: string
   customer_id: number
   project_name?: string
+  // Subprojeto faturado que gerou aporte automático no pai (badge verde na capa).
+  gerou_aporte?: boolean
   categoria?: string
   contract_type?: string
   contract_type_id?: number
@@ -45,6 +47,18 @@ interface ContractCard {
   is_complete: boolean
   created_at: string
   sustentacao_column?: string | null
+  is_aditivo?: boolean
+  aditivo_field?: string | null
+  aditivo_changes?: { field: string; label: string; old: number; new: number }[] | null
+  aditivo_old_value?: number | null
+  aditivo_new_value?: number | null
+  aditivo_project_code?: string | null
+  aditivo_project_name?: string | null
+  aditivo_contract_old?: number | null
+  aditivo_contract_new?: number | null
+  aditivo_effective_from?: string | null
+  aditivo_cond_pagamento?: string | null
+  aditivo_obs?: string | null
 }
 
 interface ProjectCard {
@@ -253,6 +267,7 @@ const COL_TO_PROJECT_STATUS: Record<string, string> = {
 }
 
 const PRONTO_COLOR = '#eab308'
+const ADITIVO_COLOR = '#8b5cf6'
 
 const FIXED_COLUMNS: Column[] = [
   { id: 'novo',   label: 'Novo Contrato',       type: 'fixed', emoji: '🆕' },
@@ -305,6 +320,11 @@ const APORTE_COL: Column = {
   id: 'aporte', label: 'Aporte', type: 'aporte', emoji: '💰', color: APORTE_COLOR,
 }
 
+// Coluna de Aditivos — fica por último (depois do Aporte).
+const ADITIVO_COL: Column = {
+  id: 'aditivos', label: 'Aditivos', type: 'fixed', emoji: '➕', color: ADITIVO_COLOR,
+}
+
 const STATUS_PROJECT_COLUMNS: Column[] = [
   { id: 'col_encerrado', label: 'Encerrado', type: 'project_status', projectStatus: 'finished',  color: '#22c55e' },
   { id: 'col_pausado',   label: 'Pausado',   type: 'project_status', projectStatus: 'paused',    color: '#eab308' },
@@ -314,6 +334,8 @@ const STATUS_PROJECT_COLUMNS: Column[] = [
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function contractColumnId(card: ContractCard): string | null {
+  // Aditivo aplicado e arquivado fica na coluna "Aditivos".
+  if (card.kanban_status === 'aditivo') return 'aditivos'
   if (card.kanban_status === 'alocado') {
     // Sem coordinator definido NÃO cai em 'novo' (default antigo): o projeto já
     // foi criado, então o card "como contrato" não pertence a nenhuma coluna —
@@ -588,6 +610,18 @@ function AporteKanbanCard({ aporte, onClick, onMoveToFinal, canWrite }: {
         </span>
       </div>
 
+      {/* Legenda: aporte gerado automaticamente por um subprojeto faturado (borda verde + código). */}
+      {(() => {
+        const m = /ref\. subprojeto faturado\s*\(([^\s)]+)/i.exec(aporte.description ?? '')
+        if (!m) return null
+        return (
+          <div className="mb-2 rounded-md px-2 py-1 text-[10px] font-medium"
+            style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}>
+            Criado automaticamente pelo subprojeto <span className="font-mono font-bold">{m[1]}</span>
+          </div>
+        )
+      })()}
+
       {/* Middle: horas e valor */}
       <div className="grid grid-cols-3 gap-1.5 mb-2">
         <div className="rounded-md px-2 py-1.5 text-center" style={{ background: `${APORTE_COLOR}10` }}>
@@ -664,10 +698,11 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
           onClick={onClick}
           className="kanban-card rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
-            background: 'var(--brand-surface)',
-            border: `1px solid var(--brand-border)`,
-            // Borda lateral colorida pelo status do contrato (Incompleto/Pronto/Projeto Ativo)
-            borderLeft: `3px solid ${badge.color}`,
+            background: card.is_aditivo ? `${ADITIVO_COLOR}12` : 'var(--brand-surface)',
+            border: `1px solid ${card.is_aditivo ? `${ADITIVO_COLOR}73` : 'var(--brand-border)'}`,
+            // Borda lateral colorida pelo status do contrato (Incompleto/Pronto/Projeto Ativo);
+            // aditivo usa roxo pra se distinguir dos contratos comuns.
+            borderLeft: `3px solid ${card.is_aditivo ? ADITIVO_COLOR : badge.color}`,
             boxShadow: snap.isDragging ? 'var(--brand-card-shadow-md)' : 'var(--brand-card-shadow)',
             opacity: snap.isDragging ? 0.85 : 1,
             ...prov.draggableProps.style,
@@ -676,15 +711,22 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
         >
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
-              <p className="text-title truncate">{card.customer_name}</p>
+              <p className="text-title break-normal">{card.customer_name}</p>
               {card.project_name && (
-                <p className="kpi-sub truncate">{card.project_name}</p>
+                <p className="kpi-sub break-normal">{card.project_name}</p>
+              )}
+              {card.gerou_aporte && (
+                <span className="inline-block mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}
+                  title="Subprojeto faturado — gerou um aporte automático no projeto pai">
+                  Gerou aporte
+                </span>
               )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
-              <span className="kpi-label px-1.5 py-0.5 rounded-full whitespace-nowrap"
-                style={{ background: badge.bg, color: badge.color }}>
-                {badge.label}
+              <span className="kpi-label px-1.5 py-0.5 rounded-full whitespace-nowrap font-semibold"
+                style={{ background: card.is_aditivo ? `${ADITIVO_COLOR}2e` : badge.bg, color: card.is_aditivo ? ADITIVO_COLOR : badge.color }}>
+                {card.is_aditivo ? '➕ ADITIVO' : badge.label}
               </span>
               {onAction && (
                 <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
@@ -720,14 +762,58 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
             </div>
           </div>
 
+          {card.is_aditivo && (() => {
+            const fieldLabel: Record<string, string> = { valor_hora: 'Valor-hora', horas_contratadas: 'Horas', valor_projeto: 'Valor do contrato', multiplo: 'Valor do contrato' }
+            const money = (n?: number | null) => n == null ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+            const horas = (n?: number | null) => n == null ? '—' : `${Number(n)}h`
+            const isHours = card.aditivo_field === 'horas_contratadas'
+            const fmt = (n?: number | null) => n == null ? '—' : isHours ? horas(n) : money(n)
+            // Multi (Mensal): mostra o breakdown (valor-hora + horas) + o valor do contrato.
+            if (card.aditivo_field === 'multiplo') {
+              return (
+                <div className="rounded-lg px-2 py-1.5 mb-2" style={{ background: `${ADITIVO_COLOR}14`, border: `1px solid ${ADITIVO_COLOR}40` }}>
+                  {card.aditivo_project_code && (
+                    <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>Projeto: <span style={{ color: 'var(--text)' }}>{card.aditivo_project_code}</span></p>
+                  )}
+                  {(card.aditivo_changes ?? []).map((c, i) => (
+                    <p key={i} className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                      {c.label}: {c.field === 'valor_hora' ? money(c.old) : horas(c.old)} → {c.field === 'valor_hora' ? money(c.new) : horas(c.new)}
+                    </p>
+                  ))}
+                  <p className="text-[11px] font-semibold" style={{ color: ADITIVO_COLOR }}>
+                    Valor do contrato: {money(card.aditivo_old_value)} → {money(card.aditivo_new_value)}
+                  </p>
+                </div>
+              )
+            }
+            return (
+              <div className="rounded-lg px-2 py-1.5 mb-2" style={{ background: `${ADITIVO_COLOR}14`, border: `1px solid ${ADITIVO_COLOR}40` }}>
+                {card.aditivo_project_code && (
+                  <p className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>Projeto: <span style={{ color: 'var(--text)' }}>{card.aditivo_project_code}</span></p>
+                )}
+                <p className="text-[11px] font-semibold" style={{ color: ADITIVO_COLOR }}>
+                  {fieldLabel[card.aditivo_field ?? ''] ?? 'Alteração'}: {fmt(card.aditivo_old_value)} → {fmt(card.aditivo_new_value)}
+                </p>
+                {card.aditivo_contract_new != null && (
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    Valor contrato: {card.aditivo_contract_old != null ? Number(card.aditivo_contract_old).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'} → {Number(card.aditivo_contract_new).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </p>
+                )}
+              </div>
+            )
+          })()}
+
           <div className="flex flex-wrap gap-1 mb-2">
             {card.categoria && (() => {
               const svL = card.service_type?.toLowerCase() ?? ''
+              const isBizify = svL.includes('bizify')
               const effectivelySust = card.categoria === 'sustentacao'
                 || svL.includes('sustent') || svL.includes('cloud') || svL.includes('bizify')
+              // Bizify é tipo próprio (fila/cor dedicada no kanban) — não colapsa em "Sustentação".
+              const catLabel = isBizify ? 'Bizify' : (effectivelySust ? 'Sustentação' : 'Projeto')
               return (
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-                  {effectivelySust ? 'Sustentação' : 'Projeto'}
+                  {catLabel}
                 </span>
               )
             })()}
@@ -736,7 +822,7 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                 {card.contract_type}
               </span>
             )}
-            {card.service_type && card.service_type.toLowerCase() !== 'projeto' && card.service_type.toLowerCase() !== 'sustentação' && card.service_type.toLowerCase() !== 'sustentacao' && (
+            {card.service_type && card.service_type.toLowerCase() !== 'projeto' && card.service_type.toLowerCase() !== 'sustentação' && card.service_type.toLowerCase() !== 'sustentacao' && card.service_type.toLowerCase() !== 'bizify' && (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
                 {card.service_type}
               </span>
@@ -856,10 +942,10 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
         >
           <div className="flex items-start justify-between gap-2 mb-1.5">
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
+              <p className="text-sm font-semibold break-normal" style={{ color: 'var(--brand-text)' }}>
                 {card.customer_name}
               </p>
-              <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
+              <p className="text-xs break-normal" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap"
@@ -917,7 +1003,7 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
             </span>
             <div className="flex items-center gap-1">
               {/* Ícone de chat removido (2026-05-28): após virar projeto, chat sai. Chat só na Requisição/Contrato. */}
-              <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                 {card.code}
               </span>
             </div>
@@ -1049,6 +1135,13 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
             <div>
               <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{card.customer_name}</p>
               {card.project_name && <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>{card.project_name}</p>}
+              {full?.generated_aporte && (
+                <span className="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}
+                  title="Subprojeto faturado — gerou um aporte automático no projeto pai">
+                  Gerou aporte automático
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs font-semibold px-2 py-1 rounded-full"
@@ -1109,14 +1202,95 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
           <>
             <div className="px-6 py-4 space-y-3 overflow-y-auto flex-1">
               {!full && <p className="text-xs text-center" style={{ color: 'var(--brand-muted)' }}>Carregando...</p>}
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                {fields.map(([label, value]) => (
-                  <div key={label}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
-                    <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
+              {/* Aditivo: visão objetiva do que foi alterado (pro administrativo cobrar) */}
+              {card.is_aditivo && (() => {
+                const fieldLabel: Record<string, string> = { valor_hora: 'Valor da Hora', horas_contratadas: 'Quantidade de Horas', valor_projeto: 'Valor do Contrato', multiplo: 'Valor do Contrato' }
+                const isHours = card.aditivo_field === 'horas_contratadas'
+                const fmt = (n?: number | null) => n == null ? '—' : isHours ? `${Number(n)}h` : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                const lbl = 'text-[10px] font-semibold uppercase tracking-wider'
+                const effMonth = card.aditivo_effective_from ? (() => { const [y, m] = card.aditivo_effective_from!.slice(0, 7).split('-'); return `${m}/${y}` })() : null
+                return (
+                  <div className="rounded-xl p-4" style={{ background: `${ADITIVO_COLOR}10`, border: `1px solid ${ADITIVO_COLOR}55` }}>
+                    <p className="text-xs font-bold mb-3" style={{ color: ADITIVO_COLOR }}>➕ ADITIVO DE CONTRATO</p>
+                    <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                      <div><p className={lbl} style={{ color: 'var(--brand-subtle)' }}>Cliente</p><p style={{ color: 'var(--brand-text)' }}>{card.customer_name}</p></div>
+                      <div><p className={lbl} style={{ color: 'var(--brand-subtle)' }}>Projeto</p><p style={{ color: 'var(--brand-text)' }}>{[card.aditivo_project_code, card.aditivo_project_name].filter(Boolean).join(' — ') || '—'}</p></div>
+                    </div>
+                    <div className="rounded-lg p-3" style={{ background: 'var(--brand-surface)', border: `1px solid ${ADITIVO_COLOR}40` }}>
+                      <p className={lbl} style={{ color: 'var(--brand-subtle)' }}>O que foi alterado</p>
+                      <p className="text-sm font-semibold mb-2" style={{ color: 'var(--brand-text)' }}>{fieldLabel[card.aditivo_field ?? ''] ?? '—'}</p>
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>De</p>
+                          <p className="text-lg font-bold line-through" style={{ color: 'var(--brand-muted)' }}>{fmt(card.aditivo_old_value)}</p>
+                        </div>
+                        <span className="text-lg font-bold" style={{ color: ADITIVO_COLOR }}>→</span>
+                        <div>
+                          <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Para</p>
+                          <p className="text-lg font-bold" style={{ color: ADITIVO_COLOR }}>{fmt(card.aditivo_new_value)}</p>
+                        </div>
+                      </div>
+                      {effMonth && <p className="text-[11px] mt-2" style={{ color: 'var(--brand-muted)' }}>Vigência: a partir de <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>{effMonth}</span></p>}
+                      {card.aditivo_field === 'multiplo' && (card.aditivo_changes?.length ?? 0) > 0 ? (
+                        <div className="mt-2 pt-2" style={{ borderTop: '1px dashed var(--brand-border)' }}>
+                          <p className={lbl} style={{ color: 'var(--brand-subtle)' }}>Alterações</p>
+                          {card.aditivo_changes!.map((c, i) => {
+                            const f = (n: number) => c.field === 'valor_hora' ? Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : `${Number(n)}h`
+                            return (
+                              <p key={i} className="text-sm" style={{ color: 'var(--brand-text)' }}>
+                                {c.label}: <span className="line-through" style={{ color: 'var(--brand-muted)' }}>{f(c.old)}</span> → <span style={{ color: ADITIVO_COLOR }}>{f(c.new)}</span>
+                              </p>
+                            )
+                          })}
+                        </div>
+                      ) : card.aditivo_contract_new != null ? (
+                        <div className="mt-2 pt-2" style={{ borderTop: '1px dashed var(--brand-border)' }}>
+                          <p className={lbl} style={{ color: 'var(--brand-subtle)' }}>Valor do contrato (horas × valor-hora)</p>
+                          <p className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>
+                            <span className="line-through" style={{ color: 'var(--brand-muted)' }}>{card.aditivo_contract_old != null ? Number(card.aditivo_contract_old).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}</span>
+                            {' → '}
+                            <span style={{ color: ADITIVO_COLOR }}>{Number(card.aditivo_contract_new).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm mt-3">
+                      <div><p className={lbl} style={{ color: 'var(--brand-subtle)' }}>Cond. Pagamento</p><p style={{ color: 'var(--brand-text)' }}>{card.aditivo_cond_pagamento || '—'}</p></div>
+                      <div><p className={lbl} style={{ color: 'var(--brand-subtle)' }}>Observação</p><p style={{ color: 'var(--brand-text)' }}>{card.aditivo_obs || '—'}</p></div>
+                    </div>
                   </div>
-                ))}
-              </div>
+                )
+              })()}
+
+              {!card.is_aditivo && (
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {fields.map(([label, value]) => (
+                    <div key={label}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
+                      <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {full && (
+                <div className="pt-3 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Contatos ({full.contacts?.length ?? 0})</p>
+                  {full.contacts?.length > 0 ? (
+                    <div className="space-y-2">
+                      {full.contacts.map((ct: any, i: number) => (
+                        <div key={ct.id ?? ct.email ?? i} className="px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
+                          <p className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>
+                            {ct.name}{ct.cargo ? <span style={{ color: 'var(--brand-subtle)' }}> · {ct.cargo}</span> : null}
+                          </p>
+                          <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{[ct.email, ct.phone].filter(Boolean).join(' · ') || '—'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum contato</p>
+                  )}
+                </div>
+              )}
               {full && (
                 <div className="pt-3 border-t" style={{ borderColor: 'var(--brand-border)' }}>
                   <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Anexos ({full.attachments?.length ?? 0})</p>
@@ -1250,6 +1424,7 @@ function KanbanContent() {
         BIZIFY_COL,
         ...STATUS_PROJECT_COLUMNS,
         APORTE_COL,
+        ADITIVO_COL,
       ]
 
   // ── Filtros ──────────────────────────────────────────────────────────────
@@ -1435,8 +1610,9 @@ function KanbanContent() {
       return
     }
 
-    // ── Moving between fixed columns (novo ↔ pronto)
-    const toKanbanStatus = toCol === 'pronto' ? 'inicio_autorizado' : 'backlog'
+    // ── Moving between fixed columns (novo ↔ pronto ↔ aditivos)
+    // Aditivo: 'aditivos' → kanban_status 'aditivo' (BE só deixa card aditivo entrar lá).
+    const toKanbanStatus = toCol === 'pronto' ? 'inicio_autorizado' : toCol === 'aditivos' ? 'aditivo' : 'backlog'
     setDemandCards(prev => prev.map(c =>
       c.id === cardId ? { ...c, kanban_status: toKanbanStatus, kanban_order: order } : c
     ))
@@ -1543,6 +1719,12 @@ function KanbanContent() {
   }
 
   const getAvailableContractCols = (card: ContractCard, fromCol: string): { id: string; label: string }[] => {
+    // Aditivo só transita entre "Novo Contrato" e "Aditivos".
+    if (card.is_aditivo) {
+      return fromCol === 'aditivos'
+        ? [{ id: 'novo', label: '🆕 Novo Contrato' }]
+        : [{ id: 'aditivos', label: '➕ Aditivos' }]
+    }
     const cols: { id: string; label: string }[] = []
 
     const ctLower = card.contract_type?.toLowerCase() ?? ''
@@ -1857,12 +2039,14 @@ function KanbanContent() {
                                    (isSust && prevCol?.type !== 'sustentacao') ||
                                    (isBizify && prevCol?.type !== 'bizify') ||
                                    (isAporteCol) ||
+                                   (col.id === 'aditivos') ||
                                    (isCoord && prevCol?.type === 'fixed')
 
                   const borderColor = isStatusCol ? `${col.color}30`
                     : isSust    ? `${col.color}35`
                     : isBizify  ? `${BIZIFY_COLOR}35`
                     : isAporteCol ? `${APORTE_COLOR}45`
+                    : col.id === 'aditivos' ? `${ADITIVO_COLOR}45`
                     : isCoord   ? 'rgba(0,245,255,0.15)'
                     : isPronto  ? `${PRONTO_COLOR}40`
                     : 'var(--brand-border)'
@@ -1871,6 +2055,7 @@ function KanbanContent() {
                     : isSust    ? col.color!
                     : isBizify  ? BIZIFY_COLOR
                     : isAporteCol ? APORTE_COLOR
+                    : col.id === 'aditivos' ? ADITIVO_COLOR
                     : isCoord   ? 'var(--brand-primary)'
                     : isPronto  ? PRONTO_COLOR
                     : 'var(--brand-text)'
@@ -2154,8 +2339,15 @@ function KanbanContent() {
         />
       )}
 
-      {/* Edit Contract Modal */}
-      {showNewContract && editingContractData && (
+      {/* Edit Contract Modal — aditivo abre modal enxuto; contrato normal abre o completo */}
+      {showNewContract && editingContractData && editingContractData.is_aditivo && (
+        <AditivoEditModal
+          contract={editingContractData}
+          onClose={() => { setShowNewContract(false); setEditingContractData(null) }}
+          onSaved={load}
+        />
+      )}
+      {showNewContract && editingContractData && !editingContractData.is_aditivo && (
         <ContractFormModal
           open={showNewContract}
           editContract={editingContractData}
@@ -2211,14 +2403,16 @@ function KanbanContent() {
                       <Trash2 size={16} style={{ color: '#ef4444' }} />
                     </div>
                     <div>
-                      <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Excluir Contrato</p>
+                      <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{card.is_aditivo ? 'Excluir Aditivo' : 'Excluir Contrato'}</p>
                       <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{card.customer_name}</p>
                     </div>
                   </div>
                 </div>
                 <div className="px-6 py-4">
                   <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
-                    Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.
+                    {card.is_aditivo
+                      ? 'Excluir este aditivo vai REVERTER a alteração no projeto: valor-hora, horas e valor do contrato voltam ao anterior, e a vigência daquele mês é removida. Só o aditivo mais recente do projeto pode ser excluído.'
+                      : 'Tem certeza que deseja excluir este contrato? Esta ação não pode ser desfeita.'}
                   </p>
                 </div>
                 <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
@@ -2311,6 +2505,116 @@ function KanbanContent() {
         return null
       })()}
     </AppLayout>
+  )
+}
+
+// ── Modal de edição de ADITIVO — enxuto (não o modal completo de contrato) ──
+function AditivoEditModal({ contract, onClose, onSaved }: { contract: any; onClose: () => void; onSaved: () => void }) {
+  const [cond, setCond] = useState<string>(contract.condicao_pagamento ?? '')
+  const [obs, setObs]   = useState<string>(contract.observacoes ?? '')
+  const [saving, setSaving] = useState(false)
+  // Aditivo Mensal "multiplo": valor-hora + horas editáveis (reaplica só o mais recente).
+  const isMultiplo = contract.aditivo_field === 'multiplo'
+  const [mRate, setMRate]   = useState<string>(contract.valor_hora != null ? String(contract.valor_hora) : '')
+  const [mHoras, setMHoras] = useState<string>(contract.horas_contratadas != null ? String(contract.horas_contratadas) : '')
+
+  const field = contract.aditivo_field as string
+  const fieldLabel: Record<string, string> = { valor_hora: 'Valor da Hora', horas_contratadas: 'Quantidade de Horas', valor_projeto: 'Valor do Contrato', multiplo: 'Valor do Contrato' }
+  const isHours = field === 'horas_contratadas'
+  const newVal = field === 'valor_hora' ? contract.valor_hora : field === 'horas_contratadas' ? contract.horas_contratadas : contract.valor_projeto
+  const fmt = (n: any) => n == null ? '—' : isHours ? `${Number(n)}h` : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  const effMonth = contract.aditivo_effective_from ? (() => { const [y, m] = String(contract.aditivo_effective_from).slice(0, 7).split('-'); return `${m}/${y}` })() : null
+  const proj = contract.aditivo_project
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      const body: any = { condicao_pagamento: cond || null, observacoes: obs || null }
+      if (isMultiplo) {
+        body.aditivo_changes = [
+          { field: 'valor_hora', value: Number(mRate) || 0 },
+          { field: 'horas_contratadas', value: Number(mHoras) || 0 },
+        ]
+      }
+      await api.put(`/contracts/aditivo/${contract.id}`, body)
+      toast.success('Aditivo atualizado')
+      onSaved(); onClose()
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar') }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
+      <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div>
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Editar Aditivo</h2>
+            <p className="text-[11px] mt-0.5 font-semibold" style={{ color: ADITIVO_COLOR }}>➕ {contract.customer?.name ?? contract.project_name}</p>
+          </div>
+          <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          <div className="rounded-xl p-4" style={{ background: `${ADITIVO_COLOR}10`, border: `1px solid ${ADITIVO_COLOR}55` }}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Projeto</p>
+            <p className="text-sm mb-3" style={{ color: 'var(--text)' }}>{[proj?.code, proj?.name ?? contract.project_name].filter(Boolean).join(' — ') || '—'}</p>
+            {isMultiplo ? (() => {
+              const money = (n: any) => n == null ? '—' : Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+              const ch = contract.aditivo_changes ?? []
+              const oldRate = ch.find((c: any) => c.field === 'valor_hora')?.old
+              const oldHoras = ch.find((c: any) => c.field === 'horas_contratadas')?.old
+              const newContract = (Number(mRate) || 0) * (Number(mHoras) || 0)
+              return (
+                <>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>O que alterar (Banco de Horas Mensal)</p>
+                  <div className="grid grid-cols-2 gap-3 mt-1">
+                    <div>
+                      <label className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Novo Valor da Hora (R$)</label>
+                      <input type="number" min="0" step="0.01" value={mRate} onChange={e => setMRate(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm mt-1 outline-none" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                      {oldRate != null && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>Antes: {money(oldRate)}</p>}
+                    </div>
+                    <div>
+                      <label className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Nova Quantidade de Horas</label>
+                      <input type="number" min="0" step="1" value={mHoras} onChange={e => setMHoras(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm mt-1 outline-none" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+                      {oldHoras != null && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>Antes: {Number(oldHoras)}h</p>}
+                    </div>
+                  </div>
+                  {effMonth && <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>Vigência: a partir de <span className="font-semibold" style={{ color: 'var(--text)' }}>{effMonth}</span></p>}
+                  <div className="mt-2 pt-2 flex items-center justify-between" style={{ borderTop: '1px dashed var(--brand-border)' }}>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Valor do Contrato</span>
+                    <span className="text-sm font-semibold" style={{ color: ADITIVO_COLOR }}>{money(contract.aditivo_old_value)} → {money(newContract)}</span>
+                  </div>
+                  <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>Reaplica no projeto (sobrescreve a vigência do mês). Só o aditivo mais recente do projeto pode ser editado.</p>
+                </>
+              )
+            })() : (
+              <>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>O que foi alterado</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{fieldLabel[field] ?? '—'}</p>
+                <div className="flex items-center gap-4 mt-1">
+                  <span className="text-lg font-bold line-through" style={{ color: 'var(--text-muted)' }}>{fmt(contract.aditivo_old_value)}</span>
+                  <span className="text-lg font-bold" style={{ color: ADITIVO_COLOR }}>→</span>
+                  <span className="text-lg font-bold" style={{ color: ADITIVO_COLOR }}>{fmt(newVal)}</span>
+                </div>
+                {effMonth && <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>Vigência: a partir de <span className="font-semibold" style={{ color: 'var(--text)' }}>{effMonth}</span></p>}
+                <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>Valor/campo não são editáveis aqui — para alterar de novo, crie um novo aditivo.</p>
+              </>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Forma de pagamento (opcional)</label>
+            <input value={cond} onChange={e => setCond(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm mt-1 outline-none" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} placeholder="Ex.: 30 dias" />
+          </div>
+          <div>
+            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Observação</label>
+            <textarea rows={5} value={obs} onChange={e => setObs(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm mt-1 outline-none resize-none" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+          <button onClick={save} disabled={saving} className="px-5 py-2 rounded-lg text-sm font-semibold disabled:opacity-50" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>{saving ? 'Salvando...' : 'Salvar alterações'}</button>
+        </div>
+      </div>
+    </div>
   )
 }
 

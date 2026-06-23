@@ -2,6 +2,7 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { api, ApiError } from '@/lib/api'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { Users, Plus, Pencil, Trash2, X, Search, Download } from 'lucide-react'
+import { Users, Plus, Pencil, Trash2, X, Search, Download, LayoutDashboard } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -48,6 +49,7 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 }
 
 export default function ClientesPage() {
+  const router = useRouter()
   const { user, hasPermission } = useAuth()
   // Admin tem tudo; senão exige permissão explícita
   const isAdmin = user?.type === 'admin'
@@ -241,12 +243,11 @@ export default function ClientesPage() {
               ) : filtered.map(item => (
                 <tr key={item.id} className="border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors">
                   <td className="px-2 py-2.5 w-10">
-                    {(canUpdate || canDelete) && (
-                      <RowMenu items={[
-                        ...(canUpdate ? [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }] : []),
-                        ...(canDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: deleting === item.id }] : []),
-                      ]} />
-                    )}
+                    <RowMenu items={[
+                      { label: 'Ficha 360°', icon: <LayoutDashboard size={12} />, onClick: () => router.push(`/empresas/${item.id}/360`) },
+                      ...(canUpdate ? [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }] : []),
+                      ...(canDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: deleting === item.id }] : []),
+                    ]} />
                   </td>
                   <td className="px-3 py-2.5 text-zinc-200">{item.name}</td>
                   <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell">{item.company_name || '—'}</td>

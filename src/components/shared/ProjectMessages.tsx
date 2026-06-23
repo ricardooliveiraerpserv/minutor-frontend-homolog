@@ -4,8 +4,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import type { ProjectMessage } from '@/types'
-import { Send, Paperclip, X, Download, FileText, Eye, EyeOff, Lock } from 'lucide-react'
+import { Send, Paperclip, X, Download, FileText, Eye, EyeOff, Lock, Users, Pencil, Check } from 'lucide-react'
 import { toast } from 'sonner'
+
+// Janela (horas) para editar a própria última interação — espelha ProjectMessage::EDIT_WINDOW_HOURS no backend.
+const EDIT_WINDOW_HOURS = 3
 
 interface MentionUser { id: number; name: string }
 
@@ -29,12 +32,12 @@ interface Props {
 }
 
 function MessageText({ text }: { text: string }) {
-  const parts = text.split(/(@\[\d+:[^\]]+\])/)
+  const parts = text.split(/(@\[(?:\d+|all):[^\]]+\])/)
   return (
     <>
       {parts.map((part, i) => {
-        const m = part.match(/@\[(\d+):([^\]]+)\]/)
-        if (m) return <span key={i} style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>@{m[2]}</span>
+        const m = part.match(/@\[(?:\d+|all):([^\]]+)\]/)
+        if (m) return <span key={i} style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>@{m[1]}</span>
         return <span key={i}>{part}</span>
       })}
     </>
@@ -114,6 +117,9 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
   const [mentionQuery, setMentionQuery]   = useState<string | null>(null)
   const [mentionStart, setMentionStart]   = useState(0)
   const [mentionUsers, setMentionUsers]   = useState<MentionUser[]>([])
+  const [editingId, setEditingId]         = useState<number | null>(null)
+  const [editText, setEditText]           = useState('')
+  const [savingEdit, setSavingEdit]       = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef   = useRef<HTMLDivElement>(null)
@@ -189,9 +195,24 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
     setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
+  // Menção "Todos" → token @[all:Todos]; backend expande pra todos os
+  // participantes internos do projeto (cliente nunca participa).
+  const insertAllMention = () => {
+    const token = `@[all:Todos] `
+    const pos = textareaRef.current?.selectionStart ?? input.length
+    const before = input.slice(0, mentionStart)
+    const after  = input.slice(pos)
+    setInput(before + token + after)
+    setMentionQuery(null)
+    setTimeout(() => textareaRef.current?.focus(), 0)
+  }
+
   const filteredMentions = mentionQuery !== null
     ? mentionUsers.filter(u => u.id !== currentUser?.id && u.name.toLowerCase().includes(mentionQuery))
     : []
+
+  // Mostra a opção "Todos" enquanto o que foi digitado após @ for prefixo de "todos".
+  const showAllMention = mentionQuery !== null && 'todos'.includes(mentionQuery)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? [])
@@ -249,6 +270,41 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
+  // Editar: só a ÚLTIMA interação do próprio usuário e dentro da janela de 3h.
+  const lastOwnMsgId = messages.reduce(
+    (acc, m) => (m.user_id === currentUser?.id && m.id > acc ? m.id : acc), 0
+  )
+  const canEdit = (msg: MessageWithAttachments) => {
+    if (readOnly || isCliente || !currentUser) return false
+    if (msg.user_id !== currentUser.id || msg.id !== lastOwnMsgId) return false
+    const ageMs = Date.now() - new Date(msg.created_at).getTime()
+    return ageMs <= EDIT_WINDOW_HOURS * 3600_000
+  }
+
+  const startEdit = (msg: MessageWithAttachments) => {
+    setEditingId(msg.id)
+    setEditText(msg.message ?? '')
+  }
+  const cancelEdit = () => { setEditingId(null); setEditText('') }
+
+  const handleSaveEdit = async (msg: MessageWithAttachments) => {
+    const text = editText.trim()
+    if (!text) { toast.error('A interação não pode ficar vazia.'); return }
+    if (savingEdit) return
+    setSavingEdit(true)
+    try {
+      const updated = await api.patch<MessageWithAttachments>(
+        `/projects/${projectId}/messages/${msg.id}`, { message: text }
+      )
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, ...updated } : m))
+      cancelEdit()
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Erro ao editar interação')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full min-h-[400px]">
       {/* Feed */}
@@ -286,6 +342,11 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                 <span className="text-[10px]" style={{ color: 'var(--brand-muted)' }}>
                   {formatTime(msg.created_at)}
                 </span>
+                {msg.edited_at && (
+                  <span className="text-[10px] italic" style={{ color: 'var(--brand-subtle)' }} title={`Editado ${formatTime(msg.edited_at)}`}>
+                    (editado)
+                  </span>
+                )}
                 {!isCliente && msg.visibility === 'client' && (
                   <span className="text-[9px] px-1 py-0.5 rounded font-semibold" style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>
                     visível ao cliente
@@ -296,8 +357,47 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                     <Lock size={8} /> interno
                   </span>
                 )}
+                {canEdit(msg) && editingId !== msg.id && (
+                  <button
+                    onClick={() => startEdit(msg)}
+                    className="ml-auto p-0.5 rounded hover:bg-white/10 transition-colors shrink-0"
+                    title={`Editar (até ${EDIT_WINDOW_HOURS}h após o envio)`}
+                    style={{ color: 'var(--brand-subtle)' }}
+                  >
+                    <Pencil size={11} />
+                  </button>
+                )}
               </div>
-              {msg.message && (
+              {editingId === msg.id ? (
+                <div className="mt-1">
+                  <textarea
+                    value={editText}
+                    onChange={e => setEditText(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(msg) }
+                      if (e.key === 'Escape') { e.preventDefault(); cancelEdit() }
+                    }}
+                    rows={2}
+                    autoFocus
+                    className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  />
+                  <div className="flex items-center gap-2 mt-1">
+                    <button
+                      onClick={() => handleSaveEdit(msg)}
+                      disabled={savingEdit || !editText.trim()}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all"
+                      style={editText.trim() ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' } : { background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}
+                    >
+                      <Check size={11} /> Salvar
+                    </button>
+                    <button onClick={cancelEdit} className="px-2.5 py-1 rounded-lg text-xs transition-colors hover:bg-white/5" style={{ color: 'var(--brand-subtle)' }}>
+                      Cancelar
+                    </button>
+                    <span className="text-[10px]" style={{ color: 'var(--brand-muted)' }}>Enter salva · Esc cancela</span>
+                  </div>
+                </div>
+              ) : msg.message && (
                 <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--brand-text)' }}>
                   <MessageText text={msg.message} />
                 </p>
@@ -316,8 +416,21 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
       </div>
 
       {/* Mention autocomplete */}
-      {filteredMentions.length > 0 && mentionQuery !== null && (
+      {(filteredMentions.length > 0 || showAllMention) && mentionQuery !== null && (
         <div className="mx-4 mb-1 rounded-lg border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+          {showAllMention && (
+            <button
+              onMouseDown={e => { e.preventDefault(); insertAllMention() }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-white/5 transition-colors"
+              style={{ color: 'var(--brand-text)', borderBottom: filteredMentions.length > 0 ? '1px solid var(--brand-border)' : undefined }}
+            >
+              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(0,245,255,0.15)', color: 'var(--brand-primary)' }}>
+                <Users size={11} />
+              </div>
+              <span className="font-semibold">Todos</span>
+              <span className="text-[10px] ml-auto" style={{ color: 'var(--brand-subtle)' }}>menciona os participantes</span>
+            </button>
+          )}
           {filteredMentions.slice(0, 6).map(u => (
             <button
               key={u.id}

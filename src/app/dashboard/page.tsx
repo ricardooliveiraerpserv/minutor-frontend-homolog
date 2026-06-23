@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { modulesForUser, readStoredModule } from '@/lib/modules'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,9 +24,8 @@ interface ExpItem { amount: number | string; status: string; expense_date?: stri
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtHours(min: number) {
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`
+  // Tempo sempre em DECIMAL.
+  return (Number(min || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 function sumMin(items: TsItem[])  { return items.reduce((a, t) => a + (t.effort_minutes ?? 0), 0) }
@@ -136,6 +136,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return
+    // Launcher de módulos: no 1º acesso (perfil com ≥2 módulos e sem escolha lembrada),
+    // manda pra tela de Apps escolher. Depois, lembra a escolha e não força mais.
+    const allowed = modulesForUser(user)
+    if (allowed.length >= 2 && !readStoredModule(allowed)) { router.replace('/apps'); return }
     // Cada perfil tem sua "home" — /dashboard só tem branches pra admin,
     // administrativo, consultor e parceiro_admin (consultor). Outros caem
     // numa página em branco, então redireciona pra sua respectiva home.

@@ -43,3 +43,11 @@ export async function uploadDirect<T = any>(path: string, fd: FormData): Promise
 
   return res.json().catch(() => ({} as T))
 }
+
+/** Download autenticado DIRETO no backend (mesma origem/credencial dos uploads). Retorna o Blob. */
+export async function downloadDirect(path: string): Promise<Blob> {
+  const { token, apiBase } = await getCreds()
+  const res = await fetch(`${apiBase}/api/v1${path}`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error(`Falha ao baixar arquivo (HTTP ${res.status}).`)
+  return res.blob()
+}

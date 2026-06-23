@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback, Fragment } from 'react'
+import { usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable, Button } from '@/components/ds'
-import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
+import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw, Check, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 
@@ -26,25 +26,127 @@ interface DisplayRow extends Row { key: string; n_consultores: number }
 // Aba "Clientes": rentabilidade por cliente cruzada com o RECEBIMENTO do Keruak
 // (por CNPJ). O recebido é sempre do mês seguinte ao apontamento (trabalha em M,
 // recebe em M+1): apontamentos de maio ↔ recebimento de junho.
+interface ProjetoRent { project_id: number; projeto: string; horas: number; custo: number; is_investimento: boolean }
+interface ConsultorRent { user_id: number; consultor: string; valor_hora: number; horas: number; custo: number; tem_investimento?: boolean; projetos?: ProjetoRent[] }
 interface ClienteRow {
-  customer_id: number | null; cliente: string; cnpj: string
+  customer_id: number | null; cliente: string; cnpj: string; executivo: string | null
   horas: number; receita: number; custo: number; margem: number; margem_pct: number | null
   recebido: number; margem_real: number; margem_real_pct: number | null; no_minutor: boolean
+  consultores: ConsultorRent[]
+  despesas?: { custo: number; projetos: DespesaProj[] }
+  investimento_mo?: number; investimento_desp?: number
+  // +40% Custo = 40% do Valor Recebido; Custo Total = Custo Operação + 40%; Resultado = Recebido − Custo Total.
+  custo40: number; custo_total: number; resultado: number; resultado_pct: number | null; custo40_pct: number | null
+  // Ajustes iniciais do ano (somados no custo/recebido): só p/ cliente cadastrado.
+  custo_inicial?: number; receita_inicial?: number
 }
+interface DespesaProj { project_id: number; projeto: string; custo: number; is_investimento: boolean }
 
 const fmtH = (h: number) => `${h.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}h`
-const fmtCnpj = (c: string) => c && c.length === 14 ? c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : (c || '—')
 const pctColor = (p: number | null) => p == null ? 'var(--text-light)' : p < 0 ? 'var(--danger)' : p < 20 ? 'var(--warning)' : 'var(--success)'
+
+// Cores das colunas (mesmo conceito do BI): cabeçalho forte + célula tonalizada.
+const COL_HEAD = { recebido: '#38761d', custo: '#bf9000', custo40: '#d9683a', total: '#cc0000', resultado: '#1f6fbf', margem: '#bf9000' }
+const COL_CELL = { recebido: '#d9ead3', custo: '#fff2cc', custo40: '#fce5cd', total: '#f4cccc', resultado: '#cfe2f3' }
+const margemBg = (pct: number | null) => pct == null ? '#e5e7eb' : pct < 0 ? '#e06666' : pct < 5 ? '#f6b26b' : '#93c47d'
+// Cor da legenda da Margem +40% (% mantido): <=49 vermelho, 50-79 amarelo, >=80 verde.
+const pct40Color = (p: number | null) => p == null ? 'rgba(0,0,0,0.4)' : p >= 80 ? '#2e7d32' : p >= 50 ? '#b8860b' : '#cc0000'
+// Cor da margem operacional ("Mg op."): >= 50% verde | 0 a 50% laranja | < 0 vermelho.
+const mgOpColor = (p: number | null) => p == null ? 'rgba(0,0,0,0.4)' : p >= 50 ? '#2e7d32' : p >= 0 ? '#b8860b' : '#cc0000'
+
+// Deriva a linha do cliente: injeta os AJUSTES INICIAIS do ano (custo inicial → Custo Operação,
+// receita inicial → Valor Recebido) e recalcula todas as margens. Recebe a linha CRUA (soma dos
+// meses) e o ajuste do cliente. Manter em sincronia com o cálculo do +40% no fechamento.
+function deriveClienteRow(r: ClienteRow, init?: { custo_inicial: number; receita_inicial: number }): ClienteRow {
+  const r2 = (n: number) => Math.round(n * 100) / 100
+  const custoInicial = init?.custo_inicial ?? 0
+  const receitaInicial = init?.receita_inicial ?? 0
+  const horas = r2(r.horas), receita = r2(r.receita)
+  const custo = r2(r.custo + custoInicial)        // Custo Operação += custo inicial
+  const recebido = r2(r.recebido + receitaInicial) // Valor Recebido += receita inicial
+  const margem = r2(receita - custo), margem_real = r2(recebido - custo)
+  const custo40Full = r2(recebido * 0.40)
+  let custo40 = custo40Full
+  let resultado = r2(recebido - custo - custo40)
+  if (resultado < 0) {
+    const absorvido = Math.min(-resultado, custo40)
+    custo40 = r2(custo40 - absorvido)
+    resultado = r2(resultado + absorvido)
+  }
+  const custo_total = r2(custo + custo40)
+  const custo40_pct = custo40Full > 0 ? Math.round(custo40 / custo40Full * 1000) / 10 : null
+  return {
+    ...r, horas, receita, custo, recebido, margem,
+    margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
+    margem_real, margem_real_pct: recebido > 0 ? Math.round(margem_real / recebido * 1000) / 10 : null,
+    custo40, custo_total, resultado,
+    resultado_pct: recebido > 0 ? Math.round(resultado / recebido * 1000) / 10 : (resultado < 0 ? -100 : null),
+    custo40_pct,
+    custo_inicial: custoInicial, receita_inicial: receitaInicial,
+  }
+}
+
+// Editor inline dos ajustes iniciais do ano (custo/receita) de um cliente. Salva no blur.
+function InitialsEditor({ custoInicial, receitaInicial, onSave }: {
+  custoInicial: number; receitaInicial: number; onSave: (custo: number, receita: number) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [custo, setCusto] = useState(custoInicial ? String(custoInicial) : '')
+  const [receita, setReceita] = useState(receitaInicial ? String(receitaInicial) : '')
+  const startEdit = () => {
+    setCusto(custoInicial ? String(custoInicial) : '')
+    setReceita(receitaInicial ? String(receitaInicial) : '')
+    setEditing(true)
+  }
+  const save = () => {
+    const c = Number(custo) || 0, rec = Number(receita) || 0
+    if (c !== custoInicial || rec !== receitaInicial) onSave(c, rec)
+    setEditing(false)
+  }
+  const inp: React.CSSProperties = { width: 120, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, textAlign: 'right' }
+  const btn: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)' }
+  return (
+    <div className="flex items-center gap-4 flex-wrap" style={{ padding: '8px 8px 10px' }} onClick={e => e.stopPropagation()}>
+      <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Ajustes iniciais do ano</span>
+      {editing ? (
+        <>
+          <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Custo inicial
+            <input autoFocus type="number" step="0.01" min="0" value={custo} onChange={e => setCusto(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') save() }} placeholder="0,00" style={inp} />
+          </label>
+          <label className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Receita inicial
+            <input type="number" step="0.01" min="0" value={receita} onChange={e => setReceita(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') save() }} placeholder="0,00" style={inp} />
+          </label>
+          <button type="button" onClick={save} title="Salvar e fechar"
+            style={{ ...btn, background: 'var(--success-bg)', borderColor: 'var(--success-border)', color: 'var(--success-border)' }}>
+            <Check size={15} strokeWidth={3} />
+          </button>
+        </>
+      ) : (
+        <>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Custo inicial <b style={{ color: 'var(--text)' }}>{formatBRL(custoInicial)}</b></span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Receita inicial <b style={{ color: 'var(--text)' }}>{formatBRL(receitaInicial)}</b></span>
+          <button type="button" onClick={startEdit} title="Editar"
+            style={{ ...btn, background: 'var(--primary-soft)', borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+            <Pencil size={14} />
+          </button>
+        </>
+      )}
+      <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>Somam no Custo Operação e no Valor Recebido deste ano.</span>
+    </div>
+  )
+}
+const thCol = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.25)', position: 'sticky', top: 0, zIndex: 2 })
+const tdCol = (bg: string, color = '#111827'): React.CSSProperties => ({ background: bg, color, padding: '6px 10px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(0,0,0,0.06)', whiteSpace: 'nowrap' })
 
 export default function RentabilidadePage() {
   const now = new Date()
-  const [month, setMonth] = useState(now.getMonth() + 1)
-  const [year, setYear]   = useState(now.getFullYear())
-  const [mode, setMode]   = useState<'mes' | 'periodo'>('mes')
-  const [fromM, setFromM] = useState(now.getMonth() + 1)
-  const [fromY, setFromY] = useState(now.getFullYear())
-  const [toM, setToM]     = useState(now.getMonth() + 1)
-  const [toY, setToY]     = useState(now.getFullYear())
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
+  const [year, setYear]   = useState(currentYear)
   const [rows, setRows]   = useState<Row[]>([])
   const [loading, setLoading] = useState(false)
   const [busca, setBusca] = useState('')
@@ -52,22 +154,42 @@ export default function RentabilidadePage() {
   const [fCliente, setFCliente]     = useState('')
   const [fProjeto, setFProjeto]     = useState('')
   const [fConsultor, setFConsultor] = useState('')
-  const [visao, setVisao] = useState<'consultor' | 'projeto' | 'clientes'>('consultor')
-  const [clientesRows, setClientesRows] = useState<ClienteRow[]>([])
+  // Cada visão é uma rotina própria no menu Relatórios (sub-rotas que reusam este
+  // componente). A visão é derivada do pathname:
+  //   /relatorios/rentabilidade            → Clientes (BI Keruak)
+  //   /relatorios/rentabilidade/consultor  → Consultor × Projeto
+  //   /relatorios/rentabilidade/projeto    → Por projeto
+  const pathname = usePathname()
+  const visao: 'consultor' | 'projeto' | 'clientes' =
+    pathname?.endsWith('/rentabilidade/consultor') ? 'consultor'
+    : pathname?.endsWith('/rentabilidade/projeto') ? 'projeto'
+    : 'clientes'
+  // Linhas CRUAS (agregadas dos meses, sem ajuste inicial). A derivação (que injeta os
+  // iniciais do ano e calcula margens) é feita em useMemo abaixo → editar é instantâneo.
+  const [rawClientesRows, setRawClientesRows] = useState<ClienteRow[]>([])
+  // Ajustes iniciais do ANO por cliente: { customer_id: { custo_inicial, receita_inicial } }.
+  const [initials, setInitials] = useState<Record<number, { custo_inicial: number; receita_inicial: number }>>({})
   const [clientesLoading, setClientesLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [soMinutor, setSoMinutor] = useState(false)
+  const [soForaMinutor, setSoForaMinutor] = useState(false)
+  const [considerarErpserv, setConsiderarErpserv] = useState(false) // ERPSERV vem separada; botão p/ incluí-la (ou não) nos totais
+  const [fExecutivo, setFExecutivo] = useState('')
+  const [fConsultorCli, setFConsultorCli] = useState('')
+  const [expandedCli, setExpandedCli] = useState<Set<string>>(new Set())
+  const [expandedCons, setExpandedCons] = useState<Set<string>>(new Set()) // consultor expandido → projetos que atuou
 
+  // Filtro ANUAL. Minutor a partir de maio/2026 (início dos dados); anos seguintes
+  // começam em janeiro. NUNCA traz o mês ATUAL — vai sempre até o mês ANTERIOR (mês
+  // corrente incompleto e recebimento Keruak M+1 ainda não chegou). Anos anteriores
+  // vão até dezembro. O endpoint de clientes pareia Minutor[M] × Keruak[M+1].
   const monthsToFetch = useMemo(() => {
-    if (mode === 'mes') return [`${year}-${String(month).padStart(2, '0')}`]
+    const startMonth = year <= 2026 ? 5 : 1
+    const endMonth = year === currentYear ? currentMonth - 1 : 12
     const out: string[] = []
-    let y = fromY, m = fromM, guard = 0
-    while ((y < toY || (y === toY && m <= toM)) && guard++ < 48) {
-      out.push(`${y}-${String(m).padStart(2, '0')}`)
-      m++; if (m > 12) { m = 1; y++ }
-    }
-    return out.length ? out : [`${fromY}-${String(fromM).padStart(2, '0')}`]
-  }, [mode, month, year, fromM, fromY, toM, toY])
+    for (let m = startMonth; m <= endMonth; m++) out.push(`${year}-${String(m).padStart(2, '0')}`)
+    return out
+  }, [year, currentYear, currentMonth])
 
   useEffect(() => {
     setLoading(true)
@@ -103,30 +225,74 @@ export default function RentabilidadePage() {
         .then(r => r?.data?.rows ?? []).catch(() => [] as ClienteRow[])
     )).then(results => {
       const all = results.flat()
-      const r2 = (n: number) => Math.round(n * 100) / 100
       const map = new Map<string, ClienteRow>()
       for (const r of all) {
         const k = r.cnpj || (r.customer_id != null ? 'c' + r.customer_id : r.cliente)
         const e = map.get(k)
-        if (!e) map.set(k, { ...r })
+        if (!e) map.set(k, { ...r,
+          consultores: (r.consultores || []).map(c => ({ ...c, projetos: (c.projetos || []).map(p => ({ ...p })) })),
+          despesas: r.despesas ? { custo: r.despesas.custo, projetos: (r.despesas.projetos || []).map(p => ({ ...p })) } : undefined,
+        })
         else {
           e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.recebido += r.recebido
+          e.investimento_mo = (e.investimento_mo ?? 0) + (r.investimento_mo ?? 0)
+          e.investimento_desp = (e.investimento_desp ?? 0) + (r.investimento_desp ?? 0)
           e.no_minutor = e.no_minutor || r.no_minutor
+          if (!e.executivo && r.executivo) e.executivo = r.executivo
+          if (r.despesas) {
+            e.despesas = e.despesas || { custo: 0, projetos: [] }
+            e.despesas.custo += r.despesas.custo
+            for (const p of (r.despesas.projetos || [])) {
+              const ep = e.despesas.projetos.find(x => x.project_id === p.project_id)
+              if (ep) { ep.custo += p.custo; ep.is_investimento = ep.is_investimento || p.is_investimento }
+              else e.despesas.projetos.push({ ...p })
+            }
+          }
+          for (const c of (r.consultores || [])) {
+            const ex = e.consultores.find(x => x.user_id === c.user_id)
+            if (ex) {
+              ex.horas += c.horas; ex.custo += c.custo
+              ex.tem_investimento = ex.tem_investimento || c.tem_investimento
+              for (const p of (c.projetos || [])) {
+                const ep = (ex.projetos = ex.projetos || []).find(x => x.project_id === p.project_id)
+                if (ep) { ep.horas += p.horas; ep.custo += p.custo; ep.is_investimento = ep.is_investimento || p.is_investimento }
+                else ex.projetos.push({ ...p })
+              }
+            } else e.consultores.push({ ...c, projetos: (c.projetos || []).map(p => ({ ...p })) })
+          }
         }
       }
-      setClientesRows([...map.values()].map(r => {
-        const horas = r2(r.horas), receita = r2(r.receita), custo = r2(r.custo), recebido = r2(r.recebido)
-        const margem = r2(receita - custo), margem_real = r2(recebido - custo)
-        return {
-          ...r, horas, receita, custo, recebido, margem,
-          margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
-          margem_real, margem_real_pct: recebido > 0 ? Math.round(margem_real / recebido * 1000) / 10 : null,
-        }
-      }))
+      // Guarda CRU; a derivação (injeção dos iniciais + margens) é o useMemo clientesRows.
+      setRawClientesRows([...map.values()])
     }).finally(() => { setClientesLoading(false); setRefreshing(false) })
   }, [monthsToFetch])
 
   useEffect(() => { if (visao === 'clientes') void loadClientes(false) }, [visao, loadClientes])
+
+  // Ajustes iniciais do ano (custo/receita inicial por cliente). Buscados 1x por ano.
+  useEffect(() => {
+    if (visao !== 'clientes') return
+    api.get<{ data: Record<number, { custo_inicial: number; receita_inicial: number }> }>(`/relatorios/rentabilidade/initials/${year}`)
+      .then(r => setInitials(r?.data ?? {}))
+      .catch(() => setInitials({}))
+  }, [visao, year])
+
+  // Derivação: injeta os iniciais do ano e calcula margens (instantâneo ao editar).
+  const clientesRows = useMemo(
+    () => rawClientesRows.map(r => deriveClienteRow(r, r.customer_id != null ? initials[r.customer_id] : undefined)),
+    [rawClientesRows, initials],
+  )
+
+  // Salva o ajuste inicial de um cliente (upsert) e atualiza local (re-deriva na hora).
+  const saveInitial = useCallback(async (customerId: number, custo: number, receita: number) => {
+    try {
+      await api.put('/relatorios/rentabilidade/initials', { customer_id: customerId, year, custo_inicial: custo, receita_inicial: receita })
+      setInitials(prev => ({ ...prev, [customerId]: { custo_inicial: custo, receita_inicial: receita } }))
+      toast.success('Ajuste inicial salvo')
+    } catch {
+      toast.error('Erro ao salvar ajuste inicial')
+    }
+  }, [year])
 
   // Opções dos filtros (distintos, derivados das linhas carregadas).
   const optClientes = useMemo(() => {
@@ -240,30 +406,65 @@ export default function RentabilidadePage() {
 
   // ── Aba Clientes: filtro/ordenação/total ──
   const clientesFiltered = useMemo(() => clientesRows.filter(r => {
-    if (soReceita && r.receita === 0 && r.recebido === 0) return false
     if (soMinutor && !r.no_minutor) return false
+    if (soForaMinutor && r.no_minutor) return false
+    if (fCliente && r.cliente !== fCliente) return false
+    if (fExecutivo && (r.executivo ?? '') !== fExecutivo) return false
+    if (fConsultorCli && !(r.consultores ?? []).some(c => String(c.user_id) === fConsultorCli)) return false
     if (busca.trim()) {
       const q = busca.trim().toLowerCase()
-      if (!r.cliente.toLowerCase().includes(q) && !r.cnpj.includes(busca.replace(/\D/g, ''))) return false
+      const digits = busca.replace(/\D/g, '')
+      const matchNome = r.cliente.toLowerCase().includes(q)
+      const matchCnpj = digits.length > 0 && r.cnpj.includes(digits)
+      if (!matchNome && !matchCnpj) return false
     }
     return true
-  }), [clientesRows, soReceita, soMinutor, busca])
-  const { sorted: clientesSorted, thProps: cliThProps } = useTableSort(clientesFiltered)
+  }), [clientesRows, soMinutor, soForaMinutor, fCliente, fExecutivo, fConsultorCli, busca])
+  const executivos = useMemo(() => [...new Set(clientesRows.map(r => r.executivo).filter(Boolean) as string[])].sort(), [clientesRows])
+  const clientesOpts = useMemo(() => [...new Set(clientesRows.map(r => r.cliente).filter(Boolean))].sort().map(c => ({ id: c, name: c })), [clientesRows])
+  const consultoresCli = useMemo(() => {
+    const m = new Map<number, string>()
+    clientesRows.forEach(r => (r.consultores ?? []).forEach(c => m.set(c.user_id, c.consultor)))
+    return [...m.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [clientesRows])
+  // ERPSERV (empresa interna) vem SEPARADA da lista de clientes; só entra nos totais
+  // quando "Considerar ERPSERV" está ligado.
+  const isErpserv = (r: ClienteRow) => (r.cliente || '').toUpperCase().includes('ERPSERV')
+  // ERPSERV é fixada no TOPO, em evidência — vem da lista CRUA (clientesRows), sem sofrer
+  // os filtros (inclusive "Só com movimento", que ignora custo); sempre aparece se existir.
+  const erpservRow = useMemo(() => clientesRows.find(isErpserv) ?? null, [clientesRows])
+  const clientesSemErp = useMemo(() => clientesFiltered.filter(r => !isErpserv(r)), [clientesFiltered])
+  const { sorted: clientesSorted, thProps: cliThProps } = useTableSort(clientesSemErp)
   const clientesTot = useMemo(() => {
-    const receita = clientesFiltered.reduce((s, r) => s + r.receita, 0)
-    const custo = clientesFiltered.reduce((s, r) => s + r.custo, 0)
-    const recebido = clientesFiltered.reduce((s, r) => s + r.recebido, 0)
-    return { receita, custo, recebido, margemReal: recebido - custo, pct: recebido > 0 ? (recebido - custo) / recebido * 100 : null }
-  }, [clientesFiltered])
+    const base = considerarErpserv && erpservRow ? [...clientesSemErp, erpservRow] : clientesSemErp
+    const receita = base.reduce((s, r) => s + r.receita, 0)
+    const custo = base.reduce((s, r) => s + r.custo, 0)
+    const despesa = base.reduce((s, r) => s + (r.despesas?.custo ?? 0), 0)
+    const investimentoMo = base.reduce((s, r) => s + (r.investimento_mo ?? 0), 0)
+    const investimentoDesp = base.reduce((s, r) => s + (r.investimento_desp ?? 0), 0)
+    const investimento = investimentoMo + investimentoDesp
+    const recebido = base.reduce((s, r) => s + r.recebido, 0)
+    const custo40 = base.reduce((s, r) => s + r.custo40, 0)
+    const custoTotal = custo + custo40
+    const resultado = recebido - custoTotal
+    // Margem operacional = resultado SEM os 40% (só custo operação).
+    const margemOpPct = recebido > 0 ? (recebido - custo) / recebido * 100 : null
+    // Margem +40% total = +40% mantido (somado) ÷ +40% cheio (40% do recebido total).
+    const custo40Full = recebido * 0.40
+    const custo40Pct = custo40Full > 0 ? custo40 / custo40Full * 100 : null
+    return { receita, custo, despesa, investimento, investimentoMo, investimentoDesp, recebido, custo40, custoTotal, resultado, pct: recebido > 0 ? resultado / recebido * 100 : null, margemOpPct, custo40Pct }
+  }, [clientesSemErp, erpservRow, considerarErpserv])
+  // Para exportar: clientes (sem ERPSERV) + a linha da ERPSERV no fim, espelhando a tela.
+  const clientesExport = erpservRow ? [erpservRow, ...clientesSorted] : clientesSorted
 
-  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true); setSoMinutor(false) }
-  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita || soMinutor)
+  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true); setSoMinutor(false); setSoForaMinutor(false); setFExecutivo(''); setFConsultorCli('') }
+  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita || soMinutor || soForaMinutor || fExecutivo || fConsultorCli)
 
   const fmtYm = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) }
-  const fmtMes = () => monthsToFetch.length === 1
-    ? new Date(year, month - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-    : `${fmtYm(monthsToFetch[0])} – ${fmtYm(monthsToFetch[monthsToFetch.length - 1])}`
-  const periodoLabel = monthsToFetch.length === 1 ? monthsToFetch[0] : `${monthsToFetch[0]}_a_${monthsToFetch[monthsToFetch.length - 1]}`
+  const fmtMes = () => monthsToFetch.length
+    ? `Ano ${year} (${fmtYm(monthsToFetch[0])} – ${fmtYm(monthsToFetch[monthsToFetch.length - 1])})`
+    : `Ano ${year}`
+  const periodoLabel = `${year}`
 
   // Excel/PDF "Por projeto" = consolidado (sorted); "Consultor × Projeto" = detalhe
   // por consultor (filtered, ordenado por projeto e consultor).
@@ -272,10 +473,11 @@ export default function RentabilidadePage() {
 
   const exportExcel = () => {
     if (visao === 'clientes') {
-      const data = clientesSorted.map(r => ({
-        Cliente: r.cliente, CNPJ: r.cnpj, 'No Minutor': r.no_minutor ? 'Sim' : 'Não',
-        Horas: r.horas, Custo: r.custo,
-        'Recebido (M+1)': r.recebido, 'Margem Real': r.margem_real, 'Margem Real %': r.margem_real_pct,
+      const data = clientesExport.map(r => ({
+        Cliente: r.cliente, 'No Minutor': r.no_minutor ? 'Sim' : 'Não',
+        'Valor Recebido': r.recebido, 'Custo Operação': r.custo, '+40% Custo': r.custo40,
+        'Custo Total': r.custo_total, 'Lucro/Prejuízo': r.resultado,
+        'Margem Operacional %': r.margem_real_pct, 'Margem +40% %': r.custo40_pct, 'Margem Total %': r.resultado_pct,
       }))
       const ws = XLSX.utils.json_to_sheet(data)
       const wb = XLSX.utils.book_new()
@@ -295,11 +497,13 @@ export default function RentabilidadePage() {
 
   const exportPdf = () => {
     if (visao === 'clientes') {
-      const linhas = clientesSorted.map(r => `
-        <tr><td>${r.cliente}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td><td>${fmtCnpj(r.cnpj)}</td>
-        <td class="r">${fmtH(r.horas)}</td><td class="r">${formatBRL(r.custo)}</td>
-        <td class="r">${formatBRL(r.recebido)}</td><td class="r">${formatBRL(r.margem_real)}</td>
-        <td class="r">${r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</td></tr>`).join('')
+      const linhas = clientesExport.map(r => `
+        <tr><td>${r.cliente}${r.no_minutor ? '' : ' <span style="color:#9ca3af">(fora do Minutor)</span>'}</td>
+        <td class="r">${formatBRL(r.recebido)}</td>
+        <td class="r">${formatBRL(r.custo)}${r.margem_real_pct == null ? '' : `<br><span style="color:${mgOpColor(r.margem_real_pct)}">Mg op. ${r.margem_real_pct}%</span>`}</td>
+        <td class="r">${formatBRL(r.custo40)}${r.custo40_pct == null ? '' : `<br><span style="color:${pct40Color(r.custo40_pct)}">(${r.custo40_pct}%)</span>`}</td><td class="r">${formatBRL(r.custo_total)}</td>
+        <td class="r">${formatBRL(r.resultado)}</td>
+        <td class="r">${r.resultado_pct == null ? '—' : r.resultado_pct + '%'}</td></tr>`).join('')
       const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Rentabilidade Clientes — ${fmtMes()}</title>
         <style>body{font-family:'Segoe UI',Arial,sans-serif;color:#1f2937;font-size:11px;padding:20px;}
         h1{font-size:18px;color:#5b21b6;margin:0 0 2px;} .sub{color:#6b7280;font-size:11px;margin-bottom:14px;}
@@ -307,10 +511,10 @@ export default function RentabilidadePage() {
         td{border-bottom:1px solid #f3f4f6;padding:5px 6px;} .r{text-align:right;} tfoot td{font-weight:bold;border-top:2px solid #7c3aed;}
         @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}</style></head><body>
         <h1>Rentabilidade por Cliente</h1>
-        <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesSorted.length} cliente(s)</div>
-        <table><thead><tr><th>Cliente</th><th>CNPJ</th><th class="r">Horas</th><th class="r">Custo</th><th class="r">Recebido (M+1)</th><th class="r">Margem Real</th><th class="r">%</th></tr></thead>
+        <div class="sub">${fmtMes()} · recebimento do mês seguinte (M+1) · ${clientesExport.length} cliente(s)</div>
+        <table><thead><tr><th>Cliente</th><th class="r">Valor Recebido</th><th class="r">Custo Operação</th><th class="r">+40% Custo</th><th class="r">Custo Total</th><th class="r">Lucro/Prejuízo</th><th class="r">Margem Total</th></tr></thead>
         <tbody>${linhas}</tbody>
-        <tfoot><tr><td colspan="3" class="r">Total</td><td class="r">${formatBRL(clientesTot.custo)}</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.margemReal)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
+        <tfoot><tr><td class="r">Total</td><td class="r">${formatBRL(clientesTot.recebido)}</td><td class="r">${formatBRL(clientesTot.custo)}${clientesTot.margemOpPct == null ? '' : `<br><span style="color:${mgOpColor(clientesTot.margemOpPct)}">Mg op. ${clientesTot.margemOpPct.toFixed(1)}%</span>`}</td><td class="r">${formatBRL(clientesTot.custo40)}${clientesTot.custo40Pct == null ? '' : `<br><span style="color:${pct40Color(clientesTot.custo40Pct)}">(${clientesTot.custo40Pct.toFixed(1)}%)</span>`}</td><td class="r">${formatBRL(clientesTot.custoTotal)}</td><td class="r">${formatBRL(clientesTot.resultado)}</td><td class="r">${clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td></tr></tfoot></table>
         <script>window.onload=function(){window.print();}</script></body></html>`
       const w = window.open('', '_blank')
       if (w) { w.document.write(html); w.document.close() }
@@ -355,23 +559,17 @@ export default function RentabilidadePage() {
           subtitle={visao === 'clientes' ? 'Custo Minutor × recebimento Keruak por cliente (CNPJ) — recebido do mês seguinte (M+1)' : visao === 'projeto' ? 'Receita, custo e margem por projeto' : 'Receita, custo e margem por consultor × projeto'}
           actions={
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="inline-flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-                {(['mes', 'periodo'] as const).map((mo, i) => (
-                  <button key={mo} onClick={() => setMode(mo)} className="px-3 py-1.5 text-xs font-medium transition-colors"
-                    style={{ background: mode === mo ? 'var(--primary)' : 'transparent', color: mode === mo ? 'var(--primary-fg)' : 'var(--text-muted)', borderLeft: i > 0 ? '1px solid var(--border)' : undefined }}>
-                    {mo === 'mes' ? 'Mês/Ano' : 'Período'}
-                  </button>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Ano</label>
+              <select value={year} onChange={e => setYear(Number(e.target.value))}
+                className="px-3 py-1.5 text-xs font-medium rounded-xl"
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+                {Array.from({ length: currentYear - 2026 + 1 }, (_, i) => 2026 + i).map(y => (
+                  <option key={y} value={y}>{y}</option>
                 ))}
-              </div>
-              {mode === 'mes' ? (
-                <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y) }} />
-              ) : (
-                <>
-                  <MonthYearPicker month={fromM} year={fromY} onChange={(m, y) => { setFromM(m); setFromY(y) }} placeholder="De" />
-                  <span className="text-xs" style={{ color: 'var(--text-light)' }}>→</span>
-                  <MonthYearPicker month={toM} year={toY} onChange={(m, y) => { setToM(m); setToY(y) }} placeholder="Até" />
-                </>
-              )}
+              </select>
+              <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--text-light)' }}>
+                {monthsToFetch.length ? `até ${fmtYm(monthsToFetch[monthsToFetch.length - 1])} · não inclui o mês atual` : 'sem mês fechado neste ano ainda'}
+              </span>
               {visao === 'clientes' && (
                 <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing}
                   onClick={() => loadClientes(true).then(() => toast.success('Recebimentos do Keruak atualizados'))}>
@@ -385,17 +583,6 @@ export default function RentabilidadePage() {
         />
 
         <div className="flex flex-wrap items-end gap-3 mb-4">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Visão</p>
-            <div className="inline-flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-              {([['consultor', 'Consultor × Projeto'], ['projeto', 'Por projeto'], ['clientes', 'Clientes']] as const).map(([v, label], i) => (
-                <button key={v} onClick={() => setVisao(v)} className="px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap"
-                  style={{ background: visao === v ? 'var(--primary)' : 'transparent', color: visao === v ? 'var(--primary-fg)' : 'var(--text-muted)', borderLeft: i > 0 ? '1px solid var(--border)' : undefined }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
           {visao !== 'clientes' && (<>
             <div className="min-w-[180px]">
               <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Cliente</p>
@@ -410,15 +597,44 @@ export default function RentabilidadePage() {
               <SearchSelect value={fConsultor} onChange={setFConsultor} options={[{ id: '', name: 'Todos os consultores' }, ...optConsultores]} placeholder="Todos os consultores" />
             </div>
           </>)}
-          <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
-            <input type="checkbox" checked={soReceita} onChange={e => setSoReceita(e.target.checked)} />
-            {visao === 'clientes' ? 'Só com movimento' : 'Só com receita'}
-          </label>
+          {visao !== 'clientes' && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
+              <input type="checkbox" checked={soReceita} onChange={e => setSoReceita(e.target.checked)} />
+              Só com receita
+            </label>
+          )}
           {visao === 'clientes' && (
             <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
-              <input type="checkbox" checked={soMinutor} onChange={e => setSoMinutor(e.target.checked)} />
+              <input type="checkbox" checked={soMinutor} onChange={e => { setSoMinutor(e.target.checked); if (e.target.checked) setSoForaMinutor(false) }} />
               Só clientes do Minutor
             </label>
+          )}
+          {visao === 'clientes' && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
+              <input type="checkbox" checked={soForaMinutor} onChange={e => { setSoForaMinutor(e.target.checked); if (e.target.checked) setSoMinutor(false) }} />
+              Fora do Minutor
+            </label>
+          )}
+          {visao === 'clientes' && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
+              <input type="checkbox" checked={considerarErpserv} onChange={e => setConsiderarErpserv(e.target.checked)} />
+              Considerar ERPSERV
+            </label>
+          )}
+          {visao === 'clientes' && (
+            <div className="w-52 pb-2">
+              <SearchSelect value={fCliente} onChange={setFCliente} options={clientesOpts} placeholder="Cliente (todos)" />
+            </div>
+          )}
+          {visao === 'clientes' && (
+            <div className="w-48 pb-2">
+              <SearchSelect value={fExecutivo} onChange={setFExecutivo} options={executivos.map(e => ({ id: e, name: e }))} placeholder="Executivo (todos)" />
+            </div>
+          )}
+          {visao === 'clientes' && (
+            <div className="w-52 pb-2">
+              <SearchSelect value={fConsultorCli} onChange={setFConsultorCli} options={consultoresCli} placeholder="Consultor (todos)" />
+            </div>
           )}
           <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..."
             className="flex-1 min-w-[160px] px-3 py-2 rounded-xl text-xs outline-none"
@@ -427,12 +643,17 @@ export default function RentabilidadePage() {
         </div>
 
         {/* Cards de total */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className={`grid gap-3 mb-4 ${visao === 'clientes' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
           {(visao === 'clientes' ? [
-            // Receita (Minutor) removida: p/ cliente a apuração é o recebido do Keruak (M+1).
-            { label: 'Custo', value: formatBRL(clientesTot.custo), color: 'var(--text)' },
-            { label: 'Recebido (M+1)', value: formatBRL(clientesTot.recebido), color: 'var(--brand-primary)' },
-            { label: 'Margem Real %', value: clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%', color: pctColor(clientesTot.pct) },
+            // Valor Recebido (Keruak M+1) e Custo Total (Operação + Despesa + 40% do recebido).
+            { label: 'Valor Recebido', value: formatBRL(clientesTot.recebido), color: 'var(--brand-primary)' },
+            { label: 'Custo', lines: [
+              { k: 'Operação', v: formatBRL(clientesTot.custo - clientesTot.despesa - clientesTot.investimentoMo) },
+              { k: 'Despesa', v: formatBRL(clientesTot.despesa - clientesTot.investimentoDesp) },
+              { k: '+40%', v: formatBRL(clientesTot.custo40) },
+              { k: 'Investimento', v: formatBRL(clientesTot.investimento), invest: true },
+              { k: 'Total', v: formatBRL(clientesTot.custoTotal), strong: true },
+            ] },
           ] : [
             { label: 'Receita', value: formatBRL(tot.receita), color: 'var(--text)' },
             { label: 'Custo', value: formatBRL(tot.custo), color: 'var(--text)' },
@@ -441,46 +662,289 @@ export default function RentabilidadePage() {
           ]).map(c => (
             <div key={c.label} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{c.label}</p>
-              <p className="text-lg font-bold tabular-nums" style={{ color: c.color }}>{c.value}</p>
+              {'lines' in c && c.lines ? (
+                <div className="mt-1 space-y-0.5">
+                  {c.lines.map(l => (
+                    <div key={l.k} className="flex items-baseline justify-between gap-2" style={'strong' in l && l.strong ? { borderTop: '1px solid var(--border)', paddingTop: 2, marginTop: 2 } : undefined}>
+                      <span className="text-[10px]" style={{ color: 'invest' in l && l.invest ? '#cc0000' : 'var(--text-light)' }}>{l.k}</span>
+                      <span className={`tabular-nums ${'strong' in l && l.strong ? 'text-sm font-bold' : 'text-xs font-semibold'}`} style={{ color: 'invest' in l && l.invest ? '#cc0000' : 'var(--text)' }}>{l.v}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-lg font-bold tabular-nums" style={{ color: c.color }}>{c.value}</p>
+              )}
             </div>
           ))}
         </div>
 
         {visao === 'clientes' ? (
           clientesLoading && clientesRows.length === 0 ? (
-            <SkeletonTable rows={8} cols={7} />
-          ) : clientesFiltered.length === 0 ? (
+            <SkeletonTable rows={8} cols={9} />
+          ) : clientesSemErp.length === 0 && !erpservRow ? (
             <EmptyState icon={TrendingUp} title="Sem dados" description="Nenhum cliente/recebimento para o mês/filtros." />
           ) : (
-            <Table>
-              <Thead>
-                <tr>
-                  <Th {...cliThProps('cliente')}>Cliente</Th>
-                  <Th {...cliThProps('cnpj')}>CNPJ</Th>
-                  <Th right {...cliThProps('horas')}>Horas</Th>
-                  <Th right {...cliThProps('custo')}>Custo</Th>
-                  <Th right {...cliThProps('recebido')}>Recebido (M+1)</Th>
-                  <Th right {...cliThProps('margem_real')}>Margem Real</Th>
-                  <Th right {...cliThProps('margem_real_pct')}>%</Th>
-                </tr>
-              </Thead>
-              <Tbody>
-                {clientesSorted.map(r => (
-                  <Tr key={r.cnpj || `c${r.customer_id}` || r.cliente}>
-                    <Td className="font-medium" style={{ color: 'var(--text)' }}>
-                      <span className="truncate max-w-[240px] inline-block align-bottom">{r.cliente}</span>
-                      {!r.no_minutor && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>(fora do Minutor)</span>}
-                    </Td>
-                    <Td muted className="tabular-nums">{fmtCnpj(r.cnpj)}</Td>
-                    <Td right muted className="tabular-nums">{fmtH(r.horas)}</Td>
-                    <Td right muted className="tabular-nums">{formatBRL(r.custo)}</Td>
-                    <Td right className="font-semibold tabular-nums" style={{ color: 'var(--brand-primary)' }}>{formatBRL(r.recebido)}</Td>
-                    <Td right className="font-semibold tabular-nums">{formatBRL(r.margem_real)}</Td>
-                    <Td right className="font-semibold tabular-nums" style={{ color: pctColor(r.margem_real_pct) }}>{r.margem_real_pct == null ? '—' : r.margem_real_pct + '%'}</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
+            <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--border)', maxHeight: '70vh' }}>
+              <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th onClick={cliThProps('cliente').onClick} style={{ background: 'var(--surface)', color: 'var(--text-light)', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', textAlign: 'left', cursor: 'pointer', position: 'sticky', top: 0, zIndex: 2 }}>Cliente</th>
+                    <th onClick={cliThProps('executivo').onClick} style={{ background: 'var(--surface)', color: 'var(--text-light)', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', textAlign: 'center', cursor: 'pointer', position: 'sticky', top: 0, zIndex: 2 }}>Executivo</th>
+                    <th onClick={cliThProps('recebido').onClick} style={thCol(COL_HEAD.recebido)}>Valor Recebido</th>
+                    <th onClick={cliThProps('custo').onClick} style={thCol(COL_HEAD.custo)}>Custo Operação</th>
+                    <th onClick={cliThProps('custo40').onClick} style={thCol(COL_HEAD.custo40)}>+40% Custo</th>
+                    <th onClick={cliThProps('custo_total').onClick} style={thCol(COL_HEAD.total)}>Custo Total</th>
+                    <th onClick={cliThProps('resultado').onClick} style={thCol(COL_HEAD.resultado)}>Lucro/Prejuízo</th>
+                    <th onClick={cliThProps('resultado_pct').onClick} style={thCol(COL_HEAD.margem)}>Margem Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* ERPSERV — empresa interna, EM EVIDÊNCIA no topo; expande por consultores; entra nos totais só com "Considerar ERPSERV" */}
+                  {erpservRow && (() => {
+                    const erpOpen = expandedCli.has('erpserv')
+                    const erpTemCons = (erpservRow.consultores?.length ?? 0) > 0
+                    const bb = '2px solid var(--primary)'
+                    return (
+                    <Fragment key="erpserv">
+                    <tr style={{ background: 'var(--primary-soft)', opacity: considerarErpserv ? 1 : 0.7, cursor: erpTemCons ? 'pointer' : 'default' }}
+                      onClick={() => { if (erpTemCons) setExpandedCli(prev => { const n = new Set(prev); n.has('erpserv') ? n.delete('erpserv') : n.add('erpserv'); return n }) }}>
+                      <td style={{ padding: '8px 10px', color: 'var(--text)', fontWeight: 800, borderBottom: bb }}>
+                        {erpTemCons && (erpOpen ? <ChevronDown size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
+                        ★ {erpservRow.cliente}
+                        <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>— interno {considerarErpserv ? '(considerado nos totais)' : '(fora dos totais)'}</span>
+                      </td>
+                      <td style={{ padding: '8px 10px', color: 'var(--text-muted)', borderBottom: bb, textAlign: 'center' }}>{erpservRow.executivo || '—'}</td>
+                      <td style={{ ...tdCol(COL_CELL.recebido), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.recebido)}</td>
+                      <td style={{ ...tdCol(COL_CELL.custo), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo)}{erpservRow.margem_real_pct != null && <div style={{ fontSize: 10, fontWeight: 600, color: mgOpColor(erpservRow.margem_real_pct) }}>Mg op. {erpservRow.margem_real_pct}%</div>}</td>
+                      <td style={{ ...tdCol(COL_CELL.custo40), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo40)}{erpservRow.custo40_pct != null && <div style={{ color: pct40Color(erpservRow.custo40_pct), fontWeight: 700, fontSize: 10 }}>({erpservRow.custo40_pct}%)</div>}</td>
+                      <td style={{ ...tdCol(COL_CELL.total), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.custo_total)}</td>
+                      <td style={{ ...tdCol(COL_CELL.resultado, erpservRow.resultado < 0 ? '#cc0000' : '#111827'), fontWeight: 700, borderBottom: bb }}>{formatBRL(erpservRow.resultado)}</td>
+                      <td style={{ ...tdCol(margemBg(erpservRow.resultado_pct), '#fff'), borderBottom: bb }}><strong>{erpservRow.resultado_pct == null ? '—' : erpservRow.resultado_pct + '%'}</strong></td>
+                    </tr>
+                    {erpOpen && erpTemCons && (
+                      <tr>
+                        <td colSpan={8} style={{ padding: '0 0 8px 28px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                          <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ color: 'var(--text-light)' }}>
+                                <th style={{ textAlign: 'left', padding: '6px 8px' }}>Consultor</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Horas</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>% Particip.</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Custo</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {[...erpservRow.consultores].sort((a, b) => b.horas - a.horas).map(c => {
+                                const pct = erpservRow.horas > 0 ? c.horas / erpservRow.horas : 0
+                                const consKey = `erpserv:${c.user_id}`
+                                const consOpen = expandedCons.has(consKey)
+                                const temProj = (c.projetos?.length ?? 0) > 0
+                                return (
+                                  <Fragment key={c.user_id}>
+                                  <tr style={{ borderTop: '1px solid var(--border)', background: c.tem_investimento ? 'rgba(31,111,191,0.13)' : undefined, cursor: temProj ? 'pointer' : 'default' }}
+                                    onClick={() => { if (temProj) setExpandedCons(prev => { const n = new Set(prev); n.has(consKey) ? n.delete(consKey) : n.add(consKey); return n }) }}>
+                                    <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>
+                                      {temProj && (consOpen ? <ChevronDown size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
+                                      {c.consultor} <span style={{ color: 'var(--text-light)', fontSize: 11 }}>({formatBRL(c.valor_hora)}/h)</span>
+                                      {c.tem_investimento && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: '#1f6fbf', border: '1px solid #1f6fbf', borderRadius: 4, padding: '0 4px' }}>INVEST.</span>}
+                                    </td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{fmtH(c.horas)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{(pct * 100).toFixed(1)}%</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(c.custo)}</td>
+                                  </tr>
+                                  {consOpen && temProj && [...(c.projetos ?? [])].sort((a, b) => b.horas - a.horas).map(p => (
+                                    <tr key={p.project_id} style={{ background: 'var(--surface)' }}>
+                                      <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>
+                                        {p.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
+                                        {p.projeto}{p.is_investimento && <span style={{ color: '#1f6fbf', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
+                                      </td>
+                                      <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{fmtH(p.horas)}</td>
+                                      <td></td>
+                                      <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{formatBRL(p.custo)}</td>
+                                    </tr>
+                                  ))}
+                                  </Fragment>
+                                )
+                              })}
+                              {(erpservRow.despesas?.custo ?? 0) > 0 && (() => {
+                                const dKey = 'erpserv:despesas'
+                                const dOpen = expandedCons.has(dKey)
+                                const dProj = erpservRow.despesas?.projetos ?? []
+                                const temProj = dProj.length > 0
+                                return (
+                                  <Fragment key="despesas">
+                                  <tr style={{ borderTop: '1px solid var(--border)', background: 'rgba(245,158,11,0.10)', cursor: temProj ? 'pointer' : 'default' }}
+                                    onClick={() => { if (temProj) setExpandedCons(prev => { const n = new Set(prev); n.has(dKey) ? n.delete(dKey) : n.add(dKey); return n }) }}>
+                                    <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)', fontWeight: 600 }}>
+                                      {temProj && (dOpen ? <ChevronDown size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
+                                      🧾 Despesas
+                                    </td>
+                                    <td></td><td></td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(erpservRow.despesas?.custo ?? 0)}</td>
+                                  </tr>
+                                  {dOpen && temProj && [...dProj].sort((a, b) => b.custo - a.custo).map(p => (
+                                    <tr key={p.project_id} style={{ background: 'var(--surface)' }}>
+                                      <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>
+                                        {p.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
+                                        {p.projeto}{p.is_investimento && <span style={{ color: '#1f6fbf', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
+                                      </td>
+                                      <td></td><td></td>
+                                      <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{formatBRL(p.custo)}</td>
+                                    </tr>
+                                  ))}
+                                  </Fragment>
+                                )
+                              })()}
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
+                    )
+                  })()}
+                  {clientesSorted.map(r => {
+                    const ck = r.cnpj || `c${r.customer_id}` || r.cliente
+                    const open = expandedCli.has(ck)
+                    const temConsultores = (r.consultores?.length ?? 0) > 0
+                    // Cliente cadastrado pode expandir p/ editar os ajustes iniciais do ano (mesmo sem consultores).
+                    const canExpand = temConsultores || r.customer_id != null
+                    return (
+                    <Fragment key={ck}>
+                    <tr style={{ cursor: canExpand ? 'pointer' : 'default' }}
+                      onClick={() => { if (canExpand) setExpandedCli(prev => { const n = new Set(prev); n.has(ck) ? n.delete(ck) : n.add(ck); return n }) }}>
+                      <td style={{ padding: '6px 10px', color: 'var(--text)', fontWeight: 500, borderBottom: '1px solid var(--border)' }}>
+                        {canExpand && (open ? <ChevronDown size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={13} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
+                        <span className="truncate max-w-[220px] inline-block align-bottom">{r.cliente}</span>
+                        {!r.no_minutor && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>(fora do Minutor)</span>}
+                      </td>
+                      <td style={{ padding: '6px 10px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', textAlign: 'center' }}>{r.executivo || '—'}</td>
+                      <td style={tdCol(COL_CELL.recebido)}>{formatBRL(r.recebido)}</td>
+                      <td style={tdCol(COL_CELL.custo)}>{formatBRL(r.custo)}{r.margem_real_pct != null && <div style={{ fontSize: 10, fontWeight: 600, color: mgOpColor(r.margem_real_pct) }}>Mg op. {r.margem_real_pct}%</div>}</td>
+                      <td style={tdCol(COL_CELL.custo40)}>{formatBRL(r.custo40)}{r.custo40_pct != null && <div style={{ color: pct40Color(r.custo40_pct), fontSize: 10, fontWeight: 700 }}>({r.custo40_pct}%)</div>}</td>
+                      <td style={tdCol(COL_CELL.total)}>{formatBRL(r.custo_total)}</td>
+                      <td style={tdCol(COL_CELL.resultado, r.resultado < 0 ? '#cc0000' : '#111827')}>{formatBRL(r.resultado)}</td>
+                      <td style={tdCol(margemBg(r.resultado_pct), '#fff')}><strong>{r.resultado_pct == null ? '—' : r.resultado_pct + '%'}</strong></td>
+                    </tr>
+                    {open && canExpand && (
+                      <tr>
+                        <td colSpan={8} style={{ padding: '0 0 8px 28px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                          {r.customer_id != null && (
+                            <InitialsEditor
+                              key={`init-${r.customer_id}`}
+                              custoInicial={r.custo_inicial ?? 0}
+                              receitaInicial={r.receita_inicial ?? 0}
+                              onSave={(c, rec) => saveInitial(r.customer_id as number, c, rec)}
+                            />
+                          )}
+                          {temConsultores && (
+                          <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ color: 'var(--text-light)' }}>
+                                <th style={{ textAlign: 'left', padding: '6px 8px' }}>Consultor</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Horas</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>% Particip.</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Receita (rateio)</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Custo</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>Margem</th>
+                                <th style={{ textAlign: 'right', padding: '6px 8px' }}>% Margem</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {[...r.consultores].sort((a, b) => b.horas - a.horas).map(c => {
+                                const pct = r.horas > 0 ? c.horas / r.horas : 0
+                                const receitaC = Math.round(r.recebido * pct * 100) / 100
+                                const margemC = Math.round((receitaC - c.custo) * 100) / 100
+                                const margemPctC = receitaC > 0 ? Math.round(margemC / receitaC * 1000) / 10 : null
+                                const consKey = `${ck}:${c.user_id}`
+                                const consOpen = expandedCons.has(consKey)
+                                const temProj = (c.projetos?.length ?? 0) > 0
+                                return (
+                                  <Fragment key={c.user_id}>
+                                  <tr style={{ borderTop: '1px solid var(--border)', background: c.tem_investimento ? 'rgba(31,111,191,0.13)' : undefined, cursor: temProj ? 'pointer' : 'default' }}
+                                    onClick={() => { if (temProj) setExpandedCons(prev => { const n = new Set(prev); n.has(consKey) ? n.delete(consKey) : n.add(consKey); return n }) }}>
+                                    <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>
+                                      {temProj && (consOpen ? <ChevronDown size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
+                                      {c.consultor} <span style={{ color: 'var(--text-light)', fontSize: 11 }}>({formatBRL(c.valor_hora)}/h)</span>
+                                      {c.tem_investimento && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: '#1f6fbf', border: '1px solid #1f6fbf', borderRadius: 4, padding: '0 4px' }}>INVEST.</span>}
+                                    </td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{fmtH(c.horas)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{(pct * 100).toFixed(1)}%</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(receitaC)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(c.custo)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: margemC < 0 ? 'var(--danger)' : 'var(--text)' }} className="tabular-nums">{formatBRL(margemC)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', fontWeight: 700, color: pctColor(margemPctC) }} className="tabular-nums">{margemPctC == null ? '—' : margemPctC + '%'}</td>
+                                  </tr>
+                                  {consOpen && temProj && [...(c.projetos ?? [])].sort((a, b) => b.horas - a.horas).map(p => (
+                                    <tr key={p.project_id} style={{ background: 'var(--bg)' }}>
+                                      <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>
+                                        {p.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
+                                        {p.projeto}{p.is_investimento && <span style={{ color: '#1f6fbf', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
+                                      </td>
+                                      <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{fmtH(p.horas)}</td>
+                                      <td></td><td></td>
+                                      <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{formatBRL(p.custo)}</td>
+                                      <td></td><td></td>
+                                    </tr>
+                                  ))}
+                                  </Fragment>
+                                )
+                              })}
+                              {(r.despesas?.custo ?? 0) > 0 && (() => {
+                                const dKey = `${ck}:despesas`
+                                const dOpen = expandedCons.has(dKey)
+                                const dProj = r.despesas?.projetos ?? []
+                                const temProj = dProj.length > 0
+                                return (
+                                  <Fragment key="despesas">
+                                  <tr style={{ borderTop: '1px solid var(--border)', background: 'rgba(245,158,11,0.10)', cursor: temProj ? 'pointer' : 'default' }}
+                                    onClick={() => { if (temProj) setExpandedCons(prev => { const n = new Set(prev); n.has(dKey) ? n.delete(dKey) : n.add(dKey); return n }) }}>
+                                    <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)', fontWeight: 600 }}>
+                                      {temProj && (dOpen ? <ChevronDown size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
+                                      🧾 Despesas
+                                    </td>
+                                    <td></td><td></td><td></td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(r.despesas?.custo ?? 0)}</td>
+                                    <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--danger)' }} className="tabular-nums">{formatBRL(-(r.despesas?.custo ?? 0))}</td>
+                                    <td></td>
+                                  </tr>
+                                  {dOpen && temProj && [...dProj].sort((a, b) => b.custo - a.custo).map(p => (
+                                    <tr key={p.project_id} style={{ background: 'var(--bg)' }}>
+                                      <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>
+                                        {p.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
+                                        {p.projeto}{p.is_investimento && <span style={{ color: '#1f6fbf', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
+                                      </td>
+                                      <td></td><td></td><td></td>
+                                      <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{formatBRL(p.custo)}</td>
+                                      <td></td><td></td>
+                                    </tr>
+                                  ))}
+                                  </Fragment>
+                                )
+                              })()}
+                            </tbody>
+                          </table>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
+                    )
+                  })}
+                  {/* Total */}
+                  <tr>
+                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text)', borderTop: '2px solid var(--border)' }}>Total</td>
+                    <td style={{ borderTop: '2px solid var(--border)' }}></td>
+                    <td style={{ ...tdCol(COL_HEAD.recebido, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.recebido)}</td>
+                    <td style={{ ...tdCol(COL_HEAD.custo, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custo)}{clientesTot.margemOpPct != null && <div style={{ color: mgOpColor(clientesTot.margemOpPct), fontWeight: 700, fontSize: 10 }}>Mg op. {clientesTot.margemOpPct.toFixed(1)}%</div>}</td>
+                    <td style={{ ...tdCol(COL_HEAD.custo40, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custo40)}{clientesTot.custo40Pct != null && <div style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700, fontSize: 10 }}>({clientesTot.custo40Pct.toFixed(1)}%)</div>}</td>
+                    <td style={{ ...tdCol(COL_HEAD.total, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.custoTotal)}</td>
+                    <td style={{ ...tdCol(COL_HEAD.resultado, '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{formatBRL(clientesTot.resultado)}</td>
+                    <td style={{ ...tdCol(margemBg(clientesTot.pct), '#fff'), fontWeight: 700, borderTop: '2px solid var(--border)' }}>{clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%'}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           )
         ) : loading ? (
           <SkeletonTable rows={8} cols={10} />

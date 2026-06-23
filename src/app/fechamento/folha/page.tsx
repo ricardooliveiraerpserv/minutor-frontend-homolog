@@ -27,6 +27,11 @@ interface FolhaRow {
   // substituindo user_id (que é null nas linhas de sócio).
   row_key: string
   is_socio: boolean
+  // Linha de cooperado real (User contract_type=cooperado, sem parceiro). Só estas
+  // entram no filtro de consultor — Raho/parceiros/sócios NÃO são cooperados.
+  is_cooperado?: boolean
+  // Cooperado marcado como Bizify no cadastro do usuário (distinção da lista).
+  is_bizify?: boolean
   // Linha de parceiro Raho (azul, identificada, editável como sócio).
   is_raho?: boolean
   // Linha consolidada do parceiro (exceto Raho): apuração total no parceiro admin.
@@ -185,6 +190,14 @@ export default function FechamentoFolhaPage() {
   const [edits, setEdits] = useState<Record<string, EditState>>({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Estado "salvo": snapshot dos edits no último load/save (detecta alterações pendentes)
+  // + info do último Salvar (legenda "✓ Salvo — R$ X · HH:MM").
+  const [savedSnapshot, setSavedSnapshot] = useState('')
+  const [savedInfo, setSavedInfo] = useState<{ at: string; total: number } | null>(null)
+  const hasUnsaved = useMemo(
+    () => savedSnapshot !== '' && JSON.stringify(edits) !== savedSnapshot,
+    [edits, savedSnapshot],
+  )
   const [exporting, setExporting] = useState(false)
   // Filtro de consultores (somente visual / client-side): user_ids selecionados.
   // Vazio = mostra todos (comportamento atual).
@@ -198,6 +211,8 @@ export default function FechamentoFolhaPage() {
   const [tab, setTab] = useState<'ativos' | 'canceladas'>('ativos')
   // Filtro por categoria de linha.
   const [categoria, setCategoria] = useState<'todos' | 'cooperados' | 'raho' | 'manuais'>('todos')
+  // Filtro "só produção com valor": esconde linhas com produção 0.
+  const [soComProducao, setSoComProducao] = useState(false)
   // Cancelar/Reativar em andamento (por row_key) — desabilita a ação da linha.
   const [togglingKey, setTogglingKey] = useState<string | null>(null)
   // Empresa (aba de topo): ERPSERV (cooperativa, esta tela) | Bizify (lançamentos manuais).
@@ -285,6 +300,8 @@ export default function FechamentoFolhaPage() {
         }
       }
       setEdits(seed)
+      setSavedSnapshot(JSON.stringify(seed))
+      setSavedInfo(null)
     } catch (err: unknown) {
       toast.error(`Erro ao carregar a folha: ${err instanceof Error ? err.message : 'falha na API'}`)
     } finally {
@@ -294,12 +311,13 @@ export default function FechamentoFolhaPage() {
 
   useEffect(() => { load() }, [load])
 
-  // Opções do filtro de consultor — derivadas das linhas carregadas (nome).
-  // Sócios não são consultores e não entram nas opções (user_id null).
+  // Opções do filtro de consultor — SÓ cooperados reais (exclui Raho, parceiros e
+  // sócios, que não são cooperados). Nome vem do cadastro do usuário (r.nome) e os
+  // cooperados Bizify são distinguidos com o sufixo "(Bizify)".
   const consultorOptions = useMemo(
     () => rows
-      .filter(r => !r.is_socio && r.user_id != null)
-      .map(r => ({ id: String(r.user_id), name: r.nome })),
+      .filter(r => r.is_cooperado && r.user_id != null)
+      .map(r => ({ id: String(r.user_id), name: r.is_bizify ? `${r.nome} (Bizify)` : r.nome })),
     [rows],
   )
 
@@ -320,6 +338,9 @@ export default function FechamentoFolhaPage() {
       if (categoria === 'raho'       && !r.is_raho) return false
       if (categoria === 'manuais'    && !r.is_socio) return false
       if (categoria === 'cooperados' && (r.is_socio || r.is_raho)) return false
+      // Filtro "só produção com valor": esconde linhas sem produção (ex.: contas
+      // duplicadas/afastadas com 0 produção).
+      if (soComProducao && !(Number(r.producao) > 0)) return false
       if (!set) return true
       // Com filtro ativo, traz SOMENTE os consultores selecionados (sócios não são forçados).
       return r.user_id != null && set.has(String(r.user_id))
@@ -329,7 +350,7 @@ export default function FechamentoFolhaPage() {
     const socios = filtered.filter(r => r.is_socio)
     const outros = filtered.filter(r => !r.is_socio)
     return [...socios, ...outros]
-  }, [rows, filterUserIds, tab, categoria])
+  }, [rows, filterUserIds, tab, categoria, soComProducao])
 
   // Totais da folha (ao vivo, conforme o estado editável) — alimentam os cards do topo.
   const totals = useMemo(() => {
@@ -615,6 +636,11 @@ export default function FechamentoFolhaPage() {
         }
       }))
       toast.success(`${res?.saved ?? entries.length} salvos`)
+      setSavedSnapshot(JSON.stringify(edits))
+      setSavedInfo({
+        at: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        total: totals.liq,
+      })
     } catch (err: unknown) {
       toast.error(`Erro ao salvar: ${err instanceof Error ? err.message : 'falha na API'}`)
     } finally {
@@ -690,8 +716,9 @@ export default function FechamentoFolhaPage() {
           icon={FileSpreadsheet}
           title="Folha Cooperativa"
           subtitle={`Valores por consultor — ${fmtYearMonth(yearMonth)}`}
-          actions={
-            <div className="flex items-center gap-3 flex-wrap">
+        />
+        {/* Toolbar em linha própria (evita espremer/sobrepor o título do header) */}
+        <div className="flex items-center gap-3 flex-wrap mb-6">
               <input
                 type="month"
                 value={yearMonth}
@@ -727,6 +754,19 @@ export default function FechamentoFolhaPage() {
                   </button>
                 ))}
               </div>
+              {/* ── Filtro: só linhas com produção > 0 ── */}
+              <button
+                onClick={() => setSoComProducao(v => !v)}
+                title="Mostrar somente linhas com produção (valor > 0)"
+                className="px-2.5 py-1.5 text-xs font-medium rounded-lg border whitespace-nowrap transition-colors"
+                style={{
+                  borderColor: 'var(--brand-border)',
+                  background: soComProducao ? 'rgba(0,245,255,0.12)' : 'transparent',
+                  color: soComProducao ? 'var(--text)' : 'var(--text-muted)',
+                }}
+              >
+                Só produção
+              </button>
               {/* ── Incluir: novo usuário ou nova linha editável ── */}
               <div className="relative" ref={incluirRef}>
                 <Button
@@ -784,19 +824,26 @@ export default function FechamentoFolhaPage() {
               >
                 {exporting ? 'Gerando…' : 'Gerar planilha (.xls)'}
               </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                icon={Save}
-                loading={saving}
-                disabled={saving || rows.length === 0}
-                onClick={save}
-              >
-                {saving ? 'Salvando…' : 'Salvar'}
-              </Button>
-            </div>
-          }
-        />
+              <div className="flex flex-col items-end gap-0.5">
+                <span title="Grava na folha do mês os valores ajustados na grade (produção, dias, descontos, adiantamentos, etc.). Vira o valor OFICIAL do mês — alimenta os cards de totais e a planilha (.xls). Sem salvar, as edições se perdem ao recarregar ou clicar em Atualizar.">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    icon={Save}
+                    loading={saving}
+                    disabled={saving || rows.length === 0}
+                    onClick={save}
+                  >
+                    {saving ? 'Salvando…' : 'Salvar'}
+                  </Button>
+                </span>
+                {hasUnsaved ? (
+                  <span className="text-[10px] whitespace-nowrap" style={{ color: 'var(--warning)' }}>● alterações não salvas</span>
+                ) : savedInfo ? (
+                  <span className="text-[10px] whitespace-nowrap" style={{ color: 'var(--success)' }}>✓ Salvo — {formatBRL(savedInfo.total)} · {savedInfo.at}</span>
+                ) : null}
+              </div>
+        </div>
 
         {/* Cards de totais da folha */}
         {!loading && rows.length > 0 && (

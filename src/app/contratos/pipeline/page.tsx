@@ -10,7 +10,7 @@ import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -169,10 +169,12 @@ const TRANSITION_COL: Column = {
 // Fase Projeto enxuta (2026-05-21): andamento fino (planejamento/execução/homologação)
 // fica no CRONOGRAMA atrás do card → "Em Andamento" agrupa os status ativos.
 // Backend mantém todos os project.status; aqui é só reagrupamento do kanban.
-const ACTIVE_PROJECT_STATUSES = ['planning', 'awaiting_start', 'started', 'liberado_para_testes']
+// awaiting_start ("Aguardando Início") é pré-kanban — projeto ainda não iniciado.
+// Fica no Backlog (alinhado ao ProjectWorkflowService: IN_EXECUTION exclui awaiting_start).
+const ACTIVE_PROJECT_STATUSES = ['planning', 'started', 'liberado_para_testes']
 
 const PROJECT_COLS: Column[] = [
-  { id: 'proj_backlog',        label: 'Backlog',             phase: 'project', projectStatuses: ['backlog'],         color: '#94a3b8' },
+  { id: 'proj_backlog',        label: 'Backlog',             phase: 'project', projectStatuses: ['backlog', 'awaiting_start'], color: '#94a3b8' },
   { id: 'em_andamento',        label: 'Em Andamento',        phase: 'project', projectStatuses: ACTIVE_PROJECT_STATUSES, color: '#60a5fa' },
   { id: 'pausado',             label: 'Pausado',             phase: 'project', projectStatuses: ['paused'],     color: '#eab308' },
   { id: 'encerrado',           label: 'Encerrado',           phase: 'project', projectStatuses: ['finished'],   color: '#22c55e' },
@@ -181,8 +183,8 @@ const PROJECT_COLS: Column[] = [
 
 const PROJECT_STATUS_TO_COL: Record<string, string> = {
   backlog:              'proj_backlog',
+  awaiting_start:       'proj_backlog',
   planning:             'em_andamento',
-  awaiting_start:       'em_andamento',
   started:              'em_andamento',
   liberado_para_testes: 'em_andamento',
   paused:               'pausado',
@@ -302,7 +304,7 @@ function ContractKanbanCard({
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <p className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+                <p className="text-sm font-semibold break-normal" style={{ color: 'var(--brand-text)' }}>
                   {card.customer_name}
                 </p>
                 {isNew && (
@@ -312,9 +314,11 @@ function ContractKanbanCard({
                   </span>
                 )}
               </div>
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
-                {card.project_name || card.customer_name}
-              </p>
+              {card.project_name && (
+                <p className="text-xs break-normal" style={{ color: 'var(--brand-subtle)' }}>
+                  {card.project_name}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span
@@ -431,7 +435,7 @@ function ContractKanbanCard({
 
 // ─── Request Card ─────────────────────────────────────────────────────────────
 
-function RequestKanbanCard({ card, onView }: { card: RequestCard; onView?: (e: React.MouseEvent) => void }) {
+function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void }) {
   const urgColor = URGENCIA_COLOR[card.nivel_urgencia] ?? '#64748b'
   const tipoLabel = card.tipo_necessidade === 'outro' && card.tipo_necessidade_outro
     ? card.tipo_necessidade_outro
@@ -445,12 +449,14 @@ function RequestKanbanCard({ card, onView }: { card: RequestCard; onView?: (e: R
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
-          <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>
-            {card.project_name || card.customer_name}
+          <p className="text-sm font-semibold break-normal" style={{ color: 'var(--brand-text)' }}>
+            {card.customer_name}
           </p>
-          <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>
-            {card.project_name ? card.customer_name : card.area_requisitante}
-          </p>
+          {(card.project_name || card.area_requisitante) && (
+            <p className="text-xs break-normal" style={{ color: 'var(--brand-subtle)' }}>
+              {card.project_name || card.area_requisitante}
+            </p>
+          )}
           {card.linked_contract_code && (
             <p className="text-[10px] font-mono mt-0.5" style={{ color: '#a78bfa' }}>
               {card.linked_contract_code}
@@ -478,6 +484,13 @@ function RequestKanbanCard({ card, onView }: { card: RequestCard; onView?: (e: R
               className="text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors hover:opacity-80"
               style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }}>
               Visualizar
+            </button>
+          )}
+          {onChat && (
+            <button onClick={onChat}
+              className="p-1 rounded-md hover:bg-white/10 transition-colors" title="Abrir Chat"
+              style={{ color: '#a78bfa' }}>
+              <MessageSquare size={11} />
             </button>
           )}
           <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>
@@ -640,7 +653,7 @@ function ProjectKanbanCard({
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 mb-0.5">
-                <p className="text-[10px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+                <p className="text-sm font-semibold break-normal" style={{ color: 'var(--brand-text)' }}>
                   {card.customer_name}
                 </p>
                 {isNew && (
@@ -650,7 +663,9 @@ function ProjectKanbanCard({
                   </span>
                 )}
               </div>
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>{card.project_name}</p>
+              {card.project_name && (
+                <p className="text-xs break-normal" style={{ color: 'var(--brand-subtle)' }}>{card.project_name}</p>
+              )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap"
@@ -716,9 +731,11 @@ function ProjectKanbanCard({
             </div>
           )}
           {(() => {
-            // Lente do coordenador: se o usuário logado é coordenador do projeto e há banco
-            // de coordenação, mostra consumo/banco de coordenação no lugar do operacional.
-            const isCoordViewer = !!viewerUser?.id && (card.coordinator_ids ?? []).includes(viewerUser.id) && Number(card.coordination_hours ?? 0) > 0
+            // NESTA TELA (Demandas e Projetos): a lente de coordenação vale pra TODOS os
+            // perfis internos — inclusive admin — quando há banco de coordenação. Mostra
+            // só as horas disponibilizadas pra coordenação (não o operacional). Exceção:
+            // CLIENTE continua vendo as horas contratadas. (Demais telas: regra antiga.)
+            const isCoordViewer = !isCliente && Number(card.coordination_hours ?? 0) > 0
             const sold = isCoordViewer ? Number(card.coordination_hours ?? 0) : Number(card.sold_hours ?? 0)
             const consumed = isCoordViewer ? Number(card.coordination_consumed_hours ?? 0) : Number(card.consumed_hours ?? 0)
             const pct = sold > 0 ? Math.min(100, Math.round((consumed / sold) * 100)) : 0
@@ -752,8 +769,18 @@ function ProjectKanbanCard({
               )}
             </div>
             <div className="flex items-center gap-1">
-              {/* Ícone de chat removido (2026-05-28): após virar projeto, chat sai. Chat só na Requisição. */}
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded" style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
+              {/* Diário do Projeto reativado (2026-06-12): coordenador + executivos; cliente não participa nem vê. */}
+              {!isCliente && (
+                <button onClick={e => { e.stopPropagation(); onAction('chat') }}
+                  className="relative p-1 rounded-md hover:bg-white/10 transition-colors" title="Abrir Diário do Projeto"
+                  style={{ color: 'var(--brand-subtle)' }}>
+                  <MessageSquare size={11} />
+                  {hasUnread && (
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full" style={{ background: '#ef4444' }} />
+                  )}
+                </button>
+              )}
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                 {card.code}
               </span>
             </div>
@@ -1061,7 +1088,7 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
   const tabs = [
     { id: 'details', label: 'Detalhes', icon: <ExternalLink size={11} /> },
     ...(hasReq ? [{ id: 'req', label: 'Requisição', icon: <Layers size={11} /> }] : []),
-    { id: 'chat', label: isCliente ? 'Histórico de Mensagens' : 'Chat', icon: <MessageSquare size={11} /> },
+    { id: 'chat', label: isCliente ? 'Histórico de Mensagens' : 'Diário do Projeto', icon: <MessageSquare size={11} /> },
     { id: 'log', label: 'Histórico', icon: <Clock size={11} /> },
   ] as const
 
@@ -2003,7 +2030,7 @@ interface TimesheetEntry {
 function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projectId: number; onClose: () => void; userRole?: string; initialTab?: string }) {
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes'>((initialTab as any) ?? 'overview')
+  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'chat'>((initialTab as any) ?? 'overview')
   const [breakdown, setBreakdown] = useState<ConsultantBreakdown[]>([])
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
@@ -2091,12 +2118,13 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const isClienteViewer = viewerUser?.type === 'cliente'
   const consumed = p?.consumed_hours ?? 0
   const totalAvail = p?.total_available_hours ?? ((p?.sold_hours ?? 0) + (p?.hour_contribution ?? 0))
-  // Lente do coordenador (swap KPIs/risco) — coordenador do projeto + banco explícito.
-  // NUNCA aplica pra cliente: cliente vê sempre o sold_hours original do contrato.
+  // Lente de coordenação (swap KPIs/risco). NESTA TELA vale pra TODOS os perfis internos
+  // — inclusive admin — quando há banco de coordenação: mostra só as horas disponibilizadas
+  // pra coordenação. NUNCA aplica pra cliente (cliente vê sempre o sold_hours do contrato).
   // Banco apontável = Horas Apontáveis informadas + APORTE (aporte soma com as contratadas).
   const coordRaw = Number((p as any)?.coordination_hours ?? 0)
   const coordHoursBank = coordRaw > 0 ? coordRaw + Math.max(0, totalAvail - Number(p?.sold_hours ?? 0)) : 0
-  const isCoordViewer = !isClienteViewer && !!viewerUser?.id && !!p?.coordinators?.some((c: any) => c.id === viewerUser.id) && coordHoursBank > 0
+  const isCoordViewer = !isClienteViewer && coordHoursBank > 0
   const coordConsumedVal = Number((p as any)?.coordination_consumed_hours ?? 0)
   const cardVendidas = isCoordViewer ? coordHoursBank : (p?.sold_hours ?? 0)
   const cardConsumed = isCoordViewer ? coordConsumedVal : consumed
@@ -2128,6 +2156,10 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
     ...(isCoordRole ? [] : [
       { id: 'financial'   as const, label: 'Financeiro' },
       { id: 'cost'        as const, label: 'Custo' },
+    ]),
+    // Chat (coordenador + executivos; cliente não participa nem vê) — espelha o ProjectDetailModal
+    ...(isClienteViewer ? [] : [
+      { id: 'chat'        as const, label: 'Diário do Projeto' },
     ]),
   ]
 
@@ -2728,6 +2760,12 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     </>
                   )
                 })()}
+              </div>
+            )}
+
+            {tab === 'chat' && !isClienteViewer && (
+              <div className="-m-6 h-[60vh] min-h-[360px]">
+                <ProjectMessages projectId={projectId} userRole={userRole} />
               </div>
             )}
           </div>
@@ -3702,7 +3740,7 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
 
 function KanbanColumn({
   col, contractCards, projectCards, requestCards = [], canDrag, canDrop, isCliente, canWrite, unreadContractIds, newProjectIds, newContractIds,
-  onContractClick, onProjectClick, onRequestClick, onRequestView, onProjectAction, onContractAction,
+  onContractClick, onProjectClick, onRequestClick, onRequestView, onRequestChat, onProjectAction, onContractAction,
   onContractMove, onProjectMove, getContractCols, getProjectCols,
 }: {
   col: Column
@@ -3720,6 +3758,7 @@ function KanbanColumn({
   onProjectClick: (card: ProjectCard) => void
   onRequestClick?: (card: RequestCard) => void
   onRequestView?: (card: RequestCard) => void
+  onRequestChat?: (card: RequestCard) => void
   onProjectAction?: (card: ProjectCard, action: string) => void
   onContractAction?: (card: ContractCard, action: string) => void
   onContractMove?: (card: ContractCard, toCol: string) => void
@@ -3829,6 +3868,7 @@ function KanbanColumn({
                     <RequestKanbanCard
                       card={card}
                       onView={onRequestView ? e => { e.stopPropagation(); onRequestView(card) } : undefined}
+                      onChat={onRequestChat ? e => { e.stopPropagation(); onRequestChat(card) } : undefined}
                     />
                   </div>
                 )}
@@ -4111,6 +4151,17 @@ function KanbanContent() {
 
   const showTransition = !isConsultor && !isCoord
   const visibleProjectCols = PROJECT_COLS
+
+  // Recolher o grupo Demanda + Autorização (Backlog → Início Autorizado) numa faixa fina.
+  const [demandCollapsed, setDemandCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('minutor_pipeline_demand_collapsed') === '1'
+  })
+  const toggleDemandCollapsed = () => setDemandCollapsed(v => {
+    const nv = !v
+    try { localStorage.setItem('minutor_pipeline_demand_collapsed', nv ? '1' : '0') } catch {}
+    return nv
+  })
 
   // IDs de contratos de sustentação — não exibidos em Demandas e Projetos
   const sustContractIds = new Set(
@@ -4422,7 +4473,15 @@ function KanbanContent() {
   }
 
   const totalColumns = visibleDemandCols.length + (showTransition ? 1 : 0) + visibleProjectCols.length
-  const boardMinWidth = totalColumns * 264 + (totalColumns - 1) * 12 + (showTransition ? 60 : 0) + 64
+  const demandCount = (!isConsultor && !isCoord)
+    ? visibleDemandCols.reduce((n, col) =>
+        n + (REQ_ONLY_COLS.has(col.id) ? 0 : contractsInCol(col.id).length)
+          + requestCards.filter(r => (r.kanban_column ?? 'backlog') === col.id).length, 0)
+      + (showTransition ? contractsInCol('inicio_autorizado').length : 0)
+    : 0
+  const boardMinWidth = demandCollapsed
+    ? 56 + visibleProjectCols.length * 264 + Math.max(0, visibleProjectCols.length - 1) * 12 + 64
+    : totalColumns * 264 + (totalColumns - 1) * 12 + (showTransition ? 60 : 0) + 64
 
   if (loading) {
     return (
@@ -4937,8 +4996,34 @@ function KanbanContent() {
           <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0">
             <div className="flex gap-3 p-4 h-full items-stretch" style={{ minWidth: `${boardMinWidth}px` }}>
 
+              {/* ── Demanda + Autorização recolhida (faixa em evidência) ── */}
+              {!isConsultor && !isCoord && demandCollapsed && (
+                <button onClick={toggleDemandCollapsed} title="Expandir Demanda + Autorização"
+                  className="group shrink-0 w-14 self-stretch rounded-xl flex flex-col items-center justify-between py-4 transition-all hover:w-16"
+                  style={{ border: '2px solid var(--brand-primary)', background: 'rgba(0,245,255,0.10)', color: 'var(--brand-primary)' }}>
+                  <span className="flex flex-col items-center gap-1">
+                    <span className="flex items-center justify-center w-7 h-7 rounded-full" style={{ background: 'var(--brand-primary)', color: '#000' }}>
+                      <ChevronRight size={18} strokeWidth={3} />
+                    </span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-80">expandir</span>
+                  </span>
+                  <span style={{ writingMode: 'vertical-rl' }} className="text-[12px] font-extrabold tracking-wide whitespace-nowrap">Demanda + Autorização</span>
+                  <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full" style={{ background: 'var(--brand-primary)', color: '#000' }}>{demandCount}</span>
+                </button>
+              )}
+
+              {/* ── Handle de recolher (quando expandido) ── */}
+              {!isConsultor && !isCoord && !demandCollapsed && (
+                <button onClick={toggleDemandCollapsed} title="Recolher Demanda + Autorização"
+                  className="shrink-0 w-9 self-stretch rounded-xl flex flex-col items-center justify-center gap-2 transition-colors hover:opacity-90"
+                  style={{ border: '1px solid var(--brand-primary)', background: 'rgba(0,245,255,0.06)', color: 'var(--brand-primary)' }}>
+                  <ChevronLeft size={18} strokeWidth={3} />
+                  <span style={{ writingMode: 'vertical-rl' }} className="text-[9px] font-bold uppercase tracking-widest opacity-80">recolher</span>
+                </button>
+              )}
+
               {/* ── Demand Phase ── */}
-              {visibleDemandCols.map(col => (
+              {!demandCollapsed && visibleDemandCols.map(col => (
                 <KanbanColumn
                   key={col.id}
                   col={col}
@@ -4965,13 +5050,14 @@ function KanbanContent() {
                       : setSelectedRequest(card)
                   }
                   onRequestView={setSelectedRequest}
+                  onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
                   onContractMove={(card, toCol) => handleContractMove(card.id, card, card.kanban_status ?? 'backlog', toCol)}
                   getContractCols={getAvailableContractCols}
                 />
               ))}
 
               {/* ── Transition Phase ── */}
-              {showTransition && (
+              {!demandCollapsed && showTransition && (
                 <>
                   <PhaseSeparator label="Autorização" icon={<ChevronRight />} />
                   <KanbanColumn
@@ -5007,6 +5093,7 @@ function KanbanContent() {
                     onProjectClick={(card) => { if (!isCliente) setSelectedProject(card) }}
                     onProjectAction={(card, action) => setProjectAction({ card, action })}
                     onRequestClick={setSelectedRequest}
+                    onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
                     onContractMove={(card, toCol) => handleContractMove(card.id, card, 'inicio_autorizado', toCol)}
                     getContractCols={(card, fromCol) => getAvailableContractCols(card, fromCol)}
                     />

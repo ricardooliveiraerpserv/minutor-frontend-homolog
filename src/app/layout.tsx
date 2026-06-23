@@ -8,9 +8,10 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 // Visual mais geométrico/moderno vs Inter (humanista). Inter segue no body.
 const geist = Geist({ subsets: ['latin'], variable: '--font-geist' })
 
-// Favicon env-aware: cores das faixas (dev=amarelo, homolog=vermelho, prod=cyan original)
+// Favicon env-aware: cores das faixas (local/replica=roxo, dev=amarelo, homolog=vermelho, prod=cyan original)
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV
 const ICON_HREF =
+  APP_ENV === 'local'   ? '/favicon-local.svg' :
   APP_ENV === 'dev'     ? '/favicon-dev.svg' :
   APP_ENV === 'homolog' ? '/favicon-homolog.svg' :
                           '/favicon-prod.svg'

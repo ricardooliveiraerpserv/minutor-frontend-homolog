@@ -234,7 +234,7 @@ export default function EditTimesheetPage() {
       const s = parseHHMM(form.start_time), e = parseHHMM(form.end_time)
       if (s !== null && e !== null && e > s) {
         const diff = e - s
-        const computed = `${Math.floor(diff / 60)}:${String(diff % 60).padStart(2, '0')}`
+        const computed = String(Math.round(diff / 60 * 100) / 100).replace('.', ',') // total em DECIMAL
         setForm(f => f.total_hours === computed ? f : { ...f, total_hours: computed })
       } else {
         setForm(f => f.total_hours ? { ...f, total_hours: '' } : f)
@@ -469,7 +469,7 @@ export default function EditTimesheetPage() {
             {(isAdmin || isCoordenador) && (
               <div>
                 <Label className="text-xs text-zinc-400">% Extras</Label>
-                <div className="mt-1 grid grid-cols-2 gap-2">
+                <div className="mt-6 grid grid-cols-2 gap-2">
                   <div className="relative">
                     <input
                       type="number" min="0" max="999" step="0.01"

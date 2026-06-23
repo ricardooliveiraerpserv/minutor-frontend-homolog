@@ -41,6 +41,10 @@ async function request<T>(
 
   const res = await fetch(`${API_URL}${path}`, {
     credentials: 'same-origin',
+    // Nunca servir GET do cache HTTP do browser: num SPA autenticado o refetch
+    // pós-mutação precisa SEMPRE bater no servidor (senão a tela fica stale e parece
+    // que "nada aconteceu"). Non-GET ignoram esta opção.
+    cache: 'no-store',
     ...options,
     headers,
   })

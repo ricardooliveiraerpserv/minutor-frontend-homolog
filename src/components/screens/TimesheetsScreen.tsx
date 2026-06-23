@@ -34,7 +34,7 @@ import { ReasonTooltip } from '@/components/ui/reason-tooltip'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type SortField = 'date' | 'status' | 'user.name' | 'project.name' | 'customer.name' | 'effort_hours'
+type SortField = 'date' | 'status' | 'user.name' | 'project.name' | 'customer.name' | 'effort_hours' | 'ticket' | 'origin' | 'observation' | 'created_at' | 'titulo' | 'solicitante' | 'service_type' | 'contract'
 type SortDir   = 'asc' | 'desc'
 
 interface SelectOption { id: number; name: string }
@@ -48,7 +48,8 @@ function formatDate(d: string | null | undefined) {
 }
 
 function formatMinutes(minutes: number) {
-  return `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}`
+  // Tempo/total sempre em DECIMAL (ex.: 4h00 → 4 ; 0h30 → 0,5 ; 1477h51 → 1477,85).
+  return (Number(minutes || 0) / 60).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
 // Cor semântica do Consumo do Ticket por faixa de horas:
@@ -439,10 +440,11 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
 // ─── Modal: ajuste em massa de Cliente/Projeto ───────────────────────────────
 // Reatribui cliente+projeto dos apontamentos selecionados (incl. APROVADOS — o
 // endpoint bulk-update-project-customer não checa status). Cores via tokens DS.
-function BulkProjectCustomerModal({ ids, customers, approvedCount, onClose, onSaved }: {
+function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUserId, onClose, onSaved }: {
   ids: number[]
   customers: SelectOption[]
   approvedCount: number
+  consultantUserId?: number | null
   onClose: () => void
   onSaved: () => void
 }) {
@@ -459,11 +461,13 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, onClose, onSa
     if (!customerId) return
     setLoadingProjects(true)
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
-    api.get<any>(`/projects?minimal=true&pageSize=2000&customer_id=${customerId}`)
+    // Quando há 1 só consultor na seleção, oferece apenas projetos em que ele está ALOCADO.
+    const allocParam = consultantUserId ? `&consultant_user_id=${consultantUserId}` : ''
+    api.get<any>(`/projects?minimal=true&pageSize=2000&customer_id=${customerId}${allocParam}`)
       .then(r => setProjects(items(r).map((p: any) => ({ id: p.id, name: p.code ? `${p.code} — ${p.name}` : p.name }))))
       .catch(() => setProjects([]))
       .finally(() => setLoadingProjects(false))
-  }, [customerId])
+  }, [customerId, consultantUserId])
 
   const save = async () => {
     if (!customerId) { toast.error('Selecione o cliente'); return }
@@ -875,6 +879,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [extraPctModalData, setExtraPctModalData] = useState<{ ids: number[]; ts?: Timesheet } | null>(null)
   const [bulkPcOpen, setBulkPcOpen] = useState(false)
+  const [bulkReversing, setBulkReversing] = useState(false)
   const [reprocessing, setReprocessing] = useState(false)
   const [reprocessResult, setReprocessResult] = useState<string | null>(null)
   const [reverseRejectionModal, setReverseRejectionModal] = useState<{ open: boolean; tsId?: number }>({ open: false })
@@ -1080,7 +1085,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
     return p.toString()
   }, [page, status, origins, serviceTypeIds, contractTypeIds, categoriaServico, customerIds, coordinatorIds, executiveIds, userIds, projectId, projectIds, startDate, endDate, ticket, requester, ticketService, sortField, sortDir, isCliente, user?.customer_id, user?.id, scope, triagemPadrao, triagemField, isCoordenador, coordScope])
 
-  const { data, loading, error, refetch } = useApiQuery<PaginatedResponse<Timesheet>>(
+  const { data, loading, error, refetch, setData } = useApiQuery<PaginatedResponse<Timesheet>>(
     `/timesheets?${params}`, [params]
   )
 
@@ -1140,16 +1145,30 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   }
 
   const handleReverseApproval = async (id: number) => {
-    const reason = window.prompt('Informe o motivo do estorno da aprovação:')
-    if (reason == null) return // cancelou
-    if (!reason.trim()) { toast.error('Informe um motivo para estornar a aprovação.'); return }
+    // Estorno de aprovação NÃO pede mais motivo (removido a pedido).
+    if (!window.confirm('Estornar a aprovação deste apontamento?')) return
     try {
-      await api.post(`/timesheets/${id}/reverse-approval`, { reason: reason.trim() })
+      await api.post(`/timesheets/${id}/reverse-approval`, {})
       toast.success('Aprovação estornada!')
       refetch()
     } catch {
       toast.error('Erro ao estornar aprovação')
     }
+  }
+
+  // Estorno de aprovação EM MASSA: estorna todos os selecionados que estão APROVADOS (sem motivo).
+  const handleBulkReverseApproval = async () => {
+    const ids = (data?.items ?? []).filter(ts => selectedIds.has(ts.id) && ts.status === 'approved').map(ts => ts.id)
+    if (ids.length === 0) { toast.error('Nenhum apontamento aprovado selecionado.'); return }
+    if (!window.confirm(`Estornar a aprovação de ${ids.length} apontamento${ids.length > 1 ? 's' : ''}?`)) return
+    setBulkReversing(true)
+    const results = await Promise.allSettled(ids.map(id => api.post(`/timesheets/${id}/reverse-approval`, {})))
+    setBulkReversing(false)
+    const ok = results.filter(r => r.status === 'fulfilled').length
+    if (ok) toast.success(`${ok} aprovação${ok > 1 ? 'ões' : ''} estornada${ok > 1 ? 's' : ''}!`)
+    if (ok < ids.length) toast.error(`${ids.length - ok} não puderam ser estornadas.`)
+    setSelectedIds(new Set())
+    refetch()
   }
 
   const confirmReverseRejection = async () => {
@@ -1174,6 +1193,17 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
     () => (data?.items ?? []).filter(ts => selectedIds.has(ts.id) && ts.status === 'approved').length,
     [data?.items, selectedIds]
   )
+  // Consultor único da seleção → no modal de realocação, oferece só projetos em que ele
+  // está alocado. Null quando a seleção mistura consultores (não dá pra filtrar por um só).
+  const selectedConsultantId = useMemo(() => {
+    const uids = new Set(
+      (data?.items ?? [])
+        .filter(ts => selectedIds.has(ts.id))
+        .map(ts => ts.user?.id)
+        .filter((v): v is number => typeof v === 'number'),
+    )
+    return uids.size === 1 ? (Array.from(uids)[0] as number) : null
+  }, [data?.items, selectedIds])
 
   return (
     <div className="w-full max-w-full overflow-x-hidden">
@@ -1567,7 +1597,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                     Hist. de Hs Tikets
                   </th>
                 )}
-                <Th>Status</Th>
+                <Th sortable active={sortField === 'status'} dir={sortDir} onClick={() => handleSort('status')}>Status</Th>
                 {(isAdmin || isCoordenador) && (
                   <Th sortable active={sortField === 'user.name'} dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
                 )}
@@ -1575,8 +1605,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 <Th className="hidden md:table-cell">Início</Th>
                 <Th className="hidden md:table-cell">Fim</Th>
                 <Th right sortable active={sortField === 'effort_hours'} dir={sortDir} onClick={() => handleSort('effort_hours')}>Tempo</Th>
-                <Th className="hidden lg:table-cell">Ticket #</Th>
-                <Th className="hidden sm:table-cell">Origem</Th>
+                <Th sortable active={sortField === 'ticket'} dir={sortDir} onClick={() => handleSort('ticket')} className="hidden lg:table-cell">Ticket #</Th>
+                <Th sortable active={sortField === 'origin'} dir={sortDir} onClick={() => handleSort('origin')} className="hidden sm:table-cell">Origem</Th>
                 {!(isAdmin || isCoordenador) && (
                   <Th sortable active={sortField === 'user.name'} dir={sortDir} onClick={() => handleSort('user.name')}>Colaborador</Th>
                 )}
@@ -1584,12 +1614,12 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   <Th sortable active={sortField === 'customer.name'} dir={sortDir} onClick={() => handleSort('customer.name')}>Cliente</Th>
                 )}
                 <Th sortable active={sortField === 'project.name'}  dir={sortDir} onClick={() => handleSort('project.name')}>Projeto</Th>
-                <Th className="hidden lg:table-cell">Título</Th>
-                <Th className="hidden xl:table-cell">Descrição</Th>
-                <Th className="hidden xl:table-cell">Solicitante</Th>
-                <Th className="hidden xl:table-cell">Tipo de Serviço</Th>
-                <Th className="hidden xl:table-cell">Contrato</Th>
-                <Th className="hidden lg:table-cell">Inclusão</Th>
+                <Th sortable active={sortField === 'titulo'} dir={sortDir} onClick={() => handleSort('titulo')} className="hidden lg:table-cell">Título</Th>
+                <Th sortable active={sortField === 'observation'} dir={sortDir} onClick={() => handleSort('observation')} className="hidden xl:table-cell">Descrição</Th>
+                <Th sortable active={sortField === 'solicitante'} dir={sortDir} onClick={() => handleSort('solicitante')} className="hidden xl:table-cell">Solicitante</Th>
+                <Th sortable active={sortField === 'service_type'} dir={sortDir} onClick={() => handleSort('service_type')} className="hidden xl:table-cell">Tipo de Serviço</Th>
+                <Th sortable active={sortField === 'contract'} dir={sortDir} onClick={() => handleSort('contract')} className="hidden xl:table-cell">Contrato</Th>
+                <Th sortable active={sortField === 'created_at'} dir={sortDir} onClick={() => handleSort('created_at')} className="hidden lg:table-cell">Inclusão</Th>
               </tr>
             </Thead>
             <Tbody>
@@ -1895,6 +1925,16 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           >
             <RefreshCw size={11} className={reprocessing ? 'animate-spin' : ''} /> Reprocessar Movidesk
           </button>
+          {selectedApprovedCount > 0 && (
+            <button
+              onClick={handleBulkReverseApproval}
+              disabled={bulkReversing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
+              style={{ background: 'var(--danger, #ef4444)', color: '#fff' }}
+            >
+              <RotateCcw size={11} className={bulkReversing ? 'animate-spin' : ''} /> Estornar aprovação ({selectedApprovedCount})
+            </button>
+          )}
           <button
             onClick={() => setSelectedIds(new Set())}
             className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
@@ -1910,8 +1950,29 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           ids={Array.from(selectedIds)}
           customers={customers}
           approvedCount={selectedApprovedCount}
+          consultantUserId={selectedConsultantId}
           onClose={() => setBulkPcOpen(false)}
-          onSaved={() => { refetch(); setSelectedIds(new Set()) }}
+          onSaved={async () => {
+            const changed = Array.from(selectedIds)
+            setSelectedIds(new Set())
+            // Otimista: tira já da lista os apontamentos alterados. A tela é escopada/
+            // filtrada (ex.: Portal de Sustentação só mostra projetos de sustentação),
+            // então ao trocar cliente/projeto eles podem não pertencer mais a este filtro.
+            // Sem isto o refetch parecia "não mudar nada" e a linha ficava no projeto antigo.
+            setData(prev => prev ? { ...prev, items: prev.items.filter(t => !changed.includes(t.id)) } : prev)
+            // Reconcilia com o servidor: os que AINDA batem com o filtro voltam (com o
+            // projeto/cliente novos); os que saíram do escopo ficam de fora.
+            const fresh = await refetch()
+            const back = (fresh?.items ?? []).filter(t => changed.includes(t.id)).length
+            const gone = changed.length - back
+            if (gone > 0) {
+              toast.info(
+                `${gone} apontamento${gone > 1 ? 's' : ''} sa${gone > 1 ? 'íram' : 'iu'} deste filtro/escopo após a alteração — ` +
+                `verifique no cliente/projeto de destino.`,
+                { duration: 6000 },
+              )
+            }
+          }}
         />
       )}
 

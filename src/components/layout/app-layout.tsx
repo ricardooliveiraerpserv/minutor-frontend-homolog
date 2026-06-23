@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
+import { ModuleProvider } from '@/contexts/module-context'
 import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
 import { Building2, User } from 'lucide-react'
@@ -15,6 +16,8 @@ const ENV_BANNER =
     ? { bg: '#FACC15', fg: '#000', text: '⚠ AMBIENTE DE DESENVOLVIMENTO — DADOS DESCARTÁVEIS ⚠' }
     : APP_ENV === 'homolog'
     ? { bg: '#DC2626', fg: '#fff', text: '⚠ AMBIENTE DE HOMOLOGAÇÃO — NÃO USE DADOS REAIS ⚠' }
+    : APP_ENV === 'local'
+    ? { bg: '#7C3AED', fg: '#fff', text: '🟣 REPLICA — DADOS COPIADOS DE PROD • localhost:3001' }
     : null
 
 interface AppLayoutProps {
@@ -80,6 +83,7 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
         </div>
       )}
 
+      <ModuleProvider>
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar user={user} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -133,6 +137,7 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
           </main>
         </div>
       </div>
+      </ModuleProvider>
     </div>
   )
 }

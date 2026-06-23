@@ -29,12 +29,17 @@ interface MonthlyAccrualTableProps {
   canEditConsumption?: boolean
   /** Statement já pronto (ex.: perfil do cliente — vem do summary, sem fetch nem edição). */
   statement?: Statement | null
+  /** Breakdown mensal vigência-aware vindo do backend (soma das horas vendidas vigentes
+   *  por mês). Quando presente, o modo legado usa isto em vez da derivação naive. */
+  monthlyIncrements?: { year_month: string; hours: number }[] | null
 }
 
 type StatementType = 'monthly' | 'fixed' | 'on_demand' | 'none'
 interface StatementRow {
   year_month: string
   vendidas_hours: number | null
+  /** Incremento de horas vendidas deste mês (BH Mensal): valor VIGENTE na competência. */
+  monthly_hours?: number | null
   aporte_hours?: number
   consumption_hours: number
   child_block_hours?: number
@@ -60,7 +65,7 @@ function tokens(variant: 'brand' | 'default') {
 const fmtMonth = (ym: string) => { const [y, m] = ym.split('-'); return `${m}/${y}` }
 const fmtH = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)}h`
 
-export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated, endDate, variant = 'default', projectId, canEditConsumption, statement }: MonthlyAccrualTableProps) {
+export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated, endDate, variant = 'default', projectId, canEditConsumption, statement, monthlyIncrements }: MonthlyAccrualTableProps) {
   const t = tokens(variant)
 
   // ── Estado do modo extrato (hooks sempre chamados; corpo é condicional) ──
@@ -149,6 +154,9 @@ export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated,
                     {showVendidas && (
                       <td className="px-3 py-2 text-right tabular-nums font-semibold" style={{ color: t.text }}>
                         {fmtH(r.vendidas_hours ?? 0)}
+                        {(r.monthly_hours ?? 0) > 0 && (
+                          <span className="block text-[10px] font-medium" style={{ color: 'var(--primary)' }}>+{fmtH(r.monthly_hours ?? 0)} mensal</span>
+                        )}
                         {(r.aporte_hours ?? 0) > 0 && (
                           <span className="block text-[10px] font-medium" style={{ color: 'var(--success)' }}>+{fmtH(r.aporte_hours ?? 0)} aporte</span>
                         )}
@@ -206,26 +214,34 @@ export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated,
   }
 
   // ───────────────────────── MODO LEGADO (derivado) ─────────────────────────
-  // Nº de meses: preferir o acumulado (congela no encerramento); senão, do
-  // início até hoje (ou até o encerramento, se informado).
-  let months = 0
-  if (hoursPerMonth > 0) {
-    if (accumulated != null && accumulated > 0) {
-      months = Math.max(0, Math.round(accumulated / hoursPerMonth))
-    } else if (startDate) {
-      const start = new Date(startDate + 'T00:00:00')
-      const end = endDate ? new Date(endDate + 'T00:00:00') : new Date()
-      months = Math.max(0, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1)
+  // Preferir o breakdown vigência-aware do backend (monthlyIncrements): cada mês com
+  // a quantidade VIGENTE — não muda os meses anteriores ao alterar as horas. Sem ele,
+  // cai na derivação naive (start_date + horas/mês constante).
+  let rows: { label: string; hours: number }[] = []
+  if (monthlyIncrements && monthlyIncrements.length > 0) {
+    rows = monthlyIncrements.map(mi => ({ label: fmtMonth(mi.year_month), hours: mi.hours }))
+  } else {
+    // Nº de meses: preferir o acumulado (congela no encerramento); senão, do
+    // início até hoje (ou até o encerramento, se informado).
+    let months = 0
+    if (hoursPerMonth > 0) {
+      if (accumulated != null && accumulated > 0) {
+        months = Math.max(0, Math.round(accumulated / hoursPerMonth))
+      } else if (startDate) {
+        const s = new Date(startDate + 'T00:00:00')
+        const end = endDate ? new Date(endDate + 'T00:00:00') : new Date()
+        months = Math.max(0, (end.getFullYear() - s.getFullYear()) * 12 + (end.getMonth() - s.getMonth()) + 1)
+      }
     }
+    if (!startDate || hoursPerMonth <= 0 || months <= 0) return null
+    const s = new Date(startDate + 'T00:00:00')
+    rows = Array.from({ length: months }, (_, i) => {
+      const d = new Date(s.getFullYear(), s.getMonth() + i, 1)
+      return { label: `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`, hours: hoursPerMonth }
+    })
   }
 
-  if (!startDate || hoursPerMonth <= 0 || months <= 0) return null
-
-  const start = new Date(startDate + 'T00:00:00')
-  const rows = Array.from({ length: months }, (_, i) => {
-    const d = new Date(start.getFullYear(), start.getMonth() + i, 1)
-    return { label: `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`, hours: hoursPerMonth }
-  })
+  if (rows.length === 0) return null
   const total = rows.reduce((s, r) => s + r.hours, 0)
 
   return (

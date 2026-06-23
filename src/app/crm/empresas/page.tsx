@@ -1,0 +1,260 @@
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { AppLayout } from '@/components/layout/app-layout'
+import { api } from '@/lib/api'
+import { toast } from 'sonner'
+import { Building2, X, Search, LayoutDashboard } from 'lucide-react'
+
+interface Customer { id: number; name: string; company_name: string | null; cgc: string; crm_status: string; executive?: { id: number; name: string } | null }
+interface CrmTag { id: number; name: string; color: string | null }
+interface CrmProfile { region: string | null; segment: string | null; porte: string | null; faturamento_estimado: number | null; num_funcionarios: number | null; erp_atual: string | null; indicacao: string | null }
+interface Vinculos { oportunidades: number; propostas: number; contratos: number; projetos: number }
+interface TimelineItem { when: string; source: string; type: string; label: string | null }
+
+const STATUS: { v: string; l: string; bg: string; fg: string }[] = [
+  { v: 'lead',           l: 'Lead',          bg: 'rgba(148,163,184,0.15)', fg: '#94a3b8' },
+  { v: 'prospect',       l: 'Prospect',      bg: 'rgba(56,189,248,0.15)',  fg: '#38bdf8' },
+  { v: 'cliente',        l: 'Cliente',       bg: 'rgba(34,197,94,0.15)',   fg: '#22c55e' },
+  { v: 'em_renovacao',   l: 'Em Renovação',  bg: 'rgba(245,158,11,0.15)',  fg: '#f59e0b' },
+  { v: 'inativo',        l: 'Inativo',       bg: 'rgba(120,120,120,0.15)', fg: '#9ca3af' },
+]
+// "contrato_ativo" foi unificado em "cliente" — alias p/ não quebrar dado residual.
+const statusInfo = (v: string) => STATUS.find(s => s.v === (v === 'contrato_ativo' ? 'cliente' : v)) ?? STATUS[0]
+const EMPTY_PROFILE: CrmProfile = { region: '', segment: '', porte: '', faturamento_estimado: null, num_funcionarios: null, erp_atual: '', indicacao: '' }
+
+export default function CrmEmpresasPage() {
+  const router = useRouter()
+  const [list, setList] = useState<Customer[]>([])
+  const [loading, setLoading] = useState(true)
+  const [fStatus, setFStatus] = useState('')
+  const [busca, setBusca] = useState('')
+  const [allTags, setAllTags] = useState<CrmTag[]>([])
+
+  // Edição CRM
+  const [sel, setSel] = useState<Customer | null>(null)
+  const [crmStatus, setCrmStatus] = useState('lead')
+  const [cgc, setCgc] = useState('')
+  const [profile, setProfile] = useState<CrmProfile>(EMPTY_PROFILE)
+  const [tagIds, setTagIds] = useState<number[]>([])
+  const [newTag, setNewTag] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [vinculos, setVinculos] = useState<Vinculos | null>(null)
+  const [timeline, setTimeline] = useState<TimelineItem[]>([])
+
+  const load = useCallback(() => {
+    setLoading(true)
+    api.get<any>('/customers?pageSize=500')
+      .then(r => setList((Array.isArray(r) ? r : r?.data ?? r?.items ?? []).map((c: any) => ({ id: c.id, name: c.name, company_name: c.company_name, cgc: c.cgc, crm_status: c.crm_status ?? 'lead', executive: c.executive }))))
+      .catch(() => toast.error('Erro ao carregar empresas'))
+      .finally(() => setLoading(false))
+  }, [])
+  useEffect(() => { load() }, [load])
+  useEffect(() => { api.get<{ data: CrmTag[] }>('/crm/tags').then(r => setAllTags(r?.data ?? [])).catch(() => {}) }, [])
+
+  const open = async (c: Customer) => {
+    setSel(c); setVinculos(null); setTimeline([])
+    try {
+      const r = await api.get<{ data: { crm_status: string; cgc: string | null; profile: CrmProfile | null; tags: CrmTag[] } }>(`/customers/${c.id}/crm`)
+      setCrmStatus(r.data.crm_status ?? 'lead')
+      setCgc(r.data.cgc ?? '')
+      setProfile(r.data.profile ?? EMPTY_PROFILE)
+      setTagIds((r.data.tags ?? []).map(t => t.id))
+    } catch { toast.error('Erro ao carregar dados CRM') }
+    api.get<{ data: { vinculos: Vinculos; timeline: TimelineItem[] } }>(`/customers/${c.id}/crm/timeline`)
+      .then(r => { setVinculos(r?.data?.vinculos ?? null); setTimeline(r?.data?.timeline ?? []) })
+      .catch(() => {})
+  }
+
+  const createTag = async () => {
+    const name = newTag.trim()
+    if (!name) return
+    try {
+      const r = await api.post<{ data: CrmTag }>('/crm/tags', { name })
+      setAllTags(ts => [...ts, r.data]); setTagIds(ids => [...ids, r.data.id]); setNewTag('')
+    } catch { toast.error('Tag já existe ou inválida') }
+  }
+
+  const save = async () => {
+    if (!sel) return
+    setSaving(true)
+    try {
+      await api.put(`/customers/${sel.id}/crm`, {
+        crm_status: crmStatus,
+        cgc: cgc.trim() || null,
+        profile: { ...profile, faturamento_estimado: profile.faturamento_estimado === ('' as any) ? null : profile.faturamento_estimado, num_funcionarios: profile.num_funcionarios === ('' as any) ? null : profile.num_funcionarios },
+        tag_ids: tagIds,
+      })
+      toast.success('Empresa atualizada')
+      setList(xs => xs.map(x => x.id === sel.id ? { ...x, crm_status: crmStatus } : x))
+      setSel(null)
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar') } finally { setSaving(false) }
+  }
+
+  const filtered = list.filter(c => {
+    if (fStatus && c.crm_status !== fStatus) return false
+    if (busca.trim()) { const q = busca.toLowerCase(); const d = busca.replace(/\D/g, ''); return c.name.toLowerCase().includes(q) || (c.company_name ?? '').toLowerCase().includes(q) || (d && c.cgc.includes(d)) }
+    return true
+  })
+
+  const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
+  const setP = (k: keyof CrmProfile, v: any) => setProfile(p => ({ ...p, [k]: v }))
+
+  return (
+    <AppLayout title="Empresas (CRM)">
+      <div className="flex items-center gap-2 mb-4">
+        <Building2 size={18} style={{ color: 'var(--primary)' }} />
+        <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Empresas</h1>
+        <span className="text-xs" style={{ color: 'var(--text-light)' }}>— mesma base de clientes (empresa única)</span>
+      </div>
+
+      {/* Indicadores por status (refletem customers.crm_status — empresa única) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+        {(['lead', 'prospect', 'cliente', 'em_renovacao'] as const).map(v => {
+          // conta cliente + qualquer dado residual contrato_ativo sob "cliente"
+          const si = statusInfo(v); const n = list.filter(c => (c.crm_status === 'contrato_ativo' ? 'cliente' : c.crm_status) === v).length
+          return (
+            <button key={v} onClick={() => setFStatus(f => f === v ? '' : v)} className="rounded-xl p-3 text-left transition" style={{ background: 'var(--brand-surface)', border: `1px solid ${fStatus === v ? si.fg : 'var(--border)'}` }}>
+              <p className="text-xl font-bold tabular-nums" style={{ color: si.fg }}>{n}</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{si.l}</p>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="relative">
+          <Search size={14} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-light)' }} />
+          <input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar nome / CNPJ" className="pl-8 pr-3 py-2 rounded-lg text-sm outline-none w-64" style={inputStyle} />
+        </div>
+        {/* Filtros rápidos por status */}
+        <button onClick={() => setFStatus('')} className="px-3 py-1.5 rounded-full text-xs font-semibold" style={fStatus === '' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Todos</button>
+        {STATUS.map(s => (
+          <button key={s.v} onClick={() => setFStatus(f => f === s.v ? '' : s.v)} className="px-3 py-1.5 rounded-full text-xs font-semibold" style={fStatus === s.v ? { background: s.bg, color: s.fg, border: `1px solid ${s.fg}` } : { color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{s.l}</button>
+        ))}
+      </div>
+
+      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+        <table className="w-full text-sm">
+          <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+            <th className="text-left px-4 py-2.5 text-xs font-semibold">Empresa</th>
+            <th className="text-left px-4 py-2.5 text-xs font-semibold">CNPJ/CPF</th>
+            <th className="text-left px-4 py-2.5 text-xs font-semibold">Status comercial</th>
+            <th className="text-left px-4 py-2.5 text-xs font-semibold">Executivo</th>
+            <th className="text-right px-4 py-2.5 text-xs font-semibold">Ficha</th>
+          </tr></thead>
+          <tbody>
+            {loading ? <tr><td colSpan={5} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
+            : filtered.length === 0 ? <tr><td colSpan={5} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhuma empresa.</td></tr>
+            : filtered.map(c => { const si = statusInfo(c.crm_status); return (
+              <tr key={c.id} onClick={() => open(c)} className="cursor-pointer hover:bg-white/5" style={{ borderTop: '1px solid var(--border)' }}>
+                <td className="px-4 py-3 font-medium" style={{ color: 'var(--text)' }}>{c.name}{c.company_name && <span className="block text-[11px]" style={{ color: 'var(--text-light)' }}>{c.company_name}</span>}</td>
+                <td className="px-4 py-3" style={{ color: 'var(--text-muted)' }}>{c.cgc}</td>
+                <td className="px-4 py-3"><span className="text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: si.bg, color: si.fg }}>{si.l}</span></td>
+                <td className="px-4 py-3" style={{ color: 'var(--text-muted)' }}>{c.executive?.name ?? '—'}</td>
+                <td className="px-4 py-3 text-right">
+                  <button onClick={e => { e.stopPropagation(); router.push(`/empresas/${c.id}/360`) }} className="text-[11px] px-2 py-1 rounded-lg font-semibold inline-flex items-center gap-1" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }} title="Visão 360°">
+                    <LayoutDashboard size={12} /> 360°
+                  </button>
+                </td>
+              </tr>
+            )})}
+          </tbody>
+        </table>
+      </div>
+
+      {sel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setSel(null)}>
+          <div className="w-full max-w-xl rounded-2xl p-5 max-h-[92vh] overflow-y-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>{sel.name} — perfil comercial</h2>
+              <button onClick={() => setSel(null)} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Status comercial</label>
+                <select value={crmStatus} onChange={e => setCrmStatus(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                  {STATUS.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                  CNPJ / CPF {['cliente', 'em_renovacao'].includes(crmStatus) && <span style={{ color: 'var(--danger-border)' }}>* obrigatório p/ cliente</span>}
+                </label>
+                <input value={cgc} onChange={e => setCgc(e.target.value)} placeholder="Opcional para lead/prospect" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {([['region', 'Região'], ['segment', 'Segmento'], ['porte', 'Porte'], ['erp_atual', 'ERP atual'], ['indicacao', 'Indicação / origem']] as [keyof CrmProfile, string][]).map(([k, l]) => (
+                  <div key={k}>
+                    <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{l}</label>
+                    <input value={(profile[k] as any) ?? ''} onChange={e => setP(k, e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                  </div>
+                ))}
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Faturamento estimado (R$)</label>
+                  <input type="number" step="0.01" value={(profile.faturamento_estimado as any) ?? ''} onChange={e => setP('faturamento_estimado', e.target.value === '' ? null : Number(e.target.value))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nº de funcionários</label>
+                  <input type="number" value={(profile.num_funcionarios as any) ?? ''} onChange={e => setP('num_funcionarios', e.target.value === '' ? null : Number(e.target.value))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>Tags</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {allTags.map(t => {
+                    const on = tagIds.includes(t.id)
+                    return <button key={t.id} type="button" onClick={() => setTagIds(ids => on ? ids.filter(i => i !== t.id) : [...ids, t.id])}
+                      className="text-[11px] px-2 py-1 rounded-full font-medium"
+                      style={on ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{t.name}</button>
+                  })}
+                </div>
+                <div className="flex gap-2">
+                  <input value={newTag} onChange={e => setNewTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createTag() } }} placeholder="Nova tag…" className="flex-1 px-3 py-1.5 rounded-lg text-xs outline-none" style={inputStyle} />
+                  <button onClick={createTag} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>+ Tag</button>
+                </div>
+              </div>
+
+              {/* Vínculos + timeline única (comercial ↔ operação) */}
+              <div className="pt-3 mt-1" style={{ borderTop: '1px solid var(--border)' }}>
+                <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Vínculos</label>
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {([['oportunidades', 'Oportun.'], ['propostas', 'Propostas'], ['contratos', 'Contratos'], ['projetos', 'Projetos']] as [keyof Vinculos, string][]).map(([k, l]) => (
+                    <div key={k} className="rounded-lg p-2 text-center" style={{ background: 'var(--surface-sunken)' }}>
+                      <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--text)' }}>{vinculos ? vinculos[k] : '—'}</p>
+                      <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{l}</p>
+                    </div>
+                  ))}
+                </div>
+                <label className="block text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Histórico (comercial + contratos)</label>
+                {timeline.length === 0 ? (
+                  <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem eventos registrados.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {timeline.map((t, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs">
+                        <span className="mt-0.5 text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase shrink-0"
+                          style={t.source === 'lead' ? { background: 'rgba(56,189,248,0.15)', color: '#38bdf8' }
+                            : t.source === 'crm' ? { background: 'var(--primary-soft)', color: 'var(--primary)' }
+                            : { background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
+                          {t.source === 'lead' ? 'Lead' : t.source === 'crm' ? 'CRM' : 'Contrato'}
+                        </span>
+                        <span className="flex-1" style={{ color: 'var(--text-muted)' }}>{t.type}{t.label ? ` · ${t.label}` : ''}</span>
+                        <span className="shrink-0 tabular-nums" style={{ color: 'var(--text-light)' }}>{t.when ? new Date(t.when).toLocaleDateString('pt-BR') : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-5">
+              <button onClick={() => setSel(null)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+              <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saving ? 'Salvando…' : 'Salvar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AppLayout>
+  )
+}
