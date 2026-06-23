@@ -625,11 +625,15 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
     setModal({ open: true, item })
   }
 
+  // ERPSERV (empresa própria): investimento interno não pede Projeto Real (sem projeto de cliente real).
+  const selectedCustomer = (customers as any[]).find(c => String(c.id) === form.customer_id)
+  const isErpservCustomer = String(selectedCustomer?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+
   const save = async () => {
     setSaving(true)
     try {
       const selProj = (projects as any[]).find(p => String(p.id) === form.project_id)
-      const isInvestimento = !!selProj?.is_investimento_comercial
+      const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
       if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); setSaving(false); return }
       const fd = new FormData()
       fd.append('project_id', form.project_id)
@@ -1204,7 +1208,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
               {/* Projeto Real — só para projetos de INVESTIMENTO (despesa contabiliza no investimento). */}
               {(() => {
                 const sel = (projects as any[]).find(p => String(p.id) === form.project_id)
-                if (!sel?.is_investimento_comercial) return null
+                if (!sel?.is_investimento_comercial || isErpservCustomer) return null
                 const soSustentacao = sel?.categoria_interna === 'Suporte'
                 const realOpts = (projects as any[]).filter(p => {
                   if (p.is_investimento_comercial || String(p.id) === form.project_id) return false
