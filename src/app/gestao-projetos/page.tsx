@@ -11,7 +11,7 @@ import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { Project, PaginatedResponse, HourContribution } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History } from 'lucide-react'
+import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, TrendingDown, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { ProjectViewModal } from '@/components/projects/project-view-modal'
@@ -2509,7 +2509,10 @@ export default function GestaoProjetosPage() {
       ? comPct.reduce((s, p) => s + healthOf(p).pct, 0) / comPct.length
       : 0
     const criticos  = base.filter(p => healthOf(p).color === 'red').length
-    return { ativos, vendidas, consumidas, saldo, avgPct, criticos }
+    // Horas negativas: soma dos saldos negativos (horas estouradas) + nº de contratos estourados.
+    const horasNegativas = base.reduce((s, p) => { const b = p.general_hours_balance ?? 0; return b < 0 ? s + b : s }, 0)
+    const comSaldoNeg = base.filter(p => (p.general_hours_balance ?? 0) < 0).length
+    return { ativos, vendidas, consumidas, saldo, avgPct, criticos, horasNegativas, comSaldoNeg }
   }, [filtered])
 
   const loadContributions = async (projectId: number) => {
@@ -2844,7 +2847,7 @@ export default function GestaoProjetosPage() {
         />
 
         {/* ── Cards de Resumo ── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
           <SummaryCard
             icon={<Layers size={15} color="var(--primary)" />}
             label="Projetos Ativos"
@@ -2874,6 +2877,12 @@ export default function GestaoProjetosPage() {
             label="Consumo Médio"
             value={`${Math.round(stats.avgPct)}%`}
             sub={stats.criticos > 0 ? `${stats.criticos} crítico(s)` : 'dentro do esperado'}
+          />
+          <SummaryCard
+            icon={<TrendingDown size={15} color={stats.horasNegativas < 0 ? 'var(--danger-border)' : 'var(--primary)'} />}
+            label="Horas Negativas"
+            value={fmt(stats.horasNegativas, 1) + ' h'}
+            sub={stats.comSaldoNeg > 0 ? `${stats.comSaldoNeg} contrato(s) estourado(s)` : 'nenhum saldo negativo'}
           />
         </div>
 
