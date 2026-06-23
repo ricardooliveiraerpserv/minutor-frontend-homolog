@@ -358,11 +358,21 @@ interface SummaryCardProps {
   label: string
   value: string
   sub?: string
+  onClick?: () => void
+  active?: boolean
 }
 
-function SummaryCard({ icon, label, value, sub }: SummaryCardProps) {
+function SummaryCard({ icon, label, value, sub, onClick, active }: SummaryCardProps) {
   return (
-    <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      className={`rounded-2xl p-5 transition-all ${onClick ? 'cursor-pointer hover:brightness-95' : ''}`}
+      style={{
+        background: active ? 'var(--primary-soft)' : 'var(--surface)',
+        border: `1px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
+      }}
+    >
       <div className="flex items-center gap-3 mb-3">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
           {icon}
@@ -2064,6 +2074,7 @@ export default function GestaoProjetosPage() {
       statusFilters:      [] as string[],
       clienteFilters:     [] as string[],
       saudeFilters:       [] as string[],
+      soNegativos:        false,
       coordFilter:        '',
       filterContractType: '',
       filterServiceTypes: [] as string[],
@@ -2072,11 +2083,12 @@ export default function GestaoProjetosPage() {
       yearMonths:         [new Date().toISOString().slice(0, 7)] as string[],
     },
   )
-  const { search, statusFilters, clienteFilters, saudeFilters, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, yearMonths } = flt
+  const { search, statusFilters, clienteFilters, saudeFilters, soNegativos, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, yearMonths } = flt
   const setSearch             = (v: string)   => setFilter('search', v)
   const setStatus             = (v: string[]) => setFilter('statusFilters', v)
   const setCliente            = (v: string[]) => setFilter('clienteFilters', v)
   const setSaude              = (v: string[]) => setFilter('saudeFilters', v)
+  const setSoNegativos        = (v: boolean)  => setFilter('soNegativos', v)
   // Toggle multi-seleção: '' (Todos) limpa; cor adiciona/remove do conjunto.
   const toggleSaude = (id: string) => {
     if (id === '') { setSaude([]); return }
@@ -2108,6 +2120,7 @@ export default function GestaoProjetosPage() {
     setStatus([])
     setCliente([])
     setSaude([])
+    setSoNegativos(false)
     setCoord('')
     setFilterContractType('')
     setFilterServiceType([])
@@ -2115,7 +2128,7 @@ export default function GestaoProjetosPage() {
     setFilterExecutives([])
   }
 
-  const hasActiveFilters = !!(search || statusFilters.length || clienteFilters.length || saudeFilters.length || coordFilter || filterContractType || filterServiceTypes.length || filterCoordinators.length || filterExecutives.length)
+  const hasActiveFilters = !!(search || statusFilters.length || clienteFilters.length || saudeFilters.length || soNegativos || coordFilter || filterContractType || filterServiceTypes.length || filterCoordinators.length || filterExecutives.length)
 
   const [projects, setProjects]   = useState<ProjectWithTeam[]>([])
   const [showClosed, setShowClosed] = useState(false)
@@ -2375,6 +2388,7 @@ export default function GestaoProjetosPage() {
         const { displaySold, consumedHours } = calcProjHours(p)
         if (!saudeFilters.includes(projectHealth(p, displaySold, consumedHours, isAdmin).color)) return false
       }
+      if (soNegativos && (p.general_hours_balance ?? 0) >= 0) return false
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
         if (!cm.explicit || cm.risk !== coordFilter) return false
@@ -2389,7 +2403,7 @@ export default function GestaoProjetosPage() {
       }
       return true
     })
-  }, [projects, search, statusFilters, clienteFilters, saudeFilters, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, customerExecutiveMap, showClosed])
+  }, [projects, search, statusFilters, clienteFilters, saudeFilters, soNegativos, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, customerExecutiveMap, showClosed])
 
   const sortedFiltered = useMemo(() => {
     if (!sortKey) return filtered
@@ -2464,6 +2478,7 @@ export default function GestaoProjetosPage() {
         const { displaySold, consumedHours } = calcProjHours(p)
         if (!saudeFilters.includes(projectHealth(p, displaySold, consumedHours, isAdmin).color)) return false
       }
+      if (soNegativos && (p.general_hours_balance ?? 0) >= 0) return false
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
         if (!cm.explicit || cm.risk !== coordFilter) return false
@@ -2486,7 +2501,7 @@ export default function GestaoProjetosPage() {
       }))
     }
     return result
-  }, [rows, multiContratual, statusFilters, clienteFilters, saudeFilters, search, filterCoordinators, filterExecutives, customerExecutiveMap, multiShowClosed])
+  }, [rows, multiContratual, statusFilters, clienteFilters, saudeFilters, soNegativos, search, filterCoordinators, filterExecutives, customerExecutiveMap, multiShowClosed])
 
   // ── Métricas dos cards ──
   const stats = useMemo(() => {
@@ -2882,7 +2897,9 @@ export default function GestaoProjetosPage() {
             icon={<TrendingDown size={15} color={stats.horasNegativas < 0 ? 'var(--danger-border)' : 'var(--primary)'} />}
             label="Horas Negativas"
             value={fmt(stats.horasNegativas, 1) + ' h'}
-            sub={stats.comSaldoNeg > 0 ? `${stats.comSaldoNeg} contrato(s) estourado(s)` : 'nenhum saldo negativo'}
+            sub={soNegativos ? 'filtrando negativos — clique p/ limpar' : (stats.comSaldoNeg > 0 ? `${stats.comSaldoNeg} contrato(s) estourado(s)` : 'nenhum saldo negativo')}
+            onClick={() => setSoNegativos(!soNegativos)}
+            active={soNegativos}
           />
         </div>
 
