@@ -45,8 +45,6 @@ interface DespesaProj { project_id: number; projeto: string; custo: number; is_i
 
 const fmtH = (h: number) => `${h.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}h`
 const pctColor = (p: number | null) => p == null ? 'var(--text-light)' : p < 0 ? 'var(--danger)' : p < 20 ? 'var(--warning)' : 'var(--success)'
-// Verde quando positivo, vermelho quando negativo (cards de Lucro/Prejuízo e Margem).
-const posNegColor = (v: number | null) => v == null ? 'var(--text-light)' : v < 0 ? 'var(--danger)' : v > 0 ? 'var(--success)' : 'var(--text)'
 
 // Cores das colunas (mesmo conceito do BI): cabeçalho forte + célula tonalizada.
 const COL_HEAD = { recebido: '#38761d', custo: '#bf9000', custo40: '#d9683a', total: '#cc0000', resultado: '#1f6fbf', margem: '#bf9000' }
@@ -657,9 +655,9 @@ export default function RentabilidadePage() {
         </div>
 
         {/* Cards de total */}
-        <div className={`grid grid-cols-2 ${visao === 'clientes' ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-4'} gap-3 mb-4`}>
+        <div className={`grid gap-3 mb-4 ${visao === 'clientes' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
           {(visao === 'clientes' ? [
-            // Valor Recebido (Keruak M+1) − Custo Total (Operação + Despesa + 40% do recebido).
+            // Valor Recebido (Keruak M+1) e Custo Total (Operação + Despesa + 40% do recebido).
             { label: 'Valor Recebido', value: formatBRL(clientesTot.recebido), color: 'var(--brand-primary)' },
             { label: 'Custo', lines: [
               { k: 'Operação', v: formatBRL(clientesTot.custo - clientesTot.despesa - clientesTot.investimentoMo) },
@@ -668,8 +666,6 @@ export default function RentabilidadePage() {
               { k: 'Investimento', v: formatBRL(clientesTot.investimento), invest: true },
               { k: 'Total', v: formatBRL(clientesTot.custoTotal), strong: true },
             ] },
-            { label: 'Lucro/Prejuízo', value: formatBRL(clientesTot.resultado), color: posNegColor(clientesTot.resultado) },
-            { label: 'Margem', value: clientesTot.pct == null ? '—' : clientesTot.pct.toFixed(1) + '%', color: posNegColor(clientesTot.pct) },
           ] : [
             { label: 'Receita', value: formatBRL(tot.receita), color: 'var(--text)' },
             { label: 'Custo', value: formatBRL(tot.custo), color: 'var(--text)' },
