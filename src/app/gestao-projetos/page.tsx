@@ -168,12 +168,9 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
   return { displaySold, consumedHours }
 }
 
-// Saúde + % de uso. Banco de Horas MENSAL considera o PRÓXIMO aporte mensal
-// (= sold_hours por mês), pois todo mês entra um lote novo:
-//   verde   : saldo de hoje >= 0 (tem folga agora)
-//   amarelo : saldo de hoje < 0, mas o próximo aporte cobre (saldo projetado >= 0)
-//   vermelho: nem com o próximo aporte fecha (saldo projetado < 0)
-// O % de uso usa (disponível + próximo aporte) como base, então 100% = saldo projetado 0.
+// Saúde + % de uso. O % e a cor batem com o SALDO exibido (consumido vs.
+// vendidas/contratadas): verde <70%, amarelo 70–90%, vermelho >=90%. Saldo
+// negativo (consumido > vendidas) é sempre Crítico.
 function projectHealth(p: ProjectWithTeam, displaySold: number, consumed: number, considerUnbilled = false): { pct: number; color: 'green' | 'yellow' | 'red' } {
   const ctName = ((p as any).contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
   if (ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand') {
@@ -182,12 +179,11 @@ function projectHealth(p: ProjectWithTeam, displaySold: number, consumed: number
     return { pct: 100, color: 'green' }
   }
   if (ctName.includes('mensal')) {
-    const aporteMensal = Number(p.sold_hours ?? 0)
-    const dispProx   = displaySold + aporteMensal
-    const saldoHoje  = displaySold - consumed
-    const saldoProj  = saldoHoje + aporteMensal
-    const pct = dispProx > 0 ? (consumed / dispProx) * 100 : 0
-    const color: 'green' | 'yellow' | 'red' = saldoProj < 0 ? 'red' : (saldoHoje < 0 ? 'yellow' : 'green')
+    // % de uso e saúde batem com o SALDO exibido: consumido vs. vendidas/contratadas,
+    // SEM projetar o próximo aporte. Saldo negativo (estourou as horas) = Crítico.
+    const saldoHoje = displaySold - consumed
+    const pct = displaySold > 0 ? (consumed / displaySold) * 100 : 0
+    const color: 'green' | 'yellow' | 'red' = saldoHoje < 0 ? 'red' : healthColor(pct)
     return { pct, color }
   }
   const pct = displaySold > 0 ? (consumed / displaySold) * 100 : 0
@@ -400,9 +396,11 @@ interface ProjectRowProps {
   onConsultantManualToggle?: (userId: number, allow: boolean) => void
   /** admin/administrativo — só eles veem horas não faturadas (cliente/coord não). */
   showUnbilled?: boolean
+  /** Nome do executivo da conta (cliente) — coluna Executivo. */
+  executiveName?: string | null
 }
 
-function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, canDetach, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect, onConsultantManualToggle, showUnbilled }: ProjectRowProps) {
+function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, canDetach, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect, onConsultantManualToggle, showUnbilled, executiveName }: ProjectRowProps) {
   const ctName = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (project as any).tipo_faturamento === 'on_demand'
   const isBhMensal = ctName.includes('mensal')
@@ -590,6 +588,11 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
         {/* Cliente */}
         <td className="py-3 pr-4 text-sm" style={{ color: 'var(--text-muted)' }}>
           {project.customer?.name ?? '—'}
+        </td>
+
+        {/* Executivo */}
+        <td className="py-3 pr-4 text-xs" style={{ color: 'var(--text-light)' }}>
+          {executiveName ?? '—'}
         </td>
 
         {/* Tipo de Contrato */}
@@ -781,7 +784,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
       {expanded && (teamCount > 0 || hasChildConsumption) && (
         <tr style={{ background: 'var(--surface-hover)' }}>
           <td /><td />
-          <td colSpan={13} className="py-3 px-4">
+          <td colSpan={14} className="py-3 px-4">
             <div className="flex flex-wrap gap-4">
               {(project.coordinators ?? []).length > 0 && (
                 <div>
@@ -2060,7 +2063,7 @@ export default function GestaoProjetosPage() {
       search:             '',
       statusFilters:      [] as string[],
       clienteFilters:     [] as string[],
-      saudeFilter:        '',
+      saudeFilters:       [] as string[],
       coordFilter:        '',
       filterContractType: '',
       filterServiceTypes: [] as string[],
@@ -2069,11 +2072,16 @@ export default function GestaoProjetosPage() {
       yearMonths:         [new Date().toISOString().slice(0, 7)] as string[],
     },
   )
-  const { search, statusFilters, clienteFilters, saudeFilter, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, yearMonths } = flt
+  const { search, statusFilters, clienteFilters, saudeFilters, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, yearMonths } = flt
   const setSearch             = (v: string)   => setFilter('search', v)
   const setStatus             = (v: string[]) => setFilter('statusFilters', v)
   const setCliente            = (v: string[]) => setFilter('clienteFilters', v)
-  const setSaude              = (v: string)   => setFilter('saudeFilter', v)
+  const setSaude              = (v: string[]) => setFilter('saudeFilters', v)
+  // Toggle multi-seleção: '' (Todos) limpa; cor adiciona/remove do conjunto.
+  const toggleSaude = (id: string) => {
+    if (id === '') { setSaude([]); return }
+    setSaude(saudeFilters.includes(id) ? saudeFilters.filter(x => x !== id) : [...saudeFilters, id])
+  }
   const setCoord              = (v: string)   => setFilter('coordFilter', v)
   const setFilterContractType = (v: string)   => setFilter('filterContractType', v)
   const setFilterServiceType  = (v: string[]) => setFilter('filterServiceTypes', v)
@@ -2099,7 +2107,7 @@ export default function GestaoProjetosPage() {
     setSearch('')
     setStatus([])
     setCliente([])
-    setSaude('')
+    setSaude([])
     setCoord('')
     setFilterContractType('')
     setFilterServiceType([])
@@ -2107,7 +2115,7 @@ export default function GestaoProjetosPage() {
     setFilterExecutives([])
   }
 
-  const hasActiveFilters = !!(search || statusFilters.length || clienteFilters.length || saudeFilter || coordFilter || filterContractType || filterServiceTypes.length || filterCoordinators.length || filterExecutives.length)
+  const hasActiveFilters = !!(search || statusFilters.length || clienteFilters.length || saudeFilters.length || coordFilter || filterContractType || filterServiceTypes.length || filterCoordinators.length || filterExecutives.length)
 
   const [projects, setProjects]   = useState<ProjectWithTeam[]>([])
   const [showClosed, setShowClosed] = useState(false)
@@ -2118,6 +2126,16 @@ export default function GestaoProjetosPage() {
   const [coordinatorsList, setCoordinatorsList] = useState<{ id: string; name: string }[]>([])
   const [executivesList, setExecutivesList]     = useState<{ id: string; name: string }[]>([])
   const [customerExecutiveMap, setCustomerExecutiveMap] = useState<Record<number, number>>({})
+  // Nome do executivo por cliente (coluna Executivo): cruza customerExecutiveMap × executivesList.
+  const executiveNameByCustomer = useMemo(() => {
+    const byId = new Map(executivesList.map(e => [e.id, e.name]))
+    const out: Record<number, string> = {}
+    for (const [cid, eid] of Object.entries(customerExecutiveMap)) {
+      const nm = byId.get(String(eid))
+      if (nm) out[Number(cid)] = nm
+    }
+    return out
+  }, [executivesList, customerExecutiveMap])
   const [multiContratual, setMultiContratual] = useState(false)
   const [multiShowClosed, setMultiShowClosed] = useState(false) // toggle: ver encerrados/cancelados na árvore multi-contratual
   const [rows, setRows] = useState<TreeRow[]>([])
@@ -2353,9 +2371,9 @@ export default function GestaoProjetosPage() {
         const execId = customerExecutiveMap[p.customer_id]
         if (!execId || !filterExecutives.includes(String(execId))) return false
       }
-      if (saudeFilter) {
+      if (saudeFilters.length > 0) {
         const { displaySold, consumedHours } = calcProjHours(p)
-        if (projectHealth(p, displaySold, consumedHours, isAdmin).color !== saudeFilter) return false
+        if (!saudeFilters.includes(projectHealth(p, displaySold, consumedHours, isAdmin).color)) return false
       }
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
@@ -2371,7 +2389,7 @@ export default function GestaoProjetosPage() {
       }
       return true
     })
-  }, [projects, search, statusFilters, clienteFilters, saudeFilter, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, customerExecutiveMap, showClosed])
+  }, [projects, search, statusFilters, clienteFilters, saudeFilters, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, customerExecutiveMap, showClosed])
 
   const sortedFiltered = useMemo(() => {
     if (!sortKey) return filtered
@@ -2442,9 +2460,9 @@ export default function GestaoProjetosPage() {
         const execId = customerExecutiveMap[p.customer_id]
         if (!execId || !filterExecutives.includes(String(execId))) return false
       }
-      if (saudeFilter) {
+      if (saudeFilters.length > 0) {
         const { displaySold, consumedHours } = calcProjHours(p)
-        if (projectHealth(p, displaySold, consumedHours, isAdmin).color !== saudeFilter) return false
+        if (!saudeFilters.includes(projectHealth(p, displaySold, consumedHours, isAdmin).color)) return false
       }
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
@@ -2468,7 +2486,7 @@ export default function GestaoProjetosPage() {
       }))
     }
     return result
-  }, [rows, multiContratual, statusFilters, clienteFilters, saudeFilter, search, filterCoordinators, filterExecutives, customerExecutiveMap, multiShowClosed])
+  }, [rows, multiContratual, statusFilters, clienteFilters, saudeFilters, search, filterCoordinators, filterExecutives, customerExecutiveMap, multiShowClosed])
 
   // ── Métricas dos cards ──
   const stats = useMemo(() => {
@@ -2930,10 +2948,10 @@ export default function GestaoProjetosPage() {
               { id: 'yellow', label: 'Atenção',  activeBg: 'var(--warning-border)',  activeFg: 'var(--surface)' },
               { id: 'red',    label: 'Crítico',  activeBg: 'var(--danger-border)',   activeFg: 'var(--surface)' },
             ] as const).map(opt => {
-              const isActive = saudeFilter === opt.id
+              const isActive = opt.id === '' ? saudeFilters.length === 0 : saudeFilters.includes(opt.id)
               return (
                 <button key={opt.id} type="button"
-                  onClick={() => setSaude(opt.id)}
+                  onClick={() => toggleSaude(opt.id)}
                   className="px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
                   style={isActive
                     ? { background: opt.activeBg, color: opt.activeFg }
@@ -3107,6 +3125,7 @@ export default function GestaoProjetosPage() {
                   <th className="w-1" />
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="name"          onSort={toggleSort} disabled={multiContratual} className="py-3 pr-4 pl-2">Projeto</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="customer"      onSort={toggleSort} disabled={multiContratual} className="py-3 pr-4">Cliente</SortableTh>
+                  <th className="py-3 pr-4 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Executivo</th>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="contract_type" onSort={toggleSort} disabled={multiContratual} className="py-3 pr-4">Tipo Contrato</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="service_type"  onSort={toggleSort} disabled={multiContratual} className="py-3 pr-4">Tipo Serviço</SortableTh>
                   <SortableTh sortKey={sortKey} sortDir={sortDir} columnKey="monthly_hours" onSort={toggleSort} disabled={multiContratual} className="py-3 px-4" align="center">Hs Mensais</SortableTh>
@@ -3143,6 +3162,7 @@ export default function GestaoProjetosPage() {
                       onSelect={toggleProjectSelect}
                       onConsultantManualToggle={canEdit ? (userId, allow) => handleConsultantManualToggle(project.id, userId, allow) : undefined}
                       showUnbilled={isAdmin || isAdministrativo}
+                      executiveName={executiveNameByCustomer[project.customer_id] ?? null}
                     />
                   )
                 })}
