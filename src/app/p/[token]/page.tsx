@@ -4,7 +4,7 @@
 // P-C.1: experiência nativa por SEÇÕES (HTML) com menu lateral + scroll-spy + tracking de permanência.
 // O PDF deixa de ser a navegação principal e vira anexo para download.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, Suspense } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 
 interface Section { key: string; title: string; order: number; content: string; data: any; threads_count: number; pending_count: number; page?: number | null }
@@ -141,7 +141,12 @@ const SECTION_CSS = `
 @media (max-width:880px){ .portal-cols{flex-direction:column} .cmt-rail{order:0;width:100%;flex:1 1 auto;position:static;max-height:none} .deck-frame{height:70vh} }
 `
 
+// useSearchParams exige Suspense no build de produção (next build/Render) — wrapper abaixo.
 export default function PortalProposta() {
+  return <Suspense fallback={null}><PortalPropostaInner /></Suspense>
+}
+
+function PortalPropostaInner() {
   const params = useParams()
   const searchParams = useSearchParams()
   const token = String(params?.token ?? '')
