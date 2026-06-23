@@ -10,7 +10,7 @@ import type { BotAgent } from '@/types/bot'
 
 const SEVERITIES = ['info', 'low', 'medium', 'high', 'critical'] as const
 
-const ALL_SCOPES = ['customer', 'project', 'contract', 'financial', 'billing', 'payroll', 'bankhours', 'approvals', 'overview'] as const
+const ALL_SCOPES = ['customer', 'project', 'contract', 'financial', 'billing', 'payroll', 'bankhours', 'approvals', 'overview', 'support'] as const
 
 const SCOPE_LABEL: Record<string, string> = {
   customer:  'Clientes',
@@ -22,6 +22,7 @@ const SCOPE_LABEL: Record<string, string> = {
   bankhours: 'Banco de horas',
   approvals: 'Pendências de aprovação',
   overview:  'Resumos gerais',
+  support:   'Suporte / Movidesk',
 }
 
 const input = 'w-full bg-zinc-900 border border-zinc-700 rounded px-2.5 py-1 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500'
