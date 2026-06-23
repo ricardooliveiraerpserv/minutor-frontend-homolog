@@ -3143,9 +3143,9 @@ export default function GestaoProjetosPage() {
               </button>
             </div>
           )}
-          <div className="rounded-xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+          <div className="rounded-xl overflow-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)', maxHeight: 'calc(100vh - 26rem)' }}>
             <table className="w-full min-w-[1100px] text-left">
-              <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)' }}>
+              <thead className="sticky top-0 z-20" style={{ background: 'var(--surface-sunken)', boxShadow: '0 1px 0 var(--border)' }}>
                 <tr style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border)' }}>
                   <th className="w-8 pl-3">
                     <input type="checkbox"
