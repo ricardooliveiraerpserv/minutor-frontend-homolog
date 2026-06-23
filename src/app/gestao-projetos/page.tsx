@@ -168,6 +168,15 @@ function calcProjHours(p: ProjectWithTeam): { displaySold: number; consumedHours
   return { displaySold, consumedHours }
 }
 
+// Saldo "visível" = o mesmo que a coluna SALDO mostra: On Demand é sempre 0
+// (não tem saldo de horas), os demais usam general_hours_balance (decimal pode
+// vir como string → Number). Usado pelo filtro/somatório de horas negativas.
+function visibleSaldoOf(p: ProjectWithTeam): number {
+  const ctName = ((p as any).contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
+  const isOnDemand = ctName.includes('on demand') || (p as any).tipo_faturamento === 'on_demand'
+  return isOnDemand ? 0 : Number(p.general_hours_balance ?? 0)
+}
+
 // Saúde + % de uso. O % e a cor batem com o SALDO exibido (consumido vs.
 // vendidas/contratadas): verde <70%, amarelo 70–90%, vermelho >=90%. Saldo
 // negativo (consumido > vendidas) é sempre Crítico.
@@ -2388,7 +2397,6 @@ export default function GestaoProjetosPage() {
         const { displaySold, consumedHours } = calcProjHours(p)
         if (!saudeFilters.includes(projectHealth(p, displaySold, consumedHours, isAdmin).color)) return false
       }
-      if (soNegativos && (p.general_hours_balance ?? 0) >= 0) return false
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
         if (!cm.explicit || cm.risk !== coordFilter) return false
@@ -2403,10 +2411,12 @@ export default function GestaoProjetosPage() {
       }
       return true
     })
-  }, [projects, search, statusFilters, clienteFilters, saudeFilters, soNegativos, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, customerExecutiveMap, showClosed])
+  }, [projects, search, statusFilters, clienteFilters, saudeFilters, coordFilter, filterContractType, filterServiceTypes, filterCoordinators, filterExecutives, customerExecutiveMap, showClosed])
 
   const sortedFiltered = useMemo(() => {
-    if (!sortKey) return filtered
+    // Filtro "só negativos" (card Horas Negativas): saldo visível < 0 (exclui On Demand).
+    const baseList = soNegativos ? filtered.filter(p => visibleSaldoOf(p) < 0) : filtered
+    if (!sortKey) return baseList
     const dir = sortDir === 'asc' ? 1 : -1
     const getValue = (p: ProjectWithTeam): number | string => {
       const ctName = String((p as any).contract_type?.name ?? p.contract_type_display ?? '').toLowerCase()
@@ -2432,13 +2442,13 @@ export default function GestaoProjetosPage() {
         }
       }
     }
-    return [...filtered].sort((a, b) => {
+    return [...baseList].sort((a, b) => {
       const va = getValue(a)
       const vb = getValue(b)
       if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir
       return String(va).localeCompare(String(vb), 'pt-BR') * dir
     })
-  }, [filtered, sortKey, sortDir])
+  }, [filtered, sortKey, sortDir, soNegativos])
 
   const toggleTree = (row: TreeRow) => {
     setRows(prev => {
@@ -2478,7 +2488,7 @@ export default function GestaoProjetosPage() {
         const { displaySold, consumedHours } = calcProjHours(p)
         if (!saudeFilters.includes(projectHealth(p, displaySold, consumedHours, isAdmin).color)) return false
       }
-      if (soNegativos && (p.general_hours_balance ?? 0) >= 0) return false
+      if (soNegativos && visibleSaldoOf(p) >= 0) return false
       if (coordFilter) {
         const cm = coordinationMeta(p, calcProjHours(p).displaySold)
         if (!cm.explicit || cm.risk !== coordFilter) return false
@@ -2515,7 +2525,7 @@ export default function GestaoProjetosPage() {
     const ativos    = base.filter(p => ['active', 'started'].includes(p.status)).length
     const vendidas  = base.reduce((s, p) => s + calcProjHours(p).displaySold, 0)
     const consumidas = base.reduce((s, p) => s + calcProjHours(p).consumedHours, 0)
-    const saldo     = base.reduce((s, p) => s + (p.general_hours_balance ?? 0), 0)
+    const saldo     = base.reduce((s, p) => s + visibleSaldoOf(p), 0)
     // % médio e contagem de críticos seguem a saúde efetiva (BH Mensal já considera
     // o próximo aporte) em vez do balance_percentage cru do backend.
     const healthOf = (p: ProjectWithTeam) => { const h = calcProjHours(p); return projectHealth(p, h.displaySold, h.consumedHours, isAdmin) }
@@ -2524,9 +2534,9 @@ export default function GestaoProjetosPage() {
       ? comPct.reduce((s, p) => s + healthOf(p).pct, 0) / comPct.length
       : 0
     const criticos  = base.filter(p => healthOf(p).color === 'red').length
-    // Horas negativas: soma dos saldos negativos (horas estouradas) + nº de contratos estourados.
-    const horasNegativas = base.reduce((s, p) => { const b = p.general_hours_balance ?? 0; return b < 0 ? s + b : s }, 0)
-    const comSaldoNeg = base.filter(p => (p.general_hours_balance ?? 0) < 0).length
+    // Horas negativas: soma dos saldos VISÍVEIS negativos (exclui On Demand) + nº de contratos estourados.
+    const horasNegativas = base.reduce((s, p) => { const b = visibleSaldoOf(p); return b < 0 ? s + b : s }, 0)
+    const comSaldoNeg = base.filter(p => visibleSaldoOf(p) < 0).length
     return { ativos, vendidas, consumidas, saldo, avgPct, criticos, horasNegativas, comSaldoNeg }
   }, [filtered])
 
