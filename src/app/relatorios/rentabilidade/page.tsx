@@ -986,7 +986,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                   <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
                     <span style={{ color: 'var(--text-light)' }}>Receita <b className="tabular-nums" style={{ color: 'var(--text)' }}>{formatBRL(c.receita)}</b></span>
                     <span style={{ color: 'var(--text-light)' }}>Custo <b className="tabular-nums" style={{ color: 'var(--text)' }}>{formatBRL(c.custo)}</b></span>
-                    <span style={{ color: 'var(--text-light)' }}>Margem <b className="tabular-nums" style={{ color: margem < 0 ? 'var(--danger)' : 'var(--success-border)' }}>{formatBRL(margem)}</b></span>
+                    {k !== 'investimento' && <span style={{ color: 'var(--text-light)' }}>Margem <b className="tabular-nums" style={{ color: margem < 0 ? 'var(--danger)' : 'var(--success-border)' }}>{formatBRL(margem)}</b></span>}
                   </div>
                 </div>
               )
