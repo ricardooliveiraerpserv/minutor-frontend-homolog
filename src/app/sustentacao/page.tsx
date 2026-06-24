@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { sanitizeHtml, previewText } from '@/lib/sanitize'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useRouter } from 'next/navigation'
@@ -793,6 +793,13 @@ export default function SustentacaoPage() {
   const to = filterMode === 'month' && refMonth && refYear
     ? new Date(refYear, refMonth, 0).toISOString().split('T')[0]
     : dateTo
+
+  // Período (mês-a-mês) repassado ao report de Rentabilidade embutido, derivado do filtro do portal.
+  const rentabPeriodo = useMemo(() => {
+    const [fy, fm] = from.split('-').map(Number)
+    const [ty, tm] = to.split('-').map(Number)
+    return { fromM: fm, fromY: fy, toM: tm, toY: ty }
+  }, [from, to])
 
   const [queueFilterResp,      setQueueFilterResp]      = useState<string[]>([])
   const [queueFilterCliente,   setQueueFilterCliente]   = useState<string[]>([])
@@ -1755,7 +1762,7 @@ export default function SustentacaoPage() {
         {routineTab === 'approvals'  && <ApprovalsScreen             scope="sustentacao" embedded />}
         {routineTab === 'auditoria'  && <AuditoriaApontamentosScreen scope="sustentacao" embedded />}
         {routineTab === 'triagem'    && <TimesheetsScreen            scope="sustentacao" embedded triagemPadrao />}
-        {routineTab === 'rentabilidade' && <RentabilidadePage visaoForced="consultor" embedded />}
+        {routineTab === 'rentabilidade' && <RentabilidadePage visaoForced="consultor" embedded periodo={rentabPeriodo} />}
 
         {!routineTab && tab === 'debug' && (
           <DiagnosticoTab

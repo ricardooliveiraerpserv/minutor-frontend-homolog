@@ -149,7 +149,7 @@ function InitialsEditor({ custoInicial, receitaInicial, onSave }: {
 const thCol = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.25)', position: 'sticky', top: 0, zIndex: 2 })
 const tdCol = (bg: string, color = '#111827'): React.CSSProperties => ({ background: bg, color, padding: '6px 10px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(0,0,0,0.06)', whiteSpace: 'nowrap' })
 
-export default function RentabilidadePage({ visaoForced, embedded }: { visaoForced?: 'consultor' | 'projeto' | 'clientes'; embedded?: boolean } = {}) {
+export default function RentabilidadePage({ visaoForced, embedded, periodo }: { visaoForced?: 'consultor' | 'projeto' | 'clientes'; embedded?: boolean; periodo?: { fromM: number; fromY: number; toM: number; toY: number } } = {}) {
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
@@ -159,6 +159,10 @@ export default function RentabilidadePage({ visaoForced, embedded }: { visaoForc
   const [fromY, setFromY] = useState(currentYear)
   const [toM, setToM]     = useState(currentMonth)
   const [toY, setToY]     = useState(currentYear)
+  // Embutido (Portal de Sustentação): o período vem do filtro do portal via prop.
+  useEffect(() => {
+    if (periodo) { setFromM(periodo.fromM); setFromY(periodo.fromY); setToM(periodo.toM); setToY(periodo.toY) }
+  }, [periodo?.fromM, periodo?.fromY, periodo?.toM, periodo?.toY])
   const [rows, setRows]   = useState<Row[]>([])
   const [monthly, setMonthly] = useState<{ ym: string; rows: Row[]; dias: DiaRow[] }[]>([]) // dados crus por mês (gráficos + fixos)
   const [loading, setLoading] = useState(false)
@@ -723,7 +727,7 @@ export default function RentabilidadePage({ visaoForced, embedded }: { visaoForc
                 <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--text-light)' }}>
                   {monthsToFetch.length ? `até ${fmtYm(monthsToFetch[monthsToFetch.length - 1])} · não inclui o mês atual` : 'sem mês fechado neste ano ainda'}
                 </span>
-              </>) : (<>
+              </>) : embedded ? null : (<>
                 <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Período</label>
                 <MonthYearPicker month={fromM} year={fromY} placeholder="De" onChange={(m, y) => { if (m && y) { setFromM(m); setFromY(y) } }} />
                 <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>até</span>
