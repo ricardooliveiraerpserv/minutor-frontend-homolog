@@ -998,8 +998,10 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                   <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} axisLine={false} tickLine={false} width={36} />
                   <Tooltip cursor={{ stroke: 'var(--border)' }} content={<HorasCatTooltip />} />
                   <Legend wrapperStyle={{ fontSize: 11 }} iconType="plainline" />
-                  <Line type="monotone" dataKey="suporte" name="Sustentação" stroke="var(--primary)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="projeto" name="Projeto" stroke="var(--success-border)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="suporte" name="Sustentação" stroke="var(--primary)" strokeWidth={2} dot={false}
+                    activeDot={((pr: { cx?: number; cy?: number; payload?: { dia?: string } }) => <circle cx={pr.cx} cy={pr.cy} r={5} fill="var(--surface)" stroke="var(--primary)" strokeWidth={2} style={{ cursor: 'pointer' }} onClick={() => { if (pr.payload?.dia) setDiaModal(pr.payload.dia) }} />) as never} />
+                  <Line type="monotone" dataKey="projeto" name="Projeto" stroke="var(--success-border)" strokeWidth={2} dot={false}
+                    activeDot={((pr: { cx?: number; cy?: number; payload?: { dia?: string } }) => <circle cx={pr.cx} cy={pr.cy} r={5} fill="var(--surface)" stroke="var(--success-border)" strokeWidth={2} style={{ cursor: 'pointer' }} onClick={() => { if (pr.payload?.dia) setDiaModal(pr.payload.dia) }} />) as never} />
                 </LineChart>
               </ResponsiveContainer>
               <p className="text-[10px] mt-1 px-1" style={{ color: 'var(--text-light)' }}>Clique num dia para ver os apontamentos · fim de semana/feriado aparece no tooltip</p>
