@@ -23,7 +23,7 @@ interface Row {
   rate_type?: string; custo_fixo_mes?: number // 'monthly' = recebe fixo; salário mensal cheio
   fixo_excluir?: boolean // coordenador/diretor/Bizify → fora da seção Recebe Fixo
 }
-interface DiaRow { dia: string; user_id: number; project_id: number; cliente: string; horas: number }
+interface DiaRow { dia: string; user_id: number; project_id: number; cliente: string; horas: number; nao_util?: boolean }
 
 // Linha exibida na tabela. Na visão "consultor" é a própria Row; na visão
 // "projeto" é o consolidado de todos os consultores daquele projeto (custo/h = médio).
@@ -164,6 +164,7 @@ export default function RentabilidadePage() {
   const [loading, setLoading] = useState(false)
   const [busca, setBusca] = useState('')
   const [soReceita, setSoReceita] = useState(true)
+  const [incluirErpserv, setIncluirErpserv] = useState(true) // Consultor×Projeto: incluir apontamentos da ERPSERV (interna) nos dados/totais
   const [fCliente, setFCliente]     = useState('')
   const [fProjeto, setFProjeto]     = useState('')
   const [fConsultor, setFConsultor] = useState('')
@@ -354,8 +355,13 @@ export default function RentabilidadePage() {
     return [...set.entries()].sort((a, b) => a[1].localeCompare(b[1], 'pt-BR')).map(([id, name]) => ({ id, name }))
   }, [rows])
 
+  // ERPSERV = empresa interna; quando o toggle "Incluir ERPSERV" está off, seus
+  // apontamentos saem da tabela, totais e gráficos do Consultor×Projeto.
+  const isErpservNome = (c?: string) => (c || '').toUpperCase().includes('ERPSERV')
+
   const filtered = useMemo(() => rows.filter(r => {
     if (soReceita && r.receita === 0) return false
+    if (!incluirErpserv && isErpservNome(r.cliente)) return false
     if (fCliente && r.cliente !== fCliente) return false
     if (fProjeto && String(r.project_id) !== fProjeto) return false
     if (fConsultor && String(r.user_id) !== fConsultor) return false
@@ -364,7 +370,7 @@ export default function RentabilidadePage() {
       if (!r.consultor.toLowerCase().includes(q) && !r.projeto.toLowerCase().includes(q) && !r.cliente.toLowerCase().includes(q)) return false
     }
     return true
-  }), [rows, busca, soReceita, fCliente, fProjeto, fConsultor])
+  }), [rows, busca, soReceita, incluirErpserv, fCliente, fProjeto, fConsultor])
 
   const r2 = (n: number) => Math.round(n * 100) / 100
   const fmtMesCurto = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '') + '/' + String(y).slice(2) }
@@ -374,6 +380,7 @@ export default function RentabilidadePage() {
   const chartData = useMemo(() => {
     const passaFiltro = (r: Row) => {
       if (soReceita && r.receita === 0) return false
+      if (!incluirErpserv && isErpservNome(r.cliente)) return false
       if (fCliente && r.cliente !== fCliente) return false
       if (fProjeto && String(r.project_id) !== fProjeto) return false
       if (busca.trim()) {
@@ -394,27 +401,29 @@ export default function RentabilidadePage() {
       e.horas += r.horas; map.set(r.user_id, e)
     }
     return [...map.values()].map(e => ({ label: e.label, horas: r2(e.horas) })).sort((a, b) => b.horas - a.horas).slice(0, 15)
-  }, [fConsultor, monthly, filtered, soReceita, fCliente, fProjeto, busca])
+  }, [fConsultor, monthly, filtered, soReceita, incluirErpserv, fCliente, fProjeto, busca])
 
   // Gráfico de horas apontadas POR DIA (respeita filtros consultor/cliente/projeto + período).
   // Mês filtrado (≤ ~31 dias) mostra o mês inteiro; período longo → últimos 60 dias (legibilidade).
   const DIA_MAX = 60
   const diaChart = useMemo(() => {
-    const map = new Map<string, number>()
+    const map = new Map<string, { horas: number; naoUtil: boolean }>()
     for (const { dias } of monthly) {
       for (const d of dias) {
         if (fConsultor && String(d.user_id) !== fConsultor) continue
         if (fProjeto && String(d.project_id) !== fProjeto) continue
         if (fCliente && d.cliente !== fCliente) continue
-        map.set(d.dia, (map.get(d.dia) ?? 0) + d.horas)
+        if (!incluirErpserv && isErpservNome(d.cliente)) continue
+        const e = map.get(d.dia) ?? { horas: 0, naoUtil: !!d.nao_util }
+        e.horas += d.horas; map.set(d.dia, e)
       }
     }
     const all = [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([dia, horas]) => ({ label: `${dia.slice(8, 10)}/${dia.slice(5, 7)}`, horas: r2(horas) }))
+      .map(([dia, v]) => ({ label: `${dia.slice(8, 10)}/${dia.slice(5, 7)}`, horas: r2(v.horas), naoUtil: v.naoUtil }))
     const limitado = all.length > DIA_MAX
     const data = limitado ? all.slice(-DIA_MAX) : all
-    return { data, limitado, total: r2(data.reduce((s, d) => s + d.horas, 0)) }
-  }, [monthly, fConsultor, fProjeto, fCliente])
+    return { data, limitado, total: r2(data.reduce((s, d) => s + d.horas, 0)), temNaoUtil: data.some(d => d.naoUtil) }
+  }, [monthly, fConsultor, fProjeto, fCliente, incluirErpserv])
 
   // Seção "Recebe Fixo": consultores com rate_type 'monthly'. Custo Fixo = salário/mês ×
   // nº de meses do período; Receita = apontamentos no período; Resultado = Receita − Custo Fixo.
@@ -424,6 +433,7 @@ export default function RentabilidadePage() {
       for (const r of mr) {
         if (r.rate_type !== 'monthly') continue
         if (r.fixo_excluir) continue // não traz coordenador/diretor/Bizify
+        if (!incluirErpserv && isErpservNome(r.cliente)) continue
         if (fConsultor && String(r.user_id) !== fConsultor) continue
         const e = byUser.get(r.user_id) ?? { user_id: r.user_id, consultor: r.consultor, receita: 0, custoHoras: 0, horas: 0, salary: 0 }
         e.receita += r.receita; e.custoHoras += r.custo; e.horas += r.horas
@@ -436,7 +446,7 @@ export default function RentabilidadePage() {
       const custoFixo = r2(e.salary * nMeses)
       return { ...e, receita: r2(e.receita), custoHoras: r2(e.custoHoras), horas: r2(e.horas), nMeses, custoFixo, resultado: r2(e.receita - custoFixo) }
     }).sort((a, b) => a.resultado - b.resultado)
-  }, [monthly, fConsultor, monthsToFetch])
+  }, [monthly, fConsultor, monthsToFetch, incluirErpserv])
   const fixosTot = useMemo(() => fixosData.reduce((a, f) => ({ custoFixo: a.custoFixo + f.custoFixo, receita: a.receita + f.receita, resultado: a.resultado + f.resultado }), { custoFixo: 0, receita: 0, resultado: 0 }), [fixosData])
 
   // Linhas-pai: consolidado por projeto (soma horas/receita/custo, conta consultores,
@@ -730,6 +740,12 @@ export default function RentabilidadePage() {
               Só com receita
             </label>
           )}
+          {visao !== 'clientes' && (
+            <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }} title="ERPSERV é a empresa interna; desmarque para tirar os apontamentos dela dos dados e totais">
+              <input type="checkbox" checked={incluirErpserv} onChange={e => setIncluirErpserv(e.target.checked)} />
+              Incluir ERPSERV
+            </label>
+          )}
           {visao === 'clientes' && (
             <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
               <input type="checkbox" checked={soMinutor} onChange={e => { setSoMinutor(e.target.checked); if (e.target.checked) setSoForaMinutor(false) }} />
@@ -844,7 +860,7 @@ export default function RentabilidadePage() {
             </div>
             {diaChart.data.length === 0 ? (
               <p className="text-xs py-6 text-center" style={{ color: 'var(--text-light)' }}>Sem apontamentos no período.</p>
-            ) : (
+            ) : (<>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={diaChart.data} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
                   <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'var(--text-light)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} interval="preserveStartEnd" minTickGap={8} />
@@ -852,13 +868,22 @@ export default function RentabilidadePage() {
                   <Tooltip cursor={{ fill: 'var(--surface-hover)' }}
                     contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text)' }}
                     labelStyle={{ color: 'var(--text)' }} itemStyle={{ color: 'var(--text)' }}
-                    formatter={((v: number) => [`${v}h`, 'Horas']) as never} />
+                    formatter={((v: number, _n: string, p: { payload?: { naoUtil?: boolean } }) => [`${v}h${p?.payload?.naoUtil ? ' · fim de semana/feriado' : ''}`, 'Horas']) as never} />
                   <Bar dataKey="horas" radius={[4, 4, 0, 0]}>
-                    {diaChart.data.map((_, i) => <Cell key={i} fill="var(--brand-primary)" />)}
+                    {/* fim de semana/feriado em âmbar; dia útil na cor da marca */}
+                    {diaChart.data.map((d, i) => <Cell key={i} fill={d.naoUtil ? 'var(--warning)' : 'var(--brand-primary)'} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            )}
+              <div className="flex items-center gap-4 mt-2 px-1">
+                <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--brand-primary)' }} /> Dia útil
+                </span>
+                <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--warning)' }} /> Fim de semana / feriado
+                </span>
+              </div>
+            </>)}
           </div>
         )}
 
