@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable, Button } from '@/components/ds'
 import { SearchSelect } from '@/components/ui/search-select'
+import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { KeruakTitulosModal } from '@/components/shared/KeruakTitulosModal'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
@@ -149,6 +150,11 @@ export default function RentabilidadePage() {
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
   const [year, setYear]   = useState(currentYear)
+  // Período (abas consultor/projeto): De..Até por mês — PODE incluir o mês atual.
+  const [fromM, setFromM] = useState(currentYear <= 2026 ? 5 : 1)
+  const [fromY, setFromY] = useState(currentYear)
+  const [toM, setToM]     = useState(currentMonth)
+  const [toY, setToY]     = useState(currentYear)
   const [rows, setRows]   = useState<Row[]>([])
   const [loading, setLoading] = useState(false)
   const [busca, setBusca] = useState('')
@@ -188,12 +194,22 @@ export default function RentabilidadePage() {
   // corrente incompleto e recebimento Keruak M+1 ainda não chegou). Anos anteriores
   // vão até dezembro. O endpoint de clientes pareia Minutor[M] × Keruak[M+1].
   const monthsToFetch = useMemo(() => {
-    const startMonth = year <= 2026 ? 5 : 1
-    const endMonth = year === currentYear ? currentMonth - 1 : 12
     const out: string[] = []
-    for (let m = startMonth; m <= endMonth; m++) out.push(`${year}-${String(m).padStart(2, '0')}`)
+    // Clientes (BI Keruak): ANUAL, NUNCA traz o mês atual (recebimento M+1 ainda não chegou).
+    if (visao === 'clientes') {
+      const startMonth = year <= 2026 ? 5 : 1
+      const endMonth = year === currentYear ? currentMonth - 1 : 12
+      for (let m = startMonth; m <= endMonth; m++) out.push(`${year}-${String(m).padStart(2, '0')}`)
+      return out
+    }
+    // Consultor/Projeto: período De..Até escolhido (pode incluir o mês atual).
+    let y = fromY, m = fromM, guard = 0
+    while ((y < toY || (y === toY && m <= toM)) && guard++ < 60) {
+      out.push(`${y}-${String(m).padStart(2, '0')}`)
+      m++; if (m > 12) { m = 1; y++ }
+    }
     return out
-  }, [year, currentYear, currentMonth])
+  }, [visao, year, currentYear, currentMonth, fromM, fromY, toM, toY])
 
   // Meses de recebimento Keruak (M+1) que compõem o Valor Recebido exibido —
   // usados pelo drill-down de títulos pra o total bater com a célula.
@@ -481,10 +497,14 @@ export default function RentabilidadePage() {
   const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita || soMinutor || soForaMinutor || fExecutivo || fConsultorCli)
 
   const fmtYm = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) }
-  const fmtMes = () => monthsToFetch.length
-    ? `Ano ${year} (${fmtYm(monthsToFetch[0])} – ${fmtYm(monthsToFetch[monthsToFetch.length - 1])})`
-    : `Ano ${year}`
-  const periodoLabel = `${year}`
+  const fmtMes = () => !monthsToFetch.length
+    ? `Ano ${year}`
+    : visao === 'clientes'
+      ? `Ano ${year} (${fmtYm(monthsToFetch[0])} – ${fmtYm(monthsToFetch[monthsToFetch.length - 1])})`
+      : `${fmtYm(monthsToFetch[0])} – ${fmtYm(monthsToFetch[monthsToFetch.length - 1])}`
+  const periodoLabel = visao === 'clientes' || !monthsToFetch.length
+    ? `${year}`
+    : `${monthsToFetch[0]}_a_${monthsToFetch[monthsToFetch.length - 1]}`
 
   // Excel/PDF "Por projeto" = consolidado (sorted); "Consultor × Projeto" = detalhe
   // por consultor (filtered, ordenado por projeto e consultor).
@@ -579,17 +599,24 @@ export default function RentabilidadePage() {
           subtitle={visao === 'clientes' ? 'Custo Minutor × recebimento Keruak por cliente (CNPJ) — recebido do mês seguinte (M+1)' : visao === 'projeto' ? 'Receita, custo e margem por projeto' : 'Receita, custo e margem por consultor × projeto'}
           actions={
             <div className="flex items-center gap-2 flex-wrap">
-              <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Ano</label>
-              <select value={year} onChange={e => setYear(Number(e.target.value))}
-                className="px-3 py-1.5 text-xs font-medium rounded-xl"
-                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
-                {Array.from({ length: currentYear - 2026 + 1 }, (_, i) => 2026 + i).map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-              <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--text-light)' }}>
-                {monthsToFetch.length ? `até ${fmtYm(monthsToFetch[monthsToFetch.length - 1])} · não inclui o mês atual` : 'sem mês fechado neste ano ainda'}
-              </span>
+              {visao === 'clientes' ? (<>
+                <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Ano</label>
+                <select value={year} onChange={e => setYear(Number(e.target.value))}
+                  className="px-3 py-1.5 text-xs font-medium rounded-xl"
+                  style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}>
+                  {Array.from({ length: currentYear - 2026 + 1 }, (_, i) => 2026 + i).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <span className="text-[11px] whitespace-nowrap" style={{ color: 'var(--text-light)' }}>
+                  {monthsToFetch.length ? `até ${fmtYm(monthsToFetch[monthsToFetch.length - 1])} · não inclui o mês atual` : 'sem mês fechado neste ano ainda'}
+                </span>
+              </>) : (<>
+                <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Período</label>
+                <MonthYearPicker month={fromM} year={fromY} placeholder="De" onChange={(m, y) => { if (m && y) { setFromM(m); setFromY(y) } }} />
+                <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>até</span>
+                <MonthYearPicker month={toM} year={toY} placeholder="Até" onChange={(m, y) => { if (m && y) { setToM(m); setToY(y) } }} />
+              </>)}
               {visao === 'clientes' && (
                 <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing}
                   onClick={() => loadClientes(true).then(() => toast.success('Recebimentos do Keruak atualizados'))}>
