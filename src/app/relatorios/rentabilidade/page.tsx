@@ -23,6 +23,7 @@ interface Row {
   rate_type?: string; custo_fixo_mes?: number // 'monthly' = recebe fixo; salário mensal cheio
   fixo_excluir?: boolean // coordenador/diretor/Bizify → fora da seção Recebe Fixo
   is_investimento?: boolean // projeto de investimento (receita 0) — sempre incluído + em evidência
+  categoria?: 'sustentacao' | 'projeto' // Cloud/Bizify/Sustentação = sustentacao
 }
 interface DiaRow { dia: string; user_id: number; project_id: number; cliente: string; horas: number; nao_util?: boolean }
 
@@ -149,6 +150,14 @@ function InitialsEditor({ custoInicial, receitaInicial, onSave }: {
 }
 const thCol = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.25)', position: 'sticky', top: 0, zIndex: 2 })
 const tdCol = (bg: string, color = '#111827'): React.CSSProperties => ({ background: bg, color, padding: '6px 10px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(0,0,0,0.06)', whiteSpace: 'nowrap' })
+
+// Selo de categoria do projeto (Sustentação = Cloud/Bizify/Sustentação; senão Projeto).
+function CatBadge({ cat }: { cat?: 'sustentacao' | 'projeto' | 'misto' | null }) {
+  if (!cat) return <span style={{ color: 'var(--text-light)' }}>—</span>
+  const label = cat === 'misto' ? 'Misto' : cat === 'sustentacao' ? 'Sustentação' : 'Projeto'
+  const color = cat === 'sustentacao' ? 'var(--primary)' : cat === 'misto' ? 'var(--warning)' : 'var(--text-muted)'
+  return <span style={{ fontSize: 10, fontWeight: 600, color, border: `1px solid ${color}`, borderRadius: 4, padding: '0 5px', whiteSpace: 'nowrap' }}>{label}</span>
+}
 
 export default function RentabilidadePage({ visaoForced, embedded, periodo }: { visaoForced?: 'consultor' | 'projeto' | 'clientes'; embedded?: boolean; periodo?: { fromM: number; fromY: number; toM: number; toY: number } } = {}) {
   const now = new Date()
@@ -554,7 +563,14 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const receita = filtered.reduce((s, r) => s + r.receita, 0)
     const custo   = filtered.reduce((s, r) => s + r.custo, 0)
     const horas   = filtered.reduce((s, r) => s + r.horas, 0)
-    return { receita, custo, horas, margem: receita - custo, pct: receita > 0 ? (receita - custo) / receita * 100 : null }
+    // Quebra por categoria (Sustentação × Projeto). Cloud/Bizify/Sustentação = sustentacao.
+    const mk = () => ({ horas: 0, receita: 0, custo: 0 })
+    const cat: Record<'sustentacao' | 'projeto', { horas: number; receita: number; custo: number }> = { sustentacao: mk(), projeto: mk() }
+    for (const r of filtered) {
+      const k = r.categoria === 'sustentacao' ? 'sustentacao' : 'projeto'
+      cat[k].horas += r.horas; cat[k].receita += r.receita; cat[k].custo += r.custo
+    }
+    return { receita, custo, horas, margem: receita - custo, pct: receita > 0 ? (receita - custo) / receita * 100 : null, cat }
   }, [filtered])
 
   // ── Aba Clientes: filtro/ordenação/total ──
@@ -847,6 +863,28 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
             </div>
           ))}
         </div>
+
+        {/* Totais separados por categoria (Sustentação × Projeto) */}
+        {visao !== 'clientes' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            {(['sustentacao', 'projeto'] as const).map(k => {
+              const c = tot.cat[k]; const margem = c.receita - c.custo
+              return (
+                <div key={k} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: k === 'sustentacao' ? 'var(--primary)' : 'var(--text-muted)' }}>{k === 'sustentacao' ? 'Sustentação' : 'Projeto'}</span>
+                    <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-light)' }}>{c.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
+                    <span style={{ color: 'var(--text-light)' }}>Receita <b className="tabular-nums" style={{ color: 'var(--text)' }}>{formatBRL(c.receita)}</b></span>
+                    <span style={{ color: 'var(--text-light)' }}>Custo <b className="tabular-nums" style={{ color: 'var(--text)' }}>{formatBRL(c.custo)}</b></span>
+                    <span style={{ color: 'var(--text-light)' }}>Margem <b className="tabular-nums" style={{ color: margem < 0 ? 'var(--danger)' : 'var(--success-border)' }}>{formatBRL(margem)}</b></span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
         {/* Gráfico de apontamento (consultor/projeto) + seção Recebe Fixo */}
         {visao !== 'clientes' && (
@@ -1260,6 +1298,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
               <tr>
                 <Th {...thProps(visao === 'projeto' ? 'projeto' : 'consultor')}>{visao === 'projeto' ? 'Projeto' : 'Consultor'}</Th>
                 <Th {...thProps('cliente')}>Cliente</Th>
+                <Th>Categoria</Th>
                 <Th right {...thProps('n_consultores')}>{visao === 'projeto' ? 'Cons.' : 'Proj.'}</Th>
                 <Th right {...thProps('horas')}>Horas</Th><Th right {...thProps('valor_hora_projeto')}>R$/h Proj.</Th>
                 <Th right {...thProps('valor_hora_consultor')}>{visao === 'projeto' ? 'Custo/h' : 'R$/h Cons.'}</Th>
@@ -1272,6 +1311,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                 const isOpen = expanded.has(pid)
                 const kids = childrenOf(r)
                 const nomePai = visao === 'projeto' ? r.projeto : r.consultor
+                const cats = new Set(kids.map(k => k.categoria).filter(Boolean))
+                const parentCat: 'sustentacao' | 'projeto' | 'misto' | null = cats.size === 0 ? null : cats.size === 1 ? ([...cats][0] as 'sustentacao' | 'projeto') : 'misto'
                 return (
                   <Fragment key={r.key}>
                     <Tr onClick={() => toggleRow(pid)}>
@@ -1285,6 +1326,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                         </span>
                       </Td>
                       <Td muted className="truncate max-w-[140px]">{visao === 'projeto' ? r.cliente : '—'}</Td>
+                      <Td><CatBadge cat={parentCat} /></Td>
                       <Td right muted className="tabular-nums">{r.n_consultores}</Td>
                       <Td right className="tabular-nums">{fmtH(r.horas)}</Td>
                       <Td right muted className="tabular-nums">{formatBRL(r.valor_hora_projeto)}</Td>
@@ -1307,6 +1349,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                           </span>
                         </Td>
                         <Td muted className="truncate max-w-[140px]">{visao === 'projeto' ? '—' : c.cliente}</Td>
+                        <Td><CatBadge cat={c.categoria ?? null} /></Td>
                         <Td right muted></Td>
                         <Td right muted className="tabular-nums">{fmtH(c.horas)}</Td>
                         <Td right muted className="tabular-nums">{formatBRL(c.valor_hora_projeto)}</Td>
