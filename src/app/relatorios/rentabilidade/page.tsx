@@ -7,7 +7,7 @@ import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable,
 import { SearchSelect } from '@/components/ui/search-select'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { KeruakTitulosModal } from '@/components/shared/KeruakTitulosModal'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
@@ -151,6 +151,27 @@ function InitialsEditor({ custoInicial, receitaInicial, onSave }: {
 const thCol = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.25)', position: 'sticky', top: 0, zIndex: 2 })
 const tdCol = (bg: string, color = '#111827'): React.CSSProperties => ({ background: bg, color, padding: '6px 10px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(0,0,0,0.06)', whiteSpace: 'nowrap' })
 
+// Tooltip dos gráficos de horas: Sustentação × Projeto × Total (+ nota fim de semana/feriado no diário).
+function HorasCatTooltip({ active, payload, label }: { active?: boolean; payload?: { payload?: { suporte?: number; projeto?: number; total?: number; horas?: number; naoUtil?: boolean } }[]; label?: string }) {
+  if (!active || !payload?.length) return null
+  const p = payload[0].payload ?? {}
+  const sup = p.suporte ?? 0, proj = p.projeto ?? 0, tot = p.total ?? p.horas ?? (sup + proj)
+  const h = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h`
+  const row = (k: string, v: string, c: string, strong?: boolean) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, ...(strong ? { borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 4, fontWeight: 700 } : {}) }}>
+      <span style={{ color: c }}>{k}</span><span className="tabular-nums" style={{ color: 'var(--text)' }}>{v}</span>
+    </div>
+  )
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: 'var(--text)' }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}{p.naoUtil ? ' · fim de semana/feriado' : ''}</div>
+      {row('Sustentação', h(sup), 'var(--primary)')}
+      {row('Projeto', h(proj), 'var(--success-border)')}
+      {row('Total', h(tot), 'var(--text)', true)}
+    </div>
+  )
+}
+
 // Selo de categoria do projeto (Sustentação = Cloud/Bizify/Sustentação; senão Projeto).
 function CatBadge({ cat }: { cat?: 'sustentacao' | 'projeto' | 'misto' | null }) {
   if (!cat) return <span style={{ color: 'var(--text-light)' }}>—</span>
@@ -179,6 +200,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const [busca, setBusca] = useState('')
   const [soReceita, setSoReceita] = useState(true)
   const [incluirErpserv, setIncluirErpserv] = useState(true) // Consultor×Projeto: incluir apontamentos da ERPSERV (interna) nos dados/totais
+  const [fCategoria, setFCategoria] = useState<'' | 'sustentacao' | 'projeto'>('') // filtro por categoria (cards clicáveis)
   const [diaModal, setDiaModal] = useState<string | null>(null) // dia (YYYY-MM-DD) clicado no gráfico "Horas apontadas por dia"
   const [fCliente, setFCliente]     = useState('')
   const [fProjeto, setFProjeto]     = useState('')
@@ -374,7 +396,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // apontamentos saem da tabela, totais e gráficos do Consultor×Projeto.
   const isErpservNome = (c?: string) => (c || '').toUpperCase().includes('ERPSERV')
 
-  const filtered = useMemo(() => rows.filter(r => {
+  const filteredBase = useMemo(() => rows.filter(r => {
     if (soReceita && r.receita === 0 && !r.is_investimento) return false // investimento entra mesmo sem receita
     if (!incluirErpserv && isErpservNome(r.cliente)) return false
     if (fCliente && r.cliente !== fCliente) return false
@@ -386,9 +408,23 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     }
     return true
   }), [rows, busca, soReceita, incluirErpserv, fCliente, fProjeto, fConsultor])
+  // fCategoria (cards clicáveis) aplicado sobre a base; os cards usam filteredBase p/ mostrar SEMPRE as duas categorias.
+  const filtered = useMemo(() => fCategoria ? filteredBase.filter(r => (r.categoria ?? 'projeto') === fCategoria) : filteredBase, [filteredBase, fCategoria])
+  const totCat = useMemo(() => {
+    const mk = () => ({ horas: 0, receita: 0, custo: 0 })
+    const cat: Record<'sustentacao' | 'projeto', { horas: number; receita: number; custo: number }> = { sustentacao: mk(), projeto: mk() }
+    for (const r of filteredBase) { const k = r.categoria === 'sustentacao' ? 'sustentacao' : 'projeto'; cat[k].horas += r.horas; cat[k].receita += r.receita; cat[k].custo += r.custo }
+    return cat
+  }, [filteredBase])
 
   const r2 = (n: number) => Math.round(n * 100) / 100
   const fmtMesCurto = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '') + '/' + String(y).slice(2) }
+  // Categoria por projeto (resolve a categoria dos apontamentos diários, que só têm project_id).
+  const catByProject = useMemo(() => {
+    const m = new Map<number, 'sustentacao' | 'projeto'>()
+    for (const { rows: mr } of monthly) for (const r of mr) m.set(r.project_id, r.categoria === 'sustentacao' ? 'sustentacao' : 'projeto')
+    return m
+  }, [monthly])
 
   // Gráfico de apontamento (horas). Sem consultor filtrado → barras POR CONSULTOR (top 15);
   // com consultor filtrado → barras POR PERÍODO (mês a mês do consultor selecionado).
@@ -396,6 +432,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const passaFiltro = (r: Row) => {
       if (soReceita && r.receita === 0 && !r.is_investimento) return false
       if (!incluirErpserv && isErpservNome(r.cliente)) return false
+      if (fCategoria && (r.categoria ?? 'projeto') !== fCategoria) return false
       if (fCliente && r.cliente !== fCliente) return false
       if (fProjeto && String(r.project_id) !== fProjeto) return false
       if (busca.trim()) {
@@ -404,41 +441,47 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       }
       return true
     }
+    const isSup = (r: Row) => r.categoria === 'sustentacao'
     if (fConsultor) {
-      return monthly.map(({ ym, rows: mr }) => ({
-        label: fmtMesCurto(ym),
-        horas: r2(mr.filter(r => String(r.user_id) === fConsultor && passaFiltro(r)).reduce((s, r) => s + r.horas, 0)),
-      }))
+      return monthly.map(({ ym, rows: mr }) => {
+        let sup = 0, proj = 0
+        for (const r of mr) { if (String(r.user_id) !== fConsultor || !passaFiltro(r)) continue; if (isSup(r)) sup += r.horas; else proj += r.horas }
+        return { label: fmtMesCurto(ym), suporte: r2(sup), projeto: r2(proj), horas: r2(sup + proj) }
+      })
     }
-    const map = new Map<number, { label: string; horas: number }>()
+    const map = new Map<number, { label: string; suporte: number; projeto: number }>()
     for (const r of filtered) {
-      const e = map.get(r.user_id) ?? { label: r.consultor, horas: 0 }
-      e.horas += r.horas; map.set(r.user_id, e)
+      const e = map.get(r.user_id) ?? { label: r.consultor, suporte: 0, projeto: 0 }
+      if (isSup(r)) e.suporte += r.horas; else e.projeto += r.horas
+      map.set(r.user_id, e)
     }
-    return [...map.values()].map(e => ({ label: e.label, horas: r2(e.horas) })).sort((a, b) => b.horas - a.horas).slice(0, 15)
-  }, [fConsultor, monthly, filtered, soReceita, incluirErpserv, fCliente, fProjeto, busca])
+    return [...map.values()].map(e => ({ label: e.label, suporte: r2(e.suporte), projeto: r2(e.projeto), horas: r2(e.suporte + e.projeto) })).sort((a, b) => b.horas - a.horas).slice(0, 15)
+  }, [fConsultor, monthly, filtered, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, busca])
 
   // Gráfico de horas apontadas POR DIA (respeita filtros consultor/cliente/projeto + período).
   // Mês filtrado (≤ ~31 dias) mostra o mês inteiro; período longo → últimos 60 dias (legibilidade).
   const DIA_MAX = 60
   const diaChart = useMemo(() => {
-    const map = new Map<string, { horas: number; naoUtil: boolean }>()
+    const map = new Map<string, { suporte: number; projeto: number; naoUtil: boolean }>()
     for (const { dias } of monthly) {
       for (const d of dias) {
         if (fConsultor && String(d.user_id) !== fConsultor) continue
         if (fProjeto && String(d.project_id) !== fProjeto) continue
         if (fCliente && d.cliente !== fCliente) continue
         if (!incluirErpserv && isErpservNome(d.cliente)) continue
-        const e = map.get(d.dia) ?? { horas: 0, naoUtil: !!d.nao_util }
-        e.horas += d.horas; map.set(d.dia, e)
+        const cat = catByProject.get(d.project_id) ?? 'projeto'
+        if (fCategoria && cat !== fCategoria) continue
+        const e = map.get(d.dia) ?? { suporte: 0, projeto: 0, naoUtil: !!d.nao_util }
+        if (cat === 'sustentacao') e.suporte += d.horas; else e.projeto += d.horas
+        map.set(d.dia, e)
       }
     }
     const all = [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([dia, v]) => ({ label: `${dia.slice(8, 10)}/${dia.slice(5, 7)}`, horas: r2(v.horas), naoUtil: v.naoUtil, dia }))
+      .map(([dia, v]) => ({ label: `${dia.slice(8, 10)}/${dia.slice(5, 7)}`, suporte: r2(v.suporte), projeto: r2(v.projeto), total: r2(v.suporte + v.projeto), naoUtil: v.naoUtil, dia }))
     const limitado = all.length > DIA_MAX
     const data = limitado ? all.slice(-DIA_MAX) : all
-    return { data, limitado, total: r2(data.reduce((s, d) => s + d.horas, 0)), temNaoUtil: data.some(d => d.naoUtil) }
-  }, [monthly, fConsultor, fProjeto, fCliente, incluirErpserv])
+    return { data, limitado, total: r2(data.reduce((s, d) => s + d.total, 0)), temNaoUtil: data.some(d => d.naoUtil) }
+  }, [monthly, fConsultor, fProjeto, fCliente, incluirErpserv, fCategoria, catByProject])
 
   // Nome do consultor/projeto por user_id:project_id (resolve os IDs dos apontamentos diários).
   const nomesByUP = useMemo(() => {
@@ -468,6 +511,13 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // nº de meses do período; Receita = apontamentos no período; Resultado = Receita − Custo Fixo.
   // Derivado do MESMO `filtered` da tabela (mesmos filtros) → as horas/receita batem com a linha do consultor.
   const fixosData = useMemo(() => {
+    // Horas de investimento por consultor — INCLUI ERPSERV e ignora soReceita/categoria (só is_investimento), no período.
+    const investByUser = new Map<number, number>()
+    for (const { rows: mr } of monthly) for (const r of mr) {
+      if (!r.is_investimento) continue
+      if (fConsultor && String(r.user_id) !== fConsultor) continue
+      investByUser.set(r.user_id, (investByUser.get(r.user_id) ?? 0) + r.horas)
+    }
     const byUser = new Map<number, { user_id: number; consultor: string; receita: number; custoHoras: number; horas: number; salary: number }>()
     for (const r of filtered) {
       if (r.rate_type !== 'monthly') continue
@@ -480,10 +530,10 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const nMeses = monthsToFetch.length || 1
     return [...byUser.values()].map(e => {
       const custoFixo = r2(e.salary * nMeses)
-      return { ...e, receita: r2(e.receita), custoHoras: r2(e.custoHoras), horas: r2(e.horas), nMeses, custoFixo, resultado: r2(e.receita - custoFixo) }
+      return { ...e, receita: r2(e.receita), custoHoras: r2(e.custoHoras), horas: r2(e.horas), horasInvest: r2(investByUser.get(e.user_id) ?? 0), nMeses, custoFixo, resultado: r2(e.receita - custoFixo) }
     }).sort((a, b) => a.resultado - b.resultado)
-  }, [filtered, monthsToFetch])
-  const fixosTot = useMemo(() => fixosData.reduce((a, f) => ({ custoFixo: a.custoFixo + f.custoFixo, receita: a.receita + f.receita, resultado: a.resultado + f.resultado }), { custoFixo: 0, receita: 0, resultado: 0 }), [fixosData])
+  }, [filtered, monthsToFetch, monthly, fConsultor])
+  const fixosTot = useMemo(() => fixosData.reduce((a, f) => ({ custoFixo: a.custoFixo + f.custoFixo, receita: a.receita + f.receita, resultado: a.resultado + f.resultado, horasInvest: a.horasInvest + f.horasInvest }), { custoFixo: 0, receita: 0, resultado: 0, horasInvest: 0 }), [fixosData])
 
   // Linhas-pai: consolidado por projeto (soma horas/receita/custo, conta consultores,
   // custo/h = custo total ÷ horas). Cada pai expande nas linhas dos consultores.
@@ -563,14 +613,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const receita = filtered.reduce((s, r) => s + r.receita, 0)
     const custo   = filtered.reduce((s, r) => s + r.custo, 0)
     const horas   = filtered.reduce((s, r) => s + r.horas, 0)
-    // Quebra por categoria (Sustentação × Projeto). Cloud/Bizify/Sustentação = sustentacao.
-    const mk = () => ({ horas: 0, receita: 0, custo: 0 })
-    const cat: Record<'sustentacao' | 'projeto', { horas: number; receita: number; custo: number }> = { sustentacao: mk(), projeto: mk() }
-    for (const r of filtered) {
-      const k = r.categoria === 'sustentacao' ? 'sustentacao' : 'projeto'
-      cat[k].horas += r.horas; cat[k].receita += r.receita; cat[k].custo += r.custo
-    }
-    return { receita, custo, horas, margem: receita - custo, pct: receita > 0 ? (receita - custo) / receita * 100 : null, cat }
+    return { receita, custo, horas, margem: receita - custo, pct: receita > 0 ? (receita - custo) / receita * 100 : null }
   }, [filtered])
 
   // ── Aba Clientes: filtro/ordenação/total ──
@@ -868,11 +911,12 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         {visao !== 'clientes' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
             {(['sustentacao', 'projeto'] as const).map(k => {
-              const c = tot.cat[k]; const margem = c.receita - c.custo
+              const c = totCat[k]; const margem = c.receita - c.custo; const ativo = fCategoria === k
               return (
-                <div key={k} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div key={k} onClick={() => setFCategoria(prev => prev === k ? '' : k)} title={ativo ? 'Clique para remover o filtro' : `Filtrar só ${k === 'sustentacao' ? 'Sustentação' : 'Projeto'}`}
+                  className="rounded-xl p-3 cursor-pointer transition-colors" style={{ background: ativo ? 'var(--primary-soft)' : 'var(--surface)', border: `1px solid ${ativo ? 'var(--primary)' : 'var(--border)'}` }}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: k === 'sustentacao' ? 'var(--primary)' : 'var(--text-muted)' }}>{k === 'sustentacao' ? 'Sustentação' : 'Projeto'}</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: k === 'sustentacao' ? 'var(--primary)' : 'var(--text-muted)' }}>{k === 'sustentacao' ? 'Sustentação' : 'Projeto'}{ativo && <span style={{ fontSize: 9, color: 'var(--primary)' }}>● filtrando</span>}</span>
                     <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-light)' }}>{c.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</span>
                   </div>
                   <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
@@ -903,10 +947,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                 <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 28, top: 0, bottom: 0 }}>
                   <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-light)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
                   <YAxis type="category" dataKey="label" width={160} interval={0} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                  <Tooltip cursor={{ fill: 'var(--surface-hover)' }}
-                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text)' }}
-                    labelStyle={{ color: 'var(--text)' }} itemStyle={{ color: 'var(--text)' }}
-                    formatter={((v: number) => [`${v}h`, 'Horas']) as never} />
+                  <Tooltip cursor={{ fill: 'var(--surface-hover)' }} content={<HorasCatTooltip />} />
                   <Bar dataKey="horas" radius={[0, 4, 4, 0]}>
                     {chartData.map((_, i) => <Cell key={i} fill="var(--brand-primary)" />)}
                   </Bar>
@@ -926,29 +967,18 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
             {diaChart.data.length === 0 ? (
               <p className="text-xs py-6 text-center" style={{ color: 'var(--text-light)' }}>Sem apontamentos no período.</p>
             ) : (<>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={diaChart.data} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
+              <ResponsiveContainer width="100%" height={240}>
+                <LineChart data={diaChart.data} margin={{ left: 0, right: 8, top: 4, bottom: 4 }} style={{ cursor: 'pointer' }}
+                  onClick={((e: { activePayload?: { payload?: { dia?: string } }[] }) => { const d = e?.activePayload?.[0]?.payload?.dia; if (d) setDiaModal(d) }) as never}>
                   <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'var(--text-light)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} interval="preserveStartEnd" minTickGap={8} />
                   <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} axisLine={false} tickLine={false} width={36} />
-                  <Tooltip cursor={{ fill: 'var(--surface-hover)' }}
-                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text)' }}
-                    labelStyle={{ color: 'var(--text)' }} itemStyle={{ color: 'var(--text)' }}
-                    formatter={((v: number, _n: string, p: { payload?: { naoUtil?: boolean } }) => [`${v}h${p?.payload?.naoUtil ? ' · fim de semana/feriado' : ''}`, 'Horas']) as never} />
-                  <Bar dataKey="horas" radius={[4, 4, 0, 0]} cursor="pointer"
-                    onClick={((e: { dia?: string; payload?: { dia?: string } }) => { const d = e?.dia ?? e?.payload?.dia; if (d) setDiaModal(d) }) as never}>
-                    {/* fim de semana/feriado em âmbar; dia útil na cor da marca */}
-                    {diaChart.data.map((d, i) => <Cell key={i} fill={d.naoUtil ? 'var(--warning)' : 'var(--brand-primary)'} />)}
-                  </Bar>
-                </BarChart>
+                  <Tooltip cursor={{ stroke: 'var(--border)' }} content={<HorasCatTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} iconType="plainline" />
+                  <Line type="monotone" dataKey="suporte" name="Sustentação" stroke="var(--primary)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                  <Line type="monotone" dataKey="projeto" name="Projeto" stroke="var(--success-border)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                </LineChart>
               </ResponsiveContainer>
-              <div className="flex items-center gap-4 mt-2 px-1">
-                <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-light)' }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--brand-primary)' }} /> Dia útil
-                </span>
-                <span className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-light)' }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--warning)' }} /> Fim de semana / feriado
-                </span>
-              </div>
+              <p className="text-[10px] mt-1 px-1" style={{ color: 'var(--text-light)' }}>Clique num dia para ver os apontamentos · fim de semana/feriado aparece no tooltip</p>
             </>)}
           </div>
         )}
@@ -968,6 +998,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                     <th style={{ textAlign: 'right', padding: '6px 8px' }}>Salário/mês</th>
                     <th style={{ textAlign: 'right', padding: '6px 8px' }}>Custo Fixo</th>
                     <th style={{ textAlign: 'right', padding: '6px 8px' }}>Horas</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }} title="Horas em projetos de investimento (inclui ERPSERV)">Horas Invest.</th>
                     <th style={{ textAlign: 'right', padding: '6px 8px' }}>Receita (apontado)</th>
                     <th style={{ textAlign: 'right', padding: '6px 8px' }}>Resultado</th>
                   </tr>
@@ -979,6 +1010,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(f.salary)}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(f.custoFixo)}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-light)' }} className="tabular-nums">{f.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: f.horasInvest > 0 ? '#1f6fbf' : 'var(--text-light)' }} className="tabular-nums">{f.horasInvest > 0 ? `${f.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(f.receita)}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', fontWeight: 700, color: f.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(f.resultado)}</td>
                     </tr>
@@ -988,6 +1020,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                     <td></td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(fixosTot.custoFixo)}</td>
                     <td></td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: fixosTot.horasInvest > 0 ? '#1f6fbf' : 'var(--text-light)' }} className="tabular-nums">{fixosTot.horasInvest > 0 ? `${fixosTot.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(fixosTot.receita)}</td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: fixosTot.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(fixosTot.resultado)}</td>
                   </tr>
