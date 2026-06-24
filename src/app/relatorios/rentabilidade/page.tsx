@@ -7,7 +7,7 @@ import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable,
 import { SearchSelect } from '@/components/ui/search-select'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { KeruakTitulosModal } from '@/components/shared/KeruakTitulosModal'
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts'
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
@@ -152,10 +152,11 @@ const thCol = (bg: string): React.CSSProperties => ({ background: bg, color: '#f
 const tdCol = (bg: string, color = '#111827'): React.CSSProperties => ({ background: bg, color, padding: '6px 10px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(0,0,0,0.06)', whiteSpace: 'nowrap' })
 
 // Tooltip dos gráficos de horas: Sustentação × Projeto × Total (+ nota fim de semana/feriado no diário).
-function HorasCatTooltip({ active, payload, label }: { active?: boolean; payload?: { payload?: { suporte?: number; projeto?: number; total?: number; horas?: number; naoUtil?: boolean } }[]; label?: string }) {
+function HorasCatTooltip({ active, payload, label }: { active?: boolean; payload?: { payload?: { suporte?: number; projeto?: number; investimento?: number; total?: number; horas?: number; naoUtil?: boolean } }[]; label?: string }) {
   if (!active || !payload?.length) return null
   const p = payload[0].payload ?? {}
-  const sup = p.suporte ?? 0, proj = p.projeto ?? 0, tot = p.total ?? p.horas ?? (sup + proj)
+  const sup = p.suporte ?? 0, proj = p.projeto ?? 0, inv = p.investimento ?? 0
+  const tot = p.total ?? p.horas ?? (sup + proj + inv)
   const h = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h`
   const row = (k: string, v: string, c: string, strong?: boolean) => (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 18, ...(strong ? { borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 4, fontWeight: 700 } : {}) }}>
@@ -167,6 +168,7 @@ function HorasCatTooltip({ active, payload, label }: { active?: boolean; payload
       <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}{p.naoUtil ? ' · fim de semana/feriado' : ''}</div>
       {row('Sustentação', h(sup), 'var(--primary)')}
       {row('Projeto', h(proj), 'var(--success-border)')}
+      {p.investimento !== undefined && row('Investimento', h(inv), 'var(--danger)')}
       {row('Total', h(tot), 'var(--text)', true)}
     </div>
   )
@@ -441,21 +443,22 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       }
       return true
     }
-    const isSup = (r: Row) => r.categoria === 'sustentacao'
+    // Segmento sem dupla contagem: investimento sai de sustentação/projeto.
+    const seg = (r: Row): 'investimento' | 'suporte' | 'projeto' => r.is_investimento ? 'investimento' : (r.categoria === 'sustentacao' ? 'suporte' : 'projeto')
     if (fConsultor) {
       return monthly.map(({ ym, rows: mr }) => {
-        let sup = 0, proj = 0
-        for (const r of mr) { if (String(r.user_id) !== fConsultor || !passaFiltro(r)) continue; if (isSup(r)) sup += r.horas; else proj += r.horas }
-        return { label: fmtMesCurto(ym), suporte: r2(sup), projeto: r2(proj), horas: r2(sup + proj) }
+        let sup = 0, proj = 0, inv = 0
+        for (const r of mr) { if (String(r.user_id) !== fConsultor || !passaFiltro(r)) continue; const s = seg(r); if (s === 'investimento') inv += r.horas; else if (s === 'suporte') sup += r.horas; else proj += r.horas }
+        return { label: fmtMesCurto(ym), suporte: r2(sup), projeto: r2(proj), investimento: r2(inv), horas: r2(sup + proj + inv) }
       })
     }
-    const map = new Map<number, { label: string; suporte: number; projeto: number }>()
+    const map = new Map<number, { label: string; suporte: number; projeto: number; investimento: number }>()
     for (const r of filtered) {
-      const e = map.get(r.user_id) ?? { label: r.consultor, suporte: 0, projeto: 0 }
-      if (isSup(r)) e.suporte += r.horas; else e.projeto += r.horas
+      const e = map.get(r.user_id) ?? { label: r.consultor, suporte: 0, projeto: 0, investimento: 0 }
+      const s = seg(r); if (s === 'investimento') e.investimento += r.horas; else if (s === 'suporte') e.suporte += r.horas; else e.projeto += r.horas
       map.set(r.user_id, e)
     }
-    return [...map.values()].map(e => ({ label: e.label, suporte: r2(e.suporte), projeto: r2(e.projeto), horas: r2(e.suporte + e.projeto) })).sort((a, b) => b.horas - a.horas).slice(0, 15)
+    return [...map.values()].map(e => ({ label: e.label, suporte: r2(e.suporte), projeto: r2(e.projeto), investimento: r2(e.investimento), horas: r2(e.suporte + e.projeto + e.investimento) })).sort((a, b) => b.horas - a.horas).slice(0, 15)
   }, [fConsultor, monthly, filtered, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, busca])
 
   // Gráfico de horas apontadas POR DIA (respeita filtros consultor/cliente/projeto + período).
@@ -967,14 +970,15 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
             {chartData.length === 0 ? (
               <p className="text-xs py-6 text-center" style={{ color: 'var(--text-light)' }}>Sem apontamentos no período.</p>
             ) : (
-              <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 26 + 24)}>
+              <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 26 + 44)}>
                 <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 28, top: 0, bottom: 0 }}>
                   <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-light)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
                   <YAxis type="category" dataKey="label" width={160} interval={0} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                   <Tooltip cursor={{ fill: 'var(--surface-hover)' }} content={<HorasCatTooltip />} />
-                  <Bar dataKey="horas" radius={[0, 4, 4, 0]}>
-                    {chartData.map((_, i) => <Cell key={i} fill="var(--brand-primary)" />)}
-                  </Bar>
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="suporte" name="Sustentação" stackId="a" fill="var(--primary)" />
+                  <Bar dataKey="projeto" name="Projeto" stackId="a" fill="var(--success-border)" />
+                  <Bar dataKey="investimento" name="Investimento" stackId="a" fill="var(--danger)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -1036,7 +1040,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(f.salary)}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(f.custoFixo)}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-light)' }} className="tabular-nums">{f.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</td>
-                      <td style={{ textAlign: 'right', padding: '5px 8px', color: f.horasInvest > 0 ? '#1f6fbf' : 'var(--text-light)' }} className="tabular-nums">{f.horasInvest > 0 ? `${f.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: f.horasInvest > 0 ? 'var(--danger)' : 'var(--text-light)' }} className="tabular-nums">{f.horasInvest > 0 ? `${f.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(f.receita)}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', fontWeight: 700, color: f.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(f.resultado)}</td>
                     </tr>
@@ -1046,7 +1050,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                     <td></td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(fixosTot.custoFixo)}</td>
                     <td></td>
-                    <td style={{ textAlign: 'right', padding: '6px 8px', color: fixosTot.horasInvest > 0 ? '#1f6fbf' : 'var(--text-light)' }} className="tabular-nums">{fixosTot.horasInvest > 0 ? `${fixosTot.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: fixosTot.horasInvest > 0 ? 'var(--danger)' : 'var(--text-light)' }} className="tabular-nums">{fixosTot.horasInvest > 0 ? `${fixosTot.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(fixosTot.receita)}</td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: fixosTot.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(fixosTot.resultado)}</td>
                   </tr>
@@ -1082,7 +1086,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                       <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>{h.consultor}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(h.rhCusto)}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-light)' }} className="tabular-nums">{h.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</td>
-                      <td style={{ textAlign: 'right', padding: '5px 8px', color: h.horasInvest > 0 ? '#1f6fbf' : 'var(--text-light)' }} className="tabular-nums">{h.horasInvest > 0 ? `${h.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: h.horasInvest > 0 ? 'var(--danger)' : 'var(--text-light)' }} className="tabular-nums">{h.horasInvest > 0 ? `${h.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(h.receita)}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(h.custo)}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', fontWeight: 700, color: h.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(h.resultado)}</td>
@@ -1092,7 +1096,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                     <td style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--text)' }}>Total</td>
                     <td></td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{horistasTot.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</td>
-                    <td style={{ textAlign: 'right', padding: '6px 8px', color: horistasTot.horasInvest > 0 ? '#1f6fbf' : 'var(--text-light)' }} className="tabular-nums">{horistasTot.horasInvest > 0 ? `${horistasTot.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: horistasTot.horasInvest > 0 ? 'var(--danger)' : 'var(--text-light)' }} className="tabular-nums">{horistasTot.horasInvest > 0 ? `${horistasTot.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(horistasTot.receita)}</td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(horistasTot.custo)}</td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: horistasTot.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(horistasTot.resultado)}</td>
@@ -1166,12 +1170,12 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                                 const temProj = (c.projetos?.length ?? 0) > 0
                                 return (
                                   <Fragment key={c.user_id}>
-                                  <tr style={{ borderTop: '1px solid var(--border)', background: c.tem_investimento ? 'rgba(31,111,191,0.13)' : undefined, cursor: temProj ? 'pointer' : 'default' }}
+                                  <tr style={{ borderTop: '1px solid var(--border)', background: c.tem_investimento ? 'var(--danger-bg)' : undefined, cursor: temProj ? 'pointer' : 'default' }}
                                     onClick={() => { if (temProj) setExpandedCons(prev => { const n = new Set(prev); n.has(consKey) ? n.delete(consKey) : n.add(consKey); return n }) }}>
                                     <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>
                                       {temProj && (consOpen ? <ChevronDown size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
                                       {c.consultor} <span style={{ color: 'var(--text-light)', fontSize: 11 }}>({formatBRL(c.valor_hora)}/h)</span>
-                                      {c.tem_investimento && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: '#1f6fbf', border: '1px solid #1f6fbf', borderRadius: 4, padding: '0 4px' }}>INVEST.</span>}
+                                      {c.tem_investimento && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: 4, padding: '0 4px' }}>INVEST.</span>}
                                     </td>
                                     <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{fmtH(c.horas)}</td>
                                     <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{(pct * 100).toFixed(1)}%</td>
@@ -1180,8 +1184,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                                   {consOpen && temProj && [...(c.projetos ?? [])].sort((a, b) => b.horas - a.horas).map(p => (
                                     <tr key={p.project_id} style={{ background: 'var(--surface)' }}>
                                       <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>
-                                        {p.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
-                                        {p.projeto}{p.is_investimento && <span style={{ color: '#1f6fbf', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
+                                        {p.is_investimento && <span style={{ color: 'var(--danger)', marginRight: 4 }}>●</span>}
+                                        {p.projeto}{p.is_investimento && <span style={{ color: 'var(--danger)', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
                                       </td>
                                       <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{fmtH(p.horas)}</td>
                                       <td></td>
@@ -1211,8 +1215,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                                     <Fragment key={p.project_id}>
                                     <tr style={{ background: 'var(--surface)' }}>
                                       <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>
-                                        {p.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
-                                        {p.projeto}{p.is_investimento && <span style={{ color: '#1f6fbf', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
+                                        {p.is_investimento && <span style={{ color: 'var(--danger)', marginRight: 4 }}>●</span>}
+                                        {p.projeto}{p.is_investimento && <span style={{ color: 'var(--danger)', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
                                       </td>
                                       <td></td><td></td>
                                       <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{formatBRL(p.custo)}</td>
@@ -1299,12 +1303,12 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                                 const temProj = (c.projetos?.length ?? 0) > 0
                                 return (
                                   <Fragment key={c.user_id}>
-                                  <tr style={{ borderTop: '1px solid var(--border)', background: c.tem_investimento ? 'rgba(31,111,191,0.13)' : undefined, cursor: temProj ? 'pointer' : 'default' }}
+                                  <tr style={{ borderTop: '1px solid var(--border)', background: c.tem_investimento ? 'var(--danger-bg)' : undefined, cursor: temProj ? 'pointer' : 'default' }}
                                     onClick={() => { if (temProj) setExpandedCons(prev => { const n = new Set(prev); n.has(consKey) ? n.delete(consKey) : n.add(consKey); return n }) }}>
                                     <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>
                                       {temProj && (consOpen ? <ChevronDown size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
                                       {c.consultor} <span style={{ color: 'var(--text-light)', fontSize: 11 }}>({formatBRL(c.valor_hora)}/h)</span>
-                                      {c.tem_investimento && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: '#1f6fbf', border: '1px solid #1f6fbf', borderRadius: 4, padding: '0 4px' }}>INVEST.</span>}
+                                      {c.tem_investimento && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: 4, padding: '0 4px' }}>INVEST.</span>}
                                     </td>
                                     <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{fmtH(c.horas)}</td>
                                     <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{(pct * 100).toFixed(1)}%</td>
@@ -1316,8 +1320,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                                   {consOpen && temProj && [...(c.projetos ?? [])].sort((a, b) => b.horas - a.horas).map(p => (
                                     <tr key={p.project_id} style={{ background: 'var(--bg)' }}>
                                       <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>
-                                        {p.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
-                                        {p.projeto}{p.is_investimento && <span style={{ color: '#1f6fbf', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
+                                        {p.is_investimento && <span style={{ color: 'var(--danger)', marginRight: 4 }}>●</span>}
+                                        {p.projeto}{p.is_investimento && <span style={{ color: 'var(--danger)', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
                                       </td>
                                       <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{fmtH(p.horas)}</td>
                                       <td></td><td></td>
@@ -1350,8 +1354,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                                     <Fragment key={p.project_id}>
                                     <tr style={{ background: 'var(--bg)' }}>
                                       <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>
-                                        {p.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
-                                        {p.projeto}{p.is_investimento && <span style={{ color: '#1f6fbf', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
+                                        {p.is_investimento && <span style={{ color: 'var(--danger)', marginRight: 4 }}>●</span>}
+                                        {p.projeto}{p.is_investimento && <span style={{ color: 'var(--danger)', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
                                       </td>
                                       <td></td><td></td><td></td>
                                       <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{formatBRL(p.custo)}</td>
@@ -1428,7 +1432,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                             ? (isOpen ? <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={13} style={{ color: 'var(--text-muted)' }} />)
                             : <span style={{ display: 'inline-block', width: 13 }} />}
                           <span className="truncate max-w-[240px]">{nomePai}</span>
-                          {r.is_investimento && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: '#1f6fbf', border: '1px solid #1f6fbf', borderRadius: 4, padding: '0 4px' }}>INVEST.</span>}
+                          {r.is_investimento && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: 4, padding: '0 4px' }}>INVEST.</span>}
                         </span>
                       </Td>
                       <Td muted className="truncate max-w-[140px]">{visao === 'projeto' ? r.cliente : '—'}</Td>
@@ -1448,9 +1452,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                           <span className="inline-flex items-center gap-1.5 pl-6" style={{ color: 'var(--text-muted)' }}>
                             <span className="text-zinc-600">↳</span>
                             <span className="truncate max-w-[220px]">
-                              {visao !== 'projeto' && c.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
+                              {visao !== 'projeto' && c.is_investimento && <span style={{ color: 'var(--danger)', marginRight: 4 }}>●</span>}
                               {visao === 'projeto' ? c.consultor : c.projeto}
-                              {visao !== 'projeto' && c.is_investimento && <span style={{ color: '#1f6fbf', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
+                              {visao !== 'projeto' && c.is_investimento && <span style={{ color: 'var(--danger)', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
                             </span>
                           </span>
                         </Td>
