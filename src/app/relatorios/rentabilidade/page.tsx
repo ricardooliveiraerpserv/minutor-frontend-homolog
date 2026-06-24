@@ -21,6 +21,7 @@ interface Row {
   valor_hora_projeto: number; valor_hora_consultor: number
   horas: number; receita: number; custo: number; margem: number; margem_pct: number | null
   rate_type?: string; custo_fixo_mes?: number // 'monthly' = recebe fixo; salário mensal cheio
+  fixo_excluir?: boolean // coordenador/diretor/Bizify → fora da seção Recebe Fixo
 }
 interface DiaRow { dia: string; user_id: number; project_id: number; cliente: string; horas: number }
 
@@ -422,6 +423,7 @@ export default function RentabilidadePage() {
     for (const { rows: mr } of monthly) {
       for (const r of mr) {
         if (r.rate_type !== 'monthly') continue
+        if (r.fixo_excluir) continue // não traz coordenador/diretor/Bizify
         if (fConsultor && String(r.user_id) !== fConsultor) continue
         const e = byUser.get(r.user_id) ?? { user_id: r.user_id, consultor: r.consultor, receita: 0, custoHoras: 0, horas: 0, salary: 0 }
         e.receita += r.receita; e.custoHoras += r.custo; e.horas += r.horas
