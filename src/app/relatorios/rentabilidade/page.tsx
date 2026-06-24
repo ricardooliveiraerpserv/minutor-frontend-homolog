@@ -34,7 +34,7 @@ interface ClienteRow {
   horas: number; receita: number; custo: number; margem: number; margem_pct: number | null
   recebido: number; margem_real: number; margem_real_pct: number | null; no_minutor: boolean
   consultores: ConsultorRent[]
-  despesas?: { custo: number; projetos: DespesaProj[] }
+  despesas?: { custo: number; projetos: DespesaProj[]; usuarios?: DespesaUser[] }
   investimento_mo?: number; investimento_desp?: number
   // +40% Custo = 40% do Valor Recebido; Custo Total = Custo Operação + 40%; Resultado = Recebido − Custo Total.
   custo40: number; custo_total: number; resultado: number; resultado_pct: number | null; custo40_pct: number | null
@@ -42,6 +42,7 @@ interface ClienteRow {
   custo_inicial?: number; receita_inicial?: number
 }
 interface DespesaProj { project_id: number; projeto: string; custo: number; is_investimento: boolean }
+interface DespesaUser { user_id: number; usuario: string; custo: number }
 
 const fmtH = (h: number) => `${h.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}h`
 const pctColor = (p: number | null) => p == null ? 'var(--text-light)' : p < 0 ? 'var(--danger)' : p < 20 ? 'var(--warning)' : 'var(--success)'
@@ -243,7 +244,7 @@ export default function RentabilidadePage() {
         const e = map.get(k)
         if (!e) map.set(k, { ...r,
           consultores: (r.consultores || []).map(c => ({ ...c, projetos: (c.projetos || []).map(p => ({ ...p })) })),
-          despesas: r.despesas ? { custo: r.despesas.custo, projetos: (r.despesas.projetos || []).map(p => ({ ...p })) } : undefined,
+          despesas: r.despesas ? { custo: r.despesas.custo, projetos: (r.despesas.projetos || []).map(p => ({ ...p })), usuarios: (r.despesas.usuarios || []).map(u => ({ ...u })) } : undefined,
         })
         else {
           e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.recebido += r.recebido
@@ -252,12 +253,18 @@ export default function RentabilidadePage() {
           e.no_minutor = e.no_minutor || r.no_minutor
           if (!e.executivo && r.executivo) e.executivo = r.executivo
           if (r.despesas) {
-            e.despesas = e.despesas || { custo: 0, projetos: [] }
+            e.despesas = e.despesas || { custo: 0, projetos: [], usuarios: [] }
+            e.despesas.usuarios = e.despesas.usuarios || []
             e.despesas.custo += r.despesas.custo
             for (const p of (r.despesas.projetos || [])) {
               const ep = e.despesas.projetos.find(x => x.project_id === p.project_id)
               if (ep) { ep.custo += p.custo; ep.is_investimento = ep.is_investimento || p.is_investimento }
               else e.despesas.projetos.push({ ...p })
+            }
+            for (const u of (r.despesas.usuarios || [])) {
+              const eu = e.despesas.usuarios.find(x => x.user_id === u.user_id)
+              if (eu) eu.custo += u.custo
+              else e.despesas.usuarios.push({ ...u })
             }
           }
           for (const c of (r.consultores || [])) {
@@ -782,7 +789,8 @@ export default function RentabilidadePage() {
                                 const dKey = 'erpserv:despesas'
                                 const dOpen = expandedCons.has(dKey)
                                 const dProj = erpservRow.despesas?.projetos ?? []
-                                const temProj = dProj.length > 0
+                                const dUsers = erpservRow.despesas?.usuarios ?? []
+                                const temProj = dProj.length > 0 || dUsers.length > 0
                                 return (
                                   <Fragment key="despesas">
                                   <tr style={{ borderTop: '1px solid var(--border)', background: 'rgba(245,158,11,0.10)', cursor: temProj ? 'pointer' : 'default' }}
@@ -794,7 +802,7 @@ export default function RentabilidadePage() {
                                     <td></td><td></td>
                                     <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(erpservRow.despesas?.custo ?? 0)}</td>
                                   </tr>
-                                  {dOpen && temProj && [...dProj].sort((a, b) => b.custo - a.custo).map(p => (
+                                  {dOpen && dProj.length > 0 && [...dProj].sort((a, b) => b.custo - a.custo).map(p => (
                                     <tr key={p.project_id} style={{ background: 'var(--surface)' }}>
                                       <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>
                                         {p.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
@@ -802,6 +810,18 @@ export default function RentabilidadePage() {
                                       </td>
                                       <td></td><td></td>
                                       <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{formatBRL(p.custo)}</td>
+                                    </tr>
+                                  ))}
+                                  {dOpen && dUsers.length > 0 && (
+                                    <tr style={{ background: 'var(--surface)' }}>
+                                      <td colSpan={4} style={{ padding: '4px 8px 2px 32px', color: 'var(--text-light)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Quem apontou</td>
+                                    </tr>
+                                  )}
+                                  {dOpen && [...dUsers].sort((a, b) => b.custo - a.custo).map(u => (
+                                    <tr key={`u${u.user_id}`} style={{ background: 'var(--surface)' }}>
+                                      <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>👤 {u.usuario}</td>
+                                      <td></td><td></td>
+                                      <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{formatBRL(u.custo)}</td>
                                     </tr>
                                   ))}
                                   </Fragment>
@@ -910,7 +930,8 @@ export default function RentabilidadePage() {
                                 const dKey = `${ck}:despesas`
                                 const dOpen = expandedCons.has(dKey)
                                 const dProj = r.despesas?.projetos ?? []
-                                const temProj = dProj.length > 0
+                                const dUsers = r.despesas?.usuarios ?? []
+                                const temProj = dProj.length > 0 || dUsers.length > 0
                                 return (
                                   <Fragment key="despesas">
                                   <tr style={{ borderTop: '1px solid var(--border)', background: 'rgba(245,158,11,0.10)', cursor: temProj ? 'pointer' : 'default' }}
@@ -924,7 +945,7 @@ export default function RentabilidadePage() {
                                     <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--danger)' }} className="tabular-nums">{formatBRL(-(r.despesas?.custo ?? 0))}</td>
                                     <td></td>
                                   </tr>
-                                  {dOpen && temProj && [...dProj].sort((a, b) => b.custo - a.custo).map(p => (
+                                  {dOpen && dProj.length > 0 && [...dProj].sort((a, b) => b.custo - a.custo).map(p => (
                                     <tr key={p.project_id} style={{ background: 'var(--bg)' }}>
                                       <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>
                                         {p.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
@@ -932,6 +953,19 @@ export default function RentabilidadePage() {
                                       </td>
                                       <td></td><td></td><td></td>
                                       <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{formatBRL(p.custo)}</td>
+                                      <td></td><td></td>
+                                    </tr>
+                                  ))}
+                                  {dOpen && dUsers.length > 0 && (
+                                    <tr style={{ background: 'var(--bg)' }}>
+                                      <td colSpan={7} style={{ padding: '4px 8px 2px 32px', color: 'var(--text-light)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Quem apontou</td>
+                                    </tr>
+                                  )}
+                                  {dOpen && [...dUsers].sort((a, b) => b.custo - a.custo).map(u => (
+                                    <tr key={`u${u.user_id}`} style={{ background: 'var(--bg)' }}>
+                                      <td style={{ textAlign: 'left', padding: '3px 8px 3px 32px', color: 'var(--text-muted)', fontSize: 11 }}>👤 {u.usuario}</td>
+                                      <td></td><td></td><td></td>
+                                      <td style={{ textAlign: 'right', padding: '3px 8px', color: 'var(--text-muted)', fontSize: 11 }} className="tabular-nums">{formatBRL(u.custo)}</td>
                                       <td></td><td></td>
                                     </tr>
                                   ))}
