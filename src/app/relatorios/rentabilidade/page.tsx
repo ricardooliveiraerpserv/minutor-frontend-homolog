@@ -11,7 +11,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContai
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw, Check, Pencil, BarChart2, Wallet } from 'lucide-react'
+import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw, Check, Pencil, BarChart2, Wallet, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 
@@ -535,6 +535,30 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   }, [filtered, monthsToFetch, monthly, fConsultor])
   const fixosTot = useMemo(() => fixosData.reduce((a, f) => ({ custoFixo: a.custoFixo + f.custoFixo, receita: a.receita + f.receita, resultado: a.resultado + f.resultado, horasInvest: a.horasInvest + f.horasInvest }), { custoFixo: 0, receita: 0, resultado: 0, horasInvest: 0 }), [fixosData])
 
+  // Seção "Horistas": consultores NÃO mensalistas (rate_type ≠ monthly). Custo = horas × R$/h;
+  // Resultado = Receita − Custo. Exclui coordenador/diretor/Bizify (como o Recebe Fixo).
+  const horistasData = useMemo(() => {
+    const investByUser = new Map<number, number>()
+    for (const { rows: mr } of monthly) for (const r of mr) {
+      if (!r.is_investimento) continue
+      if (fConsultor && String(r.user_id) !== fConsultor) continue
+      investByUser.set(r.user_id, (investByUser.get(r.user_id) ?? 0) + r.horas)
+    }
+    const byUser = new Map<number, { user_id: number; consultor: string; receita: number; custo: number; horas: number }>()
+    for (const r of filtered) {
+      if (r.rate_type === 'monthly') continue // horista = não mensalista
+      if (r.fixo_excluir) continue // coordenador/diretor/Bizify
+      const e = byUser.get(r.user_id) ?? { user_id: r.user_id, consultor: r.consultor, receita: 0, custo: 0, horas: 0 }
+      e.receita += r.receita; e.custo += r.custo; e.horas += r.horas
+      byUser.set(r.user_id, e)
+    }
+    return [...byUser.values()].map(e => ({
+      ...e, receita: r2(e.receita), custo: r2(e.custo), horas: r2(e.horas),
+      horasInvest: r2(investByUser.get(e.user_id) ?? 0), rhCusto: e.horas > 0 ? r2(e.custo / e.horas) : 0, resultado: r2(e.receita - e.custo),
+    })).sort((a, b) => a.resultado - b.resultado)
+  }, [filtered, monthly, fConsultor])
+  const horistasTot = useMemo(() => horistasData.reduce((a, h) => ({ horas: a.horas + h.horas, horasInvest: a.horasInvest + h.horasInvest, receita: a.receita + h.receita, custo: a.custo + h.custo, resultado: a.resultado + h.resultado }), { horas: 0, horasInvest: 0, receita: 0, custo: 0, resultado: 0 }), [horistasData])
+
   // Linhas-pai: consolidado por projeto (soma horas/receita/custo, conta consultores,
   // custo/h = custo total ÷ horas). Cada pai expande nas linhas dos consultores.
   const projectRows = useMemo<DisplayRow[]>(() => {
@@ -1023,6 +1047,53 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: fixosTot.horasInvest > 0 ? '#1f6fbf' : 'var(--text-light)' }} className="tabular-nums">{fixosTot.horasInvest > 0 ? `${fixosTot.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(fixosTot.receita)}</td>
                     <td style={{ textAlign: 'right', padding: '6px 8px', color: fixosTot.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(fixosTot.resultado)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {visao !== 'clientes' && horistasData.length > 0 && (
+          <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Clock size={15} style={{ color: 'var(--brand-primary)' }} />
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Horistas — Custo × Receita × Resultado</span>
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>custo = horas × R$/h apontado</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ color: 'var(--text-light)' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Consultor</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>R$/h (custo)</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Horas</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }} title="Horas em projetos de investimento (inclui ERPSERV)">Horas Invest.</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Receita (apontado)</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Custo</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Resultado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {horistasData.map(h => (
+                    <tr key={h.user_id} style={{ borderTop: '1px solid var(--border)' }}>
+                      <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>{h.consultor}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(h.rhCusto)}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-light)' }} className="tabular-nums">{h.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: h.horasInvest > 0 ? '#1f6fbf' : 'var(--text-light)' }} className="tabular-nums">{h.horasInvest > 0 ? `${h.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(h.receita)}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(h.custo)}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', fontWeight: 700, color: h.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(h.resultado)}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 700 }}>
+                    <td style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--text)' }}>Total</td>
+                    <td></td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{horistasTot.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: horistasTot.horasInvest > 0 ? '#1f6fbf' : 'var(--text-light)' }} className="tabular-nums">{horistasTot.horasInvest > 0 ? `${horistasTot.horasInvest.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h` : '—'}</td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(horistasTot.receita)}</td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(horistasTot.custo)}</td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: horistasTot.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(horistasTot.resultado)}</td>
                   </tr>
                 </tbody>
               </table>
