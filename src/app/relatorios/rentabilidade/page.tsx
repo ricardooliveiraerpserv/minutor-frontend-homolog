@@ -22,6 +22,7 @@ interface Row {
   horas: number; receita: number; custo: number; margem: number; margem_pct: number | null
   rate_type?: string; custo_fixo_mes?: number // 'monthly' = recebe fixo; salário mensal cheio
   fixo_excluir?: boolean // coordenador/diretor/Bizify → fora da seção Recebe Fixo
+  is_investimento?: boolean // projeto de investimento (receita 0) — sempre incluído + em evidência
 }
 interface DiaRow { dia: string; user_id: number; project_id: number; cliente: string; horas: number; nao_util?: boolean }
 
@@ -365,7 +366,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const isErpservNome = (c?: string) => (c || '').toUpperCase().includes('ERPSERV')
 
   const filtered = useMemo(() => rows.filter(r => {
-    if (soReceita && r.receita === 0) return false
+    if (soReceita && r.receita === 0 && !r.is_investimento) return false // investimento entra mesmo sem receita
     if (!incluirErpserv && isErpservNome(r.cliente)) return false
     if (fCliente && r.cliente !== fCliente) return false
     if (fProjeto && String(r.project_id) !== fProjeto) return false
@@ -384,7 +385,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // com consultor filtrado → barras POR PERÍODO (mês a mês do consultor selecionado).
   const chartData = useMemo(() => {
     const passaFiltro = (r: Row) => {
-      if (soReceita && r.receita === 0) return false
+      if (soReceita && r.receita === 0 && !r.is_investimento) return false
       if (!incluirErpserv && isErpservNome(r.cliente)) return false
       if (fCliente && r.cliente !== fCliente) return false
       if (fProjeto && String(r.project_id) !== fProjeto) return false
@@ -478,18 +479,18 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // Linhas-pai: consolidado por projeto (soma horas/receita/custo, conta consultores,
   // custo/h = custo total ÷ horas). Cada pai expande nas linhas dos consultores.
   const projectRows = useMemo<DisplayRow[]>(() => {
-    const map = new Map<number, { projeto: string; cliente: string; vhp: number; horas: number; receita: number; custo: number; users: Set<number> }>()
+    const map = new Map<number, { projeto: string; cliente: string; vhp: number; horas: number; receita: number; custo: number; users: Set<number>; inv: boolean }>()
     for (const r of filtered) {
       let e = map.get(r.project_id)
-      if (!e) { e = { projeto: r.projeto, cliente: r.cliente, vhp: r.valor_hora_projeto, horas: 0, receita: 0, custo: 0, users: new Set() }; map.set(r.project_id, e) }
-      e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.users.add(r.user_id)
+      if (!e) { e = { projeto: r.projeto, cliente: r.cliente, vhp: r.valor_hora_projeto, horas: 0, receita: 0, custo: 0, users: new Set(), inv: false }; map.set(r.project_id, e) }
+      e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.users.add(r.user_id); e.inv = e.inv || !!r.is_investimento
     }
     return [...map.entries()].map(([project_id, e]) => {
       const horas = Math.round(e.horas * 100) / 100, receita = Math.round(e.receita * 100) / 100, custo = Math.round(e.custo * 100) / 100
       const margem = Math.round((receita - custo) * 100) / 100
       return {
         key: `p${project_id}`, user_id: 0, consultor: '', n_consultores: e.users.size,
-        project_id, projeto: e.projeto, cliente: e.cliente,
+        project_id, projeto: e.projeto, cliente: e.cliente, is_investimento: e.inv,
         valor_hora_projeto: e.vhp, valor_hora_consultor: horas > 0 ? Math.round(custo / horas * 100) / 100 : 0,
         horas, receita, custo, margem, margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
       }
@@ -508,18 +509,18 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // totalizando horas/receita/custo (custo já vem convertido /160 p/ fixo no filho).
   // n_consultores reaproveita o campo p/ guardar a contagem de projetos do consultor.
   const consultorRows = useMemo<DisplayRow[]>(() => {
-    const map = new Map<number, { consultor: string; vhc: number; horas: number; receita: number; custo: number; projs: Set<number> }>()
+    const map = new Map<number, { consultor: string; vhc: number; horas: number; receita: number; custo: number; projs: Set<number>; inv: boolean }>()
     for (const r of filtered) {
       let e = map.get(r.user_id)
-      if (!e) { e = { consultor: r.consultor, vhc: r.valor_hora_consultor, horas: 0, receita: 0, custo: 0, projs: new Set() }; map.set(r.user_id, e) }
-      e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.projs.add(r.project_id)
+      if (!e) { e = { consultor: r.consultor, vhc: r.valor_hora_consultor, horas: 0, receita: 0, custo: 0, projs: new Set(), inv: false }; map.set(r.user_id, e) }
+      e.horas += r.horas; e.receita += r.receita; e.custo += r.custo; e.projs.add(r.project_id); e.inv = e.inv || !!r.is_investimento
     }
     return [...map.entries()].map(([user_id, e]) => {
       const horas = Math.round(e.horas * 100) / 100, receita = Math.round(e.receita * 100) / 100, custo = Math.round(e.custo * 100) / 100
       const margem = Math.round((receita - custo) * 100) / 100
       return {
         key: `u${user_id}`, user_id, consultor: e.consultor, n_consultores: e.projs.size,
-        project_id: 0, projeto: '', cliente: '',
+        project_id: 0, projeto: '', cliente: '', is_investimento: e.inv,
         valor_hora_projeto: horas > 0 ? Math.round(receita / horas * 100) / 100 : 0, // R$/h projeto médio (mix)
         valor_hora_consultor: e.vhc,
         horas, receita, custo, margem, margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null,
@@ -1280,6 +1281,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                             ? (isOpen ? <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={13} style={{ color: 'var(--text-muted)' }} />)
                             : <span style={{ display: 'inline-block', width: 13 }} />}
                           <span className="truncate max-w-[240px]">{nomePai}</span>
+                          {r.is_investimento && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, color: '#1f6fbf', border: '1px solid #1f6fbf', borderRadius: 4, padding: '0 4px' }}>INVEST.</span>}
                         </span>
                       </Td>
                       <Td muted className="truncate max-w-[140px]">{visao === 'projeto' ? r.cliente : '—'}</Td>
@@ -1297,7 +1299,11 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                         <Td>
                           <span className="inline-flex items-center gap-1.5 pl-6" style={{ color: 'var(--text-muted)' }}>
                             <span className="text-zinc-600">↳</span>
-                            <span className="truncate max-w-[220px]">{visao === 'projeto' ? c.consultor : c.projeto}</span>
+                            <span className="truncate max-w-[220px]">
+                              {visao !== 'projeto' && c.is_investimento && <span style={{ color: '#1f6fbf', marginRight: 4 }}>●</span>}
+                              {visao === 'projeto' ? c.consultor : c.projeto}
+                              {visao !== 'projeto' && c.is_investimento && <span style={{ color: '#1f6fbf', fontSize: 9, marginLeft: 4 }}>(investimento)</span>}
+                            </span>
                           </span>
                         </Td>
                         <Td muted className="truncate max-w-[140px]">{visao === 'projeto' ? '—' : c.cliente}</Td>
