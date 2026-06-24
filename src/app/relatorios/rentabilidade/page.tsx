@@ -182,18 +182,26 @@ function CatBadge({ cat }: { cat?: 'sustentacao' | 'projeto' | 'misto' | null })
   return <span style={{ fontSize: 10, fontWeight: 600, color, border: `1px solid ${color}`, borderRadius: 4, padding: '0 5px', whiteSpace: 'nowrap' }}>{label}</span>
 }
 
+const RENTAB_FILTERS_KEY = 'minutor_rentab_filtros_v1'
+function lfRead(): Record<string, unknown> {
+  if (typeof window === 'undefined') return {}
+  try { return JSON.parse(localStorage.getItem(RENTAB_FILTERS_KEY) || '{}') } catch { return {} }
+}
+function lf<T>(o: Record<string, unknown>, key: string, def: T): T { return (key in o ? (o[key] as T) : def) }
+
 export default function RentabilidadePage({ visaoForced, embedded, periodo }: { visaoForced?: 'consultor' | 'projeto' | 'clientes'; embedded?: boolean; periodo?: { fromM: number; fromY: number; toM: number; toY: number } } = {}) {
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
-  const [year, setYear]   = useState(currentYear)
+  const [sf] = useState(lfRead)
+  const [year, setYear]   = useState(() => lf(sf, 'year', currentYear))
   // Período (abas consultor/projeto): toggle Mês/Ano (mês único) ou Período (De..Até).
-  const [periodModo, setPeriodModo] = useState<'mesano' | 'periodo'>('mesano')
+  const [periodModo, setPeriodModo] = useState<'mesano' | 'periodo'>(() => lf<'mesano' | 'periodo'>(sf, 'periodModo', 'mesano'))
   const [reloadTick, setReloadTick] = useState(0) // botão atualizar
-  const [fromM, setFromM] = useState(currentMonth)
-  const [fromY, setFromY] = useState(currentYear)
-  const [toM, setToM]     = useState(currentMonth)
-  const [toY, setToY]     = useState(currentYear)
+  const [fromM, setFromM] = useState(() => lf(sf, 'fromM', currentMonth))
+  const [fromY, setFromY] = useState(() => lf(sf, 'fromY', currentYear))
+  const [toM, setToM]     = useState(() => lf(sf, 'toM', currentMonth))
+  const [toY, setToY]     = useState(() => lf(sf, 'toY', currentYear))
   // Embutido (Portal de Sustentação): o período vem do filtro do portal via prop.
   useEffect(() => {
     if (periodo) { setFromM(periodo.fromM); setFromY(periodo.fromY); setToM(periodo.toM); setToY(periodo.toY) }
@@ -201,14 +209,19 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const [rows, setRows]   = useState<Row[]>([])
   const [monthly, setMonthly] = useState<{ ym: string; rows: Row[]; dias: DiaRow[] }[]>([]) // dados crus por mês (gráficos + fixos)
   const [loading, setLoading] = useState(false)
-  const [busca, setBusca] = useState('')
-  const [soReceita, setSoReceita] = useState(true)
-  const [incluirErpserv, setIncluirErpserv] = useState(true) // Consultor×Projeto: incluir apontamentos da ERPSERV (interna) nos dados/totais
-  const [fCategoria, setFCategoria] = useState<'' | 'sustentacao' | 'projeto' | 'investimento'>('') // filtro por segmento (cards clicáveis)
+  const [busca, setBusca] = useState(() => lf(sf, 'busca', ''))
+  const [soReceita, setSoReceita] = useState(() => lf(sf, 'soReceita', true))
+  const [incluirErpserv, setIncluirErpserv] = useState(() => lf(sf, 'incluirErpserv', true)) // Consultor×Projeto: incluir apontamentos da ERPSERV (interna) nos dados/totais
+  const [fCategoria, setFCategoria] = useState<'' | 'sustentacao' | 'projeto' | 'investimento'>(() => lf<'' | 'sustentacao' | 'projeto' | 'investimento'>(sf, 'fCategoria', '')) // filtro por segmento (cards clicáveis)
   const [diaModal, setDiaModal] = useState<string | null>(null) // dia (YYYY-MM-DD) clicado no gráfico "Horas apontadas por dia"
-  const [fCliente, setFCliente]     = useState('')
-  const [fProjeto, setFProjeto]     = useState('')
-  const [fConsultor, setFConsultor] = useState('')
+  const [fCliente, setFCliente]     = useState(() => lf(sf, 'fCliente', ''))
+  const [fProjeto, setFProjeto]     = useState(() => lf(sf, 'fProjeto', ''))
+  const [fConsultor, setFConsultor] = useState(() => lf(sf, 'fConsultor', ''))
+  // Persiste os filtros (consultor/projeto) entre reloads — não no modo embutido (usa o filtro do portal).
+  useEffect(() => {
+    if (embedded || typeof window === 'undefined') return
+    try { localStorage.setItem(RENTAB_FILTERS_KEY, JSON.stringify({ periodModo, fromM, fromY, toM, toY, busca, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, fConsultor, year })) } catch { /* noop */ }
+  }, [embedded, periodModo, fromM, fromY, toM, toY, busca, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, fConsultor, year])
   // Cada visão é uma rotina própria no menu Relatórios (sub-rotas que reusam este
   // componente). A visão é derivada do pathname:
   //   /relatorios/rentabilidade            → Clientes (BI Keruak)
