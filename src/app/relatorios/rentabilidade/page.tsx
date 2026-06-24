@@ -458,7 +458,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       const s = seg(r); if (s === 'investimento') e.investimento += r.horas; else if (s === 'suporte') e.suporte += r.horas; else e.projeto += r.horas
       map.set(r.user_id, e)
     }
-    return [...map.values()].map(e => ({ label: e.label, suporte: r2(e.suporte), projeto: r2(e.projeto), investimento: r2(e.investimento), horas: r2(e.suporte + e.projeto + e.investimento) })).sort((a, b) => b.horas - a.horas).slice(0, 15)
+    return [...map.values()].map(e => ({ label: e.label, suporte: r2(e.suporte), projeto: r2(e.projeto), investimento: r2(e.investimento), horas: r2(e.suporte + e.projeto + e.investimento) })).sort((a, b) => b.horas - a.horas)
   }, [fConsultor, monthly, filtered, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, busca])
 
   // Gráfico de horas apontadas POR DIA (respeita filtros consultor/cliente/projeto + período).
@@ -965,23 +965,31 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
                 {fConsultor ? 'Apontamento por período (mês)' : 'Apontamento por consultor'}
               </span>
-              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>horas{!fConsultor && chartData.length === 15 ? ' · top 15' : ''}</span>
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>horas{!fConsultor ? ` · ${chartData.length} consultores` : ''}</span>
             </div>
             {chartData.length === 0 ? (
               <p className="text-xs py-6 text-center" style={{ color: 'var(--text-light)' }}>Sem apontamentos no período.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 26 + 44)}>
-                <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 28, top: 0, bottom: 0 }}>
-                  <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-light)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
-                  <YAxis type="category" dataKey="label" width={160} interval={0} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                  <Tooltip cursor={{ fill: 'var(--surface-hover)' }} content={<HorasCatTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="suporte" name="Sustentação" stackId="a" fill="var(--primary)" />
-                  <Bar dataKey="projeto" name="Projeto" stackId="a" fill="var(--success-border)" />
-                  <Bar dataKey="investimento" name="Investimento" stackId="a" fill="var(--danger)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+            ) : (<>
+              {/* Legenda fixa acima do scroll */}
+              <div className="flex items-center gap-4 mb-2 px-1 text-[11px]" style={{ color: 'var(--text-light)' }}>
+                <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--primary)' }} /> Sustentação</span>
+                <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--success-border)' }} /> Projeto</span>
+                <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--danger)' }} /> Investimento</span>
+              </div>
+              {/* Quadro de altura fixa com rolagem vertical (mostra todos os consultores) */}
+              <div style={{ maxHeight: 430, overflowY: 'auto', overflowX: 'hidden' }}>
+                <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 26 + 24)}>
+                  <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 28, top: 0, bottom: 0 }}>
+                    <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-light)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+                    <YAxis type="category" dataKey="label" width={160} interval={0} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{ fill: 'var(--surface-hover)' }} content={<HorasCatTooltip />} />
+                    <Bar dataKey="suporte" name="Sustentação" stackId="a" fill="var(--primary)" />
+                    <Bar dataKey="projeto" name="Projeto" stackId="a" fill="var(--success-border)" />
+                    <Bar dataKey="investimento" name="Investimento" stackId="a" fill="var(--danger)" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </>)}
           </div>
         )}
 
