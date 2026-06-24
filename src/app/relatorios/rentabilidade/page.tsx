@@ -204,7 +204,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const [busca, setBusca] = useState('')
   const [soReceita, setSoReceita] = useState(true)
   const [incluirErpserv, setIncluirErpserv] = useState(true) // Consultor×Projeto: incluir apontamentos da ERPSERV (interna) nos dados/totais
-  const [fCategoria, setFCategoria] = useState<'' | 'sustentacao' | 'projeto'>('') // filtro por categoria (cards clicáveis)
+  const [fCategoria, setFCategoria] = useState<'' | 'sustentacao' | 'projeto' | 'investimento'>('') // filtro por segmento (cards clicáveis)
   const [diaModal, setDiaModal] = useState<string | null>(null) // dia (YYYY-MM-DD) clicado no gráfico "Horas apontadas por dia"
   const [fCliente, setFCliente]     = useState('')
   const [fProjeto, setFProjeto]     = useState('')
@@ -399,6 +399,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // ERPSERV = empresa interna; quando o toggle "Incluir ERPSERV" está off, seus
   // apontamentos saem da tabela, totais e gráficos do Consultor×Projeto.
   const isErpservNome = (c?: string) => (c || '').toUpperCase().includes('ERPSERV')
+  // Segmento do apontamento p/ os cards/filtro (partição exclusiva, igual ao gráfico): investimento sai de sust/proj.
+  const catSeg = (r: Row): 'sustentacao' | 'projeto' | 'investimento' => r.is_investimento ? 'investimento' : (r.categoria === 'sustentacao' ? 'sustentacao' : 'projeto')
 
   const filteredBase = useMemo(() => rows.filter(r => {
     if (soReceita && r.receita === 0 && !r.is_investimento) return false // investimento entra mesmo sem receita
@@ -413,11 +415,11 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     return true
   }), [rows, busca, soReceita, incluirErpserv, fCliente, fProjeto, fConsultor])
   // fCategoria (cards clicáveis) aplicado sobre a base; os cards usam filteredBase p/ mostrar SEMPRE as duas categorias.
-  const filtered = useMemo(() => fCategoria ? filteredBase.filter(r => (r.categoria ?? 'projeto') === fCategoria) : filteredBase, [filteredBase, fCategoria])
+  const filtered = useMemo(() => fCategoria ? filteredBase.filter(r => catSeg(r) === fCategoria) : filteredBase, [filteredBase, fCategoria])
   const totCat = useMemo(() => {
     const mk = () => ({ horas: 0, receita: 0, custo: 0 })
-    const cat: Record<'sustentacao' | 'projeto', { horas: number; receita: number; custo: number }> = { sustentacao: mk(), projeto: mk() }
-    for (const r of filteredBase) { const k = r.categoria === 'sustentacao' ? 'sustentacao' : 'projeto'; cat[k].horas += r.horas; cat[k].receita += r.receita; cat[k].custo += r.custo }
+    const cat: Record<'sustentacao' | 'projeto' | 'investimento', { horas: number; receita: number; custo: number }> = { sustentacao: mk(), projeto: mk(), investimento: mk() }
+    for (const r of filteredBase) { const k = catSeg(r); cat[k].horas += r.horas; cat[k].receita += r.receita; cat[k].custo += r.custo }
     return cat
   }, [filteredBase])
 
@@ -429,6 +431,12 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     for (const { rows: mr } of monthly) for (const r of mr) m.set(r.project_id, r.categoria === 'sustentacao' ? 'sustentacao' : 'projeto')
     return m
   }, [monthly])
+  // Projetos de investimento (p/ o segmento do gráfico diário, que só tem project_id).
+  const investByProject = useMemo(() => {
+    const s = new Set<number>()
+    for (const { rows: mr } of monthly) for (const r of mr) if (r.is_investimento) s.add(r.project_id)
+    return s
+  }, [monthly])
 
   // Gráfico de apontamento (horas). Sem consultor filtrado → barras POR CONSULTOR (top 15);
   // com consultor filtrado → barras POR PERÍODO (mês a mês do consultor selecionado).
@@ -436,7 +444,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const passaFiltro = (r: Row) => {
       if (soReceita && r.receita === 0 && !r.is_investimento) return false
       if (!incluirErpserv && isErpservNome(r.cliente)) return false
-      if (fCategoria && (r.categoria ?? 'projeto') !== fCategoria) return false
+      if (fCategoria && catSeg(r) !== fCategoria) return false
       if (fCliente && r.cliente !== fCliente) return false
       if (fProjeto && String(r.project_id) !== fProjeto) return false
       if (busca.trim()) {
@@ -475,7 +483,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         if (fCliente && d.cliente !== fCliente) continue
         if (!incluirErpserv && isErpservNome(d.cliente)) continue
         const cat = catByProject.get(d.project_id) ?? 'projeto'
-        if (fCategoria && cat !== fCategoria) continue
+        const seg = investByProject.has(d.project_id) ? 'investimento' : cat
+        if (fCategoria && seg !== fCategoria) continue
         const e = map.get(d.dia) ?? { suporte: 0, projeto: 0, naoUtil: !!d.nao_util }
         if (cat === 'sustentacao') e.suporte += d.horas; else e.projeto += d.horas
         map.set(d.dia, e)
@@ -486,7 +495,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const limitado = all.length > DIA_MAX
     const data = limitado ? all.slice(-DIA_MAX) : all
     return { data, limitado, total: r2(data.reduce((s, d) => s + d.total, 0)), temNaoUtil: data.some(d => d.naoUtil) }
-  }, [monthly, fConsultor, fProjeto, fCliente, incluirErpserv, fCategoria, catByProject])
+  }, [monthly, fConsultor, fProjeto, fCliente, incluirErpserv, fCategoria, catByProject, investByProject])
 
   // Nome do consultor/projeto por user_id:project_id (resolve os IDs dos apontamentos diários).
   const nomesByUP = useMemo(() => {
@@ -953,16 +962,25 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
           ))}
         </div>
 
-        {/* Totais separados por categoria (Sustentação × Projeto) */}
+        {/* Totais por segmento (Sustentação · Projeto · Investimento) — clicáveis p/ filtrar */}
         {visao !== 'clientes' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-            {(['sustentacao', 'projeto'] as const).map(k => {
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            {([
+              { k: 'sustentacao', label: 'Sustentação', cor: 'var(--primary)' },
+              { k: 'projeto', label: 'Projeto', cor: 'var(--success-border)' },
+              { k: 'investimento', label: 'Investimento', cor: 'var(--danger)' },
+            ] as const).map(({ k, label, cor }) => {
               const c = totCat[k]; const margem = c.receita - c.custo; const ativo = fCategoria === k
               return (
-                <div key={k} onClick={() => setFCategoria(prev => prev === k ? '' : k)} title={ativo ? 'Clique para remover o filtro' : `Filtrar só ${k === 'sustentacao' ? 'Sustentação' : 'Projeto'}`}
-                  className="rounded-xl p-3 cursor-pointer transition-colors" style={{ background: ativo ? 'var(--primary-soft)' : 'var(--surface)', border: `1px solid ${ativo ? 'var(--primary)' : 'var(--border)'}` }}>
+                <div key={k} onClick={() => setFCategoria(prev => prev === k ? '' : k)} title={ativo ? 'Clique para remover o filtro' : `Filtrar só ${label}`}
+                  className={`group rounded-xl p-3 cursor-pointer border transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg ${ativo ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : 'border-[var(--border)] bg-[var(--surface)] hover:border-[var(--primary)]'}`}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: k === 'sustentacao' ? 'var(--primary)' : 'var(--text-muted)' }}>{k === 'sustentacao' ? 'Sustentação' : 'Projeto'}{ativo && <span style={{ fontSize: 9, color: 'var(--primary)' }}>● filtrando</span>}</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: cor }}>
+                      {label}
+                      {ativo
+                        ? <span style={{ fontSize: 9, color: 'var(--primary)' }}>● filtrando</span>
+                        : <span className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ fontSize: 9, color: 'var(--text-light)' }}>● filtrar</span>}
+                    </span>
                     <span className="text-[10px] tabular-nums" style={{ color: 'var(--text-light)' }}>{c.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</span>
                   </div>
                   <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
