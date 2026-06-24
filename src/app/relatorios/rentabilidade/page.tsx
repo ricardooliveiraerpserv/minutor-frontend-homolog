@@ -6,6 +6,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable, Button } from '@/components/ds'
 import { SearchSelect } from '@/components/ui/search-select'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { KeruakTitulosModal } from '@/components/shared/KeruakTitulosModal'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { useTableSort } from '@/hooks/use-table-sort'
@@ -202,6 +203,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const [fromY, setFromY] = useState(() => lf(sf, 'fromY', currentYear))
   const [toM, setToM]     = useState(() => lf(sf, 'toM', currentMonth))
   const [toY, setToY]     = useState(() => lf(sf, 'toY', currentYear))
+  // Período por DIA (modo "Período"): intervalo de datas YYYY-MM-DD.
+  const [dateFrom, setDateFrom] = useState(() => lf(sf, 'dateFrom', `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`))
+  const [dateTo, setDateTo]     = useState(() => lf(sf, 'dateTo', new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]))
   // Embutido (Portal de Sustentação): o período vem do filtro do portal via prop.
   useEffect(() => {
     if (periodo) { setFromM(periodo.fromM); setFromY(periodo.fromY); setToM(periodo.toM); setToY(periodo.toY) }
@@ -220,8 +224,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // Persiste os filtros (consultor/projeto) entre reloads — não no modo embutido (usa o filtro do portal).
   useEffect(() => {
     if (embedded || typeof window === 'undefined') return
-    try { localStorage.setItem(RENTAB_FILTERS_KEY, JSON.stringify({ periodModo, fromM, fromY, toM, toY, busca, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, fConsultor, year })) } catch { /* noop */ }
-  }, [embedded, periodModo, fromM, fromY, toM, toY, busca, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, fConsultor, year])
+    try { localStorage.setItem(RENTAB_FILTERS_KEY, JSON.stringify({ periodModo, fromM, fromY, toM, toY, dateFrom, dateTo, busca, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, fConsultor, year })) } catch { /* noop */ }
+  }, [embedded, periodModo, fromM, fromY, toM, toY, dateFrom, dateTo, busca, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, fConsultor, year])
   // Cada visão é uma rotina própria no menu Relatórios (sub-rotas que reusam este
   // componente). A visão é derivada do pathname:
   //   /relatorios/rentabilidade            → Clientes (BI Keruak)
@@ -262,14 +266,22 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       for (let m = startMonth; m <= endMonth; m++) out.push(`${year}-${String(m).padStart(2, '0')}`)
       return out
     }
-    // Consultor/Projeto: período De..Até escolhido (pode incluir o mês atual).
+    // Consultor/Projeto. Modo "Período" = intervalo de DIAS → busca os meses que ele cobre
+    // (a BE clampa cada mês ao range via ?from/?to). Modo "Mês/Ano" = mês único.
+    if (periodModo === 'periodo') {
+      const [fy, fm] = dateFrom.split('-').map(Number)
+      const [ty, tm] = dateTo.split('-').map(Number)
+      let y = fy, m = fm, guard = 0
+      while ((y < ty || (y === ty && m <= tm)) && guard++ < 60) { out.push(`${y}-${String(m).padStart(2, '0')}`); m++; if (m > 12) { m = 1; y++ } }
+      return out
+    }
     let y = fromY, m = fromM, guard = 0
     while ((y < toY || (y === toY && m <= toM)) && guard++ < 60) {
       out.push(`${y}-${String(m).padStart(2, '0')}`)
       m++; if (m > 12) { m = 1; y++ }
     }
     return out
-  }, [visao, year, currentYear, currentMonth, fromM, fromY, toM, toY])
+  }, [visao, year, currentYear, currentMonth, periodModo, dateFrom, dateTo, fromM, fromY, toM, toY])
 
   // Meses de recebimento Keruak (M+1) que compõem o Valor Recebido exibido —
   // usados pelo drill-down de títulos pra o total bater com a célula.
@@ -282,8 +294,15 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
 
   useEffect(() => {
     setLoading(true)
+    // Modo "Período" (dias): clampa o range a cada mês via ?from/?to. Mês/Ano = mês inteiro.
+    const clamp = (ym: string) => {
+      if (periodModo !== 'periodo') return ''
+      const [yy, mm] = ym.split('-').map(Number)
+      const mStart = `${ym}-01`, mEnd = `${ym}-${String(new Date(yy, mm, 0).getDate()).padStart(2, '0')}`
+      return `?from=${dateFrom > mStart ? dateFrom : mStart}&to=${dateTo < mEnd ? dateTo : mEnd}`
+    }
     Promise.all(monthsToFetch.map(ym =>
-      api.get<{ data: { rows: Row[]; por_dia?: DiaRow[] } }>(`/relatorios/rentabilidade/${ym}`)
+      api.get<{ data: { rows: Row[]; por_dia?: DiaRow[] } }>(`/relatorios/rentabilidade/${ym}${clamp(ym)}`)
         .then(r => ({ ym, rows: r?.data?.rows ?? [], dias: r?.data?.por_dia ?? [] })).catch(() => ({ ym, rows: [] as Row[], dias: [] as DiaRow[] }))
     )).then(perMonth => {
       setMonthly(perMonth)
@@ -304,7 +323,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         return { ...r, horas, receita, custo, margem, margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null }
       }))
     }).finally(() => setLoading(false))
-  }, [monthsToFetch, reloadTick])
+  }, [monthsToFetch, reloadTick, periodModo, dateFrom, dateTo])
 
   // Aba Clientes: busca a rentabilidade-por-cliente + recebido Keruak (M+1).
   // refresh=true → ?refresh=1 (botão "Atualizar Keruak": ignora o cache de 3h).
@@ -843,7 +862,11 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                 <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
                   {(['mesano', 'periodo'] as const).map(m => (
                     <button key={m} type="button"
-                      onClick={() => { if (m === 'mesano') { setFromM(toM); setFromY(toY) } setPeriodModo(m) }}
+                      onClick={() => {
+                        if (m === 'mesano') { const [ty, tm] = dateTo.split('-').map(Number); setFromM(tm); setFromY(ty); setToM(tm); setToY(ty) }
+                        else { const mm = String(toM).padStart(2, '0'); setDateFrom(`${toY}-${mm}-01`); setDateTo(`${toY}-${mm}-${String(new Date(toY, toM, 0).getDate()).padStart(2, '0')}`) }
+                        setPeriodModo(m)
+                      }}
                       className="px-3 py-1.5 font-medium transition-colors"
                       style={{ background: periodModo === m ? 'var(--primary)' : 'transparent', color: periodModo === m ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
                       {m === 'mesano' ? 'Mês/Ano' : 'Período'}
@@ -852,11 +875,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                 </div>
                 {periodModo === 'mesano' ? (
                   <MonthYearPicker month={toM} year={toY} placeholder="Mês/Ano" onChange={(m, y) => { if (m && y) { setFromM(m); setFromY(y); setToM(m); setToY(y) } }} />
-                ) : (<>
-                  <MonthYearPicker month={fromM} year={fromY} placeholder="De" onChange={(m, y) => { if (m && y) { setFromM(m); setFromY(y) } }} />
-                  <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>até</span>
-                  <MonthYearPicker month={toM} year={toY} placeholder="Até" onChange={(m, y) => { if (m && y) { setToM(m); setToY(y) } }} />
-                </>)}
+                ) : (
+                  <DateRangePicker from={dateFrom} to={dateTo} onChange={(f, t) => { if (f && t) { setDateFrom(f); setDateTo(t) } }} />
+                )}
                 <button type="button" onClick={() => setReloadTick(t => t + 1)} title="Atualizar" className="p-1.5 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}>
                   <RefreshCw size={14} />
                 </button>
