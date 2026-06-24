@@ -7,10 +7,11 @@ import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable,
 import { SearchSelect } from '@/components/ui/search-select'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { KeruakTitulosModal } from '@/components/shared/KeruakTitulosModal'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useTableSort } from '@/hooks/use-table-sort'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
-import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw, Check, Pencil } from 'lucide-react'
+import { TrendingUp, Download, FileText, X, ChevronDown, ChevronRight, RefreshCw, Check, Pencil, BarChart2, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 
@@ -19,7 +20,9 @@ interface Row {
   project_id: number; projeto: string; cliente: string
   valor_hora_projeto: number; valor_hora_consultor: number
   horas: number; receita: number; custo: number; margem: number; margem_pct: number | null
+  rate_type?: string; custo_fixo_mes?: number // 'monthly' = recebe fixo; salário mensal cheio
 }
+interface DiaRow { dia: string; user_id: number; project_id: number; cliente: string; horas: number }
 
 // Linha exibida na tabela. Na visão "consultor" é a própria Row; na visão
 // "projeto" é o consolidado de todos os consultores daquele projeto (custo/h = médio).
@@ -156,6 +159,7 @@ export default function RentabilidadePage() {
   const [toM, setToM]     = useState(currentMonth)
   const [toY, setToY]     = useState(currentYear)
   const [rows, setRows]   = useState<Row[]>([])
+  const [monthly, setMonthly] = useState<{ ym: string; rows: Row[]; dias: DiaRow[] }[]>([]) // dados crus por mês (gráficos + fixos)
   const [loading, setLoading] = useState(false)
   const [busca, setBusca] = useState('')
   const [soReceita, setSoReceita] = useState(true)
@@ -223,9 +227,11 @@ export default function RentabilidadePage() {
   useEffect(() => {
     setLoading(true)
     Promise.all(monthsToFetch.map(ym =>
-      api.get<{ data: { rows: Row[] } }>(`/relatorios/rentabilidade/${ym}`)
-        .then(r => r?.data?.rows ?? []).catch(() => [] as Row[])
-    )).then(results => {
+      api.get<{ data: { rows: Row[]; por_dia?: DiaRow[] } }>(`/relatorios/rentabilidade/${ym}`)
+        .then(r => ({ ym, rows: r?.data?.rows ?? [], dias: r?.data?.por_dia ?? [] })).catch(() => ({ ym, rows: [] as Row[], dias: [] as DiaRow[] }))
+    )).then(perMonth => {
+      setMonthly(perMonth)
+      const results = perMonth.map(x => x.rows)
       const all = results.flat()
       if (monthsToFetch.length === 1) { setRows(all); return }
       // Período: agrega por consultor × projeto somando horas/receita/custo.
@@ -358,6 +364,78 @@ export default function RentabilidadePage() {
     }
     return true
   }), [rows, busca, soReceita, fCliente, fProjeto, fConsultor])
+
+  const r2 = (n: number) => Math.round(n * 100) / 100
+  const fmtMesCurto = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '') + '/' + String(y).slice(2) }
+
+  // Gráfico de apontamento (horas). Sem consultor filtrado → barras POR CONSULTOR (top 15);
+  // com consultor filtrado → barras POR PERÍODO (mês a mês do consultor selecionado).
+  const chartData = useMemo(() => {
+    const passaFiltro = (r: Row) => {
+      if (soReceita && r.receita === 0) return false
+      if (fCliente && r.cliente !== fCliente) return false
+      if (fProjeto && String(r.project_id) !== fProjeto) return false
+      if (busca.trim()) {
+        const q = busca.trim().toLowerCase()
+        if (!r.consultor.toLowerCase().includes(q) && !r.projeto.toLowerCase().includes(q) && !r.cliente.toLowerCase().includes(q)) return false
+      }
+      return true
+    }
+    if (fConsultor) {
+      return monthly.map(({ ym, rows: mr }) => ({
+        label: fmtMesCurto(ym),
+        horas: r2(mr.filter(r => String(r.user_id) === fConsultor && passaFiltro(r)).reduce((s, r) => s + r.horas, 0)),
+      }))
+    }
+    const map = new Map<number, { label: string; horas: number }>()
+    for (const r of filtered) {
+      const e = map.get(r.user_id) ?? { label: r.consultor, horas: 0 }
+      e.horas += r.horas; map.set(r.user_id, e)
+    }
+    return [...map.values()].map(e => ({ label: e.label, horas: r2(e.horas) })).sort((a, b) => b.horas - a.horas).slice(0, 15)
+  }, [fConsultor, monthly, filtered, soReceita, fCliente, fProjeto, busca])
+
+  // Gráfico de horas apontadas POR DIA (respeita filtros consultor/cliente/projeto + período).
+  // Mês filtrado (≤ ~31 dias) mostra o mês inteiro; período longo → últimos 60 dias (legibilidade).
+  const DIA_MAX = 60
+  const diaChart = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const { dias } of monthly) {
+      for (const d of dias) {
+        if (fConsultor && String(d.user_id) !== fConsultor) continue
+        if (fProjeto && String(d.project_id) !== fProjeto) continue
+        if (fCliente && d.cliente !== fCliente) continue
+        map.set(d.dia, (map.get(d.dia) ?? 0) + d.horas)
+      }
+    }
+    const all = [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([dia, horas]) => ({ label: `${dia.slice(8, 10)}/${dia.slice(5, 7)}`, horas: r2(horas) }))
+    const limitado = all.length > DIA_MAX
+    const data = limitado ? all.slice(-DIA_MAX) : all
+    return { data, limitado, total: r2(data.reduce((s, d) => s + d.horas, 0)) }
+  }, [monthly, fConsultor, fProjeto, fCliente])
+
+  // Seção "Recebe Fixo": consultores com rate_type 'monthly'. Custo Fixo = salário/mês ×
+  // nº de meses do período; Receita = apontamentos no período; Resultado = Receita − Custo Fixo.
+  const fixosData = useMemo(() => {
+    const byUser = new Map<number, { user_id: number; consultor: string; receita: number; custoHoras: number; horas: number; salary: number }>()
+    for (const { rows: mr } of monthly) {
+      for (const r of mr) {
+        if (r.rate_type !== 'monthly') continue
+        if (fConsultor && String(r.user_id) !== fConsultor) continue
+        const e = byUser.get(r.user_id) ?? { user_id: r.user_id, consultor: r.consultor, receita: 0, custoHoras: 0, horas: 0, salary: 0 }
+        e.receita += r.receita; e.custoHoras += r.custo; e.horas += r.horas
+        if (r.custo_fixo_mes) e.salary = r.custo_fixo_mes
+        byUser.set(r.user_id, e)
+      }
+    }
+    const nMeses = monthsToFetch.length || 1
+    return [...byUser.values()].map(e => {
+      const custoFixo = r2(e.salary * nMeses)
+      return { ...e, receita: r2(e.receita), custoHoras: r2(e.custoHoras), horas: r2(e.horas), nMeses, custoFixo, resultado: r2(e.receita - custoFixo) }
+    }).sort((a, b) => a.resultado - b.resultado)
+  }, [monthly, fConsultor, monthsToFetch])
+  const fixosTot = useMemo(() => fixosData.reduce((a, f) => ({ custoFixo: a.custoFixo + f.custoFixo, receita: a.receita + f.receita, resultado: a.resultado + f.resultado }), { custoFixo: 0, receita: 0, resultado: 0 }), [fixosData])
 
   // Linhas-pai: consolidado por projeto (soma horas/receita/custo, conta consultores,
   // custo/h = custo total ÷ horas). Cada pai expande nas linhas dos consultores.
@@ -724,6 +802,107 @@ export default function RentabilidadePage() {
             </div>
           ))}
         </div>
+
+        {/* Gráfico de apontamento (consultor/projeto) + seção Recebe Fixo */}
+        {visao !== 'clientes' && (
+          <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart2 size={15} style={{ color: 'var(--brand-primary)' }} />
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                {fConsultor ? 'Apontamento por período (mês)' : 'Apontamento por consultor'}
+              </span>
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>horas{!fConsultor && chartData.length === 15 ? ' · top 15' : ''}</span>
+            </div>
+            {chartData.length === 0 ? (
+              <p className="text-xs py-6 text-center" style={{ color: 'var(--text-light)' }}>Sem apontamentos no período.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 26 + 24)}>
+                <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 28, top: 0, bottom: 0 }}>
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-light)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+                  <YAxis type="category" dataKey="label" width={160} interval={0} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: 'var(--surface-hover)' }}
+                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text)' }}
+                    labelStyle={{ color: 'var(--text)' }} itemStyle={{ color: 'var(--text)' }}
+                    formatter={((v: number) => [`${v}h`, 'Horas']) as never} />
+                  <Bar dataKey="horas" radius={[0, 4, 4, 0]}>
+                    {chartData.map((_, i) => <Cell key={i} fill="var(--brand-primary)" />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        )}
+
+        {visao !== 'clientes' && (
+          <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <BarChart2 size={15} style={{ color: 'var(--brand-primary)' }} />
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Horas apontadas por dia</span>
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{diaChart.total.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h {diaChart.limitado ? '· últimos 60 dias' : 'no período'}</span>
+            </div>
+            {diaChart.data.length === 0 ? (
+              <p className="text-xs py-6 text-center" style={{ color: 'var(--text-light)' }}>Sem apontamentos no período.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={diaChart.data} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
+                  <XAxis dataKey="label" tick={{ fontSize: 9, fill: 'var(--text-light)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} interval="preserveStartEnd" minTickGap={8} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} axisLine={false} tickLine={false} width={36} />
+                  <Tooltip cursor={{ fill: 'var(--surface-hover)' }}
+                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text)' }}
+                    labelStyle={{ color: 'var(--text)' }} itemStyle={{ color: 'var(--text)' }}
+                    formatter={((v: number) => [`${v}h`, 'Horas']) as never} />
+                  <Bar dataKey="horas" radius={[4, 4, 0, 0]}>
+                    {diaChart.data.map((_, i) => <Cell key={i} fill="var(--brand-primary)" />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        )}
+
+        {visao !== 'clientes' && fixosData.length > 0 && (
+          <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Wallet size={15} style={{ color: 'var(--brand-primary)' }} />
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Recebe Fixo — Custo × Receita × Resultado</span>
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fixosData[0].nMeses} mês(es) · custo = salário × meses</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ color: 'var(--text-light)' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Consultor</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Salário/mês</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Custo Fixo</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Horas</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Receita (apontado)</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Resultado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fixosData.map(f => (
+                    <tr key={f.user_id} style={{ borderTop: '1px solid var(--border)' }}>
+                      <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>{f.consultor}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(f.salary)}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(f.custoFixo)}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-light)' }} className="tabular-nums">{f.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(f.receita)}</td>
+                      <td style={{ textAlign: 'right', padding: '5px 8px', fontWeight: 700, color: f.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(f.resultado)}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 700 }}>
+                    <td style={{ textAlign: 'left', padding: '6px 8px', color: 'var(--text)' }}>Total</td>
+                    <td></td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(fixosTot.custoFixo)}</td>
+                    <td></td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text)' }} className="tabular-nums">{formatBRL(fixosTot.receita)}</td>
+                    <td style={{ textAlign: 'right', padding: '6px 8px', color: fixosTot.resultado < 0 ? 'var(--danger)' : 'var(--success-border)' }} className="tabular-nums">{formatBRL(fixosTot.resultado)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {visao === 'clientes' ? (
           clientesLoading && clientesRows.length === 0 ? (
