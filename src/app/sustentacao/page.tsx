@@ -22,6 +22,7 @@ import { TimesheetsScreen }            from '@/components/screens/TimesheetsScre
 import { ExpensesScreen }              from '@/components/screens/ExpensesScreen'
 import { ApprovalsScreen }             from '@/components/screens/ApprovalsScreen'
 import { AuditoriaApontamentosScreen } from '@/components/screens/AuditoriaApontamentosScreen'
+import RentabilidadePage              from '@/app/relatorios/rentabilidade/page'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -183,6 +184,7 @@ const ROUTINE_TABS = [
   { id: 'approvals',  label: 'Aprovações',   icon: CheckSquare,    desc: 'Apontamentos/despesas pendentes'           },
   { id: 'auditoria',  label: 'Auditoria',    icon: FileText,       desc: 'Histórico de alterações de apontamentos'   },
   { id: 'triagem',    label: 'Lançamentos não identificados', icon: AlertTriangle, desc: 'Apontamentos atribuídos ao Usuário/Cliente/Projeto Padrão (revisão manual)' },
+  { id: 'rentabilidade', label: 'Rentabilidade', icon: TrendingUp, desc: 'Receita, custo e margem por consultor × projeto' },
 ] as const
 
 type RoutineTabId = typeof ROUTINE_TABS[number]['id']
@@ -1753,6 +1755,7 @@ export default function SustentacaoPage() {
         {routineTab === 'approvals'  && <ApprovalsScreen             scope="sustentacao" embedded />}
         {routineTab === 'auditoria'  && <AuditoriaApontamentosScreen scope="sustentacao" embedded />}
         {routineTab === 'triagem'    && <TimesheetsScreen            scope="sustentacao" embedded triagemPadrao />}
+        {routineTab === 'rentabilidade' && <RentabilidadePage visaoForced="consultor" embedded />}
 
         {!routineTab && tab === 'debug' && (
           <DiagnosticoTab

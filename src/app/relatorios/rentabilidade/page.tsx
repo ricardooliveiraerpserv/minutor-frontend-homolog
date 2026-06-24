@@ -149,7 +149,7 @@ function InitialsEditor({ custoInicial, receitaInicial, onSave }: {
 const thCol = (bg: string): React.CSSProperties => ({ background: bg, color: '#fff', padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'normal', lineHeight: 1.15, textAlign: 'center', cursor: 'pointer', borderRight: '1px solid rgba(255,255,255,0.25)', position: 'sticky', top: 0, zIndex: 2 })
 const tdCol = (bg: string, color = '#111827'): React.CSSProperties => ({ background: bg, color, padding: '6px 10px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid rgba(0,0,0,0.06)', whiteSpace: 'nowrap' })
 
-export default function RentabilidadePage() {
+export default function RentabilidadePage({ visaoForced, embedded }: { visaoForced?: 'consultor' | 'projeto' | 'clientes'; embedded?: boolean } = {}) {
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
@@ -165,6 +165,7 @@ export default function RentabilidadePage() {
   const [busca, setBusca] = useState('')
   const [soReceita, setSoReceita] = useState(true)
   const [incluirErpserv, setIncluirErpserv] = useState(true) // Consultor×Projeto: incluir apontamentos da ERPSERV (interna) nos dados/totais
+  const [diaModal, setDiaModal] = useState<string | null>(null) // dia (YYYY-MM-DD) clicado no gráfico "Horas apontadas por dia"
   const [fCliente, setFCliente]     = useState('')
   const [fProjeto, setFProjeto]     = useState('')
   const [fConsultor, setFConsultor] = useState('')
@@ -174,10 +175,10 @@ export default function RentabilidadePage() {
   //   /relatorios/rentabilidade/consultor  → Consultor × Projeto
   //   /relatorios/rentabilidade/projeto    → Por projeto
   const pathname = usePathname()
-  const visao: 'consultor' | 'projeto' | 'clientes' =
-    pathname?.endsWith('/rentabilidade/consultor') ? 'consultor'
+  const visao: 'consultor' | 'projeto' | 'clientes' = visaoForced ??
+    (pathname?.endsWith('/rentabilidade/consultor') ? 'consultor'
     : pathname?.endsWith('/rentabilidade/projeto') ? 'projeto'
-    : 'clientes'
+    : 'clientes')
   // Linhas CRUAS (agregadas dos meses, sem ajuste inicial). A derivação (que injeta os
   // iniciais do ano e calcula margens) é feita em useMemo abaixo → editar é instantâneo.
   const [rawClientesRows, setRawClientesRows] = useState<ClienteRow[]>([])
@@ -419,34 +420,55 @@ export default function RentabilidadePage() {
       }
     }
     const all = [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([dia, v]) => ({ label: `${dia.slice(8, 10)}/${dia.slice(5, 7)}`, horas: r2(v.horas), naoUtil: v.naoUtil }))
+      .map(([dia, v]) => ({ label: `${dia.slice(8, 10)}/${dia.slice(5, 7)}`, horas: r2(v.horas), naoUtil: v.naoUtil, dia }))
     const limitado = all.length > DIA_MAX
     const data = limitado ? all.slice(-DIA_MAX) : all
     return { data, limitado, total: r2(data.reduce((s, d) => s + d.horas, 0)), temNaoUtil: data.some(d => d.naoUtil) }
   }, [monthly, fConsultor, fProjeto, fCliente, incluirErpserv])
 
+  // Nome do consultor/projeto por user_id:project_id (resolve os IDs dos apontamentos diários).
+  const nomesByUP = useMemo(() => {
+    const m = new Map<string, { consultor: string; projeto: string; cliente: string }>()
+    for (const { rows: mr } of monthly) for (const r of mr) m.set(`${r.user_id}:${r.project_id}`, { consultor: r.consultor, projeto: r.projeto, cliente: r.cliente })
+    return m
+  }, [monthly])
+
+  // Detalhe do dia clicado (modal): apontamentos do dia respeitando os filtros ativos.
+  const diaDetalhe = useMemo(() => {
+    if (!diaModal) return null
+    const itens: { consultor: string; projeto: string; cliente: string; horas: number }[] = []
+    for (const { dias } of monthly) for (const d of dias) {
+      if (d.dia !== diaModal) continue
+      if (fConsultor && String(d.user_id) !== fConsultor) continue
+      if (fProjeto && String(d.project_id) !== fProjeto) continue
+      if (fCliente && d.cliente !== fCliente) continue
+      if (!incluirErpserv && isErpservNome(d.cliente)) continue
+      const nm = nomesByUP.get(`${d.user_id}:${d.project_id}`)
+      itens.push({ consultor: nm?.consultor ?? `#${d.user_id}`, projeto: nm?.projeto ?? `#${d.project_id}`, cliente: d.cliente, horas: r2(d.horas) })
+    }
+    itens.sort((a, b) => b.horas - a.horas)
+    return { itens, total: r2(itens.reduce((s, i) => s + i.horas, 0)) }
+  }, [diaModal, monthly, nomesByUP, fConsultor, fProjeto, fCliente, incluirErpserv])
+
   // Seção "Recebe Fixo": consultores com rate_type 'monthly'. Custo Fixo = salário/mês ×
   // nº de meses do período; Receita = apontamentos no período; Resultado = Receita − Custo Fixo.
+  // Derivado do MESMO `filtered` da tabela (mesmos filtros) → as horas/receita batem com a linha do consultor.
   const fixosData = useMemo(() => {
     const byUser = new Map<number, { user_id: number; consultor: string; receita: number; custoHoras: number; horas: number; salary: number }>()
-    for (const { rows: mr } of monthly) {
-      for (const r of mr) {
-        if (r.rate_type !== 'monthly') continue
-        if (r.fixo_excluir) continue // não traz coordenador/diretor/Bizify
-        if (!incluirErpserv && isErpservNome(r.cliente)) continue
-        if (fConsultor && String(r.user_id) !== fConsultor) continue
-        const e = byUser.get(r.user_id) ?? { user_id: r.user_id, consultor: r.consultor, receita: 0, custoHoras: 0, horas: 0, salary: 0 }
-        e.receita += r.receita; e.custoHoras += r.custo; e.horas += r.horas
-        if (r.custo_fixo_mes) e.salary = r.custo_fixo_mes
-        byUser.set(r.user_id, e)
-      }
+    for (const r of filtered) {
+      if (r.rate_type !== 'monthly') continue
+      if (r.fixo_excluir) continue // não traz coordenador/diretor/Bizify
+      const e = byUser.get(r.user_id) ?? { user_id: r.user_id, consultor: r.consultor, receita: 0, custoHoras: 0, horas: 0, salary: 0 }
+      e.receita += r.receita; e.custoHoras += r.custo; e.horas += r.horas
+      if (r.custo_fixo_mes) e.salary = r.custo_fixo_mes
+      byUser.set(r.user_id, e)
     }
     const nMeses = monthsToFetch.length || 1
     return [...byUser.values()].map(e => {
       const custoFixo = r2(e.salary * nMeses)
       return { ...e, receita: r2(e.receita), custoHoras: r2(e.custoHoras), horas: r2(e.horas), nMeses, custoFixo, resultado: r2(e.receita - custoFixo) }
     }).sort((a, b) => a.resultado - b.resultado)
-  }, [monthly, fConsultor, monthsToFetch, incluirErpserv])
+  }, [filtered, monthsToFetch])
   const fixosTot = useMemo(() => fixosData.reduce((a, f) => ({ custoFixo: a.custoFixo + f.custoFixo, receita: a.receita + f.receita, resultado: a.resultado + f.resultado }), { custoFixo: 0, receita: 0, resultado: 0 }), [fixosData])
 
   // Linhas-pai: consolidado por projeto (soma horas/receita/custo, conta consultores,
@@ -680,8 +702,8 @@ export default function RentabilidadePage() {
     if (w) { w.document.write(html); w.document.close() }
   }
 
-  return (
-    <AppLayout title="Relatório de Rentabilidade">
+  const content = (
+    <>
       <div className="max-w-[1400px] mx-auto">
         <PageHeader
           icon={TrendingUp}
@@ -869,7 +891,8 @@ export default function RentabilidadePage() {
                     contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--text)' }}
                     labelStyle={{ color: 'var(--text)' }} itemStyle={{ color: 'var(--text)' }}
                     formatter={((v: number, _n: string, p: { payload?: { naoUtil?: boolean } }) => [`${v}h${p?.payload?.naoUtil ? ' · fim de semana/feriado' : ''}`, 'Horas']) as never} />
-                  <Bar dataKey="horas" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="horas" radius={[4, 4, 0, 0]} cursor="pointer"
+                    onClick={((e: { dia?: string; payload?: { dia?: string } }) => { const d = e?.dia ?? e?.payload?.dia; if (d) setDiaModal(d) }) as never}>
                     {/* fim de semana/feriado em âmbar; dia útil na cor da marca */}
                     {diaChart.data.map((d, i) => <Cell key={i} fill={d.naoUtil ? 'var(--warning)' : 'var(--brand-primary)'} />)}
                   </Bar>
@@ -1292,6 +1315,44 @@ export default function RentabilidadePage() {
         )}
       </div>
 
+      {diaModal && diaDetalhe && (
+        <div onClick={() => setDiaModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} className="rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)', width: 'min(580px, 100%)', maxHeight: '80vh', overflow: 'auto' }}>
+            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Apontamentos de {diaModal.split('-').reverse().join('/')}</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>{diaDetalhe.total.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h em {diaDetalhe.itens.length} lançamento(s)</p>
+              </div>
+              <button onClick={() => setDiaModal(null)} style={{ color: 'var(--text-muted)' }} title="Fechar"><X size={18} /></button>
+            </div>
+            <div className="p-2">
+              {diaDetalhe.itens.length === 0 ? (
+                <p className="text-xs text-center py-6" style={{ color: 'var(--text-light)' }}>Sem apontamentos neste dia.</p>
+              ) : (
+                <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+                  <thead><tr style={{ color: 'var(--text-light)' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Consultor</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Projeto</th>
+                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Cliente</th>
+                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Horas</th>
+                  </tr></thead>
+                  <tbody>
+                    {diaDetalhe.itens.map((it, i) => (
+                      <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
+                        <td style={{ padding: '5px 8px', color: 'var(--text)' }}>{it.consultor}</td>
+                        <td style={{ padding: '5px 8px', color: 'var(--text-muted)' }}>{it.projeto}</td>
+                        <td style={{ padding: '5px 8px', color: 'var(--text-light)' }}>{it.cliente}</td>
+                        <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--text)' }} className="tabular-nums">{it.horas.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {keruakModal && (
         <KeruakTitulosModal
           cliente={keruakModal.cliente}
@@ -1301,6 +1362,7 @@ export default function RentabilidadePage() {
           onClose={() => setKeruakModal(null)}
         />
       )}
-    </AppLayout>
+    </>
   )
+  return embedded ? content : <AppLayout title="Relatório de Rentabilidade">{content}</AppLayout>
 }
