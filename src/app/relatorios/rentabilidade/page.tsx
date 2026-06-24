@@ -187,8 +187,10 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
   const [year, setYear]   = useState(currentYear)
-  // Período (abas consultor/projeto): De..Até por mês — PODE incluir o mês atual.
-  const [fromM, setFromM] = useState(currentYear <= 2026 ? 5 : 1)
+  // Período (abas consultor/projeto): toggle Mês/Ano (mês único) ou Período (De..Até).
+  const [periodModo, setPeriodModo] = useState<'mesano' | 'periodo'>('mesano')
+  const [reloadTick, setReloadTick] = useState(0) // botão atualizar
+  const [fromM, setFromM] = useState(currentMonth)
   const [fromY, setFromY] = useState(currentYear)
   const [toM, setToM]     = useState(currentMonth)
   const [toY, setToY]     = useState(currentYear)
@@ -289,7 +291,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         return { ...r, horas, receita, custo, margem, margem_pct: receita > 0 ? Math.round(margem / receita * 1000) / 10 : null }
       }))
     }).finally(() => setLoading(false))
-  }, [monthsToFetch])
+  }, [monthsToFetch, reloadTick])
 
   // Aba Clientes: busca a rentabilidade-por-cliente + recebido Keruak (M+1).
   // refresh=true → ?refresh=1 (botão "Atualizar Keruak": ignora o cache de 3h).
@@ -815,10 +817,27 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                   {monthsToFetch.length ? `até ${fmtYm(monthsToFetch[monthsToFetch.length - 1])} · não inclui o mês atual` : 'sem mês fechado neste ano ainda'}
                 </span>
               </>) : embedded ? null : (<>
-                <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Período</label>
-                <MonthYearPicker month={fromM} year={fromY} placeholder="De" onChange={(m, y) => { if (m && y) { setFromM(m); setFromY(y) } }} />
-                <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>até</span>
-                <MonthYearPicker month={toM} year={toY} placeholder="Até" onChange={(m, y) => { if (m && y) { setToM(m); setToY(y) } }} />
+                {/* Toggle Mês/Ano ↔ Período */}
+                <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: '1px solid var(--border)' }}>
+                  {(['mesano', 'periodo'] as const).map(m => (
+                    <button key={m} type="button"
+                      onClick={() => { if (m === 'mesano') { setFromM(toM); setFromY(toY) } setPeriodModo(m) }}
+                      className="px-3 py-1.5 font-medium transition-colors"
+                      style={{ background: periodModo === m ? 'var(--primary)' : 'transparent', color: periodModo === m ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
+                      {m === 'mesano' ? 'Mês/Ano' : 'Período'}
+                    </button>
+                  ))}
+                </div>
+                {periodModo === 'mesano' ? (
+                  <MonthYearPicker month={toM} year={toY} placeholder="Mês/Ano" onChange={(m, y) => { if (m && y) { setFromM(m); setFromY(y); setToM(m); setToY(y) } }} />
+                ) : (<>
+                  <MonthYearPicker month={fromM} year={fromY} placeholder="De" onChange={(m, y) => { if (m && y) { setFromM(m); setFromY(y) } }} />
+                  <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>até</span>
+                  <MonthYearPicker month={toM} year={toY} placeholder="Até" onChange={(m, y) => { if (m && y) { setToM(m); setToY(y) } }} />
+                </>)}
+                <button type="button" onClick={() => setReloadTick(t => t + 1)} title="Atualizar" className="p-1.5 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}>
+                  <RefreshCw size={14} />
+                </button>
               </>)}
               {visao === 'clientes' && (
                 <Button variant="ghost" size="sm" icon={RefreshCw} loading={refreshing}
@@ -976,11 +995,19 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                 <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--success-border)' }} /> Projeto</span>
                 <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--danger)' }} /> Investimento</span>
               </div>
+              {/* Eixo X fixo no topo (mesmo domínio do gráfico que rola) */}
+              <ResponsiveContainer width="100%" height={24}>
+                <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 28, top: 0, bottom: 0 }}>
+                  <XAxis type="number" orientation="top" tick={{ fontSize: 10, fill: 'var(--text-light)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+                  <YAxis type="category" dataKey="label" width={160} tick={false} axisLine={false} tickLine={false} />
+                  <Bar dataKey="horas" fill="transparent" />
+                </BarChart>
+              </ResponsiveContainer>
               {/* Quadro de altura fixa com rolagem vertical (mostra todos os consultores) */}
-              <div style={{ maxHeight: 430, overflowY: 'auto', overflowX: 'hidden' }}>
-                <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 26 + 24)}>
+              <div style={{ maxHeight: 410, overflowY: 'auto', overflowX: 'hidden' }}>
+                <ResponsiveContainer width="100%" height={Math.max(180, chartData.length * 26)}>
                   <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 28, top: 0, bottom: 0 }}>
-                    <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-light)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+                    <XAxis type="number" hide />
                     <YAxis type="category" dataKey="label" width={160} interval={0} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
                     <Tooltip cursor={{ fill: 'var(--surface-hover)' }} content={<HorasCatTooltip />} />
                     <Bar dataKey="suporte" name="Sustentação" stackId="a" fill="var(--primary)" />
