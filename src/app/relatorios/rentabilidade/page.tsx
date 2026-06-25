@@ -924,15 +924,15 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
           {visao !== 'clientes' && (<>
             <div className="min-w-[180px]">
               <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Cliente</p>
-              <SearchSelect value={fCliente} onChange={setFCliente} options={[{ id: '', name: 'Todos os clientes' }, ...optClientes]} placeholder="Todos os clientes" />
+              <SearchSelect value={fCliente} onChange={setFCliente} options={optClientes} placeholder="Todos os clientes" />
             </div>
             <div className="min-w-[180px]">
               <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Projeto</p>
-              <SearchSelect value={fProjeto} onChange={setFProjeto} options={[{ id: '', name: 'Todos os projetos' }, ...optProjetos]} placeholder="Todos os projetos" />
+              <SearchSelect value={fProjeto} onChange={setFProjeto} options={optProjetos} placeholder="Todos os projetos" />
             </div>
             <div className="min-w-[180px]">
               <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Consultor</p>
-              <SearchSelect value={fConsultor} onChange={setFConsultor} options={[{ id: '', name: 'Todos os consultores' }, ...optConsultores]} placeholder="Todos os consultores" />
+              <SearchSelect value={fConsultor} onChange={setFConsultor} options={optConsultores} placeholder="Todos os consultores" />
             </div>
           </>)}
           {visao !== 'clientes' && (
