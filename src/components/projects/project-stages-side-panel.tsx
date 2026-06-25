@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import { X, ExternalLink, Layers } from 'lucide-react'
 import { useProjectStages } from '@/hooks/use-project-stages'
+import { useApiQuery } from '@/hooks/use-query'
+import { useAuth } from '@/hooks/use-auth'
 
 interface Props {
   projectId: number
@@ -28,7 +30,13 @@ function formatHours(v: number): string {
 export function ProjectStagesSidePanel({
   projectId, projectName, customerName, onClose,
 }: Props) {
+  const { user } = useAuth()
+  const isClient = user?.type === 'cliente'
   const { stages } = useProjectStages(projectId)
+  // Cliente: dados em DIAS (sem horas) via endpoint do cliente.
+  const { data: clientSched } = useApiQuery<{ stages: { progress_pct: number; deliveries: { status: string }[] }[] }>(
+    isClient ? `/client/projects/${projectId}/schedule` : null,
+  )
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -36,10 +44,15 @@ export function ProjectStagesSidePanel({
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const total = stages.length
+  const csStages = clientSched?.stages ?? []
+  const total = isClient ? csStages.length : stages.length
   const planned = stages.reduce((s, st) => s + n(st.hours_planned), 0)
-  const totalDeliv = stages.reduce((s, st) => s + (st.deliveries_count ?? 0), 0)
-  const doneDeliv = stages.reduce((s, st) => s + (st.deliveries_done_count ?? 0), 0)
+  const totalDeliv = isClient
+    ? csStages.reduce((s, st) => s + st.deliveries.length, 0)
+    : stages.reduce((s, st) => s + (st.deliveries_count ?? 0), 0)
+  const doneDeliv = isClient
+    ? csStages.reduce((s, st) => s + st.deliveries.filter(d => d.status === 'done').length, 0)
+    : stages.reduce((s, st) => s + (st.deliveries_done_count ?? 0), 0)
   const pct = totalDeliv > 0 ? Math.round((doneDeliv / totalDeliv) * 100) : 0
 
   return (
@@ -114,13 +127,13 @@ export function ProjectStagesSidePanel({
             </div>
             <div style={{ fontSize: 13, color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span><strong>{total}</strong> etapa{total !== 1 ? 's' : ''}</span>
-              <span><strong>{formatHours(planned)}</strong> planejadas</span>
-              <span><strong>{doneDeliv}/{totalDeliv}</strong> entregas concluídas{totalDeliv > 0 ? ` · ${pct}%` : ''}</span>
+              {!isClient && <span><strong>{formatHours(planned)}</strong> planejadas</span>}
+              <span><strong>{doneDeliv}/{totalDeliv}</strong> atividades concluídas{totalDeliv > 0 ? ` · ${pct}%` : ''}</span>
             </div>
           </div>
 
           <Link
-            href={`/projetos/${projectId}/etapas?from=pipeline`}
+            href={`/projetos/${projectId}/cronograma?from=pipeline`}
             className="ds-btn-primary"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -134,7 +147,9 @@ export function ProjectStagesSidePanel({
           <p style={{
             marginTop: 16, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5,
           }}>
-            O workspace mostra todas as etapas com seus consultores alocados, horas e kanban operacional num único board.
+            {isClient
+              ? 'Acompanhe o cronograma do projeto em dias: etapas, atividades e o que aguarda a sua aprovação.'
+              : 'O workspace mostra todas as etapas com seus consultores alocados, horas e kanban operacional num único board.'}
           </p>
         </div>
       </aside>

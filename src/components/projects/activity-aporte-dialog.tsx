@@ -4,14 +4,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { X, PlusCircle, Clock, AlertTriangle } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
-import { useStageAportes } from '@/hooks/use-stage-aportes'
+import { useActivityAportes } from '@/hooks/use-activity-aportes'
 import { useApiQuery } from '@/hooks/use-query'
 import { useProjectStages } from '@/hooks/use-project-stages'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 
 interface Props {
-  stageId: number
-  stageName: string
+  deliveryId: number
+  deliveryName: string
+  deliveryHoursPlanned: number
   projectId: number
   onClose: () => void
   onCreated: () => void
@@ -47,21 +48,15 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR')
 }
 
-export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCreated }: Props) {
-  const { items, totals, loading, refetch } = useStageAportes(stageId)
+export function ActivityAporteDialog({
+  deliveryId, deliveryName, deliveryHoursPlanned, projectId, onClose, onCreated,
+}: Props) {
+  const { items, totals, loading, refetch } = useActivityAportes(deliveryId)
   const { data: project } = useApiQuery<ProjectBalance>(`/projects/${projectId}`)
   const { stages } = useProjectStages(projectId)
   const [hours, setHours] = useState('')
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
-
-  const pool = cronogramaPoolHours(project)
-  const allocated = useMemo(() => stages.reduce((s, st) => s + num(st.hours_planned), 0), [stages])
-  const remaining = pool - allocated
-  const aporteHours = Number(hours)
-  const isValidAporteValue = Number.isFinite(aporteHours) && aporteHours !== 0
-  const projectedRemaining = isValidAporteValue ? remaining - aporteHours : remaining
-  const projectedNegative = isValidAporteValue && aporteHours > 0 && projectedRemaining < 0
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -69,10 +64,21 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
+  // Saldo do projeto = pool liberado à gestão − SUM(deliveries.hours_planned across stages).
+  // Como o frontend ainda não tem essa SUM direto, usamos a soma das stages (aproximação razoável; backend é authoritative).
+  const pool = cronogramaPoolHours(project)
+  const allocated = useMemo(() => stages.reduce((s, st) => s + num(st.hours_planned), 0), [stages])
+  const remaining = pool - allocated
+  const aporteValue = Number(hours)
+  const isValid = Number.isFinite(aporteValue) && aporteValue !== 0
+  const projectedRemaining = isValid ? remaining - aporteValue : remaining
+  const projectedActivity = isValid ? deliveryHoursPlanned + aporteValue : deliveryHoursPlanned
+  const projectExceeds = isValid && aporteValue > 0 && projectedRemaining < 0
+  const activityBelowZero = isValid && aporteValue < 0 && projectedActivity < 0
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const n = Number(hours)
-    if (!Number.isFinite(n) || n === 0) {
+    if (!Number.isFinite(aporteValue) || aporteValue === 0) {
       toast.error('Informe horas (≠ 0)')
       return
     }
@@ -82,7 +88,7 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
     }
     setSaving(true)
     try {
-      await api.post(`/stages/${stageId}/aportes`, { hours: n, reason: reason.trim() })
+      await api.post(`/activities/${deliveryId}/aportes`, { hours: aporteValue, reason: reason.trim() })
       toast.success('Aporte registrado')
       setHours('')
       setReason('')
@@ -101,7 +107,7 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
         onClick={onClose}
         style={{
           position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.45)', zIndex: 60,
+          background: 'rgba(0,0,0,0.45)', zIndex: 80,
         }}
       />
       <aside
@@ -111,12 +117,12 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
           background: 'var(--bg)',
           borderLeft: '1px solid var(--border)',
           boxShadow: '-8px 0 24px rgba(0,0,0,0.2)',
-          zIndex: 70,
+          zIndex: 90,
           display: 'flex', flexDirection: 'column',
-          animation: 'slideInAporte .18s ease',
+          animation: 'slideInActAporte .18s ease',
         }}
       >
-        <style>{`@keyframes slideInAporte { from { transform: translateX(20px); opacity: 0 } to { transform: none; opacity: 1 } }`}</style>
+        <style>{`@keyframes slideInActAporte { from { transform: translateX(20px); opacity: 0 } to { transform: none; opacity: 1 } }`}</style>
 
         <div style={{
           padding: '14px 18px',
@@ -125,10 +131,10 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
         }}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
-              Aporte operacional
+              Aporte na atividade
             </div>
             <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginTop: 2 }}>
-              {stageName}
+              {deliveryName}
             </div>
           </div>
           <button
@@ -143,43 +149,47 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
           <div
             className="ds-card"
             style={{
-              padding: '10px 12px',
-              marginBottom: 12,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
-              borderLeft: projectedNegative ? '3px solid var(--danger)' : '3px solid var(--success)',
+              padding: '10px 12px', marginBottom: 12,
+              borderLeft: projectExceeds ? '3px solid var(--danger)' : '3px solid var(--success)',
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
             }}
           >
-            <div style={{ minWidth: 0 }}>
+            <div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
                 Saldo do projeto
               </div>
               <div style={{ fontSize: 16, fontWeight: 600, color: remaining < 0 ? 'var(--danger)' : 'var(--text)', marginTop: 2 }}>
                 {formatHours(remaining)}
               </div>
-              <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>
-                {formatHours(pool)} liberadas à gestão − {formatHours(allocated)} alocadas
-              </div>
-            </div>
-            {isValidAporteValue && (
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
-                  Após aporte
-                </div>
+              {isValid && (
                 <div style={{
-                  fontSize: 16, fontWeight: 600, marginTop: 2,
-                  color: projectedNegative ? 'var(--danger)' : 'var(--text)',
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontSize: 10, marginTop: 2,
+                  color: projectExceeds ? 'var(--danger)' : 'var(--text-light)',
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
                 }}>
-                  {projectedNegative && <AlertTriangle size={13} />}
-                  {formatHours(projectedRemaining)}
+                  {projectExceeds && <AlertTriangle size={10} />}
+                  Após: {formatHours(projectedRemaining)}
                 </div>
-                {projectedNegative && (
-                  <div style={{ fontSize: 10, color: 'var(--danger)', marginTop: 2 }}>
-                    excede saldo
-                  </div>
-                )}
+              )}
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                Atividade atual
               </div>
-            )}
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', marginTop: 2 }}>
+                {formatHours(deliveryHoursPlanned)}
+              </div>
+              {isValid && (
+                <div style={{
+                  fontSize: 10, marginTop: 2,
+                  color: activityBelowZero ? 'var(--danger)' : 'var(--text-light)',
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                }}>
+                  {activityBelowZero && <AlertTriangle size={10} />}
+                  Após: {formatHours(projectedActivity)}
+                </div>
+              )}
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="ds-card ds-card-pad" style={{ padding: 14, marginBottom: 18 }}>
@@ -189,12 +199,11 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
                   Horas
                 </label>
                 <input
-                  type="number"
-                  step="0.5"
+                  type="number" step="0.5"
                   className="ds-input"
                   value={hours}
                   onChange={e => setHours(e.target.value)}
-                  placeholder="20"
+                  placeholder="5"
                   style={{ width: '100%', marginTop: 4 }}
                 />
               </div>
@@ -203,7 +212,7 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
                   Use negativo (-) pra extorno
                 </label>
                 <div style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 4 }}>
-                  Aporte positivo expande a etapa e consome saldo do projeto.
+                  Aporte positivo expande as horas previstas da atividade e consome saldo do projeto.
                 </div>
               </div>
             </div>
@@ -219,20 +228,17 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
                 maxLength={500}
                 placeholder="Ex: Adequação SPED 2026 — novo bloco requerido"
                 className="ds-input"
-                style={{
-                  width: '100%', marginTop: 4, padding: 10,
-                  resize: 'vertical', fontFamily: 'inherit',
-                }}
+                style={{ width: '100%', marginTop: 4, padding: 10, resize: 'vertical', fontFamily: 'inherit' }}
               />
               <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>
-                Mínimo 5 caracteres. Aparece no histórico de aportes desta etapa.
+                Mínimo 5 caracteres. Aparece no histórico desta atividade.
               </div>
             </div>
 
             <button
               type="submit"
               className="ds-btn-primary"
-              disabled={saving || !hours || reason.trim().length < 5 || projectedNegative}
+              disabled={saving || !hours || reason.trim().length < 5 || projectExceeds || activityBelowZero}
               style={{ fontSize: 13, padding: '8px 16px', marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
               <PlusCircle size={13} /> {saving ? 'Registrando…' : 'Registrar aporte'}
@@ -240,10 +246,7 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
           </form>
 
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-            <div style={{
-              fontSize: 11, color: 'var(--text-muted)',
-              textTransform: 'uppercase', letterSpacing: '.04em',
-            }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
               Histórico · {totals.count}
             </div>
             {totals.hours !== 0 && (
@@ -254,7 +257,6 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
           </div>
 
           {loading && <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Carregando…</div>}
-
           {!loading && items.length === 0 && (
             <div style={{
               padding: '20px 16px', textAlign: 'center', fontSize: 13,
@@ -264,15 +266,10 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
               Nenhum aporte registrado ainda.
             </div>
           )}
-
           {!loading && items.length > 0 && (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {items.map(a => (
-                <li
-                  key={a.id}
-                  className="ds-card"
-                  style={{ padding: 10 }}
-                >
+                <li key={a.id} className="ds-card" style={{ padding: 10 }}>
                   <div style={{
                     display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
                     gap: 8, marginBottom: 4,
