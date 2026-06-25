@@ -175,6 +175,29 @@ function HorasCatTooltip({ active, payload, label }: { active?: boolean; payload
   )
 }
 
+// Ordena linhas por uma chave (string → alfabético; número → numérico).
+function sortRows<T>(arr: T[], sort: { key: string; dir: 'asc' | 'desc' }): T[] {
+  const { key, dir } = sort
+  return [...arr].sort((a, b) => {
+    const av = (a as Record<string, unknown>)[key], bv = (b as Record<string, unknown>)[key]
+    const c = (typeof av === 'string' || typeof bv === 'string')
+      ? String(av ?? '').localeCompare(String(bv ?? ''))
+      : ((Number(av) || 0) - (Number(bv) || 0))
+    return dir === 'asc' ? c : -c
+  })
+}
+
+// Cabeçalho de coluna clicável p/ ordenar (tabelas Recebe Fixo / Horistas).
+function SortableTh({ label, k, sort, onSort, left, title }: { label: string; k: string; sort: { key: string; dir: 'asc' | 'desc' }; onSort: (k: string) => void; left?: boolean; title?: string }) {
+  const active = sort.key === k
+  return (
+    <th onClick={() => onSort(k)} title={title}
+      style={{ textAlign: left ? 'left' : 'right', padding: '6px 8px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', color: active ? 'var(--primary)' : undefined }}>
+      {label}{active ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
+    </th>
+  )
+}
+
 // Selo de categoria do projeto (Sustentação = Cloud/Bizify/Sustentação; senão Projeto).
 function CatBadge({ cat }: { cat?: 'sustentacao' | 'projeto' | 'misto' | null }) {
   if (!cat) return <span style={{ color: 'var(--text-light)' }}>—</span>
@@ -580,6 +603,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     }).sort((a, b) => a.resultado - b.resultado)
   }, [filtered, monthsToFetch, monthly, fConsultor])
   const fixosTot = useMemo(() => fixosData.reduce((a, f) => ({ custoFixo: a.custoFixo + f.custoFixo, receita: a.receita + f.receita, resultado: a.resultado + f.resultado, horasInvest: a.horasInvest + f.horasInvest }), { custoFixo: 0, receita: 0, resultado: 0, horasInvest: 0 }), [fixosData])
+  const [fixoSort, setFixoSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'resultado', dir: 'asc' })
+  const sortFixo = (k: string) => setFixoSort(s => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'desc' })
+  const fixosSorted = useMemo(() => sortRows(fixosData, fixoSort), [fixosData, fixoSort])
 
   // Seção "Horistas": consultores NÃO mensalistas (rate_type ≠ monthly). Custo = horas × R$/h;
   // Resultado = Receita − Custo. Exclui coordenador/diretor/Bizify (como o Recebe Fixo).
@@ -604,6 +630,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     })).sort((a, b) => a.resultado - b.resultado)
   }, [filtered, monthly, fConsultor])
   const horistasTot = useMemo(() => horistasData.reduce((a, h) => ({ horas: a.horas + h.horas, horasInvest: a.horasInvest + h.horasInvest, receita: a.receita + h.receita, custo: a.custo + h.custo, resultado: a.resultado + h.resultado }), { horas: 0, horasInvest: 0, receita: 0, custo: 0, resultado: 0 }), [horistasData])
+  const [horistaSort, setHoristaSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'resultado', dir: 'asc' })
+  const sortHorista = (k: string) => setHoristaSort(s => s.key === k ? { key: k, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key: k, dir: 'desc' })
+  const horistasSorted = useMemo(() => sortRows(horistasData, horistaSort), [horistasData, horistaSort])
 
   // Linhas-pai: consolidado por projeto (soma horas/receita/custo, conta consultores,
   // custo/h = custo total ÷ horas). Cada pai expande nas linhas dos consultores.
@@ -1111,17 +1140,17 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
               <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ color: 'var(--text-light)' }}>
-                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Consultor</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Salário/mês</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Custo Fixo</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Horas</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }} title="Horas em projetos de investimento (inclui ERPSERV)">Horas Invest.</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Receita (apontado)</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Resultado</th>
+                    <SortableTh label="Consultor" k="consultor" sort={fixoSort} onSort={sortFixo} left />
+                    <SortableTh label="Salário/mês" k="salary" sort={fixoSort} onSort={sortFixo} />
+                    <SortableTh label="Custo Fixo" k="custoFixo" sort={fixoSort} onSort={sortFixo} />
+                    <SortableTh label="Horas" k="horas" sort={fixoSort} onSort={sortFixo} />
+                    <SortableTh label="Horas Invest." k="horasInvest" sort={fixoSort} onSort={sortFixo} title="Horas em projetos de investimento (inclui ERPSERV)" />
+                    <SortableTh label="Receita (apontado)" k="receita" sort={fixoSort} onSort={sortFixo} />
+                    <SortableTh label="Resultado" k="resultado" sort={fixoSort} onSort={sortFixo} />
                   </tr>
                 </thead>
                 <tbody>
-                  {fixosData.map(f => (
+                  {fixosSorted.map(f => (
                     <tr key={f.user_id} style={{ borderTop: '1px solid var(--border)' }}>
                       <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>{f.consultor}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(f.salary)}</td>
@@ -1158,17 +1187,17 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
               <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ color: 'var(--text-light)' }}>
-                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Consultor</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>R$/h (custo)</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Horas</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }} title="Horas em projetos de investimento (inclui ERPSERV)">Horas Invest.</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Receita (apontado)</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Custo</th>
-                    <th style={{ textAlign: 'right', padding: '6px 8px' }}>Resultado</th>
+                    <SortableTh label="Consultor" k="consultor" sort={horistaSort} onSort={sortHorista} left />
+                    <SortableTh label="R$/h (custo)" k="rhCusto" sort={horistaSort} onSort={sortHorista} />
+                    <SortableTh label="Horas" k="horas" sort={horistaSort} onSort={sortHorista} />
+                    <SortableTh label="Horas Invest." k="horasInvest" sort={horistaSort} onSort={sortHorista} title="Horas em projetos de investimento (inclui ERPSERV)" />
+                    <SortableTh label="Receita (apontado)" k="receita" sort={horistaSort} onSort={sortHorista} />
+                    <SortableTh label="Custo" k="custo" sort={horistaSort} onSort={sortHorista} />
+                    <SortableTh label="Resultado" k="resultado" sort={horistaSort} onSort={sortHorista} />
                   </tr>
                 </thead>
                 <tbody>
-                  {horistasData.map(h => (
+                  {horistasSorted.map(h => (
                     <tr key={h.user_id} style={{ borderTop: '1px solid var(--border)' }}>
                       <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)' }}>{h.consultor}</td>
                       <td style={{ textAlign: 'right', padding: '5px 8px', color: 'var(--text-muted)' }} className="tabular-nums">{formatBRL(h.rhCusto)}</td>
