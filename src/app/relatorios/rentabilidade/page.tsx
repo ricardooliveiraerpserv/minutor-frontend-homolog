@@ -1016,6 +1016,19 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
           ))}
         </div>
 
+        {/* Total de horas no período (por segmento) */}
+        {visao !== 'clientes' && (
+          <div className="rounded-xl p-3 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Total de horas no período</div>
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-1.5 text-sm">
+              <span style={{ color: 'var(--primary)' }}>Sustentação <b className="tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(totCat.sustentacao.horas)}</b></span>
+              <span style={{ color: 'var(--success-border)' }}>Projeto <b className="tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(totCat.projeto.horas)}</b></span>
+              <span style={{ color: 'var(--danger)' }}>Investimento <b className="tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(totCat.investimento.horas)}</b></span>
+              <span className="font-bold" style={{ color: 'var(--text)', borderLeft: '1px solid var(--border)', paddingLeft: 16 }}>Total <b className="tabular-nums">{fmtH(totCat.sustentacao.horas + totCat.projeto.horas + totCat.investimento.horas)}</b></span>
+            </div>
+          </div>
+        )}
+
         {/* Totais por segmento (Sustentação · Projeto · Investimento) — clicáveis p/ filtrar */}
         {visao !== 'clientes' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
