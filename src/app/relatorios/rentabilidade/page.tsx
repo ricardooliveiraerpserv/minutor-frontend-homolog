@@ -237,7 +237,6 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const [monthly, setMonthly] = useState<{ ym: string; rows: Row[]; dias: DiaRow[] }[]>([]) // dados crus por mês (gráficos + fixos)
   const [loading, setLoading] = useState(false)
   const [busca, setBusca] = useState(() => lf(sf, 'busca', ''))
-  const [soReceita, setSoReceita] = useState(() => lf(sf, 'soReceita', true))
   const [incluirErpserv, setIncluirErpserv] = useState(() => lf(sf, 'incluirErpserv', true)) // Consultor×Projeto: incluir apontamentos da ERPSERV (interna) nos dados/totais
   const [fCategoria, setFCategoria] = useState<'' | 'sustentacao' | 'projeto' | 'investimento'>(() => lf<'' | 'sustentacao' | 'projeto' | 'investimento'>(sf, 'fCategoria', '')) // filtro por segmento (cards clicáveis)
   const [diaModal, setDiaModal] = useState<string | null>(null) // dia (YYYY-MM-DD) clicado no gráfico "Horas apontadas por dia"
@@ -247,8 +246,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // Persiste os filtros (consultor/projeto) entre reloads — não no modo embutido (usa o filtro do portal).
   useEffect(() => {
     if (embedded || typeof window === 'undefined') return
-    try { localStorage.setItem(RENTAB_FILTERS_KEY, JSON.stringify({ periodModo, fromM, fromY, toM, toY, dateFrom, dateTo, busca, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, fConsultor, year })) } catch { /* noop */ }
-  }, [embedded, periodModo, fromM, fromY, toM, toY, dateFrom, dateTo, busca, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, fConsultor, year])
+    try { localStorage.setItem(RENTAB_FILTERS_KEY, JSON.stringify({ periodModo, fromM, fromY, toM, toY, dateFrom, dateTo, busca, incluirErpserv, fCategoria, fCliente, fProjeto, fConsultor, year })) } catch { /* noop */ }
+  }, [embedded, periodModo, fromM, fromY, toM, toY, dateFrom, dateTo, busca, incluirErpserv, fCategoria, fCliente, fProjeto, fConsultor, year])
   // Cada visão é uma rotina própria no menu Relatórios (sub-rotas que reusam este
   // componente). A visão é derivada do pathname:
   //   /relatorios/rentabilidade            → Clientes (BI Keruak)
@@ -458,7 +457,6 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const catSeg = (r: Row): 'sustentacao' | 'projeto' | 'investimento' => r.is_investimento ? 'investimento' : (r.categoria === 'sustentacao' ? 'sustentacao' : 'projeto')
 
   const filteredBase = useMemo(() => rows.filter(r => {
-    if (soReceita && r.receita === 0 && !r.is_investimento) return false // investimento entra mesmo sem receita
     if (!incluirErpserv && isErpservNome(r.cliente)) return false
     if (fCliente && r.cliente !== fCliente) return false
     if (fProjeto && String(r.project_id) !== fProjeto) return false
@@ -468,7 +466,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       if (!r.consultor.toLowerCase().includes(q) && !r.projeto.toLowerCase().includes(q) && !r.cliente.toLowerCase().includes(q)) return false
     }
     return true
-  }), [rows, busca, soReceita, incluirErpserv, fCliente, fProjeto, fConsultor])
+  }), [rows, busca, incluirErpserv, fCliente, fProjeto, fConsultor])
   // fCategoria (cards clicáveis) aplicado sobre a base; os cards usam filteredBase p/ mostrar SEMPRE as duas categorias.
   const filtered = useMemo(() => fCategoria ? filteredBase.filter(r => catSeg(r) === fCategoria) : filteredBase, [filteredBase, fCategoria])
   const totCat = useMemo(() => {
@@ -497,7 +495,6 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // com consultor filtrado → barras POR PERÍODO (mês a mês do consultor selecionado).
   const chartData = useMemo(() => {
     const passaFiltro = (r: Row) => {
-      if (soReceita && r.receita === 0 && !r.is_investimento) return false
       if (!incluirErpserv && isErpservNome(r.cliente)) return false
       if (fCategoria && catSeg(r) !== fCategoria) return false
       if (fCliente && r.cliente !== fCliente) return false
@@ -524,7 +521,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       map.set(r.user_id, e)
     }
     return [...map.values()].map(e => ({ label: e.label, suporte: r2(e.suporte), projeto: r2(e.projeto), investimento: r2(e.investimento), horas: r2(e.suporte + e.projeto + e.investimento) })).sort((a, b) => b.horas - a.horas)
-  }, [fConsultor, monthly, filtered, soReceita, incluirErpserv, fCategoria, fCliente, fProjeto, busca])
+  }, [fConsultor, monthly, filtered, incluirErpserv, fCategoria, fCliente, fProjeto, busca])
 
   // Gráfico de horas apontadas POR DIA (respeita filtros consultor/cliente/projeto + período).
   // Mês filtrado (≤ ~31 dias) mostra o mês inteiro; período longo → últimos 60 dias (legibilidade).
@@ -768,8 +765,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // Para exportar: clientes (sem ERPSERV) + a linha da ERPSERV no fim, espelhando a tela.
   const clientesExport = erpservRow ? [erpservRow, ...clientesSorted] : clientesSorted
 
-  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoReceita(true); setSoMinutor(false); setSoForaMinutor(false); setFExecutivo(''); setFConsultorCli('') }
-  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || !soReceita || soMinutor || soForaMinutor || fExecutivo || fConsultorCli)
+  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoMinutor(false); setSoForaMinutor(false); setFExecutivo(''); setFConsultorCli('') }
+  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || soMinutor || soForaMinutor || fExecutivo || fConsultorCli)
 
   const fmtYm = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) }
   const fmtMes = () => !monthsToFetch.length
@@ -938,12 +935,6 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
               <SearchSelect value={fConsultor} onChange={setFConsultor} options={[{ id: '', name: 'Todos os consultores' }, ...optConsultores]} placeholder="Todos os consultores" />
             </div>
           </>)}
-          {visao !== 'clientes' && (
-            <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }}>
-              <input type="checkbox" checked={soReceita} onChange={e => setSoReceita(e.target.checked)} />
-              Só com receita
-            </label>
-          )}
           {visao !== 'clientes' && (
             <label className="flex items-center gap-2 text-xs cursor-pointer pb-2" style={{ color: 'var(--text-muted)' }} title="ERPSERV é a empresa interna; desmarque para tirar os apontamentos dela dos dados e totais">
               <input type="checkbox" checked={incluirErpserv} onChange={e => setIncluirErpserv(e.target.checked)} />
