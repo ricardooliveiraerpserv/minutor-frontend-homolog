@@ -5042,7 +5042,7 @@ function KanbanContent() {
                   unreadContractIds={unreadContractIds}
                   onContractClick={setSelectedContract}
                   onContractAction={(card, action) => setContractAction({ card, action })}
-                  onProjectClick={(card) => { if (!isCliente) setSelectedProject(card) }}
+                  onProjectClick={(card) => { if (!isCliente) setStagesPanelProject(card) }}
                   onProjectAction={(card, action) => setProjectAction({ card, action })}
                   onRequestClick={card =>
                     card.kanban_column === 'req_inicio_autorizado' && !card.req_decision
@@ -5090,7 +5090,7 @@ function KanbanContent() {
                       }
                     }}
                     onContractAction={(card, action) => setContractAction({ card, action })}
-                    onProjectClick={(card) => { if (!isCliente) setSelectedProject(card) }}
+                    onProjectClick={(card) => { if (!isCliente) setStagesPanelProject(card) }}
                     onProjectAction={(card, action) => setProjectAction({ card, action })}
                     onRequestClick={setSelectedRequest}
                     onRequestChat={card => { setRequestInitialTab('comments'); setSelectedRequest(card) }}
@@ -5117,7 +5117,7 @@ function KanbanContent() {
                   onProjectClick={card => {
                     if (isCliente) return
                     if (newProjectIds?.has(card.id)) markProjectSeen(card.id)
-                    setSelectedProject(card)
+                    setStagesPanelProject(card)
                   }}
                   onProjectAction={(card, action) => setProjectAction({ card, action })}
                   onProjectMove={(card, toCol) => handleProjectMove(card.id, toCol)}
