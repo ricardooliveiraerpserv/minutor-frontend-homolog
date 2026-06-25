@@ -21,6 +21,42 @@ export const createAgent     = (payload: Partial<BotAgent>): Promise<{ data: Bot
 export const updateAgent     = (id: number, payload: Partial<BotAgent>) => api.put<{ data: BotAgent[] }>(`/bot/agents/${id}`, payload)
 export const deleteAgent     = (id: number): Promise<{ data: BotAgent[] }> => api.delete(`/bot/agents/${id}`)
 
+// Detectores proativos (admin)
+export interface BotDetector {
+  id: number
+  slug: string
+  name: string
+  description: string | null
+  active: boolean
+  detector_type: string
+  config: Record<string, unknown>
+  severity: string
+  source: string
+  event_type: string
+  dedupe_window_hours: number
+  is_system: boolean
+  last_run_at: string | null
+  last_run_alerts: number
+  last_run_error: string | null
+}
+
+export interface DetectorOptions {
+  data: BotDetector[]
+  types: string[]
+  severities: string[]
+  event_types: string[]
+  sources: string[]
+}
+
+export const listDetectors    = (): Promise<DetectorOptions> => api.get('/bot/detectors')
+export const createDetector   = (payload: Partial<BotDetector>): Promise<DetectorOptions> => api.post('/bot/detectors', payload)
+export const updateDetector   = (id: number, payload: Partial<BotDetector>): Promise<DetectorOptions> => api.put(`/bot/detectors/${id}`, payload)
+export const deleteDetector   = (id: number): Promise<DetectorOptions> => api.delete(`/bot/detectors/${id}`)
+export const testDetector     = (id: number): Promise<{ detector_id: number; slug: string; would_create: number; error: string | null }> => api.post(`/bot/detectors/${id}/test`, {})
+export const runDetector      = (id: number, dry = false): Promise<{ detector_id: number; slug: string; alerts: number; error: string | null }> => api.post(`/bot/detectors/${id}/run`, { dry })
+export const runAllDetectors  = (dry = false): Promise<{ alerts: number }> => api.post('/bot/detectors/run-all', { dry })
+export const validateDetectorSql = (sql: string): Promise<{ valid: boolean; error: string | null }> => api.post('/bot/detectors/validate-sql', { sql })
+
 // Skills
 export const listSkills      = (): Promise<{ data: BotSkill[] }>      => api.get('/bot/skills')
 export const createSkill     = (payload: Partial<BotSkill>): Promise<{ data: BotSkill[] }> => api.post('/bot/skills', payload)
