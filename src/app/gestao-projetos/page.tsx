@@ -1,9 +1,9 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
-import { useState, useMemo, useEffect, useRef, useCallback, Fragment } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, Fragment, Suspense } from 'react'
 import { createPortal } from 'react-dom'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { api, ApiError } from '@/lib/api'
 import { uploadDirect } from '@/lib/upload'
 import { useAuth } from '@/hooks/use-auth'
@@ -2054,8 +2054,14 @@ function ProjectEditByIdModal({ projectId, onClose, onSaved }: { projectId: numb
 
 // ─── Página ───────────────────────────────────────────────────────────────────
 
+// useSearchParams exige Suspense no build de produção (next build) — wrapper abaixo.
 export default function GestaoProjetosPage() {
+  return <Suspense fallback={null}><GestaoProjetosInner /></Suspense>
+}
+
+function GestaoProjetosInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user } = useAuth()
 
   // Consultor não acessa esta rotina, nem com extra_permissions — redireciona.
@@ -2632,22 +2638,24 @@ export default function GestaoProjetosPage() {
   const [attaching, setAttaching] = useState(false)
 
   // Auto-open messages modal when ?messages=PROJECT_ID is in URL (deep-link do sino).
-  // Se o projeto não estiver na lista carregada (filtro de mês/coordenador/etc), busca por id —
-  // antes ele simplesmente não abria ("nem abre").
+  // USA useSearchParams (reativo) → reage ao router.push do sino MESMO já estando nesta página
+  // (antes dependia só de [projects] e não reabria = "nem abre"). Se o projeto não está na lista
+  // carregada (filtro), busca por id. Limpa o ?messages via router.replace (atualiza o param).
+  const messagesParam = searchParams.get('messages')
   useEffect(() => {
-    const pid = new URLSearchParams(window.location.search).get('messages')
-    if (!pid) return
-    const found = projects.find(p => String(p.id) === pid)
+    if (!messagesParam) return
+    const clear = () => router.replace('/gestao-projetos', { scroll: false })
+    const found = projects.find(p => String(p.id) === messagesParam)
     if (found) {
       setMessagesProject(found)
-      window.history.replaceState({}, '', window.location.pathname)
+      clear()
     } else if (projects.length > 0) {
-      api.get<ProjectWithTeam>(`/projects/${pid}`)
+      api.get<ProjectWithTeam>(`/projects/${messagesParam}`)
         .then(p => { if (p?.id) setMessagesProject(p) })
         .catch(() => {})
-        .finally(() => window.history.replaceState({}, '', window.location.pathname))
+        .finally(clear)
     }
-  }, [projects])
+  }, [projects, messagesParam])
 
   const handleMenuAction = async (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent', project: ProjectWithTeam) => {
     if (action === 'attach-parent') {
