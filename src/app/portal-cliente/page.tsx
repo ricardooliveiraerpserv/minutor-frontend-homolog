@@ -215,6 +215,9 @@ function ProjectTreeNode({
   // Fechado: cliente NÃO vê horas (sem controle de saldo/consumo).
   const isClosed = p.is_closed || (p.contract_type ?? '').toLowerCase().includes('fechad')
   const meta = isClosed ? (HEALTH_META.closed ?? HEALTH_META[p.status]) : HEALTH_META[p.status]
+  // Sem saúde (ex.: cliente não acompanha apontamento): neutro como Fechado, mas
+  // mostrando as horas contratadas — sem barra, sem saldo, sem % e sem chip de risco.
+  const noHealth = !isClosed && !isOnDemand && p.status === 'unknown'
 
   return (
     <>
@@ -242,13 +245,18 @@ function ProjectTreeNode({
               </span>
             )}
           </div>
-          {!isClosed && !isOnDemand && <HealthBar pct={p.percentage} />}
+          {!isClosed && !isOnDemand && !noHealth && <HealthBar pct={p.percentage} />}
         </div>
 
         <div className="text-right shrink-0">
           {isClosed ? (
             /* Cliente não vê horas em contrato Fechado — só o selo de status. */
             null
+          ) : noHealth ? (
+            /* Sem saúde (cliente não acompanha): só as horas contratadas, neutro. */
+            <p className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--brand-text)' }}>
+              {fmtH(p.sold_hours)}
+            </p>
           ) : isOnDemand ? (
             <p className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--brand-text)' }}>
               {fmtH(p.consumed_hours)} consumido
