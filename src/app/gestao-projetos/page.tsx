@@ -3867,7 +3867,7 @@ function GestaoProjetosInner() {
               <div className="flex items-center gap-2 shrink-0">
                 {messagesProject.status && (() => {
                   // Status do projeto (mesmas labels/cores das colunas de Demandas e Projetos).
-                  const M: Record<string, [string, string]> = { awaiting_start: ['Backlog', '#94a3b8'], backlog: ['Backlog', '#94a3b8'], planning: ['Em Andamento', '#60a5fa'], started: ['Em Andamento', '#60a5fa'], liberado_para_testes: ['Em Andamento', '#60a5fa'], finished: ['Encerrado', '#22c55e'], paused: ['Pausado', '#eab308'], cancelled: ['Cancelado', '#ef4444'] }
+                  const M: Record<string, [string, string]> = { awaiting_start: ['Backlog', '#94a3b8'], backlog: ['Backlog', '#94a3b8'], planning: ['Em Planejamento', '#a78bfa'], started: ['Em Andamento', '#60a5fa'], liberado_para_testes: ['Em Homologação', '#22d3ee'], em_producao: ['Em Produção', '#14b8a6'], paused: ['Pausado', '#eab308'], finished: ['Encerrado', '#22c55e'], cancelled: ['Cancelado', '#ef4444'] }
                   const [lbl, c] = M[messagesProject.status] ?? [messagesProject.status, '#94a3b8']
                   return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: `${c}22`, color: c, border: `1px solid ${c}55` }}>{lbl}</span>
                 })()}
