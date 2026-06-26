@@ -32,6 +32,7 @@ interface Notification {
   author_name: string
   preview: string
   created_at: string
+  is_unread?: boolean
 }
 
 export function Header({ title, actions, onMenuClick }: HeaderProps) {
@@ -41,19 +42,37 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [bellOpen, setBellOpen] = useState(false)
   const bellRef = useRef<HTMLDivElement>(null)
+  // Modal "Ver todas as mensagens" — tabela do histórico completo, na própria tela.
+  const [allOpen, setAllOpen] = useState(false)
+  const [allItems, setAllItems] = useState<Notification[]>([])
+  const [allLoading, setAllLoading] = useState(false)
+
+  const notifEndpoint = user?.type === 'cliente' ? '/contract-messages/notifications' : '/messages/notifications'
+
+  const hrefForNotif = (n: Notification): string | undefined =>
+    n.contract_id ? `/contratos/pipeline?chat_contract_id=${n.contract_id}`
+    : n.project_id ? `/gestao-projetos?messages=${n.project_id}`
+    : undefined
 
   const fetchNotifications = () => {
     if (!user) return
-    const endpoint = user.type === 'cliente'
-      ? '/contract-messages/notifications'
-      : '/messages/notifications'
-    api.get<Notification[]>(endpoint)
+    api.get<any>(`${notifEndpoint}?limit=10`)
       .then(r => {
-        const list = Array.isArray(r) ? r : []
-        setNotifications(list)
-        setUnread(list.length)
+        const items: Notification[] = Array.isArray(r?.items) ? r.items : Array.isArray(r) ? r : []
+        setNotifications(items)
+        setUnread(typeof r?.unread === 'number' ? r.unread : items.length)
       })
       .catch(() => {})
+  }
+
+  const openAllMessages = () => {
+    setBellOpen(false)
+    setAllOpen(true)
+    setAllLoading(true)
+    api.get<any>(`${notifEndpoint}?limit=100`)
+      .then(r => setAllItems(Array.isArray(r?.items) ? r.items : Array.isArray(r) ? r : []))
+      .catch(() => setAllItems([]))
+      .finally(() => setAllLoading(false))
   }
 
   useEffect(() => {
@@ -106,6 +125,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+
         {actions}
 
         {/* Theme toggle — sun/moon */}
@@ -161,46 +181,43 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                   {notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-1">
                       <Bell size={20} style={{ color: 'var(--brand-muted)' }} />
-                      <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Sem mensagens não lidas</p>
+                      <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Sem mensagens</p>
                     </div>
                   ) : (
-                    <>
-                      {notifications.map(n => {
-                        const href = n.contract_id
-                          ? `/contratos/pipeline?chat_contract_id=${n.contract_id}`
-                          : n.project_id
-                          ? `/gestao-projetos?messages=${n.project_id}`
-                          : undefined
-                        return (
-                          <div
-                            key={n.id}
-                            onClick={() => { setBellOpen(false); if (href) router.push(href) }}
-                            className="flex flex-col px-4 py-3 hover:bg-white/5 transition-colors border-b gap-0.5 cursor-pointer"
-                            style={{ borderColor: 'var(--brand-border)' }}
-                          >
+                    notifications.map(n => {
+                      const href = hrefForNotif(n)
+                      return (
+                        <div
+                          key={n.id}
+                          onClick={() => { setBellOpen(false); if (href) router.push(href) }}
+                          className="flex gap-2 px-4 py-3 hover:bg-white/5 transition-colors border-b cursor-pointer"
+                          style={{ borderColor: 'var(--brand-border)' }}
+                        >
+                          {/* Indicador de não-lida */}
+                          <span className="mt-1.5 shrink-0 w-2 h-2 rounded-full" style={{ background: n.is_unread ? '#00F5FF' : 'transparent' }} title={n.is_unread ? 'Não lida' : 'Lida'} />
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                             <div className="flex items-center justify-between w-full">
                               <span className="text-[10px] font-mono truncate" style={{ color: '#00F5FF' }}>
                                 {[n.project_code, n.customer_name].filter(Boolean).join(' · ')}
                               </span>
-                              <span className="text-[9px]" style={{ color: 'var(--brand-muted)' }}>
+                              <span className="text-[9px] shrink-0 ml-2" style={{ color: 'var(--brand-muted)' }}>
                                 {new Date(n.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
                             <p className="text-[10px] font-semibold truncate" style={{ color: '#71717A' }}>{n.author_name} · {n.project_name}</p>
-                            <p className="text-xs truncate" style={{ color: '#FAFAFA' }}>{n.preview}</p>
+                            <p className="text-xs truncate" style={{ color: n.is_unread ? '#FAFAFA' : '#A1A1AA' }}>{n.preview}</p>
                           </div>
-                        )
-                      })}
-                      <a
-                        href="/gestao-projetos"
-                        onClick={() => setBellOpen(false)}
-                        className="block w-full py-2 text-center text-[10px] font-semibold hover:bg-white/5 transition-colors"
-                        style={{ color: '#00F5FF', textDecoration: 'none' }}
-                      >
-                        Ver todas as mensagens →
-                      </a>
-                    </>
+                        </div>
+                      )
+                    })
                   )}
+                  <button
+                    onClick={openAllMessages}
+                    className="block w-full py-2 text-center text-[10px] font-semibold hover:bg-white/5 transition-colors"
+                    style={{ color: '#00F5FF' }}
+                  >
+                    Ver todas as mensagens →
+                  </button>
                 </div>
               </div>
             )}
@@ -237,6 +254,59 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {/* Modal "Ver todas as mensagens" — tabela do histórico, na própria tela (não navega). */}
+      {allOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setAllOpen(false)}>
+          <div className="w-full max-w-4xl max-h-[85vh] rounded-2xl flex flex-col overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="flex items-center gap-2">
+                <MessageCircle size={16} style={{ color: '#00F5FF' }} />
+                <span className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Todas as mensagens</span>
+                {unread > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>{unread} não lida(s)</span>}
+              </div>
+              <button onClick={() => setAllOpen(false)} className="p-1 rounded hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {allLoading ? (
+                <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Carregando…</p>
+              ) : allItems.length === 0 ? (
+                <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Sem mensagens.</p>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
+                    <tr style={{ color: 'var(--brand-muted)' }}>
+                      <th className="px-3 py-2 w-6"></th>
+                      <th className="text-left font-semibold px-3 py-2 whitespace-nowrap">Código · Cliente</th>
+                      <th className="text-left font-semibold px-3 py-2">Projeto</th>
+                      <th className="text-left font-semibold px-3 py-2">Autor</th>
+                      <th className="text-left font-semibold px-3 py-2">Mensagem</th>
+                      <th className="text-left font-semibold px-3 py-2 whitespace-nowrap">Data</th>
+                      <th className="px-3 py-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allItems.map(n => {
+                      const href = hrefForNotif(n)
+                      return (
+                        <tr key={n.id} className="border-t hover:bg-white/5" style={{ borderColor: 'var(--brand-border)' }}>
+                          <td className="px-3 py-2 align-top"><span className="inline-block w-2 h-2 rounded-full" style={{ background: n.is_unread ? '#00F5FF' : 'transparent' }} title={n.is_unread ? 'Não lida' : 'Lida'} /></td>
+                          <td className="px-3 py-2 font-mono whitespace-nowrap align-top" style={{ color: '#00F5FF' }}>{[n.project_code, n.customer_name].filter(Boolean).join(' · ')}</td>
+                          <td className="px-3 py-2 align-top" style={{ color: 'var(--brand-muted)' }}>{n.project_name}</td>
+                          <td className="px-3 py-2 align-top whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{n.author_name}</td>
+                          <td className="px-3 py-2 align-top max-w-xs truncate" style={{ color: n.is_unread ? 'var(--brand-text)' : 'var(--brand-muted)' }} title={n.preview}>{n.preview}</td>
+                          <td className="px-3 py-2 align-top whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{new Date(n.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
+                          <td className="px-3 py-2 align-top">{href && <button onClick={() => { setAllOpen(false); router.push(href) }} className="font-semibold whitespace-nowrap" style={{ color: '#00F5FF' }}>Acessar →</button>}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   )
 }
