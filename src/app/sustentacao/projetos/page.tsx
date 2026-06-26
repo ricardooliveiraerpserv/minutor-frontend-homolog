@@ -852,7 +852,15 @@ export default function SustentacaoProjetosPage() {
                   <ExternalLink size={12} /> Abrir card em Demandas e Projetos
                 </a>
               </div>
-              <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors shrink-0"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+              <div className="flex items-center gap-2 shrink-0">
+                {messagesProject.status && (() => {
+                  // Status do projeto (mesmas labels/cores das colunas de Demandas e Projetos).
+                  const M: Record<string, [string, string]> = { awaiting_start: ['Aguardando', '#94a3b8'], backlog: ['Backlog', '#94a3b8'], planning: ['Planejamento', '#60a5fa'], started: ['Em Execução', '#60a5fa'], liberado_para_testes: ['Homologação', '#60a5fa'], finished: ['Encerrado', '#22c55e'], paused: ['Pausado', '#eab308'], cancelled: ['Cancelado', '#ef4444'] }
+                  const [lbl, c] = M[messagesProject.status] ?? [messagesProject.status, '#94a3b8']
+                  return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: `${c}22`, color: c, border: `1px solid ${c}55` }}>{lbl}</span>
+                })()}
+                <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+              </div>
             </div>
             <div className="flex-1 overflow-hidden">
               <ProjectMessages projectId={messagesProject.id} userRole={user?.type ?? undefined} />
