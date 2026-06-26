@@ -261,8 +261,10 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   const save = async () => {
     if (!form.project_id) { toast.error('Selecione um projeto'); return }
     const selProj = projects.find(p => String(p.id) === form.project_id) as any
-    // Investimento da própria ERPSERV não pede Projeto Real (interno, sem projeto de cliente real).
+    // Projeto Real só é pedido nos investimentos de Projetos e Suporte dos clientes
+    // (não em Comercial, nem nos investimentos internos da própria ERPSERV).
     const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
+      && (selProj?.categoria_interna === 'Projeto' || selProj?.categoria_interna === 'Suporte')
     if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); return }
     if (useTotal) {
       if (!form.total_hours) { toast.error('Informe o total de horas'); return }
@@ -381,8 +383,10 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                 investimento; o real é referência e define o coordenador que aprova). */}
             {(() => {
               const sel = projects.find(p => String(p.id) === form.project_id) as any
-              // ERPSERV: investimento interno não pede Projeto Real.
+              // Projeto Real só nos investimentos de Projetos e Suporte (clientes); não em
+              // Comercial nem nos investimentos internos da própria ERPSERV.
               if (!sel?.is_investimento_comercial || isErpservCustomer) return null
+              if (!(sel?.categoria_interna === 'Projeto' || sel?.categoria_interna === 'Suporte')) return null
               const soSustentacao = sel?.categoria_interna === 'Suporte'
               const realOpts = projects.filter(p => {
                 if ((p as any).is_investimento_comercial || String(p.id) === form.project_id) return false

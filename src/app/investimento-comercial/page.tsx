@@ -427,7 +427,7 @@ export default function InvestimentoComercialPage() {
         <Td>
           <div className="flex items-center gap-1 justify-end">
             {isAdmin && (<>
-              {depth === 0 && project.categoria_interna === 'Comercial' && (
+              {depth === 0 && project.categoria_interna === 'Comercial' && (project.customer?.name ?? '').toUpperCase().includes('ERPSERV') && (
                 <Button size="sm" variant="ghost" onClick={() => addLead(project)} aria-label="Adicionar lead">
                   <Plus size={13} className="mr-1" /> Lead
                 </Button>
