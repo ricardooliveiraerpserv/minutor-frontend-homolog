@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { PageHeader, Table, Thead, Th, Tbody, Tr, Td, EmptyState, SkeletonTable, Button } from '@/components/ds'
 import { SearchSelect } from '@/components/ui/search-select'
+import { MultiSelect } from '@/components/ui/multi-select'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { KeruakTitulosModal } from '@/components/shared/KeruakTitulosModal'
@@ -242,7 +243,10 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   const [diaModal, setDiaModal] = useState<string | null>(null) // dia (YYYY-MM-DD) clicado no gráfico "Horas apontadas por dia"
   const [fCliente, setFCliente]     = useState(() => lf(sf, 'fCliente', ''))
   const [fProjeto, setFProjeto]     = useState(() => lf(sf, 'fProjeto', ''))
-  const [fConsultor, setFConsultor] = useState(() => lf(sf, 'fConsultor', ''))
+  const [fConsultor, setFConsultor] = useState<string[]>(() => {
+    const v = lf(sf, 'fConsultor', [] as string[])
+    return Array.isArray(v) ? v.map(String) : (v ? [String(v)] : [])
+  })
   // Persiste os filtros (consultor/projeto) entre reloads — não no modo embutido (usa o filtro do portal).
   useEffect(() => {
     if (embedded || typeof window === 'undefined') return
@@ -460,7 +464,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     if (!incluirErpserv && isErpservNome(r.cliente)) return false
     if (fCliente && r.cliente !== fCliente) return false
     if (fProjeto && String(r.project_id) !== fProjeto) return false
-    if (fConsultor && String(r.user_id) !== fConsultor) return false
+    if (fConsultor.length > 0 && !fConsultor.includes(String(r.user_id))) return false
     if (busca.trim()) {
       const q = busca.trim().toLowerCase()
       if (!r.consultor.toLowerCase().includes(q) && !r.projeto.toLowerCase().includes(q) && !r.cliente.toLowerCase().includes(q)) return false
@@ -507,10 +511,10 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     }
     // Segmento sem dupla contagem: investimento sai de sustentação/projeto.
     const seg = (r: Row): 'investimento' | 'suporte' | 'projeto' => r.is_investimento ? 'investimento' : (r.categoria === 'sustentacao' ? 'suporte' : 'projeto')
-    if (fConsultor) {
+    if (fConsultor.length > 0) {
       return monthly.map(({ ym, rows: mr }) => {
         let sup = 0, proj = 0, inv = 0
-        for (const r of mr) { if (String(r.user_id) !== fConsultor || !passaFiltro(r)) continue; const s = seg(r); if (s === 'investimento') inv += r.horas; else if (s === 'suporte') sup += r.horas; else proj += r.horas }
+        for (const r of mr) { if (!fConsultor.includes(String(r.user_id)) || !passaFiltro(r)) continue; const s = seg(r); if (s === 'investimento') inv += r.horas; else if (s === 'suporte') sup += r.horas; else proj += r.horas }
         return { label: fmtMesCurto(ym), suporte: r2(sup), projeto: r2(proj), investimento: r2(inv), horas: r2(sup + proj + inv) }
       })
     }
@@ -530,7 +534,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const map = new Map<string, { suporte: number; projeto: number; naoUtil: boolean }>()
     for (const { dias } of monthly) {
       for (const d of dias) {
-        if (fConsultor && String(d.user_id) !== fConsultor) continue
+        if (fConsultor.length > 0 && !fConsultor.includes(String(d.user_id))) continue
         if (fProjeto && String(d.project_id) !== fProjeto) continue
         if (fCliente && d.cliente !== fCliente) continue
         if (!incluirErpserv && isErpservNome(d.cliente)) continue
@@ -562,7 +566,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const itens: { consultor: string; projeto: string; cliente: string; horas: number }[] = []
     for (const { dias } of monthly) for (const d of dias) {
       if (d.dia !== diaModal) continue
-      if (fConsultor && String(d.user_id) !== fConsultor) continue
+      if (fConsultor.length > 0 && !fConsultor.includes(String(d.user_id))) continue
       if (fProjeto && String(d.project_id) !== fProjeto) continue
       if (fCliente && d.cliente !== fCliente) continue
       if (!incluirErpserv && isErpservNome(d.cliente)) continue
@@ -581,7 +585,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const investByUser = new Map<number, number>()
     for (const { rows: mr } of monthly) for (const r of mr) {
       if (!r.is_investimento) continue
-      if (fConsultor && String(r.user_id) !== fConsultor) continue
+      if (fConsultor.length > 0 && !fConsultor.includes(String(r.user_id))) continue
       investByUser.set(r.user_id, (investByUser.get(r.user_id) ?? 0) + r.horas)
     }
     const byUser = new Map<number, { user_id: number; consultor: string; receita: number; custoHoras: number; horas: number; salary: number }>()
@@ -610,7 +614,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
     const investByUser = new Map<number, number>()
     for (const { rows: mr } of monthly) for (const r of mr) {
       if (!r.is_investimento) continue
-      if (fConsultor && String(r.user_id) !== fConsultor) continue
+      if (fConsultor.length > 0 && !fConsultor.includes(String(r.user_id))) continue
       investByUser.set(r.user_id, (investByUser.get(r.user_id) ?? 0) + r.horas)
     }
     const byUser = new Map<number, { user_id: number; consultor: string; receita: number; custo: number; horas: number }>()
@@ -765,8 +769,8 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
   // Para exportar: clientes (sem ERPSERV) + a linha da ERPSERV no fim, espelhando a tela.
   const clientesExport = erpservRow ? [erpservRow, ...clientesSorted] : clientesSorted
 
-  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor(''); setBusca(''); setSoMinutor(false); setSoForaMinutor(false); setFExecutivo(''); setFConsultorCli('') }
-  const hasFiltros = !!(fCliente || fProjeto || fConsultor || busca.trim() || soMinutor || soForaMinutor || fExecutivo || fConsultorCli)
+  const limpar = () => { setFCliente(''); setFProjeto(''); setFConsultor([]); setBusca(''); setSoMinutor(false); setSoForaMinutor(false); setFExecutivo(''); setFConsultorCli('') }
+  const hasFiltros = !!(fCliente || fProjeto || fConsultor.length || busca.trim() || soMinutor || soForaMinutor || fExecutivo || fConsultorCli)
 
   const fmtYm = (ym: string) => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) }
   const fmtMes = () => !monthsToFetch.length
@@ -932,7 +936,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
             </div>
             <div className="min-w-[180px]">
               <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Consultor</p>
-              <SearchSelect value={fConsultor} onChange={setFConsultor} options={optConsultores} placeholder="Todos os consultores" />
+              <MultiSelect value={fConsultor} onChange={setFConsultor} options={optConsultores} placeholder="Todos os consultores" />
             </div>
           </>)}
           {visao !== 'clientes' && (
@@ -1067,9 +1071,9 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
             <div className="flex items-center gap-2 mb-3">
               <BarChart2 size={15} style={{ color: 'var(--brand-primary)' }} />
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                {fConsultor ? 'Apontamento por período (mês)' : 'Apontamento por consultor'}
+                {fConsultor.length > 0 ? 'Apontamento por período (mês)' : 'Apontamento por consultor'}
               </span>
-              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>horas{!fConsultor ? ` · ${chartData.length} consultores` : ''}</span>
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>horas{fConsultor.length === 0 ? ` · ${chartData.length} consultores` : ''}</span>
             </div>
             {chartData.length === 0 ? (
               <p className="text-xs py-6 text-center" style={{ color: 'var(--text-light)' }}>Sem apontamentos no período.</p>
