@@ -171,22 +171,26 @@ const TRANSITION_COL: Column = {
 // Backend mantém todos os project.status; aqui é só reagrupamento do kanban.
 // awaiting_start ("Aguardando Início") é pré-kanban — projeto ainda não iniciado.
 // Fica no Backlog (alinhado ao ProjectWorkflowService: IN_EXECUTION exclui awaiting_start).
-const ACTIVE_PROJECT_STATUSES = ['planning', 'started', 'liberado_para_testes']
+const ACTIVE_PROJECT_STATUSES = ['planning', 'started', 'liberado_para_testes', 'em_producao']
 
 const PROJECT_COLS: Column[] = [
-  { id: 'proj_backlog',        label: 'Backlog',             phase: 'project', projectStatuses: ['backlog', 'awaiting_start'], color: '#94a3b8' },
-  { id: 'em_andamento',        label: 'Em Andamento',        phase: 'project', projectStatuses: ACTIVE_PROJECT_STATUSES, color: '#60a5fa' },
-  { id: 'pausado',             label: 'Pausado',             phase: 'project', projectStatuses: ['paused'],     color: '#eab308' },
-  { id: 'encerrado',           label: 'Encerrado',           phase: 'project', projectStatuses: ['finished'],   color: '#22c55e' },
-  { id: 'cancelado',           label: 'Cancelado',           phase: 'project', projectStatuses: ['cancelled'],  color: '#ef4444' },
+  { id: 'proj_backlog',        label: 'Backlog',           phase: 'project', projectStatuses: ['backlog', 'awaiting_start'], color: '#94a3b8' },
+  { id: 'em_planejamento',     label: 'Em Planejamento',   phase: 'project', projectStatuses: ['planning'],              color: '#a78bfa' },
+  { id: 'em_andamento',        label: 'Em Andamento',      phase: 'project', projectStatuses: ['started'],               color: '#60a5fa' },
+  { id: 'em_homologacao',      label: 'Em Homologação',    phase: 'project', projectStatuses: ['liberado_para_testes'],  color: '#22d3ee' },
+  { id: 'em_producao',         label: 'Em Produção',       phase: 'project', projectStatuses: ['em_producao'],           color: '#14b8a6' },
+  { id: 'pausado',             label: 'Pausado',           phase: 'project', projectStatuses: ['paused'],                color: '#eab308' },
+  { id: 'encerrado',           label: 'Encerrado',         phase: 'project', projectStatuses: ['finished'],              color: '#22c55e' },
+  { id: 'cancelado',           label: 'Cancelado',         phase: 'project', projectStatuses: ['cancelled'],             color: '#ef4444' },
 ]
 
 const PROJECT_STATUS_TO_COL: Record<string, string> = {
   backlog:              'proj_backlog',
   awaiting_start:       'proj_backlog',
-  planning:             'em_andamento',
+  planning:             'em_planejamento',
   started:              'em_andamento',
-  liberado_para_testes: 'em_andamento',
+  liberado_para_testes: 'em_homologacao',
+  em_producao:          'em_producao',
   paused:               'pausado',
   cancelled:            'cancelado',
   finished:             'encerrado',
@@ -196,8 +200,11 @@ const PROJECT_STATUS_TO_COL: Record<string, string> = {
 // default só quando o card vem de FORA dos status ativos (ver handleProjectMove,
 // que preserva o sub-status quando o card já está ativo — gerido pelo cronograma).
 const PROJECT_COL_TO_STATUS: Record<string, string> = {
-  proj_backlog:         'backlog',
+  proj_backlog:         'awaiting_start',
+  em_planejamento:      'planning',
   em_andamento:         'started',
+  em_homologacao:       'liberado_para_testes',
+  em_producao:          'em_producao',
   pausado:              'paused',
   cancelado:            'cancelled',
   encerrado:            'finished',
@@ -4364,10 +4371,8 @@ function KanbanContent() {
   }
 
   const handleProjectMove = async (cardId: number, toCol: string) => {
-    const card = projectCards.find(p => p.id === cardId)
-    // "Em Andamento" agrupa os status ativos: se o card já está num deles (sub-status
-    // gerido pelo cronograma), não sobrescreve — só aplica default ao entrar de fora.
-    if (toCol === 'em_andamento' && card && ACTIVE_PROJECT_STATUSES.includes(card.status)) return
+    // Cada coluna mapeia 1:1 para um status. Em homolog o cronograma reajusta automaticamente
+    // no próximo evento de etapa/entrega; o move manual ajusta na hora.
     const newStatus = PROJECT_COL_TO_STATUS[toCol]
     if (!newStatus) return
     setProjectCards(prev => prev.map(p => p.id === cardId ? { ...p, status: newStatus } : p))

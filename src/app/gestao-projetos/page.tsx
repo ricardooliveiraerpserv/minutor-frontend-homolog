@@ -1262,11 +1262,14 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   )
 
   const STATUS_OPTS = [
-    { value: 'awaiting_start', label: 'Aguardando Início' },
-    { value: 'started',        label: 'Em Andamento' },
-    { value: 'paused',         label: 'Pausado' },
-    { value: 'finished',       label: 'Encerrado' },
-    { value: 'cancelled',      label: 'Cancelado' },
+    { value: 'awaiting_start',       label: 'Backlog' },
+    { value: 'planning',             label: 'Em Planejamento' },
+    { value: 'started',              label: 'Em Andamento' },
+    { value: 'liberado_para_testes', label: 'Em Homologação' },
+    { value: 'em_producao',          label: 'Em Produção' },
+    { value: 'paused',               label: 'Pausado' },
+    { value: 'finished',             label: 'Encerrado' },
+    { value: 'cancelled',            label: 'Cancelado' },
   ]
 
   const filteredCoords   = optCoordinators.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase()))
@@ -2198,11 +2201,14 @@ export default function GestaoProjetosPage() {
   }, [])
 
   const PROJECT_STATUSES = [
-    { value: 'awaiting_start', label: 'Aguardando Início' },
-    { value: 'started',        label: 'Em Andamento' },
-    { value: 'paused',         label: 'Pausado' },
-    { value: 'finished',       label: 'Encerrado' },
-    { value: 'cancelled',      label: 'Cancelado' },
+    { value: 'awaiting_start',       label: 'Backlog' },
+    { value: 'planning',             label: 'Em Planejamento' },
+    { value: 'started',              label: 'Em Andamento' },
+    { value: 'liberado_para_testes', label: 'Em Homologação' },
+    { value: 'em_producao',          label: 'Em Produção' },
+    { value: 'paused',               label: 'Pausado' },
+    { value: 'finished',             label: 'Encerrado' },
+    { value: 'cancelled',            label: 'Cancelado' },
   ]
 
   const handleChangeStatus = async () => {
