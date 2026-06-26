@@ -3,6 +3,7 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { PageHeader } from '@/components/ds'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ScrollableX } from '@/components/ui/scrollable-x'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -1099,7 +1100,8 @@ export default function ApprovalsPage() {
       )}
 
       {/* ── Table (desktop) ── */}
-      <div className="hidden md:block rounded-xl border border-zinc-800 overflow-x-auto overflow-y-clip">
+      <div className="hidden md:block rounded-xl border border-zinc-800 overflow-hidden">
+        <ScrollableX clipY>
         <table className="w-full min-w-max text-xs">
           <thead className="sticky top-0 z-10">
             <tr className="border-b border-zinc-800 bg-zinc-900">
@@ -1306,6 +1308,7 @@ export default function ApprovalsPage() {
             ))}
           </tbody>
         </table>
+        </ScrollableX>
       </div>
 
       {/* ── Cards (mobile) — mesmo formato dos Apontamentos: toca abre modal, realce no toque ── */}

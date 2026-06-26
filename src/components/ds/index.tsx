@@ -8,6 +8,7 @@ import React, { Children, isValidElement, cloneElement, Fragment } from 'react'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { ScrollableX } from '@/components/ui/scrollable-x'
 
 // ─── PAGE HEADER ─────────────────────────────────────────────────────────────
 
@@ -127,11 +128,11 @@ export function Table({ children, className }: { children: React.ReactNode; clas
   const content = injectLabels(children, collectLabels(children))
   return (
     <div className={cn('ds-table-wrap rounded-2xl overflow-hidden', className)} style={{ border: '1px solid var(--brand-border)' }}>
-      <div className="overflow-x-auto">
+      <ScrollableX>
         <table className="ds-table w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
           {content}
         </table>
-      </div>
+      </ScrollableX>
     </div>
   )
 }

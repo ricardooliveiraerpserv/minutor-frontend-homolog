@@ -32,6 +32,7 @@
  */
 
 import * as React from 'react'
+import { ScrollableX } from './scrollable-x'
 
 // ─── Container ───────────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ export function DataTable({ inline, className = '', children, ...props }: DataTa
       {children}
     </table>
   )
-  if (inline) return <div className="overflow-x-auto">{table}</div>
+  if (inline) return <ScrollableX>{table}</ScrollableX>
 
   return (
     <div
@@ -62,7 +63,7 @@ export function DataTable({ inline, className = '', children, ...props }: DataTa
         boxShadow: 'var(--shadow-sm)',
       }}
     >
-      <div className="overflow-x-auto">{table}</div>
+      <ScrollableX>{table}</ScrollableX>
     </div>
   )
 }
