@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { X, ChevronDown, Search, Mail } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { BotScopesEditor } from './BotScopesEditor'
+import { BotVisibilityEditor } from './BotVisibilityEditor'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Subset do usuário usado pelo prefill em edição (GET /users/{id}).
@@ -19,6 +20,8 @@ interface UserData {
   enabled: boolean
   can_use_bot?: boolean
   bot_allowed_scopes?: string[] | null
+  bot_visibility?: 'self' | 'team' | 'all'
+  bot_scope_overrides?: Record<string, 'inherit' | 'self' | 'team' | 'all' | 'denied'> | null
   inbox_email_disabled?: boolean
   hourly_rate?: number
   rate_type?: string
@@ -310,6 +313,8 @@ const EMPTY_FORM = {
   enabled: true,
   can_use_bot: false,
   bot_allowed_scopes: null as string[] | null,
+  bot_visibility: 'self' as 'self' | 'team' | 'all',
+  bot_scope_overrides: null as Record<string, 'inherit' | 'self' | 'team' | 'all' | 'denied'> | null,
   inbox_email_disabled: false,
   hourly_rate: '',
   rate_type: 'hourly' as 'hourly' | 'monthly',
@@ -427,6 +432,8 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           enabled:             item.enabled,
           can_use_bot:         item.can_use_bot ?? false,
           bot_allowed_scopes:  item.bot_allowed_scopes ?? null,
+          bot_visibility:      (item.bot_visibility ?? 'self') as 'self' | 'team' | 'all',
+          bot_scope_overrides: (item.bot_scope_overrides ?? null) as Record<string, 'inherit' | 'self' | 'team' | 'all' | 'denied'> | null,
           inbox_email_disabled: item.inbox_email_disabled ?? false,
           hourly_rate:         item.hourly_rate ? String(item.hourly_rate) : '',
           rate_type:           (item.rate_type as 'hourly' | 'monthly') ?? 'hourly',
@@ -473,6 +480,8 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         enabled:     form.enabled,
         can_use_bot: form.can_use_bot,
         bot_allowed_scopes: form.bot_allowed_scopes,
+        bot_visibility: form.bot_visibility,
+        bot_scope_overrides: form.bot_scope_overrides,
         inbox_email_disabled: form.inbox_email_disabled,
         type:        resolveTypeForBackend(form.profiles[0]),
         customer_id:  form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
@@ -1001,10 +1010,18 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
             {/* ── Áreas que este user pode consultar via @bot ── */}
             {form.can_use_bot && (
-              <BotScopesEditor
-                value={form.bot_allowed_scopes}
-                onChange={scopes => setForm(f => ({ ...f, bot_allowed_scopes: scopes }))}
-              />
+              <>
+                <BotScopesEditor
+                  value={form.bot_allowed_scopes}
+                  onChange={scopes => setForm(f => ({ ...f, bot_allowed_scopes: scopes }))}
+                />
+                <BotVisibilityEditor
+                  visibility={form.bot_visibility}
+                  overrides={form.bot_scope_overrides}
+                  onChangeVisibility={v => setForm(f => ({ ...f, bot_visibility: v }))}
+                  onChangeOverrides={o => setForm(f => ({ ...f, bot_scope_overrides: o }))}
+                />
+              </>
             )}
 
             {/* ── Desligar notificações de chat por email ── */}
