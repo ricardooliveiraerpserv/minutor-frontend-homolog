@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Bell, Bot, Cog, Radar, Settings2, Sparkles, Users, Zap } from 'lucide-react'
+import { Bell, Bot, Cog, Radar, Settings2, ShieldCheck, Sparkles, Users, Zap } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { GeneralTab } from '@/components/bot-config/GeneralTab'
 import { ProvidersTab } from '@/components/bot-config/ProvidersTab'
@@ -10,8 +10,9 @@ import { SkillsTab } from '@/components/bot-config/SkillsTab'
 import { RulesTab } from '@/components/bot-config/RulesTab'
 import { GroupsTab } from '@/components/bot-config/GroupsTab'
 import { DetectorsTab } from '@/components/bot-config/DetectorsTab'
+import { PermissionsTab } from '@/components/bot-config/PermissionsTab'
 
-type TabKey = 'general' | 'providers' | 'agents' | 'skills' | 'detectors' | 'rules' | 'groups'
+type TabKey = 'general' | 'providers' | 'agents' | 'skills' | 'detectors' | 'permissions' | 'rules' | 'groups'
 
 const TABS: { key: TabKey; label: string; icon: typeof Bot; description: string }[] = [
   { key: 'general',   label: 'Geral',         icon: Cog,        description: 'Provedor padrão, modelo, temperatura, frequência de execução e janela anti-ruído.' },
@@ -19,6 +20,7 @@ const TABS: { key: TabKey; label: string; icon: typeof Bot; description: string 
   { key: 'agents',    label: 'Agents',        icon: Sparkles,   description: 'Agentes especializados (Account, Support, Growth…) com prompts, cooldown e limites diários.' },
   { key: 'skills',    label: 'Skills',        icon: Zap,        description: 'Regras determinísticas (Rule Engine) que classificam eventos antes da IA rodar.' },
   { key: 'detectors', label: 'Detectores',    icon: Radar,      description: 'Varreduras periódicas que detectam anomalias (banco de horas, despesas, tickets…) e criam alertas no Operational Feed.' },
+  { key: 'permissions', label: 'Permissões',  icon: ShieldCheck, description: 'Define o que cada perfil de usuário pode perguntar ao BOT e quais dados pode ver. Aplicado como default na criação do user.' },
   { key: 'rules',     label: 'Notificações',  icon: Bell,       description: 'Para QUEM e por QUAL canal cada evento é entregue. Skill/severity → grupo/inbox/email.' },
   { key: 'groups',    label: 'Grupos',        icon: Users,      description: 'Grupos operacionais (Coordenadores, Sustentação, CS…) que recebem alertas do BOT e conversam entre si.' },
 ]
@@ -76,6 +78,7 @@ export default function BotMinutorConfigPage() {
           {tab === 'agents'    && <AgentsTab />}
           {tab === 'skills'    && <SkillsTab />}
           {tab === 'detectors' && <DetectorsTab />}
+          {tab === 'permissions' && <PermissionsTab />}
           {tab === 'rules'     && <RulesTab />}
           {tab === 'groups'    && <GroupsTab />}
         </div>

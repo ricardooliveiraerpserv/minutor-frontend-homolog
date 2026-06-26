@@ -57,6 +57,27 @@ export const runDetector      = (id: number, dry = false): Promise<{ detector_id
 export const runAllDetectors  = (dry = false): Promise<{ alerts: number }> => api.post('/bot/detectors/run-all', { dry })
 export const validateDetectorSql = (sql: string): Promise<{ valid: boolean; error: string | null }> => api.post('/bot/detectors/validate-sql', { sql })
 
+// Permissões padrão por perfil de user
+export interface BotPermissionProfile {
+  id: number
+  profile_type: string
+  label: string
+  description: string | null
+  can_use_bot: boolean
+  allowed_scopes: string[] | null
+  visibility: 'self' | 'team' | 'all'
+  scope_overrides: Record<string, 'inherit' | 'self' | 'team' | 'all' | 'denied'> | null
+}
+
+export interface PermissionProfilesResponse {
+  data: BotPermissionProfile[]
+  all_scopes: string[]
+  visibilities: string[]
+}
+
+export const listPermissionProfiles  = (): Promise<PermissionProfilesResponse> => api.get('/bot/permission-profiles')
+export const updatePermissionProfile = (type: string, payload: Partial<BotPermissionProfile>): Promise<PermissionProfilesResponse> => api.put(`/bot/permission-profiles/${type}`, payload)
+
 // Skills
 export const listSkills      = (): Promise<{ data: BotSkill[] }>      => api.get('/bot/skills')
 export const createSkill     = (payload: Partial<BotSkill>): Promise<{ data: BotSkill[] }> => api.post('/bot/skills', payload)

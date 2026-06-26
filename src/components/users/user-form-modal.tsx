@@ -10,6 +10,7 @@ import { X, ChevronDown, Search, Mail } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { BotScopesEditor } from './BotScopesEditor'
 import { BotVisibilityEditor } from './BotVisibilityEditor'
+import { listPermissionProfiles } from '@/lib/bot-config'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Subset do usuário usado pelo prefill em edição (GET /users/{id}).
@@ -1011,6 +1012,36 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             {/* ── Áreas que este user pode consultar via @bot ── */}
             {form.can_use_bot && (
               <>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-zinc-400 uppercase tracking-wider font-semibold">
+                    Permissões deste user no BOT
+                  </span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const profileType = form.profiles[0] ? resolveTypeForBackend(form.profiles[0]) : null
+                      if (!profileType) { toast.error('Selecione um perfil de acesso primeiro'); return }
+                      try {
+                        const r = await listPermissionProfiles()
+                        const p = r.data.find(x => x.profile_type === profileType)
+                        if (!p) { toast.error(`Sem política para perfil ${profileType}`); return }
+                        setForm(f => ({
+                          ...f,
+                          can_use_bot:         p.can_use_bot,
+                          bot_allowed_scopes:  p.allowed_scopes,
+                          bot_visibility:      p.visibility,
+                          bot_scope_overrides: p.scope_overrides,
+                        }))
+                        toast.success(`Aplicado padrão de "${p.label}"`)
+                      } catch (e) {
+                        toast.error((e as Error).message)
+                      }
+                    }}
+                    className="text-[11px] text-emerald-300 hover:underline"
+                  >
+                    Resetar para padrão do perfil
+                  </button>
+                </div>
                 <BotScopesEditor
                   value={form.bot_allowed_scopes}
                   onChange={scopes => setForm(f => ({ ...f, bot_allowed_scopes: scopes }))}
