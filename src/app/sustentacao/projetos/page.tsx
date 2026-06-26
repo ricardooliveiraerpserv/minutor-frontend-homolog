@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 import {
   Headphones, Search, Clock, TrendingUp, BarChart2, AlertTriangle,
   DollarSign, Eye, Users, ChevronDown, ChevronRight, MessageCircle,
-  Edit2, Trash2, Layers, Check, X,
+  Edit2, Trash2, Layers, Check, X, ExternalLink,
 } from 'lucide-react'
 import { RowMenu } from '@/components/ui/row-menu'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
@@ -835,12 +835,24 @@ export default function SustentacaoProjetosPage() {
       {messagesProject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
           <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[85vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-            <div className="flex items-center justify-between px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-              <div>
+            <div className="flex items-start justify-between gap-3 px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Mensagens</p>
-                <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{messagesProject.name}</p>
+                <p className="text-sm font-bold truncate" style={{ color: 'var(--brand-text)' }}>{messagesProject.name}</p>
+                {messagesProject.customer?.name && (
+                  <p className="text-xs truncate" style={{ color: 'var(--brand-muted)' }}>{messagesProject.customer.name}</p>
+                )}
+                <a
+                  href={`/contratos/pipeline?project=${messagesProject.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-semibold mt-1.5 hover:underline"
+                  style={{ color: 'var(--primary)' }}
+                >
+                  <ExternalLink size={12} /> Abrir card em Demandas e Projetos
+                </a>
               </div>
-              <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+              <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors shrink-0"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
             </div>
             <div className="flex-1 overflow-hidden">
               <ProjectMessages projectId={messagesProject.id} userRole={user?.type ?? undefined} />

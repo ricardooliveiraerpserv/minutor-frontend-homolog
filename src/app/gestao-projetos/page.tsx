@@ -11,7 +11,7 @@ import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { Project, PaginatedResponse, HourContribution } from '@/types'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, TrendingDown, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History } from 'lucide-react'
+import { Layers, Search, ChevronDown, ChevronRight, Users, TrendingUp, TrendingDown, Clock, BarChart2, AlertTriangle, DollarSign, X, UserCheck, Pencil, Trash2, Plus, Edit2, MessageCircle, Eye, Check, UserPlus, CalendarPlus, CalendarOff, ChevronUp, ChevronsUpDown, FileText, Download, History, ExternalLink } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { ProjectViewModal } from '@/components/projects/project-view-modal'
@@ -2631,14 +2631,22 @@ export default function GestaoProjetosPage() {
   const [attachModal, setAttachModal] = useState<{ project: ProjectWithTeam; parentId: string; parents: { id: number; name: string; code: string }[]; loading: boolean } | null>(null)
   const [attaching, setAttaching] = useState(false)
 
-  // Auto-open messages modal when ?messages=PROJECT_ID is in URL
+  // Auto-open messages modal when ?messages=PROJECT_ID is in URL (deep-link do sino).
+  // Se o projeto não estiver na lista carregada (filtro de mês/coordenador/etc), busca por id —
+  // antes ele simplesmente não abria ("nem abre").
   useEffect(() => {
-    if (projects.length === 0) return
     const pid = new URLSearchParams(window.location.search).get('messages')
     if (!pid) return
     const found = projects.find(p => String(p.id) === pid)
-    if (found) setMessagesProject(found)
-    window.history.replaceState({}, '', window.location.pathname)
+    if (found) {
+      setMessagesProject(found)
+      window.history.replaceState({}, '', window.location.pathname)
+    } else if (projects.length > 0) {
+      api.get<ProjectWithTeam>(`/projects/${pid}`)
+        .then(p => { if (p?.id) setMessagesProject(p) })
+        .catch(() => {})
+        .finally(() => window.history.replaceState({}, '', window.location.pathname))
+    }
   }, [projects])
 
   const handleMenuAction = async (action: 'view' | 'costs' | 'timesheets' | 'expenses' | 'team' | 'aportes' | 'messages' | 'open-period' | 'detach-parent' | 'attach-parent', project: ProjectWithTeam) => {
@@ -3831,12 +3839,24 @@ export default function GestaoProjetosPage() {
       {messagesProject && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }}>
           <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[85vh]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
-              <div>
+            <div className="flex items-start justify-between gap-3 px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Mensagens</p>
-                <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{messagesProject.name}</p>
+                <p className="text-sm font-bold truncate" style={{ color: 'var(--text)' }}>{messagesProject.name}</p>
+                {messagesProject.customer?.name && (
+                  <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{messagesProject.customer.name}</p>
+                )}
+                <a
+                  href={`/contratos/pipeline?project=${messagesProject.id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-semibold mt-1.5 hover:underline"
+                  style={{ color: 'var(--primary)' }}
+                >
+                  <ExternalLink size={12} /> Abrir card em Demandas e Projetos
+                </a>
               </div>
-              <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+              <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors shrink-0"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
             <div className="flex-1 overflow-hidden">
               <ProjectMessages projectId={messagesProject.id} userRole={user?.type ?? undefined} />

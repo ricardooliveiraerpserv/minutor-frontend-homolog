@@ -174,13 +174,13 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                         return (
                           <div
                             key={n.id}
-                            onClick={() => { setBellOpen(false); if (href) window.location.href = href }}
+                            onClick={() => { setBellOpen(false); if (href) router.push(href) }}
                             className="flex flex-col px-4 py-3 hover:bg-white/5 transition-colors border-b gap-0.5 cursor-pointer"
                             style={{ borderColor: 'var(--brand-border)' }}
                           >
                             <div className="flex items-center justify-between w-full">
-                              <span className="text-[10px] font-mono" style={{ color: '#00F5FF' }}>
-                                {n.project_code ?? n.customer_name ?? ''}
+                              <span className="text-[10px] font-mono truncate" style={{ color: '#00F5FF' }}>
+                                {[n.project_code, n.customer_name].filter(Boolean).join(' · ')}
                               </span>
                               <span className="text-[9px]" style={{ color: 'var(--brand-muted)' }}>
                                 {new Date(n.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
