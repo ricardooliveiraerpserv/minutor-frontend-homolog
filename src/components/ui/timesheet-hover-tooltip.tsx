@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { formatBRL } from '@/lib/format'
 import { api } from '@/lib/api'
+import { useAuth } from '@/hooks/use-auth'
 
 interface ProjectConsumo { available: number; consumed: number; balance: number; pct: number }
 const consumoCache = new Map<number, ProjectConsumo | null>()
@@ -13,9 +14,12 @@ const consumoCache = new Map<number, ProjectConsumo | null>()
  * (cacheado por projeto). Usada nos tooltips de apontamento e despesa.
  */
 function ProjectHoursBar({ projectId }: { projectId?: number | null }) {
+  const { user } = useAuth()
+  // Consultor (e parceiro) não enxerga consumo/saldo de horas do projeto.
+  const hidden = user?.type === 'consultor' || user?.type === 'parceiro_admin'
   const [c, setC] = useState<ProjectConsumo | null>(projectId ? consumoCache.get(projectId) ?? null : null)
   useEffect(() => {
-    if (!projectId) { setC(null); return }
+    if (hidden || !projectId) { setC(null); return }
     if (consumoCache.has(projectId)) { setC(consumoCache.get(projectId)!); return }
     let cancel = false
     api.get<any>(`/projects/${projectId}/cost-summary`).then(r => {
@@ -31,9 +35,9 @@ function ProjectHoursBar({ projectId }: { projectId?: number | null }) {
       if (!cancel) setC(data)
     }).catch(() => { consumoCache.set(projectId, null); if (!cancel) setC(null) })
     return () => { cancel = true }
-  }, [projectId])
+  }, [projectId, hidden])
 
-  if (!c || c.available <= 0) return null
+  if (hidden || !c || c.available <= 0) return null
   const pct = Math.min(100, Math.round(c.pct))
   const color = c.pct >= 90 ? '#ef4444' : c.pct >= 70 ? '#f59e0b' : '#22c55e'
   const fmt = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
