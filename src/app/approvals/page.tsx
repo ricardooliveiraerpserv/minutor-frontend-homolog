@@ -598,6 +598,12 @@ export default function ApprovalsPage() {
   const [users,        setUsers]        = useState<UserOption[]>([])
   const [coordinators, setCoordinators] = useState<UserOption[]>([])
   const [executives,   setExecutives]   = useState<UserOption[]>([])
+  // Executivos TAMBÉM coordenam projetos → entram na lista do filtro Coordenador (dedup por id).
+  const coordinatorOptions = useMemo(() => {
+    const m = new Map<number, UserOption>()
+    ;[...coordinators, ...executives].forEach(o => m.set(o.id, o))
+    return [...m.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [coordinators, executives])
   const hover = useTimesheetHover()
   const [projects,     setProjects]     = useState<ProjectOption[]>([])
   const [customers,    setCustomers]    = useState<CustomerOption[]>([])
@@ -1021,7 +1027,7 @@ export default function ApprovalsPage() {
                 label="Coordenador"
                 value={coordinatorId}
                 onChange={setCoordinatorId}
-                options={coordinators}
+                options={coordinatorOptions}
               />
               <SearchableSelect
                 label="Executivo"
