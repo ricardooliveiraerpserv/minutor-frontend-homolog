@@ -47,7 +47,7 @@ import {
   Banknote,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { api } from '@/lib/api'
+import { api, secureUrl } from '@/lib/api'
 import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LucideIcon } from 'lucide-react'
@@ -544,6 +544,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const initials = user?.name
     ? user.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
     : '?'
+  const avatarUrl = secureUrl(user?.profile_photo_url)
 
   const toggleGroup = (label: string) =>
     setOpenGroups(prev => prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label])
@@ -652,10 +653,10 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           {!collapsed && (
             <>
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold shrink-0"
                 style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
               >
-                {initials}
+                {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : initials}
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold truncate leading-tight" style={{ color: 'var(--text)' }}>{user.name}</p>
@@ -667,10 +668,10 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           )}
           {collapsed && (
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold mx-auto"
+              className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold mx-auto"
               style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
             >
-              {initials}
+              {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : initials}
             </div>
           )}
         </div>
