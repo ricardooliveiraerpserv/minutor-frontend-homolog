@@ -16,6 +16,7 @@ import { useState, useEffect, useRef } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 import { MentionsBell } from './mentions-bell'
 import { NotificationBell } from './notification-bell'
+import { AppsMenu } from './apps-menu'
 
 interface HeaderProps {
   title?: string
@@ -110,6 +111,8 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
   return (
     <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b shrink-0" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
       <div className="flex items-center gap-2 min-w-0">
+        {/* Launcher de módulos (Administrativo / Serviços) */}
+        <AppsMenu />
         {onMenuClick && (
           <button
             onClick={onMenuClick}

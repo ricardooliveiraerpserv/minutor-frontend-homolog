@@ -16,6 +16,7 @@ import type { SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
 import { PermissionGroupsTab } from './PermissionGroupsTab'
 import { CargosTab } from './CargosTab'
+import { ProfileModulesTab } from './ProfileModulesTab'
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'users',   label: 'Usuários',             icon: Users },
   { id: 'groups',  label: 'Grupos de Permissões', icon: Shield },
   { id: 'cargos',  label: 'Cargos por Perfil',    icon: Briefcase },
+  { id: 'perfis',  label: 'Cadastro de Perfil',   icon: Briefcase },
 ]
 
 // ─── TAB: GENERAL SETTINGS ───────────────────────────────────────────────────
@@ -322,6 +324,7 @@ export default function SettingsPage() {
           {activeTab === 'users'   && <UserManagementTab />}
           {activeTab === 'groups'  && <PermissionGroupsTab />}
           {activeTab === 'cargos'  && <CargosTab />}
+          {activeTab === 'perfis'  && <ProfileModulesTab />}
         </div>
       </div>
     </AppLayout>
