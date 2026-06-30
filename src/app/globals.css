@@ -139,7 +139,7 @@
  */
 :root {
   /* ── NEUTRO ──────────────────────────────────────── */
-  --brand-bg:       #F7F9FC;   /* fundo levemente mais frio (spec) */
+  --brand-bg:       #E6EAF1;   /* fundo cinza-claro (menos "branco duro"); cards brancos dão profundidade */
   --brand-surface:  #FFFFFF;
   --brand-border:   #E2E8F0;
   --brand-text:     #0F172A;
