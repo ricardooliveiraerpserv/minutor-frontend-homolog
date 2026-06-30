@@ -6,6 +6,7 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import type { StageDelivery, DeliveryStatus, DeliveryPriority } from '@/lib/types/project-stage'
 import { DeliveryTimeline } from './delivery-timeline'
+import { SearchSelect } from '@/components/ui/search-select'
 
 interface Props {
   delivery: StageDelivery
@@ -167,17 +168,14 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
           />
 
           <div style={{ marginTop: 14 }}>
-            <Field label="Responsável">
-              <select
-                className="ds-input"
-                value={respId}
-                onChange={e => setRespId(e.target.value)}
-                style={{ width: '100%' }}
-              >
-                <option value="">Sem responsável</option>
-                {respOpts.map(o => <option key={o.id} value={String(o.id)}>{o.name}</option>)}
-              </select>
-            </Field>
+            <SearchSelect
+              label="Responsável"
+              value={respId}
+              onChange={setRespId}
+              options={respOpts}
+              placeholder="Sem responsável"
+              fullWidth
+            />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
