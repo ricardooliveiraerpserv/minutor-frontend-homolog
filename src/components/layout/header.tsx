@@ -148,7 +148,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
               className="relative p-1.5 rounded-md transition-colors hover:bg-zinc-800"
               style={{ color: bellOpen ? '#00F5FF' : '#71717A' }}
             >
-              <Bell size={16} />
+              <MessageCircle size={16} />
               {unread > 0 && (
                 <span
                   className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center pointer-events-none"
@@ -184,7 +184,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                 <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-1">
-                      <Bell size={20} style={{ color: 'var(--brand-muted)' }} />
+                      <MessageCircle size={20} style={{ color: 'var(--brand-muted)' }} />
                       <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Sem mensagens</p>
                     </div>
                   ) : (
