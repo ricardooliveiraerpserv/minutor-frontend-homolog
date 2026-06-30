@@ -58,6 +58,7 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
   const [valor, setValor]     = useState(String(aporte.valor_hora ?? ''))
   const [mot, setMot]         = useState<string>(motivo)
   const [desc, setDesc]       = useState(aporte.description ?? '')
+  const [data, setData]       = useState(aporte.contributed_at ? aporte.contributed_at.slice(0, 10) : '')
 
   const total = (Number(horas) || 0) * (Number(valor) || 0)
 
@@ -65,6 +66,7 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
     const h = Number(horas), v = Number(valor)
     if (!(h > 0)) { toast.error('Informe as horas (maior que zero).'); return }
     if (!(v > 0)) { toast.error('Informe o valor/hora (maior que zero).'); return }
+    if (!data) { toast.error('Informe a data do aporte.'); return }
     setSaving(true)
     try {
       await api.put(`/projects/${aporte.project_id}/hour-contributions/${aporte.id}`, {
@@ -72,6 +74,7 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
         hourly_rate: v,
         motivo: mot,
         description: desc || null,
+        contributed_at: data,
       })
       toast.success('Aporte atualizado')
       onSaved?.()
@@ -166,13 +169,20 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
                   {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </span>
               </div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Motivo</p>
-                <select value={mot} onChange={e => setMot(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
-                  <option value="aporte">Aporte</option>
-                  <option value="excedentes">Excedentes</option>
-                  <option value="absorvidas">Absorvidas</option>
-                </select>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Data do aporte</p>
+                  <input type="date" value={data} onChange={e => setData(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Motivo</p>
+                  <select value={mot} onChange={e => setMot(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                    <option value="aporte">Aporte</option>
+                    <option value="excedentes">Excedentes</option>
+                    <option value="absorvidas">Absorvidas</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Descrição</p>
