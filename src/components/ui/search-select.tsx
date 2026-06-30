@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronDown, Search } from 'lucide-react'
 
 export interface SearchSelectOption { id: number | string; name: string }
@@ -83,7 +84,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
         <ChevronDown size={13} style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />
       </button>
 
-      {open && pos && (
+      {open && pos && typeof document !== 'undefined' && createPortal(
         <div
           ref={ref}
           className="rounded-xl shadow-2xl overflow-hidden"
@@ -121,7 +122,8 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
                 </button>
               ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
