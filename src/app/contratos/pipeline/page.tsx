@@ -3253,6 +3253,9 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving,  setSaving]  = useState(false)
+  // Projeto operacional (tipo "Projeto"): equipe é alocada por atividade do
+  // cronograma, não direto aqui. Vem do append is_operational (BE).
+  const [isOperational, setIsOperational] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -3260,6 +3263,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
       api.get<any>('/users?type=consultor,parceiro_admin&pageSize=200'),
       api.get<any>('/consultant-groups?pageSize=100&active=1'),
     ]).then(([proj, usrs, grps]) => {
+      setIsOperational(!!proj?.is_operational)
       setAllConsultants(usrs?.items ?? usrs?.data ?? [])
       setAllGroups(Array.isArray(grps?.items) ? grps.items : Array.isArray(grps?.data) ? grps.data : [])
       const direct: any[] = proj?.consultants ?? []
@@ -3278,6 +3282,10 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
   const filteredGroups   = allGroups.filter(g => g.name.toLowerCase().includes(search.toLowerCase()))
 
   const handleSave = async () => {
+    if (isOperational) {
+      toast.error('Projeto do tipo "Projeto": aloque a equipe pela atividade do cronograma.')
+      return
+    }
     setSaving(true)
     try {
       await api.put(`/projects/${projectId}`, { consultant_ids: Array.from(selectedIds), consultant_group_ids: Array.from(selectedGroupIds) })
@@ -3289,7 +3297,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
       )
       toast.success('Equipe atualizada')
       onSaved()
-    } catch { toast.error('Erro ao salvar equipe') }
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar equipe') }
     finally { setSaving(false) }
   }
 
@@ -3300,7 +3308,20 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
           <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Selecionar Equipe</p><h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
-        {loading ? <div className="flex-1 flex items-center justify-center py-10"><p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p></div> : (
+        {loading ? <div className="flex-1 flex items-center justify-center py-10"><p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p></div> : isOperational ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 px-8 py-12">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}>
+              <Users size={22} />
+            </div>
+            <h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Alocação é feita por atividade</h3>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--brand-muted)' }}>
+              Este é um projeto do tipo <strong style={{ color: 'var(--brand-text)' }}>Projeto</strong>. A equipe não é definida aqui — cada consultor é alocado diretamente na <strong style={{ color: 'var(--brand-text)' }}>atividade</strong> do cronograma.
+            </p>
+            <p className="text-[11px] leading-relaxed" style={{ color: 'var(--brand-subtle)' }}>
+              Abra o projeto → <strong>Cronograma</strong> → escolha a <strong>atividade</strong> → <strong>Alocar consultor</strong>.
+            </p>
+          </div>
+        ) : (
           <div className="flex flex-col flex-1 overflow-hidden px-5 pt-4">
             {projectConsultants.length > 0 && (
               <div className="mb-3 rounded-xl p-2 shrink-0" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--brand-border)' }}>
@@ -3366,10 +3387,16 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
           </div>
         )}
         <div className="flex justify-end gap-2 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Salvando...' : 'Salvar Equipe'}
-          </button>
+          {isOperational ? (
+            <button onClick={onClose} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }}>Entendi</button>
+          ) : (
+            <>
+              <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', opacity: saving ? 0.6 : 1 }}>
+                {saving ? 'Salvando...' : 'Salvar Equipe'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
