@@ -147,31 +147,25 @@ function moduleForHref(href: string): ModuleId | null {
   return null
 }
 
-// Filtra a árvore de navegação pelo módulo selecionado. Mantém itens "home" (sem módulo).
-// itemModule = catalogKey → moduleKey (vem do Configurador). Tem PRECEDÊNCIA sobre a tag antiga.
-const HIDDEN = '__hidden__'
+// Filtra a navegação pelo módulo selecionado — POR ITEM (href). Cada tela é associada a um
+// módulo no Configurador (itemModule[href]); fallback = ROUTE_MODULE. Rota não categorizada
+// (null) aparece em qualquer módulo (não some). Grupo aparece se tiver ao menos um item visível.
 function filterNavByModule(nav: NavEntry[], mod: ModuleId, itemModule: Record<string, string>): NavEntry[] {
-  // módulo efetivo de um grupo/item: Configurador (catalogKey) > tag hardcoded > rota.
-  // catalogKey não atribuído a nenhum módulo → escondido.
-  const effMod = (e: NavEntry): string | null =>
-    e.catalogKey ? (itemModule[e.catalogKey] ?? HIDDEN) : (e.module ?? null)
-  const keepItem = (href: string) => { const m = moduleForHref(href); return m === null || m === mod }
+  const effHrefMod = (href: string): string | null => itemModule[href] ?? moduleForHref(href)
+  const keepLink = (href: string) => { const m = effHrefMod(href); return m === null || m === mod }
   const out: NavEntry[] = []
   for (const entry of nav) {
     if (entry.type === 'item') {
       if (entry.alwaysVisible) { out.push(entry); continue }
-      const m = entry.catalogKey ? (itemModule[entry.catalogKey] ?? HIDDEN) : (entry.module ?? moduleForHref(entry.href))
-      if (m === null || m === mod) out.push(entry)
+      if (keepLink(entry.href)) out.push(entry)
       continue
     }
-    const gm = effMod(entry)
-    if (gm !== null) { if (gm === mod) out.push(entry); continue }
-    // grupo sem módulo definido (menus por-perfil): filtra os itens por rota
+    // grupo: mantém só os itens (e subgrupos) cuja rota pertence ao módulo
     const items = entry.items
       .map(it => ('href' in it)
         ? it
-        : { ...it, items: it.items.filter(s => keepItem(s.href)) })
-      .filter(it => ('href' in it) ? keepItem(it.href) : it.items.length > 0)
+        : { ...it, items: it.items.filter(s => keepLink(s.href)) })
+      .filter(it => ('href' in it) ? keepLink(it.href) : it.items.length > 0)
     if (items.length > 0) out.push({ ...entry, items })
   }
   return out

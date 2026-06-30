@@ -120,19 +120,27 @@ function ConfiguradorInner() {
         <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Itens de menu</h2>
         <p className="text-[12px]" style={{ color: 'var(--text-light)' }}>Cada tela aparece no módulo escolhido (na ordem em que for atribuída). &quot;— nenhum —&quot; esconde do menu.</p>
         <div className="ds-card divide-y" style={{ borderColor: 'var(--border)' }}>
-          {NAV_CATALOG.map(item => (
-            <div key={item.key} className="flex items-center gap-3 px-3 py-2.5">
-              <GripVertical size={14} style={{ color: 'var(--text-light)' }} />
-              <span className="flex-1 text-[14px]" style={{ color: 'var(--text)' }}>{item.label}</span>
-              <select
-                value={itemModule[item.key] ?? ''}
-                onChange={e => assign(item.key, e.target.value ? Number(e.target.value) : null)}
-                className="ds-input text-[13px] px-2 py-1.5 min-w-[170px]">
-                <option value="">— nenhum —</option>
-                {mods.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-              </select>
-            </div>
-          ))}
+          {NAV_CATALOG.map((item, idx) => {
+            const showHeader = idx === 0 || NAV_CATALOG[idx - 1].group !== item.group
+            return (
+              <div key={item.key}>
+                {showHeader && (
+                  <div className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{item.group}</div>
+                )}
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <GripVertical size={14} style={{ color: 'var(--text-light)' }} />
+                  <span className="flex-1 text-[14px]" style={{ color: 'var(--text)' }}>{item.label}</span>
+                  <select
+                    value={itemModule[item.key] ?? ''}
+                    onChange={e => assign(item.key, e.target.value ? Number(e.target.value) : null)}
+                    className="ds-input text-[13px] px-2 py-1.5 min-w-[170px]">
+                    <option value="">— nenhum —</option>
+                    {mods.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                  </select>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </section>
     </div>

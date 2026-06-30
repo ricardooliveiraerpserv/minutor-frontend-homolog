@@ -1,28 +1,84 @@
-// Catálogo de "itens de menu" associáveis no Configurador. Cada item = um grupo do menu
-// (com suas telas). O admin associa cada item a um módulo (nav_modules.items no backend).
-// As keys batem com o seed de nav_modules e com a `key` dos grupos no sidebar.
+// Catálogo ITEM A ITEM: cada tela do menu é associável a um módulo no Configurador.
+// key = href (único). `group` é só p/ agrupar visualmente no Configurador.
+// O sidebar usa itemModule[href] (do Configurador) p/ decidir em qual módulo a tela aparece.
 
 export interface CatalogItem {
-  key: string
+  key: string      // = href
   label: string
-  icon: string   // nome do ícone lucide (referência visual no Configurador)
+  group: string    // agrupamento visual (origem)
 }
 
 export const NAV_CATALOG: CatalogItem[] = [
-  // Serviços (padrão)
-  { key: 'projetos',          label: 'Projetos',          icon: 'FolderOpen' },
-  { key: 'sustentacao',       label: 'Sustentação',       icon: 'Headphones' },
-  { key: 'operacao',          label: 'Apontamentos & Despesas', icon: 'Clock' },
-  // Administrativo (padrão)
-  { key: 'gestao_contratual', label: 'Gestão Contratual', icon: 'Layers' },
-  { key: 'financeiro',        label: 'Financeiro',        icon: 'DollarSign' },
-  { key: 'relatorios',        label: 'Relatórios',        icon: 'FileText' },
-  { key: 'cadastros',         label: 'Cadastros',         icon: 'Database' },
-  { key: 'comunicacao',       label: 'Comunicação',       icon: 'Mail' },
-  { key: 'visao_externa',     label: 'Visão Externa',     icon: 'BarChart2' },
-  { key: 'sistema',           label: 'Sistema',           icon: 'Settings' },
-  // Configurador (padrão)
-  { key: 'configurador',      label: 'Configurador de Menus', icon: 'SlidersHorizontal' },
+  // Home / Configurador
+  { key: '/meu-painel',          label: 'Meu Painel',                 group: 'Home' },
+  { key: '/configurador',        label: 'Configurador de Menus',      group: 'Configurador' },
+  { key: '/settings?tab=perfis', label: 'Cadastro de Perfil',         group: 'Configurador' },
+
+  // Serviços — Projetos / Sustentação / Operação
+  { key: '/contratos/pipeline',      label: 'Demandas e Projetos',     group: 'Projetos' },
+  { key: '/investimento-comercial',  label: 'Investimento Interno',    group: 'Projetos' },
+  { key: '/sustentacao',             label: 'Sustentação (Portal)',    group: 'Sustentação' },
+  { key: '/timesheets',              label: 'Apontamentos',            group: 'Apontamentos & Despesas' },
+  { key: '/expenses',                label: 'Despesas',                group: 'Apontamentos & Despesas' },
+  { key: '/approvals',               label: 'Aprovações',              group: 'Apontamentos & Despesas' },
+  { key: '/timesheets/atrasos',      label: 'Atrasos (integração)',    group: 'Apontamentos & Despesas' },
+  { key: '/auditoria/apontamentos',  label: 'Auditoria',               group: 'Apontamentos & Despesas' },
+  { key: '/relatorios/apontamentos', label: 'Relatório de Apontamentos', group: 'Apontamentos & Despesas' },
+
+  // Administrativo — Gestão Contratual
+  { key: '/gestao-projetos',   label: 'Gestão de Contratos',  group: 'Gestão Contratual' },
+  { key: '/contratos/kanban',  label: 'Kanban Contratos',     group: 'Gestão Contratual' },
+
+  // Administrativo — Financeiro / Fechamento
+  { key: '/fechamento',               label: 'Fechamento Geral',         group: 'Financeiro' },
+  { key: '/fechamento/cliente',       label: 'Fechamento Clientes',      group: 'Financeiro' },
+  { key: '/fechamento/parceiro',      label: 'Fechamento Parceiros',     group: 'Financeiro' },
+  { key: '/fechamento/consultor',     label: 'Fechamento Consultores',   group: 'Financeiro' },
+  { key: '/fechamento/adiantamentos', label: 'Adiantamentos',            group: 'Financeiro' },
+  { key: '/fechamento/diretoria',     label: 'Fechamento Diretoria',     group: 'Financeiro' },
+  { key: '/fechamento/folha',         label: 'Folha Cooperativa',        group: 'Financeiro' },
+  { key: '/fechamento/contratos',     label: 'Fechamento Contratos',     group: 'Financeiro' },
+  { key: '/fechamento/reajustes',     label: 'Reajuste de Contrato',     group: 'Financeiro' },
+  { key: '/pagamento-despesas',       label: 'Pagamento de Despesas',    group: 'Financeiro' },
+
+  // Administrativo — Relatórios
+  { key: '/relatorios/pagamentos',                label: 'Relatório de Pagamentos',      group: 'Relatórios' },
+  { key: '/relatorios/rentabilidade/consultor',   label: 'Rent. Consultor × Projeto',    group: 'Relatórios' },
+  { key: '/relatorios/rentabilidade/projeto',     label: 'Rent. por Projeto',            group: 'Relatórios' },
+  { key: '/relatorios/rentabilidade',             label: 'Rent. Clientes',               group: 'Relatórios' },
+  { key: '/relatorios/contratos-sem-vencimento',  label: 'Contratos s/ Vencimento',      group: 'Relatórios' },
+
+  // Administrativo — Cadastros
+  { key: '/clientes',                          label: 'Clientes',               group: 'Cadastros' },
+  { key: '/partners',                          label: 'Parceiros',              group: 'Cadastros' },
+  { key: '/cadastros?tab=executives',          label: 'Executivos',             group: 'Cadastros' },
+  { key: '/cadastros?tab=payment_methods',     label: 'Formas de Pagamento',    group: 'Cadastros' },
+  { key: '/cadastros?tab=holidays',            label: 'Feriados',               group: 'Cadastros' },
+  { key: '/cadastros?tab=contracts',           label: 'Tipos de Contrato',      group: 'Cadastros' },
+  { key: '/cadastros?tab=services',            label: 'Tipos de Serviço',       group: 'Cadastros' },
+  { key: '/cadastros?tab=expense_types',       label: 'Tipos de Despesa',       group: 'Cadastros' },
+  { key: '/cadastros?tab=expense_categories',  label: 'Categorias de Despesa',  group: 'Cadastros' },
+  { key: '/cadastros?tab=groups',              label: 'Grupos de Consultor',    group: 'Cadastros' },
+  { key: '/cadastros?tab=customer_contacts',   label: 'Contatos de Clientes',   group: 'Cadastros' },
+  { key: '/cadastros/saldo-inicial-tickets',   label: 'Saldo Inicial de Tickets', group: 'Cadastros' },
+  { key: '/configuracoes/movidesk',            label: 'Integração Movidesk',    group: 'Cadastros' },
+
+  // Administrativo — Comunicação
+  { key: '/central-comunicacao',         label: 'Central de Comunicação', group: 'Comunicação' },
+  { key: '/cadastros?tab=email_templates', label: 'Modelos de E-mail',    group: 'Comunicação' },
+  { key: '/cadastros/workflows',         label: 'Workflows de E-mail',    group: 'Comunicação' },
+
+  // Administrativo — Visão Externa
+  { key: '/portal-cliente',                  label: 'Home do Cliente',        group: 'Visão Externa' },
+  { key: '/dashboards/bank-hours-fixed',     label: 'Banco de Horas Fixo',    group: 'Visão Externa' },
+  { key: '/dashboards/bank-hours-monthly',   label: 'Banco de Horas Mensais', group: 'Visão Externa' },
+  { key: '/dashboards/on-demand',            label: 'On Demand',              group: 'Visão Externa' },
+  { key: '/dashboards/fechado',              label: 'Fechado',                group: 'Visão Externa' },
+  { key: '/partner-dashboard',               label: 'Painel do Parceiro',     group: 'Visão Externa' },
+
+  // Administrativo — Sistema
+  { key: '/users',    label: 'Usuários',      group: 'Sistema' },
+  { key: '/settings', label: 'Configurações', group: 'Sistema' },
 ]
 
 export const CATALOG_LABEL: Record<string, string> = Object.fromEntries(NAV_CATALOG.map(c => [c.key, c.label]))
