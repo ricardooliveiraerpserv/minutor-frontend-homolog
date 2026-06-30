@@ -151,14 +151,20 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
   // (não só os coordenadores do projeto). Executivo = flag is_executive.
   const [respOpts, setRespOpts] = useState<{ id: number; name: string }[]>([])
   const [clientOpts, setClientOpts] = useState<{ id: number; name: string }[]>([])
-  // Equipe do projeto definida na VISÃO GERAL: consultores e clientes. As atividades
-  // só oferecem essas pessoas nos seletores (Responsável/alocação e Envolver cliente).
+  // Responsável/alocação da atividade: TODOS os consultores + parceiros (alocar o
+  // consultor já o adiciona ao projeto). Antes vinha só da equipe do projeto
+  // (/team), que em projeto operacional nasce vazia → seletor ficava sem opções.
+  // "Envolver cliente" continua oferecendo os clientes vinculados ao projeto.
   useEffect(() => {
     let cancel = false
+    const arr = (x: any) => Array.isArray(x) ? x : []
+    api.get<any>('/users?type=consultor,parceiro,parceiro_admin&pageSize=200').then(u => {
+      if (cancel) return
+      const items = arr(u?.items).length ? arr(u?.items) : arr(u?.data)
+      setRespOpts(items.filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: x.id, name: x.name })))
+    }).catch(() => {})
     api.get<any>(`/projects/${projectId}/team`).then(t => {
       if (cancel) return
-      const arr = (x: any) => Array.isArray(x) ? x : []
-      setRespOpts(arr(t?.consultores).filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: x.id, name: x.name })))
       setClientOpts(arr(t?.clientes).filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: x.id, name: x.name })))
     }).catch(() => {})
     return () => { cancel = true }
