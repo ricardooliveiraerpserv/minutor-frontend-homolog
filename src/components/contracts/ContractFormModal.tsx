@@ -149,6 +149,7 @@ type FormState = {
   aporte_valor_hora: string
   aporte_motivo: 'aporte' | 'excedentes' | 'absorvidas'
   aporte_descricao: string
+  aporte_data: string
 }
 
 const EMPTY_FORM: FormState = {
@@ -184,6 +185,7 @@ const EMPTY_FORM: FormState = {
   aporte_valor_hora: '',
   aporte_motivo: 'aporte',
   aporte_descricao: '',
+  aporte_data: '',
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -304,6 +306,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
           aporte_valor_hora:        '',
           aporte_motivo:            'aporte',
           aporte_descricao:         '',
+          aporte_data:              '',
         })
         setContacts(full.contacts ?? [])
       }).catch(() => toast.error('Erro ao carregar contrato'))
@@ -493,6 +496,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
       if (!form.aporte_target_project_id)                     { toast.error('Selecione o projeto que recebe o aporte'); return }
       if (!form.aporte_horas || Number(form.aporte_horas) <= 0)        { toast.error('Informe a quantidade de horas'); return }
       if (!form.aporte_valor_hora || Number(form.aporte_valor_hora) <= 0) { toast.error('Informe o valor da hora'); return }
+      if (!form.aporte_data) { toast.error('Informe a data do aporte'); return }
       const selProj = aporteProjects.find(p => p.id === form.aporte_target_project_id)
       const isChildTarget = !!selProj?.is_child
       const pendProposta = pendingFiles.find(p => p.type === 'proposta')
@@ -506,6 +510,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
         fd.append('contributed_hours', String(Number(form.aporte_horas)))
         fd.append('hourly_rate',       String(Number(form.aporte_valor_hora)))
         fd.append('motivo',            form.aporte_motivo)
+        fd.append('contributed_at',    form.aporte_data)
         if (form.aporte_descricao) fd.append('description', form.aporte_descricao)
         if (!isChildTarget && pendProposta) fd.append('proposta', pendProposta.file)
         await uploadDirect(`/projects/${form.aporte_target_project_id}/hour-contributions`, fd)
@@ -856,6 +861,16 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                         <option value="excedentes">Excedentes</option>
                         <option value="absorvidas">Absorvidas</option>
                       </select>
+                    </div>
+
+                    {/* Data do aporte */}
+                    <div>
+                      <label className={labelCls}>Data do aporte <span style={{ color: '#ef4444' }}>*</span></label>
+                      <input type="date"
+                        value={form.aporte_data}
+                        onChange={e => setForm(f => ({ ...f, aporte_data: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40"
+                        style={inputStyle} />
                     </div>
 
                     {/* Descrição */}
