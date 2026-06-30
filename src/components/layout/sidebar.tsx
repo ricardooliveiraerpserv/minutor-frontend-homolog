@@ -210,8 +210,9 @@ const NAV: NavEntry[] = [
       { label: 'Rent. Clientes',            href: '/relatorios/rentabilidade',           icon: TrendingUp, exactMatch: true },
     ],
   },
-  // 🧪 Features experimentais — só em DEV1 (escondidas em homolog/prod)
-  ...(process.env.NEXT_PUBLIC_APP_ENV === 'dev' ? [
+  // 🧪 Features experimentais — só em DEV1 (escondidas em homolog/prod). IS_DEV1=false desliga
+  // (não acoplar à faixa: localhost tem APP_ENV='dev' só p/ identificação).
+  ...(IS_DEV1 ? [
     { type: 'item' as const, label: 'Matriz de Conhecimento', href: '/matriz-conhecimento', icon: Star },
     { type: 'item' as const, label: 'Cobertura de Skills',    href: '/projetos/cobertura-skills', icon: UserCheck },
     { type: 'item' as const, label: 'Candidatos',             href: '/candidatos',                icon: Briefcase },
