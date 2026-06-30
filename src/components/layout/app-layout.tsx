@@ -10,13 +10,7 @@ import { NotificationPopups } from '@/components/notifications/notification-popu
 import { Building2, User } from 'lucide-react'
 
 // Banner de ambiente: cores distintas para evitar confundir DEV ↔ HOMOLOG ↔ PROD.
-const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV
-const ENV_BANNER =
-  APP_ENV === 'dev'
-    ? { bg: '#FACC15', fg: '#000', text: '⚠ AMBIENTE DE DESENVOLVIMENTO — DADOS DESCARTÁVEIS ⚠' }
-    : APP_ENV === 'homolog'
-    ? { bg: '#DC2626', fg: '#fff', text: '⚠ AMBIENTE DE HOMOLOGAÇÃO — NÃO USE DADOS REAIS ⚠' }
-    : null
+// Faixa de ambiente é única, no layout raiz (src/app/layout.tsx). Aqui não duplica.
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -63,23 +57,6 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--brand-bg)' }}>
-
-      {/* ── Faixa de ambiente — só aparece em DEV ou HOMOLOG ── */}
-      {ENV_BANNER && (
-        <div className="shrink-0 flex items-center justify-center gap-3 py-1.5 z-50"
-          style={{ background: ENV_BANNER.bg }}>
-          <span style={{
-            fontSize: '11px',
-            fontWeight: 800,
-            letterSpacing: '0.25em',
-            color: ENV_BANNER.fg,
-            textTransform: 'uppercase',
-            fontFamily: 'monospace',
-          }}>
-            {ENV_BANNER.text}
-          </span>
-        </div>
-      )}
 
       {/* Pop-ups globais da Central de Notificações (avisos / decisões / enquetes) — exceto cliente. */}
       {user.type !== 'cliente' && <NotificationPopups userId={user.id} />}
