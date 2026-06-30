@@ -111,8 +111,6 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
   return (
     <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b shrink-0" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
       <div className="flex items-center gap-2 min-w-0">
-        {/* Launcher de módulos (Administrativo / Serviços) */}
-        <AppsMenu />
         {onMenuClick && (
           <button
             onClick={onMenuClick}
@@ -132,6 +130,9 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
 
         {actions}
 
+        {/* Launcher de módulos (Administrativo / Serviços) */}
+        {user && user.type !== 'cliente' && <AppsMenu />}
+
         {/* Theme toggle — sun/moon */}
         <ThemeToggle />
 
@@ -143,8 +144,8 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
         {/* Sino do Meu Dia — notificações informativas + enquetes (sem execução) */}
         {user && user.type !== 'cliente' && <NotificationBell />}
 
-        {/* Bell notification — visible for all logged-in users; content scoped server-side */}
-        {user && (
+        {/* Ícone de mensagens (chat de projeto/contrato) REMOVIDO — não é usado. */}
+        {false && user && (
           <div ref={bellRef} className="relative">
             <button
               onClick={() => { setBellOpen(v => !v); fetchNotifications() }}
