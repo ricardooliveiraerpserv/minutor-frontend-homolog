@@ -648,8 +648,8 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         )}
       </div>
 
-      {/* ── User name (consultor / parceiro) ── */}
-      {(isConsultor || isParceiroAdmin) && user && (
+      {/* ── Card do usuário (foto + nome + cargo) — todos os perfis internos (a foto "aparece no menu") ── */}
+      {user && user.type !== 'cliente' && (
         <div
           className="flex items-center gap-2.5 px-3.5 py-3 border-b shrink-0"
           style={{ borderColor: 'var(--brand-border)' }}
@@ -665,7 +665,12 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
               <div className="min-w-0">
                 <p className="text-xs font-semibold truncate leading-tight" style={{ color: 'var(--text)' }}>{user.name}</p>
                 <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
-                  {isParceiroGestor ? 'Parceiro Gestor' : isParceiroAdmin ? 'Parceiro' : 'Consultor'}
+                  {user.type === 'admin' ? 'Administrador'
+                    : user.type === 'coordenador' ? 'Coordenador'
+                    : user.type === 'administrativo' ? 'Administrativo'
+                    : isParceiroGestor ? 'Parceiro Gestor'
+                    : isParceiroAdmin ? 'Parceiro'
+                    : 'Consultor'}
                 </p>
               </div>
             </>
