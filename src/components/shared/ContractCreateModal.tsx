@@ -47,6 +47,7 @@ type FormState = {
   aporte_valor_hora: string
   aporte_motivo: 'aporte' | 'excedentes' | 'absorvidas'
   aporte_descricao: string
+  aporte_data: string
   // Aditivo — toggle "É aditivo?" (altera projeto pai/independente existente)
   is_aditivo: boolean
   aditivo_target_project_id: string
@@ -71,7 +72,7 @@ const EMPTY_FORM: FormState = {
   expectativa_inicio: '', condicao_pagamento: '',
   executivo_conta_id: '', vendedor_id: '', observacoes: '',
   is_aporte: false, aporte_target_project_id: '', aporte_horas: '',
-  aporte_valor_hora: '', aporte_motivo: 'aporte', aporte_descricao: '',
+  aporte_valor_hora: '', aporte_motivo: 'aporte', aporte_descricao: '', aporte_data: '',
   is_aditivo: false, aditivo_target_project_id: '', aditivo_field: '',
   aditivo_value: '', aditivo_effective_from: new Date().toISOString().slice(0, 7),
   aditivo_m_rate: '', aditivo_m_horas: '',
@@ -528,6 +529,7 @@ export function ContractCreateModal({
       if (!form.aporte_target_project_id)                                  { toast.error('Selecione o projeto que recebe o aporte'); return }
       if (!form.aporte_horas || Number(form.aporte_horas) <= 0)            { toast.error('Informe a quantidade de horas'); return }
       if (!form.aporte_valor_hora || Number(form.aporte_valor_hora) <= 0)  { toast.error('Informe o valor da hora'); return }
+      if (!form.aporte_data)                                               { toast.error('Informe a data do aporte'); return }
       const selProj = aporteProjects.find(p => p.id === form.aporte_target_project_id)
       const isChildTarget = !!selProj?.is_child
       if (!isChildTarget && !pendingProposta) {
@@ -540,6 +542,7 @@ export function ContractCreateModal({
         fd.append('contributed_hours', String(Number(form.aporte_horas)))
         fd.append('hourly_rate',       String(Number(form.aporte_valor_hora)))
         fd.append('motivo',            form.aporte_motivo)
+        fd.append('contributed_at',    form.aporte_data)
         if (form.aporte_descricao) fd.append('description', form.aporte_descricao)
         if (!isChildTarget && pendingProposta) fd.append('proposta', pendingProposta)
         await uploadDirect(`/projects/${form.aporte_target_project_id}/hour-contributions`, fd)
@@ -1045,6 +1048,14 @@ export function ContractCreateModal({
                         <option value="excedentes">Excedentes</option>
                         <option value="absorvidas">Absorvidas</option>
                       </select>
+                    </div>
+
+                    <div>
+                      <label className={labelCls} style={{ color: 'var(--text-muted)' }}>Data do aporte <span style={{ color: 'var(--danger)' }}>*</span></label>
+                      <input type="date"
+                        value={form.aporte_data}
+                        onChange={e => setForm(f => ({ ...f, aporte_data: e.target.value }))}
+                        className={inputCls} style={inputStyle} />
                     </div>
 
                     <div>
