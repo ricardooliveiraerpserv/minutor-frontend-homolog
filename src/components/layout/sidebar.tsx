@@ -81,7 +81,9 @@ type NavGroup = {
 type NavEntry = NavItem | NavGroup
 
 // Meus Cards e Capacidade ainda em desenvolvimento — só DEV1
-const IS_DEV1 = process.env.NEXT_PUBLIC_APP_ENV === 'dev'
+// Itens experimentais (Meus Cards / Capacidade) — DESLIGADOS: rotas inexistentes (/me/cards 404)
+// e eram só do DEV1 (aposentado). Não acoplar à faixa (NEXT_PUBLIC_APP_ENV='dev' no localhost).
+const IS_DEV1 = false
 
 const NAV_COORDINATOR: NavEntry[] = [
   { type: 'item' as const, label: 'Meu Dia', href: '/inicio', icon: Home },
