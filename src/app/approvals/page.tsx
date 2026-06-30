@@ -591,6 +591,18 @@ export default function ApprovalsPage() {
   const setCustomerId   = (v: string)                    => setFilter('customerId', v)
   const setCategoriaServico = (v: '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento') => setFilter('categoriaServico', v)
 
+  // Vindo do card "Apontamentos para aprovar" do Meu Dia (/approvals?tab=timesheets&coordinator_id=ID):
+  // aplica o escopo do coordenador (só os projetos que ele coordena) + a aba certa. window.location
+  // evita exigir Suspense do useSearchParams nesta página.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search)
+    const cid = sp.get('coordinator_id')
+    const t   = sp.get('tab')
+    if (cid) setFilter('coordinatorId', cid)
+    if (t === 'expenses' || t === 'timesheets') setFilter('tab', t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const tsStatus  = 'pending'
   const expStatus = 'pending'
   const [showFilters,   setShowFilters]   = useState(true)
