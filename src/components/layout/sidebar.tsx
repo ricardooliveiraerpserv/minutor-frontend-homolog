@@ -106,7 +106,7 @@ const NAV_COORDINATOR: NavEntry[] = [
 
 const NAV: NavEntry[] = [
   { type: 'item', label: 'Meu Painel',            href: '/meu-painel',      icon: LayoutDashboard },
-  { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
+  { type: 'item', label: 'Meu Dia',              href: '/inicio',          icon: Home },
   ...(IS_DEV1 ? [
     { type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox },
     { type: 'item' as const, label: 'Capacidade', href: '/capacidade', icon: Users },
@@ -413,7 +413,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     }
     if (isAdministrativo) {
       const nav: NavEntry[] = [
-        { type: 'item', label: 'Início', href: '/dashboard', icon: Home },
+        { type: 'item', label: 'Meu Dia', href: '/inicio', icon: Home },
         {
           type: 'group',
           label: 'Apontamentos & Despesas',
@@ -479,6 +479,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     }
     if (isConsultor) {
       const baseNav: NavEntry[] = [
+        { type: 'item', label: 'Meu Dia', href: '/inicio', icon: Home },
         { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
         ...(IS_DEV1 ? [{ type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox }] : []),
       ]
@@ -499,12 +500,14 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     if (isParceiroAdmin) {
       if (isParceiroGestor) {
         return [
+          { type: 'item', label: 'Meu Dia', href: '/inicio', icon: Home },
           { type: 'item', label: 'Painel do Parceiro', href: '/partner-dashboard', icon: Handshake },
         ] as NavEntry[]
       }
       // Parceiro simples: apenas Meu Painel — apontamentos e despesas já são abas
       // internas do próprio dashboard (Total Geral / Apontamentos / Despesas / Indicadores).
       return [
+        { type: 'item', label: 'Meu Dia', href: '/inicio', icon: Home },
         { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
       ] as NavEntry[]
     }
