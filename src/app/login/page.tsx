@@ -34,7 +34,8 @@ function LoginForm() {
       // trim: senha colada do e-mail costuma vir com espaço/quebra invisível ao redor,
       // o que fazia o login falhar como "Credenciais inválidas" mesmo com a senha certa.
       const { requiresPasswordChange } = await login(email.trim(), password.trim())
-      router.replace(requiresPasswordChange ? '/alterar-senha' : '/dashboard')
+      // Sempre entra no Meu Dia (/inicio). Cliente é redirecionado pelo guard do /inicio p/ o portal dele.
+      router.replace(requiresPasswordChange ? '/alterar-senha' : '/inicio')
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Credenciais inválidas')
     } finally {
