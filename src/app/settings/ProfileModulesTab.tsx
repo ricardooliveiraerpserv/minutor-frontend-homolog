@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
-import { MODULES, type ModuleId } from '@/lib/modules'
+import { useNavConfig } from '@/contexts/nav-config-context'
 
+type ModuleId = string
 interface ProfileRow { profile: string; modules: ModuleId[] }
 
 const PROFILE_LABEL: Record<string, string> = {
@@ -19,6 +20,7 @@ const PROFILE_LABEL: Record<string, string> = {
 // Cadastro de Perfil → Módulos de navegação (Serviços / Administrativo).
 // Define quais módulos cada perfil enxerga. NÃO altera permissões.
 export function ProfileModulesTab() {
+  const { modules } = useNavConfig()
   const [rows, setRows] = useState<ProfileRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
@@ -61,9 +63,9 @@ export function ProfileModulesTab() {
           <thead>
             <tr style={{ background: 'var(--surface-sunken)' }}>
               <th className="text-left px-4 py-2.5 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Perfil</th>
-              {MODULES.map(m => (
-                <th key={m.id} className="text-center px-4 py-2.5 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-                  {m.emoji} {m.label}
+              {modules.map(m => (
+                <th key={m.key} className="text-center px-4 py-2.5 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                  {m.label}
                 </th>
               ))}
             </tr>
@@ -75,14 +77,14 @@ export function ProfileModulesTab() {
                   {PROFILE_LABEL[row.profile] ?? row.profile}
                   {saving === row.profile && <span className="ml-2 text-[10px]" style={{ color: 'var(--text-light)' }}>salvando…</span>}
                 </td>
-                {MODULES.map(m => (
-                  <td key={m.id} className="text-center px-4 py-3">
+                {modules.map(m => (
+                  <td key={m.key} className="text-center px-4 py-3">
                     <input
                       type="checkbox"
                       className="h-4 w-4 cursor-pointer"
                       style={{ accentColor: 'var(--primary)' }}
-                      checked={row.modules.includes(m.id)}
-                      onChange={e => toggle(row.profile, m.id, e.target.checked)}
+                      checked={row.modules.includes(m.key)}
+                      onChange={e => toggle(row.profile, m.key, e.target.checked)}
                     />
                   </td>
                 ))}

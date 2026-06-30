@@ -1,14 +1,19 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { LayoutGrid } from 'lucide-react'
+import { LayoutGrid, icons as lucideIcons } from 'lucide-react'
 import { useModules } from '@/contexts/module-context'
-import { MODULES } from '@/lib/modules'
 
-// Launcher de apps estilo ERP (Movidesk): ícone de grade no header → dropdown com os
-// módulos do perfil. Trocar de módulo navega pra home dele (não sobra nada do anterior).
+// Resolve um ícone lucide pelo nome (string vinda do Configurador); fallback = grade.
+function iconByName(name?: string) {
+  const I = (name && (lucideIcons as Record<string, React.ComponentType<{ size?: number }>>)[name]) || LayoutGrid
+  return I as React.ComponentType<{ size?: number }>
+}
+
+// Launcher de apps estilo ERP: ícone de grade no header → dropdown com os módulos do perfil
+// (definidos no Configurador). Trocar de módulo recarrega o menu lateral.
 export function AppsMenu() {
-  const { allowedModules, selectedModule, setModule } = useModules()
+  const { modules, selectedModule, setModule } = useModules()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -18,8 +23,7 @@ export function AppsMenu() {
     return () => document.removeEventListener('mousedown', onDown)
   }, [])
 
-  const tiles = MODULES.filter(m => allowedModules.includes(m.id))
-  if (tiles.length < 2) return null // só faz sentido com ≥2 módulos
+  if (modules.length < 2) return null // só faz sentido com ≥2 módulos
 
   return (
     <div className="relative" ref={ref}>
@@ -37,19 +41,22 @@ export function AppsMenu() {
           className="absolute right-0 mt-2 z-50 rounded-xl p-3 shadow-xl grid grid-cols-2 gap-2 w-64"
           style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', boxShadow: '0 10px 30px rgba(0,0,0,0.35)' }}
         >
-          {tiles.map(m => (
-            <button
-              key={m.id}
-              onClick={() => { setModule(m.id); setOpen(false) }}
-              className="flex flex-col items-center justify-center gap-2 rounded-lg p-4 transition-colors"
-              style={selectedModule === m.id
-                ? { background: 'var(--primary-soft)', border: '1px solid var(--primary)' }
-                : { border: '1px solid var(--brand-border)' }}
-            >
-              <span className="text-3xl" aria-hidden>{m.emoji}</span>
-              <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{m.label}</span>
-            </button>
-          ))}
+          {modules.map(m => {
+            const Icon = iconByName(m.icon)
+            return (
+              <button
+                key={m.key}
+                onClick={() => { setModule(m.key); setOpen(false) }}
+                className="flex flex-col items-center justify-center gap-2 rounded-lg p-4 transition-colors"
+                style={selectedModule === m.key
+                  ? { background: 'var(--primary-soft)', border: '1px solid var(--primary)' }
+                  : { border: '1px solid var(--brand-border)' }}
+              >
+                <Icon size={26} />
+                <span className="text-xs font-semibold text-center" style={{ color: 'var(--text)' }}>{m.label}</span>
+              </button>
+            )
+          })}
         </div>
       )}
     </div>

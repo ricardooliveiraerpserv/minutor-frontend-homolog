@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
 import { NotificationPopups } from '@/components/notifications/notification-popups'
 import { ModuleProvider } from '@/contexts/module-context'
+import { NavConfigProvider } from '@/contexts/nav-config-context'
 import { Building2, User } from 'lucide-react'
 
 // Banner de ambiente: cores distintas para evitar confundir DEV ↔ HOMOLOG ↔ PROD.
@@ -57,6 +58,7 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
   const displayName = isCliente ? companyName : (user.name ?? null)
 
   return (
+    <NavConfigProvider>
     <ModuleProvider>
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--brand-bg)' }}>
 
@@ -118,5 +120,6 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
       </div>
     </div>
     </ModuleProvider>
+    </NavConfigProvider>
   )
 }

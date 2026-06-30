@@ -55,6 +55,7 @@ import {
   Calculator,
   ListTodo,
   Radar,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, secureUrl } from '@/lib/api'
@@ -62,7 +63,7 @@ import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LucideIcon } from 'lucide-react'
 import type { User } from '@/types'
-import { type ModuleId, MODULES } from '@/lib/modules'
+import { type ModuleId } from '@/lib/modules'
 import { useModules } from '@/contexts/module-context'
 
 import { MinutorIcon } from '@/components/branding/MinutorIcon'
@@ -78,6 +79,7 @@ type NavItem = {
   exactMatch?: boolean
   badge?: 'tasks' | 'notifications' | 'critical'   // indicador de ação na navegação
   module?: ModuleId
+  catalogKey?: string   // key do catálogo (Configurador)
   // Visível em qualquer módulo (ignora o filtro de módulo) — p/ itens de sistema
   // que precisam ser alcançáveis independentemente do módulo do perfil.
   alwaysVisible?: boolean
@@ -95,6 +97,7 @@ type NavGroup = {
   icon: LucideIcon
   items: (NavLink | NavSubGroup)[]
   module?: ModuleId
+  catalogKey?: string   // key do catálogo (Configurador) — define em qual módulo o grupo aparece
 }
 type NavEntry = NavItem | NavGroup
 
@@ -145,19 +148,25 @@ function moduleForHref(href: string): ModuleId | null {
 }
 
 // Filtra a árvore de navegação pelo módulo selecionado. Mantém itens "home" (sem módulo).
-function filterNavByModule(nav: NavEntry[], mod: ModuleId): NavEntry[] {
+// itemModule = catalogKey → moduleKey (vem do Configurador). Tem PRECEDÊNCIA sobre a tag antiga.
+const HIDDEN = '__hidden__'
+function filterNavByModule(nav: NavEntry[], mod: ModuleId, itemModule: Record<string, string>): NavEntry[] {
+  // módulo efetivo de um grupo/item: Configurador (catalogKey) > tag hardcoded > rota.
+  // catalogKey não atribuído a nenhum módulo → escondido.
+  const effMod = (e: NavEntry): string | null =>
+    e.catalogKey ? (itemModule[e.catalogKey] ?? HIDDEN) : (e.module ?? null)
   const keepItem = (href: string) => { const m = moduleForHref(href); return m === null || m === mod }
   const out: NavEntry[] = []
   for (const entry of nav) {
     if (entry.type === 'item') {
       if (entry.alwaysVisible) { out.push(entry); continue }
-      const m = entry.module ?? moduleForHref(entry.href)
+      const m = entry.catalogKey ? (itemModule[entry.catalogKey] ?? HIDDEN) : (entry.module ?? moduleForHref(entry.href))
       if (m === null || m === mod) out.push(entry)
       continue
     }
-    // grupo com módulo explícito (NAV admin reestruturado)
-    if (entry.module) { if (entry.module === mod) out.push(entry); continue }
-    // grupo sem módulo (menus por-perfil): filtra os itens por rota
+    const gm = effMod(entry)
+    if (gm !== null) { if (gm === mod) out.push(entry); continue }
+    // grupo sem módulo definido (menus por-perfil): filtra os itens por rota
     const items = entry.items
       .map(it => ('href' in it)
         ? it
@@ -210,22 +219,25 @@ const NAV: NavEntry[] = [
     { type: 'item' as const, label: 'Capacidade', href: '/capacidade', icon: Users },
   ] : []),
 
+  // ── ⚙️ CONFIGURADOR (associado via catálogo; aparece no módulo Configurador) ──
+  { type: 'item', label: 'Configurador de Menus', href: '/configurador', icon: SlidersHorizontal, catalogKey: 'configurador' },
+
   // ── 🛠 SERVIÇOS ──
   {
-    type: 'group', module: 'servicos', label: 'Projetos', icon: FolderOpen,
+    type: 'group', module: 'servicos', catalogKey: 'projetos', label: 'Projetos', icon: FolderOpen,
     items: [
       { label: 'Demandas e Projetos',  href: '/contratos/pipeline',     icon: Layers },
       { label: 'Investimento Interno', href: '/investimento-comercial', icon: TrendingUp },
     ],
   },
   {
-    type: 'group', module: 'servicos', label: 'Sustentação', icon: Headphones,
+    type: 'group', module: 'servicos', catalogKey: 'sustentacao', label: 'Sustentação', icon: Headphones,
     items: [
       { label: 'Portal', href: '/sustentacao', icon: Headphones, exactMatch: true },
     ],
   },
   {
-    type: 'group', module: 'servicos', label: 'Operação', icon: Clock,
+    type: 'group', module: 'servicos', catalogKey: 'operacao', label: 'Operação', icon: Clock,
     items: [
       { label: 'Apontamentos',              href: '/timesheets',              icon: Clock },
       { label: 'Despesas',                  href: '/expenses',                icon: Receipt },
@@ -238,14 +250,14 @@ const NAV: NavEntry[] = [
 
   // ── 📊 ADMINISTRATIVO ──
   {
-    type: 'group', module: 'administrativo', label: 'Gestão Contratual', icon: Layers,
+    type: 'group', module: 'administrativo', catalogKey: 'gestao_contratual', label: 'Gestão Contratual', icon: Layers,
     items: [
       { label: 'Gestão de Contratos', href: '/gestao-projetos',  icon: Layers },
       { label: 'Kanban Contratos',    href: '/contratos/kanban', icon: LayoutGrid },
     ],
   },
   {
-    type: 'group', module: 'administrativo', label: 'Financeiro', icon: DollarSign,
+    type: 'group', module: 'administrativo', catalogKey: 'financeiro', label: 'Financeiro', icon: DollarSign,
     items: [
       {
         kind: 'subgroup', label: 'Fechamento', icon: DollarSign,
@@ -265,7 +277,7 @@ const NAV: NavEntry[] = [
     ],
   },
   {
-    type: 'group', module: 'administrativo', label: 'Relatórios', icon: FileText,
+    type: 'group', module: 'administrativo', catalogKey: 'relatorios', label: 'Relatórios', icon: FileText,
     items: [
       { label: 'Pagamentos',    href: '/relatorios/pagamentos',    icon: DollarSign },
       { label: 'Rent. Consultor × Projeto', href: '/relatorios/rentabilidade/consultor', icon: Users },
@@ -275,7 +287,7 @@ const NAV: NavEntry[] = [
     ],
   },
   {
-    type: 'group', module: 'administrativo', label: 'Cadastros', icon: Database,
+    type: 'group', module: 'administrativo', catalogKey: 'cadastros', label: 'Cadastros', icon: Database,
     items: [
       { label: 'Clientes',              href: '/clientes',                         icon: Users },
       { label: 'Executivos',            href: '/cadastros?tab=executives',        icon: Star },
@@ -293,7 +305,7 @@ const NAV: NavEntry[] = [
     ],
   },
   {
-    type: 'group', module: 'administrativo', label: 'Comunicação', icon: Mail,
+    type: 'group', module: 'administrativo', catalogKey: 'comunicacao', label: 'Comunicação', icon: Mail,
     items: [
       { label: 'Central de Comunicação', href: '/central-comunicacao',          icon: Mail },
       { label: 'Modelos de E-mail',   href: '/cadastros?tab=email_templates', icon: Mail },
@@ -301,7 +313,7 @@ const NAV: NavEntry[] = [
     ],
   },
   {
-    type: 'group', module: 'administrativo', label: 'Visão Externa', icon: BarChart2,
+    type: 'group', module: 'administrativo', catalogKey: 'visao_externa', label: 'Visão Externa', icon: BarChart2,
     items: [
       {
         kind: 'subgroup', label: 'Cliente', icon: Building2,
@@ -324,7 +336,7 @@ const NAV: NavEntry[] = [
     ],
   },
   {
-    type: 'group', module: 'administrativo', label: 'Sistema', icon: Settings,
+    type: 'group', module: 'administrativo', catalogKey: 'sistema', label: 'Sistema', icon: Settings,
     items: [
       { label: 'Usuários',          href: '/users',           icon: Users },
       { label: 'Configurações',     href: '/settings',        icon: Settings },
@@ -721,15 +733,15 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
 
   // ── Módulos de navegação (Serviços / Administrativo) — estado compartilhado (header + sidebar).
   // Cliente não tem módulos → vê o portal inteiro como hoje (sem filtro).
-  const { allowedModules, selectedModule } = useModules()
+  const { allowedModules, selectedModule, modules: navModules, itemModule } = useModules()
   // Nav já filtrada pelo módulo (mantém o gating de perfil/permissão do visibleNav).
   // GARANTIA: o filtro de módulo só faz sentido quando há MAIS DE UM módulo para
   // alternar. Em perfil de módulo único (ex.: coordenador só de Serviços), filtrar
   // apenas ESCONDERIA itens que as permissões já concederam — então NÃO filtramos:
   // tudo que o perfil/grupo permite aparece. Com 2+ módulos, o filtro organiza as abas.
   const moduleNav = useMemo(
-    () => (selectedModule && allowedModules.length > 1) ? filterNavByModule(visibleNav, selectedModule) : visibleNav,
-    [visibleNav, selectedModule, allowedModules],
+    () => (selectedModule && allowedModules.length > 1) ? filterNavByModule(visibleNav, selectedModule, itemModule) : visibleNav,
+    [visibleNav, selectedModule, allowedModules, itemModule],
   )
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,
@@ -859,14 +871,14 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         style={{ borderColor: 'var(--brand-border)' }}
       >
         {(() => {
-          const mod = MODULES.find(m => m.id === selectedModule)
-          // Minimizado: logo do Minutor + ícone do módulo embaixo. Expandido: logo + "Minutor",
+          const mod = navModules.find(m => m.key === selectedModule)
+          // Minimizado: logo do Minutor + inicial do módulo. Expandido: logo + "Minutor",
           // e o nome do módulo ABAIXO (alinhado sob "Minutor"), sem deslocar o nome Minutor.
           if (collapsed) {
             return (
               <div className="flex flex-col items-center gap-1 mx-auto">
                 <MinutorIcon size={30} />
-                {mod && <span className="text-[18px] leading-none" title={mod.label}>{mod.emoji}</span>}
+                {mod && <span className="text-[10px] font-bold leading-none" title={mod.label} style={{ color: 'var(--primary)' }}>{mod.label.slice(0, 3)}</span>}
               </div>
             )
           }
@@ -876,7 +888,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                 <MinutorIcon size={34} />
                 <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>
               </div>
-              {mod && <span className="text-[15px] font-semibold truncate mt-0.5 pl-[46px]" style={{ color: 'var(--primary)' }}>{mod.emoji} {mod.label}</span>}
+              {mod && <span className="text-[15px] font-semibold truncate mt-0.5 pl-[46px]" style={{ color: 'var(--primary)' }}>{mod.label}</span>}
             </>
           )
         })()}
