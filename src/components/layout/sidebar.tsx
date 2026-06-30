@@ -84,6 +84,7 @@ type NavEntry = NavItem | NavGroup
 const IS_DEV1 = process.env.NEXT_PUBLIC_APP_ENV === 'dev'
 
 const NAV_COORDINATOR: NavEntry[] = [
+  { type: 'item' as const, label: 'Meu Dia', href: '/inicio', icon: Home },
   ...(IS_DEV1 ? [
     { type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox },
     { type: 'item' as const, label: 'Capacidade', href: '/capacidade', icon: Users },
