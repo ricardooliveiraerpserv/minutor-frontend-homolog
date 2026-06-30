@@ -3,8 +3,10 @@ import type { NextConfig } from "next";
 const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:8000'
 
 // Detecta ambiente pelo padrão da URL do backend.
-// `-dev.onrender.com` → dev; outros onrender → homolog; resto → production.
+// localhost/127.0.0.1 → dev (faixa de identificação); `-dev.onrender.com` → dev;
+// outros onrender → homolog; resto → production.
 const APP_ENV =
+  BACKEND_URL.includes('localhost') || BACKEND_URL.includes('127.0.0.1') ? 'dev' :
   BACKEND_URL.includes('-dev.onrender.com') ? 'dev' :
   BACKEND_URL.includes('onrender.com')      ? 'homolog' :
                                               'production'
