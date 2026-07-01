@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { Skeleton } from '@/components/ui/skeleton'
 import { KpiCard } from '@/components/ui/kpi-card'
+import { SectionPanel } from '@/components/ui/section-panel'
 import {
   Clock, Receipt, CheckSquare, Plus, AlertTriangle,
   TrendingUp, FolderOpen, Users, X, ChevronRight,
@@ -316,13 +317,15 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* ── Resumo do dia + mês ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <StatCard label="Horas Hoje (total)"      value={adminLoading ? '—' : fmtHours(adminTodayMin)}    loading={adminLoading} />
-              <StatCard label="Horas no Mês (total)"    value={adminLoading ? '—' : fmtHours(adminMonthMin)}    loading={adminLoading} />
-              <StatCard label="Apontamentos Pendentes"  value={adminLoading ? '—' : String(adminPendingTs)}     loading={adminLoading} />
-              <StatCard label="Despesas Pendentes"      value={adminLoading ? '—' : String(adminPendingExp)}    loading={adminLoading} />
-            </div>
+            {/* ── Resumo do dia + mês (bloco Surface 1) ── */}
+            <SectionPanel>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatCard label="Horas Hoje (total)"      value={adminLoading ? '—' : fmtHours(adminTodayMin)}    loading={adminLoading} />
+                <StatCard label="Horas no Mês (total)"    value={adminLoading ? '—' : fmtHours(adminMonthMin)}    loading={adminLoading} />
+                <StatCard label="Apontamentos Pendentes"  value={adminLoading ? '—' : String(adminPendingTs)}     loading={adminLoading} />
+                <StatCard label="Despesas Pendentes"      value={adminLoading ? '—' : String(adminPendingExp)}    loading={adminLoading} />
+              </div>
+            </SectionPanel>
 
             {/* ── Recentes (admin) ── */}
             {!adminLoading && adminRecentTs.length > 0 && (

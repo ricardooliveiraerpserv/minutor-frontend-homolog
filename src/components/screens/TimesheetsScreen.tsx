@@ -1260,7 +1260,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           className={`p-4 mb-4 space-y-3 ${filtersOpen ? 'block' : 'hidden'} md:block
             fixed inset-y-0 left-0 z-50 w-[86%] max-w-xs overflow-y-auto rounded-none shadow-2xl
             md:static md:z-auto md:w-auto md:max-w-none md:overflow-visible md:rounded-2xl md:shadow-none`}
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', WebkitOverflowScrolling: 'touch' }}
+          style={{ background: 'var(--panel)', border: '1px solid var(--brand-border)', WebkitOverflowScrolling: 'touch' }}
         >
           {/* Cabeçalho do Drawer (mobile) */}
           <div className="flex items-center justify-between md:hidden">

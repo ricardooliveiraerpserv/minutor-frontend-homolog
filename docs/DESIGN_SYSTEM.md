@@ -60,12 +60,21 @@ Sempre que tocar um componente:
 
 ### Estrutura
 
-| Token | Uso |
+| Token | Papel / Superfície |
 |---|---|
-| `--bg` | fundo geral da página |
-| `--surface` | cards, modais, containers |
+| `--bg` | **Surface 0** — fundo da aplicação / região de conteúdo |
+| `--panel` | **Surface 1** — painéis: colunas de kanban, sidebar/header, filtros, blocos de dashboard |
+| `--surface` | **Surface 2** — cards (brancos), modais, container de tabela |
+| `--field` | **Surface 3** — campo de input (identidade própria + borda) |
 | `--surface-hover` | hover de linhas/cards |
+| `--surface-sunken` | header de tabela |
 | `--border` | divisores, contornos |
+
+**Hierarquia de superfícies (tema claro):** fundo `--bg` < painel `--panel` < card `--surface`.
+Para agrupar blocos como painéis Surface 1, use os wrappers prontos:
+`<FilterContainer>` (`components/ui/filter-container.tsx`) para barras de filtro e
+`<SectionPanel>` (`components/ui/section-panel.tsx`) para blocos de dashboard (KPIs/filtros/tabela).
+Ambos aplicam `--panel` + borda; adoção progressiva ao tocar cada tela.
 
 ### Texto
 
