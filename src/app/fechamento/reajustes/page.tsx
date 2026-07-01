@@ -7,11 +7,12 @@ import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
 import {
   TrendingUp, AlertTriangle, Clock, CheckCircle, DollarSign,
-  History, Search, RefreshCw, X, Upload, Pencil, Save, CalendarClock,
+  History, Search, RefreshCw, X, Upload, Pencil, Save, CalendarClock, Plus, Trash2, Building2, Undo2, Send, Mail,
 } from 'lucide-react'
 import { PageHeader, Card, Badge, Button, Th, Tbody, Tr, Td, SkeletonTable, EmptyState } from '@/components/ds'
 import { ReajusteModal, type ReajusteTarget } from '@/components/contratos/ReajusteModal'
 import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
+import { SearchSelect } from '@/components/ui/search-select'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface Summary {
@@ -44,6 +45,13 @@ interface Row {
   percentual_acumulado: number | null
   valor_acumulado: number | null
   periodo_acumulado: { inicio: string; fim: string; label: string } | null
+  // Inclusão manual (sem contrato): linha em cor diferente + empresa ERPSERV|BIZIFY
+  manual?: boolean
+  empresa?: string | null
+  customer_id?: number | null
+  can_reverse?: boolean
+  can_resend?: boolean
+  can_resend_estorno?: boolean
 }
 interface HistRow {
   id: number
@@ -77,6 +85,53 @@ export default function DashboardReajustesPage() {
   const [importing, setImporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [editRow, setEditRow] = useState<Row | null>(null)
+  const [manualModal, setManualModal] = useState<Row | 'new' | null>(null)
+
+  const [estornando, setEstornando] = useState(false)
+  const [estornoConfirm, setEstornoConfirm] = useState<Row | null>(null)
+  const [estornoPreview, setEstornoPreview] = useState<{ subject: string; html: string } | null>(null)
+  const [resend, setResend] = useState<{ row: Row; tipo: 'reajuste' | 'estorno' } | null>(null)
+
+  // Ao abrir o modal de estorno, busca a prévia do e-mail (modo estorno).
+  useEffect(() => {
+    if (!estornoConfirm) { setEstornoPreview(null); return }
+    const r = estornoConfirm
+    const base = r.manual ? `/contracts/reajustes/manual/${r.id}` : `/contracts/${r.id}`
+    setEstornoPreview(null)
+    api.get<{ subject: string; html: string }>(`${base}/adjustment-email-preview?estorno=1`)
+      .then(res => setEstornoPreview({ subject: res.subject, html: res.html }))
+      .catch(() => {})
+  }, [estornoConfirm])
+  const estornarReajuste = async (row: Row, notificar: boolean) => {
+    setEstornando(true)
+    try {
+      const url = row.manual
+        ? `/contracts/reajustes/manual/${row.id}/reverse-adjustment`
+        : `/contracts/${row.id}/reverse-adjustment`
+      const res = await api.post<{ email_sent?: boolean }>(url, { notificar })
+      toast.success(!notificar
+        ? 'Reajuste estornado (cliente não avisado)'
+        : (res?.email_sent ? 'Reajuste estornado · e-mail enviado ao cliente' : 'Reajuste estornado (sem e-mail: nenhum destinatário)'))
+      setEstornoConfirm(null)
+      setHistRow(null)
+      load()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao estornar')
+    } finally {
+      setEstornando(false)
+    }
+  }
+
+  const deleteManual = async (row: Row) => {
+    if (!confirm(`Excluir a inclusão manual "${row.cliente_nome ?? ''}"?`)) return
+    try {
+      await api.delete(`/contracts/reajustes/manual/${row.id}`)
+      toast.success('Inclusão manual excluída')
+      load()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao excluir')
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -111,7 +166,10 @@ export default function DashboardReajustesPage() {
     setHistRow(row)
     setHist(null)
     try {
-      const res = await api.get<{ data: HistRow[] }>(`/contracts/${row.id}/value-changes`)
+      const url = row.manual
+        ? `/contracts/reajustes/manual/${row.id}/value-changes`
+        : `/contracts/${row.id}/value-changes`
+      const res = await api.get<{ data: HistRow[] }>(url)
       setHist(res.data ?? [])
     } catch {
       toast.error('Erro ao carregar o histórico')
@@ -153,6 +211,9 @@ export default function DashboardReajustesPage() {
               <Button size="sm" variant="secondary" icon={Upload} loading={importing} disabled={importing}
                 onClick={() => fileRef.current?.click()}>
                 {importing ? 'Importando…' : 'Importar planilha'}
+              </Button>
+              <Button size="sm" variant="secondary" icon={Plus} onClick={() => setManualModal('new')}>
+                Inclusão manual
               </Button>
               <Button size="sm" variant="secondary" icon={RefreshCw} onClick={load} loading={loading} disabled={loading}>
                 Atualizar
@@ -246,13 +307,21 @@ export default function DashboardReajustesPage() {
               <Tbody>
                 {filtered.map(r => {
                   const st = STATUS[r.status_reajuste]
-                  const rowBg = r.status_reajuste === 'vencido' ? 'var(--danger-bg)' : undefined
+                  // Linha manual (sem contrato) tem cor própria (lilás) p/ destacar.
+                  const rowBg = r.manual ? 'var(--primary-soft)' : (r.status_reajuste === 'vencido' ? 'var(--danger-bg)' : undefined)
                   const dias = r.dias_para_vencimento
                   return (
-                    <Tr key={r.id} baseBackground={rowBg}>
+                    <Tr key={`${r.manual ? 'm' : 'c'}${r.id}`} baseBackground={rowBg}>
                       <Td>
-                        <div className="font-medium" style={{ color: 'var(--text)' }}>{r.cliente_nome ?? '—'}</div>
-                        <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{r.codigo ?? '—'}</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium" style={{ color: 'var(--text)' }}>{r.cliente_nome ?? '—'}</span>
+                          {r.manual && (
+                            <Badge variant={r.empresa === 'BIZIFY' ? 'warning' : 'primary'}>
+                              <Building2 size={10} className="inline -mt-0.5 mr-0.5" />{r.empresa ?? 'ERPSERV'}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{r.codigo ?? (r.manual ? 'Inclusão manual' : '—')}</div>
                       </Td>
                       <Td right mono className="tabular-nums" style={{ color: 'var(--text-muted)' }}>{formatBRL(r.valor_inicial ?? r.valor_atual)}</Td>
                       <Td right mono className="tabular-nums">{formatBRL(r.valor_atual)}</Td>
@@ -282,24 +351,71 @@ export default function DashboardReajustesPage() {
                       </Td>
                       <Td>
                         <div className="inline-flex items-center gap-1.5">
-                          <button onClick={() => setReajusteTarget({ id: r.id, label: `${r.cliente_nome ?? '—'} · ${r.codigo ?? '—'}`, periodo: r.periodo })}
-                            title="Reajustar"
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
-                            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
-                            <TrendingUp size={13} /> Reajustar
-                          </button>
-                          <button onClick={() => openHistorico(r)}
-                            title="Ver histórico"
-                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
-                            style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-                            <History size={13} /> Histórico
-                          </button>
-                          <button onClick={() => setEditRow(r)}
-                            title="Editar cadastro (assinatura, vencimento, valor inicial, taxa)"
-                            className="inline-flex items-center justify-center rounded-md p-1.5"
-                            style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                            <Pencil size={14} />
-                          </button>
+                          {r.manual ? (
+                            <>
+                              <button onClick={() => setReajusteTarget({ id: r.id, label: `${r.cliente_nome ?? '—'} · ${r.codigo ?? 'Manual'}`, periodo: r.periodo, manual: true })}
+                                title="Reajustar"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
+                                style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+                                <TrendingUp size={13} /> Reajustar
+                              </button>
+                              <button onClick={() => openHistorico(r)}
+                                title="Ver histórico"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
+                                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                                <History size={13} /> Histórico
+                              </button>
+                              {r.can_reverse && (
+                                <button onClick={() => setEstornoConfirm(r)}
+                                  title="Estornar último reajuste"
+                                  className="inline-flex items-center justify-center rounded-md p-1.5"
+                                  style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', color: 'var(--warning)' }}>
+                                  <Undo2 size={14} />
+                                </button>
+                              )}
+                              <button onClick={() => setManualModal(r)}
+                                title="Editar inclusão manual"
+                                className="inline-flex items-center justify-center rounded-md p-1.5"
+                                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                                <Pencil size={14} />
+                              </button>
+                              <button onClick={() => deleteManual(r)}
+                                title="Excluir inclusão manual"
+                                className="inline-flex items-center justify-center rounded-md p-1.5"
+                                style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button onClick={() => setReajusteTarget({ id: r.id, label: `${r.cliente_nome ?? '—'} · ${r.codigo ?? '—'}`, periodo: r.periodo })}
+                                title="Reajustar"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
+                                style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+                                <TrendingUp size={13} /> Reajustar
+                              </button>
+                              <button onClick={() => openHistorico(r)}
+                                title="Ver histórico"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
+                                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                                <History size={13} /> Histórico
+                              </button>
+                              <button onClick={() => setEditRow(r)}
+                                title="Editar cadastro (assinatura, vencimento, valor inicial, taxa)"
+                                className="inline-flex items-center justify-center rounded-md p-1.5"
+                                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                                <Pencil size={14} />
+                              </button>
+                              {r.can_reverse && (
+                                <button onClick={() => setEstornoConfirm(r)}
+                                  title="Estornar último reajuste"
+                                  className="inline-flex items-center justify-center rounded-md p-1.5"
+                                  style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', color: 'var(--warning)' }}>
+                                  <Undo2 size={14} />
+                                </button>
+                              )}
+                            </>
+                          )}
                         </div>
                       </Td>
                     </Tr>
@@ -325,6 +441,66 @@ export default function DashboardReajustesPage() {
       {/* Modal de edição de cadastro (assinatura/vencimento/valor inicial/taxa/%) */}
       {editRow && (
         <EditCadastroModal key={editRow.id} row={editRow} onClose={() => setEditRow(null)} onSaved={() => { setEditRow(null); load() }} />
+      )}
+
+      {/* Modal de confirmação de estorno */}
+      {estornoConfirm && (
+        <Modal open onClose={() => { if (!estornando) setEstornoConfirm(null) }} size="md">
+          <ModalHeader icon={Undo2} title="Estornar reajuste"
+            subtitle={`${estornoConfirm.cliente_nome ?? '—'} · ${estornoConfirm.codigo ?? '—'}`}
+            onClose={() => { if (!estornando) setEstornoConfirm(null) }} />
+          <ModalBody>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text)' }}>
+              O valor volta ao anterior e o registro sai do histórico. Escolha abaixo se deseja <b>avisar o cliente</b> (envia o e-mail abaixo + cópias internas da Central) ou estornar em silêncio.
+            </p>
+            <p className="text-xs mt-1 mb-3" style={{ color: 'var(--text-muted)' }}>Esta ação não pode ser desfeita.</p>
+            <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Prévia do e-mail de estorno</label>
+            {estornoPreview ? (
+              <div className="mt-1 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                <div className="px-3 py-2 text-xs font-semibold" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                  Assunto: <span style={{ color: 'var(--text)' }}>{estornoPreview.subject}</span>
+                </div>
+                <iframe title="Prévia do estorno" srcDoc={estornoPreview.html}
+                  style={{ width: '100%', height: 300, border: 'none', background: '#fff' }} />
+              </div>
+            ) : (
+              <p className="text-sm py-6 text-center mt-1 rounded-lg" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Gerando prévia…</p>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <button onClick={() => { if (!estornando) setEstornoConfirm(null) }} disabled={estornando}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+              <X size={15} /> Cancelar
+            </button>
+            <button onClick={() => estornarReajuste(estornoConfirm, false)} disabled={estornando}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+              <Undo2 size={15} /> Estornar sem avisar
+            </button>
+            <button onClick={() => estornarReajuste(estornoConfirm, true)} disabled={estornando || !estornoPreview}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+              style={{ background: 'var(--danger)', color: '#fff' }}>
+              <Undo2 size={15} /> {estornando ? 'Estornando…' : 'Estornar e avisar cliente'}
+            </button>
+          </ModalFooter>
+        </Modal>
+      )}
+
+      {/* Modal de reenvio de e-mail (reajuste ou estorno) */}
+      {resend && (
+        <ResendModal key={`${resend.tipo}-${resend.row.manual ? 'm' : 'c'}${resend.row.id}`}
+          row={resend.row} tipo={resend.tipo} onClose={() => setResend(null)} />
+      )}
+
+      {/* Modal de inclusão manual (sem contrato) */}
+      {manualModal && (
+        <ManualModal
+          key={manualModal === 'new' ? 'new' : manualModal.id}
+          row={manualModal === 'new' ? null : manualModal}
+          onClose={() => setManualModal(null)}
+          onSaved={() => { setManualModal(null); load() }}
+        />
       )}
 
       {/* Modal de histórico */}
@@ -365,6 +541,31 @@ export default function DashboardReajustesPage() {
               </div>
             )}
           </ModalBody>
+          {histRow && (histRow.can_resend || histRow.can_resend_estorno || histRow.can_reverse) && (
+            <ModalFooter>
+              {histRow.can_resend && (
+                <button onClick={() => { const r = histRow; setHistRow(null); setResend({ row: r, tipo: 'reajuste' }) }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium"
+                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                  <Send size={15} /> Reenviar reajuste
+                </button>
+              )}
+              {histRow.can_resend_estorno && (
+                <button onClick={() => { const r = histRow; setHistRow(null); setResend({ row: r, tipo: 'estorno' }) }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium"
+                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                  <Send size={15} /> Reenviar estorno
+                </button>
+              )}
+              {histRow.can_reverse && (
+                <button onClick={() => histRow && setEstornoConfirm(histRow)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold"
+                  style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)' }}>
+                  <Undo2 size={15} /> Estornar último reajuste
+                </button>
+              )}
+            </ModalFooter>
+          )}
         </Modal>
       )}
     </AppLayout>
@@ -481,6 +682,246 @@ function EditCadastroModal({ row, onClose, onSaved }: { row: Row; onClose: () =>
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
           style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
           <Save size={15} /> {saving ? 'Salvando…' : 'Salvar'}
+        </button>
+      </ModalFooter>
+    </Modal>
+  )
+}
+
+// ─── Modal: inclusão manual de reajuste (sem contrato) ───────────────────────
+function ManualModal({ row, onClose, onSaved }: { row: Row | null; onClose: () => void; onSaved: () => void }) {
+  const editing = !!row
+  const [cliente, setCliente] = useState(row?.cliente_nome ?? '')
+  const [customerId, setCustomerId] = useState<string>(row?.customer_id != null ? String(row.customer_id) : '')
+  const [customers, setCustomers] = useState<{ id: number; name: string }[]>([])
+  const [descricao, setDescricao] = useState(row?.codigo ?? '')
+  const [empresa, setEmpresa] = useState<'ERPSERV' | 'BIZIFY'>((row?.empresa as 'ERPSERV' | 'BIZIFY') ?? 'ERPSERV')
+  const [valorInicial, setValorInicial] = useState(row?.valor_inicial != null ? String(row.valor_inicial) : '')
+  const [assinatura, setAssinatura] = useState(row?.data_assinatura ?? '')
+  const [ultimoReajuste, setUltimoReajuste] = useState(row?.data_ultimo_reajuste ?? '')
+  const [taxa, setTaxa] = useState(row?.taxa_reajuste ?? '')
+  const [pct, setPct] = useState(row?.pct_reajuste != null ? String(row.pct_reajuste) : '')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    api.get<any>('/customers?pageSize=500')
+      .then(r => setCustomers((r?.items ?? r?.data ?? r ?? []).map((c: any) => ({ id: c.id, name: c.name }))))
+      .catch(() => {})
+  }, [])
+
+  const st = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
+  const inp = 'w-full rounded-md px-2.5 py-2 text-sm'
+  const lbl = 'text-xs font-medium'
+
+  const save = async () => {
+    if (!cliente.trim()) { toast.error('Informe o cliente'); return }
+    setSaving(true)
+    const payload = {
+      cliente_nome: cliente.trim(),
+      customer_id: customerId ? Number(customerId) : null,
+      descricao: descricao.trim() || null,
+      empresa,
+      valor_inicial: valorInicial !== '' ? Number(valorInicial) : null,
+      data_assinatura: assinatura || null,
+      data_ultimo_reajuste: ultimoReajuste || null,
+      taxa_reajuste: taxa || null,
+      pct_reajuste: pct !== '' ? Number(pct) : null,
+    }
+    try {
+      if (editing) await api.patch(`/contracts/reajustes/manual/${row!.id}`, payload)
+      else await api.post('/contracts/reajustes/manual', payload)
+      toast.success(editing ? 'Inclusão manual atualizada' : 'Inclusão manual criada')
+      onSaved()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao salvar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal open onClose={() => { if (!saving) onClose() }} size="md">
+      <ModalHeader icon={Plus} title={editing ? 'Editar inclusão manual' : 'Inclusão manual (sem contrato)'}
+        subtitle="Próximo reajuste = último + 1 ano. Só rastreio — não aplica nem notifica."
+        onClose={() => { if (!saving) onClose() }} />
+      <ModalBody>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <label className={lbl} style={{ color: 'var(--text-muted)' }}>Cliente *</label>
+            <input value={cliente} onChange={e => setCliente(e.target.value)} className={inp} style={st} placeholder="Nome do cliente" />
+          </div>
+          <div className="col-span-2">
+            <SearchSelect
+              label="Vincular cliente (opcional — puxa e-mails do cadastro)"
+              value={customerId}
+              onChange={(v) => { setCustomerId(v); const c = customers.find(x => String(x.id) === v); if (c && !cliente.trim()) setCliente(c.name) }}
+              options={customers}
+              placeholder="Sem vínculo"
+              fullWidth
+            />
+          </div>
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-muted)' }}>Empresa *</label>
+            <select value={empresa} onChange={e => setEmpresa(e.target.value as 'ERPSERV' | 'BIZIFY')} className={inp} style={st}>
+              <option value="ERPSERV">ERPSERV</option>
+              <option value="BIZIFY">BIZIFY</option>
+            </select>
+          </div>
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-muted)' }}>Descrição (contrato)</label>
+            <input value={descricao} onChange={e => setDescricao(e.target.value)} className={inp} style={st} placeholder="Ex: LICENÇA MOVIDESK - TI" />
+          </div>
+          <div className="col-span-2">
+            <label className={lbl} style={{ color: 'var(--text-muted)' }}>Saldo inicial (valor base)</label>
+            <input type="number" step="0.01" min="0" value={valorInicial} onChange={e => setValorInicial(e.target.value)} className={inp} style={st} />
+          </div>
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-muted)' }}>Assinatura (data-base)</label>
+            <input type="date" value={assinatura} onChange={e => setAssinatura(e.target.value)} className={inp} style={st} />
+          </div>
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-muted)' }}>Último reajuste</label>
+            <input type="date" value={ultimoReajuste} onChange={e => setUltimoReajuste(e.target.value)} className={inp} style={st} />
+            <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>O próximo é calculado: último + 1 ano.</p>
+          </div>
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-muted)' }}>Taxa</label>
+            <select value={taxa} onChange={e => setTaxa(e.target.value)} className={inp} style={st}>
+              <option value="">—</option>
+              <option value="IPCA">IPCA</option>
+              <option value="IGPM">IGP-M</option>
+            </select>
+          </div>
+          <div>
+            <label className={lbl} style={{ color: 'var(--text-muted)' }}>Percentual (%)</label>
+            <input type="number" step="0.001" value={pct} onChange={e => setPct(e.target.value)} className={inp} style={st} />
+          </div>
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <button onClick={() => { if (!saving) onClose() }} disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+          <X size={15} /> Cancelar
+        </button>
+        <button onClick={save} disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+          style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+          <Save size={15} /> {saving ? 'Salvando…' : 'Salvar'}
+        </button>
+      </ModalFooter>
+    </Modal>
+  )
+}
+
+// ─── Modal: reenvio de comunicado (reajuste ou estorno) ──────────────────────
+function ResendModal({ row, tipo, onClose }: { row: Row; tipo: 'reajuste' | 'estorno'; onClose: () => void }) {
+  const base = row.manual ? `/contracts/reajustes/manual/${row.id}` : `/contracts/${row.id}`
+  const previewTipo = tipo === 'estorno' ? 'estorno_resend' : 'reajuste'
+  const [emails, setEmails] = useState<string[]>([])
+  const [novoEmail, setNovoEmail] = useState('')
+  const [mensagem, setMensagem] = useState('')
+  const [seeded, setSeeded] = useState(false)
+  const [salvar, setSalvar] = useState(true)
+  const [preview, setPreview] = useState<{ subject: string; html: string } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+
+  const fetchPreview = useCallback(async (msg?: string) => {
+    setLoading(true)
+    try {
+      const q = new URLSearchParams({ tipo: previewTipo })
+      if (msg !== undefined) q.set('mensagem', msg)
+      const res = await api.get<{ subject: string; html: string; mensagem_padrao?: string; cliente_emails?: string[] }>(`${base}/adjustment-email-preview?${q.toString()}`)
+      setPreview({ subject: res.subject, html: res.html })
+      if (!seeded) { setMensagem(res.mensagem_padrao ?? ''); setEmails(res.cliente_emails ?? []); setSeeded(true) }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao gerar a prévia')
+    } finally { setLoading(false) }
+  }, [base, previewTipo, seeded])
+
+  useEffect(() => { void fetchPreview() }, [fetchPreview])
+
+  const addEmail = () => {
+    const e = novoEmail.trim().toLowerCase()
+    if (!e) return
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { toast.error('E-mail inválido'); return }
+    if (!emails.includes(e)) setEmails(prev => [...prev, e])
+    setNovoEmail('')
+  }
+  const removeEmail = (e: string) => setEmails(prev => prev.filter(x => x !== e))
+
+  const enviar = async () => {
+    if (!emails.length) { toast.error('Informe ao menos um e-mail'); return }
+    setSending(true)
+    try {
+      const res = await api.post<{ emails: string[] }>(`${base}/resend-adjustment`, { tipo, emails, mensagem: seeded ? mensagem : undefined, salvar })
+      toast.success(`Reenviado (${res.emails.length} destinatário${res.emails.length !== 1 ? 's' : ''})`)
+      onClose()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao reenviar')
+    } finally { setSending(false) }
+  }
+
+  const st = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
+  return (
+    <Modal open onClose={() => { if (!sending) onClose() }} size="md">
+      <ModalHeader icon={Send} title={tipo === 'estorno' ? 'Reenviar comunicado de estorno' : 'Reenviar comunicado de reajuste'}
+        subtitle={`${row.cliente_nome ?? '—'} · ${row.codigo ?? '—'}`} onClose={() => { if (!sending) onClose() }} />
+      <ModalBody>
+        <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
+          <Mail size={14} /> Destinatários (pode adicionar novos)
+        </label>
+        {emails.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {emails.map(e => (
+              <span key={e} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
+                style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}>
+                {e}<button onClick={() => removeEmail(e)} style={{ color: 'var(--success)', lineHeight: 0 }}><X size={12} /></button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input type="email" value={novoEmail} onChange={e => setNovoEmail(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmail() } }}
+            placeholder="adicionar e-mail…" className="flex-1 rounded-lg px-3 py-2 text-sm" style={st} />
+          <button onClick={addEmail} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>Adicionar</button>
+        </div>
+        <label className="flex items-start gap-2 mt-2.5 text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>
+          <input type="checkbox" checked={salvar} onChange={e => setSalvar(e.target.checked)} className="mt-0.5" />
+          <span>Salvar estes e-mails {row.manual ? 'nesta inclusão manual' : 'no cadastro do cliente'} para os próximos.</span>
+        </label>
+
+        <div className="mt-3">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Corpo do e-mail (editável)</label>
+          <textarea value={mensagem} onChange={e => setMensagem(e.target.value)} rows={4}
+            className="w-full rounded-lg px-3 py-2 text-sm mt-1" style={{ ...st, resize: 'vertical', fontFamily: 'inherit' }} />
+          <button onClick={() => fetchPreview(mensagem)} disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium mt-2 disabled:opacity-60"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+            <Mail size={14} /> {loading ? 'Gerando prévia…' : 'Atualizar prévia'}
+          </button>
+          {preview && (
+            <div className="mt-2 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              <div className="px-3 py-2 text-xs font-semibold" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                Assunto: <span style={{ color: 'var(--text)' }}>{preview.subject}</span>
+              </div>
+              <iframe title="Prévia" srcDoc={preview.html} style={{ width: '100%', height: 300, border: 'none', background: '#fff' }} />
+            </div>
+          )}
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <button onClick={() => { if (!sending) onClose() }} disabled={sending}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+          <X size={15} /> Cancelar
+        </button>
+        <button onClick={enviar} disabled={sending || !emails.length || !preview}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+          style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+          <Send size={15} /> {sending ? 'Enviando…' : 'Reenviar e-mail'}
         </button>
       </ModalFooter>
     </Modal>
