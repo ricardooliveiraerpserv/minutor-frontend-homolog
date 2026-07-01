@@ -2071,12 +2071,12 @@ function KanbanContent() {
                           }} />
                       )}
 
-                      {/* Column — fundo unificado (var(--surface)); diferenciação
+                      {/* Column — painel Surface 1 (var(--panel)); diferenciação
                            de categoria fica na borda colorida + cor do header.
                            Sombra leve só ativa no light (--brand-card-shadow=none no dark). */}
                       <div className="flex flex-col rounded-2xl shrink-0 h-full" style={{
                         width: 264,
-                        background: 'var(--surface)',
+                        background: 'var(--panel)',
                         border: `1px solid ${borderColor}`,
                         boxShadow: 'var(--brand-card-shadow)',
                       }}>

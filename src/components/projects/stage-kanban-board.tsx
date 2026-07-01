@@ -106,7 +106,7 @@ export function StageKanbanBoard({ stageId, deliveries, onChanged, canEdit = tru
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     style={{
-                      background: snapshot.isDraggingOver ? 'var(--surface-hover)' : 'var(--surface)',
+                      background: snapshot.isDraggingOver ? 'var(--surface-hover)' : 'var(--panel)',
                       borderRadius: 8,
                       border: '1px solid var(--border)',
                       padding: 10,

@@ -55,9 +55,9 @@
 :root {
   /* Tema CLARO — superfícies suavizadas (canvas cinza < superfície off-white <
      input/popover branco). Valores em hex p/ precisão; o dark segue em oklch. */
-  --background: #EAEEF4;                 /* canvas do app */
+  --background: #EEF2F7;                 /* Surface 0: fundo/conteúdo */
   --foreground: oklch(0.145 0 0);
-  --card: #F8FAFC;                       /* cards/superfícies off-white */
+  --card: #FFFFFF;                       /* Surface 2: cards brancos */
   --card-foreground: oklch(0.145 0 0);
   --popover: #FFFFFF;                    /* popover/dropdown/drawer = branco (camada alta) */
   --popover-foreground: oklch(0.145 0 0);
@@ -70,8 +70,8 @@
   --accent: #EEF2F7;
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: #E3E8EF;
-  --input: #E3E8EF;                      /* cor de BORDA de input no shadcn */
+  --border: #E2E8F0;
+  --input: #E2E8F0;                      /* cor de BORDA de input no shadcn */
   --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -79,13 +79,13 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: #F8FAFC;
+  --sidebar: #F5F7FA;                    /* Surface 1: chrome lateral */
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: #EEF2F7;
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: #E3E8EF;
+  --sidebar-border: #E2E8F0;
   --sidebar-ring: oklch(0.708 0 0);
 }
 
@@ -141,9 +141,10 @@
  */
 :root {
   /* ── NEUTRO ──────────────────────────────────────── */
-  --brand-bg:       #EAEEF4;   /* canvas cinza suave (camada 0) */
-  --brand-surface:  #F8FAFC;   /* superfícies off-white (cards/tabelas/kanban) — camada 2 */
-  --brand-border:   #E3E8EF;
+  --brand-bg:       #EEF2F7;   /* Surface 0: fundo/conteúdo */
+  --brand-panel:    #F5F7FA;   /* Surface 1: painéis (kanban col, sidebar, filtros, seções) */
+  --brand-surface:  #FFFFFF;   /* Surface 2: cards brancos */
+  --brand-border:   #E2E8F0;
   --brand-text:     #0F172A;
   --brand-muted:    #475569;   /* spec text-secondary */
   --brand-subtle:   #94A3B8;   /* spec text-muted */
@@ -162,16 +163,16 @@
   /* ── Marca (identidade independente de UI) ───────── */
   --brand-logo: #06B6D4;
 
-  /* ── Elevation & dividers — só ativos no light ──── */
-  --brand-card-shadow:    0 1px 2px 0 rgba(15, 23, 42, 0.06);
-  --brand-card-shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  /* ── Elevation & dividers — só ativos no light (sombras discretas, estilo HubSpot) ── */
+  --brand-card-shadow:    0 1px 3px rgba(15, 23, 42, 0.05);
+  --brand-card-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.04);
   --brand-table-divider:  rgba(15, 23, 42, 0.07);
 
   /* ── Shadow system (semântico — usar em código novo) ── */
-  --shadow-xs:      0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-sm:      0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
-  --shadow-md:      0 4px 8px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
-  --shadow-lg:      0 10px 15px -3px rgba(15, 23, 42, 0.10), 0 4px 6px -4px rgba(15, 23, 42, 0.07);
+  --shadow-xs:      0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm:      0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-md:      0 4px 12px rgba(15, 23, 42, 0.04);
+  --shadow-lg:      0 12px 28px -6px rgba(15, 23, 42, 0.14), 0 4px 12px rgba(15, 23, 42, 0.06);
   --shadow-overlay: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
 
   /* Scrollbar */
@@ -180,12 +181,13 @@
 
   /* ══ Tokens públicos (use estes em componentes) ══════ */
 
-  /* NEUTRO */
-  --bg:            var(--brand-bg);
-  --surface:       var(--brand-surface);
-  --surface-hover: #EEF2F7;
-  --surface-sunken:#EDF1F6;   /* table header — superfície "afundada" */
-  --field:         #FFFFFF;   /* campo de input — branco, camada mais alta ("não buraco") */
+  /* NEUTRO — escala de superfícies (0 fundo → 1 painel → 2 card → input) */
+  --bg:            var(--brand-bg);          /* Surface 0 */
+  --panel:         var(--brand-panel);       /* Surface 1: painéis/containers */
+  --surface:       var(--brand-surface);     /* Surface 2: cards */
+  --surface-hover: #F4F6FA;                  /* hover de linha/card, muito suave */
+  --surface-sunken:#F1F4F8;                  /* header de tabela — distinto das linhas brancas */
+  --field:         #F1F4F8;                  /* Surface 3: input — identidade própria + borda */
   --text:          var(--brand-text);
   --text-muted:    var(--brand-muted);
   --text-light:    var(--brand-subtle);
@@ -229,6 +231,7 @@
 .dark {
   /* ── NEUTRO — dark (paleta original) ──────────────── */
   --brand-bg:       #0A0A0B;
+  --brand-panel:    #121215;   /* Surface 1 dark: entre bg e surface */
   --brand-surface:  #161618;
   --brand-border:   #27272A;
   --brand-text:     #FAFAFA;
@@ -266,6 +269,7 @@
   --scrollbar-thumb-hover:  #3A3A3E;
 
   /* ══ Tokens públicos — dark ══════════════════════════ */
+  --panel:          var(--brand-panel);     /* Surface 1 dark */
   --surface-hover:  #1F1F23;
   --surface-sunken: #121215;   /* mais fundo que surface no dark */
   --field:          var(--brand-surface);  /* campo de input no dark = superfície escura */
@@ -1030,7 +1034,7 @@ html:not(.dark) .ds-table tbody tr:hover {
  * Alias do que já é feito inline no kanban atual; pronto pra
  * refator quando bater nesse arquivo. */
 .ds-kanban-column {
-  background: var(--surface);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
@@ -1049,7 +1053,7 @@ html:not(.dark) .ds-table tbody tr:hover {
 
 /* ── Sidebar container (complementa .sidebar-item / -active) ── */
 .sidebar {
-  background: var(--surface);
+  background: var(--panel);
   border-right: 1px solid var(--border);
 }
 

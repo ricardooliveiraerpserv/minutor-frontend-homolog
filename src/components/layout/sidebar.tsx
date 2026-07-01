@@ -619,7 +619,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         'md:static md:h-screen md:shrink-0 md:translate-x-0 md:transition-all',
         collapsedRaw ? 'md:w-[60px]' : 'md:w-[248px]',
       )}
-      style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}
+      style={{ background: 'var(--panel)', borderColor: 'var(--brand-border)' }}
     >
       {/* Fechar (só mobile) */}
       <button
