@@ -18,6 +18,7 @@ export type AttachmentEntityType =
   | 'TIMESHEET'
   | 'HOUR_CONTRIBUTION'
   | 'STAGE_ACTIVITY_EVENT'
+  | 'FOLLOW_UP'
   | 'PROJECT_MESSAGE'
   | 'CONTRACT_MESSAGE'
   | 'REQUEST_MESSAGE'

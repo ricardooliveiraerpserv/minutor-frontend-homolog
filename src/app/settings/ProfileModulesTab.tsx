@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useNavConfig } from '@/contexts/nav-config-context'
 
 type ModuleId = string
+
 interface ProfileRow { profile: string; modules: ModuleId[] }
 
 const PROFILE_LABEL: Record<string, string> = {

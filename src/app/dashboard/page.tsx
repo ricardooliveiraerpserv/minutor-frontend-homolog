@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { modulesForUser, readStoredModule } from '@/lib/modules'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -135,6 +136,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return
+    // Launcher de módulos: no 1º acesso (perfil com ≥2 módulos e sem escolha lembrada),
+    // manda pra tela de Apps escolher. Depois, lembra a escolha e não força mais.
+    const allowed = modulesForUser(user)
+    if (allowed.length >= 2 && !readStoredModule(allowed)) { router.replace('/apps'); return }
     // Cada perfil tem sua "home" — /dashboard só tem branches pra admin,
     // administrativo, consultor e parceiro_admin (consultor). Outros caem
     // numa página em branco, então redireciona pra sua respectiva home.

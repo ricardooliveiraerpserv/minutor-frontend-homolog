@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { useStageAportes } from '@/hooks/use-stage-aportes'
 import { useApiQuery } from '@/hooks/use-query'
 import { useProjectStages } from '@/hooks/use-project-stages'
+import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 
 interface Props {
   stageId: number
@@ -18,6 +19,7 @@ interface Props {
 
 interface ProjectBalance {
   sold_hours?: number | string | null
+  coordination_hours?: number | string | null
 }
 
 function num(v: unknown): number {
@@ -53,9 +55,9 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const sold = num(project?.sold_hours)
+  const pool = cronogramaPoolHours(project)
   const allocated = useMemo(() => stages.reduce((s, st) => s + num(st.hours_planned), 0), [stages])
-  const remaining = sold - allocated
+  const remaining = pool - allocated
   const aporteHours = Number(hours)
   const isValidAporteValue = Number.isFinite(aporteHours) && aporteHours !== 0
   const projectedRemaining = isValidAporteValue ? remaining - aporteHours : remaining
@@ -155,7 +157,7 @@ export function StageAporteDialog({ stageId, stageName, projectId, onClose, onCr
                 {formatHours(remaining)}
               </div>
               <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>
-                {formatHours(sold)} vendidas − {formatHours(allocated)} alocadas
+                {formatHours(pool)} liberadas à gestão − {formatHours(allocated)} alocadas
               </div>
             </div>
             {isValidAporteValue && (

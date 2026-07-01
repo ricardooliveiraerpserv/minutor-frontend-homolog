@@ -2,6 +2,7 @@
 
 import { Paperclip } from 'lucide-react'
 import { useStageActivity } from '@/hooks/use-stage-activity'
+import { useActivityFeed } from '@/hooks/use-activity-feed'
 import { secureUrl } from '@/lib/api'
 import type { StageActivityEvent, StageActivityType } from '@/lib/types/stage-activity'
 
@@ -14,6 +15,11 @@ const TYPE_LABEL: Record<StageActivityType, string> = {
   block_set:          'bloqueou a etapa',
   block_cleared:      'desbloqueou a etapa',
   comment:            'comentou',
+  client_involved:    'envolveu o cliente',
+  client_removed:     'removeu o cliente',
+  approval_requested: 'solicitou aprovação do cliente',
+  approval_approved:  'aprovação concedida',
+  approval_rejected:  'ajustes solicitados',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -46,7 +52,7 @@ function describe(ev: StageActivityEvent): string {
       return `moveu "${title}" de ${from} para ${to}`
     }
     case 'delivery_created':
-      return `criou entrega "${p.title ?? ''}"`
+      return `criou atividade "${p.title ?? ''}"`
     case 'delivery_completed':
       return `concluiu "${p.title ?? ''}"`
     case 'aporte_created': {
@@ -62,18 +68,33 @@ function describe(ev: StageActivityEvent): string {
       return `apontou ${p.hours ?? '?'}h`
     case 'comment':
       return 'comentou'
+    case 'approval_requested':
+      return `solicitou aprovação do cliente para "${p.title ?? ''}"`
+    case 'approval_approved':
+      return `cliente aprovou "${p.title ?? ''}"${p.note ? ` — ${p.note}` : ''}`
+    case 'approval_rejected':
+      return `ajustes solicitados em "${p.title ?? ''}"${p.note ? ` — ${p.note}` : ''}`
     default:
       return TYPE_LABEL[ev.type] ?? ev.type
   }
 }
 
 interface Props {
-  stageId: number
+  stageId?: number
+  /** Quando setado, ignora stageId e busca timeline da atividade (delivery_id=X) */
+  deliveryId?: number
+  /** Permite forçar refetch via key bump no parent */
+  refreshKey?: number
   limit?: number
 }
 
-export function StageActivityTimeline({ stageId, limit = 50 }: Props) {
-  const { items, loading, error } = useStageActivity(stageId, limit)
+export function StageActivityTimeline({ stageId, deliveryId, refreshKey, limit = 50 }: Props) {
+  // refreshKey é incluído apenas pra forçar re-render do parent quando ele troca;
+  // o re-fetch real vem via key bump no caller (já é como o stage-operational-block usa).
+  void refreshKey
+  const stageQuery    = useStageActivity(deliveryId ? null : (stageId ?? null), limit)
+  const activityQuery = useActivityFeed(deliveryId ?? null, limit)
+  const { items, loading, error } = deliveryId ? activityQuery : stageQuery
 
   if (loading) return <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Carregando atividade…</div>
   if (error) return <div style={{ color: 'var(--danger)', fontSize: 12 }}>{error}</div>
@@ -107,6 +128,7 @@ export function StageActivityTimeline({ stageId, limit = 50 }: Props) {
               <strong style={{ fontWeight: 500 }}>{ev.actor?.name ?? 'Sistema'}</strong>{' '}
               <span style={{ color: 'var(--text-muted)' }}>{describe(ev)}</span>
             </div>
+            {ev.type === 'comment' && <AudienceBadge audiences={ev.audiences} />}
             {ev.type === 'comment' && (
               <CommentBody event={ev} />
             )}
@@ -117,6 +139,22 @@ export function StageActivityTimeline({ stageId, limit = 50 }: Props) {
         </li>
       ))}
     </ul>
+  )
+}
+
+/** Chip indicando quem vê o comentário (além de admin/coord, que veem sempre). */
+function AudienceBadge({ audiences }: { audiences?: string[] | null }) {
+  const aud = audiences ?? []
+  const labels = [
+    aud.includes('cliente') ? 'Cliente' : null,
+    aud.includes('consultor') ? 'Consultor' : null,
+  ].filter(Boolean)
+  const text = labels.length ? `Visível: ${labels.join(' + ')}` : 'Só admin/coord'
+  const tone = labels.length ? 'var(--primary)' : 'var(--text-light)'
+  return (
+    <span style={{ display: 'inline-block', marginTop: 3, fontSize: 9, fontWeight: 600, color: tone, background: 'var(--surface-hover)', padding: '1px 6px', borderRadius: 8, textTransform: 'uppercase', letterSpacing: '.03em' }}>
+      {text}
+    </span>
   )
 }
 

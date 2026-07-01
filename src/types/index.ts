@@ -9,6 +9,8 @@ export interface User {
   partner_id?: number | null
   is_executive?: boolean | null
   extra_permissions?: string[] | null
+  // Módulos de navegação (Serviços/Administrativo) do perfil — ver lib/modules.ts
+  modules?: string[] | null
   consultant_type?: string | null
   daily_hours?: number | null
   bank_hours_start_date?: string | null

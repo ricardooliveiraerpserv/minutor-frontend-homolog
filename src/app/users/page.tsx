@@ -160,16 +160,27 @@ export default function UsersPage() {
   // Coordenador de projetos acessa esta tela apenas para RESETAR SENHA.
   // Nada de Visualizar/Editar/Criar/Excluir/Reenviar boas-vindas — só reset.
   const isCoordProjetos = authUser?.type === 'coordenador' && authUser?.coordinator_type === 'projetos'
-  const canCreate    = !isCoordProjetos && (isAdmin || ep.includes('users.create'))
-  // canView: precisa ser true pra coord_projetos enxergar a lista de usuários
+  // Modo "só redefinir senha": perfil não-admin que recebeu APENAS reset_password
+  // (ex.: coordenador via Grupo de Permissões), sem visualização total/edição/criação.
+  // Vê a lista (o backend já libera a listagem para quem tem reset_password) e só
+  // redefine senha — nada de Visualizar detalhe/Editar/Criar/Excluir. Mesmo
+  // comportamento já adotado para o coordenador de projetos.
+  const resetOnlyByGroup = !isAdmin && !isCoordProjetos
+    && ep.includes('users.reset_password')
+    && !ep.includes('users.view_all')
+    && !ep.includes('users.update')
+    && !ep.includes('users.create')
+  const resetOnly = isCoordProjetos || resetOnlyByGroup
+  const canCreate    = !resetOnly && (isAdmin || ep.includes('users.create'))
+  // canView: precisa ser true pra o modo só-reset enxergar a lista de usuários
   // (sem isso o backend filtra só o próprio user). A ação "Visualizar" do menu
   // de linha é gateada à parte abaixo.
-  const canView      = isCoordProjetos || isAdmin || ep.includes('users.view_all')
-  const canViewDetail = !isCoordProjetos && canView
-  const canEdit      = !isCoordProjetos && (isAdmin || ep.includes('users.update'))
-  const canDelete    = !isCoordProjetos && isAdmin
-  const canResetPwd  = isCoordProjetos || isAdmin || ep.includes('users.reset_password')
-  const canResendWelcome = !isCoordProjetos && (isAdmin || ep.includes('users.reset_password'))
+  const canView      = resetOnly || isAdmin || ep.includes('users.view_all')
+  const canViewDetail = !resetOnly && canView
+  const canEdit      = !resetOnly && (isAdmin || ep.includes('users.update'))
+  const canDelete    = !resetOnly && isAdmin
+  const canResetPwd  = resetOnly || isAdmin || ep.includes('users.reset_password')
+  const canResendWelcome = !resetOnly && (isAdmin || ep.includes('users.reset_password'))
 
   const [users,     setUsers]     = useState<UserItem[]>([])
   const [customers, setCustomers] = useState<CustomerOption[]>([])

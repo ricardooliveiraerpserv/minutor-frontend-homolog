@@ -161,6 +161,8 @@ const ENV_BANNER =
     ? { bg: '#FACC15', fg: '#000', text: '⚠ AMBIENTE DE DESENVOLVIMENTO — DADOS DESCARTÁVEIS ⚠' }
     : APP_ENV === 'homolog'
     ? { bg: '#DC2626', fg: '#fff', text: '⚠ AMBIENTE DE HOMOLOGAÇÃO — NÃO USE DADOS REAIS ⚠' }
+    : APP_ENV === 'local'
+    ? { bg: '#7C3AED', fg: '#fff', text: '🟣 REPLICA — DADOS COPIADOS DE PROD • localhost:3001' }
     : null
 
 export default function LoginPage() {

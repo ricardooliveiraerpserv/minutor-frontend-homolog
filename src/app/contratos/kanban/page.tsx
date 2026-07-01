@@ -357,7 +357,10 @@ function contractColumnId(card: ContractCard): string | null {
 }
 
 function isActiveProject(p: ProjectCard): boolean {
-  return ['awaiting_start', 'started', 'liberado_para_testes'].includes(p.status)
+  // Status não-terminais do ciclo operacional. Inclui 'backlog' (coordenador
+  // alocado, execução não iniciada) e 'planning' — status do Cronograma (Fase 5).
+  // O snapshot da Replica havia removido os dois, sumindo projetos backlog/planning.
+  return ['awaiting_start', 'backlog', 'planning', 'started', 'liberado_para_testes'].includes(p.status)
 }
 
 function statusBadge(card: ContractCard) {

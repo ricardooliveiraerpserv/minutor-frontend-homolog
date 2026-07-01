@@ -204,11 +204,15 @@ interface ContractFormModalProps {
   editContract?: Contract | null
   onClose: () => void
   onSaved: () => void
+  // Pré-preenchimento ao criar (ex.: oportunidade CRM GANHA → Novo Contrato).
+  prefill?: Partial<FormState>
+  prefillContacts?: ContractContact[]
+  opportunityId?: number
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ContractFormModal({ open, editContract, onClose, onSaved }: ContractFormModalProps) {
+export function ContractFormModal({ open, editContract, onClose, onSaved, prefill, prefillContacts, opportunityId }: ContractFormModalProps) {
   // Master data
   const [customers, setCustomers]         = useState<SelectOption[]>([])
   const [users, setUsers]                 = useState<SelectOption[]>([])
@@ -308,11 +312,27 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
       }).catch(() => toast.error('Erro ao carregar contrato'))
     } else {
       setInternalEdit(null)
-      setForm({ ...EMPTY_FORM })
-      setContacts([])
+      setForm({ ...EMPTY_FORM, ...(prefill ?? {}) })
+      setContacts(prefillContacts ?? [])
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editContract])
+
+  // Se a oportunidade tem proposta ASSINADA, o BACKEND anexa o PDF automaticamente ao criar o contrato
+  // (server-side, robusto — sem download+reupload no browser). Aqui só detectamos para exibir o aviso.
+  const [autoProposta, setAutoProposta] = useState(false)
+  useEffect(() => {
+    if (!open || !opportunityId || editContract) { setAutoProposta(false); return }
+    let cancel = false
+    ;(async () => {
+      try {
+        const r = await api.get<{ data: { status: string; document_id?: number | null }[] }>(`/crm/proposals?opportunity_id=${opportunityId}`)
+        const ass = (r?.data ?? []).find(p => ['assinada', 'liberada', 'convertida'].includes(p.status) && p.document_id)
+        if (!cancel) setAutoProposta(!!ass)
+      } catch { /* silencioso */ }
+    })()
+    return () => { cancel = true }
+  }, [open, opportunityId, editContract])
 
   // Carrega contatos e projetos pai do cliente selecionado
   useEffect(() => {
@@ -542,6 +562,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
         observacoes:           form.observacoes || null,
         contacts,
       }
+      // Criação a partir de oportunidade GANHA → vincula a opp (backend faz o convert idempotente).
+      if (!internalEdit && opportunityId) payload.opportunity_id = opportunityId
 
       let contract: Contract
       if (internalEdit) {
@@ -554,13 +576,18 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
 
       if (pendingFiles.length > 0) {
         setUploading(true)
+        // Anexo é best-effort: o CONTRATO já foi criado. Falha de upload NÃO desfaz o contrato
+        // nem prende o usuário — só avisa (pode reanexar depois pela edição do contrato).
+        const falhas: string[] = []
         for (const { file, type } of pendingFiles) {
           const fd = new FormData()
           fd.append('file', file)
           fd.append('type', type)
-          await uploadDirect(`/contracts/${contract.id}/attachments`, fd)
+          try { await uploadDirect(`/contracts/${contract.id}/attachments`, fd) }
+          catch (err: any) { falhas.push(`${file.name}: ${err?.message ?? 'falha'}`) }
         }
         setUploading(false)
+        if (falhas.length) toast.warning(`Contrato criado, mas o anexo não subiu (${falhas[0]}). Anexe pela edição do contrato.`)
       }
 
       onSaved()
@@ -609,7 +636,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
 
   if (!open) return null
 
-  const TABS = ['Cliente', 'Classificação', 'Faturamento', 'Despesas', 'Operacional', 'Contatos', 'Financeiro', 'Comercial', 'Observações', 'Anexos']
+  // Aba "Anexos" removida: o upload da Proposta/Aprovação já fica na 1ª aba (Cliente) e alimenta o mesmo pendingFiles.
+  const TABS = ['Cliente', 'Classificação', 'Faturamento', 'Despesas', 'Operacional', 'Contatos', 'Financeiro', 'Comercial', 'Observações']
 
   const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-cyan-500/40'
   const inputStyle = { border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }
@@ -1040,6 +1068,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                 {(() => {
                   const pend = pendingFiles.find(p => p.type === 'proposta')
                   if (pend) return <p className="text-[11px] text-emerald-400 mt-1">✓ {pend.file.name} ({Math.round(pend.file.size / 1024)} KB)</p>
+                  if (autoProposta) return <p className="text-[11px] text-emerald-400 mt-1">✓ A proposta assinada será anexada automaticamente ao gerar o contrato.</p>
                   if (internalEdit && internalEdit.attachments.length > 0) return <p className="text-[10px] mt-1 text-zinc-600">Selecione um arquivo para substituir/adicionar.</p>
                   return <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>Anexe a aprovação formal (PDF, imagem ou e-mail exportado) — máx 20 MB</p>
                 })()}

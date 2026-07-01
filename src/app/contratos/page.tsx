@@ -9,6 +9,7 @@ import { Plus, Pencil, Eye, ChevronLeft, ChevronRight, LayoutGrid, Download, Fil
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
+import { ContractSignaturePanel } from '@/components/contracts/ContractSignaturePanel'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -75,6 +76,12 @@ const STATUS_LABEL: Record<string, string> = {
   aprovado: 'Aprovado',
   inicio_autorizado: 'Início Autorizado',
   ativo: 'Ativo',
+  // Fase 4.1 — fluxo operacional (Clicksign + liberação)
+  emitido: 'Emitido',
+  aguardando_assinatura: 'Aguardando Assinatura',
+  aguardando_liberacao: 'Aguardando Liberação',
+  liberado_execucao: 'Liberado p/ Execução',
+  projeto_gerado: 'Projeto Gerado',
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -82,6 +89,11 @@ const STATUS_COLOR: Record<string, string> = {
   aprovado: '#3b82f6',
   inicio_autorizado: '#eab308',
   ativo: '#22c55e',
+  emitido: '#0ea5e9',
+  aguardando_assinatura: '#a855f7',
+  aguardando_liberacao: '#f59e0b',
+  liberado_execucao: '#14b8a6',
+  projeto_gerado: '#16a34a',
 }
 
 const CATEGORIA_LABEL: Record<string, string> = {
@@ -621,6 +633,9 @@ export default function ContratosPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Assinatura Eletrônica (pré-requisitos Clicksign) */}
+                <ContractSignaturePanel contractId={vc.id} />
 
                 {/* Kanban logs */}
                 {viewLogs.length > 0 && (

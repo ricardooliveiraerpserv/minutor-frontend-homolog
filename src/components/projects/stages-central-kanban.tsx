@@ -6,6 +6,7 @@ import { Users, Layers, Clock, AlarmClock, PlusCircle, AlertTriangle } from 'luc
 import { computeStageHealth } from '@/lib/utils/stage-health'
 import { useExecutiveMode } from '@/hooks/use-executive-mode'
 import { HealthDots } from './health-dots'
+import { buildCronogramaCodes } from '@/lib/cronograma-numbering'
 import type { ProjectStage, StageDerivedStatus } from '@/lib/types/project-stage'
 
 interface Props {
@@ -38,6 +39,8 @@ function formatHours(v: number): string {
 
 export function StagesCentralKanban({ projectId, stages }: Props) {
   const [executive] = useExecutiveMode()
+  // Numeração hierárquica: 1, 2, 3... derivado da ordem das etapas (Fase 7)
+  const codes = useMemo(() => buildCronogramaCodes(stages as any), [stages])
 
   const byColumn = useMemo(() => {
     const map: Record<StageDerivedStatus, ProjectStage[]> = {
@@ -84,7 +87,7 @@ export function StagesCentralKanban({ projectId, stages }: Props) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
               {items.map(stage => (
-                <StageMacroCard key={stage.id} stage={stage} projectId={projectId} executive={executive} />
+                <StageMacroCard key={stage.id} stage={stage} projectId={projectId} executive={executive} code={codes.stageCode(stage.id)} />
               ))}
               {items.length === 0 && (
                 <div style={{
@@ -103,16 +106,20 @@ export function StagesCentralKanban({ projectId, stages }: Props) {
   )
 }
 
-function StageMacroCard({ stage, projectId, executive }: { stage: ProjectStage; projectId: number; executive: boolean }) {
+function StageMacroCard({ stage, projectId, executive, code }: { stage: ProjectStage; projectId: number; executive: boolean; code?: string }) {
   const health = computeStageHealth({ stage })
   const planned = n(stage.hours_planned)
   const totalDeliv = stage.deliveries_count ?? 0
   const doneDeliv = stage.deliveries_done_count ?? 0
+  const inProgressDeliv = stage.deliveries_in_progress_count ?? 0
+  const waitingDeliv = stage.deliveries_waiting_client_count ?? 0
+  const reviewDeliv = stage.deliveries_review_count ?? 0
+  const backlogDeliv = stage.deliveries_backlog_count ?? 0
   const pct = totalDeliv > 0 ? Math.round((doneDeliv / totalDeliv) * 100) : 0
 
   return (
     <Link
-      href={`/projetos/${projectId}/etapas/${stage.id}`}
+      href={`/projetos/${projectId}/cronograma/${stage.id}`}
       className="ds-card"
       style={{
         display: 'block',
@@ -130,6 +137,7 @@ function StageMacroCard({ stage, projectId, executive }: { stage: ProjectStage; 
             fontSize: 13, fontWeight: 600, color: 'var(--text)',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
+            {code && <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>{code}.</span>}
             {stage.name}
           </div>
           {stage.responsible?.name && (
@@ -194,11 +202,31 @@ function StageMacroCard({ stage, projectId, executive }: { stage: ProjectStage; 
               <span style={{ marginLeft: 'auto' }}>{pct}%</span>
             ) : (
               <>
-                <span>{doneDeliv}/{totalDeliv} entregas</span>
+                <span>{doneDeliv}/{totalDeliv} atividades</span>
                 <span>{pct}%</span>
               </>
             )}
           </div>
+
+          {!executive && (
+            <div style={{
+              display: 'flex', flexWrap: 'wrap', gap: 8,
+              fontSize: 10, color: 'var(--text-light)', marginTop: 4,
+            }}>
+              {inProgressDeliv > 0 && (
+                <span><strong style={{ color: 'var(--primary)' }}>{inProgressDeliv}</strong> em execução</span>
+              )}
+              {reviewDeliv > 0 && (
+                <span><strong style={{ color: 'var(--warning)' }}>{reviewDeliv}</strong> homologação</span>
+              )}
+              {waitingDeliv > 0 && (
+                <span><strong style={{ color: 'var(--danger)' }}>{waitingDeliv}</strong> aguardando cliente</span>
+              )}
+              {backlogDeliv > 0 && (
+                <span><strong style={{ color: 'var(--text-muted)' }}>{backlogDeliv}</strong> backlog</span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,17 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronRight, Pencil, Trash2, PlusCircle } from 'lucide-react'
+import { ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { computeStageHealth } from '@/lib/utils/stage-health'
 import { HealthDots } from './health-dots'
-import { StageTeamAllocation } from './stage-team-allocation'
 import { StageKanbanBoard } from './stage-kanban-board'
-import { StageAporteDialog } from './stage-aporte-dialog'
 import { StageActivityTimeline } from './stage-activity-timeline'
-import { StageCommentComposer } from './stage-comment-composer'
 import { useStageDeliveries } from '@/hooks/use-stage-deliveries'
+import { useUserCapacityIndex } from '@/hooks/use-user-capacity'
+import { ResponsibleChip } from './responsible-chip'
 import type { ProjectStage, StageDerivedStatus } from '@/lib/types/project-stage'
 
 const DERIVED_STATUS_LABEL: Record<StageDerivedStatus, string> = {
@@ -38,6 +37,8 @@ interface Props {
   /** Comando bulk vindo do pai (Expandir todos / Recolher todos). */
   bulkAction?: 'expand' | 'collapse' | null
   bulkKey?: number
+  /** Código hierárquico da etapa (1, 2, 3...) — prefixado no header. Fase 7. */
+  stageCode?: string
 }
 
 function formatHours(n: number): string {
@@ -47,10 +48,11 @@ function formatHours(n: number): string {
 
 export function StageOperationalBlock({
   stage, projectId, onChanged, canEdit = true,
-  bulkAction = null, bulkKey = 0,
+  bulkAction = null, bulkKey = 0, stageCode,
 }: Props) {
   const [expanded, setExpanded] = useState(true)
   const [activityKey, setActivityKey] = useState(0)
+  const { byUserId } = useUserCapacityIndex()
 
   // Mobile: colapsa por default. Roda 1x no mount; usuário pode toggle manualmente.
   useEffect(() => {
@@ -71,7 +73,6 @@ export function StageOperationalBlock({
   const [editingName, setEditingName] = useState(false)
   const [name, setName] = useState(stage.name)
   const [savingName, setSavingName] = useState(false)
-  const [aporteOpen, setAporteOpen] = useState(false)
   const { deliveries, loading, error, refetch } = useStageDeliveries(expanded ? stage.id : null)
 
   const health = computeStageHealth({ stage })
@@ -97,7 +98,7 @@ export function StageOperationalBlock({
   }
 
   async function handleDelete() {
-    if (!confirm(`Excluir a etapa "${stage.name}"?\n\nEsta ação remove todas as entregas e alocações desta etapa.`)) return
+    if (!confirm(`Excluir a etapa "${stage.name}"?\n\nEsta ação remove todas as atividades e alocações desta etapa.`)) return
     try {
       await api.delete(`/stages/${stage.id}`)
       onChanged()
@@ -115,11 +116,12 @@ export function StageOperationalBlock({
       marginBottom: 16,
       overflow: 'hidden',
     }}>
-      {/* Header da etapa */}
+      {/* Header da etapa — container operacional */}
       <header style={{
-        padding: '12px 16px',
+        padding: '14px 16px',
         borderBottom: expanded ? '1px solid var(--border)' : 'none',
-        background: 'var(--surface)',
+        background: 'var(--surface-hover)',
+        borderLeft: `4px solid ${stage.derived_status ? DERIVED_STATUS_COLOR[stage.derived_status] : 'var(--primary)'}`,
         display: 'flex', alignItems: 'flex-start', gap: 12,
       }}>
         <button
@@ -154,16 +156,18 @@ export function StageOperationalBlock({
               <h3
                 onClick={() => { if (canEdit) setEditingName(true) }}
                 style={{
-                  fontSize: 15, fontWeight: 600, color: 'var(--text)',
+                  fontSize: 16, fontWeight: 700, color: 'var(--text)',
                   margin: 0, cursor: canEdit ? 'text' : 'default',
+                  fontFamily: 'var(--font-geist, var(--font-inter), sans-serif)',
                 }}
               >
+                {stageCode && <span style={{ color: 'var(--text-muted)', marginRight: 6 }}>{stageCode}.</span>}
                 {stage.name}
               </h3>
             )}
             {stage.derived_status && (
               <span
-                title="Status derivado das entregas"
+                title="Status derivado das atividades"
                 style={{
                   fontSize: 10, fontWeight: 600,
                   padding: '2px 8px',
@@ -182,20 +186,6 @@ export function StageOperationalBlock({
             <HealthDots health={health} />
             {canEdit && (
               <>
-                <button
-                  type="button"
-                  onClick={() => setAporteOpen(true)}
-                  aria-label="Aportar horas"
-                  title="Aportar horas (com justificativa)"
-                  style={{
-                    background: 'transparent', border: 'none', cursor: 'pointer',
-                    color: 'var(--text-muted)', padding: 2,
-                    display: 'inline-flex', alignItems: 'center', gap: 4,
-                    fontSize: 11,
-                  }}
-                >
-                  <PlusCircle size={12} /> Aportar
-                </button>
                 <button
                   type="button"
                   onClick={() => setEditingName(true)}
@@ -223,14 +213,26 @@ export function StageOperationalBlock({
           </div>
 
           <div style={{
-            display: 'flex', flexWrap: 'wrap', gap: 12,
-            marginTop: 4, fontSize: 12, color: 'var(--text-muted)',
+            display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12,
+            marginTop: 6, fontSize: 12, color: 'var(--text-muted)',
           }}>
-            {planned > 0 && <span>{formatHours(planned)} planejadas</span>}
-            {totalDeliveries > 0 && (
-              <span>{doneDeliveries}/{totalDeliveries} entregas · {pctDeliveries}%</span>
+            {planned > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <strong style={{ color: 'var(--text)' }}>{formatHours(planned)}</strong> planejadas
+              </span>
             )}
-            {stage.responsible?.name && <span>Resp: {stage.responsible.name}</span>}
+            {totalDeliveries > 0 && (
+              <span>
+                <strong style={{ color: 'var(--text)' }}>{doneDeliveries}/{totalDeliveries}</strong> atividades · {pctDeliveries}%
+              </span>
+            )}
+            {stage.responsible && (
+              <ResponsibleChip
+                user={stage.responsible}
+                capacity={byUserId[stage.responsible.id]}
+                size="sm"
+              />
+            )}
           </div>
 
           {totalDeliveries > 0 && (
@@ -247,16 +249,6 @@ export function StageOperationalBlock({
         </div>
       </header>
 
-      {aporteOpen && (
-        <StageAporteDialog
-          stageId={stage.id}
-          stageName={stage.name}
-          projectId={projectId}
-          onClose={() => setAporteOpen(false)}
-          onCreated={onChanged}
-        />
-      )}
-
       {/* Conteúdo expandido: alocação + kanban */}
       {expanded && (
         <div style={{ padding: 16 }}>
@@ -270,37 +262,36 @@ export function StageOperationalBlock({
 
           <StageDatesEditor stage={stage} canEdit={canEdit} onSaved={onChanged} />
 
-          <div style={{ marginBottom: 16 }}>
-            <StageTeamAllocation stageId={stage.id} projectId={projectId} canEdit={canEdit} />
-          </div>
-
           <div style={{
             fontSize: 11, color: 'var(--text-muted)',
             textTransform: 'uppercase', letterSpacing: '.04em',
             marginBottom: 8,
           }}>
-            Entregas
+            Atividades
           </div>
 
           {error && <div style={{ color: 'var(--danger)', marginBottom: 8 }}>{error}</div>}
           {loading ? (
-            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Carregando entregas…</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Carregando atividades…</div>
           ) : (
-            <StageKanbanBoard stageId={stage.id} deliveries={deliveries} onChanged={refetch} canEdit={canEdit} />
+            <StageKanbanBoard stageId={stage.id} projectId={projectId} deliveries={deliveries} onChanged={refetch} canEdit={canEdit} />
           )}
 
           <div style={{ marginTop: 20 }}>
             <div style={{
-              fontSize: 11, color: 'var(--text-muted)',
-              textTransform: 'uppercase', letterSpacing: '.04em',
+              display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
               marginBottom: 8,
             }}>
-              Atividade
+              <div style={{
+                fontSize: 11, color: 'var(--text-muted)',
+                textTransform: 'uppercase', letterSpacing: '.04em',
+              }}>
+                Timeline agregada da etapa
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-light)' }}>
+                Comentários e anexos agora moram na atividade · abra a atividade pra conversar
+              </div>
             </div>
-            <StageCommentComposer
-              stageId={stage.id}
-              onCreated={() => setActivityKey(k => k + 1)}
-            />
             <StageActivityTimeline key={activityKey} stageId={stage.id} />
           </div>
         </div>

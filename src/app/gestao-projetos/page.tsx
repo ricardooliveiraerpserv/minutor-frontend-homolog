@@ -32,6 +32,10 @@ interface ProjectWithTeam extends Project {
   contract_type_display?: string
   parent_project?: { id: number; name: string; code: string } | null
   consumo_mensal?: number | null
+  // true = projeto operacional (tipo "Projeto"): equipe é alocada por atividade
+  // do cronograma, não direto no projeto. Contratos (Investimento/cloud/
+  // sustentação/bizify) vêm false. Espelha Project::isOperational() (BE).
+  is_operational?: boolean
 }
 
 interface ProjectFull extends ProjectWithTeam {
@@ -803,7 +807,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
       {expanded && (teamCount > 0 || hasChildConsumption) && (
         <tr style={{ background: 'var(--surface-hover)' }}>
           <td /><td />
-          <td colSpan={14} className="py-3 px-4">
+          <td colSpan={15} className="py-3 px-4">
             <div className="flex flex-wrap gap-4">
               {(project.coordinators ?? []).length > 0 && (
                 <div>
@@ -1284,11 +1288,14 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
   )
 
   const STATUS_OPTS = [
-    { value: 'awaiting_start', label: 'Aguardando Início' },
-    { value: 'started',        label: 'Em Andamento' },
-    { value: 'paused',         label: 'Pausado' },
-    { value: 'finished',       label: 'Encerrado' },
-    { value: 'cancelled',      label: 'Cancelado' },
+    { value: 'awaiting_start',       label: 'Backlog' },
+    { value: 'planning',             label: 'Em Planejamento' },
+    { value: 'started',              label: 'Em Andamento' },
+    { value: 'liberado_para_testes', label: 'Em Homologação' },
+    { value: 'em_producao',          label: 'Em Produção' },
+    { value: 'paused',               label: 'Pausado' },
+    { value: 'finished',             label: 'Encerrado' },
+    { value: 'cancelled',            label: 'Cancelado' },
   ]
 
   const filteredCoords   = optCoordinators.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase()))
@@ -2247,11 +2254,14 @@ function GestaoProjetosInner() {
   }, [])
 
   const PROJECT_STATUSES = [
-    { value: 'awaiting_start', label: 'Aguardando Início' },
-    { value: 'started',        label: 'Em Andamento' },
-    { value: 'paused',         label: 'Pausado' },
-    { value: 'finished',       label: 'Encerrado' },
-    { value: 'cancelled',      label: 'Cancelado' },
+    { value: 'awaiting_start',       label: 'Backlog' },
+    { value: 'planning',             label: 'Em Planejamento' },
+    { value: 'started',              label: 'Em Andamento' },
+    { value: 'liberado_para_testes', label: 'Em Homologação' },
+    { value: 'em_producao',          label: 'Em Produção' },
+    { value: 'paused',               label: 'Pausado' },
+    { value: 'finished',             label: 'Encerrado' },
+    { value: 'cancelled',            label: 'Cancelado' },
   ]
 
   const handleChangeStatus = async () => {
@@ -2745,6 +2755,12 @@ function GestaoProjetosInner() {
 
   const saveTeam = async () => {
     if (!teamProject) return
+    // Projeto operacional (tipo "Projeto") não aloca equipe aqui — só por atividade
+    // do cronograma. O modal já mostra a orientação; bloqueia o save por segurança.
+    if (teamProject.is_operational) {
+      toast.error('Projeto do tipo "Projeto": aloque a equipe pela atividade do cronograma.')
+      return
+    }
     setTeamSaving(true)
     try {
       await api.put(`/projects/${teamProject.id}`, {
@@ -2769,7 +2785,7 @@ function GestaoProjetosInner() {
           .catch(() => {})
           .finally(() => setViewProjectLoading(false))
       }
-    } catch { toast.error('Erro ao salvar equipe') }
+    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar equipe') }
     finally { setTeamSaving(false) }
   }
 
@@ -3436,6 +3452,24 @@ function GestaoProjetosInner() {
               </div>
               <button onClick={() => setTeamProject(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
+            {teamProject.is_operational ? (
+              /* Projeto operacional (tipo "Projeto"): equipe é alocada por
+                 atividade do cronograma, não aqui. Orienta em vez de salvar. */
+              <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 px-8 py-12">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                  <Users size={22} />
+                </div>
+                <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Alocação é feita por atividade</h3>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  Este é um projeto do tipo <strong style={{ color: 'var(--text)' }}>Projeto</strong>. A equipe não é definida aqui — cada consultor é alocado diretamente na <strong style={{ color: 'var(--text)' }}>atividade</strong> do cronograma.
+                </p>
+                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-light)' }}>
+                  Abra o projeto → <strong>Cronograma</strong> → escolha a <strong>atividade</strong> → <strong>Alocar consultor</strong>.
+                </p>
+                <button onClick={() => setTeamProject(null)} className="mt-2 px-5 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--ring)' }}>Entendi</button>
+              </div>
+            ) : (
+            <>
             {/* Tabs */}
             <div className="flex border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
               {(['consultores', 'grupos'] as const).map(tab => (
@@ -3481,6 +3515,8 @@ function GestaoProjetosInner() {
                 <button onClick={saveTeam} disabled={teamSaving} className="px-4 py-2 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--ring)' }}>{teamSaving ? 'Salvando...' : 'Salvar'}</button>
               </div>
             </div>
+            </>
+            )}
           </div>
         </div>
       )}

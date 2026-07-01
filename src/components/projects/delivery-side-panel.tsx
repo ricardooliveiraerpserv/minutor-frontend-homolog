@@ -6,6 +6,7 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import type { StageDelivery, DeliveryStatus, DeliveryPriority } from '@/lib/types/project-stage'
 import { DeliveryTimeline } from './delivery-timeline'
+import { SearchSelect } from '@/components/ui/search-select'
 
 interface Props {
   delivery: StageDelivery
@@ -35,8 +36,21 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
   const [priority, setPriority] = useState<DeliveryPriority>(delivery.priority)
   const [status, setStatus] = useState<DeliveryStatus>(delivery.status)
   const [due, setDue] = useState(delivery.due_date ?? '')
+  const [respId, setRespId] = useState<string>(delivery.responsible_user_id ? String(delivery.responsible_user_id) : '')
+  const [respOpts, setRespOpts] = useState<{ id: number; name: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [timelineKey, setTimelineKey] = useState(0)
+
+  // Responsável da atividade: consultores + parceiros (alocar o responsável).
+  useEffect(() => {
+    let cancel = false
+    api.get<any>('/users?type=consultor,parceiro,parceiro_admin&pageSize=200').then(u => {
+      if (cancel) return
+      const items = Array.isArray(u?.items) ? u.items : Array.isArray(u?.data) ? u.data : []
+      setRespOpts(items.filter((x: any) => x?.id && x?.name).map((x: any) => ({ id: x.id, name: x.name })))
+    }).catch(() => {})
+    return () => { cancel = true }
+  }, [])
 
   // Reset state quando troca de delivery
   useEffect(() => {
@@ -46,6 +60,7 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
     setPriority(delivery.priority)
     setStatus(delivery.status)
     setDue(delivery.due_date ?? '')
+    setRespId(delivery.responsible_user_id ? String(delivery.responsible_user_id) : '')
   }, [delivery.id])
 
   // Esc fecha
@@ -65,6 +80,7 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
         priority,
         status,
         due_date: due || null,
+        responsible_user_id: respId ? Number(respId) : null,
       })
       onUpdated(updated)
       setTimelineKey(k => k + 1)
@@ -150,6 +166,17 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
             className="ds-input"
             style={{ width: '100%', marginTop: 10, padding: 10, resize: 'vertical', fontFamily: 'inherit' }}
           />
+
+          <div style={{ marginTop: 14 }}>
+            <SearchSelect
+              label="Responsável"
+              value={respId}
+              onChange={setRespId}
+              options={respOpts}
+              placeholder="Sem responsável"
+              fullWidth
+            />
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
             <Field label="Status">

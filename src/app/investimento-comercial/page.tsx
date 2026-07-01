@@ -375,15 +375,6 @@ export default function InvestimentoComercialPage() {
   }
 
   // Abre o modal de criação já aninhado abaixo de um investimento pai (lead).
-  const addLead = (parent: ICProject) => {
-    setLeadMode(true)
-    setNewProjectParent(String(parent.id))
-    setNewProjectCategoria('Leads')
-    setNewProjectName('')
-    setNewProjectApprover('')
-    setNewProjectOpen(true)
-  }
-
   // Linha de um mini-projeto. depth 0 = topo (investimento); depth 1 = lead (filho).
   function renderProjectRow(project: ICProject, depth: number) {
     const hours = hoursMap[project.id] ?? 0
@@ -427,11 +418,8 @@ export default function InvestimentoComercialPage() {
         <Td>
           <div className="flex items-center gap-1 justify-end">
             {isAdmin && (<>
-              {depth === 0 && project.categoria_interna === 'Comercial' && (project.customer?.name ?? '').toUpperCase().includes('ERPSERV') && (
-                <Button size="sm" variant="ghost" onClick={() => addLead(project)} aria-label="Adicionar lead">
-                  <Plus size={13} className="mr-1" /> Lead
-                </Button>
-              )}
+              {/* Botão "+ Lead" removido: leads agora nascem no CRM e criam o lead-projeto
+                  automaticamente nesta árvore (docs/crm-lead-investimento-integracao.md). */}
               <Button size="sm" variant="ghost" onClick={() => openEditModal(project)} aria-label="Editar projeto">
                 <Pencil size={13} className="mr-1" /> Editar
               </Button>
