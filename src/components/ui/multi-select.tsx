@@ -89,7 +89,7 @@ export function MultiSelect({
         disabled={disabled}
         className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-xs font-medium outline-none text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : wide ? 'min-w-52' : 'min-w-36'}`}
         style={{
-          background: 'var(--surface)',
+          background: 'var(--field)',
           border: `1px solid ${value.length > 0 ? 'var(--primary)' : 'var(--border)'}`,
           color: value.length > 0 ? 'var(--text)' : 'var(--text-muted)',
         }}

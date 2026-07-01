@@ -53,23 +53,25 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
+  /* Tema CLARO — superfícies suavizadas (canvas cinza < superfície off-white <
+     input/popover branco). Valores em hex p/ precisão; o dark segue em oklch. */
+  --background: #EAEEF4;                 /* canvas do app */
   --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
+  --card: #F8FAFC;                       /* cards/superfícies off-white */
   --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
+  --popover: #FFFFFF;                    /* popover/dropdown/drawer = branco (camada alta) */
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
+  --secondary: #EEF2F7;
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
+  --muted: #EEF2F7;
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --accent: #EEF2F7;
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  --border: #E3E8EF;
+  --input: #E3E8EF;                      /* cor de BORDA de input no shadcn */
   --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -77,13 +79,13 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: #F8FAFC;
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: #EEF2F7;
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-border: #E3E8EF;
   --sidebar-ring: oklch(0.708 0 0);
 }
 
@@ -139,9 +141,9 @@
  */
 :root {
   /* ── NEUTRO ──────────────────────────────────────── */
-  --brand-bg:       #E6EAF1;   /* fundo cinza-claro (menos "branco duro"); cards brancos dão profundidade */
-  --brand-surface:  #FFFFFF;
-  --brand-border:   #E2E8F0;
+  --brand-bg:       #EAEEF4;   /* canvas cinza suave (camada 0) */
+  --brand-surface:  #F8FAFC;   /* superfícies off-white (cards/tabelas/kanban) — camada 2 */
+  --brand-border:   #E3E8EF;
   --brand-text:     #0F172A;
   --brand-muted:    #475569;   /* spec text-secondary */
   --brand-subtle:   #94A3B8;   /* spec text-muted */
@@ -161,15 +163,15 @@
   --brand-logo: #06B6D4;
 
   /* ── Elevation & dividers — só ativos no light ──── */
-  --brand-card-shadow:    0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --brand-card-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
-  --brand-table-divider:  rgba(15, 23, 42, 0.06);
+  --brand-card-shadow:    0 1px 2px 0 rgba(15, 23, 42, 0.06);
+  --brand-card-shadow-md: 0 4px 8px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --brand-table-divider:  rgba(15, 23, 42, 0.07);
 
   /* ── Shadow system (semântico — usar em código novo) ── */
-  --shadow-xs:      0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm:      0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
-  --shadow-md:      0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
-  --shadow-lg:      0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.06);
+  --shadow-xs:      0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-sm:      0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+  --shadow-md:      0 4px 8px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --shadow-lg:      0 10px 15px -3px rgba(15, 23, 42, 0.10), 0 4px 6px -4px rgba(15, 23, 42, 0.07);
   --shadow-overlay: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
 
   /* Scrollbar */
@@ -181,8 +183,9 @@
   /* NEUTRO */
   --bg:            var(--brand-bg);
   --surface:       var(--brand-surface);
-  --surface-hover: #F1F5F9;
-  --surface-sunken:#EEF2F6;   /* inputs, table header — superfície "afundada" */
+  --surface-hover: #EEF2F7;
+  --surface-sunken:#EDF1F6;   /* table header — superfície "afundada" */
+  --field:         #FFFFFF;   /* campo de input — branco, camada mais alta ("não buraco") */
   --text:          var(--brand-text);
   --text-muted:    var(--brand-muted);
   --text-light:    var(--brand-subtle);
@@ -265,6 +268,7 @@
   /* ══ Tokens públicos — dark ══════════════════════════ */
   --surface-hover:  #1F1F23;
   --surface-sunken: #121215;   /* mais fundo que surface no dark */
+  --field:          var(--brand-surface);  /* campo de input no dark = superfície escura */
   --border-strong:  #3F3F46;
   --ring:           rgba(0, 245, 255, 0.35);
   --primary-fg:     #0A0A0B;   /* texto sobre cyan vibrante */
@@ -654,7 +658,7 @@ tr.row--pausado:hover {
 
 /* ── Inputs ────────────────────────────────────────────────── */
 .ds-input {
-  background: var(--surface-sunken);    /* afundado vs surface — visual de campo */
+  background: var(--field);    /* campo branco — destaca da superfície (não "buraco") */
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 0.5rem;
@@ -668,7 +672,7 @@ tr.row--pausado:hover {
 }
 .ds-input:focus {
   outline: none;
-  background: var(--surface);
+  background: var(--field);
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--ring);
 }
@@ -852,6 +856,11 @@ html:not(.dark) .bg-zinc-900 { background-color: var(--surface); }
 html:not(.dark) .bg-zinc-800 { background-color: var(--surface-hover); }
 html:not(.dark) .hover\:bg-zinc-800:hover { background-color: var(--surface-hover); }
 html:not(.dark) .hover\:bg-zinc-700:hover { background-color: var(--surface-hover); }
+
+/* Rede de segurança: telas ainda em `bg-white` (fundo sólido) acompanham a
+ * superfície off-white do tema claro. Sem !important + especificidade 0,2,0 →
+ * componente que REALMENTE precise de branco (pílula sobre cor) vence por inline. */
+html:not(.dark) .bg-white { background-color: var(--surface); }
 
 html:not(.dark) .border-zinc-950,
 html:not(.dark) .border-zinc-900,
