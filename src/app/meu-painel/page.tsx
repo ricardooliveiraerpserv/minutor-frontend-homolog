@@ -85,7 +85,7 @@ interface ExpenseItem {
   rejection_reason?: string | null
 }
 
-interface ProjectOption { id: number; name: string; code: string; customer?: { id: number; name: string }; service_type?: { id: number; name: string; code: string } }
+interface ProjectOption { id: number; name: string; code: string; customer?: { id: number; name: string }; service_type?: { id: number; name: string; code: string }; is_investimento_comercial?: boolean; categoria_interna?: string | null }
 interface CategoryOption { id: number; name: string; parent_id?: number | null }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1493,6 +1493,7 @@ function isSustentacao(serviceTypeName?: string): boolean {
 const EMPTY_TS = {
   customer_id: '',
   project_id:  '',
+  real_project_id: '',
   date:        todayISO(),
   start_time:  '',
   end_time:    '',
@@ -1504,6 +1505,7 @@ const EMPTY_TS = {
 const EMPTY_EXP = {
   customer_id:         '',
   project_id:          '',
+  real_project_id:     '',
   expense_category_id: '',
   expense_date:        todayISO(),
   description:         '',
@@ -1657,6 +1659,8 @@ export default function MeuPainelPage() {
 
   // ── Support data ───────────────────────────────────────────────────────────
   const [projects,       setProjects]       = useState<ProjectOption[]>([])
+  const [tsRealProjects, setTsRealProjects] = useState<any[]>([])
+  const [expRealProjects, setExpRealProjects] = useState<any[]>([])
   const [categories,     setCategories]     = useState<CategoryOption[]>([])
   const [paymentMethods, setPaymentMethods] = useState<{ value: string; label: string }[]>([])
 
@@ -1881,6 +1885,7 @@ export default function MeuPainelPage() {
     setTsForm({
       customer_id: proj?.customer ? String(proj.customer.id) : '',
       project_id:  String(item.project_id),
+      real_project_id: String((item as any).real_project_id ?? ''),
       date:        item.date,
       start_time:  item.start_time,
       end_time:    item.end_time,
@@ -1901,7 +1906,12 @@ export default function MeuPainelPage() {
     if (!tsForm.observation || tsForm.observation.trim().length < 20) {
       toast.error('Descrição obrigatória com no mínimo 20 caracteres'); return
     }
-    const selectedProject = projects.find(p => p.id === Number(tsForm.project_id))
+    const selectedProject = projects.find(p => p.id === Number(tsForm.project_id)) as any
+    const scTs = consultantCustomers.find(c => String(c.id) === tsForm.customer_id)
+    const isErpTs = String(scTs?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+    const tsIsInvestimento = !!selectedProject?.is_investimento_comercial && !isErpTs
+      && (selectedProject?.categoria_interna === 'Projeto' || selectedProject?.categoria_interna === 'Suporte')
+    if (tsIsInvestimento && !tsForm.real_project_id) { toast.error('Selecione o Projeto Real'); return }
     const projectIsSustentacao = isSustentacao(selectedProject?.service_type?.name)
     if (projectIsSustentacao) {
       if (!tsForm.ticket || !tsForm.ticket.trim()) { toast.error('Informe o número do ticket'); return }
@@ -1911,6 +1921,7 @@ export default function MeuPainelPage() {
     try {
       const payload: Record<string, unknown> = {
         project_id:  Number(tsForm.project_id),
+        ...(tsIsInvestimento && tsForm.real_project_id ? { real_project_id: Number(tsForm.real_project_id) } : {}),
         date:        tsForm.date,
         observation: tsForm.observation || undefined,
         ticket:      tsForm.ticket      || undefined,
@@ -1972,6 +1983,7 @@ export default function MeuPainelPage() {
     setExpForm({
       customer_id:         proj?.customer ? String(proj.customer.id) : '',
       project_id:          String(item.project_id),
+      real_project_id:     String((item as any).real_project_id ?? ''),
       expense_category_id: String(item.expense_category_id),
       expense_date:        item.expense_date,
       description:         item.description,
@@ -1989,10 +2001,16 @@ export default function MeuPainelPage() {
     if (!expForm.project_id)  { toast.error('Selecione um projeto'); return }
     if (!expForm.description) { toast.error('Informe a descrição'); return }
     if (!expForm.amount)      { toast.error('Informe o valor'); return }
+    const spExp = projects.find(p => p.id === Number(expForm.project_id)) as any
+    const scExp = consultantCustomers.find(c => String(c.id) === expForm.customer_id)
+    const isErpExp = String(scExp?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+    const expIsInvestimento = !!spExp?.is_investimento_comercial && !isErpExp
+    if (expIsInvestimento && !expForm.real_project_id) { toast.error('Selecione o Projeto Real'); return }
     setExpSaving(true)
     try {
       const fd = new FormData()
       fd.append('project_id',          expForm.project_id)
+      if (expIsInvestimento && expForm.real_project_id) fd.append('real_project_id', expForm.real_project_id)
       fd.append('expense_category_id', expForm.expense_category_id)
       fd.append('expense_date',        expForm.expense_date)
       fd.append('description',         expForm.description)
@@ -2260,6 +2278,25 @@ export default function MeuPainelPage() {
   const pmOptions = paymentMethods.length > 0 ? paymentMethods : PAYMENT_FALLBACK
 
   // Clientes únicos derivados dos projetos do usuário
+  // Candidatos a "Projeto Real" (investimento): TODOS os projetos abertos do cliente.
+  const mapReal = (p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type?.code ?? null, is_investimento_comercial: !!p.is_investimento_comercial, categoria_interna: p.categoria_interna ?? null })
+  useEffect(() => {
+    if (!tsForm.customer_id) { setTsRealProjects([]); return }
+    let c = false
+    api.get<{ items: any[] }>(`/projects?pageSize=200&customer_id=${tsForm.customer_id}&status=open&include_investimento_comercial=true`)
+      .then(r => { if (!c) setTsRealProjects(Array.isArray(r?.items) ? r.items.map(mapReal) : []) }).catch(() => {})
+    return () => { c = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tsForm.customer_id])
+  useEffect(() => {
+    if (!expForm.customer_id) { setExpRealProjects([]); return }
+    let c = false
+    api.get<{ items: any[] }>(`/projects?pageSize=200&customer_id=${expForm.customer_id}&status=open&include_investimento_comercial=true`)
+      .then(r => { if (!c) setExpRealProjects(Array.isArray(r?.items) ? r.items.map(mapReal) : []) }).catch(() => {})
+    return () => { c = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expForm.customer_id])
+
   const consultantCustomers = useMemo(() => {
     const seen = new Set<number>()
     const list: { id: number; name: string }[] = []
@@ -3817,11 +3854,34 @@ export default function MeuPainelPage() {
             />
 
             <SearchSelectField label="Projeto" value={tsForm.project_id}
-              onChange={v => setTsForm(f => ({ ...f, project_id: v }))}
+              onChange={v => setTsForm(f => ({ ...f, project_id: v, real_project_id: '' }))}
               options={tsProjectOptions}
               placeholder={tsForm.customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'}
               required
             />
+
+            {(() => {
+              const sp = projects.find(p => p.id === Number(tsForm.project_id)) as any
+              const sc = consultantCustomers.find(c => String(c.id) === tsForm.customer_id)
+              const isErp = String(sc?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+              if (!sp?.is_investimento_comercial || isErp) return null
+              if (!(sp?.categoria_interna === 'Projeto' || sp?.categoria_interna === 'Suporte')) return null
+              const soSust = sp?.categoria_interna === 'Suporte'
+              const opts = tsRealProjects.filter((p: any) => {
+                if (p.is_investimento_comercial || String(p.id) === tsForm.project_id) return false
+                if (soSust && p.service_type_code !== 'sustentacao') return false
+                return true
+              })
+              return (
+                <SearchSelectField label={`Projeto Real *${soSust ? ' (Sustentação)' : ''}`}
+                  value={tsForm.real_project_id}
+                  onChange={v => setTsForm(f => ({ ...f, real_project_id: v }))}
+                  options={opts}
+                  placeholder="Selecione o projeto real..."
+                  required
+                />
+              )
+            })()}
 
             {(() => {
               const selProj = projects.find(p => p.id === Number(tsForm.project_id))
@@ -3997,11 +4057,33 @@ export default function MeuPainelPage() {
             />
 
             <SearchSelectField label="Projeto" value={expForm.project_id}
-              onChange={v => setExpForm(f => ({ ...f, project_id: v }))}
+              onChange={v => setExpForm(f => ({ ...f, project_id: v, real_project_id: '' }))}
               options={expProjectOptions}
               placeholder="Selecione o projeto..."
               required
             />
+
+            {(() => {
+              const sp = projects.find(p => p.id === Number(expForm.project_id)) as any
+              const sc = consultantCustomers.find(c => String(c.id) === expForm.customer_id)
+              const isErp = String(sc?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+              if (!sp?.is_investimento_comercial || isErp) return null
+              const soSust = sp?.categoria_interna === 'Suporte'
+              const opts = expRealProjects.filter((p: any) => {
+                if (p.is_investimento_comercial || String(p.id) === expForm.project_id) return false
+                if (soSust && p.service_type_code !== 'sustentacao') return false
+                return true
+              })
+              return (
+                <SearchSelectField label={`Projeto Real *${soSust ? ' (Sustentação)' : ''}`}
+                  value={expForm.real_project_id}
+                  onChange={v => setExpForm(f => ({ ...f, real_project_id: v }))}
+                  options={opts}
+                  placeholder="Selecione o projeto real..."
+                  required
+                />
+              )
+            })()}
 
             {categories.length > 0 && (
               <SearchSelectField label="Categoria" value={expForm.expense_category_id}
