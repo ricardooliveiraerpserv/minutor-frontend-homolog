@@ -153,6 +153,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   const [customers,    setCustomers]    = useState<SelectOption[]>([])
   const [consultants,  setConsultants]  = useState<SelectOption[]>([])
   const [projects,     setProjects]     = useState<SelectOption[]>([])
+  // Candidatos a "Projeto Real": todos os projetos abertos do cliente, sem consultant_only.
+  const [realProjects, setRealProjects] = useState<SelectOption[]>([])
   const [loadingData,  setLoadingData]  = useState(false)
 
   // Reset and load users list when modal opens
@@ -168,6 +170,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       is_billable_only: false,
     })
     setProjects([])
+    setRealProjects([])
     setCustomers([])
     if (canActAsUser) {
       api.get<any>('/users?pageSize=200&exclude_type=cliente')
@@ -207,8 +210,11 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
 
   // Load projects when customer changes
   useEffect(() => {
-    if (!form.customer_id) { setProjects([]); return }
+    if (!form.customer_id) { setProjects([]); setRealProjects([]); return }
     let cancelled = false
+    const mapProj = (p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type?.code ?? null, is_investimento_comercial: !!p.is_investimento_comercial, categoria_interna: p.categoria_interna ?? null })
+
+    // Dropdown "Projeto" (apontável): escopo do consultor (consultant_only).
     const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open', include_investimento_comercial: 'true' })
     const actingAsOther = canActAsUser && form.user_id && form.user_id !== String(currentUser?.id)
     if (actingAsOther) {
@@ -218,14 +224,16 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
       qs.set('consultant_only', 'true')
     }
     api.get<{ items: any[] }>(`/projects?${qs}`)
-      .then(r => {
-        if (!cancelled) setProjects(
-          Array.isArray(r?.items)
-            ? r.items.map((p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type?.code ?? null, is_investimento_comercial: !!p.is_investimento_comercial, categoria_interna: p.categoria_interna ?? null }))
-            : []
-        )
-      })
+      .then(r => { if (!cancelled) setProjects(Array.isArray(r?.items) ? r.items.map(mapProj) : []) })
       .catch(() => {})
+
+    // Candidatos a "Projeto Real": TODOS os projetos abertos do cliente, SEM consultant_only.
+    // O consultor precisa referenciar o projeto real do investimento mesmo sem estar alocado nele.
+    const realQs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open', include_investimento_comercial: 'true' })
+    api.get<{ items: any[] }>(`/projects?${realQs}`)
+      .then(r => { if (!cancelled) setRealProjects(Array.isArray(r?.items) ? r.items.map(mapProj) : []) })
+      .catch(() => {})
+
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.customer_id])
@@ -388,7 +396,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               if (!sel?.is_investimento_comercial || isErpservCustomer) return null
               if (!(sel?.categoria_interna === 'Projeto' || sel?.categoria_interna === 'Suporte')) return null
               const soSustentacao = sel?.categoria_interna === 'Suporte'
-              const realOpts = projects.filter(p => {
+              const realOpts = realProjects.filter(p => {
                 if ((p as any).is_investimento_comercial || String(p.id) === form.project_id) return false
                 if (soSustentacao && (p as any).service_type_code !== 'sustentacao') return false
                 return true
