@@ -486,8 +486,14 @@ function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], item
   const mod = navModules.find(m => m.key === moduleKey)
   if (!mod) return []
   // Módulo é do PRÓPRIO perfil (menus independentes): a presença na árvore já é a visibilidade.
-  // Só escondemos telas globalmente desativadas ou nós marcados como ocultos (hidden) nesta cópia.
-  void effProfiles; void userId
+  // Escondemos: telas globalmente desativadas, nós ocultos (hidden), ou override por usuário no nó.
+  void effProfiles
+  // Visibilidade do NÓ p/ ESTE usuário: allow (users) sobrepõe hidden; deny (deny_users) esconde.
+  const nodeVis = (n: NavTreeNode) => {
+    if (n.users && n.users.includes(userId)) return true
+    if (n.deny_users && n.deny_users.includes(userId)) return false
+    return !n.hidden
+  }
   const keep = (href: string) => itemConfig[href]?.active !== false
   const lbl = (href: string) => itemConfig[href]?.label || CATALOG_LABEL[href] || href
   const ico = (href: string) => HREF_ICON[href.split('?')[0]] || FileText
@@ -495,16 +501,16 @@ function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], item
 
   const out: NavEntry[] = []
   for (const n of mod.items ?? []) {
-    if (n.hidden) continue
+    if (!nodeVis(n)) continue
     if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: lbl(n.screen), href: n.screen, icon: ico(n.screen) }) }
     else {
       const items: (NavLink | NavSubGroup)[] = []
       for (const c of n.children ?? []) {
-        if (c.hidden) continue
+        if (!nodeVis(c)) continue
         if (c.screen) { if (keep(c.screen)) items.push(link(c)) }
         else {
           const subs: NavLink[] = []
-          const collectSub = (ns: NavTreeNode[]) => ns.forEach(g => { if (g.hidden) return; if (g.screen) { if (keep(g.screen)) subs.push(link(g)) } else collectSub(g.children ?? []) })
+          const collectSub = (ns: NavTreeNode[]) => ns.forEach(g => { if (!nodeVis(g)) return; if (g.screen) { if (keep(g.screen)) subs.push(link(g)) } else collectSub(g.children ?? []) })
           collectSub(c.children ?? [])
           if (subs.length) items.push({ kind: 'subgroup', label: c.label ?? '', icon: iconByName(c.icon), items: subs })
         }

@@ -121,6 +121,7 @@ function Inner() {
   const [addModOpen, setAddModOpen] = useState(false)  // modal "adicionar módulo ao perfil"
   const [newModName, setNewModName] = useState('')
   const [cascade, setCascade] = useState<{ screenKey: string; moduleId: number; nodeId: string; label: string } | null>(null)  // Admin: ocultar em outros perfis?
+  const [denyOpen, setDenyOpen] = useState<string | null>(null)  // painel "visibilidade por usuário" (nó da árvore)
   const [moving, setMoving] = useState<string | null>(null) // nó no fluxo "Mover para…"
 
   const collapseInit = useRef(false)
@@ -170,6 +171,8 @@ function Inner() {
   const patchScreen = (key: string, p: Partial<NavScreen>) => { setScreens(prev => ({ ...prev, [key]: { ...prev[key], ...p } })); touch() }
   // Ocultar/mostrar um nó nesta cópia (independente por perfil)
   const setNodeHidden = (moduleId: number, nodeId: string, hidden: boolean) => { setMods(prev => prev.map(m => m.id === moduleId ? { ...m, items: mapNode(m.items, nodeId, g => ({ ...g, hidden })) } : m)); touch() }
+  // Override de visibilidade por usuário no nó (pasta/tela): { users?, deny_users? }
+  const setNodeUsers = (moduleId: number, nodeId: string, patch: { users?: number[]; deny_users?: number[] }) => patchTreeNode(moduleId, nodeId, g => ({ ...g, ...patch }))
   // Cascata do Admin: oculta a MESMA tela em todos os módulos (todos os perfis)
   const setScreenHiddenEverywhere = (screenKey: string, hidden: boolean) => {
     const walk = (nodes: NavTreeNode[]): NavTreeNode[] => nodes.map(n => { const nn = n.screen === screenKey ? { ...n, hidden } : n; return nn.children ? { ...nn, children: walk(nn.children) } : nn })
@@ -373,6 +376,11 @@ function Inner() {
                   title={hiddenHere ? 'Oculto neste perfil — clique p/ mostrar' : 'Visível — clique p/ ocultar'} className="shrink-0">
                   {hiddenHere ? <EyeOff size={14} style={{ color: 'var(--text-light)' }} /> : <Eye size={14} style={{ color: 'var(--success-border)' }} />}
                 </button>
+                {/* visibilidade por USUÁRIO específico (liberar/bloquear só esta tela p/ ele) */}
+                <button onClick={() => setDenyOpen(denyOpen === n.id ? null : n.id)} title="Visibilidade por usuário específico" className="shrink-0 inline-flex items-center gap-0.5 text-[10px]"
+                  style={{ color: denyOpen === n.id ? 'var(--primary)' : ((n.users?.length ?? 0) + (n.deny_users?.length ?? 0) > 0 ? 'var(--text)' : 'var(--text-light)') }}>
+                  <Users size={13} />{((n.users?.length ?? 0) + (n.deny_users?.length ?? 0)) || ''}
+                </button>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0">
                   <span title="Adicionar tela-filha (submenu)"><AddScreen usedKeys={usedKeys} onAdd={k => addScreen(moduleId, n.id, k)} compact childMode /></span>
                   <button onClick={() => setMoving(n.id)} title="Mover para…"><FolderInput size={13} style={{ color: 'var(--text-muted)' }} /></button>
@@ -383,6 +391,14 @@ function Inner() {
             {permOpen === n.id && s && (
               <div className="mr-1 mb-1.5 rounded-lg overflow-hidden" style={{ marginLeft: (depth + 1) * INDENT, border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
                 <div className="p-3"><ScreenPermBody screen={s} usage={usageByScreen[n.screen] ?? []} onChange={p => patchScreen(n.screen!, p)} filter={profileFilter} profileLabel={tab.label} /></div>
+              </div>
+            )}
+            {denyOpen === n.id && (
+              <div className="mr-1 mb-1.5 rounded-lg overflow-hidden" style={{ marginLeft: (depth + 1) * INDENT, border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+                <div className="p-3">
+                  <p className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Visibilidade desta tela por <b>usuário</b> — ✓ libera, ✕ esconde só p/ ele (usuários de <b>{tab.label}</b>).</p>
+                  <ActionUsers ab={{ profiles: [], users: n.users ?? [], deny_users: n.deny_users ?? [] }} onChange={patch => setNodeUsers(moduleId, n.id, patch)} filter={profileFilter} />
+                </div>
               </div>
             )}
             {childArea}
@@ -408,6 +424,11 @@ function Inner() {
                 title={n.hidden ? 'Pasta oculta (esconde todos os filhos) — clique p/ mostrar' : 'Visível — clique p/ ocultar a pasta inteira (todos os filhos somem)'} className="shrink-0">
                 {n.hidden ? <EyeOff size={14} style={{ color: 'var(--text-light)' }} /> : <Eye size={14} style={{ color: 'var(--success-border)' }} />}
               </button>
+              {/* visibilidade por USUÁRIO específico: bloquear a pasta (e filhos) só p/ ele */}
+              <button onClick={() => setDenyOpen(denyOpen === n.id ? null : n.id)} title="Visibilidade por usuário específico (esconde a pasta e os filhos)" className="shrink-0 inline-flex items-center gap-0.5 text-[10px]"
+                style={{ color: denyOpen === n.id ? 'var(--primary)' : ((n.users?.length ?? 0) + (n.deny_users?.length ?? 0) > 0 ? 'var(--text)' : 'var(--text-light)') }}>
+                <Users size={13} />{((n.users?.length ?? 0) + (n.deny_users?.length ?? 0)) || ''}
+              </button>
               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0">
                 <AddScreen usedKeys={usedKeys} onAdd={k => addScreen(moduleId, n.id, k)} compact />
                 <button onClick={() => addGroup(moduleId, n.id)} title="Nova pasta dentro"><FolderPlus size={13} style={{ color: 'var(--text-muted)' }} /></button>
@@ -416,6 +437,14 @@ function Inner() {
               </div>
             </div>
           </div>
+          {denyOpen === n.id && (
+            <div className="mr-1 mb-1.5 rounded-lg overflow-hidden" style={{ marginLeft: (depth + 1) * INDENT, border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+              <div className="p-3">
+                <p className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Visibilidade desta <b>pasta</b> por usuário — ✕ esconde a pasta <b>e todos os filhos</b> só p/ ele (usuários de <b>{tab.label}</b>).</p>
+                <ActionUsers ab={{ profiles: [], users: n.users ?? [], deny_users: n.deny_users ?? [] }} onChange={patch => setNodeUsers(moduleId, n.id, patch)} filter={profileFilter} />
+              </div>
+            </div>
+          )}
           {childArea}
         </div>
       )

@@ -29,6 +29,8 @@ export interface NavTreeNode {
   label?: string
   icon?: string          // ícone lucide da pasta (nome). Telas usam ícone próprio.
   hidden?: boolean       // oculto no menu deste perfil (cópia é independente)
+  users?: number[]       // override de visibilidade: libera este nó só p/ estes usuários
+  deny_users?: number[]  // override de visibilidade: esconde este nó (e filhos) p/ estes usuários
   children?: NavTreeNode[]
 }
 
