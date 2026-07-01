@@ -481,6 +481,9 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   const [receipt, setReceipt] = useState<File | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [projects, setProjects] = useState<SelectOption[]>([])
+  // Projetos reais do investimento: só os escolhidos p/ este consultor na Alocação
+  // (endpoint real-project-options, com fallback p/ todos os reais do cliente).
+  const [realProjects, setRealProjects] = useState<SelectOption[]>([])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
@@ -628,6 +631,24 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   // ERPSERV (empresa própria): investimento interno não pede Projeto Real (sem projeto de cliente real).
   const selectedCustomer = (customers as any[]).find(c => String(c.id) === form.customer_id)
   const isErpservCustomer = String(selectedCustomer?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+
+  // Carrega os "Projetos Reais" do investimento selecionado: SÓ os escolhidos p/ este
+  // consultor na Alocação (mesmo modelo do apontamento). Endpoint real-project-options.
+  useEffect(() => {
+    if (!modal.open || !form.project_id) { setRealProjects([]); return }
+    const sel = (projects as any[]).find(p => String(p.id) === form.project_id)
+    const isInvest = !!sel?.is_investimento_comercial && !isErpservCustomer
+    if (!isInvest) { setRealProjects([]); return }
+    let cancelled = false
+    const rq = new URLSearchParams()
+    // Despesa de outro consultor (admin/coord/adm agindo em nome de).
+    if (canActAsUser && form.user_id && form.user_id !== String(user?.id)) rq.set('user_id', form.user_id)
+    api.get<{ items: any[] }>(`/projects/${form.project_id}/real-project-options?${rq}`)
+      .then(r => { if (!cancelled) setRealProjects(Array.isArray(r?.items) ? r.items as any[] : []) })
+      .catch(() => { if (!cancelled) setRealProjects([]) })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modal.open, form.project_id, form.user_id, isErpservCustomer])
 
   const save = async () => {
     setSaving(true)
@@ -1205,25 +1226,27 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 </div>
               </div>
 
-              {/* Projeto Real — só para projetos de INVESTIMENTO (despesa contabiliza no investimento). */}
+              {/* Projeto Real — só para projetos de INVESTIMENTO (despesa contabiliza no investimento).
+                  realProjects já vem filtrado do backend: só os reais escolhidos p/ este consultor. */}
               {(() => {
                 const sel = (projects as any[]).find(p => String(p.id) === form.project_id)
                 if (!sel?.is_investimento_comercial || isErpservCustomer) return null
-                const soSustentacao = sel?.categoria_interna === 'Suporte'
-                const realOpts = (projects as any[]).filter(p => {
-                  if (p.is_investimento_comercial || String(p.id) === form.project_id) return false
-                  if (soSustentacao && p.service_type?.code !== 'sustentacao') return false
-                  return true
-                })
+                const realOpts = (realProjects as any[]).filter(p => String(p.id) !== form.project_id)
+                const semReais = realOpts.length === 0
                 return (
                   <div>
-                    <Label className="text-xs text-zinc-400">Projeto Real *{soSustentacao ? ' (Sustentação)' : ''}</Label>
+                    <Label className="text-xs text-zinc-400">Projeto Real *</Label>
+                    {semReais && (
+                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--warning)' }}>
+                        Nenhum projeto real disponível para este cliente.
+                      </p>
+                    )}
                     <div className="mt-1">
                       <SearchSelect
                         value={form.real_project_id}
                         onChange={v => setForm(f => ({ ...f, real_project_id: v }))}
                         options={realOpts}
-                        placeholder="Selecione o projeto real..."
+                        placeholder={semReais ? 'Nenhum projeto real disponível' : 'Selecione o projeto real...'}
                       />
                     </div>
                   </div>
