@@ -1112,7 +1112,7 @@ export default function InvestimentoComercialPage() {
 
               {/* Projeto Real por consultor — só em investimentos de Projeto/Suporte.
                   Define quais projetos reais do cliente cada consultor pode apontar. */}
-              {(modal.project!.categoria_interna === 'Projeto' || modal.project!.categoria_interna === 'Suporte') && selected.length > 0 && (
+              {(modal.project!.categoria_interna === 'Projeto' || modal.project!.categoria_interna === 'Suporte') && !(modal.project!.customer?.name ?? '').toUpperCase().includes('ERPSERV') && selected.length > 0 && (
                 <div>
                   <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>Projeto Real por consultor</label>
                   <p className="text-[10px] mb-2" style={{ color: 'var(--brand-subtle)' }}>

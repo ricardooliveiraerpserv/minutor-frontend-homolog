@@ -1908,7 +1908,7 @@ export default function MeuPainelPage() {
     }
     const selectedProject = projects.find(p => p.id === Number(tsForm.project_id)) as any
     const scTs = consultantCustomers.find(c => String(c.id) === tsForm.customer_id)
-    const isErpTs = String(scTs?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+    const isErpTs = String(scTs?.name ?? '').toUpperCase().includes('ERPSERV')
     const tsIsInvestimento = !!selectedProject?.is_investimento_comercial && !isErpTs
       && (selectedProject?.categoria_interna === 'Projeto' || selectedProject?.categoria_interna === 'Suporte')
     if (tsIsInvestimento && !tsForm.real_project_id) { toast.error('Selecione o Projeto Real'); return }
@@ -2003,7 +2003,7 @@ export default function MeuPainelPage() {
     if (!expForm.amount)      { toast.error('Informe o valor'); return }
     const spExp = projects.find(p => p.id === Number(expForm.project_id)) as any
     const scExp = consultantCustomers.find(c => String(c.id) === expForm.customer_id)
-    const isErpExp = String(scExp?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+    const isErpExp = String(scExp?.name ?? '').toUpperCase().includes('ERPSERV')
     const expIsInvestimento = !!spExp?.is_investimento_comercial && !isErpExp
     if (expIsInvestimento && !expForm.real_project_id) { toast.error('Selecione o Projeto Real'); return }
     setExpSaving(true)
@@ -3863,7 +3863,7 @@ export default function MeuPainelPage() {
             {(() => {
               const sp = projects.find(p => p.id === Number(tsForm.project_id)) as any
               const sc = consultantCustomers.find(c => String(c.id) === tsForm.customer_id)
-              const isErp = String(sc?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+              const isErp = String(sc?.name ?? '').toUpperCase().includes('ERPSERV')
               if (!sp?.is_investimento_comercial || isErp) return null
               if (!(sp?.categoria_interna === 'Projeto' || sp?.categoria_interna === 'Suporte')) return null
               const soSust = sp?.categoria_interna === 'Suporte'
@@ -4066,7 +4066,7 @@ export default function MeuPainelPage() {
             {(() => {
               const sp = projects.find(p => p.id === Number(expForm.project_id)) as any
               const sc = consultantCustomers.find(c => String(c.id) === expForm.customer_id)
-              const isErp = String(sc?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+              const isErp = String(sc?.name ?? '').toUpperCase().includes('ERPSERV')
               if (!sp?.is_investimento_comercial || isErp) return null
               const soSust = sp?.categoria_interna === 'Suporte'
               const opts = expRealProjects.filter((p: any) => {
