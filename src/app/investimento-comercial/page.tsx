@@ -125,6 +125,9 @@ export default function InvestimentoComercialPage() {
   const [selected,     setSelected]     = useState<number[]>([])
   const [userSearch,   setUserSearch]   = useState('')
   const [saving,       setSaving]       = useState(false)
+  // Projetos reais por consultor (alocação em investimento): opções do cliente + mapa escolhido.
+  const [realProjectOpts, setRealProjectOpts] = useState<{ id: number; name: string }[]>([])
+  const [realByConsultant, setRealByConsultant] = useState<Record<number, number[]>>({})
 
   // Modal de criação de projeto interno (ERPSERV)
   const [newProjectOpen,      setNewProjectOpen]      = useState(false)
@@ -219,10 +222,13 @@ export default function InvestimentoComercialPage() {
   const [expandedConsultant, setExpandedConsultant] = useState<number | null>(null)
 
   const isAdmin = user?.type === 'admin'
+  const isCoordenador = user?.type === 'coordenador'
+  // Alocação (consultores + projeto real) liberada p/ coordenador também — mesma rotina,
+  // mesmo privilégio de alocar. Criar/editar/abrir-mês seguem admin-only.
+  const canAllocate = isAdmin || isCoordenador
 
   useEffect(() => {
-    // Rotina disponível para admin e TODOS os coordenadores. Ações de gestão
-    // (criar/editar/alocar/abrir mês) ficam só para admin (gated por isAdmin).
+    // Rotina disponível para admin e TODOS os coordenadores.
     if (user && user.type !== 'admin' && user.type !== 'coordenador') router.replace('/dashboard')
   }, [user, router])
 
@@ -357,15 +363,36 @@ export default function InvestimentoComercialPage() {
 
   const totalHours = useMemo(() => filtered.reduce((acc, p) => acc + (hoursMap[p.id] ?? 0), 0), [filtered, hoursMap])
 
-  function openModal(project: ICProject) { setModal({ open: true, project }); setSelected(project.consultants.map(c => c.id)); setUserSearch('') }
-  function closeModal() { setModal({ open: false, project: null }); setSelected([]); setUserSearch('') }
+  function openModal(project: ICProject) {
+    setModal({ open: true, project })
+    setSelected(project.consultants.map(c => c.id))
+    setUserSearch('')
+    setRealProjectOpts([])
+    setRealByConsultant({})
+    // Projeto Real só se aplica a investimentos de Projeto/Suporte (não Comercial).
+    if (project.categoria_interna === 'Projeto' || project.categoria_interna === 'Suporte') {
+      api.get<{ real_projects: { id: number; name: string }[]; assignments: Record<string, number[]> }>(`/projects/${project.id}/real-project-assignments`)
+        .then(r => {
+          setRealProjectOpts(Array.isArray(r?.real_projects) ? r.real_projects.map(p => ({ id: p.id, name: p.name })) : [])
+          const map: Record<number, number[]> = {}
+          Object.entries(r?.assignments ?? {}).forEach(([uid, ids]) => { map[Number(uid)] = (ids as number[]).map(Number) })
+          setRealByConsultant(map)
+        })
+        .catch(() => {})
+    }
+  }
+  function closeModal() { setModal({ open: false, project: null }); setSelected([]); setUserSearch(''); setRealProjectOpts([]); setRealByConsultant({}) }
   function toggleUser(id: number) { setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
 
   async function saveTeam() {
     if (!modal.project) return
     setSaving(true)
     try {
-      await api.patch(`/projects/${modal.project.id}`, { consultant_ids: selected })
+      // Envia só os reais dos consultores ainda selecionados.
+      const realMap: Record<number, number[]> = {}
+      selected.forEach(id => { realMap[id] = realByConsultant[id] ?? [] })
+      // Endpoint dedicado (assign_consultants) — coordenador também aloca.
+      await api.patch(`/projects/${modal.project.id}/investment-allocation`, { consultant_ids: selected, real_projects_by_consultant: realMap })
       const updatedConsultants = allUsers.filter(u => selected.includes(u.id))
       setProjects(prev => prev.map(p => p.id === modal.project!.id ? { ...p, consultants: updatedConsultants } : p))
       toast.success('Equipe atualizada')
@@ -435,9 +462,13 @@ export default function InvestimentoComercialPage() {
               <Button size="sm" variant="ghost" onClick={() => openEditModal(project)} aria-label="Editar projeto">
                 <Pencil size={13} className="mr-1" /> Editar
               </Button>
+            </>)}
+            {canAllocate && (
               <Button size="sm" variant="ghost" onClick={() => openModal(project)}>
                 <Users size={13} className="mr-1" /> Alocação
               </Button>
+            )}
+            {isAdmin && (
               <Button size="sm" variant="ghost" onClick={() => setOpenPeriodProject(project)}
                 aria-label={project.has_open_period ? 'Fechar mês' : 'Abrir mês'}
                 style={project.has_open_period ? { color: 'var(--warning)' } : undefined}>
@@ -445,7 +476,7 @@ export default function InvestimentoComercialPage() {
                   ? <><CalendarOff size={13} className="mr-1" /> Fechar Mês</>
                   : <><CalendarPlus size={13} className="mr-1" /> Abrir Mês</>}
               </Button>
-            </>)}
+            )}
           </div>
         </Td>
       </Tr>
@@ -1073,6 +1104,35 @@ export default function InvestimentoComercialPage() {
                             <X size={11} style={{ color: 'var(--primary)' }} />
                           </button>
                         </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Projeto Real por consultor — só em investimentos de Projeto/Suporte.
+                  Define quais projetos reais do cliente cada consultor pode apontar. */}
+              {(modal.project!.categoria_interna === 'Projeto' || modal.project!.categoria_interna === 'Suporte') && selected.length > 0 && (
+                <div>
+                  <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>Projeto Real por consultor</label>
+                  <p className="text-[10px] mb-2" style={{ color: 'var(--brand-subtle)' }}>
+                    Escolha os projetos reais que cada consultor pode apontar ao lançar horas neste investimento. No apontamento aparecem só os escolhidos aqui.
+                  </p>
+                  <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-0.5">
+                    {selected.map(id => {
+                      const u = usersById.get(id)
+                      if (!u) return null
+                      return (
+                        <div key={id} className="rounded-xl p-2.5" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                          <p className="text-[11px] font-medium mb-1" style={{ color: 'var(--brand-text)' }}>{u.name}</p>
+                          <MultiSelect
+                            fullWidth
+                            value={(realByConsultant[id] ?? []).map(String)}
+                            onChange={vals => setRealByConsultant(prev => ({ ...prev, [id]: vals.map(Number) }))}
+                            options={realProjectOpts}
+                            placeholder={realProjectOpts.length === 0 ? 'Nenhum projeto real disponível' : 'Selecione o(s) projeto(s) real(is)...'}
+                          />
+                        </div>
                       )
                     })}
                   </div>
