@@ -363,7 +363,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       const all = results.flat()
       const map = new Map<string, ClienteRow>()
       for (const r of all) {
-        const k = r.cnpj || (r.customer_id != null ? 'c' + r.customer_id : r.cliente)
+        const k = r.customer_id != null ? 'c' + r.customer_id : (r.cnpj || r.cliente)
         const e = map.get(k)
         if (!e) map.set(k, { ...r,
           consultores: (r.consultores || []).map(c => ({ ...c, projetos: (c.projetos || []).map(p => ({ ...p })) })),
