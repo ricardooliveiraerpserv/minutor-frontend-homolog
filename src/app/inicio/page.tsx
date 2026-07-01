@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays } from 'lucide-react'
+import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus } from 'lucide-react'
 import { DOT, type CalEvento } from '@/components/notifications/calendar-mini'
 import { useAuth } from '@/hooks/use-auth'
 import { TasksCard } from '@/components/notifications/tasks-card'
+import { MinimizableHint } from '@/components/ui/minimizable-hint'
 import { AgendaSidebar } from '@/components/notifications/agenda-sidebar'
 import { TeamDay } from '@/components/notifications/team-day'
 import { OutlookIntegrationCard } from '@/components/notifications/outlook-integration-card'
@@ -52,6 +53,7 @@ const TYPE_L: Record<string, string> = { pessoal: 'Pessoal', cliente: 'Cliente',
 export default function MeuDiaPage() {
   const [tab, setTab] = useState<TabKey>('dia')
   const [pubMode, setPubMode] = useState<'recebidas' | 'mural' | 'criadas' | 'gerenciar' | 'lembretes'>('recebidas')
+  const [pubAction, setPubAction] = useState<string | null>(null) // ação a abrir ao ir p/ Gerenciar
   const [tasks, setTasks] = useState<Task[]>([])
   const [pubs, setPubs] = useState<Pub[]>([])
   const [actionsCount, setActionsCount] = useState(0)
@@ -318,6 +320,10 @@ export default function MeuDiaPage() {
         {/* ════════ TAREFAS ════════ */}
         {tab === 'tarefas' && (
           <div className="max-w-4xl">
+            <MinimizableHint storageKey="hint:rotina-x-tarefa" title="Rotina × Tarefa — qual a diferença?">
+              <p><b style={{ color: 'var(--text)' }}>Tarefa</b> é um item de trabalho <b>pontual</b>, atribuído a alguém, com prazo e conclusão (feito/não feito).</p>
+              <p><b style={{ color: 'var(--text)' }}>Rotina</b> é um <b>checklist recorrente para uma equipe</b>: ela <b>gera tarefas automaticamente</b> (diária/semanal/mensal) e acompanha quem cumpriu. A rotina não é feita direto — ela <b>vira tarefas</b>.</p>
+            </MinimizableHint>
             <TasksCard key={`full-${tasksKey}`} onChanged={loadTasks} />
           </div>
         )}
@@ -325,6 +331,17 @@ export default function MeuDiaPage() {
         {/* ════════ PUBLICAÇÕES — recebidas + gerenciar/publicar (admin) ════════ */}
         {tab === 'publicacoes' && (
           <div className="space-y-3 max-w-4xl">
+            <MinimizableHint storageKey="hint:publicacoes" title="Publicações — o que é cada botão e suas variações">
+              <p><b style={{ color: 'var(--text)' }}>Abas:</b> <b>Recebidas</b> = as que chegaram pra você · <b>Mural</b> = tudo que você pode ler · <b>Criadas</b> = as que você publicou · <b>Gerenciar/Publicar</b> = administração (admin).</p>
+              {isAdmin && <>
+                <p><b style={{ color: 'var(--text)' }}>+ Nova notificação</b> — publicação para o time. <b>Variações de Tipo:</b></p>
+                <p className="pl-3">• <b>Aviso</b> — exige <b>"Confirmar leitura"</b> e registra quem leu (log). Se a mensagem for longa, o botão só libera após <b>rolar até o fim</b>.</p>
+                <p className="pl-3">• <b>Ação (com botão)</b> — inclui um <b>botão-link (CTA)</b> com texto + rota. Pode ainda ter <b>"Botões de decisão"</b> (ex.: "Confirmo"/"Não vou") que exigem resposta e geram log de quem clicou.</p>
+                <p><b style={{ color: 'var(--text)' }}>Confirmar presença</b> — atalho que já cria uma notificação com botões de decisão (registra quem confirmou).</p>
+                <p><b style={{ color: 'var(--text)' }}>Nova enquete</b> — votação com opções; resultados consolidados.</p>
+                <p><b style={{ color: 'var(--text)' }}>Comunicação com cliente</b> — aviso/comunicado para <b>clientes</b> (Central de Comunicação).</p>
+              </>}
+            </MinimizableHint>
             <div className="inline-flex rounded-lg p-0.5 flex-wrap" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
               {([
                 ['recebidas', 'Recebidas', Megaphone],
@@ -337,9 +354,22 @@ export default function MeuDiaPage() {
                 </button>
               ))}
             </div>
+            {/* Ações rápidas (admin) — fora do Gerenciar, abrem o fluxo direto */}
+            {isAdmin && pubMode !== 'gerenciar' && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {([
+                  ['comm', 'Comunicação com cliente', Megaphone],
+                  ['presence', 'Confirmar presença', CalendarDays],
+                  ['poll', 'Nova enquete', BarChart3],
+                ] as [string, string, typeof Megaphone][]).map(([a, l, Ic]) => (
+                  <button key={a} onClick={() => { setPubAction(a); setPubMode('gerenciar') }} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Ic size={14} /> {l}</button>
+                ))}
+                <button onClick={() => { setPubAction('new'); setPubMode('gerenciar') }} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Plus size={14} /> Nova notificação</button>
+              </div>
+            )}
             {pubMode === 'mural' ? <PublicacoesView scope="feed" />
               : isAdmin && pubMode === 'criadas' ? <PublicacoesView scope="all" />
-              : isAdmin && pubMode === 'gerenciar' ? <NotificationAdmin onChanged={load} />
+              : isAdmin && pubMode === 'gerenciar' ? <NotificationAdmin onChanged={load} initialAction={pubAction} onActionConsumed={() => setPubAction(null)} />
               : <PublicacoesView scope="mine" />}
           </div>
         )}

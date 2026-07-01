@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, BarChart3, Bell, CheckCircle2, Zap, X, ShieldAlert, Info, Clock } from 'lucide-react'
+import { AlertTriangle, BarChart3, Bell, CheckCircle2, Zap, X, ShieldAlert, Info, Clock, ChevronsDown } from 'lucide-react'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 
 interface PollOpt { id: number; label: string }
@@ -57,6 +57,8 @@ export function NotificationPopups({ userId }: { userId: number }) {
   const [queue, setQueue] = useState<Notif[]>([])
   const [sel, setSel] = useState<number[]>([])
   const [busy, setBusy] = useState(false)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const [canOk, setCanOk] = useState(true)   // gate: só libera o OK após rolar até o fim quando há barra
   const popped = useRef<Set<string>>(new Set())
 
   useEffect(() => { popped.current = loadPopped(userId) }, [userId])
@@ -110,6 +112,20 @@ export function NotificationPopups({ userId }: { userId: number }) {
 
   // prepara seleção da enquete ao trocar de card
   useEffect(() => { setSel(current?.poll?.my_option_ids ?? []) }, [current?.id])
+
+  // Ao trocar de card: se a mensagem tem barra de rolagem (texto longo), trava o OK até rolar
+  // até o fim; se couber inteira (sem barra), libera direto.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const el = bodyRef.current
+      setCanOk(!el || el.scrollHeight <= el.clientHeight + 4)
+    })
+    return () => cancelAnimationFrame(id)
+  }, [current?.id])
+  const onBodyScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 6) setCanOk(true)
+  }
 
   if (!current) return null
   const h = headerFor(current.type, current.priority)
@@ -187,9 +203,11 @@ export function NotificationPopups({ userId }: { userId: number }) {
               </div>
             </>
           ) : (
-            isHtmlBody(current.message)
-              ? <div className="text-sm hd-rich max-h-60 overflow-auto" style={{ color: 'var(--text-muted)' }} dangerouslySetInnerHTML={{ __html: sanitizeRich(current.message) }} />
-              : <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-muted)' }}>{current.message}</p>
+            <div ref={bodyRef} onScroll={onBodyScroll} className="text-sm max-h-60 overflow-auto" style={{ color: 'var(--text-muted)' }}>
+              {isHtmlBody(current.message)
+                ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(current.message) }} />
+                : <p className="whitespace-pre-wrap">{current.message}</p>}
+            </div>
           )}
         </div>
 
@@ -210,7 +228,10 @@ export function NotificationPopups({ userId }: { userId: number }) {
               ))}
             </>
           ) : current.type === 'require_ack' || current.pending_ack ? (
-            <button onClick={() => confirmAck(current)} disabled={busy} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg"><CheckCircle2 size={15} /> Confirmar leitura</button>
+            <>
+              {!canOk && <span className="text-[11px] mr-auto inline-flex items-center gap-1" style={{ color: 'var(--text-light)' }}><ChevronsDown size={12} /> Role a mensagem até o fim para confirmar</span>}
+              <button onClick={() => confirmAck(current)} disabled={busy || !canOk} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"><CheckCircle2 size={15} /> Confirmar leitura</button>
+            </>
           ) : current.type === 'poll' && current.poll ? (
             <>
               <button onClick={() => close(current)} className="text-sm px-4 py-2 rounded-lg" style={{ color: 'var(--text-muted)' }}>Decidir depois</button>
@@ -222,7 +243,10 @@ export function NotificationPopups({ userId }: { userId: number }) {
               <button onClick={() => goAction(current)} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg"><Zap size={15} /> {current.cta_label}</button>
             </>
           ) : (
-            <button onClick={() => close(current)} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg"><CheckCircle2 size={15} /> Ok, entendi</button>
+            <>
+              {!canOk && <span className="text-[11px] mr-auto inline-flex items-center gap-1" style={{ color: 'var(--text-light)' }}><ChevronsDown size={12} /> Role a mensagem até o fim</span>}
+              <button onClick={() => close(current)} disabled={!canOk} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"><CheckCircle2 size={15} /> Ok, entendi</button>
+            </>
           )}
         </div>
       </div>

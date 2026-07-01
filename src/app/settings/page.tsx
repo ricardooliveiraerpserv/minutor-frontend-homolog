@@ -10,22 +10,19 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Settings,
-  RefreshCw, CheckCircle, XCircle, Users, Shield, X, Briefcase,
+  RefreshCw, CheckCircle, XCircle, Users, X, Briefcase,
 } from 'lucide-react'
 import type { SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
-import { PermissionGroupsTab } from './PermissionGroupsTab'
 import { CargosTab } from './CargosTab'
-import { ProfileModulesTab } from './ProfileModulesTab'
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
 
+// "Grupos de Permissões" e "Cadastro de Perfil" foram substituídos pelo Configurador de Menus.
 const TABS = [
-  { id: 'general', label: 'Geral',               icon: Settings },
-  { id: 'users',   label: 'Usuários',             icon: Users },
-  { id: 'groups',  label: 'Grupos de Permissões', icon: Shield },
-  { id: 'cargos',  label: 'Cargos por Perfil',    icon: Briefcase },
-  { id: 'perfis',  label: 'Cadastro de Perfil',   icon: Briefcase },
+  { id: 'general', label: 'Geral',            icon: Settings },
+  { id: 'users',   label: 'Usuários',          icon: Users },
+  { id: 'cargos',  label: 'Cargos por Perfil', icon: Briefcase },
 ]
 
 // ─── TAB: GENERAL SETTINGS ───────────────────────────────────────────────────
@@ -268,64 +265,25 @@ function GeneralTab() {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
-  const active = TABS.find(t => t.id === activeTab)!
+  // abre a aba pela URL (?tab=cargos) — permite linkar as abas como filhos no menu
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab')
+    if (tab && TABS.some(t => t.id === tab)) setActiveTab(tab)
+  }, [])
+  const active = TABS.find(t => t.id === activeTab) ?? TABS[0]
 
   return (
-    <AppLayout title="Configurações">
-      <div className="flex gap-6">
-        {/* Sidebar */}
-        <nav className="w-48 shrink-0 hidden md:block">
-          <ul className="space-y-0.5">
-            {TABS.map(tab => {
-              const Icon = tab.icon
-              return (
-                <li key={tab.id}>
-                  <button
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-colors text-left ${
-                      activeTab === tab.id
-                        ? 'bg-zinc-800 text-white'
-                        : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300'
-                    }`}
-                  >
-                    <Icon size={13} />
-                    {tab.label}
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        </nav>
+    <AppLayout title={active.label}>
+      {/* Sem abas internas — a navegação fica no menu lateral (Configurações > filhos). */}
+      <div className="min-w-0">
+        <h2 className="text-sm font-semibold text-white mb-5 flex items-center gap-2">
+          <active.icon size={14} className="text-zinc-400" />
+          {active.label}
+        </h2>
 
-        {/* Mobile tabs */}
-        <div className="flex gap-1 mb-4 md:hidden flex-wrap">
-          {TABS.map(tab => {
-            const Icon = tab.icon
-            return (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors ${
-                  activeTab === tab.id ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:bg-zinc-800/60'
-                }`}>
-                <Icon size={12} />
-                {tab.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold text-white mb-5 flex items-center gap-2">
-            <active.icon size={14} className="text-zinc-400" />
-            {active.label}
-          </h2>
-
-          {activeTab === 'general' && <GeneralTab />}
-          {activeTab === 'users'   && <UserManagementTab />}
-          {activeTab === 'groups'  && <PermissionGroupsTab />}
-          {activeTab === 'cargos'  && <CargosTab />}
-          {activeTab === 'perfis'  && <ProfileModulesTab />}
-        </div>
+        {activeTab === 'general' && <GeneralTab />}
+        {activeTab === 'users'   && <UserManagementTab />}
+        {activeTab === 'cargos'  && <CargosTab />}
       </div>
     </AppLayout>
   )

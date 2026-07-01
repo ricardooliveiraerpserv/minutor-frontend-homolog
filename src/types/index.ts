@@ -82,6 +82,11 @@ export interface Project {
 
 export interface Timesheet {
   id: number
+  // Controle de acesso por linha (vindo do backend — AccessControl/WithAbilities)
+  can_edit?: boolean
+  can_delete?: boolean
+  reason_edit?: string | null
+  reason_delete?: string | null
   user_id: number
   user?: User
   customer_id: number

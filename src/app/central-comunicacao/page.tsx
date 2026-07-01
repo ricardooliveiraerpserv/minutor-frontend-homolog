@@ -16,7 +16,8 @@ import {
 import { Send, Eye, X, Bookmark, Megaphone, History as HistoryIcon, Users, Trash2, Plus, AlertTriangle, CalendarClock, Monitor, Smartphone, PenLine } from 'lucide-react'
 
 const MANAGERS = ['admin', 'coordenador', 'administrativo']
-const TIPOS = [{ k: 'aviso', l: 'Aviso' }, { k: 'formal', l: 'Comunicação formal' }, { k: 'marketing', l: 'Marketing' }]
+// "Comunicação formal" aposentada (só Aviso); TIPO_L mantém o rótulo p/ exibir publicações antigas.
+const TIPOS = [{ k: 'aviso', l: 'Aviso' }, { k: 'marketing', l: 'Marketing' }]
 const TIPO_L: Record<string, string> = { aviso: 'Aviso', formal: 'Comunicação formal', marketing: 'Marketing' }
 // Data de expiração padrão = hoje + 30 dias (campo obrigatório).
 function defaultExpiry(): string { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10) }

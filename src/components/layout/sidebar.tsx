@@ -62,6 +62,9 @@ import { api, secureUrl } from '@/lib/api'
 import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LucideIcon } from 'lucide-react'
+import { icons as lucideIcons } from 'lucide-react'
+import { CATALOG_LABEL } from '@/lib/nav-catalog'
+import type { NavTreeNode, NavModuleConfig } from '@/contexts/nav-config-context'
 import type { User } from '@/types'
 import { type ModuleId } from '@/lib/modules'
 import { useModules } from '@/contexts/module-context'
@@ -147,12 +150,26 @@ function moduleForHref(href: string): ModuleId | null {
   return null
 }
 
-// Filtra a navegação pelo módulo selecionado — POR ITEM (href). Cada tela é associada a um
-// módulo no Configurador (itemModule[href]); fallback = ROUTE_MODULE. Rota não categorizada
-// (null) aparece em qualquer módulo (não some). Grupo aparece se tiver ao menos um item visível.
-function filterNavByModule(nav: NavEntry[], mod: ModuleId, itemModule: Record<string, string>): NavEntry[] {
-  const effHrefMod = (href: string): string | null => itemModule[href] ?? moduleForHref(href)
-  const keepLink = (href: string) => { const m = effHrefMod(href); return m === null || m === mod }
+// Filtra a navegação pelo módulo selecionado — POR ITEM (href), aplicando ATIVO + PERMISSÃO.
+// itemConfig[href] = { módulo, ativo, perfis, usuários } (Configurador). Regras:
+//  - inativo → some;  - precisa: perfil do user OU user específico (sem nenhum = some);  - só no módulo dele.
+//  - tela NÃO configurada → fallback ROUTE_MODULE (sem restrição de permissão; não some por engano).
+function filterNavByModule(
+  nav: NavEntry[], mod: ModuleId,
+  itemConfig: Record<string, { modules: string[]; active: boolean; profiles: string[]; users: number[] }>,
+  userType: string, userId: number,
+): NavEntry[] {
+  const keepLink = (href: string) => {
+    const conf = itemConfig[href]
+    if (conf) {
+      if (!conf.active) return false
+      const permitted = conf.profiles.includes(userType) || conf.users.includes(userId)
+      // tela pode aparecer em VÁRIOS módulos (reuso) — mostra se o módulo atual for um deles
+      return permitted && conf.modules.includes(mod)
+    }
+    const m = moduleForHref(href)
+    return m === null || m === mod
+  }
   const out: NavEntry[] = []
   for (const entry of nav) {
     if (entry.type === 'item') {
@@ -332,9 +349,14 @@ const NAV: NavEntry[] = [
   {
     type: 'group', module: 'administrativo', catalogKey: 'sistema', label: 'Sistema', icon: Settings,
     items: [
-      { label: 'Usuários',          href: '/users',           icon: Users },
-      { label: 'Configurações',     href: '/settings',        icon: Settings },
-      { label: 'Cadastro de Perfil', href: '/settings?tab=perfis', icon: UserCheck },
+      {
+        kind: 'subgroup', label: 'Configurações', icon: Settings,
+        items: [
+          { label: 'Geral',            href: '/settings',            icon: Settings },
+          { label: 'Usuários',         href: '/users',               icon: Users },
+          { label: 'Cargos por Perfil', href: '/settings?tab=cargos', icon: Briefcase },
+        ],
+      },
     ],
   },
 
@@ -428,6 +450,70 @@ function itemClass(active: boolean): string {
 // Normaliza p/ busca: minúsculo + sem acento (casa "fechamento" digitando "fechament")
 const normalizeForSearch = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+// ─── Menu dirigido pela ÁRVORE do Configurador (nav_modules) ──────────────────
+// A estrutura visual do menu de cada módulo vem da configuração (Configurador),
+// não mais de uma árvore fixa. Ícone da tela: reaproveita o do NAV hardcoded
+// (HREF_ICON); ícone de pasta: nome lucide salvo no nó.
+
+const iconByName = (name?: string): LucideIcon =>
+  (name && (lucideIcons as Record<string, LucideIcon>)[name]) || FileText
+
+// href (sem query) → ícone, varrendo o NAV hardcoded p/ preservar os ícones das telas.
+const HREF_ICON: Record<string, LucideIcon> = {}
+;(function collect(entries: NavEntry[]) {
+  for (const e of entries) {
+    if (e.type === 'item') { const k = e.href.split('?')[0]; if (!HREF_ICON[k]) HREF_ICON[k] = e.icon }
+    else for (const it of e.items) {
+      if ('href' in it) { const k = it.href.split('?')[0]; if (!HREF_ICON[k]) HREF_ICON[k] = it.icon }
+      else for (const s of it.items) { const k = s.href.split('?')[0]; if (!HREF_ICON[k]) HREF_ICON[k] = s.icon }
+    }
+  }
+})(NAV)
+
+type ItemConfMap = Record<string, { modules: string[]; active: boolean; profiles: string[]; users: number[]; label?: string }>
+
+// Perfis EFETIVOS do usuário: coordenador é separado por coordinator_type
+// (coordenador_projetos | coordenador_sustentacao); mantém 'coordenador' p/ compat.
+function effectiveProfiles(type?: string | null, coord?: string | null): string[] {
+  if (type === 'coordenador') return ['coordenador', `coordenador_${coord ?? 'projetos'}`]
+  return type ? [type] : []
+}
+
+// Converte a árvore de um módulo (nav_modules.items) em NavEntry[] (grupos/subgrupos/itens),
+// já filtrando por ativo + permissão (perfil OU usuário).
+function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], itemConfig: ItemConfMap, effProfiles: string[], userId: number): NavEntry[] {
+  const mod = navModules.find(m => m.key === moduleKey)
+  if (!mod) return []
+  // Módulo é do PRÓPRIO perfil (menus independentes): a presença na árvore já é a visibilidade.
+  // Só escondemos telas globalmente desativadas ou nós marcados como ocultos (hidden) nesta cópia.
+  void effProfiles; void userId
+  const keep = (href: string) => itemConfig[href]?.active !== false
+  const lbl = (href: string) => itemConfig[href]?.label || CATALOG_LABEL[href] || href
+  const ico = (href: string) => HREF_ICON[href.split('?')[0]] || FileText
+  const link = (n: NavTreeNode): NavLink => ({ label: lbl(n.screen!), href: n.screen!, icon: ico(n.screen!) })
+
+  const out: NavEntry[] = []
+  for (const n of mod.items ?? []) {
+    if (n.hidden) continue
+    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: lbl(n.screen), href: n.screen, icon: ico(n.screen) }) }
+    else {
+      const items: (NavLink | NavSubGroup)[] = []
+      for (const c of n.children ?? []) {
+        if (c.hidden) continue
+        if (c.screen) { if (keep(c.screen)) items.push(link(c)) }
+        else {
+          const subs: NavLink[] = []
+          const collectSub = (ns: NavTreeNode[]) => ns.forEach(g => { if (g.hidden) return; if (g.screen) { if (keep(g.screen)) subs.push(link(g)) } else collectSub(g.children ?? []) })
+          collectSub(c.children ?? [])
+          if (subs.length) items.push({ kind: 'subgroup', label: c.label ?? '', icon: iconByName(c.icon), items: subs })
+        }
+      }
+      if (items.length) out.push({ type: 'group', label: n.label ?? '', icon: iconByName(n.icon), items })
+    }
+  }
+  return out
+}
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
@@ -727,16 +813,34 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
 
   // ── Módulos de navegação (Serviços / Administrativo) — estado compartilhado (header + sidebar).
   // Cliente não tem módulos → vê o portal inteiro como hoje (sem filtro).
-  const { allowedModules, selectedModule, modules: navModules, itemModule } = useModules()
+  const { allowedModules, selectedModule, modules: navModules, itemConfig } = useModules()
   // Nav já filtrada pelo módulo (mantém o gating de perfil/permissão do visibleNav).
   // GARANTIA: o filtro de módulo só faz sentido quando há MAIS DE UM módulo para
   // alternar. Em perfil de módulo único (ex.: coordenador só de Serviços), filtrar
   // apenas ESCONDERIA itens que as permissões já concederam — então NÃO filtramos:
   // tudo que o perfil/grupo permite aparece. Com 2+ módulos, o filtro organiza as abas.
-  const moduleNav = useMemo(
-    () => (selectedModule && allowedModules.length > 1) ? filterNavByModule(visibleNav, selectedModule, itemModule) : visibleNav,
-    [visibleNav, selectedModule, allowedModules, itemModule],
-  )
+  // Menu do módulo selecionado vem da ÁRVORE do Configurador (estrutura real). Com módulo único
+  // ou cliente, mantém o NAV hardcoded (fallback seguro). Itens "home" (Meu Dia/Meu Painel) são
+  // prefixados, sem duplicar telas que já estão na árvore.
+  const moduleNav = useMemo(() => {
+    if (isCliente || !selectedModule || allowedModules.length <= 1) return visibleNav
+    const eff = effectiveProfiles(user?.type, user?.coordinator_type)
+    const built = buildModuleNav(selectedModule, navModules, itemConfig, eff, user?.id ?? 0)
+    if (built.length === 0) return visibleNav
+    const builtHrefs = new Set<string>()
+    built.forEach(e => { if (e.type === 'item') builtHrefs.add(e.href); else e.items.forEach(it => ('href' in it) ? builtHrefs.add(it.href) : it.items.forEach(s => builtHrefs.add(s.href))) })
+    // home (Meu Dia/Meu Painel…): itens do topo do NAV, sem duplicar a árvore e respeitando o módulo
+    const keepHome = (e: NavItem) => {
+      if (e.alwaysVisible) return true
+      const c = itemConfig[e.href]
+      if (c) { if (!c.active) return false; return (eff.some(p => c.profiles.includes(p)) || c.users.includes(user?.id ?? 0)) && c.modules.includes(selectedModule) }
+      const m = moduleForHref(e.href)
+      return m === null || m === selectedModule
+    }
+    const home: NavEntry[] = []
+    for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
+    return [...home, ...built]
+  }, [visibleNav, selectedModule, allowedModules, navModules, itemConfig, user?.type, user?.coordinator_type, user?.id, isCliente])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,
   // sem fechar os já abertos manualmente.

@@ -12,7 +12,6 @@ export const NAV_CATALOG: CatalogItem[] = [
   // Home / Configurador
   { key: '/meu-painel',          label: 'Meu Painel',                 group: 'Home' },
   { key: '/configurador',        label: 'Configurador de Menus',      group: 'Configurador' },
-  { key: '/settings?tab=perfis', label: 'Cadastro de Perfil',         group: 'Configurador' },
 
   // Serviços — Projetos / Sustentação / Operação
   { key: '/contratos/pipeline',      label: 'Demandas e Projetos',     group: 'Projetos' },
@@ -77,8 +76,9 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/partner-dashboard',               label: 'Painel do Parceiro',     group: 'Visão Externa' },
 
   // Administrativo — Sistema
-  { key: '/users',    label: 'Usuários',      group: 'Sistema' },
-  { key: '/settings', label: 'Configurações', group: 'Sistema' },
+  { key: '/users',             label: 'Usuários',         group: 'Sistema' },
+  { key: '/settings',          label: 'Geral',            group: 'Sistema' },
+  { key: '/settings?tab=cargos', label: 'Cargos por Perfil', group: 'Sistema' },
 ]
 
 export const CATALOG_LABEL: Record<string, string> = Object.fromEntries(NAV_CATALOG.map(c => [c.key, c.label]))

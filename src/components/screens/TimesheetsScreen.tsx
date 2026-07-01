@@ -2,7 +2,7 @@
 
 import { useApiQuery } from '@/hooks/use-query'
 import { Timesheet, PaginatedResponse } from '@/types'
-import { useState, useMemo, useCallback, useRef, useEffect, Suspense } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect, Suspense, Fragment } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
@@ -12,6 +12,7 @@ import {
   Trash2, X, Globe, Webhook, MoreVertical, Eye, Search, ChevronDown,
   Paperclip, Calendar, Building2, FolderOpen, Ticket, Hash,
   FileText, CheckCircle, User, CalendarDays, ChevronLeft, ChevronRight, DollarSign, TrendingUp, RotateCcw, AlertTriangle, SlidersHorizontal,
+  Lock, Users as UsersIcon, Shield,
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
@@ -545,10 +546,10 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUse
 
 // ─── Row actions ─────────────────────────────────────────────────────────────
 
-interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean }
+interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => void; danger?: boolean; disabled?: boolean; title?: string }
 
-function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseApproval, onReverseRelease, onReverseRejection, onShowLogs, onShowConflict }: {
-  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseApproval?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void; onShowLogs?: () => void; onShowConflict?: () => void
+function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseApproval, onReverseRelease, onReverseRejection, onShowLogs, onShowConflict, canEdit = true, canDelete = true, reasonEdit, reasonDelete }: {
+  id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseApproval?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void; onShowLogs?: () => void; onShowConflict?: () => void; canEdit?: boolean; canDelete?: boolean; reasonEdit?: string | null; reasonDelete?: string | null
 }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -569,7 +570,7 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
     ? [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: onView }]
     : [
         { label: 'Visualizar', icon: <Eye size={12} />, onClick: onView },
-        { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } },
+        { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` }, disabled: !canEdit, title: canEdit ? undefined : (reasonEdit ?? 'Sem permissão') },
         ...(onShowConflict ? [{ label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: onShowConflict }] : []),
         ...(onShowLogs ? [{ label: 'Ver histórico', icon: <FileText size={12} />, onClick: onShowLogs }] : []),
         ...(onRelease ? [{ label: 'Liberar', icon: <CheckCircle size={12} />, onClick: onRelease }] : []),
@@ -577,7 +578,7 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
         ...(onReverseRelease ? [{ label: 'Estornar liberação', icon: <X size={12} />, onClick: onReverseRelease }] : []),
         ...(onReverseRejection ? [{ label: 'Estornar rejeição', icon: <RotateCcw size={12} />, onClick: onReverseRejection }] : []),
         ...(onExtraPct ? [{ label: '% Extras', icon: <TrendingUp size={12} />, onClick: onExtraPct }] : []),
-        { label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true },
+        { label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true, disabled: !canDelete, title: canDelete ? undefined : (reasonDelete ?? 'Sem permissão') },
       ]
 
   return (
@@ -634,15 +635,126 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
         <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
           className="min-w-[152px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl py-1 overflow-hidden">
           {items.map((item, i) => (
-            <button key={i} onClick={() => { item.onClick(); setPos(null) }}
+            <button key={i} disabled={item.disabled} title={item.title}
+              onClick={() => { if (item.disabled) return; item.onClick(); setPos(null) }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors text-left ${
-                item.danger ? 'text-red-400 hover:bg-red-500/10' : 'text-zinc-300 hover:bg-zinc-700'
+                item.disabled ? 'text-zinc-600 cursor-not-allowed' : item.danger ? 'text-red-400 hover:bg-red-500/10' : 'text-zinc-300 hover:bg-zinc-700'
               }`}>
               {item.icon}{item.label}
             </button>
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ─── Painel de acesso por LINHA (accordion inline) ───────────────────────────
+// Apenas VISUAL/explicabilidade — lê GET /timesheets/{id}/access (motor inalterado).
+
+interface RowAbility { allowed: boolean; reason: string | null }
+interface RowAccess {
+  profiles: { key: string; label: string }[]
+  users: { id: number; name: string; role: string }[]
+  source: string[]
+  status: string
+  abilities: { edit: RowAbility; delete: RowAbility; approve: RowAbility }
+}
+
+const SOURCE_LABEL: Record<string, string> = {
+  owner:                 'Responsável pelo apontamento',
+  project_coordinator:   'Coordenador do projeto',
+  global_permission:     'Permissão global',
+  partner_scope:         'Escopo de parceiro',
+  admin:                 'Administrador',
+  status_block_approved: 'Apontamento aprovado (bloqueia alterações)',
+  status_block:          'Status não editável (bloqueia alterações)',
+}
+const POSITIVE_SOURCES = ['owner', 'project_coordinator', 'global_permission', 'partner_scope', 'admin']
+
+function AbilityLine({ label, a }: { label: string; a: RowAbility }) {
+  return (
+    <div className="flex items-start gap-2 text-[13px] py-0.5">
+      <span className="w-16 shrink-0" style={{ color: 'var(--text-muted)' }}>{label}</span>
+      {a.allowed
+        ? <span className="inline-flex items-center gap-1 font-medium" style={{ color: 'var(--success-border)' }}><CheckCircle size={14} /> Permitido</span>
+        : <span className="inline-flex items-center gap-1" style={{ color: 'var(--danger-border)' }}><X size={14} className="shrink-0 mt-0.5" /> {a.reason ?? 'Bloqueado'}</span>}
+    </div>
+  )
+}
+
+function RowAccessPanel({ id }: { id: number }) {
+  const [data, setData] = useState<RowAccess | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [shown, setShown] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setShown(true), 10)
+    api.get<{ data: RowAccess }>(`/timesheets/${id}/access`)
+      .then(r => setData(r.data)).catch(() => {}).finally(() => setLoading(false))
+    return () => clearTimeout(t)
+  }, [id])
+
+  const blocked = data?.source.find(s => s.startsWith('status_block'))
+  const positives = (data?.source ?? []).filter(s => POSITIVE_SOURCES.includes(s))
+
+  return (
+    <div className="overflow-hidden" style={{ maxHeight: shown ? 600 : 0, opacity: shown ? 1 : 0, transition: 'max-height .25s ease, opacity .25s ease' }}>
+      <div className="px-5 py-4" style={{ background: 'var(--surface-sunken)', borderTop: '1px solid var(--border)' }}>
+        {loading && <p className="text-[13px]" style={{ color: 'var(--text-light)' }}>Carregando acessos…</p>}
+        {data && (
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            {/* Bloco 1 — permissão herdada */}
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide mb-2 inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}><Lock size={12} /> Permissão herdada</p>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {data.profiles.map(p => <span key={p.key} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{p.label}</span>)}
+              </div>
+              {positives.length > 0 && (
+                <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+                  Regra aplicada:
+                  <ul className="mt-0.5 space-y-0.5">
+                    {positives.map(s => <li key={s} className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><CheckCircle size={11} style={{ color: 'var(--success-border)' }} /> {SOURCE_LABEL[s]}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Bloco 2 — usuários com acesso direto */}
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide mb-2 inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}><UsersIcon size={12} /> Acesso direto</p>
+              <div className="flex flex-wrap gap-1.5">
+                {data.users.length === 0 && <span className="text-[12px]" style={{ color: 'var(--text-light)' }}>—</span>}
+                {data.users.map(u => (
+                  <span key={u.id} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} title={u.role}>
+                    <User size={10} style={{ color: 'var(--text-light)' }} /> {u.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Bloco 3 — ações permitidas */}
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide mb-2 inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}><Shield size={12} /> Ações permitidas</p>
+              <AbilityLine label="Editar"  a={data.abilities.edit} />
+              <AbilityLine label="Excluir" a={data.abilities.delete} />
+              <AbilityLine label="Aprovar" a={data.abilities.approve} />
+            </div>
+
+            {/* Bloco 4 — origem da decisão */}
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide mb-2 inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>🧠 Origem da decisão</p>
+              <div className="text-[12px] leading-relaxed rounded-lg p-2.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                {blocked
+                  ? <>Edição/exclusão <b style={{ color: 'var(--danger-border)' }}>bloqueada</b> porque {SOURCE_LABEL[blocked].toLowerCase()}. Reabra (estorne) o apontamento antes de alterar.</>
+                  : positives.length > 0
+                    ? <>Acesso concedido por: {positives.map(s => SOURCE_LABEL[s]).join('; ')}.</>
+                    : <>Sem caminho de acesso — apenas responsável, coordenador do projeto ou permissão global podem alterar.</>}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -887,6 +999,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const [reverseRejectionReason, setReverseRejectionReason] = useState('')
   const [reverseRejecting, setReverseRejecting] = useState(false)
   const [logsModalTsId, setLogsModalTsId] = useState<number | null>(null)
+  const [expandedRow, setExpandedRow] = useState<number | null>(null) // accordion de acesso por linha
   // Hover preview do apontamento (tooltip fixo no canto superior direito)
   const hover = useTimesheetHover()
   // Em telas de toque o hover do card é desligado: no iOS o 1º toque viraria "hover"
@@ -1631,14 +1744,23 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   </td>
                 </tr>
               ) : data?.items.map(ts => (
+                <Fragment key={ts.id}>
                 <Tr
-                  key={ts.id}
                   baseBackground={ts.is_internal_action ? 'rgba(100,116,139,0.07)' : ts.is_billable_only ? 'rgba(245,158,11,0.06)' : undefined}
                   onClick={() => openView(ts)}
                   {...hover.bind(ts)}
                 >
                   <Td className="w-10">
-                    <div onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => setExpandedRow(expandedRow === ts.id ? null : ts.id)}
+                      title="Ver acessos desta linha"
+                      className="p-0.5 rounded hover:bg-zinc-700 transition-colors"
+                      style={{ color: expandedRow === ts.id ? 'var(--brand-primary)' : 'var(--text-light)' }}
+                    >
+                      {expandedRow === ts.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+                    {ts.can_edit === false && <span title="Acesso restrito nesta linha" className="inline-flex"><Lock size={11} style={{ color: 'var(--text-light)' }} /></span>}
                     <RowActions
                       id={ts.id}
                       onView={() => openView(ts)}
@@ -1651,6 +1773,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                       onReverseApproval={(isAdmin || isCoordenador) && ts.status === 'approved' ? () => handleReverseApproval(ts.id) : undefined}
                       onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
                       onReverseRejection={(isAdmin || isCoordenador) && (ts.status === 'rejected' || ts.status === 'adjustment_requested') ? () => { setReverseRejectionModal({ open: true, tsId: ts.id }); setReverseRejectionReason('') } : undefined}
+                      canEdit={ts.can_edit} canDelete={ts.can_delete} reasonEdit={ts.reason_edit} reasonDelete={ts.reason_delete}
                     />
                     </div>
                   </Td>
@@ -1790,6 +1913,14 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   </Td>
                   <Td muted className="hidden lg:table-cell whitespace-nowrap">{formatDateTime(ts.created_at)}</Td>
                 </Tr>
+                {expandedRow === ts.id && (
+                  <tr>
+                    <td colSpan={20} style={{ padding: 0 }}>
+                      <RowAccessPanel id={ts.id} />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </Tbody>
           </Table>
@@ -1829,6 +1960,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                         onReverseApproval={(isAdmin || isCoordenador) && ts.status === 'approved' ? () => handleReverseApproval(ts.id) : undefined}
                         onReverseRelease={(isAdmin || isCoordenador) && ts.is_internal_action && ts.status === 'released' ? () => handleReverseRelease(ts.id) : undefined}
                         onReverseRejection={(isAdmin || isCoordenador) && (ts.status === 'rejected' || ts.status === 'adjustment_requested') ? () => { setReverseRejectionModal({ open: true, tsId: ts.id }); setReverseRejectionReason('') } : undefined}
+                        canEdit={ts.can_edit} canDelete={ts.can_delete} reasonEdit={ts.reason_edit} reasonDelete={ts.reason_delete}
                       />
                     </div>
                   </div>
