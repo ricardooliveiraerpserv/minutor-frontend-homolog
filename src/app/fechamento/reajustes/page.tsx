@@ -36,6 +36,10 @@ interface Row {
   pct_reajuste: number | null
   data_ultimo_reajuste: string | null
   data_proximo_reajuste: string | null
+  data_aviso?: string | null
+  project_backed?: boolean
+  project_id?: number | null
+  project_name?: string | null
   dias_para_vencimento: number | null
   status_reajuste: 'vencido' | 'proximo' | 'em_dia' | 'recente'
   taxa_reajuste: string
@@ -71,6 +75,8 @@ const STATUS: Record<Row['status_reajuste'], { label: string; variant: string }>
   recente: { label: 'Recente', variant: 'primary' },
 }
 const fmtDate = (d: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—'
+// "Avisar em" já chegou (data <= hoje) → hora de enviar o aviso prévio.
+const avisoDue = (d: string | null | undefined) => !!d && new Date(d + 'T00:00:00') <= new Date(new Date().toDateString())
 
 export default function DashboardReajustesPage() {
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -90,25 +96,32 @@ export default function DashboardReajustesPage() {
   const [estornando, setEstornando] = useState(false)
   const [estornoConfirm, setEstornoConfirm] = useState<Row | null>(null)
   const [estornoPreview, setEstornoPreview] = useState<{ subject: string; html: string } | null>(null)
+  const [estornoMsg, setEstornoMsg] = useState('')
+  const [estornoSeeded, setEstornoSeeded] = useState(false)
   const [resend, setResend] = useState<{ row: Row; tipo: 'reajuste' | 'estorno' } | null>(null)
+  const [aviso, setAviso] = useState<Row | null>(null)
 
-  // Ao abrir o modal de estorno, busca a prévia do e-mail (modo estorno).
+  const estornoBase = (r: Row) => r.manual ? `/contracts/reajustes/manual/${r.id}` : `/contracts/${r.id}`
+  // Ao abrir o modal de estorno, busca a prévia + semeia o corpo editável.
   useEffect(() => {
-    if (!estornoConfirm) { setEstornoPreview(null); return }
-    const r = estornoConfirm
-    const base = r.manual ? `/contracts/reajustes/manual/${r.id}` : `/contracts/${r.id}`
+    if (!estornoConfirm) { setEstornoPreview(null); setEstornoMsg(''); setEstornoSeeded(false); return }
     setEstornoPreview(null)
-    api.get<{ subject: string; html: string }>(`${base}/adjustment-email-preview?estorno=1`)
-      .then(res => setEstornoPreview({ subject: res.subject, html: res.html }))
+    api.get<{ subject: string; html: string; mensagem_padrao?: string }>(`${estornoBase(estornoConfirm)}/adjustment-email-preview?estorno=1`)
+      .then(res => { setEstornoPreview({ subject: res.subject, html: res.html }); setEstornoMsg(res.mensagem_padrao ?? ''); setEstornoSeeded(true) })
       .catch(() => {})
   }, [estornoConfirm])
+  const refreshEstornoPreview = () => {
+    if (!estornoConfirm) return
+    api.get<{ subject: string; html: string }>(`${estornoBase(estornoConfirm)}/adjustment-email-preview?estorno=1&mensagem=${encodeURIComponent(estornoMsg)}`)
+      .then(res => setEstornoPreview({ subject: res.subject, html: res.html })).catch(() => {})
+  }
   const estornarReajuste = async (row: Row, notificar: boolean) => {
     setEstornando(true)
     try {
       const url = row.manual
         ? `/contracts/reajustes/manual/${row.id}/reverse-adjustment`
         : `/contracts/${row.id}/reverse-adjustment`
-      const res = await api.post<{ email_sent?: boolean }>(url, { notificar })
+      const res = await api.post<{ email_sent?: boolean }>(url, { notificar, mensagem: (notificar && estornoSeeded) ? estornoMsg : undefined })
       toast.success(!notificar
         ? 'Reajuste estornado (cliente não avisado)'
         : (res?.email_sent ? 'Reajuste estornado · e-mail enviado ao cliente' : 'Reajuste estornado (sem e-mail: nenhum destinatário)'))
@@ -298,6 +311,7 @@ export default function DashboardReajustesPage() {
                   <Th right>Valor atual</Th>
                   <Th>Último reajuste</Th>
                   <Th>Próximo reajuste</Th>
+                  <Th>Avisar em</Th>
                   <Th>Status</Th>
                   <Th right>Impacto estimado</Th>
                   <Th right>Acumulado (desde assinatura)</Th>
@@ -308,14 +322,19 @@ export default function DashboardReajustesPage() {
                 {filtered.map(r => {
                   const st = STATUS[r.status_reajuste]
                   // Linha manual (sem contrato) tem cor própria (lilás) p/ destacar.
-                  const rowBg = r.manual ? 'var(--primary-soft)' : (r.status_reajuste === 'vencido' ? 'var(--danger-bg)' : undefined)
+                  const rowBg = (r.manual && !r.project_backed) ? 'var(--primary-soft)' : (r.status_reajuste === 'vencido' ? 'var(--danger-bg)' : undefined)
                   const dias = r.dias_para_vencimento
                   return (
                     <Tr key={`${r.manual ? 'm' : 'c'}${r.id}`} baseBackground={rowBg}>
                       <Td>
                         <div className="flex items-center gap-1.5">
                           <span className="font-medium" style={{ color: 'var(--text)' }}>{r.cliente_nome ?? '—'}</span>
-                          {r.manual && (
+                          {r.manual && r.project_backed && (
+                            <Badge variant="success">
+                              <Building2 size={10} className="inline -mt-0.5 mr-0.5" />Projeto
+                            </Badge>
+                          )}
+                          {r.manual && !r.project_backed && (
                             <Badge variant={r.empresa === 'BIZIFY' ? 'warning' : 'primary'}>
                               <Building2 size={10} className="inline -mt-0.5 mr-0.5" />{r.empresa ?? 'ERPSERV'}
                             </Badge>
@@ -333,6 +352,13 @@ export default function DashboardReajustesPage() {
                             {dias < 0 ? `${Math.abs(dias)} dias atrás` : `em ${dias} dias`}
                           </div>
                         )}
+                      </Td>
+                      <Td>
+                        {(() => { const due = avisoDue(r.data_aviso); return (
+                          <span style={{ color: due ? 'var(--warning)' : 'var(--text-muted)', fontWeight: due ? 700 : 400 }}>
+                            {fmtDate(r.data_aviso ?? null)}{due ? ' • avisar' : ''}
+                          </span>
+                        )})()}
                       </Td>
                       <Td><Badge variant={st.variant}>{st.label}</Badge></Td>
                       <Td right mono className="tabular-nums">
@@ -358,6 +384,12 @@ export default function DashboardReajustesPage() {
                                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
                                 style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
                                 <TrendingUp size={13} /> Reajustar
+                              </button>
+                              <button onClick={() => setAviso(r)}
+                                title="Avisar cliente do reajuste do próximo mês"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
+                                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                                <CalendarClock size={13} /> Aviso
                               </button>
                               <button onClick={() => openHistorico(r)}
                                 title="Ver histórico"
@@ -393,6 +425,12 @@ export default function DashboardReajustesPage() {
                                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
                                 style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
                                 <TrendingUp size={13} /> Reajustar
+                              </button>
+                              <button onClick={() => setAviso(r)}
+                                title="Avisar cliente do reajuste do próximo mês"
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium"
+                                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                                <CalendarClock size={13} /> Aviso
                               </button>
                               <button onClick={() => openHistorico(r)}
                                 title="Ver histórico"
@@ -454,6 +492,16 @@ export default function DashboardReajustesPage() {
               O valor volta ao anterior e o registro sai do histórico. Escolha abaixo se deseja <b>avisar o cliente</b> (envia o e-mail abaixo + cópias internas da Central) ou estornar em silêncio.
             </p>
             <p className="text-xs mt-1 mb-3" style={{ color: 'var(--text-muted)' }}>Esta ação não pode ser desfeita.</p>
+<div style={{ marginBottom: 10 }}>
+              <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Corpo do e-mail (editável)</label>
+              <textarea value={estornoMsg} onChange={e => setEstornoMsg(e.target.value)} rows={4}
+                className="w-full rounded-lg px-3 py-2 text-sm mt-1" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', resize: 'vertical', fontFamily: 'inherit' }} />
+              <button onClick={refreshEstornoPreview}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium mt-1.5"
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                <Mail size={13} /> Atualizar prévia
+              </button>
+            </div>
             <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Prévia do e-mail de estorno</label>
             {estornoPreview ? (
               <div className="mt-1 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
@@ -485,6 +533,11 @@ export default function DashboardReajustesPage() {
             </button>
           </ModalFooter>
         </Modal>
+      )}
+
+      {/* Modal de aviso prévio de reajuste (próximo mês) */}
+      {aviso && (
+        <AvisoModal key={`av-${aviso.manual ? 'm' : 'c'}${aviso.id}`} row={aviso} onClose={() => setAviso(null)} />
       )}
 
       {/* Modal de reenvio de e-mail (reajuste ou estorno) */}
@@ -922,6 +975,121 @@ function ResendModal({ row, tipo, onClose }: { row: Row; tipo: 'reajuste' | 'est
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
           style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
           <Send size={15} /> {sending ? 'Enviando…' : 'Reenviar e-mail'}
+        </button>
+      </ModalFooter>
+    </Modal>
+  )
+}
+
+// ─── Modal: aviso prévio de reajuste (próximo mês, estimativa) ───────────────
+function AvisoModal({ row, onClose }: { row: Row; onClose: () => void }) {
+  const base = row.manual ? `/contracts/reajustes/manual/${row.id}` : `/contracts/${row.id}`
+  const [idx, setIdx] = useState<'IGPM' | 'IPCA'>((row.taxa_reajuste as 'IGPM' | 'IPCA') || 'IGPM')
+  const [preview, setPreview] = useState<{ subject: string; html: string } | null>(null)
+  const [mensagem, setMensagem] = useState('')
+  const [seeded, setSeeded] = useState(false)
+  const [emails, setEmails] = useState<string[]>([])
+  const [novoEmail, setNovoEmail] = useState('')
+  const [salvar, setSalvar] = useState(true)
+  const [est, setEst] = useState<{ pct: number; valor: number } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+
+  const fetchPrev = useCallback(async (index: string, msg?: string) => {
+    setLoading(true)
+    try {
+      const q = new URLSearchParams({ index_type: index })
+      if (msg !== undefined) q.set('mensagem', msg)
+      const res = await api.get<{ subject: string; html: string; mensagem_padrao?: string; cliente_emails?: string[]; percentual?: number; valor_estimado?: number }>(`${base}/aviso-preview?${q.toString()}`)
+      setPreview({ subject: res.subject, html: res.html })
+      setEst({ pct: res.percentual ?? 0, valor: res.valor_estimado ?? 0 })
+      if (!seeded) { setMensagem(res.mensagem_padrao ?? ''); setEmails(res.cliente_emails ?? []); setSeeded(true) }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao gerar a prévia do aviso')
+    } finally { setLoading(false) }
+  }, [base, seeded])
+
+  useEffect(() => { setSeeded(false); void fetchPrev(idx) /* eslint-disable-next-line */ }, [idx])
+
+  const addEmail = () => {
+    const e = novoEmail.trim().toLowerCase()
+    if (!e) return
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { toast.error('E-mail inválido'); return }
+    if (!emails.includes(e)) setEmails(prev => [...prev, e])
+    setNovoEmail('')
+  }
+  const enviar = async () => {
+    if (!emails.length) { toast.error('Informe ao menos um e-mail'); return }
+    setSending(true)
+    try {
+      const res = await api.post<{ emails: string[] }>(`${base}/aviso-send`, { index_type: idx, emails, mensagem: seeded ? mensagem : undefined, salvar })
+      toast.success(`Aviso enviado (${res.emails.length} destinatário${res.emails.length !== 1 ? 's' : ''})`)
+      onClose()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao enviar o aviso')
+    } finally { setSending(false) }
+  }
+  const st = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
+  return (
+    <Modal open onClose={() => { if (!sending) onClose() }} size="md">
+      <ModalHeader icon={CalendarClock} title="Avisar reajuste do próximo mês"
+        subtitle={`${row.cliente_nome ?? '—'} · ${row.codigo ?? '—'}`} onClose={() => { if (!sending) onClose() }} />
+      <ModalBody>
+        <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Índice (estimativa até o momento)</label>
+        <div className="flex gap-2 mt-1.5 mb-3">
+          {(['IGPM', 'IPCA'] as const).map(opt => (
+            <button key={opt} onClick={() => setIdx(opt)}
+              className="flex-1 px-3 py-2 rounded-lg text-sm font-medium"
+              style={{ background: idx === opt ? 'var(--primary-soft)' : 'var(--surface)', border: `1px solid ${idx === opt ? 'var(--primary)' : 'var(--border)'}`, color: 'var(--text)' }}>
+              {opt === 'IGPM' ? 'IGP-M' : 'IPCA'}
+            </button>
+          ))}
+        </div>
+        {est && (
+          <div className="rounded-lg px-3 py-2 mb-3 text-sm" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', color: 'var(--text)' }}>
+            Estimativa: <b>+{est.pct}%</b> → <b>{formatBRL(est.valor)}</b> <span style={{ color: 'var(--text-muted)' }}>(valor NÃO definitivo — depende do índice fechado do próximo mês)</span>
+          </div>
+        )}
+        <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}><Mail size={14} /> Destinatários</label>
+        {emails.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {emails.map(e => (
+              <span key={e} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-border)' }}>
+                {e}<button onClick={() => setEmails(prev => prev.filter(x => x !== e))} style={{ color: 'var(--success)', lineHeight: 0 }}><X size={12} /></button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <input type="email" value={novoEmail} onChange={e => setNovoEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmail() } }}
+            placeholder="adicionar e-mail…" className="flex-1 rounded-lg px-3 py-2 text-sm" style={st} />
+          <button onClick={addEmail} className="px-3 py-2 rounded-lg text-sm font-medium" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>Adicionar</button>
+        </div>
+        <label className="flex items-start gap-2 mt-2.5 text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>
+          <input type="checkbox" checked={salvar} onChange={e => setSalvar(e.target.checked)} className="mt-0.5" />
+          <span>Salvar estes e-mails {row.manual ? 'nesta inclusão manual' : 'no cadastro do cliente'} para os próximos.</span>
+        </label>
+        <div className="mt-3">
+          <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Corpo do e-mail (editável)</label>
+          <textarea value={mensagem} onChange={e => setMensagem(e.target.value)} rows={4} className="w-full rounded-lg px-3 py-2 text-sm mt-1" style={{ ...st, resize: 'vertical', fontFamily: 'inherit' }} />
+          <button onClick={() => fetchPrev(idx, mensagem)} disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium mt-2 disabled:opacity-60" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+            <Mail size={14} /> {loading ? 'Gerando prévia…' : 'Atualizar prévia'}
+          </button>
+          {preview && (
+            <div className="mt-2 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              <div className="px-3 py-2 text-xs font-semibold" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>Assunto: <span style={{ color: 'var(--text)' }}>{preview.subject}</span></div>
+              <iframe title="Prévia do aviso" srcDoc={preview.html} style={{ width: '100%', height: 300, border: 'none', background: '#fff' }} />
+            </div>
+          )}
+        </div>
+      </ModalBody>
+      <ModalFooter>
+        <button onClick={() => { if (!sending) onClose() }} disabled={sending} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+          <X size={15} /> Cancelar
+        </button>
+        <button onClick={enviar} disabled={sending || !emails.length || !preview} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
+          <Send size={15} /> {sending ? 'Enviando…' : 'Enviar aviso'}
         </button>
       </ModalFooter>
     </Modal>
