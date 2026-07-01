@@ -393,7 +393,7 @@ function Inner() {
       // ── grupo (subnível, label-only) ──
       return (
         <div key={n.id}>
-          <div {...dragProps} className="relative flex items-stretch group">
+          <div {...dragProps} className="relative flex items-stretch group" style={{ opacity: n.hidden ? 0.45 : 1 }}>
             {isOver && <span style={{ position: 'absolute', left: (depth + 1) * INDENT, right: 4, top: -1, height: 2, background: 'var(--primary)', borderRadius: 2, zIndex: 5 }} />}
             {rail}
             <div className="flex items-center gap-1.5 flex-1 min-w-0 rounded-md my-[1px] mr-1 px-2 cursor-grab active:cursor-grabbing"
@@ -403,6 +403,11 @@ function Inner() {
               <input value={n.label ?? ''} onChange={e => patchTreeNode(moduleId, n.id, g => ({ ...g, label: e.target.value }))}
                 className="flex-1 bg-transparent text-[13px] font-semibold outline-none min-w-0" style={{ color: 'var(--text)' }} />
               <span className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>{(n.children ?? []).length}</span>
+              {/* desabilitar a PASTA inteira: some com todos os filhos no menu deste perfil */}
+              <button onClick={() => setNodeHidden(moduleId, n.id, !n.hidden)}
+                title={n.hidden ? 'Pasta oculta (esconde todos os filhos) — clique p/ mostrar' : 'Visível — clique p/ ocultar a pasta inteira (todos os filhos somem)'} className="shrink-0">
+                {n.hidden ? <EyeOff size={14} style={{ color: 'var(--text-light)' }} /> : <Eye size={14} style={{ color: 'var(--success-border)' }} />}
+              </button>
               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0">
                 <AddScreen usedKeys={usedKeys} onAdd={k => addScreen(moduleId, n.id, k)} compact />
                 <button onClick={() => addGroup(moduleId, n.id)} title="Nova pasta dentro"><FolderPlus size={13} style={{ color: 'var(--text-muted)' }} /></button>
