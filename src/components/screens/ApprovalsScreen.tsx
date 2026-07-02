@@ -111,9 +111,9 @@ function fmtMin(minutes: number) {
 // < 4h verde | 4-8h amarelo | 8-12h laranja | > 12h vermelho
 function ticketTotalColor(minutes: number): string {
   if (minutes < 240)  return '#10B981'
-  if (minutes < 480)  return '#F59E0B'
+  if (minutes < 480)  return 'var(--warning-border)'
   if (minutes < 720)  return '#F97316'
-  return '#EF4444'
+  return 'var(--danger-border)'
 }
 
 function fmtBRL(val: number) {
@@ -161,45 +161,45 @@ function SearchableSelect({
 
   return (
     <div ref={ref} className="relative">
-      <Label className="text-[11px] text-zinc-500 mb-1 block">{label}</Label>
+      <Label className="text-[11px] text-[var(--text-light)] mb-1 block">{label}</Label>
       <button
         type="button"
         onClick={() => { setOpen(o => !o); setSearch('') }}
-        className="w-full h-8 flex items-center justify-between gap-1 px-2 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded-md outline-none hover:border-zinc-500 transition-colors">
-        <span className={`truncate ${!selected ? 'text-zinc-500' : ''}`}>
+        className="w-full h-8 flex items-center justify-between gap-1 px-2 text-xs bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] rounded-md outline-none hover:border-zinc-500 transition-colors">
+        <span className={`truncate ${!selected ? 'text-[var(--text-light)]' : ''}`}>
           {selected ? selected.name : placeholder}
         </span>
-        <ChevronDown size={11} className={`shrink-0 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={11} className={`shrink-0 text-[var(--text-light)] transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full min-w-[180px] bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-50 mt-1 w-full min-w-[180px] bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden">
           {/* Campo de busca */}
-          <div className="p-1.5 border-b border-zinc-800">
+          <div className="p-1.5 border-b border-[var(--border)]">
             <input
               autoFocus
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar..."
-              className="w-full h-7 px-2 text-xs bg-zinc-800 border border-zinc-700 text-zinc-200 rounded outline-none placeholder:text-zinc-600 focus:border-zinc-500"
+              className="w-full h-7 px-2 text-xs bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] rounded outline-none placeholder:text-[var(--text-muted)] focus:border-zinc-500"
             />
           </div>
           {/* Opções */}
           <div className="max-h-48 overflow-y-auto py-0.5">
             <button type="button" onClick={() => select('')}
               className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${
-                !value ? 'bg-blue-600/20 text-blue-300' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                !value ? 'bg-blue-600/20 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
               }`}>
               {!value && <Check size={10} className="shrink-0" />}
               <span className={!value ? '' : 'ml-[14px]'}>{placeholder}</span>
             </button>
             {filtered.length === 0 && (
-              <p className="px-3 py-2 text-[11px] text-zinc-600 italic">Nenhum resultado</p>
+              <p className="px-3 py-2 text-[11px] text-[var(--text-muted)] italic">Nenhum resultado</p>
             )}
             {filtered.map(o => (
               <button key={o.id} type="button" onClick={() => select(String(o.id))}
                 className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${
-                  String(o.id) === value ? 'bg-blue-600/20 text-blue-300' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                  String(o.id) === value ? 'bg-blue-600/20 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
                 }`}>
                 {String(o.id) === value && <Check size={10} className="shrink-0" />}
                 <span className={String(o.id) === value ? '' : 'ml-[14px]'}>{o.name}</span>
@@ -222,15 +222,15 @@ function OriginLabel({ origin, isInternalAction, isBillableOnly }: {
   if (isInternalAction) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400">Ação Interna</span>
   if (isBillableOnly)   return <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-700/30 text-amber-400">Apenas Fatura</span>
   const labels: Record<string, string> = { manual: 'Manual', webhook: 'Webhook', integration: 'Integração', import: 'Importação' }
-  return <span className="text-[10px] text-zinc-500">{labels[origin ?? ''] ?? (origin || '—')}</span>
+  return <span className="text-[10px] text-[var(--text-light)]">{labels[origin ?? ''] ?? (origin || '—')}</span>
 }
 
 function TsStatusBadge({ status, display }: { status: string; display?: string }) {
   const colors: Record<string, string> = {
     pending:              'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
-    approved:             'bg-green-500/15  text-green-400  border-green-500/20',
-    rejected:             'bg-red-500/15    text-red-400    border-red-500/20',
-    adjustment_requested: 'bg-blue-500/15   text-blue-400   border-blue-500/20',
+    approved:             'bg-green-500/15  text-[var(--success)]  border-green-500/20',
+    rejected:             'bg-red-500/15    text-[var(--danger)]    border-red-500/20',
+    adjustment_requested: 'bg-blue-500/15   text-[var(--primary)]   border-blue-500/20',
     conflicted:           'bg-purple-500/15 text-purple-400 border-purple-500/20',
     internal:             'bg-slate-500/15  text-slate-400  border-slate-500/20',
     released:             'bg-cyan-500/15   text-cyan-400   border-cyan-500/20',
@@ -240,7 +240,7 @@ function TsStatusBadge({ status, display }: { status: string; display?: string }
     adjustment_requested: 'Ajuste', conflicted: 'Conflito', internal: 'Ação Interna', released: 'Liberado',
   }
   return (
-    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${colors[status] ?? 'bg-zinc-700/30 text-zinc-400 border-zinc-600/20'}`}>
+    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${colors[status] ?? 'bg-zinc-700/30 text-[var(--text-muted)] border-zinc-600/20'}`}>
       {display ?? labels[status] ?? status}
     </span>
   )
@@ -277,7 +277,7 @@ function StatusPills({ value, onChange, options }: {
           className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
             value === opt.value
               ? 'bg-cyan-400 text-zinc-900 shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200'
+              : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}>
           {opt.label}
         </button>
@@ -316,11 +316,11 @@ function ReceiptLink({ url }: { url: string }) {
   return (
     <div className="flex items-center gap-3">
       <button onClick={() => handle(false)} disabled={loading}
-        className="inline-flex items-center gap-1.5 text-blue-400 hover:text-blue-300 text-xs disabled:opacity-50">
+        className="inline-flex items-center gap-1.5 text-[var(--primary)] hover:text-[var(--primary)] text-xs disabled:opacity-50">
         <Eye size={11} /> {loading ? 'Carregando...' : 'Visualizar'}
       </button>
       <button onClick={() => handle(true)} disabled={loading}
-        className="inline-flex items-center gap-1.5 text-zinc-400 hover:text-zinc-200 text-xs disabled:opacity-50">
+        className="inline-flex items-center gap-1.5 text-[var(--text-muted)] hover:text-[var(--text)] text-xs disabled:opacity-50">
         <Download size={11} /> Baixar
       </button>
     </div>
@@ -338,8 +338,8 @@ async function openReceiptUrl(url: string) {
 
 const EXP_STATUS_CONF: Record<string, { bg: string; color: string; label: string }> = {
   pending:              { bg: 'rgba(234,179,8,0.12)',  color: '#EAB308', label: 'Pendente' },
-  approved:             { bg: 'rgba(34,197,94,0.12)',  color: '#22C55E', label: 'Aprovado' },
-  rejected:             { bg: 'rgba(239,68,68,0.12)',  color: '#EF4444', label: 'Rejeitado' },
+  approved:             { bg: 'rgba(34,197,94,0.12)',  color: 'var(--success-border)', label: 'Aprovado' },
+  rejected:             { bg: 'rgba(239,68,68,0.12)',  color: 'var(--danger-border)', label: 'Rejeitado' },
   adjustment_requested: { bg: 'rgba(249,115,22,0.12)', color: '#F97316', label: 'Ajuste Solicitado' },
 }
 const EXP_TYPE_LABEL: Record<string, string> = {
@@ -386,7 +386,7 @@ function ExpApproveModal({
   const [adjReason,    setAdjReason]    = useState('')
   const [adjSubmitted, setAdjSubmitted] = useState(false)
 
-  const sc = EXP_STATUS_CONF[item.status] ?? { bg: 'rgba(113,113,122,0.12)', color: '#71717A', label: item.status }
+  const sc = EXP_STATUS_CONF[item.status] ?? { bg: 'rgba(113,113,122,0.12)', color: 'var(--text-light)', label: item.status }
 
   const handleApprove = () => {
     setSubmitted(true)
@@ -478,26 +478,26 @@ function ExpApproveModal({
 
           {/* Cobrar do cliente */}
           {mode === 'approve' && !isOwn && (
-            <div className="rounded-xl border border-zinc-700 bg-zinc-900/60 px-3.5 py-2.5 space-y-2">
-              <p className={`text-xs font-semibold ${submitted && chargeClient === null ? 'text-red-400' : 'text-zinc-300'}`}>
+            <div className="rounded-xl border border-[var(--border)] bg-zinc-900/60 px-3.5 py-2.5 space-y-2">
+              <p className={`text-xs font-semibold ${submitted && chargeClient === null ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>
                 Cobrar do cliente? *
               </p>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setChargeClient(true)}
                   className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${
-                    chargeClient === true ? 'bg-green-600/20 border-green-500 text-green-300' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                    chargeClient === true ? 'bg-green-600/20 border-green-500 text-green-300' : 'border-[var(--border)] text-[var(--text-muted)] hover:border-zinc-500'
                   }`}>
                   Sim — cobrar do cliente
                 </button>
                 <button type="button" onClick={() => setChargeClient(false)}
                   className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${
-                    chargeClient === false ? 'bg-orange-600/20 border-orange-500 text-orange-300' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                    chargeClient === false ? 'bg-orange-600/20 border-orange-500 text-orange-300' : 'border-[var(--border)] text-[var(--text-muted)] hover:border-zinc-500'
                   }`}>
                   Não — absorver internamente
                 </button>
               </div>
               {submitted && chargeClient === null && (
-                <p className="text-red-400 text-[11px]">Selecione uma opção antes de aprovar</p>
+                <p className="text-[var(--danger)] text-[11px]">Selecione uma opção antes de aprovar</p>
               )}
             </div>
           )}
@@ -505,14 +505,14 @@ function ExpApproveModal({
           {/* Solicitar ajuste */}
           {mode === 'adjust' && (
             <div className="rounded-xl border border-blue-700/40 bg-blue-950/20 px-4 py-3 space-y-2">
-              <p className={`text-xs font-semibold ${adjSubmitted && !adjReason.trim() ? 'text-red-400' : 'text-blue-300'}`}>
+              <p className={`text-xs font-semibold ${adjSubmitted && !adjReason.trim() ? 'text-[var(--danger)]' : 'text-[var(--primary)]'}`}>
                 O que precisa ser ajustado? *
               </p>
               <textarea autoFocus value={adjReason} onChange={e => setAdjReason(e.target.value)}
                 placeholder="Descreva o que o colaborador deve corrigir..." rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-zinc-600" />
+                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-[var(--text-muted)]" />
               {adjSubmitted && !adjReason.trim() && (
-                <p className="text-red-400 text-[11px]">Informe o motivo do ajuste</p>
+                <p className="text-[var(--danger)] text-[11px]">Informe o motivo do ajuste</p>
               )}
             </div>
           )}
@@ -522,20 +522,20 @@ function ExpApproveModal({
             {mode === 'approve' ? (
               <>
                 <button onClick={onReject} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-red-700/50 text-red-400 hover:bg-red-400/10 disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-red-700/50 text-[var(--danger)] hover:bg-red-400/10 disabled:opacity-50 transition-colors">
                   <XCircle size={12} /> Rejeitar
                 </button>
                 <button onClick={() => setMode('adjust')} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-blue-700/50 text-blue-400 hover:bg-blue-400/10 disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-blue-700/50 text-[var(--primary)] hover:bg-blue-400/10 disabled:opacity-50 transition-colors">
                   <RotateCcw size={12} /> Solicitar Ajuste
                 </button>
                 <button onClick={onClose} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-zinc-700 text-zinc-300 hover:bg-white/5 disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-[var(--border)] text-[var(--text)] hover:bg-white/5 disabled:opacity-50 transition-colors">
                   Cancelar
                 </button>
                 {!isOwn && (
                   <button onClick={handleApprove} disabled={approving}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-green-600 hover:bg-green-500 text-white disabled:opacity-50 transition-colors">
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-green-600 hover:bg-[var(--success-border)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
                     <Check size={12} /> {approving ? 'Aprovando...' : 'Aprovar'}
                   </button>
                 )}
@@ -543,11 +543,11 @@ function ExpApproveModal({
             ) : (
               <>
                 <button onClick={() => { setMode('approve'); setAdjReason(''); setAdjSubmitted(false) }} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-zinc-700 text-zinc-300 hover:bg-white/5 disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-[var(--border)] text-[var(--text)] hover:bg-white/5 disabled:opacity-50 transition-colors">
                   Voltar
                 </button>
                 <button onClick={handleAdjustment} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
                   <RotateCcw size={12} /> {approving ? 'Enviando...' : 'Enviar Solicitação'}
                 </button>
               </>
@@ -961,24 +961,24 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
       )}
 
       {/* ── Filters ── */}
-      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900">
+      <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
         <button onClick={() => setShowFilters(v => !v)}
-          className="w-full flex items-center justify-between px-4 py-3 text-xs text-zinc-400 hover:text-zinc-200 transition-colors">
+          className="w-full flex items-center justify-between px-4 py-3 text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
           <div className="flex items-center gap-2">
             <Filter size={13} />
             <span className="font-medium">Filtros</span>
             {hasFilters && (
-              <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full px-2 py-0.5 text-[10px]">ativos</span>
+              <span className="bg-blue-500/20 text-[var(--primary)] border border-blue-500/30 rounded-full px-2 py-0.5 text-[10px]">ativos</span>
             )}
           </div>
           <ChevronDown size={13} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
         </button>
 
         {showFilters && (
-          <div className="border-t border-zinc-800 px-4 py-3 space-y-3">
+          <div className="border-t border-[var(--border)] px-4 py-3 space-y-3">
             {/* Linha 1: período + chips de categoria */}
             <div className="flex items-end gap-2 flex-wrap">
-              <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs self-end mb-0.5">
+              <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs self-end mb-0.5">
                 {(['month', 'period'] as const).map((mode) => (
                   <button key={mode} onClick={() => setFilterMode(mode)}
                     className="px-3 py-1.5 font-medium transition-colors"
@@ -1009,10 +1009,10 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                 />
               )}
               {scope !== 'investimento' && ([
-                { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
-                { id: 'projeto',      label: 'Projeto',     color: '#00F5FF',            bg: 'rgba(0,245,255,0.12)',   border: 'rgba(0,245,255,0.35)' },
+                { id: 'sustentacao',  label: 'Sustentação', color: 'var(--warning-border)',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
+                { id: 'projeto',      label: 'Projeto',     color: 'var(--primary)',            bg: 'rgba(0,245,255,0.12)',   border: 'rgba(0,245,255,0.35)' },
                 { id: 'bizify',       label: 'Bizify',      color: '#a78bfa',            bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },
-                { id: 'investimento', label: 'Investimento', color: '#ef4444',           bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)' },
+                { id: 'investimento', label: 'Investimento', color: 'var(--danger-border)',           bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)' },
               ] as const).map(opt => {
                 const active = (categoriaServico || '') === opt.id
                 return (
@@ -1063,7 +1063,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
             </div>
             {hasFilters && (
               <button onClick={clearFilters}
-                className="mt-3 text-[11px] text-zinc-500 hover:text-red-400 transition-colors flex items-center gap-1">
+                className="mt-3 text-[11px] text-[var(--text-light)] hover:text-[var(--danger)] transition-colors flex items-center gap-1">
                 <X size={11} /> Limpar filtros
               </button>
             )}
@@ -1074,23 +1074,23 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
       {/* ── Bulk action bar (apontamentos only) ── */}
       {tab === 'timesheets' && selected.length > 0 && (
         <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600/10 border border-blue-500/20">
-          <span className="text-xs text-blue-300 flex-1">
+          <span className="text-xs text-[var(--primary)] flex-1">
             {selected.length} apontamento(s) selecionado(s)
             <span className="ml-2 font-semibold text-cyan-300">· {fmtMin(selectedMinutes)}</span>
           </span>
           <button onClick={bulkApproveTs} disabled={approving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-600 hover:bg-green-500 text-white disabled:opacity-50 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-600 hover:bg-[var(--success-border)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
             <Check size={12} />{approving ? 'Aprovando...' : 'Aprovar todos'}
           </button>
           <button onClick={() => { setBulkAdjOpen(true); setBulkAdjReason('') }} disabled={approving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-50 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-amber-600 hover:bg-amber-500 text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
             <RotateCcw size={12} /> Solicitar Ajuste
           </button>
           <button onClick={() => { setRejectModal({ open: true, ids: selected }); setRejectReason('') }} disabled={approving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 hover:bg-red-500 text-white disabled:opacity-50 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 hover:bg-[var(--danger-border)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
             <XCircle size={12} /> Rejeitar todos
           </button>
-          <button onClick={() => setSelected([])} className="p-1.5 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors">
+          <button onClick={() => setSelected([])} className="p-1.5 rounded-md text-[var(--text-light)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors">
             <X size={13} />
           </button>
         </div>
@@ -1099,29 +1099,29 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
       {/* ── Export bar ── */}
       {tab === 'timesheets' && tsItems.length > 0 && (
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 text-xs text-zinc-400">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 text-xs text-[var(--text-muted)]">
             <Clock size={12} className="text-cyan-400" />
             Total da página:
             <span className="font-semibold text-cyan-300 ml-1">{fmtMin(totalPageMinutes)}</span>
           </div>
           <button onClick={exportTs}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-500 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-zinc-500 transition-colors">
             <FileSpreadsheet size={13} /> Exportar Excel
           </button>
         </div>
       )}
 
       {/* ── Table (desktop) ── */}
-      <div className="hidden md:block rounded-xl border border-zinc-800 overflow-hidden">
+      <div className="hidden md:block rounded-xl border border-[var(--border)] overflow-hidden">
         <ScrollableX clipY>
         <table className="w-full min-w-max text-xs">
           <thead className="sticky top-0 z-10">
-            <tr className="border-b border-zinc-800 bg-zinc-900">
+            <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
               <th className="px-3 py-2.5 w-10"></th>
               {tab === 'timesheets' && (
                 <th className="px-3 py-2.5 w-8">
                   <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                    className="rounded border-zinc-600 bg-zinc-800 accent-blue-500" />
+                    className="rounded border-[var(--border-strong)] bg-[var(--surface-hover)] accent-blue-500" />
                 </th>
               )}
               {tab === 'timesheets' && (
@@ -1130,25 +1130,25 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                   style={{ color: 'var(--brand-primary)', background: 'rgba(0,245,255,0.06)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
                 >Hist. de Hs Tikets</th>
               )}
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Data</th>
-              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Início</th>}
-              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Fim</th>}
-              {tab === 'timesheets' && <th className="text-right px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Tempo</th>}
-              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Ticket #</th>}
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Inclusão</th>
-              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Origem</th>}
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Colaborador</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Projeto</th>
-              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Título</th>}
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Descrição</th>
-              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Solicitante</th>}
-              {tab === 'expenses'    && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Categoria</th>}
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Tipo de Serviço</th>
-              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Contrato</th>}
-              {tab === 'expenses'   && <th className="text-right px-3 py-2.5 text-zinc-500 font-medium">Valor</th>}
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
-              {tab === 'expenses' && <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Pagamento</th>}
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Data</th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Início</th>}
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Fim</th>}
+              {tab === 'timesheets' && <th className="text-right px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Tempo</th>}
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Ticket #</th>}
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Inclusão</th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Origem</th>}
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Colaborador</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Cliente</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Projeto</th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Título</th>}
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Descrição</th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden xl:table-cell">Solicitante</th>}
+              {tab === 'expenses'    && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Categoria</th>}
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden xl:table-cell">Tipo de Serviço</th>
+              {tab === 'timesheets' && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden xl:table-cell">Contrato</th>}
+              {tab === 'expenses'   && <th className="text-right px-3 py-2.5 text-[var(--text-light)] font-medium">Valor</th>}
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
+              {tab === 'expenses' && <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Pagamento</th>}
             </tr>
           </thead>
           <tbody>
@@ -1168,11 +1168,11 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
             {/* Empty */}
             {!currentLoading && currentItems.length === 0 && (
               <tr>
-                <td colSpan={20} className="px-3 py-16 text-center text-zinc-500">
+                <td colSpan={20} className="px-3 py-16 text-center text-[var(--text-light)]">
                   <CheckSquare size={28} className="mx-auto mb-2 opacity-20" />
                   <p className="text-sm">Nenhum item pendente de aprovação</p>
                   {hasFilters && (
-                    <button onClick={clearFilters} className="mt-2 text-xs text-blue-400 hover:text-blue-300">
+                    <button onClick={clearFilters} className="mt-2 text-xs text-[var(--primary)] hover:text-[var(--primary)]">
                       Limpar filtros
                     </button>
                   )}
@@ -1197,7 +1197,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                 </td>
                 <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                   <input type="checkbox" checked={selected.includes(ts.id)} onChange={() => toggleOne(ts.id)}
-                    className="rounded border-zinc-600 bg-zinc-800 accent-blue-500" />
+                    className="rounded border-[var(--border-strong)] bg-[var(--surface-hover)] accent-blue-500" />
                 </td>
                 <td
                   className="px-3 py-2.5 font-mono text-center hidden lg:table-cell"
@@ -1207,24 +1207,24 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                     ? <span style={{ color: ticketTotalColor(ts.ticket_total_minutes), fontWeight: 700, fontSize: '0.875rem' }}>{fmtMin(ts.ticket_total_minutes)}</span>
                     : <span style={{ color: 'var(--brand-subtle)' }}>—</span>}
                 </td>
-                <td className="px-3 py-2.5 text-zinc-300 whitespace-nowrap">{fmt(ts.date)}</td>
-                <td className="px-3 py-2.5 text-zinc-400 font-mono hidden md:table-cell">{ts.start_time ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-400 font-mono hidden md:table-cell">{ts.end_time ?? '—'}</td>
-                <td className="px-3 py-2.5 text-right font-mono text-zinc-300 hidden md:table-cell">
+                <td className="px-3 py-2.5 text-[var(--text)] whitespace-nowrap">{fmt(ts.date)}</td>
+                <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden md:table-cell">{ts.start_time ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden md:table-cell">{ts.end_time ?? '—'}</td>
+                <td className="px-3 py-2.5 text-right font-mono text-[var(--text)] hidden md:table-cell">
                   {ts.consultant_extra_pct ? (() => {
                     const extraMin = Math.round(ts.effort_minutes * (Number(ts.consultant_extra_pct) / 100))
                     const totalMin = ts.effort_minutes + extraMin
                     return (
                       <div className="flex flex-col items-end gap-0.5">
                         <span>{fmtMin(ts.effort_minutes)}</span>
-                        <span className="text-[10px] font-normal" style={{ color: '#22C55E' }}>
+                        <span className="text-[10px] font-normal" style={{ color: 'var(--success-border)' }}>
                           +{Number(ts.consultant_extra_pct)}% = {fmtMin(totalMin)}
                         </span>
                       </div>
                     )
                   })() : fmtMin(ts.effort_minutes)}
                 </td>
-                <td className="px-3 py-2.5 text-zinc-400 font-mono hidden lg:table-cell">
+                <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden lg:table-cell">
                   {ts.ticket
                     ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer"
                         onClick={e => e.stopPropagation()} className="hover:underline" style={{ color: '#22d3ee' }}>
@@ -1232,24 +1232,24 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                       </a>
                     : '—'}
                 </td>
-                <td className="px-3 py-2.5 text-zinc-400 whitespace-nowrap hidden sm:table-cell">{fmtDateTime(ts.created_at)}</td>
+                <td className="px-3 py-2.5 text-[var(--text-muted)] whitespace-nowrap hidden sm:table-cell">{fmtDateTime(ts.created_at)}</td>
                 <td className="px-3 py-2.5 hidden sm:table-cell">
                   <OriginLabel origin={ts.origin} isInternalAction={ts.is_internal_action} isBillableOnly={ts.is_billable_only} />
                 </td>
-                <td className="px-3 py-2.5 text-zinc-200 font-medium">{ts.user?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden md:table-cell">{ts.project?.customer?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden lg:table-cell truncate max-w-[280px]">{ts.project?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden lg:table-cell truncate max-w-[160px]">{ts.ticket_subject ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text)] font-medium">{ts.user?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-light)] hidden md:table-cell">{ts.project?.customer?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-muted)] hidden lg:table-cell truncate max-w-[280px]">{ts.project?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-light)] hidden lg:table-cell truncate max-w-[160px]">{ts.ticket_subject ?? '—'}</td>
                 <td className="px-3 py-2.5 hidden lg:table-cell max-w-[200px]">
                   {ts.observation ? (
-                    <span title={previewText(ts.observation)} className="block truncate text-zinc-400 cursor-default">
+                    <span title={previewText(ts.observation)} className="block truncate text-[var(--text-muted)] cursor-default">
                       {previewText(ts.observation)}
                     </span>
-                  ) : <span className="text-zinc-600">—</span>}
+                  ) : <span className="text-[var(--text-muted)]">—</span>}
                 </td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{ts.ticket_solicitante?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{(ts.project as any)?.service_type?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{ts.project?.contract_type_display ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-light)] hidden xl:table-cell truncate max-w-[120px]">{ts.ticket_solicitante?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-light)] hidden xl:table-cell truncate max-w-[120px]">{(ts.project as any)?.service_type?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-light)] hidden xl:table-cell truncate max-w-[120px]">{ts.project?.contract_type_display ?? '—'}</td>
                 <td className="px-3 py-2.5">
                   <TsStatusBadge status={ts.status} display={ts.status_display} />
                 </td>
@@ -1275,28 +1275,28 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                     ] : []),
                   ]} />
                 </td>
-                <td className="px-3 py-2.5 text-zinc-300 whitespace-nowrap">{fmt(exp.expense_date)}</td>
-                <td className="px-3 py-2.5 text-zinc-400 whitespace-nowrap hidden sm:table-cell">{fmtDateTime(exp.created_at)}</td>
-                <td className="px-3 py-2.5 text-zinc-200 font-medium">{exp.user?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden md:table-cell">{exp.project?.customer?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden lg:table-cell truncate max-w-[280px]">{exp.project?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text)] whitespace-nowrap">{fmt(exp.expense_date)}</td>
+                <td className="px-3 py-2.5 text-[var(--text-muted)] whitespace-nowrap hidden sm:table-cell">{fmtDateTime(exp.created_at)}</td>
+                <td className="px-3 py-2.5 text-[var(--text)] font-medium">{exp.user?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-light)] hidden md:table-cell">{exp.project?.customer?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-muted)] hidden lg:table-cell truncate max-w-[280px]">{exp.project?.name ?? '—'}</td>
                 <td className="px-3 py-2.5 hidden lg:table-cell max-w-[200px]">
                   <div className="flex items-center gap-1.5">
-                    <span title={exp.description} className="block truncate text-zinc-400 cursor-default">
+                    <span title={exp.description} className="block truncate text-[var(--text-muted)] cursor-default">
                       {exp.description || '—'}
                     </span>
-                    {exp.receipt_url && <Paperclip size={10} className="shrink-0 text-zinc-600" />}
+                    {exp.receipt_url && <Paperclip size={10} className="shrink-0 text-[var(--text-muted)]" />}
                   </div>
                 </td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden lg:table-cell truncate max-w-[120px]">{exp.category?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-500 hidden xl:table-cell truncate max-w-[120px]">{(exp.project as any)?.service_type?.name ?? '—'}</td>
-                <td className="px-3 py-2.5 text-right font-mono text-zinc-300">{fmtBRL(parseFloat(String(exp.amount)) || 0)}</td>
+                <td className="px-3 py-2.5 text-[var(--text-light)] hidden lg:table-cell truncate max-w-[120px]">{exp.category?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-light)] hidden xl:table-cell truncate max-w-[120px]">{(exp.project as any)?.service_type?.name ?? '—'}</td>
+                <td className="px-3 py-2.5 text-right font-mono text-[var(--text)]">{fmtBRL(parseFloat(String(exp.amount)) || 0)}</td>
                 <td className="px-3 py-2.5">
                   <TsStatusBadge status={exp.status} display={exp.status_display} />
                 </td>
                 <td className="px-3 py-2.5">
                   {exp.is_paid
-                    ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-emerald-950/50 text-emerald-400 border-emerald-500/20">Pago</span>
+                    ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-emerald-950/50 text-[var(--success)] border-emerald-500/20">Pago</span>
                     : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-amber-950/50 text-amber-400 border-amber-500/20">Em aberto</span>
                   }
                 </td>
@@ -1323,12 +1323,12 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
 
         {/* Empty */}
         {!currentLoading && currentItems.length === 0 && (
-          <div className="rounded-xl border px-3 py-16 text-center text-zinc-500"
+          <div className="rounded-xl border px-3 py-16 text-center text-[var(--text-light)]"
             style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
             <CheckSquare size={28} className="mx-auto mb-2 opacity-20" />
             <p className="text-sm">Nenhum item pendente de aprovação</p>
             {hasFilters && (
-              <button onClick={clearFilters} className="mt-2 text-xs text-blue-400 hover:text-blue-300">
+              <button onClick={clearFilters} className="mt-2 text-xs text-[var(--primary)] hover:text-[var(--primary)]">
                 Limpar filtros
               </button>
             )}
@@ -1346,7 +1346,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
             <div className="flex items-center gap-2">
               <span onClick={e => e.stopPropagation()} className="shrink-0 flex">
                 <input type="checkbox" checked={selected.includes(ts.id)} onChange={() => toggleOne(ts.id)}
-                  className="rounded border-zinc-600 bg-zinc-800 accent-blue-500" />
+                  className="rounded border-[var(--border-strong)] bg-[var(--surface-hover)] accent-blue-500" />
               </span>
               <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--brand-text)' }}>{ts.user?.name ?? '—'}</span>
               <div onClick={e => e.stopPropagation()} className="shrink-0">
@@ -1406,7 +1406,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
       {/* ── Pagination ── */}
       {currentItems.length > 0 && (
         <div className="flex items-center justify-between mt-3">
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-[var(--text-light)]">
             {currentPag
               ? `${currentPag.from ?? 1}–${currentPag.to ?? currentItems.length} de ${currentPag.total} itens`
               : `${currentItems.length} itens`}
@@ -1415,16 +1415,16 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
             <button
               onClick={() => tab === 'timesheets' ? setTsPage(p => Math.max(1, p - 1)) : setExpPage(p => Math.max(1, p - 1))}
               disabled={(currentPag?.current_page ?? 1) === 1}
-              className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-800 disabled:opacity-30 transition-colors">
+              className="p-1.5 rounded-md text-[var(--text-light)] hover:bg-[var(--surface-hover)] disabled:opacity-30 transition-colors">
               <ChevronLeft size={14} />
             </button>
-            <span className="text-xs text-zinc-500 px-1">
+            <span className="text-xs text-[var(--text-light)] px-1">
               {currentPag?.current_page ?? 1} / {currentPag?.last_page ?? 1}
             </span>
             <button
               onClick={() => tab === 'timesheets' ? setTsPage(p => p + 1) : setExpPage(p => p + 1)}
               disabled={(currentPag?.current_page ?? 1) >= (currentPag?.last_page ?? 1)}
-              className="p-1.5 rounded-md text-zinc-500 hover:bg-zinc-800 disabled:opacity-30 transition-colors">
+              className="p-1.5 rounded-md text-[var(--text-light)] hover:bg-[var(--surface-hover)] disabled:opacity-30 transition-colors">
               <ChevronRight size={14} />
             </button>
           </div>
@@ -1460,23 +1460,23 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
       {/* ── Modal: solicitar ajuste em lote ── */}
       {bulkAdjOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-sm p-5 shadow-xl">
-            <h3 className="text-sm font-semibold text-white mb-1">Solicitar Ajuste</h3>
-            <p className="text-xs text-zinc-400 mb-3">{selected.length} apontamento(s) selecionado(s). Descreva o que os colaboradores devem corrigir.</p>
-            <Label className="text-xs text-zinc-400">Motivo do ajuste *</Label>
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-sm p-5 shadow-xl">
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-1">Solicitar Ajuste</h3>
+            <p className="text-xs text-[var(--text-muted)] mb-3">{selected.length} apontamento(s) selecionado(s). Descreva o que os colaboradores devem corrigir.</p>
+            <Label className="text-xs text-[var(--text-muted)]">Motivo do ajuste *</Label>
             <textarea
               autoFocus
               value={bulkAdjReason}
               onChange={e => setBulkAdjReason(e.target.value)}
               placeholder="Ex: Descrição incompleta, horas incorretas..."
               rows={3}
-              className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-zinc-600"
+              className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-[var(--text-muted)]"
             />
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setBulkAdjOpen(false); setBulkAdjReason('') }}
-                className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
               <Button onClick={bulkAdjTs} disabled={bulkAdjLoading || !bulkAdjReason.trim()}
-                className="h-8 text-xs bg-amber-600 hover:bg-amber-500 text-white">
+                className="h-8 text-xs bg-amber-600 hover:bg-amber-500 text-[var(--primary-fg)]">
                 <RotateCcw size={12} className="mr-1" />
                 {bulkAdjLoading ? 'Enviando...' : 'Solicitar ajuste'}
               </Button>
@@ -1488,23 +1488,23 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
       {/* ── Modal: solicitar ajuste ── */}
       {adjModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-sm p-5 shadow-xl">
-            <h3 className="text-sm font-semibold text-white mb-1">Solicitar Ajuste</h3>
-            <p className="text-xs text-zinc-400 mb-3">Descreva o que o colaborador deve corrigir antes da aprovação.</p>
-            <Label className="text-xs text-zinc-400">Motivo do ajuste *</Label>
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-sm p-5 shadow-xl">
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-1">Solicitar Ajuste</h3>
+            <p className="text-xs text-[var(--text-muted)] mb-3">Descreva o que o colaborador deve corrigir antes da aprovação.</p>
+            <Label className="text-xs text-[var(--text-muted)]">Motivo do ajuste *</Label>
             <textarea
               autoFocus
               value={adjReason}
               onChange={e => setAdjReason(e.target.value)}
               placeholder="Ex: Comprovante ilegível, valor incorreto, descrição incompleta..."
               rows={3}
-              className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-zinc-600"
+              className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-[var(--text-muted)]"
             />
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setAdjModal({ open: false, id: null, type: 'expense' }); setAdjReason('') }}
-                className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
               <Button onClick={handleAdjustment} disabled={adjLoading || !adjReason.trim()}
-                className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                 <RotateCcw size={12} className="mr-1" />
                 {adjLoading ? 'Enviando...' : 'Solicitar ajuste'}
               </Button>
@@ -1516,20 +1516,20 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
       {/* ── Modal: rejeição ── */}
       {rejectModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-sm p-5 shadow-xl">
-            <h3 className="text-sm font-semibold text-white mb-1">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-sm p-5 shadow-xl">
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-1">
               {rejectModal.ids.length === 1 ? 'Rejeitar item' : `Rejeitar ${rejectModal.ids.length} itens`}
             </h3>
-            <p className="text-xs text-zinc-400 mb-3">Informe o motivo da rejeição <span className="text-red-400 font-semibold">(obrigatório)</span>.</p>
-            <Label className="text-xs text-zinc-400">Motivo <span className="text-red-400">*</span></Label>
+            <p className="text-xs text-[var(--text-muted)] mb-3">Informe o motivo da rejeição <span className="text-[var(--danger)] font-semibold">(obrigatório)</span>.</p>
+            <Label className="text-xs text-[var(--text-muted)]">Motivo <span className="text-[var(--danger)]">*</span></Label>
             <Input value={rejectReason} onChange={e => setRejectReason(e.target.value)}
               placeholder="Ex: Fora do prazo, informação incorreta..."
-              className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+              className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setRejectModal({ open: false, ids: [] }); setRejectReason('') }}
-                className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
               <Button onClick={handleReject} disabled={approving || !rejectReason.trim()}
-                className="h-8 text-xs bg-red-600 hover:bg-red-500 text-white disabled:opacity-50">
+                className="h-8 text-xs bg-red-600 hover:bg-[var(--danger-border)] text-[var(--primary-fg)] disabled:opacity-50">
                 {approving ? 'Rejeitando...' : 'Confirmar rejeição'}
               </Button>
             </div>
