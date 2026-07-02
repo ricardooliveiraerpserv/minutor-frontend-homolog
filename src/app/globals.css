@@ -141,10 +141,11 @@
   /* ── NEUTRO ──────────────────────────────────────── */
   --brand-bg:       #E6EAF1;   /* fundo cinza-claro (menos "branco duro"); cards brancos dão profundidade */
   --brand-surface:  #FFFFFF;
+  --brand-panel:    #F1F4F9;   /* Nível 1: painéis/seções/colunas kanban (Sprint 1) */
   --brand-border:   #E2E8F0;
   --brand-text:     #0F172A;
   --brand-muted:    #475569;   /* spec text-secondary */
-  --brand-subtle:   #94A3B8;   /* spec text-muted */
+  --brand-subtle:   #64748B;   /* text terciário — contraste WCAG no claro (Sprint 1) */
 
   /* ── PRIMARY (ação — cyan brand premium) ─────────── */
   --brand-primary:        #06B6D4;   /* cyan brand brilhante */
@@ -181,6 +182,7 @@
   /* NEUTRO */
   --bg:            var(--brand-bg);
   --surface:       var(--brand-surface);
+  --panel:         var(--brand-panel);
   --surface-hover: #F1F5F9;
   --surface-sunken:#EEF2F6;   /* inputs, table header — superfície "afundada" */
   --text:          var(--brand-text);
@@ -227,6 +229,7 @@
   /* ── NEUTRO — dark (paleta original) ──────────────── */
   --brand-bg:       #0A0A0B;
   --brand-surface:  #161618;
+  --brand-panel:    #101013;
   --brand-border:   #27272A;
   --brand-text:     #FAFAFA;
   --brand-muted:    #A1A1AA;
@@ -1021,7 +1024,7 @@ html:not(.dark) .ds-table tbody tr:hover {
  * Alias do que já é feito inline no kanban atual; pronto pra
  * refator quando bater nesse arquivo. */
 .ds-kanban-column {
-  background: var(--surface);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
