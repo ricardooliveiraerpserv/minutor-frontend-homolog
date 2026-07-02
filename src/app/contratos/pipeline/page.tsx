@@ -10,7 +10,7 @@ import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search } from 'lucide-react'
+import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ContractMessages } from '@/components/shared/ContractMessages'
 import { ContractCreateModal } from '@/components/shared/ContractCreateModal'
@@ -71,6 +71,7 @@ interface ProjectCard {
   consultants?: string[]
   contract_type?: string | null
   service_type?: string | null
+  days_in_current_column?: number
 }
 
 interface ContractRequestDetail {
@@ -717,6 +718,18 @@ function ProjectKanbanCard({
               </div>
             </div>
           </div>
+
+          {typeof card.days_in_current_column === 'number' && (
+            <div className="flex items-center gap-1 mb-1.5">
+              <Hourglass size={10} style={{ color: 'var(--text-light)' }} />
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>
+                {card.days_in_current_column === 0
+                  ? 'Nesta fila hoje'
+                  : `${card.days_in_current_column} ${card.days_in_current_column === 1 ? 'dia' : 'dias'} nesta fila`}
+              </span>
+            </div>
+          )}
 
           {card.expected_end_date && (() => {
             const ds = endDateStyle(card.expected_end_date)
