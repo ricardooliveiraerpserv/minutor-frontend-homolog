@@ -670,7 +670,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         className="relative w-10 h-5 rounded-full transition-colors shrink-0"
                         style={{ background: visivel ? 'var(--success-border)' : 'var(--border-strong)' }}
                       >
-                        <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: visivel ? 'translateX(20px)' : 'translateX(0)' }} />
+                        <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[var(--surface)] transition-transform" style={{ transform: visivel ? 'translateX(20px)' : 'translateX(0)' }} />
                       </button>
                     </div>
                   )
@@ -1096,7 +1096,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
   const Toggle2 = ({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) => (
     <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
       <button type="button" onClick={() => onChange(!checked)} className="relative w-10 h-5 rounded-full transition-colors shrink-0" style={{ background: checked ? 'var(--success-border)' : 'var(--border-strong)' }}>
-        <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: checked ? 'translateX(20px)' : 'translateX(0)' }} />
+        <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[var(--surface)] transition-transform" style={{ transform: checked ? 'translateX(20px)' : 'translateX(0)' }} />
       </button>
       <span className="text-xs" style={{ color: 'var(--brand-text)' }}>{label}</span>
     </div>

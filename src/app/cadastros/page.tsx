@@ -203,7 +203,7 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
               <div className="flex items-center gap-2">
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}
                   className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
-                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
                 </button>
                 <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
               </div>
@@ -426,7 +426,7 @@ function CustomersTab() {
               <div className="flex items-center gap-2">
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}
                   className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
-                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
                 </button>
                 <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
               </div>
@@ -761,7 +761,7 @@ function ConsultantGroupsTab() {
               <div className="flex items-center gap-2">
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}
                   className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
-                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
                 </button>
                 <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
               </div>
@@ -1010,7 +1010,7 @@ function HolidaysTab() {
               <div className="flex items-center gap-2">
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}
                   className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
-                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
                 </button>
                 <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
               </div>
@@ -1247,7 +1247,7 @@ function EmailTemplatesTab() {
               <div className="flex items-center gap-2">
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}
                   className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
-                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
                 </button>
                 <Label className="text-xs text-[var(--text-muted)]">Ativo (desativa os outros do mesmo tipo)</Label>
               </div>
@@ -1407,7 +1407,7 @@ function IsActiveCrudTab({ endpoint, label }: { endpoint: string; label: string 
               <div className="flex items-center gap-2">
                 <button onClick={() => setForm(f => ({ ...f, is_active: !f.is_active }))}
                   className={`w-8 h-4 rounded-full transition-colors relative ${form.is_active ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
-                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.is_active ? 'left-4' : 'left-0.5'}`} />
+                  <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${form.is_active ? 'left-4' : 'left-0.5'}`} />
                 </button>
                 <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
               </div>

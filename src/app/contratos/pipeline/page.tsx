@@ -2973,7 +2973,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 className="relative w-10 h-5 rounded-full transition-colors shrink-0"
                 style={{ background: form.allow_negative_balance ? '#22c55e' : 'var(--surface-hover)' }}
               >
-                <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[var(--surface)] transition-transform"
                   style={{ transform: form.allow_negative_balance ? 'translateX(20px)' : 'translateX(0)' }} />
               </button>
               <div>

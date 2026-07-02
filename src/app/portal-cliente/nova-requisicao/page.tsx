@@ -451,7 +451,7 @@ function NovaRequisicaoContent() {
                           border: `2px solid ${form.nivel_urgencia === u.value ? u.color : 'var(--brand-border)'}`,
                           background: form.nivel_urgencia === u.value ? u.color : 'transparent',
                         }}>
-                        {form.nivel_urgencia === u.value && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        {form.nivel_urgencia === u.value && <div className="w-1.5 h-1.5 rounded-full bg-[var(--surface)]" />}
                       </div>
                       <span className="font-medium">{u.label}</span>
                       {form.nivel_urgencia === u.value && (
