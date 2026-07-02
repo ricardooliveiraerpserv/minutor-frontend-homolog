@@ -100,7 +100,7 @@ const STATUS_COLORS: Record<string, string> = {
   approved:             'bg-[var(--success-bg)]  text-[var(--success)]  border-green-500/25',
   rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]    border-red-500/25',
   conflicted:           'bg-[var(--warning-bg)] text-[var(--warning)] border-orange-500/25',
-  adjustment_requested: 'bg-[var(--primary-soft)]   text-[var(--primary)]   border-blue-500/25',
+  adjustment_requested: 'bg-[var(--purple-bg)]   text-[var(--purple)]   border-blue-500/25',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -534,7 +534,7 @@ function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isC
         <span className="text-[10px] text-[var(--text-muted)]">—</span>
         <span className="text-[11px] text-[var(--text-muted)] font-medium">{fmtYearMonth(data.year_month)}</span>
         {isCurrentMonth && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] border border-blue-500/20">Em andamento</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--info-bg)] text-[var(--info)] border border-blue-500/20">Em andamento</span>
         )}
       </div>
 

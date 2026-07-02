@@ -257,7 +257,7 @@ export default function DashboardReajustesPage() {
           <Kpi icon={CheckCircle} tone="success" label="Em dia"
             value={summary?.contratos_em_dia ?? 0}
             sub={summary ? `de ${summary.total_contratos} contratos` : ''} loading={loading} />
-          <Kpi icon={DollarSign} tone="primary" label="Impacto financeiro"
+          <Kpi icon={DollarSign} tone="info" label="Impacto financeiro"
             value={summary ? formatBRL(summary.valor_total_reajustar) : '—'}
             sub="vencidos + próximos" loading={loading} isText />
           <Kpi icon={CalendarClock} tone="warning" label="Defasagem acumulada"
@@ -628,7 +628,7 @@ export default function DashboardReajustesPage() {
 // ─── KPI card ─────────────────────────────────────────────────────────────────
 function Kpi({ icon: Icon, tone, label, value, sub, loading, isText }: {
   icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>
-  tone: 'danger' | 'warning' | 'success' | 'primary'
+  tone: 'danger' | 'warning' | 'success' | 'primary' | 'info'
   label: string
   value: number | string
   sub?: string

@@ -69,7 +69,7 @@ export function DeliveryTimeline({ deliveryId }: { deliveryId: number }) {
               width: 6,
               height: 6,
               borderRadius: '50%',
-              background: 'var(--primary)',
+              background: 'var(--info)',
             }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>

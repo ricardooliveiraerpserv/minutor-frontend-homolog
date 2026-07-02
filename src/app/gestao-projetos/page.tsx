@@ -594,7 +594,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>PAI</span>
                 )}
                 {treeRow && isActive && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>ATIVO</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>ATIVO</span>
                 )}
               </div>
               <p className="text-xs font-mono" style={{ color: 'var(--text-light)' }}>
@@ -769,7 +769,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
         <td className="py-3 whitespace-nowrap">
           {(() => {
             const stMap: Record<string, { bg: string; fg: string; bd: string }> = {
-              started:        { bg: 'var(--primary-soft)', fg: 'var(--primary)',         bd: 'var(--ring)' },
+              started:        { bg: 'var(--info-bg)',      fg: 'var(--info)',            bd: 'var(--info-border)' },
               paused:         { bg: 'var(--warning-bg)',   fg: 'var(--warning)',         bd: 'var(--warning-border)' },
               cancelled:      { bg: 'var(--danger-bg)',    fg: 'var(--danger)',          bd: 'var(--danger-border)' },
               finished:       { bg: 'var(--surface-hover)',fg: 'var(--text-muted)',      bd: 'var(--border)' },

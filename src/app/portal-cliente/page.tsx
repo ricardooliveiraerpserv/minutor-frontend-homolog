@@ -240,7 +240,7 @@ function ProjectTreeNode({
               <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>· {p.contract_type}</span>
             )}
             {hasChildren && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+              <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider" style={{ background: 'var(--info-bg)', color: 'var(--info)' }}>
                 {p.children!.length} {p.children!.length === 1 ? 'sub' : 'subs'}
               </span>
             )}

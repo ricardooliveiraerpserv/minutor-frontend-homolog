@@ -185,7 +185,7 @@ const STATUS_COLORS: Record<string, string> = {
   approved:             'bg-[var(--success-bg)]  text-[var(--success)]',
   rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]',
   conflicted:           'bg-[var(--warning-bg)] text-[var(--warning)]',
-  adjustment_requested: 'bg-[var(--primary-soft)]   text-[var(--primary)]',
+  adjustment_requested: 'bg-[var(--purple-bg)]   text-[var(--purple)]',
 }
 
 // ─── Row action menu ──────────────────────────────────────────────────────────
@@ -1385,11 +1385,11 @@ export default function PartnerDashboardPage() {
                       {indAlerts.map((a, i) => (
                         <div key={i} className="flex items-start gap-3 px-4 py-3 rounded-xl"
                           style={{
-                            background: a.type === 'danger' ? 'var(--danger-bg)' : a.type === 'warning' ? 'var(--warning-bg)' : 'var(--primary-soft)',
-                            border: `1px solid ${a.type === 'danger' ? 'var(--danger-border)' : a.type === 'warning' ? 'var(--warning-border)' : 'var(--primary)'}`,
+                            background: a.type === 'danger' ? 'var(--danger-bg)' : a.type === 'warning' ? 'var(--warning-bg)' : 'var(--info-bg)',
+                            border: `1px solid ${a.type === 'danger' ? 'var(--danger-border)' : a.type === 'warning' ? 'var(--warning-border)' : 'var(--info-border)'}`,
                           }}>
                           <AlertTriangle size={14} className="shrink-0 mt-0.5"
-                            style={{ color: a.type === 'danger' ? 'var(--danger-border)' : a.type === 'warning' ? 'var(--warning-border)' : 'var(--primary)' }} />
+                            style={{ color: a.type === 'danger' ? 'var(--danger-border)' : a.type === 'warning' ? 'var(--warning-border)' : 'var(--info-border)' }} />
                           <p className="text-sm" style={{ color: a.type === 'danger' ? 'var(--danger-border)' : a.type === 'warning' ? 'var(--warning-border)' : 'var(--brand-muted)' }}>
                             {a.text}
                           </p>

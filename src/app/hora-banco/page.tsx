@@ -197,7 +197,7 @@ function HistoryRow({ row, onReopen }: { row: HourBankClosing; onReopen: (ym: st
         <td className="px-4 py-3 text-center">
           {row.status === 'closed'
             ? <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-[var(--text-muted)] bg-[var(--surface-hover)]"><Lock size={8}/>Fechado</span>
-            : <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">Aberto</span>
+            : <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--warning-bg)] text-[var(--warning)]">Aberto</span>
           }
         </td>
       </tr>

@@ -620,7 +620,7 @@ export default function BankHoursFixedPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{p.status_display}</span>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--info-bg)', color: 'var(--info)' }}>{p.status_display}</span>
                     </td>
                     <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--brand-muted)' }}>{p.contract_type_display}</td>
                     <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--brand-text)' }}>
@@ -772,7 +772,7 @@ export default function BankHoursFixedPage() {
                     </td>
                     <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--brand-text)' }}>{p.name}</td>
                     <td className="px-5 py-3.5">
-                      <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{p.status_display ?? p.status ?? '—'}</span>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--info-bg)', color: 'var(--info)' }}>{p.status_display ?? p.status ?? '—'}</span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <button

@@ -406,7 +406,7 @@ function Td({ children, align = 'left' }: { children: React.ReactNode; align?: '
 
 function TypeBadge({ type }: { type: 'internal' | 'candidate' | 'partner' }) {
   const map = {
-    internal:  { label: 'Interno',  bg: 'var(--primary-soft)', fg: 'var(--primary)', bd: 'var(--primary)' },
+    internal:  { label: 'Interno',  bg: 'var(--info-bg)', fg: 'var(--info)', bd: 'var(--info-border)' },
     candidate: { label: 'Candidato', bg: 'var(--warning-bg)',   fg: 'var(--warning)', bd: 'var(--warning-border)' },
     partner:   { label: 'Parceiro',  bg: 'transparent',         fg: 'var(--text-muted)', bd: 'var(--border)' },
   } as const
@@ -427,7 +427,7 @@ function LevelBadge({ level, weight }: { level: string; weight: number }) {
     { bg: 'transparent',          fg: 'var(--text-muted)',     bd: 'var(--border)' },          // 0 (shouldn't happen)
     { bg: 'transparent',          fg: 'var(--text-muted)',     bd: 'var(--border)' },          // 1
     { bg: 'var(--warning-bg)',    fg: 'var(--warning)',        bd: 'var(--warning-border)' },  // 2
-    { bg: 'var(--primary-soft)',  fg: 'var(--primary)',        bd: 'var(--primary)' },         // 3
+    { bg: 'var(--warning-bg)',    fg: 'var(--warning)',        bd: 'var(--warning-border)' },  // 3
     { bg: 'var(--success-bg)',    fg: 'var(--success)',        bd: 'var(--success-border)' },  // 4
   ]
   const cfg = palette[Math.max(0, Math.min(4, weight))]

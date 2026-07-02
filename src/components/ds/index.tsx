@@ -256,7 +256,7 @@ const BADGE_STYLES: Record<string, { bg: string; color: string }> = {
   rejected:             { bg: 'var(--danger-bg)',   color: 'var(--danger)' },
   conflicted:           { bg: 'var(--danger-bg)',   color: 'var(--danger)' },
   internal:             { bg: 'rgba(100,116,139,0.18)', color: '#94A3B8' },
-  released:             { bg: 'rgba(100,116,139,0.18)', color: '#94A3B8' },
+  released:             { bg: 'var(--info-bg)', color: 'var(--info)' },
   adjustment_requested: { bg: 'var(--purple-bg)',  color: 'var(--purple)' },
   // project statuses
   active:    { bg: 'var(--success-bg)',  color: 'var(--success)' },

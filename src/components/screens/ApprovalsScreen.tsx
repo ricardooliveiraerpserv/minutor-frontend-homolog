@@ -230,10 +230,10 @@ function TsStatusBadge({ status, display }: { status: string; display?: string }
     pending:              'bg-[var(--warning-bg)] text-[var(--warning)] border-yellow-500/20',
     approved:             'bg-[var(--success-bg)]  text-[var(--success)]  border-green-500/20',
     rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]    border-red-500/20',
-    adjustment_requested: 'bg-[var(--primary-soft)]   text-[var(--primary)]   border-blue-500/20',
+    adjustment_requested: 'bg-[var(--purple-bg)]   text-[var(--purple)]   border-blue-500/20',
     conflicted:           'bg-[var(--purple-bg)] text-[var(--purple)] border-purple-500/20',
     internal:             'bg-slate-500/15  text-slate-400  border-slate-500/20',
-    released:             'bg-[var(--primary-soft)]   text-[var(--primary)]   border-cyan-500/20',
+    released:             'bg-[var(--info-bg)]   text-[var(--info)]   border-cyan-500/20',
   }
   const labels: Record<string, string> = {
     pending: 'Pendente', approved: 'Aprovado', rejected: 'Rejeitado',

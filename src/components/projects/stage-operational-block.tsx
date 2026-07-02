@@ -24,7 +24,7 @@ const DERIVED_STATUS_LABEL: Record<StageDerivedStatus, string> = {
 
 const DERIVED_STATUS_COLOR: Record<StageDerivedStatus, string> = {
   planejamento: 'var(--text-muted)',
-  execucao:     'var(--primary)',
+  execucao:     'var(--info)',
   homologacao:  'var(--warning)',
   bloqueada:    'var(--danger)',
   concluida:    'var(--success)',
@@ -240,7 +240,7 @@ export function StageOperationalBlock({
             }}>
               <div style={{
                 height: '100%', width: `${Math.min(100, pctDeliveries)}%`,
-                background: 'var(--primary)', transition: 'width .2s ease',
+                background: 'var(--info)', transition: 'width .2s ease',
               }} />
             </div>
           )}
