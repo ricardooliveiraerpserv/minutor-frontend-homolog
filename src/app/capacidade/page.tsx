@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronRight, RefreshCw, Users } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { SectionLoader, InlineLoader } from '@/components/ui/loading'
 import { useUserCapacity, useUserCapacityIndex } from '@/hooks/use-user-capacity'
 
 const HEALTH_COLOR: Record<string, string> = {
@@ -117,7 +118,7 @@ function ConsultantRow({
 
       {expanded && (
         <div style={{ borderTop: '1px solid var(--border)', padding: '12px 14px', background: 'var(--surface-hover)' }}>
-          {loading && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Carregando alocações…</div>}
+          {loading && <InlineLoader label="Carregando alocações…" />}
           {detail && detail.items.length === 0 && (
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem alocações ativas.</div>
           )}
@@ -199,7 +200,7 @@ export default function CapacidadePage() {
           </button>
         </div>
 
-        {loading && <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Carregando…</div>}
+        {loading && items.length === 0 && <SectionLoader />}
         {error && <div style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
 
         {!loading && !error && items.length === 0 && (
@@ -212,7 +213,7 @@ export default function CapacidadePage() {
           </div>
         )}
 
-        {!loading && !error && items.length > 0 && (
+        {!error && items.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {items.map(row => (
               <ConsultantRow

@@ -7,6 +7,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Plus, Search, X, ChevronRight, Clock, AlertTriangle, CheckCircle, XCircle, Inbox } from 'lucide-react'
+import { Skeleton } from '@/components/ui/loading'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -359,9 +360,22 @@ function RequisicoesContent() {
 
         {/* List */}
         <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center h-40">
-              <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando...</p>
+          {loading && data.length === 0 ? (
+            <div>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-5 py-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <div className="w-1 self-stretch rounded-full shrink-0" style={{ background: 'var(--border)' }} />
+                  <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
+                    <div className="col-span-2 space-y-1.5">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-3 w-28" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : data.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 gap-3">

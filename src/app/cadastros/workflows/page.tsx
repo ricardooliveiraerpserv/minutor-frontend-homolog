@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { SectionLoader } from '@/components/ui/loading'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
@@ -182,7 +183,7 @@ export default function WorkflowsPage() {
         </p>
 
         {loading ? (
-          <div className="text-[var(--text-muted)]">Carregando…</div>
+          <SectionLoader />
         ) : orderedDomains.map(domain => {
           const items = workflows.filter(w => w.domain === domain)
           const open = openDomains.has(domain)

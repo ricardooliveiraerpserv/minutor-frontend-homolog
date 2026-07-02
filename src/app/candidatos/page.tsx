@@ -1,6 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
+import { SectionLoader } from '@/components/ui/loading'
 import Link from 'next/link'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/api'
@@ -216,14 +217,12 @@ export default function CandidatosKanbanPage() {
           </div>
         </div>
 
-        {loading && (
-          <div className="ds-card ds-card-pad">
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</p>
-          </div>
+        {loading && candidates.length === 0 && (
+          <SectionLoader />
         )}
 
         {/* Kanban */}
-        {!loading && (
+        {(!loading || candidates.length > 0) && (
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(6, minmax(220px, 1fr))',

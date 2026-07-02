@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { Skeleton } from '@/components/ui/loading'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
@@ -136,8 +137,14 @@ export default function SaldoInicialTicketsPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-xs" style={{ color: 'var(--text-muted)' }}>Carregando…</td></tr>
+                {loading && rows.length === 0 ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={`sk-${i}`} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                      {Array.from({ length: 7 }).map((_, c) => (
+                        <td key={c} className="px-3 py-2.5"><Skeleton className="h-4 w-full" /></td>
+                      ))}
+                    </tr>
+                  ))
                 ) : rows.length === 0 ? (
                   <tr><td colSpan={7} className="text-center py-8 text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum saldo inicial cadastrado.</td></tr>
                 ) : rows.map(r => (

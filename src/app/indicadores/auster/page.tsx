@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import { Briefcase, Clock, CheckCircle2, Activity } from 'lucide-react'
+import { SectionLoader, Skeleton } from '@/components/ui/loading'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -158,13 +159,13 @@ export default function IndicadoresAusterPage() {
             </div>
           </div>
           <div className="p-5">
-            {topLoading && (
-              <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+            {topLoading && topRows.length === 0 && (
+              <SectionLoader className="py-10" />
             )}
             {!topLoading && topRows.length === 0 && (
               <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sem dados.</div>
             )}
-            {!topLoading && topRows.length > 0 && (() => {
+            {topRows.length > 0 && (() => {
               const maxConsumed = Math.max(...topRows.map(p => p.consumed_hours), 1)
               return (
                 <div className="space-y-2.5">
@@ -221,13 +222,20 @@ export default function IndicadoresAusterPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading && (
-                  <tr><td colSpan={4} className="px-5 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</td></tr>
+                {loading && rows.length === 0 && (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={`sk-${i}`}>
+                      <Td><Skeleton className="h-4 w-20" /></Td>
+                      <Td><Skeleton className="h-4 w-16" /></Td>
+                      <Td><Skeleton className="h-4 w-full" /></Td>
+                      <Td align="right"><Skeleton className="h-4 w-16 ml-auto" /></Td>
+                    </tr>
+                  ))
                 )}
                 {!loading && rows.length === 0 && (
                   <tr><td colSpan={4} className="px-5 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Sem projetos.</td></tr>
                 )}
-                {!loading && rows.map(p => (
+                {rows.map(p => (
                   <tr key={p.id} className="ds-row-hover">
                     <Td>{fmtDate(p.start_date)}</Td>
                     <Td><span className="font-mono">{p.code}</span></Td>
@@ -239,7 +247,7 @@ export default function IndicadoresAusterPage() {
                   </tr>
                 ))}
               </tbody>
-              {!loading && summary && (
+              {summary && (
                 <tfoot>
                   <tr style={{ borderTop: '1px solid var(--border)', fontWeight: 600 }}>
                     <Td colSpan={3}>Total</Td>

@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation'
 import { useApiQuery } from '@/hooks/use-query'
 import { ProjectConsolidatedTeam } from '@/components/projects/project-consolidated-team'
+import { Skeleton } from '@/components/ui/loading'
 
 interface ProjectFull {
   id: number
@@ -41,7 +42,18 @@ export default function VisaoGeralPage() {
   )
 
   if (loading || !project) {
-    return <div style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="ds-card ds-card-pad">
+              <Skeleton className="h-3 w-24 mb-2" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   const team = [

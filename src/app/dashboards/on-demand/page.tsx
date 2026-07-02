@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 import { Zap, Clock, DollarSign, Download, Undo2, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { KpiCard } from '@/components/ui/kpi-card'
+import { Skeleton, SkeletonTable } from '@/components/ui/loading'
 import {
   DataTable, DataTableHead, DataTableHeadRow, DataTableHeadCell,
   DataTableBody, DataTableRow, DataTableCell, DataTableEmpty,
@@ -620,8 +621,14 @@ function InlineTimesheetsTable({ rows, loading, onReverseApproved, onReverseSucc
           </DataTableHeadRow>
         </DataTableHead>
         <DataTableBody>
-          {loading ? (
-            <DataTableEmpty colSpan={colSpan} message="Carregando…" />
+          {loading && rows.length === 0 ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <DataTableRow key={`sk-${i}`}>
+                {Array.from({ length: colSpan }).map((_, j) => (
+                  <DataTableCell key={j}><Skeleton className="h-4 w-full" /></DataTableCell>
+                ))}
+              </DataTableRow>
+            ))
           ) : rows.length === 0 ? (
             <DataTableEmpty colSpan={colSpan} message="Sem apontamentos no período selecionado." />
           ) : rows.map(r => {
@@ -683,8 +690,8 @@ function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loading: boo
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{rows.length} tickets</span>
       </div>
       <div className="overflow-x-auto">
-        {loading ? (
-          <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+        {loading && rows.length === 0 ? (
+          <SkeletonTable rows={6} cols={6} />
         ) : (
           <table className="w-full text-sm">
             <thead>

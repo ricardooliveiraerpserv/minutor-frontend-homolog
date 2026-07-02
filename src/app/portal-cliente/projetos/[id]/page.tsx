@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation'
 import { Calendar, Clock, TrendingUp, Activity } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { Skeleton } from '@/components/ui/loading'
 import {
   useClientProjectSummary,
   type HealthLevel,
@@ -117,8 +118,26 @@ export default function VisaoClienteProjetoPage() {
   return (
     <AppLayout title={data?.project?.name ?? 'Projeto'}>
       <div style={{ padding: 24, maxWidth: 980, margin: '0 auto' }}>
-        {loading && (
-          <div style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+        {loading && !data && (
+          <>
+            <div style={{ marginBottom: 24 }}>
+              <Skeleton className="h-3 w-40 mb-2" />
+              <Skeleton className="h-7 w-64" />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 24 }}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} style={{ padding: 16, borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <Skeleton className="h-3 w-20 mb-2" />
+                  <Skeleton className="h-6 w-24" />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-4 w-full" />
+              ))}
+            </div>
+          </>
         )}
         {error && (
           <div style={{ color: 'var(--danger)' }}>{error}</div>

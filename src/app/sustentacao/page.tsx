@@ -23,6 +23,7 @@ import { ExpensesScreen }              from '@/components/screens/ExpensesScreen
 import { ApprovalsScreen }             from '@/components/screens/ApprovalsScreen'
 import { AuditoriaApontamentosScreen } from '@/components/screens/AuditoriaApontamentosScreen'
 import RentabilidadePage              from '@/app/relatorios/rentabilidade/page'
+import { SkeletonTable, CardsSkeleton, InlineLoader } from '@/components/ui/loading'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -580,7 +581,7 @@ function DiagnosticoTab({
       {/* Empresas */}
       {sub === 'empresas' && (
         loading && !debugClientes
-          ? <p className="text-[var(--text-light)] text-sm">Carregando comparativo...</p>
+          ? <SkeletonTable rows={8} cols={5} />
           : debugClientes
             ? <DebugClientesTab rows={debugClientes.rows} onSync={onSyncClientes} />
             : null
@@ -589,7 +590,7 @@ function DiagnosticoTab({
       {/* Usuários */}
       {sub === 'usuarios' && (
         loading && !debugResponsaveis
-          ? <p className="text-[var(--text-light)] text-sm">Carregando responsáveis...</p>
+          ? <SkeletonTable rows={8} cols={5} />
           : loadError && !debugResponsaveis
             ? <div className="rounded-xl border border-red-900/40 bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger)]">{loadError}</div>
             : debugResponsaveis
@@ -1069,9 +1070,9 @@ export default function SustentacaoPage() {
 
       {/* ── Content ── */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        {!routineTab && loading && (
-          <div className="flex items-center gap-2 text-[var(--text-light)] text-sm mb-4">
-            <RefreshCw size={14} className="animate-spin" /> Carregando...
+        {!routineTab && loading && !(tab === 'kpis' && !kpis) && (
+          <div className="mb-4">
+            <InlineLoader />
           </div>
         )}
 
@@ -1750,8 +1751,8 @@ export default function SustentacaoPage() {
           </div>
         )}
 
-        {!loading && !kpis && tab === 'kpis' && (
-          <p className="text-[var(--text-light)] text-sm">Carregando dados...</p>
+        {!routineTab && tab === 'kpis' && !kpis && (
+          <CardsSkeleton count={8} />
         )}
 
         {/* ── CENTRALZINHA: telas idênticas às do menu, escopadas a Sustentação.
@@ -1817,8 +1818,8 @@ function RoutineTable({ kind, rows, total, loading, onRowClick }: {
         </div>
       </div>
       <div className="overflow-x-auto">
-        {loading ? (
-          <div className="py-10 text-center text-sm text-[var(--text-muted)]">Carregando…</div>
+        {loading && rows.length === 0 ? (
+          <SkeletonTable rows={6} cols={6} />
         ) : rows.length === 0 ? (
           <div className="py-10 text-center text-sm text-[var(--text-muted)]">Sem registros no período.</div>
         ) : isExp ? (

@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { UserCheck, FolderOpen, AlertTriangle, CheckCircle2, Sparkles, Plus, AlertOctagon, Users, Flame, Check } from 'lucide-react'
+import { SectionLoader, InlineLoader } from '@/components/ui/loading'
 
 interface ProjectOption {
   id: number
@@ -400,14 +401,14 @@ export default function CoberturaSkillsPage() {
             ))}
           </select>
           {loadingProjects && (
-            <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Carregando projetos…</p>
+            <div className="mt-2"><InlineLoader label="Carregando projetos…" /></div>
           )}
         </div>
 
         {/* Conteúdo da cobertura */}
         {selectedProject && loadingCoverage && (
           <div className="ds-card ds-card-pad">
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Carregando cobertura…</p>
+            <SectionLoader label="Carregando cobertura…" />
           </div>
         )}
 
@@ -664,7 +665,7 @@ export default function CoberturaSkillsPage() {
 
         {selectedProject && loadingTeam && (
           <div className="ds-card ds-card-pad" style={{ marginTop: 8 }}>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Calculando equipe sugerida…</p>
+            <SectionLoader label="Calculando equipe sugerida…" />
           </div>
         )}
 
@@ -685,7 +686,7 @@ export default function CoberturaSkillsPage() {
             </p>
 
             {loadingMatch && (
-              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Calculando matches…</p>
+              <InlineLoader label="Calculando matches…" />
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -841,7 +842,7 @@ export default function CoberturaSkillsPage() {
             </p>
 
             {loadingRecos && (
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Carregando recomendações…</p>
+              <InlineLoader label="Carregando recomendações…" />
             )}
 
             {!loadingRecos && recos.length === 0 && (

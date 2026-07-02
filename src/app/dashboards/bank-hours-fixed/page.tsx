@@ -16,6 +16,7 @@ import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { SearchSelect } from '@/components/ui/search-select'
 import { KpiCard } from '@/components/ui/kpi-card'
+import { SkeletonTable } from '@/components/ui/loading'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1047,8 +1048,8 @@ export default function BankHoursFixedPage() {
                     Projetos do tipo <strong>Fechado</strong> não controlam apontamentos — o valor vendido é comprometido no ato da criação.
                   </p>
                 </div>
-              ) : projectTSLoading ? (
-                <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+              ) : projectTSLoading && projectTSRows.length === 0 ? (
+                <SkeletonTable rows={6} cols={6} />
               ) : projectTSRows.length === 0 ? (
                 <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sem apontamentos no período.</div>
               ) : (
@@ -1371,8 +1372,8 @@ function InlineTimesheetsTable({ rows, loading, variant = 'maintenance', onRowCl
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{rows.length} registros</span>
       </div>
       <div className="overflow-x-auto">
-        {loading ? (
-          <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+        {loading && rows.length === 0 ? (
+          <SkeletonTable rows={6} cols={6} />
         ) : rows.length === 0 ? (
           <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sem apontamentos no período selecionado.</div>
         ) : isArch ? (
@@ -1501,8 +1502,8 @@ function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loading: boo
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{rows.length} tickets</span>
       </div>
       <div className="overflow-x-auto">
-        {loading ? (
-          <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+        {loading && rows.length === 0 ? (
+          <SkeletonTable rows={6} cols={6} />
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -1596,8 +1597,8 @@ function InlineExpensesTable({ rows, loading, onReverseApproved, onReverseSucces
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{rows.length} registros</span>
       </div>
       <div className="overflow-x-auto">
-        {loading ? (
-          <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+        {loading && rows.length === 0 ? (
+          <SkeletonTable rows={6} cols={6} />
         ) : rows.length === 0 ? (
           <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sem despesas no período selecionado.</div>
         ) : (

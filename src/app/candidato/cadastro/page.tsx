@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
+import { SectionLoader } from '@/components/ui/loading'
 import {
   ArrowLeft, ArrowRight, Check, User as UserIcon, Briefcase,
   Star, Send, CheckCircle2, Search,
@@ -230,7 +231,7 @@ export default function CandidatoCadastroPage() {
 
       {loading && (
         <div className="ds-card ds-card-pad">
-          <p style={{ color: 'var(--text-muted)' }}>Carregando…</p>
+          <SectionLoader />
         </div>
       )}
 

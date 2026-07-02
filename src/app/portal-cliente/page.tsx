@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import { SearchSelect } from '@/components/ui/search-select'
+import { CardsSkeleton, Skeleton } from '@/components/ui/loading'
 import {
   Building2, Briefcase, Clock, Headphones, TrendingUp, ChevronDown,
 } from 'lucide-react'
@@ -398,10 +399,23 @@ export default function PortalClientePage() {
           )}
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="rounded-2xl p-10 text-center text-sm" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-            Carregando…
+        {/* Loading (só no 1º load — refetch mantém o conteúdo vivo) */}
+        {loading && !summary && (
+          <div className="space-y-6">
+            <CardsSkeleton count={3} className="grid-cols-1 sm:grid-cols-3 lg:grid-cols-3" />
+            <div className="rounded-xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <Skeleton className="h-4 w-72 mb-4" />
+              <Skeleton className="h-72 w-full" />
+            </div>
+            <div className="rounded-xl p-5 space-y-3.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 flex-1" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -419,8 +433,8 @@ export default function PortalClientePage() {
           </div>
         )}
 
-        {/* Conteúdo */}
-        {!loading && !error && summary && (
+        {/* Conteúdo (permanece visível durante refetch para evitar flicker) */}
+        {!error && summary && (
           <>
             {/* KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

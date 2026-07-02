@@ -1,6 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
+import { Skeleton } from '@/components/ui/loading'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
@@ -426,13 +427,19 @@ export default function ContratosPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && (
-              <tr><td colSpan={listTab === 'projetos' ? 11 : 9} className="px-4 py-8 text-center text-[var(--text-light)] text-xs">Carregando...</td></tr>
+            {loading && visibleContracts.length === 0 && (
+              Array.from({ length: 6 }).map((_, r) => (
+                <tr key={`sk-${r}`} style={{ borderTop: r > 0 ? '1px solid var(--border)' : undefined }}>
+                  {Array.from({ length: listTab === 'projetos' ? 11 : 9 }).map((_, c) => (
+                    <td key={c} className="px-4 py-3"><Skeleton className="h-4 w-full" /></td>
+                  ))}
+                </tr>
+              ))
             )}
             {!loading && visibleContracts.length === 0 && (
               <tr><td colSpan={listTab === 'projetos' ? 11 : 9} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum item encontrado.</td></tr>
             )}
-            {!loading && visibleContracts.map((c, i) => (
+            {visibleContracts.length > 0 && visibleContracts.map((c, i) => (
               <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
                 <td className="w-10 px-2 py-3 text-center relative">
                   <button

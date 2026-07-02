@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { SearchSelect } from '@/components/ui/search-select'
+import { SectionLoader } from '@/components/ui/loading'
 import {
   Webhook, CheckCircle2, XCircle, Clock, RefreshCw, Copy, Check,
   AlertTriangle, Zap, Database, Settings, PlayCircle, Link2, Search,
@@ -522,8 +523,8 @@ export default function MovideskIntegracaoPage() {
           </div>
 
           <div className="space-y-1 max-h-96 overflow-y-auto pr-1">
-            {orgsLoading && <p className="text-xs text-center py-4" style={{ color: 'var(--text-light)' }}>Carregando...</p>}
-            {!orgsLoading && orgs.filter(o =>
+            {orgsLoading && orgs.length === 0 && <SectionLoader className="py-8" />}
+            {(orgs.length > 0 || !orgsLoading) && orgs.filter(o =>
               !orgSearch || o.org_name.toLowerCase().includes(orgSearch.toLowerCase()) || (o.customer_name ?? '').toLowerCase().includes(orgSearch.toLowerCase())
             ).map(org => (
               <div key={org.org_id} className="rounded-xl px-3 py-2.5 transition-colors" style={{ background: 'var(--bg)', border: `1px solid ${!org.project_id ? 'var(--danger-border)' : 'var(--border)'}` }}>
@@ -613,13 +614,13 @@ export default function MovideskIntegracaoPage() {
             ))}
           </div>
 
-          {problemLoading && <p className="text-xs text-center py-4" style={{ color: 'var(--text-light)' }}>Carregando...</p>}
+          {problemLoading && problemTickets.length === 0 && <SectionLoader className="py-8" />}
           {!problemLoading && problemTickets.length === 0 && (
             <p className="text-xs text-center py-4" style={{ color: 'var(--text-light)' }}>
               Nenhum ticket na fila — slow-lane está limpa. 🎉
             </p>
           )}
-          {!problemLoading && problemTickets.length > 0 && (
+          {problemTickets.length > 0 && (
             <div className="space-y-1 max-h-96 overflow-y-auto pr-1">
               {problemTickets.map(t => (
                 <div key={t.id} className="rounded-xl px-3 py-2.5"

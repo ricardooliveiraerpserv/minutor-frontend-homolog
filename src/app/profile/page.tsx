@@ -9,13 +9,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { User, Lock, RefreshCw, Eye, EyeOff, Copy, Check } from 'lucide-react'
+import { Skeleton } from '@/components/ui/loading'
 
 // ─── Password mode ────────────────────────────────────────────────────────────
 
 type PasswordMode = 'none' | 'auto' | 'manual'
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
 
   // Info fields
   const [name,       setName]       = useState('')
@@ -126,23 +127,41 @@ export default function ProfilePage() {
             <h2 className="text-sm font-semibold text-[var(--text)]">Dados pessoais</h2>
           </div>
 
-          <div>
-            <Label className="text-xs text-[var(--text-muted)]">Nome</Label>
-            <Input value={name} onChange={e => setName(e.target.value)}
-              className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
-          </div>
-          <div>
-            <Label className="text-xs text-[var(--text-muted)]">E-mail</Label>
-            <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
-          </div>
+          {authLoading && !user ? (
+            <div className="space-y-4">
+              <div>
+                <Skeleton className="h-3 w-12 mb-1.5" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+              <div>
+                <Skeleton className="h-3 w-14 mb-1.5" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+              <div className="flex justify-end">
+                <Skeleton className="h-8 w-28" />
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <Label className="text-xs text-[var(--text-muted)]">Nome</Label>
+                <Input value={name} onChange={e => setName(e.target.value)}
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs text-[var(--text-muted)]">E-mail</Label>
+                <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+              </div>
 
-          <div className="flex justify-end">
-            <Button onClick={saveInfo} disabled={savingInfo || !name || !email}
-              className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
-              {savingInfo ? 'Salvando...' : 'Salvar dados'}
-            </Button>
-          </div>
+              <div className="flex justify-end">
+                <Button onClick={saveInfo} disabled={savingInfo || !name || !email}
+                  className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                  {savingInfo ? 'Salvando...' : 'Salvar dados'}
+                </Button>
+              </div>
+            </>
+          )}
         </section>
 
         {/* ── Senha ── */}

@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, CheckCircle2, Database, FileText, Loader2, RefreshCw, ShieldAlert, Users } from 'lucide-react'
+import { SkeletonTable, SectionLoader, InlineLoader } from '@/components/ui/loading'
 import { api } from '@/lib/api'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/hooks/use-auth'
@@ -184,8 +185,7 @@ function HealthBanner({ health, loading }: { health: HealthResponse['data'] | nu
   if (loading || !health) {
     return (
       <div className="rounded-xl p-3 flex items-center gap-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <Loader2 size={14} className="animate-spin" style={{ color: 'var(--text-muted)' }} />
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Verificando saúde…</span>
+        <InlineLoader label="Verificando saúde…" />
       </div>
     )
   }
@@ -252,7 +252,7 @@ function ByEntityTable({ stats, loading }: { stats: StatsResponse['data'] | null
   return (
     <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <SectionTitle>Por entity_type</SectionTitle>
-      {loading || !stats ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando…</p> : (
+      {loading || !stats ? <SkeletonTable rows={4} cols={4} /> : (
         <table className="w-full text-xs">
           <thead>
             <tr style={{ color: 'var(--text-light)', borderBottom: '1px solid var(--border)' }}>
@@ -284,7 +284,7 @@ function ByCategoryTable({ stats, loading }: { stats: StatsResponse['data'] | nu
   return (
     <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <SectionTitle>Por category (top 15)</SectionTitle>
-      {loading || !stats ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando…</p> : (
+      {loading || !stats ? <SkeletonTable rows={4} cols={2} /> : (
         <table className="w-full text-xs">
           <thead>
             <tr style={{ color: 'var(--text-light)', borderBottom: '1px solid var(--border)' }}>
@@ -312,7 +312,7 @@ function TopUploaders({ stats, loading }: { stats: StatsResponse['data'] | null;
   return (
     <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <SectionTitle>Top uploaders (top 10)</SectionTitle>
-      {loading || !stats ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando…</p> : (
+      {loading || !stats ? <SkeletonTable rows={4} cols={2} /> : (
         <table className="w-full text-xs">
           <thead>
             <tr style={{ color: 'var(--text-light)', borderBottom: '1px solid var(--border)' }}>
@@ -341,7 +341,7 @@ function VisibilityBreakdown({ stats, loading }: { stats: StatsResponse['data'] 
   return (
     <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <SectionTitle>Por visibilidade</SectionTitle>
-      {loading || !stats ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando…</p> : (
+      {loading || !stats ? <SectionLoader className="py-6" /> : (
         <div className="flex flex-wrap gap-2">
           {Object.entries(stats.by_visibility).map(([k, v]) => (
             <span key={k} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium"
@@ -384,7 +384,7 @@ function EventsTimeline({ events, total, loading }: { events: EventsResponse['da
         <SectionTitle>Timeline transversal — eventos recentes</SectionTitle>
         <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{total.toLocaleString('pt-BR')} eventos no total</span>
       </div>
-      {loading ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Carregando…</p> : (
+      {loading ? <SkeletonTable rows={6} cols={4} /> : (
         <div className="max-h-96 overflow-y-auto overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
