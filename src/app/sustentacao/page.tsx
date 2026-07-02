@@ -227,11 +227,11 @@ function KpiCard({ label, value, sub, color, icon: Icon }: {
   return (
     <div className="rounded-xl border p-4 flex flex-col gap-2" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-400">{label}</span>
+        <span className="text-xs text-[var(--text-muted)]">{label}</span>
         {Icon && <Icon size={16} style={{ color: color ?? CYAN }} />}
       </div>
-      <span className="text-2xl font-bold" style={{ color: color ?? '#fafafa' }}>{value}</span>
-      {sub && <span className="text-xs text-zinc-500">{sub}</span>}
+      <span className="text-2xl font-bold" style={{ color: color ?? 'var(--text)' }}>{value}</span>
+      {sub && <span className="text-xs text-[var(--text-light)]">{sub}</span>}
     </div>
   )
 }
@@ -271,10 +271,10 @@ function DebugClientesTab({ rows, onSync }: { rows: DebugClienteRow[]; onSync: (
   }
 
   const MATCH_OPTIONS: { key: 'all' | 'cnpj' | 'nome' | 'nao'; label: string; color: string }[] = [
-    { key: 'all',  label: `Todos (${matchCounts.all})`,        color: '#71717a' },
-    { key: 'cnpj', label: `✓ CNPJ (${matchCounts.cnpj})`,     color: '#22c55e' },
-    { key: 'nome', label: `~ Nome (${matchCounts.nome})`,      color: '#eab308' },
-    { key: 'nao',  label: `✗ Não vinc. (${matchCounts.nao})`,  color: '#ef4444' },
+    { key: 'all',  label: `Todos (${matchCounts.all})`,        color: 'var(--text-light)' },
+    { key: 'cnpj', label: `✓ CNPJ (${matchCounts.cnpj})`,     color: 'var(--success-border)' },
+    { key: 'nome', label: `~ Nome (${matchCounts.nome})`,      color: 'var(--warning-border)' },
+    { key: 'nao',  label: `✗ Não vinc. (${matchCounts.nao})`,  color: 'var(--danger-border)' },
   ]
 
   const statusCounts = {
@@ -283,20 +283,20 @@ function DebugClientesTab({ rows, onSync }: { rows: DebugClienteRow[]; onSync: (
     inativo: rows.filter(r => r.is_active === false).length,
   }
   const STATUS_OPTIONS: { key: 'all' | 'ativo' | 'inativo'; label: string; color: string }[] = [
-    { key: 'all',     label: `Todos (${statusCounts.all})`,          color: '#71717a' },
-    { key: 'ativo',   label: `Ativo (${statusCounts.ativo})`,        color: '#22c55e' },
-    { key: 'inativo', label: `Inativo (${statusCounts.inativo})`,    color: '#ef4444' },
+    { key: 'all',     label: `Todos (${statusCounts.all})`,          color: 'var(--text-light)' },
+    { key: 'ativo',   label: `Ativo (${statusCounts.ativo})`,        color: 'var(--success-border)' },
+    { key: 'inativo', label: `Inativo (${statusCounts.inativo})`,    color: 'var(--danger-border)' },
   ]
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-zinc-300">Comparativo Clientes: Movidesk × Minutor</h2>
+        <h2 className="text-sm font-semibold text-[var(--text)]">Comparativo Clientes: Movidesk × Minutor</h2>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-zinc-600">{filtered.length} de {rows.length} organizações</span>
+          <span className="text-xs text-[var(--text-muted)]">{filtered.length} de {rows.length} organizações</span>
           <button onClick={handleSync} disabled={syncing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-            style={{ background: 'rgba(0,245,255,0.10)', border: '1px solid rgba(0,245,255,0.25)', color: '#00F5FF' }}>
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
             {syncing ? '⏳ Integrando...' : '⚡ Integrar agora'}
           </button>
         </div>
@@ -313,31 +313,31 @@ function DebugClientesTab({ rows, onSync }: { rows: DebugClienteRow[]; onSync: (
           style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-text)', width: 200 }}
         />
 
-        <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {STATUS_OPTIONS.map(opt => (
             <button key={opt.key} onClick={() => setStatusFilter(opt.key)}
               className="px-3 py-1.5 font-medium transition-colors"
-              style={{ background: statusFilter === opt.key ? 'rgba(255,255,255,0.06)' : 'transparent', color: statusFilter === opt.key ? opt.color : '#71717a' }}>
+              style={{ background: statusFilter === opt.key ? 'var(--surface-hover)' : 'transparent', color: statusFilter === opt.key ? opt.color : 'var(--text-light)' }}>
               {opt.label}
             </button>
           ))}
         </div>
 
-        <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {MATCH_OPTIONS.map(opt => (
             <button key={opt.key} onClick={() => setMatchFilter(opt.key)}
               className="px-3 py-1.5 font-medium transition-colors"
-              style={{ background: matchFilter === opt.key ? 'rgba(255,255,255,0.06)' : 'transparent', color: matchFilter === opt.key ? opt.color : '#71717a' }}>
+              style={{ background: matchFilter === opt.key ? 'var(--surface-hover)' : 'transparent', color: matchFilter === opt.key ? opt.color : 'var(--text-light)' }}>
               {opt.label}
             </button>
           ))}
         </div>
 
-        <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {([['all', 'Todos CNPJ'], ['com', 'Com CNPJ'], ['sem', 'Sem CNPJ']] as const).map(([v, l]) => (
             <button key={v} onClick={() => setCnpjFilter(v)}
               className="px-3 py-1.5 font-medium transition-colors"
-              style={{ background: cnpjFilter === v ? 'rgba(0,245,255,0.10)' : 'transparent', color: cnpjFilter === v ? CYAN : '#71717a' }}>
+              style={{ background: cnpjFilter === v ? 'var(--primary-soft)' : 'transparent', color: cnpjFilter === v ? CYAN : 'var(--text-light)' }}>
               {l}
             </button>
           ))}
@@ -348,45 +348,45 @@ function DebugClientesTab({ rows, onSync }: { rows: DebugClienteRow[]; onSync: (
         <table className="w-full text-xs">
           <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
-              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Organização Movidesk</th>
-              <th className="text-center px-3 py-2.5 text-zinc-400 font-medium">Status</th>
-              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">CNPJ Movidesk</th>
-              <th className="text-right px-3 py-2.5 text-zinc-400 font-medium">Tickets</th>
-              <th className="text-right px-3 py-2.5 text-zinc-400 font-medium">Vinculados</th>
-              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Cliente no Minutor</th>
-              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">CNPJ Minutor</th>
-              <th className="text-center px-3 py-2.5 text-zinc-400 font-medium">Vínculo</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-muted)] font-medium">Organização Movidesk</th>
+              <th className="text-center px-3 py-2.5 text-[var(--text-muted)] font-medium">Status</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-muted)] font-medium">CNPJ Movidesk</th>
+              <th className="text-right px-3 py-2.5 text-[var(--text-muted)] font-medium">Tickets</th>
+              <th className="text-right px-3 py-2.5 text-[var(--text-muted)] font-medium">Vinculados</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-muted)] font-medium">Cliente no Minutor</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-muted)] font-medium">CNPJ Minutor</th>
+              <th className="text-center px-3 py-2.5 text-[var(--text-muted)] font-medium">Vínculo</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((row, i) => {
-              const matchColor = row.match === 'cnpj' ? '#22c55e' : row.match === 'nome' ? '#eab308' : '#ef4444'
+              const matchColor = row.match === 'cnpj' ? 'var(--success-border)' : row.match === 'nome' ? 'var(--warning-border)' : 'var(--danger-border)'
               const matchLabel = row.match === 'cnpj' ? '✓ CNPJ' : row.match === 'nome' ? '~ Nome' : '✗ Não'
               return (
-                <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                  <td className="px-3 py-2 text-zinc-200">{row.org ?? '—'}</td>
+                <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
+                  <td className="px-3 py-2 text-[var(--text)]">{row.org ?? '—'}</td>
                   <td className="px-3 py-2 text-center">
                     {row.is_active === null
-                      ? <span className="text-zinc-600 text-[10px]">—</span>
-                      : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: row.is_active ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', color: row.is_active ? '#22c55e' : '#ef4444' }}>{row.is_active ? 'Ativo' : 'Inativo'}</span>}
+                      ? <span className="text-[var(--text-muted)] text-[10px]">—</span>
+                      : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: row.is_active ? 'var(--success-bg)' : 'var(--danger-bg)', color: row.is_active ? 'var(--success-border)' : 'var(--danger-border)' }}>{row.is_active ? 'Ativo' : 'Inativo'}</span>}
                   </td>
-                  <td className="px-3 py-2 font-mono text-zinc-400">
+                  <td className="px-3 py-2 font-mono text-[var(--text-muted)]">
                     {row.cnpj_movidesk
                       ? row.cnpj_movidesk
                       : row.match === 'nao'
-                        ? <span className="text-zinc-500 italic text-[10px]">sem CNPJ — dept?</span>
+                        ? <span className="text-[var(--text-light)] italic text-[10px]">sem CNPJ — dept?</span>
                         : <span className="text-red-400 italic">vazio</span>}
                   </td>
-                  <td className="px-3 py-2 text-right text-zinc-300">{row.tickets}</td>
-                  <td className="px-3 py-2 text-right" style={{ color: row.vinculados === row.tickets ? '#22c55e' : row.vinculados > 0 ? '#eab308' : '#ef4444' }}>{row.vinculados}</td>
-                  <td className="px-3 py-2 text-zinc-200">{row.minutor_name ?? <span className="text-zinc-600 italic">—</span>}</td>
-                  <td className="px-3 py-2 font-mono text-zinc-400">{row.minutor_cgc ?? <span className="text-zinc-600 italic">—</span>}</td>
+                  <td className="px-3 py-2 text-right text-[var(--text)]">{row.tickets}</td>
+                  <td className="px-3 py-2 text-right" style={{ color: row.vinculados === row.tickets ? 'var(--success-border)' : row.vinculados > 0 ? 'var(--warning-border)' : 'var(--danger-border)' }}>{row.vinculados}</td>
+                  <td className="px-3 py-2 text-[var(--text)]">{row.minutor_name ?? <span className="text-[var(--text-muted)] italic">—</span>}</td>
+                  <td className="px-3 py-2 font-mono text-[var(--text-muted)]">{row.minutor_cgc ?? <span className="text-[var(--text-muted)] italic">—</span>}</td>
                   <td className="px-3 py-2 text-center font-semibold" style={{ color: matchColor }}>{matchLabel}</td>
                 </tr>
               )
             })}
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-8 text-center text-zinc-600">Nenhum resultado para os filtros selecionados.</td></tr>
+              <tr><td colSpan={8} className="px-3 py-8 text-center text-[var(--text-muted)]">Nenhum resultado para os filtros selecionados.</td></tr>
             )}
           </tbody>
         </table>
@@ -431,13 +431,13 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-zinc-300">Responsáveis por Ticket: Movidesk × Minutor</h2>
+        <h2 className="text-sm font-semibold text-[var(--text)]">Responsáveis por Ticket: Movidesk × Minutor</h2>
         <div className="flex items-center gap-3">
           {syncing && <span className="text-xs text-cyan-400">⏳ Rodando em background...</span>}
-          <span className="text-xs text-zinc-600">{filtered.length} de {rows.length} responsáveis</span>
+          <span className="text-xs text-[var(--text-muted)]">{filtered.length} de {rows.length} responsáveis</span>
           <button onClick={handleSync} disabled={syncing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-            style={{ background: 'rgba(0,245,255,0.10)', border: '1px solid rgba(0,245,255,0.25)', color: '#00F5FF' }}>
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
             {syncing ? '⏳ Aguardando...' : '⚡ Integrar agora'}
           </button>
         </div>
@@ -452,29 +452,29 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
           className="px-3 py-1.5 rounded-lg text-xs bg-transparent outline-none"
           style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-text)', width: 220 }}
         />
-        <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {([
-            { key: 'all',        label: `Todos (${rows.length})`,         color: '#71717a' },
-            { key: 'encontrado', label: `✓ No Minutor (${found})`,        color: '#22c55e' },
-            { key: 'nao',        label: `✗ Não encontrado (${notFound})`, color: '#ef4444' },
+            { key: 'all',        label: `Todos (${rows.length})`,         color: 'var(--text-light)' },
+            { key: 'encontrado', label: `✓ No Minutor (${found})`,        color: 'var(--success-border)' },
+            { key: 'nao',        label: `✗ Não encontrado (${notFound})`, color: 'var(--danger-border)' },
           ] as const).map(opt => (
             <button key={opt.key} onClick={() => setMatchFilter(opt.key)}
               className="px-3 py-1.5 font-medium transition-colors"
-              style={{ background: matchFilter === opt.key ? 'rgba(255,255,255,0.06)' : 'transparent', color: matchFilter === opt.key ? opt.color : '#71717a' }}>
+              style={{ background: matchFilter === opt.key ? 'var(--surface-hover)' : 'transparent', color: matchFilter === opt.key ? opt.color : 'var(--text-light)' }}>
               {opt.label}
             </button>
           ))}
         </div>
 
-        <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {([
-            { key: 'all',     label: `Todos`,              color: '#71717a' },
-            { key: 'ativo',   label: `● Ativo (${ativos})`,   color: '#22c55e' },
-            { key: 'inativo', label: `● Inativo (${inativos})`, color: '#ef4444' },
+            { key: 'all',     label: `Todos`,              color: 'var(--text-light)' },
+            { key: 'ativo',   label: `● Ativo (${ativos})`,   color: 'var(--success-border)' },
+            { key: 'inativo', label: `● Inativo (${inativos})`, color: 'var(--danger-border)' },
           ] as const).map(opt => (
             <button key={opt.key} onClick={() => setStatusFilter(opt.key)}
               className="px-3 py-1.5 font-medium transition-colors"
-              style={{ background: statusFilter === opt.key ? 'rgba(255,255,255,0.06)' : 'transparent', color: statusFilter === opt.key ? opt.color : '#71717a' }}>
+              style={{ background: statusFilter === opt.key ? 'var(--surface-hover)' : 'transparent', color: statusFilter === opt.key ? opt.color : 'var(--text-light)' }}>
               {opt.label}
             </button>
           ))}
@@ -485,14 +485,14 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
         <table className="w-full text-xs">
           <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
-              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Nome Movidesk</th>
-              <th className="text-center px-3 py-2.5 text-zinc-400 font-medium">Status</th>
-              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Email Movidesk</th>
-              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Equipe</th>
-              <th className="text-right px-3 py-2.5 text-zinc-400 font-medium">Tickets</th>
-              <th className="text-right px-3 py-2.5 text-zinc-400 font-medium">Vinculados</th>
-              <th className="text-left px-3 py-2.5 text-zinc-400 font-medium">Nome no Minutor</th>
-              <th className="text-center px-3 py-2.5 text-zinc-400 font-medium">Vínculo</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-muted)] font-medium">Nome Movidesk</th>
+              <th className="text-center px-3 py-2.5 text-[var(--text-muted)] font-medium">Status</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-muted)] font-medium">Email Movidesk</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-muted)] font-medium">Equipe</th>
+              <th className="text-right px-3 py-2.5 text-[var(--text-muted)] font-medium">Tickets</th>
+              <th className="text-right px-3 py-2.5 text-[var(--text-muted)] font-medium">Vinculados</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-muted)] font-medium">Nome no Minutor</th>
+              <th className="text-center px-3 py-2.5 text-[var(--text-muted)] font-medium">Vínculo</th>
             </tr>
           </thead>
           <tbody>
@@ -500,18 +500,18 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
               const matchColor = row.match === 'encontrado' ? '#22c55e' : '#ef4444'
               const matchLabel = row.match === 'encontrado' ? '✓ Encontrado' : '✗ Não'
               return (
-                <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                  <td className="px-3 py-2 text-zinc-200">{row.owner_name ?? '—'}</td>
+                <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
+                  <td className="px-3 py-2 text-[var(--text)]">{row.owner_name ?? '—'}</td>
                   <td className="px-3 py-2 text-center" title={row.last_ticket_at ? `Último ticket: ${row.last_ticket_at}` : undefined}>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: row.is_active ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', color: row.is_active ? '#22c55e' : '#ef4444' }}>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: row.is_active ? 'var(--success-bg)' : 'var(--danger-bg)', color: row.is_active ? 'var(--success-border)' : 'var(--danger-border)' }}>
                       {row.is_active ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
-                  <td className="px-3 py-2 font-mono text-zinc-400">{row.owner_email}</td>
-                  <td className="px-3 py-2 text-zinc-500">{row.team ?? '—'}</td>
-                  <td className="px-3 py-2 text-right text-zinc-300">{row.tickets}</td>
-                  <td className="px-3 py-2 text-right" style={{ color: row.vinculados === row.tickets ? '#22c55e' : row.vinculados > 0 ? '#eab308' : '#ef4444' }}>{row.vinculados}</td>
-                  <td className="px-3 py-2 text-zinc-300">{row.minutor_name ?? <span className="text-zinc-600 italic">—</span>}</td>
+                  <td className="px-3 py-2 font-mono text-[var(--text-muted)]">{row.owner_email}</td>
+                  <td className="px-3 py-2 text-[var(--text-light)]">{row.team ?? '—'}</td>
+                  <td className="px-3 py-2 text-right text-[var(--text)]">{row.tickets}</td>
+                  <td className="px-3 py-2 text-right" style={{ color: row.vinculados === row.tickets ? 'var(--success-border)' : row.vinculados > 0 ? 'var(--warning-border)' : 'var(--danger-border)' }}>{row.vinculados}</td>
+                  <td className="px-3 py-2 text-[var(--text)]">{row.minutor_name ?? <span className="text-[var(--text-muted)] italic">—</span>}</td>
                   <td className="px-3 py-2 text-center">
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${matchColor}18`, color: matchColor }}>{matchLabel}</span>
                   </td>
@@ -519,7 +519,7 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
               )
             })}
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-8 text-center text-zinc-600 text-xs">Nenhum resultado para os filtros selecionados.</td></tr>
+              <tr><td colSpan={8} className="px-3 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum resultado para os filtros selecionados.</td></tr>
             )}
           </tbody>
         </table>
@@ -533,7 +533,7 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border p-5" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-      <h3 className="text-sm font-semibold text-zinc-300 mb-4">{title}</h3>
+      <h3 className="text-sm font-semibold text-[var(--text)] mb-4">{title}</h3>
       {children}
     </div>
   )
@@ -580,7 +580,7 @@ function DiagnosticoTab({
       {/* Empresas */}
       {sub === 'empresas' && (
         loading && !debugClientes
-          ? <p className="text-zinc-500 text-sm">Carregando comparativo...</p>
+          ? <p className="text-[var(--text-light)] text-sm">Carregando comparativo...</p>
           : debugClientes
             ? <DebugClientesTab rows={debugClientes.rows} onSync={onSyncClientes} />
             : null
@@ -589,7 +589,7 @@ function DiagnosticoTab({
       {/* Usuários */}
       {sub === 'usuarios' && (
         loading && !debugResponsaveis
-          ? <p className="text-zinc-500 text-sm">Carregando responsáveis...</p>
+          ? <p className="text-[var(--text-light)] text-sm">Carregando responsáveis...</p>
           : loadError && !debugResponsaveis
             ? <div className="rounded-xl border border-red-900/40 bg-red-950/20 px-4 py-3 text-sm text-red-400">{loadError}</div>
             : debugResponsaveis
@@ -634,21 +634,21 @@ function MultiSelect({ label, options, selected, onChange, placeholder = 'Buscar
 
   return (
     <div className="flex flex-col gap-1 relative" ref={ref}>
-      <label className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide">{label}</label>
+      <label className="text-[10px] text-[var(--text-light)] font-medium uppercase tracking-wide">{label}</label>
       <button type="button" onClick={() => setOpen(o => !o)}
         className="text-xs rounded-lg px-2.5 py-1.5 border outline-none flex items-center justify-between gap-2"
-        style={{ background: 'var(--brand-surface)', borderColor: selected.length > 0 ? '#00F5FF' : 'var(--brand-border)', color: '#e4e4e7', minWidth: 160 }}>
-        <span style={{ color: selected.length > 0 ? '#00F5FF' : '#e4e4e7' }}>{triggerLabel}</span>
-        <ChevronDown size={12} className="text-zinc-500 shrink-0" />
+        style={{ background: 'var(--brand-surface)', borderColor: selected.length > 0 ? 'var(--primary)' : 'var(--brand-border)', color: 'var(--text)', minWidth: 160 }}>
+        <span style={{ color: selected.length > 0 ? 'var(--primary)' : 'var(--text)' }}>{triggerLabel}</span>
+        <ChevronDown size={12} className="text-[var(--text-light)] shrink-0" />
       </button>
       {open && (
         <div className="absolute top-full left-0 z-50 mt-1 rounded-lg border shadow-xl flex flex-col"
-          style={{ background: '#18181b', borderColor: 'var(--brand-border)', minWidth: 220, maxHeight: 320 }}>
+          style={{ background: 'var(--surface)', borderColor: 'var(--brand-border)', minWidth: 220, maxHeight: 320 }}>
           <div className="p-2 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
             <input autoFocus type="text" placeholder={placeholder}
               value={search} onChange={e => setSearch(e.target.value)}
               className="w-full text-xs px-2 py-1.5 rounded outline-none"
-              style={{ background: '#27272a', color: '#e4e4e7', border: 'none' }} />
+              style={{ background: 'var(--surface-hover)', color: 'var(--text)', border: 'none' }} />
           </div>
           <div className="overflow-y-auto">
             {filtered.length > 0 && (() => {
@@ -659,7 +659,7 @@ function MultiSelect({ label, options, selected, onChange, placeholder = 'Buscar
                   onClick={() => allSel
                     ? onChange(selected.filter(v => !vals.includes(v)))
                     : onChange(Array.from(new Set([...selected, ...vals])))}
-                  className="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 hover:bg-zinc-800"
+                  className="w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2 hover:bg-[var(--surface-hover)]"
                   style={{ color: 'var(--primary)', borderBottom: '1px solid var(--brand-border)' }}>
                   <span className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center border"
                     style={{ borderColor: 'var(--primary)', background: allSel ? 'var(--primary)' : 'var(--surface)' }}>
@@ -671,8 +671,8 @@ function MultiSelect({ label, options, selected, onChange, placeholder = 'Buscar
             })()}
             {selected.length > 0 && (
               <button type="button" onClick={() => onChange([])}
-                className="w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-zinc-800"
-                style={{ color: '#a1a1aa', borderBottom: '1px solid var(--brand-border)' }}>
+                className="w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-[var(--surface-hover)]"
+                style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--brand-border)' }}>
                 Limpar seleção
               </button>
             )}
@@ -680,8 +680,8 @@ function MultiSelect({ label, options, selected, onChange, placeholder = 'Buscar
               const checked = selected.includes(opt.value)
               return (
                 <button type="button" key={opt.value} onClick={() => toggle(opt.value)}
-                  className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-zinc-800"
-                  style={{ color: checked ? 'var(--primary)' : '#e4e4e7', fontWeight: checked ? 500 : 400 }}>
+                  className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-[var(--surface-hover)]"
+                  style={{ color: checked ? 'var(--primary)' : 'var(--text)', fontWeight: checked ? 500 : 400 }}>
                   <span className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center border"
                     style={{ borderColor: checked ? 'var(--primary)' : 'var(--border-strong)', background: checked ? 'var(--primary)' : 'var(--surface)' }}>
                     {checked && <Check size={9} color="var(--primary-fg)" strokeWidth={3} />}
@@ -691,7 +691,7 @@ function MultiSelect({ label, options, selected, onChange, placeholder = 'Buscar
               )
             })}
             {filtered.length === 0 && (
-              <p className="px-3 py-4 text-xs text-zinc-500 text-center">Nenhum resultado</p>
+              <p className="px-3 py-4 text-xs text-[var(--text-light)] text-center">Nenhum resultado</p>
             )}
           </div>
         </div>
@@ -703,22 +703,22 @@ function MultiSelect({ label, options, selected, onChange, placeholder = 'Buscar
 function DrillTicketTable({ tickets }: { tickets: QueueTicket[] }) {
   return (
     <table className="w-full text-xs">
-      <thead className="sticky top-0 z-10" style={{ background: 'rgba(255,255,255,0.03)' }}>
-        <tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'rgba(255,255,255,0.03)' }}>
+      <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)' }}>
+        <tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'var(--surface-sunken)' }}>
           {['#', 'Título', 'Urgência', 'Status', 'Cliente', 'Responsável', 'SLA Solução'].map(h => (
-            <th key={h} className="px-4 py-2 text-left font-medium text-zinc-500">{h}</th>
+            <th key={h} className="px-4 py-2 text-left font-medium text-[var(--text-light)]">{h}</th>
           ))}
         </tr>
       </thead>
       <tbody>
         {tickets.map((t, i) => (
-          <tr key={t.id} className="border-b hover:bg-zinc-800/40 transition-colors"
-            style={{ borderColor: 'var(--brand-border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+          <tr key={t.id} className="border-b hover:bg-[var(--surface-hover)] transition-colors"
+            style={{ borderColor: 'var(--brand-border)', background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
             <td className="px-4 py-2 font-mono">
               <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                 className="text-cyan-400 hover:text-cyan-300 hover:underline">{t.ticket_id}</a>
             </td>
-            <td className="px-4 py-2 text-white max-w-[240px] truncate">
+            <td className="px-4 py-2 text-[var(--text)] max-w-[240px] truncate">
               <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                 className="hover:text-cyan-300 hover:underline">{t.titulo ?? '—'}</a>
             </td>
@@ -730,14 +730,14 @@ function DrillTicketTable({ tickets }: { tickets: QueueTicket[] }) {
             </td>
             <td className="px-4 py-2">
               <div className="flex flex-col gap-0.5">
-                <span className="text-zinc-300">{t.status ?? STATUS_LABEL[t.base_status] ?? t.base_status}</span>
-                {t.status && <span className="text-[10px] text-zinc-500">{STATUS_LABEL[t.base_status] ?? t.base_status}</span>}
+                <span className="text-[var(--text)]">{t.status ?? STATUS_LABEL[t.base_status] ?? t.base_status}</span>
+                {t.status && <span className="text-[10px] text-[var(--text-light)]">{STATUS_LABEL[t.base_status] ?? t.base_status}</span>}
               </div>
             </td>
-            <td className="px-4 py-2 text-zinc-300 max-w-[140px] truncate">{clienteMovidesk(t)}</td>
-            <td className="px-4 py-2 text-zinc-300">{t.responsavel?.name ?? t.user?.name ?? '—'}</td>
+            <td className="px-4 py-2 text-[var(--text)] max-w-[140px] truncate">{clienteMovidesk(t)}</td>
+            <td className="px-4 py-2 text-[var(--text)]">{t.responsavel?.name ?? t.user?.name ?? '—'}</td>
             <td className="px-4 py-2">
-              <span style={{ color: isOverdue(t.sla_solution_date) ? RED : '#fafafa' }}>{fmtDate(t.sla_solution_date)}</span>
+              <span style={{ color: isOverdue(t.sla_solution_date) ? RED : 'var(--text)' }}>{fmtDate(t.sla_solution_date)}</span>
             </td>
           </tr>
         ))}
@@ -957,12 +957,12 @@ export default function SustentacaoPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap px-4 md:px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
         <div>
-          <h1 className="text-lg font-bold text-white">Portal de Sustentação</h1>
-          <p className="text-xs text-zinc-500">Central operacional de suporte — Movidesk + Minutor</p>
+          <h1 className="text-lg font-bold text-[var(--text)]">Portal de Sustentação</h1>
+          <p className="text-xs text-[var(--text-light)]">Central operacional de suporte — Movidesk + Minutor</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Toggle Mês/Ano ↔ Período */}
-          <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+          <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
             {(['month', 'period'] as const).map((mode) => (
               <button key={mode} onClick={() => setFilterMode(mode)}
                 className="px-3 py-1.5 font-medium transition-colors flex items-center gap-1.5"
@@ -989,8 +989,8 @@ export default function SustentacaoPage() {
             />
           )}
 
-          <button onClick={refresh} className="p-1.5 rounded hover:bg-zinc-800 transition-colors">
-            <RefreshCw size={14} className={`text-zinc-400 ${loading ? 'animate-spin' : ''}`} />
+          <button onClick={refresh} className="p-1.5 rounded hover:bg-[var(--surface-hover)] transition-colors">
+            <RefreshCw size={14} className={`text-[var(--text-muted)] ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -1018,7 +1018,7 @@ export default function SustentacaoPage() {
                   title={r.desc}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors"
                   style={{
-                    background: active ? 'rgba(0,245,255,0.10)' : 'var(--brand-bg)',
+                    background: active ? 'var(--primary-soft)' : 'var(--brand-bg)',
                     border: active ? '1px solid var(--primary)' : '1px solid var(--brand-border)',
                     color: active ? 'var(--primary)' : 'var(--text)',
                   }}
@@ -1070,7 +1070,7 @@ export default function SustentacaoPage() {
       {/* ── Content ── */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {!routineTab && loading && (
-          <div className="flex items-center gap-2 text-zinc-500 text-sm mb-4">
+          <div className="flex items-center gap-2 text-[var(--text-light)] text-sm mb-4">
             <RefreshCw size={14} className="animate-spin" /> Carregando...
           </div>
         )}
@@ -1104,7 +1104,7 @@ export default function SustentacaoPage() {
           const { pct_critical, pct_stopped, sla_breach_pct, avg_resolution_hours, lead_time_avg_hours, aging, pct_hours_consumed, total_sold_h, total_used_h, hours_per_ticket, top_clients, by_category, by_urgency } = indicadores
 
           const kpiColor = (v: number | null, thresholds: [number, number]): string => {
-            if (v == null) return '#71717a'
+            if (v == null) return 'var(--text-light)'
             if (v < thresholds[0]) return GREEN
             if (v < thresholds[1]) return YELLOW
             return RED
@@ -1129,9 +1129,9 @@ export default function SustentacaoPage() {
                   { label: 'Tempo Médio Resolução',     value: avg_resolution_hours != null ? `${avg_resolution_hours}h` : '—', sub: 'baseado em sla_solution_time', color: kpiColor(avg_resolution_hours, [8, 24]) },
                 ].map(c => (
                   <div key={c.label} className="rounded-xl border p-4 flex flex-col gap-1" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                    <span className="text-[11px] text-zinc-400">{c.label}</span>
+                    <span className="text-[11px] text-[var(--text-muted)]">{c.label}</span>
                     <span className="text-3xl font-bold" style={{ color: c.color }}>{c.value}</span>
-                    <span className="text-[10px] text-zinc-600">{c.sub}</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">{c.sub}</span>
                   </div>
                 ))}
               </div>
@@ -1139,12 +1139,12 @@ export default function SustentacaoPage() {
               {/* ROW 2 — Aging + Lead Time/Horas por Ticket */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 rounded-xl border p-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
-                  <p className="text-xs font-semibold text-zinc-300 mb-4">Aging — Tickets Abertos</p>
+                  <p className="text-xs font-semibold text-[var(--text)] mb-4">Aging — Tickets Abertos</p>
                   <div className="space-y-3">
                     {agingBuckets.map(b => (
                       <div key={b.label} className="flex items-center gap-3">
-                        <span className="text-[11px] text-zinc-400 w-20 shrink-0">{b.label}</span>
-                        <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)', height: 10 }}>
+                        <span className="text-[11px] text-[var(--text-muted)] w-20 shrink-0">{b.label}</span>
+                        <div className="flex-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', height: 10 }}>
                           <div className="h-full rounded-full transition-all" style={{ width: `${(b.value / agingMax) * 100}%`, background: b.color }} />
                         </div>
                         <span className="text-[11px] font-semibold w-8 text-right" style={{ color: b.color }}>{b.value}</span>
@@ -1154,18 +1154,18 @@ export default function SustentacaoPage() {
                 </div>
                 <div className="flex flex-col gap-3">
                   <div className="rounded-xl border p-4 flex flex-col gap-1" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                    <span className="text-[11px] text-zinc-400">Lead Time Médio</span>
+                    <span className="text-[11px] text-[var(--text-muted)]">Lead Time Médio</span>
                     <span className="text-3xl font-bold" style={{ color: kpiColor(lead_time_avg_hours, [8, 24]) }}>
                       {lead_time_avg_hours != null ? `${lead_time_avg_hours}h` : '—'}
                     </span>
-                    <span className="text-[10px] text-zinc-600">abertura → fechamento</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">abertura → fechamento</span>
                   </div>
                   <div className="rounded-xl border p-4 flex flex-col gap-1" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                    <span className="text-[11px] text-zinc-400">Horas / Ticket</span>
+                    <span className="text-[11px] text-[var(--text-muted)]">Horas / Ticket</span>
                     <span className="text-3xl font-bold" style={{ color: CYAN }}>
                       {hours_per_ticket != null ? `${hours_per_ticket}h` : '—'}
                     </span>
-                    <span className="text-[10px] text-zinc-600">horas apontadas por ticket resolvido</span>
+                    <span className="text-[10px] text-[var(--text-muted)]">horas apontadas por ticket resolvido</span>
                   </div>
                 </div>
               </div>
@@ -1173,10 +1173,10 @@ export default function SustentacaoPage() {
               {/* ROW 3 — Consumo de Horas */}
               <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
                 <div className="flex items-center justify-between flex-wrap gap-3">
-                  <p className="text-xs font-semibold text-zinc-300">Consumo de Horas por Cliente</p>
+                  <p className="text-xs font-semibold text-[var(--text)]">Consumo de Horas por Cliente</p>
                   <div className="flex items-center gap-4">
                     <div className="flex flex-col items-end">
-                      <span className="text-xs text-zinc-500">Consumido / Vendido</span>
+                      <span className="text-xs text-[var(--text-light)]">Consumido / Vendido</span>
                       <span className="text-sm font-bold" style={{ color: kpiColor(pct_hours_consumed, [70, 90]) }}>
                         {total_used_h}h / {total_sold_h}h
                         {pct_hours_consumed != null && <span className="ml-1 text-[11px]">({pct_hours_consumed}%)</span>}
@@ -1194,54 +1194,54 @@ export default function SustentacaoPage() {
                         pct: c.pct,
                       }))}
                       margin={{ left: 0, right: 55, top: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                      <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" width={130} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }}
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: 'var(--text-light)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={130} tick={{ fill: 'var(--text)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
                         labelFormatter={(_: any, pl: any) => pl?.[0]?.payload?.fullName ?? ''}
                         formatter={(v: any, name: any) => [`${v}h`, name]} />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="Vendido (h)" fill="#3f3f46" radius={[0,3,3,0]} />
+                      <Bar dataKey="Vendido (h)" fill="var(--border-strong)" radius={[0,3,3,0]} />
                       <Bar dataKey="Usado (h)" fill={CYAN} radius={[0,3,3,0]}
-                        label={{ position: 'right', fill: '#71717a', fontSize: 10, formatter: (v: any) => v > 0 ? `${v}h` : '' }} />
+                        label={{ position: 'right', fill: 'var(--text-light)', fontSize: 10, formatter: (v: any) => v > 0 ? `${v}h` : '' }} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-xs text-zinc-500 py-4 text-center">Nenhum dado de timesheet no período.</p>
+                  <p className="text-xs text-[var(--text-light)] py-4 text-center">Nenhum dado de timesheet no período.</p>
                 )}
               </div>
 
               {/* ROW 4 — Distribuição Categoria + Urgência */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="rounded-xl border p-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
-                  <p className="text-xs font-semibold text-zinc-300 mb-3">Distribuição por Categoria</p>
+                  <p className="text-xs font-semibold text-[var(--text)] mb-3">Distribuição por Categoria</p>
                   <ResponsiveContainer width="100%" height={Math.max(160, by_category.length * 30)}>
                     <BarChart layout="vertical" data={by_category.map(b => ({ name: b.label, count: b.count }))}
                       margin={{ left: 0, right: 40, top: 0, bottom: 0 }}>
-                      <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" width={100} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }} />
+                      <XAxis type="number" tick={{ fill: 'var(--text-light)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={100} tick={{ fill: 'var(--text)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
                       <Bar dataKey="count" name="Tickets" fill={BLUE} radius={[0,3,3,0]}
-                        label={{ position: 'right', fill: '#71717a', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }} />
+                        label={{ position: 'right', fill: 'var(--text-light)', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="rounded-xl border p-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
-                  <p className="text-xs font-semibold text-zinc-300 mb-3">Distribuição por Urgência</p>
+                  <p className="text-xs font-semibold text-[var(--text)] mb-3">Distribuição por Urgência</p>
                   <ResponsiveContainer width="100%" height={Math.max(160, by_urgency.length * 30)}>
                     <BarChart layout="vertical" data={by_urgency.map(b => ({
                       name: b.label,
                       count: b.count,
-                      fill: b.label === 'Urgente' ? RED : b.label === 'Alta' ? ORANGE : b.label === 'Normal' ? CYAN : '#71717a',
+                      fill: b.label === 'Urgente' ? RED : b.label === 'Alta' ? ORANGE : b.label === 'Normal' ? CYAN : 'var(--text-light)',
                     }))}
                       margin={{ left: 0, right: 40, top: 0, bottom: 0 }}>
-                      <XAxis type="number" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" width={70} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', borderRadius: 8, fontSize: 12 }} />
+                      <XAxis type="number" tick={{ fill: 'var(--text-light)', fontSize: 10 }} axisLine={false} tickLine={false} />
+                      <YAxis type="category" dataKey="name" width={70} tick={{ fill: 'var(--text)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
                       <Bar dataKey="count" name="Tickets" radius={[0,3,3,0]}
-                        label={{ position: 'right', fill: '#71717a', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }}>
+                        label={{ position: 'right', fill: 'var(--text-light)', fontSize: 10, formatter: (v: any) => v > 0 ? v : '' }}>
                         {by_urgency.map((b, i) => (
-                          <Cell key={i} fill={b.label === 'Urgente' ? RED : b.label === 'Alta' ? ORANGE : b.label === 'Normal' ? CYAN : '#71717a'} />
+                          <Cell key={i} fill={b.label === 'Urgente' ? RED : b.label === 'Alta' ? ORANGE : b.label === 'Normal' ? CYAN : 'var(--text-light)'} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -1257,7 +1257,7 @@ export default function SustentacaoPage() {
           <div className="space-y-3">
           {/* Painel Contextual */}
           {contextStats && (
-            <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'rgba(0,245,255,0.2)', background: 'rgba(0,245,255,0.03)' }}>
+            <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--primary)', background: 'var(--primary-soft)' }}>
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">
                   {contextStats.filter.responsavel.length > 0 && contextStats.filter.cliente.length > 0
@@ -1265,8 +1265,8 @@ export default function SustentacaoPage() {
                     : contextStats.filter.responsavel.length > 0 ? 'Visão por Responsável' : 'Visão por Cliente'}
                 </p>
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] text-zinc-500">{contextStats.filter.responsavel.length} resp. · {contextStats.filter.cliente.length} cliente(s)</span>
-                  <button onClick={() => setContextStats(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 rounded">
+                  <span className="text-[10px] text-[var(--text-light)]">{contextStats.filter.responsavel.length} resp. · {contextStats.filter.cliente.length} cliente(s)</span>
+                  <button onClick={() => setContextStats(null)} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors p-0.5 rounded">
                     <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                   </button>
                 </div>
@@ -1274,59 +1274,59 @@ export default function SustentacaoPage() {
               <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
                 {/* Abertos */}
                 <div className="rounded-lg p-3 text-center" style={{ background: 'var(--brand-surface)' }}>
-                  <p className="text-[10px] text-zinc-500 mb-1">Abertos</p>
-                  <p className="text-xl font-bold text-white">{contextStats.tickets_open}</p>
+                  <p className="text-[10px] text-[var(--text-light)] mb-1">Abertos</p>
+                  <p className="text-xl font-bold text-[var(--text)]">{contextStats.tickets_open}</p>
                 </div>
                 {/* Resolvidos */}
                 <div className="rounded-lg p-3 text-center" style={{ background: 'var(--brand-surface)' }}>
-                  <p className="text-[10px] text-zinc-500 mb-1">Resolvidos</p>
+                  <p className="text-[10px] text-[var(--text-light)] mb-1">Resolvidos</p>
                   <p className="text-xl font-bold" style={{ color: GREEN }}>{contextStats.tickets_resolved}</p>
                 </div>
                 {/* SLA violado */}
                 <div className="rounded-lg p-3 text-center" style={{ background: 'var(--brand-surface)' }}>
-                  <p className="text-[10px] text-zinc-500 mb-1">SLA Violado</p>
+                  <p className="text-[10px] text-[var(--text-light)] mb-1">SLA Violado</p>
                   <p className="text-xl font-bold" style={{ color: contextStats.sla_breached > 0 ? RED : GREEN }}>{contextStats.sla_breached}</p>
                 </div>
                 {/* SLA em risco */}
                 <div className="rounded-lg p-3 text-center" style={{ background: 'var(--brand-surface)' }}>
-                  <p className="text-[10px] text-zinc-500 mb-1">Em Risco (4h)</p>
+                  <p className="text-[10px] text-[var(--text-light)] mb-1">Em Risco (4h)</p>
                   <p className="text-xl font-bold" style={{ color: contextStats.sla_at_risk > 0 ? ORANGE : GREEN }}>{contextStats.sla_at_risk}</p>
                 </div>
                 {/* Taxa SLA */}
                 <div className="rounded-lg p-3 text-center" style={{ background: 'var(--brand-surface)' }}>
-                  <p className="text-[10px] text-zinc-500 mb-1">SLA %</p>
-                  <p className="text-xl font-bold" style={{ color: contextStats.sla_rate == null ? '#71717a' : contextStats.sla_rate >= 90 ? GREEN : contextStats.sla_rate >= 70 ? YELLOW : RED }}>
+                  <p className="text-[10px] text-[var(--text-light)] mb-1">SLA %</p>
+                  <p className="text-xl font-bold" style={{ color: contextStats.sla_rate == null ? 'var(--text-light)' : contextStats.sla_rate >= 90 ? GREEN : contextStats.sla_rate >= 70 ? YELLOW : RED }}>
                     {contextStats.sla_rate != null ? `${contextStats.sla_rate}%` : '—'}
                   </p>
                 </div>
                 {/* Tempo médio */}
                 <div className="rounded-lg p-3 text-center" style={{ background: 'var(--brand-surface)' }}>
-                  <p className="text-[10px] text-zinc-500 mb-1">Tempo Médio</p>
-                  <p className="text-xl font-bold text-white">{contextStats.avg_solution_min ? fmt(contextStats.avg_solution_min) : '—'}</p>
+                  <p className="text-[10px] text-[var(--text-light)] mb-1">Tempo Médio</p>
+                  <p className="text-xl font-bold text-[var(--text)]">{contextStats.avg_solution_min ? fmt(contextStats.avg_solution_min) : '—'}</p>
                 </div>
                 {/* Ticket mais antigo */}
                 <div className="rounded-lg p-3 text-center" style={{ background: 'var(--brand-surface)' }}>
-                  <p className="text-[10px] text-zinc-500 mb-1">Mais Antigo</p>
+                  <p className="text-[10px] text-[var(--text-light)] mb-1">Mais Antigo</p>
                   <p className="text-xl font-bold" style={{ color: (contextStats.oldest_open_days ?? 0) > 30 ? RED : (contextStats.oldest_open_days ?? 0) > 7 ? ORANGE : GREEN }}>
                     {contextStats.oldest_open_days != null ? `${contextStats.oldest_open_days}d` : '—'}
                   </p>
                 </div>
                 {/* +4h */}
                 <div className="rounded-lg p-3 text-center" style={{ background: 'var(--brand-surface)' }}>
-                  <p className="text-[10px] text-zinc-500 mb-1">Abertos +4h</p>
+                  <p className="text-[10px] text-[var(--text-light)] mb-1">Abertos +4h</p>
                   <p className="text-xl font-bold" style={{ color: contextStats.over_4h > 0 ? ORANGE : GREEN }}>{contextStats.over_4h}</p>
                 </div>
                 {/* Horas apontadas (só quando filtra por responsável) */}
                 {contextStats.filter.responsavel.length > 0 && (
                   <div className="rounded-lg p-3 text-center" style={{ background: 'var(--brand-surface)' }}>
-                    <p className="text-[10px] text-zinc-500 mb-1">H. Apontadas</p>
-                    <p className="text-xl font-bold text-white">{contextStats.hours_worked_min != null ? fmt(contextStats.hours_worked_min) : '—'}</p>
+                    <p className="text-[10px] text-[var(--text-light)] mb-1">H. Apontadas</p>
+                    <p className="text-xl font-bold text-[var(--text)]">{contextStats.hours_worked_min != null ? fmt(contextStats.hours_worked_min) : '—'}</p>
                   </div>
                 )}
                 {/* Produtividade (só quando filtra por responsável) */}
                 {contextStats.filter.responsavel.length > 0 && (
                   <div className="rounded-lg p-3 text-center" style={{ background: 'var(--brand-surface)' }}>
-                    <p className="text-[10px] text-zinc-500 mb-1">Tickets/h</p>
+                    <p className="text-[10px] text-[var(--text-light)] mb-1">Tickets/h</p>
                     <p className="text-xl font-bold" style={{ color: CYAN }}>{contextStats.productivity != null ? contextStats.productivity : '—'}</p>
                   </div>
                 )}
@@ -1337,24 +1337,24 @@ export default function SustentacaoPage() {
                 {/* Por Consultor */}
                 {contextStats.by_consultant.length > 0 && (
                   <div>
-                    <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide mb-2">Por Consultor</p>
+                    <p className="text-[10px] text-[var(--text-light)] font-medium uppercase tracking-wide mb-2">Por Consultor</p>
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                          <th className="text-left py-1.5 text-zinc-500 font-medium">Consultor</th>
-                          <th className="text-center py-1.5 text-zinc-500 font-medium">Abertos</th>
-                          <th className="text-center py-1.5 text-zinc-500 font-medium">Em Atend.</th>
-                          <th className="text-center py-1.5 text-zinc-500 font-medium">SLA Viol.</th>
-                          <th className="text-center py-1.5 text-zinc-500 font-medium">SLA %</th>
+                          <th className="text-left py-1.5 text-[var(--text-light)] font-medium">Consultor</th>
+                          <th className="text-center py-1.5 text-[var(--text-light)] font-medium">Abertos</th>
+                          <th className="text-center py-1.5 text-[var(--text-light)] font-medium">Em Atend.</th>
+                          <th className="text-center py-1.5 text-[var(--text-light)] font-medium">SLA Viol.</th>
+                          <th className="text-center py-1.5 text-[var(--text-light)] font-medium">SLA %</th>
                         </tr>
                       </thead>
                       <tbody>
                         {contextStats.by_consultant.map(c => (
                           <tr key={c.name} className="border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                            <td className="py-1.5 text-white font-medium">{c.name}</td>
-                            <td className="py-1.5 text-center text-zinc-300">{c.total_open}</td>
+                            <td className="py-1.5 text-[var(--text)] font-medium">{c.name}</td>
+                            <td className="py-1.5 text-center text-[var(--text)]">{c.total_open}</td>
                             <td className="py-1.5 text-center" style={{ color: CYAN }}>{c.in_attendance}</td>
-                            <td className="py-1.5 text-center" style={{ color: c.sla_breached > 0 ? RED : '#71717a' }}>{c.sla_breached}</td>
+                            <td className="py-1.5 text-center" style={{ color: c.sla_breached > 0 ? RED : 'var(--text-light)' }}>{c.sla_breached}</td>
                             <td className="py-1.5 text-center font-bold" style={{ color: c.sla_ok_pct >= 90 ? GREEN : c.sla_ok_pct >= 70 ? YELLOW : RED }}>{c.sla_ok_pct}%</td>
                           </tr>
                         ))}
@@ -1365,23 +1365,23 @@ export default function SustentacaoPage() {
                 {/* Por Cliente */}
                 {contextStats.by_client.length > 0 && (
                   <div>
-                    <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide mb-2">Por Cliente</p>
+                    <p className="text-[10px] text-[var(--text-light)] font-medium uppercase tracking-wide mb-2">Por Cliente</p>
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                          <th className="text-left py-1.5 text-zinc-500 font-medium">Cliente</th>
-                          <th className="text-center py-1.5 text-zinc-500 font-medium">Abertos</th>
-                          <th className="text-center py-1.5 text-zinc-500 font-medium">Em Atend.</th>
-                          <th className="text-center py-1.5 text-zinc-500 font-medium">SLA Viol.</th>
+                          <th className="text-left py-1.5 text-[var(--text-light)] font-medium">Cliente</th>
+                          <th className="text-center py-1.5 text-[var(--text-light)] font-medium">Abertos</th>
+                          <th className="text-center py-1.5 text-[var(--text-light)] font-medium">Em Atend.</th>
+                          <th className="text-center py-1.5 text-[var(--text-light)] font-medium">SLA Viol.</th>
                         </tr>
                       </thead>
                       <tbody>
                         {contextStats.by_client.map(c => (
                           <tr key={c.name} className="border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                            <td className="py-1.5 text-white font-medium max-w-[180px] truncate">{c.name}</td>
-                            <td className="py-1.5 text-center text-zinc-300">{c.total_open}</td>
+                            <td className="py-1.5 text-[var(--text)] font-medium max-w-[180px] truncate">{c.name}</td>
+                            <td className="py-1.5 text-center text-[var(--text)]">{c.total_open}</td>
                             <td className="py-1.5 text-center" style={{ color: CYAN }}>{c.in_attendance}</td>
-                            <td className="py-1.5 text-center" style={{ color: c.sla_breached > 0 ? RED : '#71717a' }}>{c.sla_breached}</td>
+                            <td className="py-1.5 text-center" style={{ color: c.sla_breached > 0 ? RED : 'var(--text-light)' }}>{c.sla_breached}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1396,11 +1396,11 @@ export default function SustentacaoPage() {
           <div className="flex gap-2 flex-wrap items-end">
             {/* Busca livre */}
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide">Buscar</label>
+              <label className="text-[10px] text-[var(--text-light)] font-medium uppercase tracking-wide">Buscar</label>
               <input type="text" placeholder="# ou título..." value={queueSearch}
                 onChange={e => setQueueSearch(e.target.value)}
                 className="text-xs rounded-lg px-2.5 py-1.5 border outline-none"
-                style={{ background: 'var(--brand-surface)', borderColor: queueSearch ? '#00F5FF' : 'var(--brand-border)', color: '#e4e4e7', width: 155 }} />
+                style={{ background: 'var(--brand-surface)', borderColor: queueSearch ? 'var(--primary)' : 'var(--brand-border)', color: 'var(--text)', width: 155 }} />
             </div>
             <MultiSelect label="Urgência"
               options={['Urgente', 'Alta', 'Normal', 'Baixa'].map(u => ({ value: u, label: u }))}
@@ -1421,31 +1421,31 @@ export default function SustentacaoPage() {
               selected={queueFilterCliente} onChange={setQueueFilterCliente} />
             {(queueSearch || queueFilterUrgencia.length || queueFilterStatus.length || queueFilterResp.length || queueFilterCliente.length) ? (
               <button onClick={() => { setQueueSearch(''); setQueueFilterUrgencia([]); setQueueFilterStatus([]); setQueueFilterResp([]); setQueueFilterCliente([]) }}
-                className="text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-zinc-800 self-end"
-                style={{ borderColor: 'var(--brand-border)', color: '#71717a' }}>
+                className="text-xs px-3 py-1.5 rounded-lg border transition-colors hover:bg-[var(--surface-hover)] self-end"
+                style={{ borderColor: 'var(--brand-border)', color: 'var(--text-light)' }}>
                 Limpar
               </button>
             ) : null}
-            <span className="text-xs text-zinc-500 ml-auto self-end pb-1.5">{queue.total} tickets</span>
+            <span className="text-xs text-[var(--text-light)] ml-auto self-end pb-1.5">{queue.total} tickets</span>
           </div>
           <div className="overflow-auto rounded-xl border" style={{ borderColor: 'var(--brand-border)' }}>
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
                   {['#', 'Título', 'Urgência', 'Status', 'Cliente', 'Solicitante', 'Responsável', 'Equipe', 'SLA Solução', 'Aberto em'].map(h => (
-                    <th key={h} className="px-3 py-2.5 text-left font-medium text-zinc-400">{h}</th>
+                    <th key={h} className="px-3 py-2.5 text-left font-medium text-[var(--text-muted)]">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {queue.data.map((t, i) => (
-                  <tr key={t.id} className="border-b hover:bg-zinc-800/40 transition-colors"
-                    style={{ borderColor: 'var(--brand-border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                  <tr key={t.id} className="border-b hover:bg-[var(--surface-hover)] transition-colors"
+                    style={{ borderColor: 'var(--brand-border)', background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
                     <td className="px-3 py-2 font-mono">
                       <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                         className="text-cyan-400 hover:text-cyan-300 hover:underline">{t.ticket_id}</a>
                     </td>
-                    <td className="px-3 py-2 text-white max-w-[200px] truncate">
+                    <td className="px-3 py-2 text-[var(--text)] max-w-[200px] truncate">
                       <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                         className="hover:text-cyan-300 hover:underline">{t.titulo ?? '—'}</a>
                     </td>
@@ -1457,24 +1457,24 @@ export default function SustentacaoPage() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-zinc-300">{t.status ?? STATUS_LABEL[t.base_status] ?? t.base_status}</span>
-                        {t.status && <span className="text-[10px] text-zinc-500">{STATUS_LABEL[t.base_status] ?? t.base_status}</span>}
+                        <span className="text-[var(--text)]">{t.status ?? STATUS_LABEL[t.base_status] ?? t.base_status}</span>
+                        {t.status && <span className="text-[10px] text-[var(--text-light)]">{STATUS_LABEL[t.base_status] ?? t.base_status}</span>}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-zinc-300">{clienteMovidesk(t)}</td>
-                    <td className="px-3 py-2 text-zinc-400 max-w-[160px] truncate">{t.solicitante?.name ?? '—'}</td>
-                    <td className="px-3 py-2 text-zinc-300">{t.responsavel?.name ?? t.user?.name ?? '—'}</td>
-                    <td className="px-3 py-2 text-zinc-400">{t.owner_team ?? '—'}</td>
+                    <td className="px-3 py-2 text-[var(--text)]">{clienteMovidesk(t)}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)] max-w-[160px] truncate">{t.solicitante?.name ?? '—'}</td>
+                    <td className="px-3 py-2 text-[var(--text)]">{t.responsavel?.name ?? t.user?.name ?? '—'}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)]">{t.owner_team ?? '—'}</td>
                     <td className="px-3 py-2">
-                      <span style={{ color: isOverdue(t.sla_solution_date) ? RED : '#fafafa' }}>
+                      <span style={{ color: isOverdue(t.sla_solution_date) ? RED : 'var(--text)' }}>
                         {fmtDate(t.sla_solution_date)}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-zinc-400">{fmtDate(t.created_date)}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)]">{fmtDate(t.created_date)}</td>
                   </tr>
                 ))}
                 {queue.data.length === 0 && (
-                  <tr><td colSpan={10} className="px-3 py-8 text-center text-zinc-500">Nenhum ticket em aberto</td></tr>
+                  <tr><td colSpan={10} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum ticket em aberto</td></tr>
                 )}
               </tbody>
             </table>
@@ -1486,7 +1486,7 @@ export default function SustentacaoPage() {
         {!routineTab && tab === 'sla' && slaData && (
           <div className="space-y-6">
             {slaData.breaching_now.length > 0 && (
-              <div className="rounded-xl border border-red-500/30 p-4" style={{ background: 'rgba(239,68,68,0.05)' }}>
+              <div className="rounded-xl border border-red-500/30 p-4" style={{ background: 'var(--danger-bg)' }}>
                 <h3 className="text-sm font-semibold text-red-400 mb-3 flex items-center gap-1.5">
                   <AlertTriangle size={14} /> {slaData.breaching_now.length} ticket(s) com SLA estourado agora
                 </h3>
@@ -1497,11 +1497,11 @@ export default function SustentacaoPage() {
                         <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
                           className="font-mono text-cyan-400 hover:text-cyan-300 hover:underline">#{t.ticket_id}</a>
                         <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
-                          className="text-white hover:text-cyan-300 hover:underline">{t.titulo ?? '—'}</a>
-                        <span className="text-zinc-400">{clienteMovidesk(t)}</span>
+                          className="text-[var(--text)] hover:text-cyan-300 hover:underline">{t.titulo ?? '—'}</a>
+                        <span className="text-[var(--text-muted)]">{clienteMovidesk(t)}</span>
                       </div>
                       <div className="flex gap-4 text-right">
-                        <span className="text-zinc-400">{t.responsavel?.name ?? t.user?.name ?? '—'}</span>
+                        <span className="text-[var(--text-muted)]">{t.responsavel?.name ?? t.user?.name ?? '—'}</span>
                         <span style={{ color: RED }}>{fmtDate(t.sla_solution_date)}</span>
                       </div>
                     </div>
@@ -1513,11 +1513,11 @@ export default function SustentacaoPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Section title="SLA por Urgência (período selecionado)">
                 {slaData.by_urgency.length === 0
-                  ? <p className="text-zinc-500 text-xs">Sem dados no período</p>
+                  ? <p className="text-[var(--text-light)] text-xs">Sem dados no período</p>
                   : (
                     <div className="overflow-auto">
                       <table className="w-full text-xs">
-                        <thead><tr className="text-zinc-400">
+                        <thead><tr className="text-[var(--text-muted)]">
                           <th className="text-left py-1">Urgência</th>
                           <th className="text-right py-1">Total</th>
                           <th className="text-right py-1">Resposta OK</th>
@@ -1527,7 +1527,7 @@ export default function SustentacaoPage() {
                           {slaData.by_urgency.map(r => (
                             <tr key={r.urgencia} className="border-t" style={{ borderColor: 'var(--brand-border)' }}>
                               <td className="py-1.5" style={{ color: urgencyColor(r.urgencia) }}>{r.urgencia ?? '—'}</td>
-                              <td className="py-1.5 text-right text-zinc-300">{r.total}</td>
+                              <td className="py-1.5 text-right text-[var(--text)]">{r.total}</td>
                               <td className="py-1.5 text-right" style={{ color: r.on_time_response >= r.total * 0.9 ? GREEN : YELLOW }}>
                                 {r.on_time_response}/{r.total}
                               </td>
@@ -1544,14 +1544,14 @@ export default function SustentacaoPage() {
 
               <Section title="Tendência SLA de Solução (6 meses)">
                 {slaData.monthly_trend.length === 0
-                  ? <p className="text-zinc-500 text-xs">Sem dados históricos</p>
+                  ? <p className="text-[var(--text-light)] text-xs">Sem dados históricos</p>
                   : (
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={slaData.monthly_trend}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                        <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#71717a' }} />
-                        <YAxis tick={{ fontSize: 10, fill: '#71717a' }} />
-                        <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                        <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                        <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
                         <Line dataKey="total" name="Total" stroke={BLUE} dot={false} />
                         <Line dataKey="on_time" name="No Prazo" stroke={GREEN} dot={false} />
                       </LineChart>
@@ -1570,21 +1570,21 @@ export default function SustentacaoPage() {
                 <thead>
                   <tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
                     {['Consultor', 'Tickets Resolvidos', 'Tempo Médio', 'Horas Apontadas'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left font-medium text-zinc-400">{h}</th>
+                      <th key={h} className="px-4 py-2.5 text-left font-medium text-[var(--text-muted)]">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {productivity.by_consultant.map((c) => (
                     <tr key={c.owner_email} className="border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                      <td className="px-4 py-2.5 text-white">{c.owner_name ?? c.owner_email}</td>
+                      <td className="px-4 py-2.5 text-[var(--text)]">{c.owner_name ?? c.owner_email}</td>
                       <td className="px-4 py-2.5 font-bold" style={{ color: CYAN }}>{c.tickets_resolved}</td>
-                      <td className="px-4 py-2.5 text-zinc-300">{fmt(Math.round(c.avg_solution_minutes))}</td>
-                      <td className="px-4 py-2.5 text-zinc-300">{fmt(c.total_minutes_worked)}</td>
+                      <td className="px-4 py-2.5 text-[var(--text)]">{fmt(Math.round(c.avg_solution_minutes))}</td>
+                      <td className="px-4 py-2.5 text-[var(--text)]">{fmt(c.total_minutes_worked)}</td>
                     </tr>
                   ))}
                   {productivity.by_consultant.length === 0 && (
-                    <tr><td colSpan={4} className="px-4 py-8 text-center text-zinc-500">Sem dados no período</td></tr>
+                    <tr><td colSpan={4} className="px-4 py-8 text-center text-[var(--text-light)]">Sem dados no período</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1594,10 +1594,10 @@ export default function SustentacaoPage() {
               <Section title="Tickets Resolvidos por Consultor">
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={productivity.by_consultant.slice(0, 12).map(c => ({ name: (c.owner_name ?? c.owner_email).split(' ')[0], tickets: c.tickets_resolved }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#71717a' }} />
-                    <YAxis tick={{ fontSize: 10, fill: '#71717a' }} />
-                    <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
                     <Bar dataKey="tickets" name="Tickets" fill={CYAN} radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1614,7 +1614,7 @@ export default function SustentacaoPage() {
                 <thead>
                   <tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
                     {['Projeto', 'Cliente', 'Horas Apontadas', 'Horas Vendidas', '% Consumido', 'Tickets'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left font-medium text-zinc-400">{h}</th>
+                      <th key={h} className="px-4 py-2.5 text-left font-medium text-[var(--text-muted)]">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1623,10 +1623,10 @@ export default function SustentacaoPage() {
                     const consumed = p.sold_hours > 0 ? Math.round((p.total_minutes / 60 / p.sold_hours) * 100) : null
                     return (
                       <tr key={p.project_id} className="border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                        <td className="px-4 py-2.5 text-white font-medium">{p.project_name}</td>
-                        <td className="px-4 py-2.5 text-zinc-400">{p.customer_name}</td>
+                        <td className="px-4 py-2.5 text-[var(--text)] font-medium">{p.project_name}</td>
+                        <td className="px-4 py-2.5 text-[var(--text-muted)]">{p.customer_name}</td>
                         <td className="px-4 py-2.5" style={{ color: CYAN }}>{fmt(Math.round(p.total_minutes))}</td>
-                        <td className="px-4 py-2.5 text-zinc-300">{p.sold_hours ? `${p.sold_hours}h` : '—'}</td>
+                        <td className="px-4 py-2.5 text-[var(--text)]">{p.sold_hours ? `${p.sold_hours}h` : '—'}</td>
                         <td className="px-4 py-2.5">
                           {consumed != null ? (
                             <span style={{ color: consumed > 100 ? RED : consumed > 80 ? YELLOW : GREEN }}>
@@ -1634,12 +1634,12 @@ export default function SustentacaoPage() {
                             </span>
                           ) : '—'}
                         </td>
-                        <td className="px-4 py-2.5 text-zinc-400">{p.ticket_count}</td>
+                        <td className="px-4 py-2.5 text-[var(--text-muted)]">{p.ticket_count}</td>
                       </tr>
                     )
                   })}
                   {financial.by_project.length === 0 && (
-                    <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-500">Sem dados no período</td></tr>
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-light)]">Sem dados no período</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1655,24 +1655,24 @@ export default function SustentacaoPage() {
                 <thead>
                   <tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
                     {['Cliente', 'Total no Período', 'Abertos Agora', 'SLA OK', 'Tempo Médio'].map(h => (
-                      <th key={h} className="px-4 py-2.5 text-left font-medium text-zinc-400">{h}</th>
+                      <th key={h} className="px-4 py-2.5 text-left font-medium text-[var(--text-muted)]">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {clients.by_client.map(c => (
                     <tr key={c.customer_id} className="border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                      <td className="px-4 py-2.5 text-white font-medium">{c.customer?.name ?? `#${c.customer_id}`}</td>
+                      <td className="px-4 py-2.5 text-[var(--text)] font-medium">{c.customer?.name ?? `#${c.customer_id}`}</td>
                       <td className="px-4 py-2.5" style={{ color: CYAN }}>{c.total_period}</td>
-                      <td className="px-4 py-2.5" style={{ color: c.open_now > 5 ? RED : '#fafafa' }}>{c.open_now}</td>
+                      <td className="px-4 py-2.5" style={{ color: c.open_now > 5 ? RED : 'var(--text)' }}>{c.open_now}</td>
                       <td className="px-4 py-2.5" style={{ color: c.sla_ok >= c.total_period * 0.9 ? GREEN : YELLOW }}>
                         {c.sla_ok}/{c.total_period}
                       </td>
-                      <td className="px-4 py-2.5 text-zinc-300">{fmt(c.avg_solution_minutes)}</td>
+                      <td className="px-4 py-2.5 text-[var(--text)]">{fmt(c.avg_solution_minutes)}</td>
                     </tr>
                   ))}
                   {clients.by_client.length === 0 && (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-500">Sem dados no período</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-light)]">Sem dados no período</td></tr>
                   )}
                 </tbody>
               </table>
@@ -1693,14 +1693,14 @@ export default function SustentacaoPage() {
             ].map(({ title, data }) => (
               <Section key={title} title={title}>
                 {data.length === 0
-                  ? <p className="text-zinc-500 text-xs">Sem dados</p>
+                  ? <p className="text-[var(--text-light)] text-xs">Sem dados</p>
                   : (
                     <ResponsiveContainer width="100%" height={180}>
                       <PieChart>
                         <Pie data={data} dataKey="count" nameKey="label" cx="50%" cy="50%" outerRadius={65} label={({ name, percent }) => `${name ?? ''} ${percent != null ? (percent * 100).toFixed(0) : 0}%`} labelLine={false}>
                           {data.map((_, idx) => <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />)}
                         </Pie>
-                        <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
+                        <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
@@ -1714,14 +1714,14 @@ export default function SustentacaoPage() {
           <div className="space-y-6">
             <Section title="Evolução Mensal (últimos 12 meses)">
               {evolution.monthly.length === 0
-                ? <p className="text-zinc-500 text-xs">Sem dados históricos</p>
+                ? <p className="text-[var(--text-light)] text-xs">Sem dados históricos</p>
                 : (
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={evolution.monthly}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                      <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#71717a' }} />
-                      <YAxis tick={{ fontSize: 10, fill: '#71717a' }} />
-                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                      <Tooltip cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
                       <Bar dataKey="total"    name="Total"     fill={BLUE}  radius={[2,2,0,0]} />
                       <Bar dataKey="resolved" name="Resolvidos" fill={GREEN} radius={[2,2,0,0]} />
@@ -1738,10 +1738,10 @@ export default function SustentacaoPage() {
                     month: m.month,
                     taxa: m.total > 0 ? Math.round((m.sla_ok / m.total) * 100) : 0,
                   }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#71717a' }} />
-                    <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#71717a' }} />
-                    <Tooltip formatter={(v) => `${v}%`} cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', fontSize: 11 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: 'var(--text-light)' }} />
+                    <Tooltip formatter={(v) => `${v}%`} cursor={{ fill: 'var(--surface-hover)' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', fontSize: 11 }} />
                     <Line dataKey="taxa" name="SLA OK %" stroke={CYAN} dot={{ r: 3 }} strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -1751,7 +1751,7 @@ export default function SustentacaoPage() {
         )}
 
         {!loading && !kpis && tab === 'kpis' && (
-          <p className="text-zinc-500 text-sm">Carregando dados...</p>
+          <p className="text-[var(--text-light)] text-sm">Carregando dados...</p>
         )}
 
         {/* ── CENTRALZINHA: telas idênticas às do menu, escopadas a Sustentação.
@@ -1812,19 +1812,19 @@ function RoutineTable({ kind, rows, total, loading, onRowClick }: {
     <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
       <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--brand-border)' }}>
         <div>
-          <h3 className="text-sm font-semibold text-white">{title}</h3>
-          <p className="text-xs mt-0.5 text-zinc-400">{total} registros no período</p>
+          <h3 className="text-sm font-semibold text-[var(--text)]">{title}</h3>
+          <p className="text-xs mt-0.5 text-[var(--text-muted)]">{total} registros no período</p>
         </div>
       </div>
       <div className="overflow-x-auto">
         {loading ? (
-          <div className="py-10 text-center text-sm text-zinc-400">Carregando…</div>
+          <div className="py-10 text-center text-sm text-[var(--text-muted)]">Carregando…</div>
         ) : rows.length === 0 ? (
-          <div className="py-10 text-center text-sm text-zinc-400">Sem registros no período.</div>
+          <div className="py-10 text-center text-sm text-[var(--text-muted)]">Sem registros no período.</div>
         ) : isExp ? (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-zinc-400" style={{ borderBottom: '1px solid var(--brand-border)' }}>
+              <tr className="text-[var(--text-muted)]" style={{ borderBottom: '1px solid var(--brand-border)' }}>
                 <th className="text-left  px-3 py-2 text-xs uppercase tracking-wide">Data</th>
                 <th className="text-left  px-3 py-2 text-xs uppercase tracking-wide">Colaborador</th>
                 <th className="text-left  px-3 py-2 text-xs uppercase tracking-wide">Projeto</th>
@@ -1835,10 +1835,10 @@ function RoutineTable({ kind, rows, total, loading, onRowClick }: {
             </thead>
             <tbody>
               {rows.map(r => (
-                <tr key={r.id} className="cursor-pointer text-white" style={{ borderBottom: '1px solid var(--brand-border)' }} onClick={() => onRowClick(r)}>
+                <tr key={r.id} className="cursor-pointer text-[var(--text)]" style={{ borderBottom: '1px solid var(--brand-border)' }} onClick={() => onRowClick(r)}>
                   <td className="px-3 py-2 whitespace-nowrap">{r.date ? r.date.split('-').reverse().join('/') : '—'}</td>
                   <td className="px-3 py-2">{r.user?.name ?? '—'}</td>
-                  <td className="px-3 py-2"><span className="font-mono text-xs text-zinc-400">{r.project?.code}</span> · {r.project?.name}</td>
+                  <td className="px-3 py-2"><span className="font-mono text-xs text-[var(--text-muted)]">{r.project?.code}</span> · {r.project?.name}</td>
                   <td className="px-3 py-2">{r.category?.name ?? '—'}</td>
                   <td className="px-3 py-2 text-right font-mono whitespace-nowrap">{fmtBRL(Number(r.amount) || 0)}</td>
                   <td className="px-3 py-2 text-xs">{r.status_display ?? r.status}</td>
@@ -1849,7 +1849,7 @@ function RoutineTable({ kind, rows, total, loading, onRowClick }: {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-zinc-400" style={{ borderBottom: '1px solid var(--brand-border)' }}>
+              <tr className="text-[var(--text-muted)]" style={{ borderBottom: '1px solid var(--brand-border)' }}>
                 <th className="text-left  px-3 py-2 text-xs uppercase tracking-wide">Data</th>
                 <th className="text-left  px-3 py-2 text-xs uppercase tracking-wide">Solicitante</th>
                 <th className="text-left  px-3 py-2 text-xs uppercase tracking-wide">Consultor</th>
@@ -1864,15 +1864,15 @@ function RoutineTable({ kind, rows, total, loading, onRowClick }: {
             </thead>
             <tbody>
               {rows.map(r => (
-                <tr key={r.id} className="cursor-pointer text-white" style={{ borderBottom: '1px solid var(--brand-border)' }} onClick={() => onRowClick(r)}>
+                <tr key={r.id} className="cursor-pointer text-[var(--text)]" style={{ borderBottom: '1px solid var(--brand-border)' }} onClick={() => onRowClick(r)}>
                   <td className="px-3 py-2 whitespace-nowrap">{r.date ? r.date.split('-').reverse().join('/') : '—'}</td>
                   <td className="px-3 py-2">{r.requester ?? '—'}</td>
                   <td className="px-3 py-2">{r.user?.name ?? '—'}</td>
                   <td className="px-3 py-2">
-                    {r.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-cyan-400 hover:underline" onClick={e => e.stopPropagation()}>#{r.ticket}</a> : <span className="text-zinc-500">—</span>}
+                    {r.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-cyan-400 hover:underline" onClick={e => e.stopPropagation()}>#{r.ticket}</a> : <span className="text-[var(--text-light)]">—</span>}
                   </td>
-                  <td className="px-3 py-2 max-w-xs truncate text-zinc-300" title={r.ticket_subject ?? ''}>{r.ticket_subject ?? '—'}</td>
-                  <td className="px-3 py-2 max-w-sm truncate text-zinc-300" title={previewText(r.description)}>{previewText(r.description) || '—'}</td>
+                  <td className="px-3 py-2 max-w-xs truncate text-[var(--text)]" title={r.ticket_subject ?? ''}>{r.ticket_subject ?? '—'}</td>
+                  <td className="px-3 py-2 max-w-sm truncate text-[var(--text)]" title={previewText(r.description)}>{previewText(r.description) || '—'}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{r.start_time ?? '—'}</td>
                   <td className="px-3 py-2 whitespace-nowrap">{r.end_time ?? '—'}</td>
                   <td className="px-3 py-2 text-right font-mono whitespace-nowrap">{((r.effort_minutes ?? 0) / 60).toFixed(2)}</td>
@@ -1899,41 +1899,41 @@ function RoutineDetailModal({ item, kind, onClose }: { item: any; kind: 'timeshe
       <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl mt-8 rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
         <div className="px-6 py-5 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid var(--brand-border)' }}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(0,245,255,0.10)' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
               {isExp ? <DollarSign size={20} className="text-cyan-400" /> : <Clock size={20} className="text-cyan-400" />}
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-white">{isExp ? 'Detalhe da Despesa' : 'Detalhe do Apontamento'}</h3>
-              <p className="text-xs mt-0.5 text-zinc-400">#{item.id} · {fmtDateBR(item.date)}</p>
+              <h3 className="text-lg font-semibold text-[var(--text)]">{isExp ? 'Detalhe da Despesa' : 'Detalhe do Apontamento'}</h3>
+              <p className="text-xs mt-0.5 text-[var(--text-muted)]">#{item.id} · {fmtDateBR(item.date)}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-md hover:opacity-70 text-zinc-400"><CloseIcon size={18} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-md hover:opacity-70 text-[var(--text-muted)]"><CloseIcon size={18} /></button>
         </div>
-        <div className="p-6 space-y-3 text-white text-sm">
+        <div className="p-6 space-y-3 text-[var(--text)] text-sm">
           {period && (
-            <div className="rounded-xl p-4 mb-2" style={{ background: 'rgba(0,245,255,0.05)', border: '1px solid rgba(0,245,255,0.2)' }}>
-              <p className="text-xs uppercase tracking-wider mb-1 text-zinc-400">Período</p>
-              <p className="text-2xl font-bold text-cyan-400">{period} <span className="text-base font-normal text-zinc-400">({hoursDisplay})</span></p>
+            <div className="rounded-xl p-4 mb-2" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+              <p className="text-xs uppercase tracking-wider mb-1 text-[var(--text-muted)]">Período</p>
+              <p className="text-2xl font-bold text-cyan-400">{period} <span className="text-base font-normal text-[var(--text-muted)]">({hoursDisplay})</span></p>
             </div>
           )}
           <div className="rounded-xl divide-y" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-            <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-zinc-400">Data</div><div className="text-sm font-medium">{fmtDateBR(item.date)}</div></div>
-            <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-zinc-400">Colaborador</div><div className="text-sm font-medium">{item.user?.name ?? '—'}</div></div>
-            <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-zinc-400">Cliente</div><div className="text-sm font-medium">{item.customer ?? '—'}</div></div>
-            <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-zinc-400">Projeto</div><div className="text-sm font-medium">{item.project?.name ?? '—'}</div></div>
+            <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Data</div><div className="text-sm font-medium">{fmtDateBR(item.date)}</div></div>
+            <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Colaborador</div><div className="text-sm font-medium">{item.user?.name ?? '—'}</div></div>
+            <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Cliente</div><div className="text-sm font-medium">{item.customer ?? '—'}</div></div>
+            <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Projeto</div><div className="text-sm font-medium">{item.project?.name ?? '—'}</div></div>
             {isExp && (
               <>
-                <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-zinc-400">Categoria</div><div className="text-sm font-medium">{item.category?.name ?? '—'}</div></div>
-                <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-zinc-400">Valor</div><div className="text-sm font-medium font-mono">{fmtBRL(Number(item.amount) || 0)}</div></div>
+                <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Categoria</div><div className="text-sm font-medium">{item.category?.name ?? '—'}</div></div>
+                <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Valor</div><div className="text-sm font-medium font-mono">{fmtBRL(Number(item.amount) || 0)}</div></div>
               </>
             )}
             {!isExp && item.ticket && (
-              <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-zinc-400">Ticket</div><div className="text-sm font-medium"><a href={`https://erpserv.movidesk.com/Ticket/Edit/${item.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-cyan-400 hover:underline">#{item.ticket}{item.ticket_subject ? ` · ${item.ticket_subject}` : ''}</a></div></div>
+              <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Ticket</div><div className="text-sm font-medium"><a href={`https://erpserv.movidesk.com/Ticket/Edit/${item.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-cyan-400 hover:underline">#{item.ticket}{item.ticket_subject ? ` · ${item.ticket_subject}` : ''}</a></div></div>
             )}
           </div>
           {item.description && (
             <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-              <div className="text-xs uppercase tracking-wider font-semibold mb-2 text-zinc-400">{isExp ? 'Descrição' : 'Observação'}</div>
+              <div className="text-xs uppercase tracking-wider font-semibold mb-2 text-[var(--text-muted)]">{isExp ? 'Descrição' : 'Observação'}</div>
               <div
                 className="text-sm leading-relaxed
                   [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5
@@ -1953,7 +1953,7 @@ function RoutineDetailModal({ item, kind, onClose }: { item: any; kind: 'timeshe
             </div>
           )}
           <div className="flex justify-end pt-2">
-            <button onClick={onClose} className="px-5 py-2 rounded-lg text-sm font-medium text-white" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+            <button onClick={onClose} className="px-5 py-2 rounded-lg text-sm font-medium text-[var(--text)]" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>Fechar</button>
           </div>
         </div>
       </div>
