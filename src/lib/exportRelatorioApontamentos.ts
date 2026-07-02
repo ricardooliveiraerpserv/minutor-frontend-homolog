@@ -19,7 +19,8 @@ export interface RelatorioRow {
 
 export interface RelatorioMeta {
   client: string
-  title: string         // título do documento — ex.: "Relatório de Apontamentos — Maio de 2026"
+  title: string         // título VISÍVEL (limpo) — ex.: "Relatório de Apontamentos"
+  fileName?: string     // base do NOME DO ARQUIVO (datada) — ex.: "Relatório de Apontamentos — 25 de Junho a 02 de Julho de 2026"
   period: string
   emittedAt: string
   totalHours: string
@@ -45,7 +46,7 @@ function slug(s: string): string {
 
 function fmtFilename(meta: RelatorioMeta): string {
   const client = slug(meta.client).slice(0, 40)
-  const title  = slug(meta.title || 'Relatorio de Apontamentos').slice(0, 60)
+  const title  = slug(meta.fileName || meta.title || 'Relatorio de Apontamentos').slice(0, 80)
   return `${title}_${client}`
 }
 
