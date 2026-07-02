@@ -55,10 +55,10 @@ function formatMinutes(minutes: number) {
 // Cor semântica do Consumo do Ticket por faixa de horas:
 // < 4h verde | 4-8h amarelo | 8-12h laranja | > 12h vermelho
 function ticketTotalColor(minutes: number): string {
-  if (minutes < 240)  return '#10B981' // green
-  if (minutes < 480)  return '#F59E0B' // amber
-  if (minutes < 720)  return '#F97316' // orange
-  return '#EF4444' // red
+  if (minutes < 240)  return 'var(--success-border)' // green
+  if (minutes < 480)  return 'var(--warning-border)' // amber
+  if (minutes < 720)  return 'var(--warning-border)' // orange
+  return 'var(--danger-border)' // red
 }
 
 function formatDateTime(d: string | null | undefined) {
@@ -95,7 +95,7 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       {isReleased && (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(16,185,129,0.14)', color: '#10B981' }}
+          style={{ background: 'var(--success-bg)', color: 'var(--success-border)' }}
         >
           Liberado
         </span>
@@ -103,7 +103,7 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       {isBillableOnly && (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}
+          style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}
         >
           <DollarSign size={9} /> Fat. Admin
         </span>
@@ -111,7 +111,7 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       {canSeePct && clientExtraPct ? (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}
+          style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}
         >
           +{Number(clientExtraPct)}% cli
         </span>
@@ -119,7 +119,7 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       {canSeePct && consultantExtraPct ? (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(34,197,94,0.12)', color: '#22C55E' }}
+          style={{ background: 'var(--success-bg)', color: 'var(--success-border)' }}
         >
           +{Number(consultantExtraPct)}% cons
         </span>
@@ -127,14 +127,14 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       {origin === 'webhook' ? (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}
+          style={{ background: 'rgba(139,92,246,0.12)', color: 'var(--brand-purple)' }}
         >
           <Webhook size={9} /> Movidesk
         </span>
       ) : origin === 'movidesk_fallback' ? (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(245,158,11,0.14)', color: '#F59E0B' }}
+          style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}
           title="Sincronizado do Movidesk com autor não-mapeado — atribuído ao Usuário Padrão pra triagem"
         >
           <Webhook size={9} /> Movidesk (triagem)
@@ -142,7 +142,7 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       ) : (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}
+          style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
         >
           <Globe size={9} /> Web
         </span>
@@ -256,8 +256,8 @@ function DateRangePicker({ from, to, onChange }: {
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${s || e ? 'font-bold' : ir ? '' : td ? 'font-semibold' : ''}`}
                 style={{
-                  background: s || e ? 'var(--brand-primary)' : ir ? 'rgba(0,245,255,0.15)' : undefined,
-                  color: s || e ? '#0A0A0B' : ir ? 'var(--brand-primary)' : td ? 'var(--brand-primary)' : 'var(--brand-text)',
+                  background: s || e ? 'var(--brand-primary)' : ir ? 'var(--primary-soft)' : undefined,
+                  color: s || e ? 'var(--bg)' : ir ? 'var(--brand-primary)' : td ? 'var(--brand-primary)' : 'var(--brand-text)',
                 }}>
                 {day}
               </button>
@@ -370,36 +370,36 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative rounded-2xl p-6 w-full max-w-sm mx-4" style={{ background: '#111113', border: '1px solid #3f3f46' }}>
+      <div className="relative rounded-2xl p-6 w-full max-w-sm mx-4" style={{ background: '#111113', border: '1px solid var(--border)' }}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-white">
+          <h3 className="text-sm font-semibold text-[var(--text)]">
             {isBulk ? `% Extras — ${ids.length} apontamentos` : `% Extras — #${ids[0]}`}
           </h3>
-          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-            <X size={14} className="text-zinc-400" />
+          <button onClick={onClose} className="p-1 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
+            <X size={14} className="text-[var(--text-muted)]" />
           </button>
         </div>
 
         {isBulk && (
-          <p className="text-[11px] text-zinc-500 mb-3">Campos vazios não serão alterados nos apontamentos selecionados.</p>
+          <p className="text-[11px] text-[var(--text-light)] mb-3">Campos vazios não serão alterados nos apontamentos selecionados.</p>
         )}
 
         <div className="space-y-3">
           <div>
-            <Label className="text-xs text-zinc-400">% Extra Cliente</Label>
+            <Label className="text-xs text-[var(--text-muted)]">% Extra Cliente</Label>
             <div className="relative mt-1">
               <input
                 type="number" min="0" max="999" step="0.01"
                 value={clientPct}
                 onChange={e => setClientPct(e.target.value)}
                 placeholder={isBulk ? 'Não alterar' : '0'}
-                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-amber-400 pointer-events-none">%</span>
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--warning)] pointer-events-none">%</span>
             </div>
           </div>
           <div>
-            <Label className="text-xs text-zinc-400">% Extra Consultor</Label>
+            <Label className="text-xs text-[var(--text-muted)]">% Extra Consultor</Label>
             <div className="relative mt-1">
               <input
                 type="number" min="0" max="999" step="0.01"
@@ -407,23 +407,23 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
                 onChange={e => setConsultantPct(e.target.value)}
                 placeholder={isBillableOnly ? 'N/A — Fat. Admin' : (isBulk ? 'Não alterar' : '0')}
                 disabled={isBillableOnly}
-                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] placeholder-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-green-400 pointer-events-none">%</span>
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--success)] pointer-events-none">%</span>
             </div>
             {isBillableOnly && (
-              <p className="text-[10px] text-amber-500 mt-1">Apontamento Fat. Admin — % consultor não aplicável.</p>
+              <p className="text-[10px] text-[var(--warning)] mt-1">Apontamento Fat. Admin — % consultor não aplicável.</p>
             )}
           </div>
         </div>
 
         <div className="flex gap-2 mt-5 justify-end">
           <button onClick={() => { setClientPct(''); setConsultantPct('') }}
-            className="px-3 py-2 rounded-xl text-xs text-zinc-400 hover:bg-white/5 transition-colors border border-zinc-700">
+            className="px-3 py-2 rounded-xl text-xs text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors border border-[var(--border)]">
             Limpar
           </button>
           <button onClick={onClose}
-            className="px-3 py-2 rounded-xl text-xs text-zinc-400 hover:bg-white/5 transition-colors border border-zinc-700">
+            className="px-3 py-2 rounded-xl text-xs text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors border border-[var(--border)]">
             Cancelar
           </button>
           <button onClick={save} disabled={saving}
@@ -627,16 +627,16 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
   return (
     <div ref={ref}>
       <button ref={btnRef} onClick={toggle}
-        className={`p-1.5 rounded transition-colors ${open ? 'text-zinc-200 bg-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}>
+        className={`p-1.5 rounded transition-colors ${open ? 'text-[var(--text)] bg-[var(--surface-hover)]' : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'}`}>
         <MoreVertical size={14} />
       </button>
       {pos && (
         <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-          className="min-w-[152px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl py-1 overflow-hidden">
+          className="min-w-[152px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl shadow-2xl py-1 overflow-hidden">
           {items.map((item, i) => (
             <button key={i} onClick={() => { item.onClick(); setPos(null) }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors text-left ${
-                item.danger ? 'text-red-400 hover:bg-red-500/10' : 'text-zinc-300 hover:bg-zinc-700'
+                item.danger ? 'text-[var(--danger)] hover:bg-[var(--danger-bg)]' : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
               }`}>
               {item.icon}{item.label}
             </button>
@@ -732,7 +732,7 @@ function SearchSelect({ value, onChange, options, placeholder }: {
           </div>
           <div className="max-h-52 overflow-y-auto">
             <button type="button" onClick={() => select('')}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>
               {placeholder}
             </button>
@@ -740,7 +740,7 @@ function SearchSelect({ value, onChange, options, placeholder }: {
               ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
               : filtered.map(o => (
                 <button key={o.id} type="button" onClick={() => select(String(o.id))}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
                   style={{ color: String(o.id) === value ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
                   {o.name}
                 </button>
@@ -757,8 +757,8 @@ function SearchSelect({ value, onChange, options, placeholder }: {
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300 z-10"><X size={16} /></button>
+      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-3 right-3 text-[var(--text-light)] hover:text-[var(--text)] z-10"><X size={16} /></button>
         {children}
       </div>
     </div>
@@ -1233,7 +1233,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         {/* Aviso para cliente */}
         {isCliente && (
           <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl mb-4 text-xs"
-            style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid rgba(0,245,255,0.18)', color: 'var(--brand-muted)' }}>
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--brand-muted)' }}>
             <span style={{ color: 'var(--brand-primary)', marginTop: 1 }}>ℹ</span>
             <span>O status de aprovação indica apenas uma validação interna da equipe, sem impacto para o cliente.</span>
           </div>
@@ -1349,7 +1349,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           {/* Linha 2: datas + categorias + limpar — escondida em modo Triagem */}
           {!triagemPadrao && (
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+            <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
               {(['month', 'period'] as const).map((mode) => (
                 <button key={mode} onClick={() => setFilterMode(mode)}
                   className="px-3 py-1.5 font-medium transition-colors"
@@ -1381,10 +1381,10 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               />
             )}
             {!isCliente && scope !== 'investimento' && ([
-              { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
-              { id: 'projeto',      label: 'Projeto',     color: '#00F5FF',            bg: 'rgba(0,245,255,0.12)',   border: 'rgba(0,245,255,0.35)' },
-              { id: 'bizify',       label: 'Bizify',      color: '#a78bfa',            bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },
-              { id: 'investimento', label: 'Investimento', color: '#ef4444',           bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)' },
+              { id: 'sustentacao',  label: 'Sustentação', color: 'var(--warning-border)',            bg: 'var(--warning-bg)',  border: 'var(--warning-border)' },
+              { id: 'projeto',      label: 'Projeto',     color: 'var(--primary)',            bg: 'var(--primary-soft)',   border: 'var(--primary)' },
+              { id: 'bizify',       label: 'Bizify',      color: 'var(--brand-purple)',            bg: 'rgba(167,139,250,0.12)', border: 'var(--brand-purple)' },
+              { id: 'investimento', label: 'Investimento', color: 'var(--danger-border)',           bg: 'var(--danger-bg)',   border: 'var(--danger-border)' },
             ] as const).map(opt => {
               const active = (categoriaServico || '') === opt.id
               return (
@@ -1400,7 +1400,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             })}
             {projectId && (
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
-                style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: 'var(--brand-primary)' }}>
+                style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--brand-primary)' }}>
                 Projeto #{projectId}
                 <button onClick={() => { setProjectId(''); resetPage() }} className="ml-1 hover:opacity-70 transition-opacity">
                   <X size={10} />
@@ -1409,7 +1409,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             )}
             {requester && (
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
-                style={{ background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.25)', color: '#8B5CF6' }}>
+                style={{ background: 'rgba(139,92,246,0.10)', border: '1px solid var(--brand-purple)', color: 'var(--brand-purple)' }}>
                 Solicitante: {requester}
                 <button onClick={() => { setRequester(''); resetPage() }} className="ml-1 hover:opacity-70 transition-opacity">
                   <X size={10} />
@@ -1418,7 +1418,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             )}
             {ticketService && (
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
-                style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.25)', color: '#10B981' }}>
+                style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-border)' }}>
                 Módulo: {ticketService}
                 <button onClick={() => { setTicketService(''); resetPage() }} className="ml-1 hover:opacity-70 transition-opacity">
                   <X size={10} />
@@ -1428,8 +1428,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             {hasFilters && (
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs transition-all hover:bg-white/5"
-                style={{ color: 'var(--brand-danger)', border: '1px solid rgba(239,68,68,0.2)' }}
+                className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs transition-all hover:bg-[var(--surface-hover)]"
+                style={{ color: 'var(--brand-danger)', border: '1px solid var(--danger-border)' }}
               >
                 <X size={11} /> Limpar
               </button>
@@ -1542,7 +1542,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Apontadas:</span>
                   <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{baseHours}</span>
                   <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>+ % extra:</span>
-                  <span className="text-sm font-bold" style={{ color: '#22C55E' }}>+{formatMinutes(extraMin)}</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--success-border)' }}>+{formatMinutes(extraMin)}</span>
                   <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>=</span>
                   <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>Total efetivo: {formatMinutes(totalMin)}</span>
                 </>
@@ -1556,7 +1556,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 <>
                   <span className="text-xs mx-1" style={{ color: 'var(--brand-subtle)' }}>|</span>
                   <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Fat. Admin:</span>
-                  <span className="text-sm font-semibold" style={{ color: '#F59E0B' }}>{formatMinutes(fatAdminMin)}</span>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--warning-border)' }}>{formatMinutes(fatAdminMin)}</span>
                 </>
               )}
             </div>
@@ -1580,7 +1580,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   <Th className="w-8">
                     <input
                       type="checkbox"
-                      className="w-3.5 h-3.5 accent-cyan-400 cursor-pointer"
+                      className="w-3.5 h-3.5 accent-[var(--primary)] cursor-pointer"
                       checked={!!(data?.items.length && data.items.every(ts => selectedIds.has(ts.id)))}
                       onChange={e => {
                         if (e.target.checked) setSelectedIds(new Set(data?.items.map(ts => ts.id) ?? []))
@@ -1592,7 +1592,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 {!isCliente && (
                   <th
                     className="hidden lg:table-cell whitespace-nowrap text-center px-5 py-3.5 text-xs font-semibold uppercase tracking-wider"
-                    style={{ color: 'var(--brand-primary)', background: 'rgba(0,245,255,0.06)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
+                    style={{ color: 'var(--brand-primary)', background: 'var(--primary-soft)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
                   >
                     Hist. de Hs Tikets
                   </th>
@@ -1632,7 +1632,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               ) : data?.items.map(ts => (
                 <Tr
                   key={ts.id}
-                  baseBackground={ts.is_internal_action ? 'rgba(100,116,139,0.07)' : ts.is_billable_only ? 'rgba(245,158,11,0.06)' : undefined}
+                  baseBackground={ts.is_internal_action ? 'rgba(100,116,139,0.07)' : ts.is_billable_only ? 'var(--warning-bg)' : undefined}
                   onClick={() => openView(ts)}
                   {...hover.bind(ts)}
                 >
@@ -1657,7 +1657,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                     <Td className="w-8">
                       <input
                         type="checkbox"
-                        className="w-3.5 h-3.5 accent-cyan-400 cursor-pointer"
+                        className="w-3.5 h-3.5 accent-[var(--primary)] cursor-pointer"
                         checked={selectedIds.has(ts.id)}
                         onClick={e => e.stopPropagation()}
                         onChange={e => {
@@ -1674,7 +1674,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   {!isCliente && (
                     <td
                       className="hidden lg:table-cell font-mono text-center px-5 py-3.5"
-                      style={{ background: 'rgba(0,245,255,0.06)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
+                      style={{ background: 'var(--primary-soft)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
                     >
                       {ts.ticket_total_minutes != null
                         ? <span style={{ color: ticketTotalColor(ts.ticket_total_minutes), fontWeight: 700, fontSize: '0.875rem' }}>{formatMinutes(ts.ticket_total_minutes)}</span>
@@ -1712,7 +1712,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                       return (
                         <div className="flex flex-col items-end gap-0.5">
                           <span>{formatMinutes(ts.effort_minutes)}</span>
-                          <span className="text-[10px] font-normal" style={{ color: '#22C55E' }}>
+                          <span className="text-[10px] font-normal" style={{ color: 'var(--success-border)' }}>
                             +{Number(ts.consultant_extra_pct)}% = {formatMinutes(totalMin)}
                           </span>
                         </div>
@@ -1808,7 +1808,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   {/* Linha 1: [checkbox] colaborador/projeto + menu */}
                   <div className="flex items-center gap-2">
                     {(isAdmin || isCoordenador) && (
-                      <input type="checkbox" className="w-3.5 h-3.5 accent-cyan-400 shrink-0 cursor-pointer"
+                      <input type="checkbox" className="w-3.5 h-3.5 accent-[var(--primary)] shrink-0 cursor-pointer"
                         checked={selectedIds.has(ts.id)} onClick={e => e.stopPropagation()}
                         onChange={e => setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(ts.id); else next.delete(ts.id); return next })} />
                     )}
@@ -1888,7 +1888,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
       {/* Reprocess result toast */}
       {reprocessResult && (
         <div className="fixed bottom-6 right-6 z-50 max-w-sm px-4 py-3 rounded-xl text-xs shadow-2xl"
-          style={{ background: '#18181B', border: '1px solid #3f3f46', color: '#e4e4e7' }}>
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
           {reprocessResult}
         </div>
       )}
@@ -1896,8 +1896,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
       {/* Bulk action bar */}
       {(isAdmin || isCoordenador) && selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl"
-          style={{ background: '#18181B', border: '1px solid #3f3f46' }}>
-          <span className="text-xs text-zinc-300 flex items-center gap-1.5">
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <span className="text-xs text-[var(--text)] flex items-center gap-1.5">
             {selectedIds.size} apontamento{selectedIds.size > 1 ? 's' : ''} selecionado{selectedIds.size > 1 ? 's' : ''}
             <span style={{ color: 'var(--brand-subtle)' }}>·</span>
             <Clock size={11} style={{ color: 'var(--brand-primary)' }} />
@@ -1906,7 +1906,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           <button
             onClick={() => setBulkPcOpen(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-            style={{ background: '#3f3f46', color: '#e4e4e7' }}
+            style={{ background: 'var(--surface-hover)', color: 'var(--text)' }}
           >
             <FolderOpen size={11} /> Cliente/Projeto
           </button>
@@ -1921,7 +1921,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             onClick={() => handleReprocessMovidesk(Array.from(selectedIds))}
             disabled={reprocessing}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
-            style={{ background: '#3f3f46', color: '#e4e4e7' }}
+            style={{ background: 'var(--surface-hover)', color: 'var(--text)' }}
           >
             <RefreshCw size={11} className={reprocessing ? 'animate-spin' : ''} /> Reprocessar Movidesk
           </button>
@@ -1930,16 +1930,16 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               onClick={handleBulkReverseApproval}
               disabled={bulkReversing}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
-              style={{ background: 'var(--danger, #ef4444)', color: '#fff' }}
+              style={{ background: 'var(--danger, #ef4444)', color: 'var(--primary-fg)' }}
             >
               <RotateCcw size={11} className={bulkReversing ? 'animate-spin' : ''} /> Estornar aprovação ({selectedApprovedCount})
             </button>
           )}
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
           >
-            <X size={14} className="text-zinc-400" />
+            <X size={14} className="text-[var(--text-muted)]" />
           </button>
         </div>
       )}
@@ -2009,28 +2009,28 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
       {/* Modal estornar rejeição */}
       {reverseRejectionModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-sm shadow-xl p-5 space-y-4">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-sm shadow-xl p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <RotateCcw size={15} className="text-amber-400" />
-              <h3 className="text-sm font-semibold text-white">Estornar rejeição</h3>
+              <RotateCcw size={15} className="text-[var(--warning)]" />
+              <h3 className="text-sm font-semibold text-[var(--text)]">Estornar rejeição</h3>
             </div>
-            <p className="text-xs text-zinc-400">O apontamento voltará para <span className="text-white font-medium">Pendente</span>. Informe o motivo do estorno:</p>
+            <p className="text-xs text-[var(--text-muted)]">O apontamento voltará para <span className="text-[var(--text)] font-medium">Pendente</span>. Informe o motivo do estorno:</p>
             <textarea
               value={reverseRejectionReason}
               onChange={e => setReverseRejectionReason(e.target.value)}
               placeholder="Motivo do estorno..."
               rows={3}
-              className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md px-3 py-2 resize-none outline-none focus:border-zinc-500"
+              className="w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md px-3 py-2 resize-none outline-none focus:border-[var(--border-strong)]"
             />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setReverseRejectionModal({ open: false })}
-                className="px-3 py-1.5 text-xs text-zinc-400 border border-zinc-700 rounded-md hover:text-zinc-200">
+                className="px-3 py-1.5 text-xs text-[var(--text-muted)] border border-[var(--border)] rounded-md hover:text-[var(--text)]">
                 Cancelar
               </button>
               <button
                 onClick={confirmReverseRejection}
                 disabled={reverseRejecting || !reverseRejectionReason.trim()}
-                className="px-3 py-1.5 text-xs bg-amber-600/80 hover:bg-amber-600 text-white rounded-md disabled:opacity-50 flex items-center gap-1.5"
+                className="px-3 py-1.5 text-xs bg-[var(--warning-border)] hover:bg-[var(--warning-border)] text-[var(--primary-fg)] rounded-md disabled:opacity-50 flex items-center gap-1.5"
               >
                 <RotateCcw size={11} />
                 {reverseRejecting ? 'Estornando...' : 'Confirmar estorno'}

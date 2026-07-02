@@ -339,7 +339,7 @@ export default function ContratosPage() {
   const tabProjetos  = contracts.filter(c => !!c.project_id)
   const visibleContracts = listTab === 'projetos' ? tabProjetos : tabContratos
 
-  const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-cyan-500/40'
+  const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)]'
   const inputStyle = { border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }
 
   return (
@@ -347,18 +347,18 @@ export default function ContratosPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-white">Contratos</h1>
-          <p className="text-xs text-zinc-500 mt-0.5">{total} contrato{total !== 1 ? 's' : ''} cadastrado{total !== 1 ? 's' : ''}</p>
+          <h1 className="text-xl font-bold text-[var(--text)]">Contratos</h1>
+          <p className="text-xs text-[var(--text-light)] mt-0.5">{total} contrato{total !== 1 ? 's' : ''} cadastrado{total !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => router.push('/contratos/kanban')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
             <LayoutGrid size={14} /> Kanban
           </button>
           <button onClick={openNew}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
-            style={{ background: 'rgba(0,245,255,0.12)', border: '1px solid rgba(0,245,255,0.3)', color: '#00F5FF' }}>
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
             <Plus size={15} /> Novo Contrato
           </button>
         </div>
@@ -392,14 +392,14 @@ export default function ContratosPage() {
           <button key={tab.id} onClick={() => setListTab(tab.id)}
             className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
             style={listTab === tab.id
-              ? { background: 'rgba(0,245,255,0.1)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }
+              ? { background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary)' }
               : { color: 'var(--brand-muted)', border: '1px solid transparent' }
             }>
             {tab.label}
             <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
               style={listTab === tab.id
-                ? { background: 'rgba(0,245,255,0.15)', color: 'var(--brand-primary)' }
-                : { background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }
+                ? { background: 'var(--primary-soft)', color: 'var(--brand-primary)' }
+                : { background: 'var(--surface-hover)', color: 'var(--brand-muted)' }
               }>{tab.count}</span>
           </button>
         ))}
@@ -411,89 +411,89 @@ export default function ContratosPage() {
           <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
             <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
               <th className="w-10 px-2 py-3" />
-              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>
-              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Categoria</th>
-              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Tipo de Contrato</th>
-              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Tipo de Serviço</th>
-              <th className="text-center px-4 py-3 text-zinc-400 font-medium">Horas</th>
+              <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Cliente</th>
+              <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Categoria</th>
+              <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Tipo de Contrato</th>
+              <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Tipo de Serviço</th>
+              <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Horas</th>
               {listTab === 'projetos' && <>
-                <th className="text-center px-4 py-3 text-zinc-400 font-medium">HS Consumidas</th>
-                <th className="text-center px-4 py-3 text-zinc-400 font-medium">Saldo</th>
+                <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">HS Consumidas</th>
+                <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Saldo</th>
               </>}
-              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Expectativa</th>
-              <th className="text-center px-4 py-3 text-zinc-400 font-medium">Status</th>
-              <th className="text-left px-4 py-3 text-zinc-400 font-medium">Projeto</th>
+              <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Expectativa</th>
+              <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Status</th>
+              <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Projeto</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={listTab === 'projetos' ? 11 : 9} className="px-4 py-8 text-center text-zinc-500 text-xs">Carregando...</td></tr>
+              <tr><td colSpan={listTab === 'projetos' ? 11 : 9} className="px-4 py-8 text-center text-[var(--text-light)] text-xs">Carregando...</td></tr>
             )}
             {!loading && visibleContracts.length === 0 && (
-              <tr><td colSpan={listTab === 'projetos' ? 11 : 9} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhum item encontrado.</td></tr>
+              <tr><td colSpan={listTab === 'projetos' ? 11 : 9} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum item encontrado.</td></tr>
             )}
             {!loading && visibleContracts.map((c, i) => (
-              <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+              <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
                 <td className="w-10 px-2 py-3 text-center relative">
                   <button
                     onClick={e => { e.stopPropagation(); setOpenDropdown(openDropdown === c.id ? null : c.id) }}
-                    className="p-1 rounded-md transition-colors hover:bg-zinc-700/60 text-zinc-500 hover:text-zinc-300">
+                    className="p-1 rounded-md transition-colors hover:bg-[var(--surface-hover)] text-[var(--text-light)] hover:text-[var(--text)]">
                     <MoreVertical size={15} />
                   </button>
                   {openDropdown === c.id && (
                     <div ref={dropdownRef} className="absolute left-8 top-8 z-[200] rounded-xl overflow-hidden shadow-xl"
-                      style={{ background: '#1c1c1e', border: '1px solid var(--brand-border)', minWidth: 168 }}>
+                      style={{ background: 'var(--surface)', border: '1px solid var(--brand-border)', minWidth: 168 }}>
                       {listTab === 'projetos' && isAdminOrCoord ? (
                         PROJECT_MENU_ITEMS.map(item => {
                           const Icon = item.icon
                           return (
                             <button key={item.action}
                               onClick={e => { e.stopPropagation(); setOpenDropdown(null); handleProjectAction(c, item.action) }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-zinc-700/50"
-                              style={{ color: item.action === 'delete' ? '#f87171' : 'var(--brand-text)' }}>
-                              <Icon size={14} className="shrink-0" style={{ color: item.action === 'delete' ? '#f87171' : '#a1a1aa' }} /> {item.label}
+                              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]"
+                              style={{ color: item.action === 'delete' ? 'var(--danger)' : 'var(--brand-text)' }}>
+                              <Icon size={14} className="shrink-0" style={{ color: item.action === 'delete' ? 'var(--danger)' : 'var(--text-muted)' }} /> {item.label}
                             </button>
                           )
                         })
                       ) : (
                         <>
                           <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); openView(c) }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-zinc-700/50" style={{ color: 'var(--brand-text)' }}>
-                            <Eye size={14} className="text-zinc-400" /> Visualizar
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-text)' }}>
+                            <Eye size={14} className="text-[var(--text-muted)]" /> Visualizar
                           </button>
                           <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); openEdit(c) }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-zinc-700/50" style={{ color: 'var(--brand-text)' }}>
-                            <Pencil size={14} className="text-zinc-400" /> Editar
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-text)' }}>
+                            <Pencil size={14} className="text-[var(--text-muted)]" /> Editar
                           </button>
                           <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); setDeleteTarget({ id: c.id, name: c.customer?.name ?? `Contrato #${c.id}`, type: 'contract' }) }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-zinc-700/50" style={{ color: '#f87171' }}>
-                            <Trash2 size={14} style={{ color: '#f87171' }} /> Excluir
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)' }}>
+                            <Trash2 size={14} style={{ color: 'var(--danger)' }} /> Excluir
                           </button>
                         </>
                       )}
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-3 text-white font-medium">{c.customer?.name ?? '—'}</td>
-                <td className="px-4 py-3 text-zinc-300">{CATEGORIA_LABEL[c.categoria]}</td>
-                <td className="px-4 py-3 text-zinc-400 text-xs">{c.contract_type?.name ?? '—'}</td>
-                <td className="px-4 py-3 text-zinc-400 text-xs">{c.service_type?.name ?? '—'}</td>
-                <td className="px-4 py-3 text-center text-zinc-300">{c.horas_contratadas}h</td>
+                <td className="px-4 py-3 text-[var(--text)] font-medium">{c.customer?.name ?? '—'}</td>
+                <td className="px-4 py-3 text-[var(--text)]">{CATEGORIA_LABEL[c.categoria]}</td>
+                <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{c.contract_type?.name ?? '—'}</td>
+                <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{c.service_type?.name ?? '—'}</td>
+                <td className="px-4 py-3 text-center text-[var(--text)]">{c.horas_contratadas}h</td>
                 {listTab === 'projetos' && (() => {
                   const isClosed  = c.project?.status === 'finished' || c.project?.status === 'cancelled'
                   const hideHours = isCliente && isClosed
                   const bal       = c.project?.general_hours_balance
                   return (<>
-                    <td className="px-4 py-3 text-center text-zinc-300 text-xs">
+                    <td className="px-4 py-3 text-center text-[var(--text)] text-xs">
                       {!c.project ? '—' : hideHours ? '—' : c.project.consumed_hours != null ? `${c.project.consumed_hours.toFixed(1)}h` : '—'}
                     </td>
                     <td className="px-4 py-3 text-center text-xs"
-                      style={{ color: !hideHours && c.project && (bal ?? 0) < 0 ? '#ef4444' : 'rgb(212 212 216)' }}>
+                      style={{ color: !hideHours && c.project && (bal ?? 0) < 0 ? 'var(--danger-border)' : 'var(--text)' }}>
                       {!c.project ? '—' : hideHours ? '—' : bal != null ? `${bal.toFixed(1)}h` : '—'}
                     </td>
                   </>)
                 })()}
-                <td className="px-4 py-3 text-zinc-400 text-xs">{fmtDate(c.expectativa_inicio)}</td>
+                <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{fmtDate(c.expectativa_inicio)}</td>
                 <td className="px-4 py-3 text-center">
                   <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
                     style={{ background: `${STATUS_COLOR[c.status]}18`, color: STATUS_COLOR[c.status] }}>
@@ -503,10 +503,10 @@ export default function ContratosPage() {
                 <td className="px-4 py-3 text-xs">
                   {c.project ? (
                     <div>
-                      <p className="text-zinc-300 text-sm leading-tight">{c.project.name}</p>
-                      <span className="text-cyan-400 font-mono">{c.project.code}</span>
+                      <p className="text-[var(--text)] text-sm leading-tight">{c.project.name}</p>
+                      <span className="text-[var(--primary)] font-mono">{c.project.code}</span>
                     </div>
-                  ) : <span className="text-zinc-600">—</span>}
+                  ) : <span className="text-[var(--text-muted)]">—</span>}
                 </td>
               </tr>
             ))}
@@ -516,7 +516,7 @@ export default function ContratosPage() {
 
       {/* ── Pagination ── */}
       {total > 200 && (
-        <div className="flex items-center justify-between mt-4 text-xs text-zinc-500">
+        <div className="flex items-center justify-between mt-4 text-xs text-[var(--text-light)]">
           <span>{total} contratos</span>
           <div className="flex items-center gap-2">
             <button disabled={page === 1} onClick={() => setPage(page - 1)}
@@ -579,7 +579,7 @@ export default function ContratosPage() {
                       style={{ background: `${STATUS_COLOR[vc.status]}22`, color: STATUS_COLOR[vc.status] }}>
                       {STATUS_LABEL[vc.status]}
                     </span>
-                    <button onClick={() => setViewContract(null)} className="p-1 rounded-lg hover:bg-white/10 transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+                    <button onClick={() => setViewContract(null)} className="p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
                   </div>
                 </div>
               </div>
@@ -609,13 +609,13 @@ export default function ContratosPage() {
                       {vc.attachments.map(att => (
                         <div key={att.id} className="flex items-center justify-between px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
                           <div className="flex items-center gap-2">
-                            <FileText size={13} className="text-zinc-400" />
+                            <FileText size={13} className="text-[var(--text-muted)]" />
                             <div>
-                              <p className="text-xs text-zinc-300">{att.original_name}</p>
-                              <p className="text-[10px] text-zinc-600">{ATTACHMENT_TYPE_LABEL[att.type]} · {fmt(att.size)}</p>
+                              <p className="text-xs text-[var(--text)]">{att.original_name}</p>
+                              <p className="text-[10px] text-[var(--text-muted)]">{ATTACHMENT_TYPE_LABEL[att.type]} · {fmt(att.size)}</p>
                             </div>
                           </div>
-                          <button onClick={() => downloadAttachment(vc.id, att)} className="p-1 text-zinc-400 hover:text-cyan-400 transition-colors"><Download size={13} /></button>
+                          <button onClick={() => downloadAttachment(vc.id, att)} className="p-1 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"><Download size={13} /></button>
                         </div>
                       ))}
                     </div>
@@ -652,7 +652,7 @@ export default function ContratosPage() {
                 </button>
                 <button onClick={() => { openEdit(vc); setViewContract(null) }}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
+                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
                   <Pencil size={13} /> Editar Contrato
                 </button>
               </div>
@@ -665,17 +665,17 @@ export default function ContratosPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
           <div className="w-full max-w-md rounded-2xl border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
             <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-              <h2 className="text-base font-semibold text-white flex items-center gap-2">
-                <Rocket size={16} style={{ color: '#eab308' }} /> Gerar Projeto
+              <h2 className="text-base font-semibold text-[var(--text)] flex items-center gap-2">
+                <Rocket size={16} style={{ color: 'var(--warning-border)' }} /> Gerar Projeto
               </h2>
-              <p className="text-xs text-zinc-500 mt-1">{genModal.contract.customer?.name}</p>
+              <p className="text-xs text-[var(--text-light)] mt-1">{genModal.contract.customer?.name}</p>
             </div>
             <div className="px-6 py-5 space-y-4">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-3">Coordenadores do Projeto</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-light)] mb-3">Coordenadores do Projeto</p>
                 <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
                   {coordinators.length === 0 && (
-                    <p className="text-xs text-zinc-600 italic">Nenhum coordenador cadastrado.</p>
+                    <p className="text-xs text-[var(--text-muted)] italic">Nenhum coordenador cadastrado.</p>
                   )}
                   {coordinators.map(u => {
                     const sel = genCoordinatorIds.includes(u.id)
@@ -684,7 +684,7 @@ export default function ContratosPage() {
                         onClick={() => setGenCoordinatorIds(ids => sel ? ids.filter(i => i !== u.id) : [...ids, u.id])}
                         className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left"
                         style={{
-                          background: sel ? 'rgba(0,245,255,0.08)' : 'rgba(255,255,255,0.03)',
+                          background: sel ? 'var(--primary-soft)' : 'var(--surface-hover)',
                           border: `1px solid ${sel ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
                           color: sel ? 'var(--brand-primary)' : 'var(--brand-text)',
                         }}>
@@ -698,18 +698,18 @@ export default function ContratosPage() {
                   })}
                 </div>
                 {genCoordinatorIds.length === 0 && (
-                  <p className="text-[11px] text-amber-400 mt-2">Nenhum coordenador selecionado — o arquiteto do contrato será usado como fallback.</p>
+                  <p className="text-[11px] text-[var(--warning)] mt-2">Nenhum coordenador selecionado — o arquiteto do contrato será usado como fallback.</p>
                 )}
               </div>
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
               <button onClick={() => setGenModal(null)} disabled={generating}
-                className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition-colors">
+                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
                 Cancelar
               </button>
               <button onClick={confirmGenerateProject} disabled={generating}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
-                style={{ background: '#eab308', color: 'var(--primary-fg)' }}>
+                style={{ background: 'var(--warning-border)', color: 'var(--primary-fg)' }}>
                 <Rocket size={14} />
                 {generating ? 'Gerando...' : 'Confirmar e Gerar'}
               </button>
@@ -746,20 +746,20 @@ export default function ContratosPage() {
       {/* ── Delete confirmation modal ── */}
       {deleteTarget && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70">
-          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(239,68,68,0.4)' }}>
+          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--danger-border)' }}>
             <div className="px-6 py-5 flex items-center gap-3">
-              <Trash2 size={20} className="text-red-400 shrink-0" />
+              <Trash2 size={20} className="text-[var(--danger)] shrink-0" />
               <div>
-                <p className="font-semibold text-white">Excluir {deleteTarget.type === 'project' ? 'Projeto' : 'Contrato'}</p>
-                <p className="text-xs text-zinc-400 mt-0.5">{deleteTarget.name}</p>
+                <p className="font-semibold text-[var(--text)]">Excluir {deleteTarget.type === 'project' ? 'Projeto' : 'Contrato'}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{deleteTarget.name}</p>
               </div>
             </div>
             <div className="px-6 pb-4">
-              <p className="text-sm text-zinc-300">Tem certeza? Esta ação não pode ser desfeita.</p>
+              <p className="text-sm text-[var(--text)]">Tem certeza? Esta ação não pode ser desfeita.</p>
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
               <button onClick={() => setDeleteTarget(null)} disabled={deleting}
-                className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition-colors">
+                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
                 Cancelar
               </button>
               <button disabled={deleting} onClick={async () => {
@@ -779,7 +779,7 @@ export default function ContratosPage() {
                 } finally { setDeleting(false) }
               }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
+                style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
                 <Trash2 size={14} /> {deleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
@@ -826,10 +826,10 @@ function ProjectStatusModal({ projectId, projectName, onClose, onSaved }: {
         <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-base font-bold text-white">Alterar Status</p>
-              <p className="text-xs text-zinc-500 mt-0.5">{projectName}</p>
+              <p className="text-base font-bold text-[var(--text)]">Alterar Status</p>
+              <p className="text-xs text-[var(--text-light)] mt-0.5">{projectName}</p>
             </div>
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 transition-colors text-zinc-400"><X size={16} /></button>
+            <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors text-[var(--text-muted)]"><X size={16} /></button>
           </div>
         </div>
         <div className="px-6 py-4 space-y-2">
@@ -838,7 +838,7 @@ function ProjectStatusModal({ projectId, projectName, onClose, onSaved }: {
               onClick={() => setSelected(s.value)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left"
               style={{
-                background: selected === s.value ? `${s.color}12` : 'rgba(255,255,255,0.03)',
+                background: selected === s.value ? `${s.color}12` : 'var(--surface-hover)',
                 border: `1px solid ${selected === s.value ? s.color : 'var(--brand-border)'}`,
                 color: selected === s.value ? s.color : 'var(--brand-text)',
               }}>
@@ -848,12 +848,12 @@ function ProjectStatusModal({ projectId, projectName, onClose, onSaved }: {
           ))}
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} disabled={saving} className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition-colors">
+          <button onClick={onClose} disabled={saving} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
             Cancelar
           </button>
           <button onClick={save} disabled={saving || !selected}
             className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
-            style={{ background: 'rgba(0,245,255,0.12)', border: '1px solid rgba(0,245,255,0.3)', color: '#00F5FF' }}>
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
             {saving ? 'Salvando...' : 'Confirmar'}
           </button>
         </div>

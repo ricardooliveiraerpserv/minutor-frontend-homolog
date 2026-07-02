@@ -903,7 +903,7 @@ export default function FechamentoParceiroPage() {
                       className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
                       style={{
                         background: reportMode === m ? 'var(--brand-primary)' : 'transparent',
-                        color: reportMode === m ? '#000' : 'var(--brand-muted)',
+                        color: reportMode === m ? 'var(--primary-fg)' : 'var(--brand-muted)',
                       }}
                     >
                       {label}
@@ -919,8 +919,8 @@ export default function FechamentoParceiroPage() {
               <span
                 className="text-xs px-3 py-1 rounded-full font-medium"
                 style={{
-                  background: isFixed ? 'rgba(251,191,36,0.15)' : 'rgba(0,245,255,0.1)',
-                  color: isFixed ? '#fbbf24' : 'var(--brand-primary)',
+                  background: isFixed ? 'var(--warning-bg)' : 'var(--primary-soft)',
+                  color: isFixed ? 'var(--warning)' : 'var(--brand-primary)',
                 }}
               >
                 {isFixed ? 'PRECIFICAÇÃO FIXA' : 'PRECIFICAÇÃO VARIÁVEL'}
@@ -1076,7 +1076,7 @@ export default function FechamentoParceiroPage() {
                         className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
                         style={{
                           background: consultorView === v ? 'var(--brand-primary)' : 'var(--brand-surface)',
-                          color: consultorView === v ? '#000' : 'var(--brand-muted)',
+                          color: consultorView === v ? 'var(--primary-fg)' : 'var(--brand-muted)',
                           border: '1px solid var(--brand-border)',
                         }}
                       >
@@ -1124,7 +1124,7 @@ export default function FechamentoParceiroPage() {
                       {filteredConsultores.length > 0 && (
                         <div className="mt-4 flex justify-between items-center">
                           <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>Total: <b>{filteredConsultores.reduce((s, c) => s + c.horas, 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</b></span>
-                          <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'rgba(0,245,255,0.07)', color: 'var(--brand-primary)' }}>
+                          <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                             Total Serviços: {formatBRL(filteredConsultores.reduce((s, c) => s + c.total, 0))}
                           </div>
                         </div>
@@ -1163,7 +1163,7 @@ export default function FechamentoParceiroPage() {
                                 <div className="flex items-center justify-between mb-3 pb-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{nome}</span>
-                                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>{code}</span>
+                                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>{code}</span>
                                   </div>
                                   <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
                                     {tipoHoras.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h · <b style={{ color: 'var(--brand-primary)' }}>{formatBRL(tipoTotal)}</b>
@@ -1191,7 +1191,7 @@ export default function FechamentoParceiroPage() {
                             <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
                               Total: <b>{apontamentos.reduce((s, a) => s + a.horas, 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</b>
                             </span>
-                            <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'rgba(0,245,255,0.07)', color: 'var(--brand-primary)' }}>
+                            <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                               Total Serviços: {formatBRL(totalServicos)}
                             </div>
                           </div>
@@ -1271,7 +1271,7 @@ export default function FechamentoParceiroPage() {
                   )}
                   {despesas.length > 0 && (
                     <div className="mt-4 flex flex-col items-end gap-1">
-                      <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'rgba(0,245,255,0.07)', color: 'var(--brand-primary)' }}>
+                      <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                         Despesas no fechamento: {formatBRL(totalDespesas)}
                       </div>
                       {totalDespesasAnt > 0 && (
@@ -1352,7 +1352,7 @@ export default function FechamentoParceiroPage() {
                                 {STATUS_LABELS[row.status] ?? row.status}
                               </Badge>
                             </Td>
-                            <Td className="text-xs">{row.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${row.ticket}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">#{row.ticket}</a> : '—'}</Td>
+                            <Td className="text-xs">{row.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${row.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{row.ticket}</a> : '—'}</Td>
                             <Td className="text-xs max-w-xs truncate">
                               <span title={previewText(row.observacao)}>{row.observacao ? previewText(row.observacao) : '—'}</span>
                             </Td>
@@ -1371,7 +1371,7 @@ export default function FechamentoParceiroPage() {
                           {filteredApontamentos.filter(a => a.status === 'approved').reduce((s, a) => s + a.horas, 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h
                         </b>
                         {' · '}
-                        Pendentes: <b style={{ color: '#fbbf24' }}>
+                        Pendentes: <b style={{ color: 'var(--warning)' }}>
                           {filteredApontamentos.filter(a => a.status === 'pending').reduce((s, a) => s + a.horas, 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h
                         </b>
                       </span>
@@ -1383,7 +1383,7 @@ export default function FechamentoParceiroPage() {
               {/* ── Tab Resumo ── */}
               {tab === 'resumo' && (
                 <div className="p-4 md:p-6 max-w-md">
-                  <div className="rounded-lg p-5 space-y-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)' }}>
+                  <div className="rounded-lg p-5 space-y-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
                     <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--brand-text)' }}>
                       Resumo — {yearMonth ? fmtYearMonth(yearMonth) : ''}
                     </h3>

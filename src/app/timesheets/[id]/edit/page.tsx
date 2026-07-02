@@ -48,31 +48,31 @@ function SearchSelect({ value, onChange, options, placeholder, disabled }: {
         disabled={disabled}
         onClick={() => !disabled && setOpen(o => !o)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm outline-none text-left disabled:opacity-50"
-        style={{ background: '#1c1c1e', border: '1px solid #3f3f46', color: selected ? '#fff' : '#71717A' }}
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: selected ? 'var(--text)' : 'var(--text-light)' }}
       >
         <span className="truncate text-sm">{selected ? selected.name : placeholder}</span>
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="#71717A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
       {open && (
         <div className="absolute top-full mt-1 left-0 z-[200] w-full min-w-56 rounded-xl shadow-2xl overflow-hidden"
-          style={{ background: '#1c1c1e', border: '1px solid #3f3f46' }}>
-          <div className="p-2 border-b" style={{ borderColor: '#3f3f46' }}>
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
             <input
               ref={inputRef}
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Buscar..."
-              className="w-full bg-transparent text-sm text-white outline-none px-2 py-1 placeholder-zinc-500"
+              className="w-full bg-transparent text-sm text-[var(--text)] outline-none px-2 py-1 placeholder-zinc-500"
             />
           </div>
           <div className="max-h-48 overflow-y-auto">
             {filtered.length === 0
-              ? <p className="px-3 py-2 text-xs text-zinc-500">Nenhum resultado</p>
+              ? <p className="px-3 py-2 text-xs text-[var(--text-light)]">Nenhum resultado</p>
               : filtered.map(o => (
                   <button key={o.id} type="button"
                     onClick={() => { onChange(String(o.id)); setOpen(false) }}
-                    className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-white/5"
-                    style={{ color: String(o.id) === value ? '#00F5FF' : '#d4d4d8' }}>
+                    className="w-full text-left px-3 py-2 text-sm transition-colors hover:bg-[var(--surface-hover)]"
+                    style={{ color: String(o.id) === value ? 'var(--primary)' : 'var(--text-muted)' }}>
                     {o.name}
                   </button>
                 ))
@@ -299,7 +299,7 @@ export default function EditTimesheetPage() {
       <div className="max-w-lg mx-auto">
         <div className="flex items-center gap-3 mb-6">
           <Link href="/timesheets"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors hover:bg-white/5"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface-hover)]"
             style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
             <ArrowLeft size={12} /> Voltar
           </Link>
@@ -321,7 +321,7 @@ export default function EditTimesheetPage() {
             {canActAsUser && (
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <Label className="text-xs text-zinc-400">Usuário</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Usuário</Label>
                   <button
                     type="button"
                     onClick={() => setForm(f => ({ ...f, user_id: String(user?.id ?? '') }))}
@@ -342,7 +342,7 @@ export default function EditTimesheetPage() {
 
             {/* Cliente */}
             <div>
-              <Label className="text-xs text-zinc-400">Cliente</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Cliente</Label>
               <div className="mt-1">
                 <SearchSelect
                   value={form.customer_id}
@@ -356,7 +356,7 @@ export default function EditTimesheetPage() {
 
             {/* Projeto */}
             <div>
-              <Label className="text-xs text-zinc-400">Projeto *</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Projeto *</Label>
               <div className="mt-1">
                 <SearchSelect
                   value={form.project_id}
@@ -370,10 +370,10 @@ export default function EditTimesheetPage() {
 
             {/* Data */}
             <div>
-              <Label className="text-xs text-zinc-400">Data *</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
               <input type="date" value={form.date}
                 onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
+                className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)]" />
             </div>
 
             {/* Toggle Horário / Total */}
@@ -385,7 +385,7 @@ export default function EditTimesheetPage() {
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={active
                       ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                      : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }
+                      : { background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary)' }
                     }>{label}</button>
                 )
               })}
@@ -395,23 +395,23 @@ export default function EditTimesheetPage() {
             {!useTotal && (
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <Label className="text-xs text-zinc-400">Início *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Início *</Label>
                   <input type="time" value={form.start_time}
                     onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)]" />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Fim {timeDriver === 'end' ? '*' : ''}</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Fim {timeDriver === 'end' ? '*' : ''}</Label>
                   <input type="time" value={form.end_time}
                     onChange={e => { setTimeDriver('end'); setForm(f => ({ ...f, end_time: e.target.value })) }}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white" />
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)]" />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Total {timeDriver === 'total' ? '*' : ''}</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Total {timeDriver === 'total' ? '*' : ''}</Label>
                   {/* Aceita HH:MM ("2:30"), decimal . ou , ("2.5", "2,5") e inteiro ("2"). parseHHMM converte. */}
                   <input type="text" inputMode="decimal" value={form.total_hours} placeholder="ex: 2:30 ou 2,5"
                     onChange={e => { const v = e.target.value.replace(/[^\d:.,]/g, ''); setTimeDriver('total'); setForm(f => ({ ...f, total_hours: v })) }}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600" />
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] placeholder-zinc-600" />
                 </div>
               </div>
             )}
@@ -420,15 +420,15 @@ export default function EditTimesheetPage() {
             {useTotal && (
               <>
                 <div className="rounded-lg px-3 py-2.5 text-xs leading-relaxed"
-                  style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', color: '#F59E0B' }}>
+                  style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', color: 'var(--warning-border)' }}>
                   <span className="font-semibold">Atenção:</span> O lançamento por "Total de Horas" deve ser realizado em comum acordo com o coordenador responsável.
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Total de Horas *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Total de Horas *</Label>
                   {/* Aceita HH:MM ("2:30"), decimal . ou , ("2.5", "2,5") e inteiro ("2"). parseHHMM converte. */}
                   <input type="text" inputMode="decimal" value={form.total_hours} placeholder="ex: 2:30 ou 2,5"
                     onChange={e => { const v = e.target.value.replace(/[^\d:.,]/g, ''); setForm(f => ({ ...f, total_hours: v })) }}
-                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600" />
+                    className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] placeholder-zinc-600" />
                 </div>
               </>
             )}
@@ -436,20 +436,20 @@ export default function EditTimesheetPage() {
             {/* Ticket */}
             {projects.find(p => String(p.id) === form.project_id)?.service_type_code === 'sustentacao' && (
               <div>
-                <Label className="text-xs text-zinc-400">Ticket</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Ticket</Label>
                 <input type="number" value={form.ticket} placeholder="Ex: 12345"
                   onChange={e => setForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
-                  className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                  className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
               </div>
             )}
 
             {/* Observação */}
             <div>
-              <Label className="text-xs text-zinc-400">Observação</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Observação</Label>
               <textarea value={form.observation} rows={3}
                 placeholder="Descreva as atividades realizadas..."
                 onChange={e => setForm(f => ({ ...f, observation: e.target.value }))}
-                className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 resize-none" />
+                className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] placeholder-zinc-600 resize-none" />
             </div>
 
             {/* Somente faturável (admin, apontando para outro usuário) */}
@@ -461,14 +461,14 @@ export default function EditTimesheetPage() {
                   onChange={e => setForm(f => ({ ...f, is_billable_only: e.target.checked }))}
                   className="w-3.5 h-3.5 accent-amber-500"
                 />
-                <span className="text-xs text-amber-400">Somente faturável — não reflete no pagamento do consultor</span>
+                <span className="text-xs text-[var(--warning)]">Somente faturável — não reflete no pagamento do consultor</span>
               </label>
             )}
 
             {/* % Extras (admin / coordenador) */}
             {(isAdmin || isCoordenador) && (
               <div>
-                <Label className="text-xs text-zinc-400">% Extras</Label>
+                <Label className="text-xs text-[var(--text-muted)]">% Extras</Label>
                 <div className="mt-6 grid grid-cols-2 gap-2">
                   <div className="relative">
                     <input
@@ -476,10 +476,10 @@ export default function EditTimesheetPage() {
                       value={form.client_extra_pct}
                       onChange={e => setForm(f => ({ ...f, client_extra_pct: e.target.value }))}
                       placeholder="0"
-                      className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-amber-400 pointer-events-none">%</span>
-                    <span className="absolute -top-0 left-0 text-[10px] text-zinc-500 -mt-4">Cliente</span>
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--warning)] pointer-events-none">%</span>
+                    <span className="absolute -top-0 left-0 text-[10px] text-[var(--text-light)] -mt-4">Cliente</span>
                   </div>
                   <div className="relative">
                     <input
@@ -488,24 +488,24 @@ export default function EditTimesheetPage() {
                       onChange={e => setForm(f => ({ ...f, consultant_extra_pct: e.target.value }))}
                       placeholder={form.is_billable_only ? 'N/A — Fat. Admin' : '0'}
                       disabled={form.is_billable_only}
-                      className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] placeholder-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-green-400 pointer-events-none">%</span>
-                    <span className="absolute -top-0 left-0 text-[10px] text-zinc-500 -mt-4">Consultor</span>
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--success)] pointer-events-none">%</span>
+                    <span className="absolute -top-0 left-0 text-[10px] text-[var(--text-light)] -mt-4">Consultor</span>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Status (leitura) */}
-            <div className="rounded-xl px-3 py-2.5 text-xs" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
+            <div className="rounded-xl px-3 py-2.5 text-xs" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
               Status atual: <strong style={{ color: 'var(--brand-muted)' }}>{ts.status_display ?? ts.status}</strong>
               {ts.rejection_reason && <span className="ml-2" style={{ color: 'var(--brand-danger)' }}>— {ts.rejection_reason}</span>}
             </div>
 
             <div className="flex gap-2 pt-1 justify-end">
               <Link href="/timesheets"
-                className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-medium transition-colors hover:bg-white/5"
+                className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-medium transition-colors hover:bg-[var(--surface-hover)]"
                 style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
                 Cancelar
               </Link>
@@ -522,41 +522,41 @@ export default function EditTimesheetPage() {
 
       {conflictData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800" style={{ background: 'rgba(239,68,68,0.08)' }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.15)' }}>
-                <AlertTriangle size={16} className="text-red-400" />
+          <div className="bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)]" style={{ background: 'var(--danger-bg)' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--danger-bg)' }}>
+                <AlertTriangle size={16} className="text-[var(--danger)]" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-red-400">Conflito de Horário</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">O horário conflita com o apontamento abaixo</p>
+                <p className="text-sm font-bold text-[var(--danger)]">Conflito de Horário</p>
+                <p className="text-[11px] text-[var(--text-light)] mt-0.5">O horário conflita com o apontamento abaixo</p>
               </div>
-              <button onClick={() => setConflictData(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+              <button onClick={() => setConflictData(null)} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
                 <X size={18} />
               </button>
             </div>
             <div className="px-5 py-4 space-y-2.5">
-              <div className="rounded-xl p-3.5 space-y-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <div className="rounded-xl p-3.5 space-y-2" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Data</span>
-                  <span className="text-zinc-200 font-medium">{conflictData.date}</span>
+                  <span className="text-[var(--text-light)]">Data</span>
+                  <span className="text-[var(--text)] font-medium">{conflictData.date}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Horário</span>
-                  <span className="text-zinc-200 font-medium font-mono">{conflictData.start_time ?? '—'} – {conflictData.end_time ?? '—'}</span>
+                  <span className="text-[var(--text-light)]">Horário</span>
+                  <span className="text-[var(--text)] font-medium font-mono">{conflictData.start_time ?? '—'} – {conflictData.end_time ?? '—'}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Cliente</span>
-                  <span className="text-zinc-200 font-medium">{conflictData.customer_name ?? '—'}</span>
+                  <span className="text-[var(--text-light)]">Cliente</span>
+                  <span className="text-[var(--text)] font-medium">{conflictData.customer_name ?? '—'}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Projeto</span>
-                  <span className="text-zinc-200 font-medium">{conflictData.project_name ?? '—'}</span>
+                  <span className="text-[var(--text-light)]">Projeto</span>
+                  <span className="text-[var(--text)] font-medium">{conflictData.project_name ?? '—'}</span>
                 </div>
               </div>
-              <p className="text-[11px] text-zinc-600 text-center pt-1">Ajuste o horário para não sobrepor este apontamento.</p>
+              <p className="text-[11px] text-[var(--text-muted)] text-center pt-1">Ajuste o horário para não sobrepor este apontamento.</p>
             </div>
-            <div className="px-5 py-4 border-t border-zinc-800 flex justify-end">
+            <div className="px-5 py-4 border-t border-[var(--border)] flex justify-end">
               <Button variant="outline" onClick={() => setConflictData(null)}>Entendido</Button>
             </div>
           </div>

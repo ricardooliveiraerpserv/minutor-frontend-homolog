@@ -111,8 +111,8 @@ function resolveProfileFromType(type: string | null | undefined): ProfileType | 
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl max-h-[90vh] flex flex-col">
-        <button onClick={onClose} className="absolute top-3 right-3 z-10 text-zinc-500 hover:text-zinc-300">
+      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md shadow-xl max-h-[90vh] flex flex-col">
+        <button onClick={onClose} className="absolute top-3 right-3 z-10 text-[var(--text-light)] hover:text-[var(--text)]">
           <X size={16} />
         </button>
         <div className="overflow-y-auto">
@@ -127,7 +127,7 @@ function TableSkeleton() {
   return (
     <>
       {[...Array(8)].map((_, i) => (
-        <tr key={i} className="border-b border-zinc-800">
+        <tr key={i} className="border-b border-[var(--border)]">
           {[...Array(5)].map((_, j) => (
             <td key={j} className="px-3 py-2.5"><Skeleton className="h-4 w-full" /></td>
           ))}
@@ -138,8 +138,8 @@ function TableSkeleton() {
 }
 
 function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
-  if (!active) return <span className="ml-1 text-zinc-700">↕</span>
-  return <span className="ml-1 text-blue-400">{dir === 'asc' ? '↑' : '↓'}</span>
+  if (!active) return <span className="ml-1 text-[var(--text-muted)]">↕</span>
+  return <span className="ml-1 text-[var(--primary)]">{dir === 'asc' ? '↑' : '↓'}</span>
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -389,25 +389,25 @@ export default function UsersPage() {
       {/* Filtros */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-48">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
           <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="Buscar por nome ou e-mail..."
-            className="pl-8 bg-zinc-800 border-zinc-700 text-white h-8 text-xs" />
+            className="pl-8 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs" />
         </div>
         <select value={filterEnabled} onChange={e => { setFilterEnabled(e.target.value); setPage(1) }}
-          className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-md h-8 px-2">
+          className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
           <option value="">Todos</option>
           <option value="1">Ativos</option>
           <option value="0">Inativos</option>
         </select>
-        <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+        <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
           {([['', 'Todos'], ['cliente', 'Cliente'], ['consultor', 'Consultor'], ['coordenador', 'Coordenador'], ['parceiro_admin', 'Parceiro ADM'], ['admin', 'Admin'], ['administrativo', 'Adm']] as const).map(([val, label]) => (
             <button key={val} type="button"
               onClick={() => setFilterRole(val)}
               className={`px-3 py-1.5 font-medium transition-colors whitespace-nowrap ${
                 filterRole === val
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-[var(--primary)] text-[var(--primary-fg)]'
+                  : 'bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}>
               {label}
             </button>
@@ -417,7 +417,7 @@ export default function UsersPage() {
           <select
             value={filterPartner}
             onChange={e => { setFilterPartner(e.target.value); setPage(1) }}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-md h-8 px-2">
+            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
             <option value="">Todas as empresas</option>
             {partners.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
           </select>
@@ -426,13 +426,13 @@ export default function UsersPage() {
           <select
             value={filterCustomer}
             onChange={e => { setFilterCustomer(e.target.value); setPage(1) }}
-            className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-md h-8 px-2">
+            className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2">
             <option value="">Todos os clientes</option>
             {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
           </select>
         )}
         {canCreate && (
-        <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5">
+        <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
           <Plus size={13} /> Novo
         </Button>
         )}
@@ -440,13 +440,13 @@ export default function UsersPage() {
 
       {/* Barra de ação em massa */}
       {selectedIds.size > 0 && canResetPwd && (
-        <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-zinc-800/60 border border-zinc-700/50 rounded-lg">
-          <span className="text-xs text-zinc-400">{selectedIds.size} usuário(s) selecionado(s)</span>
+        <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg">
+          <span className="text-xs text-[var(--text-muted)]">{selectedIds.size} usuário(s) selecionado(s)</span>
           <button
             type="button"
             onClick={resendWelcomeBulk}
             disabled={bulkResending}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
           >
             <Mail size={12} />
             {bulkResending ? 'Enviando...' : 'Reenviar boas-vindas'}
@@ -457,7 +457,7 @@ export default function UsersPage() {
                 type="button"
                 onClick={() => bulkSetSustentacao(true)}
                 disabled={bulkSustLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--success-bg)] hover:bg-[var(--success-bg)] text-[var(--success)] border border-[var(--success-border)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
               >
                 <Check size={12} />
                 {bulkSustLoading ? 'Salvando...' : 'Liberar sustentação'}
@@ -466,19 +466,19 @@ export default function UsersPage() {
                 type="button"
                 onClick={() => bulkSetSustentacao(false)}
                 disabled={bulkSustLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-700/50 hover:bg-zinc-700 text-zinc-400 border border-zinc-600/50 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] hover:bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border-strong)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
               >
                 <X size={12} />
                 {bulkSustLoading ? 'Salvando...' : 'Bloquear sustentação'}
               </button>
 
               {/* ── Tipo de contrato em massa ── */}
-              <div className="flex items-center gap-1.5 pl-3 border-l border-zinc-700/50">
-                <span className="text-[11px] text-zinc-500">Tipo de contrato:</span>
+              <div className="flex items-center gap-1.5 pl-3 border-l border-[var(--border)]">
+                <span className="text-[11px] text-[var(--text-light)]">Tipo de contrato:</span>
                 <select
                   value={bulkContractType}
                   onChange={e => setBulkContractType(e.target.value as ContractType | '')}
-                  className="bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-md h-7 px-2"
+                  className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-7 px-2"
                 >
                   <option value="">—</option>
                   {CONTRACT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -487,7 +487,7 @@ export default function UsersPage() {
                   type="button"
                   onClick={bulkSetContractType}
                   disabled={bulkContractLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
                 >
                   <Check size={12} />
                   {bulkContractLoading ? 'Aplicando...' : 'Aplicar'}
@@ -500,63 +500,63 @@ export default function UsersPage() {
               type="button"
               onClick={() => setBulkDeleteConfirm(true)}
               disabled={bulkDeleting}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--danger-bg)] hover:bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger-border)] rounded-md text-xs font-medium transition-colors disabled:opacity-50"
             >
               <Trash2 size={12} />
               {bulkDeleting ? 'Excluindo...' : 'Excluir'}
             </button>
           )}
-          <button type="button" onClick={() => setSelectedIds(new Set())} className="ml-auto text-zinc-500 hover:text-zinc-300">
+          <button type="button" onClick={() => setSelectedIds(new Set())} className="ml-auto text-[var(--text-light)] hover:text-[var(--text)]">
             <X size={13} />
           </button>
         </div>
       )}
 
       {/* Tabela */}
-      <div className="rounded-lg border border-zinc-800 overflow-clip">
+      <div className="rounded-lg border border-[var(--border)] overflow-clip">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 z-10 bg-zinc-900">
-            <tr className="border-b border-zinc-800 bg-zinc-900">
+          <thead className="sticky top-0 z-10 bg-[var(--surface)]">
+            <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
               {canResetPwd && (
                 <th className="px-3 py-2.5 w-8">
-                  <button type="button" onClick={toggleSelectAll} className="text-zinc-500 hover:text-zinc-300 flex items-center">
+                  <button type="button" onClick={toggleSelectAll} className="text-[var(--text-light)] hover:text-[var(--text)] flex items-center">
                     {selectedIds.size === users.length && users.length > 0
-                      ? <CheckSquare2 size={13} className="text-cyan-400" />
+                      ? <CheckSquare2 size={13} className="text-[var(--primary)]" />
                       : <Square size={13} />}
                   </button>
                 </th>
               )}
               <th className="px-3 py-2.5 w-10"></th>
-              <th onClick={() => { setSort('name'); setPage(1) }} className="text-left px-3 py-2.5 text-zinc-500 font-medium cursor-pointer hover:text-zinc-300 select-none">
+              <th onClick={() => { setSort('name'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium cursor-pointer hover:text-[var(--text)] select-none">
                 Nome<SortIcon active={sort === 'name'} dir={sortDir as 'asc' | 'desc'} />
               </th>
-              <th onClick={() => { setSort('email'); setPage(1) }} className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell cursor-pointer hover:text-zinc-300 select-none">
+              <th onClick={() => { setSort('email'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell cursor-pointer hover:text-[var(--text)] select-none">
                 E-mail<SortIcon active={sort === 'email'} dir={sortDir as 'asc' | 'desc'} />
               </th>
               {filterRole === 'parceiro_admin' && (
-                <th onClick={() => { setSort('partner_name'); setPage(1) }} className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell cursor-pointer hover:text-zinc-300 select-none">
+                <th onClick={() => { setSort('partner_name'); setPage(1) }} className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell cursor-pointer hover:text-[var(--text)] select-none">
                   Empresa<SortIcon active={sort === 'partner_name'} dir={sortDir as 'asc' | 'desc'} />
                 </th>
               )}
               {filterRole === 'cliente' && (
-                <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Cliente</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Cliente</th>
               )}
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Perfil</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Contrato</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Sustentação</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Perfil</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Contrato</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Sustentação</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
             {loading ? <TableSkeleton /> : users.length === 0 ? (
-              <tr><td colSpan={(canResetPwd ? 8 : 7) + ((filterRole === 'parceiro_admin' || filterRole === 'cliente') ? 1 : 0)} className="px-3 py-8 text-center text-zinc-500">Nenhum usuário encontrado</td></tr>
+              <tr><td colSpan={(canResetPwd ? 8 : 7) + ((filterRole === 'parceiro_admin' || filterRole === 'cliente') ? 1 : 0)} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
             ) : users.map(user => (
-              <tr key={user.id} className={`border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors ${selectedIds.has(user.id) ? 'bg-cyan-500/5' : ''}`}>
+              <tr key={user.id} className={`border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors ${selectedIds.has(user.id) ? 'bg-[var(--primary-soft)]' : ''}`}>
                 {canResetPwd && (
                   <td className="px-3 py-2.5 w-8">
-                    <button type="button" onClick={() => toggleSelect(user.id)} className="text-zinc-500 hover:text-zinc-300 flex items-center">
+                    <button type="button" onClick={() => toggleSelect(user.id)} className="text-[var(--text-light)] hover:text-[var(--text)] flex items-center">
                       {selectedIds.has(user.id)
-                        ? <CheckSquare2 size={13} className="text-cyan-400" />
+                        ? <CheckSquare2 size={13} className="text-[var(--primary)]" />
                         : <Square size={13} />}
                     </button>
                   </td>
@@ -570,38 +570,38 @@ export default function UsersPage() {
                     ...(canDelete        ? [{ label: 'Excluir',              icon: <Trash2   size={12} />, onClick: () => remove(user.id), danger: true, disabled: deleting === user.id }] : []),
                   ]} />
                 </td>
-                <td className="px-3 py-2.5 text-zinc-200 font-medium">{user.name}</td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell">{user.email}</td>
+                <td className="px-3 py-2.5 text-[var(--text)] font-medium">{user.name}</td>
+                <td className="px-3 py-2.5 text-[var(--text-muted)] hidden md:table-cell">{user.email}</td>
                 {filterRole === 'parceiro_admin' && (
                   <td className="px-3 py-2.5 hidden sm:table-cell">
                     {user.partner?.name
-                      ? <span className="text-xs font-medium text-zinc-200">{user.partner.name}</span>
-                      : <span className="text-xs text-zinc-600">—</span>}
+                      ? <span className="text-xs font-medium text-[var(--text)]">{user.partner.name}</span>
+                      : <span className="text-xs text-[var(--text-muted)]">—</span>}
                   </td>
                 )}
                 {filterRole === 'cliente' && (
                   <td className="px-3 py-2.5 hidden sm:table-cell">
                     {user.customer?.name
-                      ? <span className="text-xs font-medium text-zinc-200">{user.customer.name}</span>
-                      : <span className="text-xs text-zinc-600">—</span>}
+                      ? <span className="text-xs font-medium text-[var(--text)]">{user.customer.name}</span>
+                      : <span className="text-xs text-[var(--text-muted)]">—</span>}
                   </td>
                 )}
                 <td className="px-3 py-2.5 hidden sm:table-cell">
                   <div className="flex flex-wrap gap-1 items-center">
                     {user.type && (
-                      <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/20">
+                      <Badge variant="outline" className="text-[10px] bg-[var(--primary-soft)] text-[var(--primary)] border-[var(--primary)]">
                         {PROFILE_OPTIONS.find(o => resolveTypeForBackend(o.value) === user.type)?.label ?? user.type}
                       </Badge>
                     )}
                     {user.type === 'parceiro_admin' && user.is_executive && (
-                      <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/20">
+                      <Badge variant="outline" className="text-[10px] bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning-border)]">
                         Parceiro ADM
                       </Badge>
                     )}
                     {/* consultant_type só faz sentido pra consultor/parceiro_admin —
                         evita "Banco de Horas" aparecer para cliente/admin/etc por dado stale. */}
                     {user.consultant_type && (user.type === 'consultor' || user.type === 'parceiro_admin') && (
-                      <span className="text-[10px] text-zinc-500">
+                      <span className="text-[10px] text-[var(--text-light)]">
                         {CONSULTANT_OPTIONS.find(o => o.value === user.consultant_type)?.label ?? user.consultant_type}
                       </span>
                     )}
@@ -609,20 +609,20 @@ export default function UsersPage() {
                 </td>
                 <td className="px-3 py-2.5 hidden lg:table-cell">
                   {(user.type === 'consultor' || user.type === 'parceiro_admin') && user.contract_type
-                    ? <span className="text-[10px] text-zinc-300">{contractLabel(user.contract_type)}</span>
-                    : <span className="text-[10px] text-zinc-700">—</span>}
+                    ? <span className="text-[10px] text-[var(--text)]">{contractLabel(user.contract_type)}</span>
+                    : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
                 </td>
                 <td className="px-3 py-2.5 hidden lg:table-cell">
                   {(user.type === 'consultor' || user.type === 'parceiro_admin') ? (
                     user.can_timesheet_sustentacao
-                      ? <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400"><Check size={10} />Liberado</span>
-                      : <span className="text-[10px] text-zinc-600">Bloqueado</span>
-                  ) : <span className="text-[10px] text-zinc-700">—</span>}
+                      ? <span className="inline-flex items-center gap-1 text-[10px] text-[var(--success)]"><Check size={10} />Liberado</span>
+                      : <span className="text-[10px] text-[var(--text-muted)]">Bloqueado</span>
+                  ) : <span className="text-[10px] text-[var(--text-muted)]">—</span>}
                 </td>
                 <td className="px-3 py-2.5">
                   <Badge variant="outline" className={`text-[10px] border ${user.enabled
-                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                    : 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'}`}>
+                    ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]'
+                    : 'bg-[var(--surface-hover)] text-[var(--text-muted)] border-[var(--border)]'}`}>
                     {user.enabled ? 'Ativo' : 'Inativo'}
                   </Badge>
                 </td>
@@ -635,14 +635,14 @@ export default function UsersPage() {
       {/* Legenda parceiro */}
       {filterRole === 'parceiro_admin' && !loading && users.length > 0 && (
         <div className="flex items-center gap-4 mt-3 px-1">
-          <span className="text-[11px] text-zinc-500">Legenda:</span>
+          <span className="text-[11px] text-[var(--text-light)]">Legenda:</span>
           <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">Parceiro</span>
-            <span className="text-[11px] text-zinc-500">Consultor vinculado ao parceiro</span>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)]">Parceiro</span>
+            <span className="text-[11px] text-[var(--text-light)]">Consultor vinculado ao parceiro</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">Parceiro ADM</span>
-            <span className="text-[11px] text-zinc-500">Administrador da empresa parceira</span>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--warning-bg)] text-[var(--warning)] border border-[var(--warning-border)]">Parceiro ADM</span>
+            <span className="text-[11px] text-[var(--text-light)]">Administrador da empresa parceira</span>
           </div>
         </div>
       )}
@@ -651,10 +651,10 @@ export default function UsersPage() {
       {(page > 1 || hasNext) && (
         <div className="flex items-center justify-end gap-2 mt-3">
           <button onClick={() => setPage(page - 1)} disabled={page === 1}
-            className="p-1 text-zinc-500 hover:text-zinc-200 disabled:opacity-30"><ChevronLeft size={14} /></button>
-          <span className="text-xs text-zinc-500">Página {page}</span>
+            className="p-1 text-[var(--text-light)] hover:text-[var(--text)] disabled:opacity-30"><ChevronLeft size={14} /></button>
+          <span className="text-xs text-[var(--text-light)]">Página {page}</span>
           <button onClick={() => setPage(page + 1)} disabled={!hasNext}
-            className="p-1 text-zinc-500 hover:text-zinc-200 disabled:opacity-30"><ChevronRight size={14} /></button>
+            className="p-1 text-[var(--text-light)] hover:text-[var(--text)] disabled:opacity-30"><ChevronRight size={14} /></button>
         </div>
       )}
 
@@ -674,24 +674,24 @@ export default function UsersPage() {
               // ── Passo 1: confirmação ──
               <>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-yellow-500/15 shrink-0">
-                    <KeyRound size={15} className="text-yellow-400" />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--warning-bg)] shrink-0">
+                    <KeyRound size={15} className="text-[var(--warning)]" />
                   </div>
-                  <h3 className="text-sm font-semibold text-white">Resetar senha</h3>
+                  <h3 className="text-sm font-semibold text-[var(--text)]">Resetar senha</h3>
                 </div>
-                <p className="text-xs text-zinc-400 mb-1">
+                <p className="text-xs text-[var(--text-muted)] mb-1">
                   Uma nova senha temporária será gerada para:
                 </p>
-                <p className="text-xs font-semibold text-white mb-0.5">{resetModal.userName}</p>
-                <p className="text-xs text-zinc-500 mb-4">{resetModal.userEmail}</p>
-                <p className="text-xs text-zinc-500 mb-5 p-3 rounded-lg bg-zinc-800 border border-zinc-700">
-                  A senha será exibida na tela para você copiar <span className="text-zinc-300 font-medium">e um e-mail será enviado automaticamente</span> ao usuário com as instruções de acesso.
+                <p className="text-xs font-semibold text-[var(--text)] mb-0.5">{resetModal.userName}</p>
+                <p className="text-xs text-[var(--text-light)] mb-4">{resetModal.userEmail}</p>
+                <p className="text-xs text-[var(--text-light)] mb-5 p-3 rounded-lg bg-[var(--surface-hover)] border border-[var(--border)]">
+                  A senha será exibida na tela para você copiar <span className="text-[var(--text)] font-medium">e um e-mail será enviado automaticamente</span> ao usuário com as instruções de acesso.
                 </p>
                 <div className="flex gap-2 justify-end">
                   <Button variant="outline" onClick={() => setResetModal({ open: false, confirmed: false })}
-                    className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+                    className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
                   <Button onClick={confirmReset} disabled={resetting === resetModal.userId}
-                    className="h-8 text-xs bg-yellow-600/80 hover:bg-yellow-600 text-white gap-1.5">
+                    className="h-8 text-xs bg-[var(--warning-bg)] hover:bg-[var(--warning-border)] text-[var(--primary-fg)] gap-1.5">
                     <KeyRound size={12} />
                     {resetting === resetModal.userId ? 'Gerando...' : 'Confirmar e Enviar E-mail'}
                   </Button>
@@ -700,27 +700,27 @@ export default function UsersPage() {
             ) : (
               // ── Passo 2: senha gerada ──
               <>
-                <h3 className="text-sm font-semibold text-white mb-1">Senha gerada com sucesso</h3>
-                <p className="text-xs text-zinc-400 mb-2">Copie a senha abaixo para repassar ao usuário.</p>
+                <h3 className="text-sm font-semibold text-[var(--text)] mb-1">Senha gerada com sucesso</h3>
+                <p className="text-xs text-[var(--text-muted)] mb-2">Copie a senha abaixo para repassar ao usuário.</p>
                 {resetModal.emailSent ? (
-                  <p className="text-xs mb-4 px-2.5 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400">
+                  <p className="text-xs mb-4 px-2.5 py-1.5 rounded-lg bg-[var(--success-bg)] border border-[var(--success-border)] text-[var(--success)]">
                     E-mail enviado para <span className="font-medium">{resetModal.userEmail}</span>
                   </p>
                 ) : (
-                  <p className="text-xs mb-4 px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+                  <p className="text-xs mb-4 px-2.5 py-1.5 rounded-lg bg-[var(--danger-bg)] border border-[var(--danger-border)] text-[var(--danger)]">
                     Falha ao enviar e-mail — repasse a senha manualmente ao usuário.
                   </p>
                 )}
-                <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5">
-                  <code className="flex-1 text-sm text-yellow-300 font-mono tracking-wider">
+                <div className="flex items-center gap-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-3 py-2.5">
+                  <code className="flex-1 text-sm text-[var(--warning)] font-mono tracking-wider">
                     {resetModal.tempPassword}
                   </code>
-                  <button onClick={copyPassword} className="text-zinc-500 hover:text-zinc-200 transition-colors">
-                    {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                  <button onClick={copyPassword} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
+                    {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
                   </button>
                 </div>
                 <Button onClick={() => setResetModal({ open: false, confirmed: false })}
-                  className="mt-4 w-full h-8 text-xs bg-zinc-700 hover:bg-zinc-600 text-white">
+                  className="mt-4 w-full h-8 text-xs bg-[var(--surface-hover)] hover:bg-[var(--border-strong)] text-[var(--primary-fg)]">
                   Fechar
                 </Button>
               </>
@@ -740,8 +740,8 @@ export default function UsersPage() {
           { label: 'E-mail', value: u.email },
           { label: 'Perfil', value: profileLabel },
           { label: 'Status', value: u.enabled
-              ? <span className="text-green-400 text-xs font-medium">Ativo</span>
-              : <span className="text-zinc-400 text-xs">Inativo</span> },
+              ? <span className="text-[var(--success)] text-xs font-medium">Ativo</span>
+              : <span className="text-[var(--text-muted)] text-xs">Inativo</span> },
         ]
         if ((u.type === 'consultor' || u.type === 'parceiro_admin') && u.contract_type) rows.push({ label: 'Tipo de Contrato', value: contractLabel(u.contract_type) })
         // Folha de pagamento — perfis internos (todos exceto cliente/parceiro_admin)
@@ -754,47 +754,47 @@ export default function UsersPage() {
         if (u.daily_hours != null) rows.push({ label: 'Horas/dia útil', value: `${u.daily_hours}h` })
         if (u.guaranteed_hours != null && u.consultant_type === 'horista') rows.push({
           label: 'Horas garantidas',
-          value: <span className="text-right">{u.guaranteed_hours}h/mês <span className="text-zinc-500">(piso mínimo de cobrança)</span></span>
+          value: <span className="text-right">{u.guaranteed_hours}h/mês <span className="text-[var(--text-light)]">(piso mínimo de cobrança)</span></span>
         })
         return (
           <ModalOverlay onClose={() => setViewUser(null)}>
             <div className="p-5">
               <div className="flex items-center gap-3 mb-5">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
-                  style={{ background: 'rgba(0,245,255,0.12)', color: 'var(--brand-primary)' }}>
+                  style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                   {u.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">{u.name}</p>
-                  <p className="text-xs text-zinc-500">{u.email}</p>
+                  <p className="text-sm font-semibold text-[var(--text)]">{u.name}</p>
+                  <p className="text-xs text-[var(--text-light)]">{u.email}</p>
                 </div>
               </div>
 
               <div className="space-y-2.5">
                 {rows.map(row => (
-                  <div key={row.label} className="flex items-center justify-between py-2 border-b border-zinc-800 last:border-0">
-                    <span className="text-xs text-zinc-500">{row.label}</span>
-                    <span className="text-xs text-zinc-200 text-right">{row.value}</span>
+                  <div key={row.label} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
+                    <span className="text-xs text-[var(--text-light)]">{row.label}</span>
+                    <span className="text-xs text-[var(--text)] text-right">{row.value}</span>
                   </div>
                 ))}
               </div>
 
               {/* ── Histórico de alterações ── */}
               {rateHistLoading && (
-                <p className="text-[10px] text-zinc-500 mt-4">Carregando histórico...</p>
+                <p className="text-[10px] text-[var(--text-light)] mt-4">Carregando histórico...</p>
               )}
               {!rateHistLoading && rateHistory.length > 0 && (
                 <div className="mt-5">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Histórico de Alterações</p>
-                  <div className="rounded-lg overflow-y-auto max-h-[260px] border border-zinc-800">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-light)] mb-2">Histórico de Alterações</p>
+                  <div className="rounded-lg overflow-y-auto max-h-[260px] border border-[var(--border)]">
                     <table className="w-full text-[10px]">
-                      <thead className="sticky top-0 z-10 bg-zinc-900">
-                        <tr className="border-b border-zinc-800 bg-zinc-900">
-                          <th className="text-left px-3 py-2 text-zinc-500 font-medium">Data</th>
-                          <th className="text-left px-3 py-2 text-zinc-500 font-medium">Campo</th>
-                          <th className="text-left px-3 py-2 text-zinc-500 font-medium">De</th>
-                          <th className="text-left px-3 py-2 text-zinc-500 font-medium">Para</th>
-                          <th className="text-left px-3 py-2 text-zinc-500 font-medium">Por</th>
+                      <thead className="sticky top-0 z-10 bg-[var(--surface)]">
+                        <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
+                          <th className="text-left px-3 py-2 text-[var(--text-light)] font-medium">Data</th>
+                          <th className="text-left px-3 py-2 text-[var(--text-light)] font-medium">Campo</th>
+                          <th className="text-left px-3 py-2 text-[var(--text-light)] font-medium">De</th>
+                          <th className="text-left px-3 py-2 text-[var(--text-light)] font-medium">Para</th>
+                          <th className="text-left px-3 py-2 text-[var(--text-light)] font-medium">Por</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -812,12 +812,12 @@ export default function UsersPage() {
                           }
                           return rows
                         }).map(row => (
-                          <tr key={row.key} className="border-b border-zinc-800/50 last:border-0">
-                            <td className="px-3 py-2 text-zinc-400">{row.date}</td>
-                            <td className="px-3 py-2 text-zinc-400">{row.campo}</td>
-                            <td className="px-3 py-2 text-zinc-500">{row.de}</td>
-                            <td className="px-3 py-2 text-zinc-200 font-medium">{row.para}</td>
-                            <td className="px-3 py-2 text-zinc-500">{row.by}</td>
+                          <tr key={row.key} className="border-b border-[var(--border)] last:border-0">
+                            <td className="px-3 py-2 text-[var(--text-muted)]">{row.date}</td>
+                            <td className="px-3 py-2 text-[var(--text-muted)]">{row.campo}</td>
+                            <td className="px-3 py-2 text-[var(--text-light)]">{row.de}</td>
+                            <td className="px-3 py-2 text-[var(--text)] font-medium">{row.para}</td>
+                            <td className="px-3 py-2 text-[var(--text-light)]">{row.by}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -829,7 +829,7 @@ export default function UsersPage() {
               <div className="flex gap-2 mt-5 justify-end">
                 {canEdit && (
                 <button onClick={() => { setViewUser(null); openEdit(u) }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/5"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-[var(--surface-hover)]"
                   style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
                   <Pencil size={11} /> Editar
                 </button>
