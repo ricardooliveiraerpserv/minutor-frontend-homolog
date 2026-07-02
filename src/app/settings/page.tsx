@@ -168,7 +168,7 @@ function GeneralTab() {
               <Button
                 onClick={historyImport}
                 disabled={importingSince || !movideskStatus?.token_configured}
-                className="w-full h-8 text-xs gap-1.5 bg-amber-600 hover:bg-amber-500 text-white disabled:opacity-40"
+                className="w-full h-8 text-xs gap-1.5 bg-amber-600 hover:bg-[var(--warning-border)] text-white disabled:opacity-40"
               >
                 <RefreshCw size={12} className={importingSince ? 'animate-spin' : ''} />
                 {importingSince ? 'Enfileirando...' : `Importar histórico desde ${settings.movidesk_import_start_date}`}

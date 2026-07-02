@@ -112,7 +112,7 @@ function SearchSelect({
             <button
               type="button"
               onClick={() => { onChange(''); setOpen(false); setQ('') }}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--brand-muted)' }}
             >
               {placeholder}
@@ -121,7 +121,7 @@ function SearchSelect({
               <button
                 key={o.id} type="button"
                 onClick={() => { onChange(String(o.id)); setOpen(false); setQ('') }}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-hover)] transition-colors"
                 style={{ color: String(o.id) === value ? '#00F5FF' : 'var(--brand-text)' }}
               >
                 {o.name}
@@ -533,7 +533,7 @@ export default function PagamentoDespesasPage() {
                           type="checkbox"
                           checked={allSelected}
                           onChange={toggleAll}
-                          className="w-4 h-4 rounded accent-cyan-400"
+                          className="w-4 h-4 rounded accent-[var(--primary)]"
                         />
                       </Th>
                     )}
@@ -561,7 +561,7 @@ export default function PagamentoDespesasPage() {
                                 type="checkbox"
                                 checked={selected.has(exp.id)}
                                 onChange={() => toggleOne(exp.id)}
-                                className="w-4 h-4 rounded accent-cyan-400"
+                                className="w-4 h-4 rounded accent-[var(--primary)]"
                               />
                             )}
                           </Td>

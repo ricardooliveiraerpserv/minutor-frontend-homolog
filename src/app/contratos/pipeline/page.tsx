@@ -4859,7 +4859,7 @@ function KanbanContent() {
                             <td className="px-4 py-3 text-[var(--text)] font-medium">{p.customer_name}</td>
                             <td className="px-4 py-3 text-[var(--text)] text-xs">
                               <p className="text-[var(--text)] text-sm">{p.project_name}</p>
-                              <span className="font-mono text-cyan-400">{p.code}</span>
+                              <span className="font-mono text-[var(--primary)]">{p.code}</span>
                             </td>
                             <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{p.contract_type ?? '—'}</td>
                             <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{p.service_type ?? '—'}</td>
@@ -5405,7 +5405,7 @@ function KanbanContent() {
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={close}>
               <div className="rounded-2xl p-6 flex flex-col gap-4 w-80" style={{ background: '#0f172a', border: '1px solid rgba(239,68,68,0.4)' }} onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-3">
-                  <Trash2 size={20} className="text-red-400" />
+                  <Trash2 size={20} className="text-[var(--danger)]" />
                   <p className="font-semibold text-[var(--text)]">Excluir Contrato</p>
                 </div>
                 <p className="text-sm text-slate-300">Tem certeza que deseja excluir <strong className="text-[var(--text)]">{card.project_name}</strong>? Esta ação não pode ser desfeita.</p>

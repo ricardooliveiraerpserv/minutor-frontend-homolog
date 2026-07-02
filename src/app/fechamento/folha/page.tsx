@@ -728,7 +728,7 @@ export default function FechamentoFolhaPage() {
                 type="month"
                 value={yearMonth}
                 onChange={e => setYearMonth(e.target.value)}
-                className="bg-zinc-800 border border-zinc-700 text-zinc-100 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
               <MultiSelect
                 value={filterUserIds}
@@ -1040,7 +1040,7 @@ export default function FechamentoFolhaPage() {
                       <Tr key={r.row_key} baseBackground={rowBg}
                         className={readOnly ? '[border-left:3px_solid_#a855f7]' : afastado ? '[border-left:3px_solid_var(--danger)]' : undefined}>
                         {/* ── CPF: editável p/ sócio, read-only normal ── */}
-                        <Td mono className={socio ? undefined : 'text-zinc-300'}>
+                        <Td mono className={socio ? undefined : 'text-[var(--text)]'}>
                           {socio ? (
                             <input
                               type="text"
@@ -1053,7 +1053,7 @@ export default function FechamentoFolhaPage() {
                         </Td>
 
                         {/* ── Matrícula: editável p/ sócio, read-only normal ── */}
-                        <Td mono className={socio ? undefined : 'text-zinc-300'}>
+                        <Td mono className={socio ? undefined : 'text-[var(--text)]'}>
                           {socio ? (
                             <input
                               type="text"
@@ -1066,7 +1066,7 @@ export default function FechamentoFolhaPage() {
                         </Td>
 
                         {/* ── Status: editável p/ sócio, read-only normal ── */}
-                        <Td className={socio ? undefined : 'text-zinc-400'}>
+                        <Td className={socio ? undefined : 'text-[var(--text-muted)]'}>
                           {socio ? (
                             <input
                               type="text"
@@ -1079,7 +1079,7 @@ export default function FechamentoFolhaPage() {
                         </Td>
 
                         {/* ── Nome: editável p/ sócio, read-only normal ── */}
-                        <Td className={socio ? undefined : 'font-medium text-zinc-100 whitespace-nowrap'}>
+                        <Td className={socio ? undefined : 'font-medium text-[var(--text)] whitespace-nowrap'}>
                           {socio ? (
                             <input
                               type="text"
@@ -1122,7 +1122,7 @@ export default function FechamentoFolhaPage() {
                         </Td>
 
                         {/* ── Dias: editável (sempre), exceto diretor (read-only) ── */}
-                        <Td right mono className={readOnly ? 'text-zinc-300 tabular-nums' : undefined}>
+                        <Td right mono className={readOnly ? 'text-[var(--text)] tabular-nums' : undefined}>
                           {readOnly ? fmtNum(r.dias, 0) : (
                             <MaskedNum
                               value={e.dias}
@@ -1135,7 +1135,7 @@ export default function FechamentoFolhaPage() {
                         </Td>
 
                         {/* ── Horas: editável p/ sócio e Raho; normal = 160 fixo ── */}
-                        <Td right mono className={valEditable ? undefined : 'text-zinc-300 tabular-nums'}>
+                        <Td right mono className={valEditable ? undefined : 'text-[var(--text)] tabular-nums'}>
                           {valEditable ? (
                             <MaskedNum
                               value={e.horas}
@@ -1148,7 +1148,7 @@ export default function FechamentoFolhaPage() {
                         </Td>
 
                         {/* ── Valor Hora: editável p/ sócio e Raho (4 casas); read-only normal ── */}
-                        <Td right mono className={valEditable ? undefined : 'text-zinc-400'}>
+                        <Td right mono className={valEditable ? undefined : 'text-[var(--text-muted)]'}>
                           {valEditable ? (
                             <MaskedNum
                               value={e.valor_hora}
@@ -1227,7 +1227,7 @@ export default function FechamentoFolhaPage() {
                         </Td>
 
                         {/* ── Variável: editável (sempre), exceto diretor (read-only) ── */}
-                        <Td right mono className={readOnly ? 'text-zinc-300 tabular-nums' : undefined}>
+                        <Td right mono className={readOnly ? 'text-[var(--text)] tabular-nums' : undefined}>
                           {readOnly ? fmtNum(r.variavel) : (
                             <MaskedNum
                               value={e.variavel}
@@ -1246,7 +1246,7 @@ export default function FechamentoFolhaPage() {
                         <Td right>
                           <div className="flex flex-col items-end gap-0.5" title="Reemb = manual (input) + auto (despesas 'pagar no fechamento' do mês)">
                             {readOnly ? (
-                              <span className="tabular-nums text-zinc-300">{fmtNum(r.reemb)}</span>
+                              <span className="tabular-nums text-[var(--text)]">{fmtNum(r.reemb)}</span>
                             ) : (
                               <MaskedNum
                                 value={e.reemb}
@@ -1265,7 +1265,7 @@ export default function FechamentoFolhaPage() {
                         </Td>
 
                         {/* ── Descontos Diversos: editável (sempre), exceto diretor (read-only) ── */}
-                        <Td right mono className={readOnly ? 'text-zinc-300 tabular-nums' : undefined}>
+                        <Td right mono className={readOnly ? 'text-[var(--text)] tabular-nums' : undefined}>
                           {readOnly ? fmtNum(r.descontos) : (
                             <MaskedNum
                               value={e.descontos}
@@ -1278,7 +1278,7 @@ export default function FechamentoFolhaPage() {
                         </Td>
 
                         {/* ── Adiantamento: editável (sempre), exceto diretor (read-only) ── */}
-                        <Td right mono className={readOnly ? 'text-zinc-300 tabular-nums' : undefined}>
+                        <Td right mono className={readOnly ? 'text-[var(--text)] tabular-nums' : undefined}>
                           {readOnly ? fmtNum(r.adiantamento) : (
                             <MaskedNum
                               value={e.adiantamento}
@@ -1301,7 +1301,7 @@ export default function FechamentoFolhaPage() {
                         </Td>
 
                         {/* ── Horista/Mensalista: editável (sempre), exceto diretor (read-only) ── */}
-                        <Td className={readOnly ? 'text-zinc-300' : undefined}>
+                        <Td className={readOnly ? 'text-[var(--text)]' : undefined}>
                           {readOnly ? (r.horista_mensalista || '—') : (
                             <select
                               value={e.horista_mensalista}

@@ -49,7 +49,7 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-zinc-950">
+      <div className="flex h-screen items-center justify-center bg-[var(--bg)]">
         <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )

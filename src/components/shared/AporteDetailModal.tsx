@@ -120,7 +120,7 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
               <p className="font-mono text-xs mt-0.5" style={{ color: 'var(--brand-primary)' }}>{aporte.project_code}</p>
             )}
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors shrink-0">
             <X size={16} style={{ color: 'var(--text-muted)' }} />
           </button>
         </div>
@@ -257,7 +257,7 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
           {editing ? (
             <>
               <button onClick={() => setEditing(false)} disabled={saving}
-                className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white transition-colors disabled:opacity-40">
+                className="px-3 py-1.5 rounded-lg text-xs text-[var(--text-muted)] hover:text-white transition-colors disabled:opacity-40">
                 Cancelar
               </button>
               <button onClick={salvar} disabled={saving}
@@ -270,7 +270,7 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
             <>
               <div className="flex items-center gap-2">
                 <button onClick={onClose}
-                  className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-white transition-colors">
+                  className="px-3 py-1.5 rounded-lg text-xs text-[var(--text-muted)] hover:text-white transition-colors">
                   Fechar
                 </button>
                 {canWrite && (

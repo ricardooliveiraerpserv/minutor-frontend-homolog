@@ -94,7 +94,7 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }
               <h3 className="text-base font-bold" style={{ color: 'var(--text)' }}>{cliente}</h3>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
             <X size={16} style={{ color: 'var(--text-muted)' }} />
           </button>
         </div>

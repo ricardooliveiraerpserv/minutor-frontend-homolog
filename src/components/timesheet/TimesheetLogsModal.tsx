@@ -54,7 +54,7 @@ export function TimesheetLogsModal({ timesheetId, onClose }: Props) {
             </div>
           </div>
           <button onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
             style={{ color: 'var(--brand-subtle)' }}>
             <X size={14} />
           </button>

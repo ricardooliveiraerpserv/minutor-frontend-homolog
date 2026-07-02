@@ -100,7 +100,7 @@ export function ExpenseViewModal({
       <div className="relative w-full max-w-lg mt-6 rounded-2xl shadow-2xl"
         style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
         <button onClick={onClose}
-          className="absolute top-3 right-3 z-10 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          className="absolute top-3 right-3 z-10 p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
           style={{ color: 'var(--brand-subtle)' }}>
           <X size={16} />
         </button>
@@ -210,13 +210,13 @@ export function ExpenseViewModal({
           <div className="flex items-center justify-end gap-2 pt-2">
             {onEdit && (
               <button onClick={onEdit}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-white/5"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--surface-hover)]"
                 style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
                 <Pencil size={14} /> Editar
               </button>
             )}
             <button onClick={onClose}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-white/5"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--surface-hover)]"
               style={{ color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
               Fechar
             </button>

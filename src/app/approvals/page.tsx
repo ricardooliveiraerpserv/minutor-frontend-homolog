@@ -167,7 +167,7 @@ function SearchableSelect({
       <button
         type="button"
         onClick={() => { setOpen(o => !o); setSearch('') }}
-        className="w-full h-8 flex items-center justify-between gap-1 px-2 text-xs bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] rounded-md outline-none hover:border-zinc-500 transition-colors">
+        className="w-full h-8 flex items-center justify-between gap-1 px-2 text-xs bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] rounded-md outline-none hover:border-[var(--border-strong)] transition-colors">
         <span className={`truncate ${!selected ? 'text-[var(--text-light)]' : ''}`}>
           {selected ? selected.name : placeholder}
         </span>
@@ -183,14 +183,14 @@ function SearchableSelect({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar..."
-              className="w-full h-7 px-2 text-xs bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] rounded outline-none placeholder:text-[var(--text-muted)] focus:border-zinc-500"
+              className="w-full h-7 px-2 text-xs bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] rounded outline-none placeholder:text-[var(--text-muted)] focus:border-[var(--border-strong)]"
             />
           </div>
           {/* Opções */}
           <div className="max-h-48 overflow-y-auto py-0.5">
             <button type="button" onClick={() => select('')}
               className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${
-                !value ? 'bg-blue-600/20 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
+                !value ? 'bg-[var(--primary-soft)] text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
               }`}>
               {!value && <Check size={10} className="shrink-0" />}
               <span className={!value ? '' : 'ml-[14px]'}>{placeholder}</span>
@@ -201,7 +201,7 @@ function SearchableSelect({
             {filtered.map(o => (
               <button key={o.id} type="button" onClick={() => select(String(o.id))}
                 className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${
-                  String(o.id) === value ? 'bg-blue-600/20 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
+                  String(o.id) === value ? 'bg-[var(--primary-soft)] text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
                 }`}>
                 {String(o.id) === value && <Check size={10} className="shrink-0" />}
                 <span className={String(o.id) === value ? '' : 'ml-[14px]'}>{o.name}</span>
@@ -222,27 +222,27 @@ function OriginLabel({ origin, isInternalAction, isBillableOnly }: {
   isBillableOnly?: boolean
 }) {
   if (isInternalAction) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400">Ação Interna</span>
-  if (isBillableOnly)   return <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-700/30 text-amber-400">Apenas Fatura</span>
+  if (isBillableOnly)   return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--warning-bg)] text-[var(--warning)]">Apenas Fatura</span>
   const labels: Record<string, string> = { manual: 'Manual', webhook: 'Webhook', integration: 'Integração', import: 'Importação' }
   return <span className="text-[10px] text-[var(--text-light)]">{labels[origin ?? ''] ?? (origin || '—')}</span>
 }
 
 function TsStatusBadge({ status, display }: { status: string; display?: string }) {
   const colors: Record<string, string> = {
-    pending:              'bg-yellow-500/15 text-yellow-400 border-yellow-500/20',
-    approved:             'bg-green-500/15  text-[var(--success)]  border-green-500/20',
-    rejected:             'bg-red-500/15    text-[var(--danger)]    border-red-500/20',
-    adjustment_requested: 'bg-blue-500/15   text-[var(--primary)]   border-blue-500/20',
-    conflicted:           'bg-purple-500/15 text-purple-400 border-purple-500/20',
+    pending:              'bg-[var(--warning-bg)] text-[var(--warning)] border-yellow-500/20',
+    approved:             'bg-[var(--success-bg)]  text-[var(--success)]  border-green-500/20',
+    rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]    border-red-500/20',
+    adjustment_requested: 'bg-[var(--primary-soft)]   text-[var(--primary)]   border-blue-500/20',
+    conflicted:           'bg-[var(--purple-bg)] text-[var(--purple)] border-purple-500/20',
     internal:             'bg-slate-500/15  text-slate-400  border-slate-500/20',
-    released:             'bg-cyan-500/15   text-cyan-400   border-cyan-500/20',
+    released:             'bg-[var(--primary-soft)]   text-[var(--primary)]   border-cyan-500/20',
   }
   const labels: Record<string, string> = {
     pending: 'Pendente', approved: 'Aprovado', rejected: 'Rejeitado',
     adjustment_requested: 'Ajuste', conflicted: 'Conflito', internal: 'Ação Interna', released: 'Liberado',
   }
   return (
-    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${colors[status] ?? 'bg-zinc-700/30 text-[var(--text-muted)] border-zinc-600/20'}`}>
+    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${colors[status] ?? 'bg-[var(--surface-hover)] text-[var(--text-muted)] border-[var(--border-strong)]/20'}`}>
       {display ?? labels[status] ?? status}
     </span>
   )
@@ -273,7 +273,7 @@ function StatusPills({ value, onChange, options }: {
   options: { value: string; label: string }[]
 }) {
   return (
-    <div className="flex items-center gap-0.5 bg-zinc-800/70 border border-zinc-700/50 rounded-full p-1 flex-wrap">
+    <div className="flex items-center gap-0.5 bg-[var(--surface-hover)] border border-[var(--border)]/50 rounded-full p-1 flex-wrap">
       {options.map(opt => (
         <button key={opt.value} type="button" onClick={() => onChange(opt.value)}
           className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
@@ -407,7 +407,7 @@ function ExpApproveModal({
       <div className="relative w-full max-w-lg mt-6 rounded-2xl shadow-2xl"
         style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
         <button onClick={onClose}
-          className="absolute top-3 right-3 z-10 p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+          className="absolute top-3 right-3 z-10 p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
           style={{ color: 'var(--brand-subtle)' }}>
           <X size={16} />
         </button>
@@ -474,20 +474,20 @@ function ExpApproveModal({
 
           {/* Cobrar do cliente */}
           {mode === 'approve' && (
-            <div className="rounded-xl border border-[var(--border)] bg-zinc-900/60 px-3.5 py-2.5 space-y-2">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] px-3.5 py-2.5 space-y-2">
               <p className={`text-xs font-semibold ${submitted && chargeClient === null ? 'text-[var(--danger)]' : 'text-[var(--text)]'}`}>
                 Cobrar do cliente? *
               </p>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setChargeClient(true)}
                   className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${
-                    chargeClient === true ? 'bg-green-600/20 border-green-500 text-green-300' : 'border-[var(--border)] text-[var(--text-muted)] hover:border-zinc-500'
+                    chargeClient === true ? 'bg-[var(--success-bg)] border-green-500 text-[var(--success)]' : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
                   }`}>
                   Sim — cobrar do cliente
                 </button>
                 <button type="button" onClick={() => setChargeClient(false)}
                   className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${
-                    chargeClient === false ? 'bg-orange-600/20 border-orange-500 text-orange-300' : 'border-[var(--border)] text-[var(--text-muted)] hover:border-zinc-500'
+                    chargeClient === false ? 'bg-[var(--warning-bg)] border-orange-500 text-[var(--warning)]' : 'border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
                   }`}>
                   Não — absorver internamente
                 </button>
@@ -500,7 +500,7 @@ function ExpApproveModal({
 
           {/* Solicitar ajuste */}
           {mode === 'adjust' && (
-            <div className="rounded-xl border border-blue-700/40 bg-blue-950/20 px-4 py-3 space-y-2">
+            <div className="rounded-xl border border-blue-700/40 bg-[var(--primary-soft)] px-4 py-3 space-y-2">
               <p className={`text-xs font-semibold ${adjSubmitted && !adjReason.trim() ? 'text-[var(--danger)]' : 'text-[var(--primary)]'}`}>
                 O que precisa ser ajustado? *
               </p>
@@ -518,15 +518,15 @@ function ExpApproveModal({
             {mode === 'approve' ? (
               <>
                 <button onClick={onReject} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-red-700/50 text-[var(--danger)] hover:bg-red-400/10 disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-red-700/50 text-[var(--danger)] hover:bg-[var(--danger-bg)] disabled:opacity-50 transition-colors">
                   <XCircle size={12} /> Rejeitar
                 </button>
                 <button onClick={() => setMode('adjust')} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-blue-700/50 text-[var(--primary)] hover:bg-blue-400/10 disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-blue-700/50 text-[var(--primary)] hover:bg-[var(--primary-soft)] disabled:opacity-50 transition-colors">
                   <RotateCcw size={12} /> Solicitar Ajuste
                 </button>
                 <button onClick={onClose} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-[var(--border)] text-[var(--text)] hover:bg-white/5 disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-50 transition-colors">
                   Cancelar
                 </button>
                 <button onClick={handleApprove} disabled={approving}
@@ -537,7 +537,7 @@ function ExpApproveModal({
             ) : (
               <>
                 <button onClick={() => { setMode('approve'); setAdjReason(''); setAdjSubmitted(false) }} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-[var(--border)] text-[var(--text)] hover:bg-white/5 disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-hover)] disabled:opacity-50 transition-colors">
                   Voltar
                 </button>
                 <button onClick={handleAdjustment} disabled={approving}
@@ -934,13 +934,13 @@ export default function ApprovalsPage() {
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
                 active
                   ? 'bg-cyan-400 border-cyan-400 text-zinc-900'
-                  : 'bg-transparent border-cyan-500/40 text-cyan-400 hover:border-cyan-400'
+                  : 'bg-transparent border-cyan-500/40 text-[var(--primary)] hover:border-cyan-400'
               }`}>
               <Icon size={14} />
               {label}
               {count > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold ${
-                  active ? 'bg-zinc-900/30 text-zinc-900' : 'bg-cyan-400/20 text-cyan-300'
+                  active ? 'bg-[var(--surface-hover)] text-zinc-900' : 'bg-[var(--primary-soft)] text-[var(--primary)]'
                 }`}>{count}</span>
               )}
             </button>
@@ -956,7 +956,7 @@ export default function ApprovalsPage() {
             <Filter size={13} />
             <span className="font-medium">Filtros</span>
             {hasFilters && (
-              <span className="bg-blue-500/20 text-[var(--primary)] border border-blue-500/30 rounded-full px-2 py-0.5 text-[10px]">ativos</span>
+              <span className="bg-[var(--primary-soft)] text-[var(--primary)] border border-blue-500/30 rounded-full px-2 py-0.5 text-[10px]">ativos</span>
             )}
           </div>
           <ChevronDown size={13} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
@@ -1061,17 +1061,17 @@ export default function ApprovalsPage() {
 
       {/* ── Bulk action bar (apontamentos only) ── */}
       {tab === 'timesheets' && selected.length > 0 && (
-        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600/10 border border-blue-500/20">
+        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary-soft)] border border-blue-500/20">
           <span className="text-xs text-[var(--primary)] flex-1">
             {selected.length} apontamento(s) selecionado(s)
-            <span className="ml-2 font-semibold text-cyan-300">· {fmtMin(selectedMinutes)}</span>
+            <span className="ml-2 font-semibold text-[var(--primary)]">· {fmtMin(selectedMinutes)}</span>
           </span>
           <button onClick={bulkApproveTs} disabled={approving}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-600 hover:bg-[var(--success-border)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
             <Check size={12} />{approving ? 'Aprovando...' : 'Aprovar todos'}
           </button>
           <button onClick={() => { setBulkAdjOpen(true); setBulkAdjReason('') }} disabled={approving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-amber-600 hover:bg-amber-500 text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-amber-600 hover:bg-[var(--warning-border)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
             <RotateCcw size={12} /> Solicitar Ajuste
           </button>
           <button onClick={() => { setRejectModal({ open: true, ids: selected }); setRejectReason('') }} disabled={approving}
@@ -1087,13 +1087,13 @@ export default function ApprovalsPage() {
       {/* ── Export bar ── */}
       {tab === 'timesheets' && tsItems.length > 0 && (
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/60 border border-zinc-700/50 text-xs text-[var(--text-muted)]">
-            <Clock size={12} className="text-cyan-400" />
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--surface-hover)] border border-[var(--border)]/50 text-xs text-[var(--text-muted)]">
+            <Clock size={12} className="text-[var(--primary)]" />
             Total da página:
-            <span className="font-semibold text-cyan-300 ml-1">{fmtMin(totalPageMinutes)}</span>
+            <span className="font-semibold text-[var(--primary)] ml-1">{fmtMin(totalPageMinutes)}</span>
           </div>
           <button onClick={exportTs}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-zinc-500 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] hover:border-[var(--border-strong)] transition-colors">
             <FileSpreadsheet size={13} /> Exportar Excel
           </button>
         </div>
@@ -1146,7 +1146,7 @@ export default function ApprovalsPage() {
           <tbody>
             {/* Loading */}
             {currentLoading && Array.from({ length: 8 }).map((_, i) => (
-              <tr key={i} className="border-b border-zinc-800/60">
+              <tr key={i} className="border-b border-[var(--border)]/60">
                 {tab === 'timesheets' && <td className="px-3 py-2.5"><Skeleton className="h-3 w-3" /></td>}
                 <td className="px-3 py-2.5"><Skeleton className="h-3 w-20" /></td>
                 <td className="px-3 py-2.5"><Skeleton className="h-3 w-28" /></td>
@@ -1175,8 +1175,8 @@ export default function ApprovalsPage() {
             {/* Timesheets rows */}
             {!currentLoading && tab === 'timesheets' && tsItems.map(ts => (
               <tr key={ts.id} onClick={() => openTsView(ts)} {...hover.bind(ts)}
-                className={`border-b border-zinc-800/60 cursor-pointer transition-colors ${
-                  selected.includes(ts.id) ? 'bg-blue-950/30' : 'hover:bg-zinc-800/40'
+                className={`border-b border-[var(--border)]/60 cursor-pointer transition-colors ${
+                  selected.includes(ts.id) ? 'bg-[var(--primary-soft)]' : 'hover:bg-[var(--surface-hover)]'
                 }`}>
                 <td className="px-2 py-2.5 w-10" onClick={e => e.stopPropagation()}>
                   <RowMenu items={[
@@ -1262,7 +1262,7 @@ export default function ApprovalsPage() {
             {!currentLoading && tab === 'expenses' && expItems.map(exp => (
               <tr key={exp.id}
                 onClick={() => openExpApprove(exp)}
-                className="border-b border-zinc-800/60 hover:bg-zinc-800/40 transition-colors cursor-pointer">
+                className="border-b border-[var(--border)]/60 hover:bg-[var(--surface-hover)] transition-colors cursor-pointer">
                 <td className="px-2 py-2.5 w-10" onClick={e => e.stopPropagation()}>
                   <RowMenu items={[
                     { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openExpApprove(exp) },
@@ -1300,8 +1300,8 @@ export default function ApprovalsPage() {
                 </td>
                 <td className="px-3 py-2.5">
                   {exp.is_paid
-                    ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-emerald-950/50 text-[var(--success)] border-emerald-500/20">Pago</span>
-                    : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-amber-950/50 text-amber-400 border-amber-500/20">Em aberto</span>
+                    ? <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-[var(--success-bg)] text-[var(--success)] border-emerald-500/20">Pago</span>
+                    : <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-[var(--warning-bg)] text-[var(--warning)] border-amber-500/20">Em aberto</span>
                   }
                 </td>
               </tr>
@@ -1451,7 +1451,7 @@ export default function ApprovalsPage() {
               <Button variant="outline" onClick={() => { setBulkAdjOpen(false); setBulkAdjReason('') }}
                 className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
               <Button onClick={bulkAdjTs} disabled={bulkAdjLoading || !bulkAdjReason.trim()}
-                className="h-8 text-xs bg-amber-600 hover:bg-amber-500 text-[var(--primary-fg)]">
+                className="h-8 text-xs bg-amber-600 hover:bg-[var(--warning-border)] text-[var(--primary-fg)]">
                 <RotateCcw size={12} className="mr-1" />
                 {bulkAdjLoading ? 'Enviando...' : 'Solicitar ajuste'}
               </Button>

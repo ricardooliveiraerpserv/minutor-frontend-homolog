@@ -420,7 +420,7 @@ export default function InvestimentoComercialPage() {
       <Tr key={project.id}>
         <Td>
           <span className={`flex items-center gap-2 ${nameIndent}`}>
-            <span className="text-zinc-600">{depth === 0 ? '└' : '↳'}</span>
+            <span className="text-[var(--text-muted)]">{depth === 0 ? '└' : '↳'}</span>
             <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{project.name || '—'}</span>
             {project.categoria_interna && (
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider"
@@ -875,7 +875,7 @@ export default function InvestimentoComercialPage() {
             style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
               <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{leadMode ? 'Novo Lead' : 'Novo Projeto Interno'}</h2>
-              <button onClick={() => !creatingProject && setNewProjectOpen(false)} className="p-1.5 rounded-lg hover:bg-white/5">
+              <button onClick={() => !creatingProject && setNewProjectOpen(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
                 <X size={16} style={{ color: 'var(--brand-muted)' }} />
               </button>
             </div>
@@ -968,7 +968,7 @@ export default function InvestimentoComercialPage() {
             style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
               <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>Editar Projeto Interno</h2>
-              <button onClick={() => !savingEdit && closeEditModal()} className="p-1.5 rounded-lg hover:bg-white/5">
+              <button onClick={() => !savingEdit && closeEditModal()} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
                 <X size={16} style={{ color: 'var(--brand-muted)' }} />
               </button>
             </div>
@@ -1061,7 +1061,7 @@ export default function InvestimentoComercialPage() {
                   <h2 className="text-base font-bold mt-0.5" style={{ color: 'var(--brand-text)' }}>{modal.project!.customer?.name ?? '—'}</h2>
                   <p className="text-[11px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{modal.project!.name} · <span className="font-mono">{modal.project!.code}</span></p>
                 </div>
-                <button onClick={closeModal} className="p-1 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+                <button onClick={closeModal} className="p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
               </div>
 
               <div>

@@ -184,7 +184,7 @@ const STATUS_COLORS: Record<string, string> = {
   pending:              'bg-[var(--warning-bg)] text-[var(--warning-border)]',
   approved:             'bg-[var(--success-bg)]  text-[var(--success)]',
   rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]',
-  conflicted:           'bg-orange-500/15 text-orange-400',
+  conflicted:           'bg-[var(--warning-bg)] text-[var(--warning)]',
   adjustment_requested: 'bg-[var(--primary-soft)]   text-[var(--primary)]',
 }
 

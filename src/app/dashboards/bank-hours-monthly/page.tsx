@@ -164,7 +164,7 @@ function ProjectsTable({ items, loading, onViewTimesheets }: { items: ProjectIte
                       <td className="px-3 py-3.5 text-right">
                         <button
                           onClick={() => onViewTimesheets(p)}
-                          className="p-1.5 rounded-md hover:bg-white/5"
+                          className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]"
                           style={{ color: 'var(--text-muted)' }}
                           title="Ver apontamentos"
                         >
@@ -411,7 +411,7 @@ export default function BankHoursMonthlyPage() {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Data</label>
             <div className="flex items-center gap-2">
-              <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+              <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
                 {(['month', 'period'] as const).map((mode) => (
                   <button key={mode} onClick={() => setFilterMode(mode)}
                     className="px-3 py-1.5 font-medium transition-colors"

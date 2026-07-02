@@ -107,7 +107,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
           </div>
           <div className="max-h-52 overflow-y-auto">
             <button type="button" onClick={() => select('')}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>
               {placeholder}
             </button>
@@ -115,7 +115,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
               ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
               : filtered.map(o => (
                 <button key={o.id} type="button" onClick={() => select(String(o.id))}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
                   style={{ color: String(o.id) === String(value) ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
                   {o.name}
                 </button>

@@ -19,7 +19,7 @@ export function ThemeToggle() {
       type="button"
       aria-label={mounted ? `Mudar para tema ${next === 'dark' ? 'escuro' : 'claro'}` : 'Mudar tema'}
       onClick={() => setTheme(next)}
-      className="p-1.5 rounded-md transition-colors hover:bg-zinc-800/40"
+      className="p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
       style={{ color: 'var(--brand-subtle)' }}
     >
       {/* Placeholder transparente até montar pra evitar flash de ícone errado */}

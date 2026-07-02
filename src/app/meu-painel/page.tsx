@@ -96,11 +96,11 @@ const MONTHS = [
 ]
 
 const STATUS_COLORS: Record<string, string> = {
-  pending:              'bg-yellow-500/15 text-yellow-400 border-yellow-500/25',
-  approved:             'bg-green-500/15  text-[var(--success)]  border-green-500/25',
-  rejected:             'bg-red-500/15    text-[var(--danger)]    border-red-500/25',
-  conflicted:           'bg-orange-500/15 text-[var(--warning)] border-orange-500/25',
-  adjustment_requested: 'bg-blue-500/15   text-[var(--primary)]   border-blue-500/25',
+  pending:              'bg-[var(--warning-bg)] text-[var(--warning)] border-yellow-500/25',
+  approved:             'bg-[var(--success-bg)]  text-[var(--success)]  border-green-500/25',
+  rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]    border-red-500/25',
+  conflicted:           'bg-[var(--warning-bg)] text-[var(--warning)] border-orange-500/25',
+  adjustment_requested: 'bg-[var(--primary-soft)]   text-[var(--primary)]   border-blue-500/25',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -297,7 +297,7 @@ function HoristaPaymentSection({
           </span>
         )}
         {isGuaranteed && guaranteedHours !== null && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full border w-fit bg-yellow-500/10 border-yellow-500/20 text-yellow-400">
+          <span className="text-[10px] px-2 py-0.5 rounded-full border w-fit bg-[var(--warning-bg)] border-yellow-500/20 text-[var(--warning)]">
             Piso {fmtHours(Number(guaranteedHours))}
           </span>
         )}
@@ -316,8 +316,8 @@ function HoristaPaymentSection({
       </div>
 
       {/* DIREITA — despesas */}
-      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2 min-w-[280px]">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+      <div className="rounded-xl border border-orange-900/40 bg-[var(--warning-bg)] p-3 space-y-2 min-w-[280px]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--warning)]/70 px-0.5">Despesas</p>
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
@@ -333,7 +333,7 @@ function HoristaPaymentSection({
           </div>
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
-            <p className="text-sm font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-sm font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
@@ -384,8 +384,8 @@ function FixoPaymentSection({
       </div>
 
       {/* DIREITA — despesas */}
-      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2 min-w-[280px]">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+      <div className="rounded-xl border border-orange-900/40 bg-[var(--warning-bg)] p-3 space-y-2 min-w-[280px]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--warning)]/70 px-0.5">Despesas</p>
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
@@ -401,7 +401,7 @@ function FixoPaymentSection({
           </div>
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
-            <p className="text-sm font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-sm font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
@@ -437,8 +437,8 @@ function ParceiroSimplesSection({
         </span>
       </div>
       {/* DIREITA — despesas */}
-      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2 min-w-[280px]">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+      <div className="rounded-xl border border-orange-900/40 bg-[var(--warning-bg)] p-3 space-y-2 min-w-[280px]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--warning)]/70 px-0.5">Despesas</p>
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
@@ -454,7 +454,7 @@ function ParceiroSimplesSection({
           </div>
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
-            <p className="text-sm font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-sm font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
@@ -478,7 +478,7 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
         <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-light)]">Total a Receber</span>
         <span className="text-[12px] text-[var(--text-muted)] font-medium">{fmtYearMonth(data.year_month)}</span>
         {hasExtra && (
-          <div className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border w-fit bg-green-500/10 border-green-500/20 text-[var(--success)]">
+          <div className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border w-fit bg-[var(--success-bg)] border-green-500/20 text-[var(--success)]">
             <TrendingUp size={9} />
             +{fmtHours(extraHours)} extras
           </div>
@@ -496,8 +496,8 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
       </div>
 
       {/* Despesas — breakdown */}
-      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+      <div className="rounded-xl border border-orange-900/40 bg-[var(--warning-bg)] p-3 space-y-2">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--warning)]/70 px-0.5">Despesas</p>
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl p-3 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[10px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
@@ -513,7 +513,7 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
           </div>
           <div className="rounded-xl p-3 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[10px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
-            <p className="text-base font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-base font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
             <p className="text-[10px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
@@ -534,7 +534,7 @@ function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isC
         <span className="text-[10px] text-[var(--text-muted)]">—</span>
         <span className="text-[11px] text-[var(--text-muted)] font-medium">{fmtYearMonth(data.year_month)}</span>
         {isCurrentMonth && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-[var(--primary)] border border-blue-500/20">Em andamento</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] border border-blue-500/20">Em andamento</span>
         )}
       </div>
 
@@ -546,23 +546,23 @@ function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isC
           { label: 'Saldo do Mês',      value: fmtHours(data.month_balance),    sub: data.month_balance < 0 ? 'Déficit mensal' : data.month_balance > 0 ? 'Superávit' : 'Zerado', neg: data.month_balance < 0, neutral: false },
           { label: 'Saldo Anterior',    value: fmtHours(data.previous_balance), sub: '',                                 neg: data.previous_balance < 0, neutral: data.previous_balance === 0 },
         ] as const).map(item => (
-          <div key={item.label} className={`rounded-xl p-4 border ${item.neg ? 'border-red-500/20 bg-red-500/[0.04]' : 'border-[var(--border)] bg-[var(--surface)]'}`}>
+          <div key={item.label} className={`rounded-xl p-4 border ${item.neg ? 'border-red-500/20 bg-[var(--danger-bg)]' : 'border-[var(--border)] bg-[var(--surface)]'}`}>
             <p className="text-[10px] uppercase tracking-wider mb-2 text-[var(--text-light)]">{item.label}</p>
             <p className={`text-xl font-bold ${item.neg ? 'text-[var(--danger)]' : item.neutral ? 'text-[var(--text-muted)]' : 'text-[var(--text)]'}`}>{item.value}</p>
-            {item.sub && <p className={`text-[10px] mt-1 ${item.neg ? 'text-red-400/60' : 'text-[var(--text-muted)]'}`}>{item.sub}</p>}
+            {item.sub && <p className={`text-[10px] mt-1 ${item.neg ? 'text-[var(--danger)]/60' : 'text-[var(--text-muted)]'}`}>{item.sub}</p>}
           </div>
         ))}
       </div>
 
       {/* Saldo acumulado banner */}
       <div className={`rounded-xl px-5 py-4 border flex items-center justify-between ${
-        isNegAccum ? 'border-red-500/25 bg-red-500/[0.05]' : 'border-green-500/20 bg-green-500/[0.04]'
+        isNegAccum ? 'border-red-500/25 bg-[var(--danger-bg)]' : 'border-green-500/20 bg-[var(--success-bg)]'
       }`}>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-[var(--text-light)] mb-1.5">Saldo Acumulado</p>
           <div className="flex items-center gap-2">
             <HBBalancePill value={data.accumulated_balance} size="lg" />
-            {isNegAccum && <span className="text-[10px] text-red-400/60 font-medium">Déficit acumulado</span>}
+            {isNegAccum && <span className="text-[10px] text-[var(--danger)]/60 font-medium">Déficit acumulado</span>}
           </div>
         </div>
         <div className="text-right">
@@ -573,9 +573,9 @@ function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isC
 
       {/* Alerta de saldo negativo */}
       {isNegAccum && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] px-4 py-3">
-          <AlertTriangle size={13} className="text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-amber-300/70">
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-[var(--warning-bg)] px-4 py-3">
+          <AlertTriangle size={13} className="text-[var(--warning)] shrink-0 mt-0.5" />
+          <p className="text-[11px] text-[var(--warning)]/70">
             Saldo negativo indica horas a compensar ou a faturar como extra, conforme contrato.
           </p>
         </div>
@@ -633,7 +633,7 @@ function HBHistoryRow({ row }: { row: HourBankMonth }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <tr className="border-b cursor-pointer hover:bg-white/[0.02] transition-colors" style={{ borderColor: 'var(--brand-border)' }}
+      <tr className="border-b cursor-pointer hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--brand-border)' }}
         onClick={() => setOpen(o => !o)}>
         <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
           <span className="flex items-center gap-1.5">
@@ -785,7 +785,7 @@ function StatusPills({ value, onChange, options }: {
   options: { value: string; label: string }[]
 }) {
   return (
-    <div className="flex items-center gap-0.5 bg-zinc-800/70 border border-zinc-700/50 rounded-full p-1">
+    <div className="flex items-center gap-0.5 bg-[var(--surface-hover)] border border-[var(--border)]/50 rounded-full p-1">
       {options.map(opt => (
         <button key={opt.value} type="button" onClick={() => onChange(opt.value)}
           className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
@@ -866,7 +866,7 @@ function DateRangePicker({ from, to, onChange }: {
     while (cells.length % 7 !== 0) cells.push(null)
     return (
       <div className="w-[196px]">
-        <div className="text-center text-sm font-semibold text-cyan-400 mb-3">
+        <div className="text-center text-sm font-semibold text-[var(--primary)] mb-3">
           {MONTH_NAMES_PT[m]} {y}
         </div>
         <div className="grid grid-cols-7 mb-1">
@@ -889,8 +889,8 @@ function DateRangePicker({ from, to, onChange }: {
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${
                   s || e ? 'bg-cyan-400 text-zinc-900 font-bold'
-                  : ir    ? 'bg-cyan-400/20 text-cyan-300'
-                  : td    ? 'text-cyan-400 font-semibold hover:bg-[var(--surface-hover)]'
+                  : ir    ? 'bg-[var(--primary-soft)] text-[var(--primary)]'
+                  : td    ? 'text-[var(--primary)] font-semibold hover:bg-[var(--surface-hover)]'
                   :         'text-[var(--text)] hover:bg-[var(--surface-hover)]'
                 }`}>
                 {day}
@@ -983,7 +983,7 @@ function SummaryCard({
       className={`rounded-xl p-5 transition-colors ${
         featured
           ? 'border-2 border-[var(--primary)] bg-[var(--primary-soft)] shadow-[0_0_20px_var(--primary-soft)]'
-          : `border border-[var(--border)] bg-[var(--surface)] ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-zinc-800/60' : ''}`
+          : `border border-[var(--border)] bg-[var(--surface)] ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]' : ''}`
       }`}
     >
       <div className="flex items-start justify-between mb-3">
@@ -1004,11 +1004,11 @@ function ExpenseBreakdownCard({ total, paid, pending, count, onClick }: {
   return (
     <div
       onClick={onClick}
-      className={`rounded-xl p-5 border border-[var(--border)] bg-[var(--surface)] transition-colors ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-zinc-800/60' : ''}`}
+      className={`rounded-xl p-5 border border-[var(--border)] bg-[var(--surface)] transition-colors ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]' : ''}`}
     >
       <div className="flex items-start justify-between mb-3">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-light)]">Total Despesas</span>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-orange-500/15 text-[var(--warning)]">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-[var(--warning-bg)] text-[var(--warning)]">
           <Receipt size={14} />
         </div>
       </div>
@@ -1021,7 +1021,7 @@ function ExpenseBreakdownCard({ total, paid, pending, count, onClick }: {
         </div>
         <div className="flex items-center justify-between text-xs">
           <span className="text-[var(--text-light)]">Em aberto</span>
-          <span className={`font-semibold ${pending > 0 ? 'text-amber-400' : 'text-[var(--text-muted)]'}`}>{formatBRL(pending)}</span>
+          <span className={`font-semibold ${pending > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-muted)]'}`}>{formatBRL(pending)}</span>
         </div>
       </div>
     </div>
@@ -1234,7 +1234,7 @@ function TableSkeleton({ cols }: { cols: number }) {
 function StatusBadge({ status, display, reason }: { status: string; display?: string; reason?: string | null }) {
   if (status === 'approved') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full border bg-green-500/15 text-[var(--success)] border-green-500/25">
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full border bg-[var(--success-bg)] text-[var(--success)] border-green-500/25">
         <Lock size={9} />
         Aprovado
       </span>
@@ -1299,7 +1299,7 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
             <button key={i} onClick={() => { item.onClick(); setPos(null) }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors text-left ${
                 item.danger
-                  ? 'text-[var(--danger)] hover:bg-red-500/10'
+                  ? 'text-[var(--danger)] hover:bg-[var(--danger-bg)]'
                   : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
               }`}>
               {item.icon}
@@ -1357,18 +1357,18 @@ function SearchableSelect({
           <div className="p-2 border-b border-[var(--border)]">
             <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
               placeholder="Buscar..."
-              className="w-full bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg text-xs text-[var(--text)] px-2.5 py-1.5 outline-none focus:border-zinc-400 placeholder:text-[var(--text-muted)]" />
+              className="w-full bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg text-xs text-[var(--text)] px-2.5 py-1.5 outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]" />
           </div>
           <div className="max-h-48 overflow-y-auto py-1">
             <button type="button" onClick={() => { onChange(''); setOpen(false) }}
-              className={`w-full text-left px-3 py-2 text-xs transition-colors ${!value ? 'text-cyan-400' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'}`}>
+              className={`w-full text-left px-3 py-2 text-xs transition-colors ${!value ? 'text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'}`}>
               {placeholder}
             </button>
             {filtered.map(o => (
               <button key={o.id} type="button"
                 onClick={() => { onChange(String(o.id)); setOpen(false) }}
                 className={`w-full text-left px-3 py-2 text-xs transition-colors ${
-                  String(o.id) === value ? 'text-cyan-400 bg-zinc-700/50' : 'text-[var(--text)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
+                  String(o.id) === value ? 'text-[var(--primary)] bg-[var(--surface-hover)]' : 'text-[var(--text)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
                 }`}>
                 {o.name}
               </button>
@@ -1442,13 +1442,13 @@ function SearchSelectField({ label, value, onChange, options, placeholder, requi
           </div>
           <div className="max-h-48 overflow-y-auto">
             <button type="button" onClick={() => { onChange(''); setOpen(false) }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>{placeholder}</button>
             {filtered.length === 0
               ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
               : filtered.map(o => (
                 <button key={o.id} type="button" onClick={() => { onChange(String(o.id)); setOpen(false) }}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
                   style={{ color: String(o.id) === value ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
                   {o.name}
                 </button>
@@ -1554,7 +1554,7 @@ function MinhasNotasFiscaisCard({ userId }: { userId: number }) {
           type="month"
           value={ym}
           onChange={e => setYm(e.target.value)}
-          className="px-2 py-1 rounded bg-[var(--surface-hover)] border border-[var(--border)] text-zinc-100 text-xs"
+          className="px-2 py-1 rounded bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs"
         />
       </div>
       <p className="text-xs text-[var(--text-light)] mb-3">Envie a NFS-e do mês. O administrativo valida (aceita ou recusa com motivo).</p>
@@ -2481,7 +2481,7 @@ export default function MeuPainelPage() {
               value={minutesToHours(tsTotalMin)}
               sub={`${(tsTotalMin / 60).toFixed(1)}h apontadas`}
               icon={Clock}
-              accent="bg-blue-500/15 text-[var(--primary)]"
+              accent="bg-[var(--primary-soft)] text-[var(--primary)]"
               onClick={() => setActiveTab('timesheets')}
             />
             {!isParceiroSimples && (isFixo ? (
@@ -2491,7 +2491,7 @@ export default function MeuPainelPage() {
                   value={fmtHours(workedHours)}
                   sub="apontadas no período"
                   icon={Clock}
-                  accent="bg-blue-500/15 text-[var(--primary)]"
+                  accent="bg-[var(--primary-soft)] text-[var(--primary)]"
                   onClick={() => setActiveTab('timesheets')}
                 />
                 <SummaryCard
@@ -2521,7 +2521,7 @@ export default function MeuPainelPage() {
                         ? `Salário base + ${hbExtraHours.toFixed(1)}h extras`
                         : 'Salário base mensal'}
                     icon={TrendingUp}
-                    accent="bg-green-500/15 text-[var(--success)]"
+                    accent="bg-[var(--success-bg)] text-[var(--success)]"
                   />
                 )}
               </>
@@ -2545,7 +2545,7 @@ export default function MeuPainelPage() {
                         : `${formatBRL(effectiveRate)}/h × ${workedHours.toFixed(1)}h`
                     : 'Taxa não configurada'}
                   icon={TrendingUp}
-                  accent="bg-green-500/15 text-[var(--success)]"
+                  accent="bg-[var(--success-bg)] text-[var(--success)]"
                 />
               </>
             ))}
@@ -2554,7 +2554,7 @@ export default function MeuPainelPage() {
               value={String(notApprTs)}
               sub={`${approvedTs} aprov. · ${rejectedTs} reprov. de ${timesheets.length}`}
               icon={BarChart2}
-              accent="bg-purple-500/15 text-purple-400"
+              accent="bg-[var(--purple-bg)] text-[var(--purple)]"
               onClick={() => setActiveTab('timesheets')}
             />
           </div>}
@@ -2646,7 +2646,7 @@ export default function MeuPainelPage() {
                             <StatusBadge status={exp.status} display={exp.status_display} reason={exp.rejection_reason} />
                             {exp.status === 'approved' && (exp.is_paid
                               ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-950 text-[var(--success)]">Pago</span>
-                              : <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-amber-400">Em aberto</span>
+                              : <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-[var(--warning)]">Em aberto</span>
                             )}
                           </div>
                         </div>
@@ -2723,7 +2723,7 @@ export default function MeuPainelPage() {
                 <span>Total: <span className="text-[var(--text)] font-semibold">{minutesToHours(tsTotalMin)}</span></span>
               )}
               <span>Aprovados: <span className="text-[var(--success)] font-medium">{approvedTs}</span></span>
-              <span>Pendentes: <span className="text-yellow-400 font-medium">{notApprTs}</span></span>
+              <span>Pendentes: <span className="text-[var(--warning)] font-medium">{notApprTs}</span></span>
             </div>
           )}
 
@@ -2761,7 +2761,7 @@ export default function MeuPainelPage() {
                     <tr key={ts.id}
                       {...hover.bind(ts)}
                       className={`border-b border-[var(--border)] transition-colors last:border-0 ${
-                        locked ? 'bg-zinc-900/40' : 'hover:bg-zinc-800/25'
+                        locked ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]'
                       }`}>
                       <td className="px-4 py-3.5 text-[var(--text)] font-medium tabular-nums whitespace-nowrap">{fmt(ts.date)}</td>
                       <td className="px-4 py-3.5 text-[var(--text-muted)] hidden md:table-cell max-w-[120px] truncate">
@@ -2772,7 +2772,7 @@ export default function MeuPainelPage() {
                       </td>
                       <td className="px-4 py-3.5 text-[var(--text-muted)] font-mono hidden lg:table-cell">
                         {ts.ticket
-                          ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">#{ts.ticket}</a>
+                          ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{ts.ticket}</a>
                           : <span className="text-[var(--text-muted)]">—</span>}
                       </td>
                       <td className="px-4 py-3.5 text-[var(--text-muted)] hidden xl:table-cell max-w-[160px] truncate" title={ts.ticket_subject}>
@@ -2792,7 +2792,7 @@ export default function MeuPainelPage() {
                                 <span className="text-[10px] text-[var(--success)] font-semibold">+{ts.consultant_extra_pct}%</span>
                                 <span className="text-[10px] text-[var(--success)]">+{minutesToHours(extraMin)}</span>
                               </span>
-                              <span className="text-green-300 text-[11px]">= {minutesToHours(totalMin)}</span>
+                              <span className="text-[var(--success)] text-[11px]">= {minutesToHours(totalMin)}</span>
                             </span>
                           )
                         })() : (
@@ -2943,7 +2943,7 @@ export default function MeuPainelPage() {
                   return (
                     <tr key={exp.id}
                       className={`border-b border-[var(--border)] transition-colors last:border-0 ${
-                        locked ? 'bg-zinc-900/40' : 'hover:bg-zinc-800/25'
+                        locked ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]'
                       }`}>
                       <td className="px-4 py-3.5 text-[var(--text)] font-medium tabular-nums whitespace-nowrap">{fmt(exp.expense_date)}</td>
                       <td className="px-4 py-3.5 text-[var(--text-muted)] hidden md:table-cell max-w-[120px] truncate">
@@ -2965,7 +2965,7 @@ export default function MeuPainelPage() {
                       <td className="px-4 py-3.5">
                         {exp.is_paid
                           ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-950 text-[var(--success)]">Pago</span>
-                          : exp.status === 'approved' && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-amber-400">Em aberto</span>
+                          : exp.status === 'approved' && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-[var(--warning)]">Em aberto</span>
                         }
                       </td>
                       <td className="px-4 py-3.5 w-10">
@@ -3016,8 +3016,8 @@ export default function MeuPainelPage() {
               {indAlerts.map((a, i) => (
                 <div key={i} className={`flex items-start gap-3 px-4 py-3 rounded-xl text-xs border ${
                   a.level === 'danger'
-                    ? 'bg-red-500/8 border-red-500/20 text-red-300'
-                    : 'bg-yellow-500/8 border-yellow-500/20 text-yellow-300'
+                    ? 'bg-[var(--danger-bg)] border-red-500/20 text-[var(--danger)]'
+                    : 'bg-[var(--warning-bg)] border-yellow-500/20 text-[var(--warning)]'
                 }`}>
                   <AlertTriangle size={13} className="mt-0.5 shrink-0" />
                   {a.msg}
@@ -3033,8 +3033,8 @@ export default function MeuPainelPage() {
             {!isParceiroSimples && (
             <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 p-5 col-span-2 lg:col-span-1">
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 rounded-lg bg-cyan-500/20">
-                  <DollarSign size={13} className="text-cyan-400" />
+                <div className="p-1.5 rounded-lg bg-[var(--primary-soft)]">
+                  <DollarSign size={13} className="text-[var(--primary)]" />
                 </div>
                 <span className="text-[11px] text-[var(--text-muted)] font-medium">Valor Gerado</span>
               </div>
@@ -3057,8 +3057,8 @@ export default function MeuPainelPage() {
             {!isParceiroSimples && (
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 rounded-lg bg-violet-500/20">
-                  <Zap size={13} className="text-violet-400" />
+                <div className="p-1.5 rounded-lg bg-[var(--purple-bg)]">
+                  <Zap size={13} className="text-[var(--purple)]" />
                 </div>
                 <span className="text-[11px] text-[var(--text-muted)] font-medium">Ticket Médio</span>
               </div>
@@ -3072,12 +3072,12 @@ export default function MeuPainelPage() {
             {/* Ocupação */}
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 rounded-lg bg-orange-500/20">
+                <div className="p-1.5 rounded-lg bg-[var(--warning-bg)]">
                   <Target size={13} className="text-[var(--warning)]" />
                 </div>
                 <span className="text-[11px] text-[var(--text-muted)] font-medium">Ocupação</span>
               </div>
-              <div className={`text-2xl font-bold ${occupancyPct >= 80 ? 'text-[var(--success)]' : occupancyPct >= 60 ? 'text-yellow-400' : 'text-[var(--danger)]'}`}>
+              <div className={`text-2xl font-bold ${occupancyPct >= 80 ? 'text-[var(--success)]' : occupancyPct >= 60 ? 'text-[var(--warning)]' : 'text-[var(--danger)]'}`}>
                 {occupancyPct}%
               </div>
               <div className="text-[11px] text-[var(--text-light)] mt-1.5">
@@ -3088,7 +3088,7 @@ export default function MeuPainelPage() {
             {/* Total de Horas */}
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 rounded-lg bg-blue-500/20">
+                <div className="p-1.5 rounded-lg bg-[var(--primary-soft)]">
                   <Activity size={13} className="text-[var(--primary)]" />
                 </div>
                 <span className="text-[11px] text-[var(--text-muted)] font-medium">Horas Totais</span>
@@ -3131,7 +3131,7 @@ export default function MeuPainelPage() {
                   {isCurrentMonth && remainingWD > 0 ? (
                     <div>
                       <div className="text-[11px] text-[var(--text-light)] mb-1">Dias úteis restantes</div>
-                      <div className="text-lg font-bold text-yellow-400">{remainingWD} <span className="text-xs font-normal text-[var(--text-light)]">dias</span></div>
+                      <div className="text-lg font-bold text-[var(--warning)]">{remainingWD} <span className="text-xs font-normal text-[var(--text-light)]">dias</span></div>
                     </div>
                   ) : (
                     <div>
@@ -3169,7 +3169,7 @@ export default function MeuPainelPage() {
                     {estimatedValue !== null && !isParceiroSimples && (
                       <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center justify-between">
                         <span className="text-[11px] text-[var(--text-light)]">Valor pelo mês completo</span>
-                        <span className="text-sm font-bold text-cyan-400">{formatBRL(billableHours * effectiveRate)}</span>
+                        <span className="text-sm font-bold text-[var(--primary)]">{formatBRL(billableHours * effectiveRate)}</span>
                       </div>
                     )}
                   </>
@@ -3178,7 +3178,7 @@ export default function MeuPainelPage() {
                     <span className="text-[11px] text-[var(--text-light)]">
                       Se mantiver o ritmo de {avgHPerDay.toFixed(1)}h/dia nos {remainingWD} dias restantes
                     </span>
-                    <span className="text-sm font-bold text-cyan-400">
+                    <span className="text-sm font-bold text-[var(--primary)]">
                       {formatBRL((workedHours + avgHPerDay * remainingWD) * effectiveRate)}
                     </span>
                   </div>
@@ -3257,26 +3257,26 @@ export default function MeuPainelPage() {
                   </thead>
                   <tbody>
                     {tsByProject.map(p => (
-                      <tr key={p.name} className="border-b border-[var(--border)] last:border-0 hover:bg-zinc-800/20">
+                      <tr key={p.name} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]">
                         <td className="px-5 py-3 text-[var(--text)] max-w-[120px] truncate">{p.name}</td>
                         <td className="px-5 py-3 text-right text-[var(--text)] font-mono font-semibold">{minutesToHours(p.minutes)}</td>
                         <td className="px-5 py-3 text-right text-[var(--text-light)]">
                           {tsTotalMin > 0 ? ((p.minutes / tsTotalMin) * 100).toFixed(1) + '%' : '—'}
                         </td>
                         {estimatedValue !== null && !isParceiroSimples && (
-                          <td className="px-5 py-3 text-right text-cyan-400 font-medium">
+                          <td className="px-5 py-3 text-right text-[var(--primary)] font-medium">
                             {formatBRL((p.minutes / 60) * hourlyRate)}
                           </td>
                         )}
                       </tr>
                     ))}
                     {/* Totals row */}
-                    <tr className="bg-zinc-800/30 border-t border-[var(--border)]">
+                    <tr className="bg-[var(--surface-hover)] border-t border-[var(--border)]">
                       <td className="px-5 py-3 text-[var(--text)] font-semibold">Total</td>
                       <td className="px-5 py-3 text-right text-[var(--text)] font-mono font-bold">{minutesToHours(tsTotalMin)}</td>
                       <td className="px-5 py-3 text-right text-[var(--text-muted)]">100%</td>
                       {estimatedValue !== null && !isParceiroSimples && (
-                        <td className="px-5 py-3 text-right text-cyan-300 font-bold">{formatBRL(estimatedValue)}</td>
+                        <td className="px-5 py-3 text-right text-[var(--primary)] font-bold">{formatBRL(estimatedValue)}</td>
                       )}
                     </tr>
                   </tbody>
@@ -3374,13 +3374,13 @@ export default function MeuPainelPage() {
                     {hasRate && avgRevenue > 0 && (
                       <div className="flex flex-col items-end pl-3 border-l border-[var(--border)]">
                         <span className="text-[10px] text-[var(--text-light)]">Receita média</span>
-                        <span className="text-sm font-bold text-violet-400">{formatBRL(avgRevenue)}</span>
+                        <span className="text-sm font-bold text-[var(--purple)]">{formatBRL(avgRevenue)}</span>
                       </div>
                     )}
                     {hasExpHist && avgExpenses > 0 && (
                       <div className="flex flex-col items-end pl-3 border-l border-[var(--border)]">
                         <span className="text-[10px] text-[var(--text-light)]">Despesas médias</span>
-                        <span className="text-sm font-bold text-amber-400">{formatBRL(avgExpenses)}</span>
+                        <span className="text-sm font-bold text-[var(--warning)]">{formatBRL(avgExpenses)}</span>
                       </div>
                     )}
                     <div className={`flex items-center gap-1.5 pl-3 border-l border-[var(--border)] text-sm font-bold ${trendH > 2 ? 'text-[var(--success)]' : trendH < -2 ? 'text-[var(--danger)]' : 'text-[var(--text-light)]'}`}>
@@ -3550,7 +3550,7 @@ export default function MeuPainelPage() {
               </p>
             </div>
             {!isHorista && !isFixo && (
-              <button onClick={() => setHbKey(k => k + 1)} className="p-2 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-subtle)' }}>
+              <button onClick={() => setHbKey(k => k + 1)} className="p-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-subtle)' }}>
                 <RefreshCw size={14} />
               </button>
             )}
@@ -3604,7 +3604,7 @@ export default function MeuPainelPage() {
                           const hrs = ts.effort_minutes / 60
                           const locked = isLocked(ts.status)
                           return (
-                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-white/[0.02] transition-colors" style={{ borderColor: 'var(--brand-border)' }}>
+                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--brand-border)' }}>
                               <td className="px-2 py-2.5 w-10">
                                 <RowMenu items={[
                                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
@@ -3623,9 +3623,9 @@ export default function MeuPainelPage() {
                               <td className="px-4 py-2.5 text-center font-mono" style={{ color: 'var(--brand-text)' }}>{fmtHours(hrs)}</td>
                               <td className="px-4 py-2.5 text-center">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                  ts.status === 'approved' ? 'bg-green-500/15 text-[var(--success)]' :
-                                  ts.status === 'rejected' ? 'bg-red-500/15 text-[var(--danger)]' :
-                                  'bg-zinc-500/15 text-[var(--text-muted)]'
+                                  ts.status === 'approved' ? 'bg-[var(--success-bg)] text-[var(--success)]' :
+                                  ts.status === 'rejected' ? 'bg-[var(--danger-bg)] text-[var(--danger)]' :
+                                  'bg-[var(--surface-hover)] text-[var(--text-muted)]'
                                 }`}>{ts.status_display}</span>
                                 {ts.rejection_reason && ['rejected', 'adjustment_requested'].includes(ts.status) && (
                                   <p className="text-[10px] mt-0.5 text-[var(--danger)] truncate max-w-[140px] mx-auto" title={ts.rejection_reason}>
@@ -3699,7 +3699,7 @@ export default function MeuPainelPage() {
                           const val = effectiveRate > 0 ? hrs * effectiveRate : null
                           const locked = isLocked(ts.status)
                           return (
-                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-white/[0.02] transition-colors" style={{ borderColor: 'var(--brand-border)' }}>
+                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--brand-border)' }}>
                               <td className="px-2 py-2.5 w-10">
                                 <RowMenu items={[
                                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
@@ -3719,9 +3719,9 @@ export default function MeuPainelPage() {
                               {!isParceiroSimples && <td className="px-4 py-2.5 text-center font-mono" style={{ color: val ? 'var(--success-border)' : 'var(--brand-subtle)' }}>{val ? formatBRL(val) : '—'}</td>}
                               <td className="px-4 py-2.5 text-center">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                  ts.status === 'approved' ? 'bg-green-500/15 text-[var(--success)]' :
-                                  ts.status === 'rejected' ? 'bg-red-500/15 text-[var(--danger)]' :
-                                  'bg-zinc-500/15 text-[var(--text-muted)]'
+                                  ts.status === 'approved' ? 'bg-[var(--success-bg)] text-[var(--success)]' :
+                                  ts.status === 'rejected' ? 'bg-[var(--danger-bg)] text-[var(--danger)]' :
+                                  'bg-[var(--surface-hover)] text-[var(--text-muted)]'
                                 }`}>{ts.status_display}</span>
                                 {ts.rejection_reason && ['rejected', 'adjustment_requested'].includes(ts.status) && (
                                   <p className="text-[10px] mt-0.5 text-[var(--danger)] truncate max-w-[140px] mx-auto" title={ts.rejection_reason}>
@@ -3824,7 +3824,7 @@ export default function MeuPainelPage() {
         <ModalOverlay onClose={() => setConfirmModal(null)}>
           <div className="p-6 space-y-5 w-full max-w-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-500/15 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[var(--danger-bg)] flex items-center justify-center shrink-0">
                 <Trash2 size={18} className="text-[var(--danger)]" />
               </div>
               <h3 className="text-base font-semibold text-[var(--text)]">Confirmar exclusão</h3>
@@ -3888,9 +3888,9 @@ export default function MeuPainelPage() {
               const stName = selProj?.service_type?.name
               if (!stName) return null
               const colorMap: Record<string, string> = {
-                default: 'bg-zinc-700/60 text-[var(--text)]',
-                sustentacao: 'bg-blue-500/20 text-[var(--primary)] border border-blue-500/30',
-                projeto: 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
+                default: 'bg-[var(--surface-hover)] text-[var(--text)]',
+                sustentacao: 'bg-[var(--primary-soft)] text-[var(--primary)] border border-blue-500/30',
+                projeto: 'bg-[var(--purple-bg)] text-[var(--purple)] border border-purple-500/30',
               }
               const normalized = stName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
               const colorKey = normalized.includes('sustentacao') ? 'sustentacao'
@@ -4001,7 +4001,7 @@ export default function MeuPainelPage() {
             <div>
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-[var(--text-muted)]">Descrição *</Label>
-                <span className={`text-[10px] ${(tsForm.observation?.length ?? 0) < 20 ? 'text-[var(--text-light)]' : 'text-green-500'}`}>
+                <span className={`text-[10px] ${(tsForm.observation?.length ?? 0) < 20 ? 'text-[var(--text-light)]' : 'text-[var(--success)]'}`}>
                   {tsForm.observation?.length ?? 0}/20 mín.
                 </span>
               </div>
@@ -4309,7 +4309,7 @@ export default function MeuPainelPage() {
                   <InfoRowModal icon={FolderOpen} label="Projeto" value={tsViewItem.project?.name} />
                   {tsViewItem.ticket && (
                     <InfoRowModal icon={Tag} label="Ticket">
-                      <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tsViewItem.ticket}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-cyan-400 hover:text-cyan-300">#{tsViewItem.ticket}</a>
+                      <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tsViewItem.ticket}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-[var(--primary)] hover:text-[var(--primary)]">#{tsViewItem.ticket}</a>
                     </InfoRowModal>
                   )}
                   <InfoRowModal icon={Paperclip} label="Anexo" last>

@@ -22,8 +22,8 @@ import { useAuth } from '@/hooks/use-auth'
 function ActiveBadge({ active }: { active: boolean }) {
   return (
     <Badge variant="outline" className={`text-[10px] border ${active
-      ? 'bg-green-500/20 text-[var(--success)] border-green-500/30'
-      : 'bg-zinc-500/10 text-[var(--text-muted)] border-[var(--border)]'}`}>
+      ? 'bg-[var(--success-bg)] text-[var(--success)] border-green-500/30'
+      : 'bg-[var(--surface-hover)] text-[var(--text-muted)] border-[var(--border)]'}`}>
       {active ? 'Ativo' : 'Inativo'}
     </Badge>
   )
@@ -525,7 +525,7 @@ function ExecutivesTab() {
               <tr><td colSpan={3} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum executivo cadastrado</td></tr>
             ) : executives.map(ex => (
               <tr key={ex.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
-                <td className="px-3 py-2.5 text-[var(--text)] flex items-center gap-2"><Star size={11} className="text-yellow-500 shrink-0" />{ex.name}</td>
+                <td className="px-3 py-2.5 text-[var(--text)] flex items-center gap-2"><Star size={11} className="text-[var(--warning)] shrink-0" />{ex.name}</td>
                 <td className="px-3 py-2.5 text-[var(--text-muted)] hidden sm:table-cell">{ex.email}</td>
                 <td className="px-3 py-2.5">
                   <button onClick={() => toggle(ex)} disabled={toggling === ex.id} className="p-1 text-[var(--text-light)] hover:text-[var(--danger)] transition-colors" title="Remover executivo"><Trash2 size={12} /></button>
@@ -793,7 +793,7 @@ function ConsultantGroupsTab() {
                       {filteredConsultants.map(c => {
                         const selected = form.consultant_ids.includes(c.id)
                         return (
-                          <label key={c.id} className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${selected ? 'bg-blue-600/10' : 'hover:bg-[var(--surface-hover)]'}`}>
+                          <label key={c.id} className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${selected ? 'bg-[var(--primary-soft)]' : 'hover:bg-[var(--surface-hover)]'}`}>
                             <div
                               onClick={() => toggleConsultant(c.id)}
                               className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors cursor-pointer ${selected ? 'bg-[var(--primary)] border-blue-600' : 'border-[var(--border-strong)] hover:border-[var(--border-strong)]'}`}
