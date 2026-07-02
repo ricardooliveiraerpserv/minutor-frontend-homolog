@@ -15,6 +15,7 @@ export interface RelatorioRow {
   effort_hours: string         // formato HH:MM para o PDF/preview
   effort_decimal: number       // decimal para o Excel (ex: 0.5, 1.5)
   date_service: string
+  project?: string             // nome do projeto (coluna só no Excel)
 }
 
 export interface RelatorioMeta {
@@ -35,7 +36,7 @@ function buildCols(meta: RelatorioMeta): string[] {
     'Data de Inclusão', 'Solicitante', 'Consultor',
     meta.ticketHeader ?? 'Ticket',
     meta.titleHeader  ?? 'Título',
-    'Descrição', 'Início', 'Fim', 'Esforço (h)', 'Data do Serviço',
+    'Descrição', 'Início', 'Fim', 'Esforço (h)', 'Data do Serviço', 'Projeto',
   ]
 }
 
@@ -85,16 +86,17 @@ export function exportRelatorioToExcel(rows: RelatorioRow[], meta: RelatorioMeta
       r.date_inclusion_late ? `⚠ ${r.date_inclusion}` : r.date_inclusion,
       r.requester, r.consultant, r.ticket, r.title,
       r.description, r.start_time, r.end_time, r.effort_decimal, r.date_service,
+      r.project ?? '',
     ]),
-    // Totalizador: rótulo (A..H) + soma do esforço (I) + nº de registros (J)
-    [`TOTAL — ${meta.totalRecords} registro(s)`, '', '', '', '', '', '', '', totalEffort, ''],
+    // Totalizador: rótulo (A..H) + soma do esforço (I) + nº de registros (J) + Projeto (K) vazio
+    [`TOTAL — ${meta.totalRecords} registro(s)`, '', '', '', '', '', '', '', totalEffort, '', ''],
   ]
 
   const ws = XLSX.utils.aoa_to_sheet(aoa)
 
   ws['!cols'] = [
     { wch: 16 }, { wch: 24 }, { wch: 22 }, { wch: 14 },
-    { wch: 18 }, { wch: 50 }, { wch: 8 }, { wch: 8 }, { wch: 11 }, { wch: 14 },
+    { wch: 18 }, { wch: 50 }, { wch: 8 }, { wch: 8 }, { wch: 11 }, { wch: 14 }, { wch: 28 },
   ]
   ws['!rows'] = [{ hpt: 26 }, { hpt: 20 }]  // alturas do título e do cabeçalho
 

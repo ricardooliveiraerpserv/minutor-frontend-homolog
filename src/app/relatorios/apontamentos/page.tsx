@@ -195,20 +195,22 @@ export default function RelatorioApontamentosPage() {
   // senão competência. Ex.: "Relatório de Apontamentos — 25 de Junho a 02 de Julho de 2026".
   const reportFileBase = useMemo(() => {
     const noun = isFechamento ? 'Fechamento' : 'Apontamentos'
+    // Meses abreviados p/ nome de arquivo COMPACTO (ex.: "25Jun-02Jul2026", "Jun2026").
+    const AB = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
     const dd = (n: number) => String(n).padStart(2, '0')
     const fmtRange = (fromISO: string, toISO: string): string => {
       const [sy, sm, sd] = fromISO.split('-').map(Number)
       const [ey, em, ed] = toISO.split('-').map(Number)
       if (!sy || !sm || !sd || !ey || !em || !ed) return ''
-      if (sy === ey && sm === em) return `${dd(sd)} a ${dd(ed)} de ${MONTHS_PT[sm - 1]} de ${sy}`
-      if (sy === ey)              return `${dd(sd)} de ${MONTHS_PT[sm - 1]} a ${dd(ed)} de ${MONTHS_PT[em - 1]} de ${sy}`
-      return `${dd(sd)} de ${MONTHS_PT[sm - 1]} de ${sy} a ${dd(ed)} de ${MONTHS_PT[em - 1]} de ${ey}`
+      if (sy === ey && sm === em) return `${dd(sd)}-${dd(ed)}${AB[sm - 1]}${sy}`
+      if (sy === ey)              return `${dd(sd)}${AB[sm - 1]}-${dd(ed)}${AB[em - 1]}${sy}`
+      return `${dd(sd)}${AB[sm - 1]}${sy}-${dd(ed)}${AB[em - 1]}${ey}`
     }
     let part = ''
     if (digFrom || digTo)                                   part = fmtRange(digFrom || competenciaStart, digTo || competenciaEnd)
-    else if (filterMode === 'month' && refMonth && refYear) part = `${MONTHS_PT[refMonth - 1]} de ${refYear}`
+    else if (filterMode === 'month' && refMonth && refYear) part = `${AB[refMonth - 1]}${refYear}`
     else if (filterMode === 'period')                       part = fmtRange(startDate, endDate)
-    return part ? `Relatório de ${noun} — ${part}` : `Relatório de ${noun}`
+    return part ? `Relatório de ${noun} ${part}` : `Relatório de ${noun}`
   }, [filterMode, refMonth, refYear, startDate, endDate, digFrom, digTo, competenciaStart, competenciaEnd, isFechamento])
 
   const customerName = useMemo(
@@ -370,6 +372,7 @@ export default function RelatorioApontamentosPage() {
       effort_hours:   fmtHoras(t.effort_minutes ?? 0),
       effort_decimal: Math.round(((t.effort_minutes ?? 0) / 60) * 100) / 100,
       date_service:   fmtDateBR(t.date),
+      project:        t.project?.name ?? 'Sem projeto',
     }))
   }
 
