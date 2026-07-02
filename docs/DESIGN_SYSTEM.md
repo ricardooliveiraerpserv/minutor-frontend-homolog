@@ -256,3 +256,42 @@ Implementação em `src/app/globals.css` (seção "Design system utilities").
 Toggle no header. Persiste em `localStorage`. Respeita `prefers-color-scheme` no primeiro acesso. `defaultTheme="dark"` como fallback.
 
 Configurado em `src/app/providers.tsx`.
+
+---
+
+## Linguagem Visual (leia primeiro)
+
+Antes de criar/alterar qualquer componente, leia **[`LINGUAGEM_VISUAL.md`](./LINGUAGEM_VISUAL.md)** —
+a camada de princípios (hierarquia, superfícies, contraste, cor=informação, densidade,
+regra do destaque, estados, identidade). Este guia (tokens/classes) é o "como";
+`LINGUAGEM_VISUAL.md` é o "porquê" e vem antes.
+
+## Componentes canônicos (obrigatórios)
+
+Não reimplemente à mão o que já existe. Fonte: `src/components/ds/` e `src/components/ui/`.
+
+| Precisa de… | Use | Não use |
+|---|---|---|
+| Cabeçalho de página | `PageHeader` | `<h1>` inline |
+| Card | `Card` / `.ds-card` | div com border/shadow inline |
+| KPI | `KpiCard` | seção de número à mão |
+| Tabela | `DataTable` / `Table,Th,Td…` | `<table>` estilizada à mão |
+| Modal/Drawer | `ui/modal` (`Modal,ModalHeader,ModalBody,ModalFooter`) | `fixed inset-0` inline; `ds/index` Modal (deprecado) |
+| Botão | `Button` / `.ds-btn-*` | `bg-blue-600`/`bg-zinc-700`… |
+| Badge / status | `StatusBadge` + `getStatusMeta()` | `.ds-status-*` soltas, span inline, mapa de status local |
+| Input/Select/Busca | `Input`, `Select`, `SearchSelect`, `MultiSelect` | input/select inline; SearchSelect local |
+
+## Scorecard de aderência
+
+Meça a evolução objetivamente (não por inspeção visual):
+
+```bash
+node scripts/ds-scorecard.mjs        # tabela Atual → Meta + top ofensores
+```
+
+## Governança (Sprint 9) — regras que devem virar lint/CI
+
+Nenhum componente pode: usar `#hex`/`rgba()` semântico, `zinc-*`, `slate-*`,
+`bg-white/x`, `bg-black/x`, `rounded`/`shadow` fora dos tokens, nem criar novo
+modal/badge/card/botão sem reusar os oficiais. O scorecard acima é o medidor;
+o lint é a trava.
