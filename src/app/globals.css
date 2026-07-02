@@ -141,18 +141,18 @@
  */
 :root {
   /* ── NEUTRO ──────────────────────────────────────── */
-  --brand-bg:       #E4E5E8;   /* Surface 0: fundo cinza neutro (cards flutuam) */
-  --brand-panel:    #ECEDEF;   /* Surface 1: painéis (neutro) */
-  --brand-surface:  #FFFFFF;   /* Surface 2: cards brancos */
-  --brand-border:   #D6D8DD;   /* borda neutra visível */
-  --brand-text:     #0F172A;
+  --brand-bg:       #E3E5EA;   /* Surface 0: fundo (1.7) */
+  --brand-panel:    #F0F1F4;   /* Surface 1: painéis (1.7) */
+  --brand-surface:  #FBFBFD;   /* Surface 2: cards — branco SUAVIZADO (sem glare, 1.7) */
+  --brand-border:   #E2E4E9;   /* borda hairline única (1.7) */
+  --brand-text:     #14161B;
   --brand-muted:    #475569;   /* spec text-secondary */
   --brand-subtle:   #64748B;   /* text terciário — contraste WCAG no claro (Sprint 1) */
 
   /* ── PRIMARY (ação — cyan brand premium) ─────────── */
-  --brand-primary:        #06B6D4;   /* cyan brand brilhante */
-  --brand-primary-strong: #0891B2;   /* hover ~5% mais escuro */
-  --brand-primary-dim:    #ECEEF2;   /* soft NEUTRO (não-cyan): chips/badge/selecionado */
+  --brand-primary:        #157582;   /* cyan AÇÃO sóbrio (1.7) — logo segue --brand-logo */
+  --brand-primary-strong: #0E5C67;   /* hover primário (1.7) */
+  --brand-primary-dim:    #E9F0F1;   /* soft neutro (1.7) */
 
   /* ── Semantic — light (tons de border/accent) ────── */
   --brand-success:  #22C55E;
@@ -164,7 +164,7 @@
   --brand-logo: #06B6D4;
 
   /* ── Elevation & dividers — só ativos no light (sombras discretas, estilo HubSpot) ── */
-  --brand-card-shadow:    0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.05);
+  --brand-card-shadow:    0 1px 2px rgba(18, 26, 42, 0.045), 0 1px 3px rgba(18, 26, 42, 0.05);
   --brand-card-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.04);
   --brand-table-divider:  rgba(15, 23, 42, 0.07);
 
@@ -185,15 +185,15 @@
   --bg:            var(--brand-bg);          /* Surface 0 */
   --panel:         var(--brand-panel);       /* Surface 1: painéis/containers */
   --surface:       var(--brand-surface);     /* Surface 2: cards */
-  --surface-hover: #EEEFF2;                  /* hover neutro perceptível */
-  --surface-sunken:#EAEBEE;                  /* header de tabela/input — neutro */
-  --field:         #F1F4F8;                  /* Surface 3: input — identidade própria + borda */
+  --surface-hover: #ECEDF1;                  /* hover (1.7) */
+  --surface-sunken:#F1F2F5;                  /* zebra/thead suave (1.7) */
+  --field:         #F5F6F8;                  /* input — neutro sutil (1.7) */
   --text:          var(--brand-text);
   --text-muted:    var(--brand-muted);
   --text-light:    var(--brand-subtle);
   --border:        var(--brand-border);
-  --border-strong: #BCBFC6;   /* divisores fortes neutros */
-  --ring:          rgba(6, 182, 212, 0.30);  /* focus ring (primary @ 30%) */
+  --border-strong: #CBCFD7;   /* divisor forte (1.7) */
+  --ring:          rgba(21, 117, 130, 0.32);  /* focus ring — cyan sóbrio (1.7) */
 
   /* PRIMARY */
   --primary:       var(--brand-primary);
