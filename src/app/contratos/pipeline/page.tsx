@@ -5408,9 +5408,9 @@ function KanbanContent() {
                   <Trash2 size={20} className="text-[var(--danger)]" />
                   <p className="font-semibold text-[var(--text)]">Excluir Contrato</p>
                 </div>
-                <p className="text-sm text-slate-300">Tem certeza que deseja excluir <strong className="text-[var(--text)]">{card.project_name}</strong>? Esta ação não pode ser desfeita.</p>
+                <p className="text-sm text-[var(--text-muted)]">Tem certeza que deseja excluir <strong className="text-[var(--text)]">{card.project_name}</strong>? Esta ação não pode ser desfeita.</p>
                 <div className="flex gap-2 justify-end">
-                  <button onClick={close} className="px-4 py-2 rounded-lg text-sm text-slate-300 hover:text-[var(--text)]" style={{ background: 'var(--surface-hover)' }}>Cancelar</button>
+                  <button onClick={close} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)]" style={{ background: 'var(--surface-hover)' }}>Cancelar</button>
                   <button onClick={async () => {
                     try {
                       await api.delete(`/contracts/${card.id}`)

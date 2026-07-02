@@ -790,7 +790,7 @@ function StatusPills({ value, onChange, options }: {
         <button key={opt.value} type="button" onClick={() => onChange(opt.value)}
           className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
             value === opt.value
-              ? 'bg-cyan-400 text-zinc-900 shadow-sm'
+              ? 'bg-[var(--primary)] text-[var(--primary-fg)] shadow-sm'
               : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}>
           {opt.label}
@@ -888,7 +888,7 @@ function DateRangePicker({ from, to, onChange }: {
                 onMouseLeave={() => setHover(null)}
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${
-                  s || e ? 'bg-cyan-400 text-zinc-900 font-bold'
+                  s || e ? 'bg-[var(--primary)] text-[var(--primary-fg)] font-bold'
                   : ir    ? 'bg-[var(--primary-soft)] text-[var(--primary)]'
                   : td    ? 'text-[var(--primary)] font-semibold hover:bg-[var(--surface-hover)]'
                   :         'text-[var(--text)] hover:bg-[var(--surface-hover)]'
@@ -2586,7 +2586,7 @@ export default function MeuPainelPage() {
                   Ver todos →
                 </button>
               </div>
-              <div className="divide-y divide-zinc-800">
+              <div className="divide-y divide-[var(--border)]">
                 {tsLoading
                   ? [...Array(4)].map((_, i) => (
                       <div key={i} className="px-5 py-3.5 flex items-center gap-3">
@@ -2624,7 +2624,7 @@ export default function MeuPainelPage() {
                   Ver todas →
                 </button>
               </div>
-              <div className="divide-y divide-zinc-800">
+              <div className="divide-y divide-[var(--border)]">
                 {expLoading
                   ? [...Array(4)].map((_, i) => (
                       <div key={i} className="px-5 py-3.5 flex items-center gap-3">
@@ -3031,7 +3031,7 @@ export default function MeuPainelPage() {
 
             {/* Valor Gerado */}
             {!isParceiroSimples && (
-            <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 p-5 col-span-2 lg:col-span-1">
+            <div className="rounded-xl border border-[var(--primary)]/20 bg-gradient-to-br from-[var(--primary-soft)] to-[var(--primary-soft)] p-5 col-span-2 lg:col-span-1">
               <div className="flex items-center gap-2 mb-3">
                 <div className="p-1.5 rounded-lg bg-[var(--primary-soft)]">
                   <DollarSign size={13} className="text-[var(--primary)]" />
@@ -3510,7 +3510,7 @@ export default function MeuPainelPage() {
                     Horas
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)] font-medium">
-                    <div className="w-3 h-3 rounded-sm bg-cyan-400" />
+                    <div className="w-3 h-3 rounded-sm bg-[var(--primary)]" />
                     Horas (mês atual)
                   </div>
                   {hasExpHist && (

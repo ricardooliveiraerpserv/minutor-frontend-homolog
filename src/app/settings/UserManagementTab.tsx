@@ -817,7 +817,7 @@ export function UserManagementTab() {
                       <p className="text-[10px] text-[var(--text-light)] mb-2">
                         Permissões marcadas em cinza já fazem parte do perfil. As desmarcadas podem ser habilitadas individualmente.
                       </p>
-                      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] divide-y divide-zinc-700/50">
+                      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] divide-y divide-[var(--border)]">
                         {groups.map(group => (
                           <div key={group} className="px-3 py-2">
                             <p className="text-[10px] font-medium text-[var(--text-light)] mb-1.5 uppercase tracking-wide">{group}</p>

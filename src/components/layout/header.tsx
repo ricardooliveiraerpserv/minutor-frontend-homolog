@@ -225,7 +225,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
         )}
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-[var(--surface-hover)] transition-colors outline-none">
+          <DropdownMenuTrigger className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors outline-none">
             <span className="flex items-center gap-2">
               <Avatar className="w-6 h-6">
                 <AvatarImage src={secureUrl(user?.profile_photo_url)} />
