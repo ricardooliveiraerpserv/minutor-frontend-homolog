@@ -192,6 +192,7 @@ const NAV: NavEntry[] = [
       { label: 'Folha Cooperativa',   href: '/fechamento/folha',        icon: FileSpreadsheet },
       { label: 'Contratos',           href: '/fechamento/contratos',    icon: FileText   },
       { label: 'Reajuste de Contrato', href: '/fechamento/reajustes',   icon: TrendingUp },
+      { label: 'Horas Excedentes',    href: '/fechamento/excedentes',   icon: Clock },
       { label: 'Pagamento Despesas',  href: '/pagamento-despesas',      icon: DollarSign },
     ],
   },
