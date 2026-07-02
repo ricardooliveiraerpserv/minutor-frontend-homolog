@@ -139,10 +139,10 @@
  */
 :root {
   /* ── NEUTRO ──────────────────────────────────────── */
-  --brand-bg:       #DEE4EE;   /* fundo cinza-claro (menos "branco duro"); cards brancos dão profundidade */
+  --brand-bg:       #E4E5E8;   /* fundo cinza-claro (menos "branco duro"); cards brancos dão profundidade */
   --brand-surface:  #FFFFFF;
-  --brand-panel:    #E8EDF4;   /* Nível 1: painéis/seções/colunas kanban (Sprint 1) */
-  --brand-border:   #CDD6E2;
+  --brand-panel:    #ECEDEF;   /* Nível 1: painéis/seções/colunas kanban (Sprint 1) */
+  --brand-border:   #D6D8DD;
   --brand-text:     #0F172A;
   --brand-muted:    #475569;   /* spec text-secondary */
   --brand-subtle:   #64748B;   /* text terciário — contraste WCAG no claro (Sprint 1) */
@@ -150,7 +150,7 @@
   /* ── PRIMARY (ação — cyan brand premium) ─────────── */
   --brand-primary:        #06B6D4;   /* cyan brand brilhante */
   --brand-primary-strong: #0891B2;   /* hover ~5% mais escuro */
-  --brand-primary-dim:    #E6F6FA;   /* sidebar active / badge soft (spec) */
+  --brand-primary-dim:    #ECEEF2;   /* sidebar active / badge soft (spec) */
 
   /* ── Semantic — light (tons de border/accent) ────── */
   --brand-success:  #22C55E;
@@ -183,13 +183,13 @@
   --bg:            var(--brand-bg);
   --surface:       var(--brand-surface);
   --panel:         var(--brand-panel);
-  --surface-hover: #E9EEF6;
-  --surface-sunken:#E6ECF3;   /* inputs, table header — superfície "afundada" */
+  --surface-hover: #EEEFF2;
+  --surface-sunken:#EAEBEE;   /* inputs, table header — superfície "afundada" */
   --text:          var(--brand-text);
   --text-muted:    var(--brand-muted);
   --text-light:    var(--brand-subtle);
   --border:        var(--brand-border);
-  --border-strong: #B4C0CE;   /* divisores fortes, hover de inputs */
+  --border-strong: #BCBFC6;   /* divisores fortes, hover de inputs */
   --ring:          rgba(6, 182, 212, 0.30);  /* focus ring (primary @ 30%) */
 
   /* PRIMARY */
@@ -806,9 +806,10 @@ tr.row--pausado:hover {
 }
 .sidebar-item-active,
 .sidebar-item-active:hover {
-  background: var(--primary-soft);
-  color: var(--primary);
-  font-weight: 500;
+  background: var(--surface-hover);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--primary);
 }
 .sidebar-item-active svg {
   color: var(--primary);
