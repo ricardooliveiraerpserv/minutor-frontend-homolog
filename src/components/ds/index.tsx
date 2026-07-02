@@ -249,7 +249,7 @@ const BADGE_STYLES: Record<string, { bg: string; color: string }> = {
   success:   { bg: 'rgba(16,185,129,0.12)',   color: '#10B981' },
   warning:   { bg: 'rgba(245,158,11,0.12)',   color: '#F59E0B' },
   danger:    { bg: 'rgba(239,68,68,0.12)',    color: '#EF4444' },
-  purple:    { bg: 'rgba(139,92,246,0.12)',   color: '#8B5CF6' },
+  purple:    { bg: 'var(--purple-bg)',   color: 'var(--purple)' },
   // timesheet statuses
   pending:              { bg: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
   approved:             { bg: 'rgba(16,185,129,0.12)',  color: '#10B981' },
