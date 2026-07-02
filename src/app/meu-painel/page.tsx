@@ -2608,8 +2608,8 @@ export default function MeuPainelPage() {
                             <span className="text-xs font-semibold text-[var(--text)]">{exp.formatted_amount}</span>
                             <StatusBadge status={exp.status} display={exp.status_display} reason={exp.rejection_reason} />
                             {exp.status === 'approved' && (exp.is_paid
-                              ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-950 text-[var(--success)]">Pago</span>
-                              : <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-[var(--warning)]">Em aberto</span>
+                              ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--success-bg)] text-[var(--success)]">Pago</span>
+                              : <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--warning-bg)] text-[var(--warning)]">Em aberto</span>
                             )}
                           </div>
                         </div>
@@ -2927,8 +2927,8 @@ export default function MeuPainelPage() {
                       </td>
                       <td className="px-4 py-3.5">
                         {exp.is_paid
-                          ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-950 text-[var(--success)]">Pago</span>
-                          : exp.status === 'approved' && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-[var(--warning)]">Em aberto</span>
+                          ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--success-bg)] text-[var(--success)]">Pago</span>
+                          : exp.status === 'approved' && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[var(--warning-bg)] text-[var(--warning)]">Em aberto</span>
                         }
                       </td>
                       <td className="px-4 py-3.5 w-10">

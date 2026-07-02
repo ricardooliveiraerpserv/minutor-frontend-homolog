@@ -102,7 +102,7 @@ function CurrentMonthCard({
             {fmtMonth(data.year_month)}
           </span>
           {data.status === 'open'
-            ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary-soft)]">Em aberto</span>
+            ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--warning-bg)] text-[var(--warning)] border border-[var(--warning-border)]">Em aberto</span>
             : <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border)] flex items-center gap-1"><Lock size={8}/> Fechado</span>
           }
         </div>
