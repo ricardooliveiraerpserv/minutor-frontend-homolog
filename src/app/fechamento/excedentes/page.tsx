@@ -5,9 +5,10 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
-import { Clock, RefreshCw, Search, DollarSign, AlertTriangle, CheckCircle, Ban } from 'lucide-react'
+import { Clock, RefreshCw, Search, DollarSign, AlertTriangle, CheckCircle, Ban, FileText, Send } from 'lucide-react'
 import { PageHeader, Card, Badge, Button, Th, Tbody, Tr, Td, SkeletonTable, EmptyState } from '@/components/ds'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import { Modal, ModalHeader, ModalBody, ModalFooter } from '@/components/ui/modal'
 
 interface Row {
   project_id: number
@@ -25,6 +26,8 @@ interface Row {
   status: 'pendente' | 'cobrado' | 'nao_cobrar'
   record_id: number | null
   closed_at: string | null
+  envio_em?: string | null
+  envio_por?: string | null
 }
 
 const STATUS: Record<Row['status'], { label: string; variant: string }> = {
@@ -97,6 +100,41 @@ function ExcedentesPage() {
     } catch {
       patch(r.project_id, { status: r.status }); toast.error('Erro ao salvar o status')
     } finally { setBusy(null) }
+  }
+
+  // ── Relatório + e-mail por cliente ──
+  const [reportFor, setReportFor] = useState<{ customerId: number; name: string; envio_em?: string | null } | null>(null)
+  const [reportHtml, setReportHtml] = useState('')
+  const [reportLoading, setReportLoading] = useState(false)
+  const [emails, setEmails] = useState('')
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+
+  const openReport = async (r: Row) => {
+    setReportFor({ customerId: r.customer_id, name: r.customer_name, envio_em: r.envio_em })
+    setEmails(''); setMessage(''); setReportHtml(''); setReportLoading(true)
+    try {
+      const res = await api.get<{ html: string }>(`/fechamento-excedente/${r.customer_id}/${ym}/report-html`)
+      setReportHtml(res.html ?? '')
+    } catch {
+      toast.error('Erro ao gerar o relatório')
+    } finally { setReportLoading(false) }
+  }
+
+  const sendEmail = async () => {
+    if (!reportFor || !ym) return
+    const list = emails.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean)
+    if (list.length === 0) { toast.error('Informe ao menos um e-mail'); return }
+    setSending(true)
+    try {
+      const res = await api.post<{ success: boolean; message: string }>(
+        `/fechamento-excedente/${reportFor.customerId}/${ym}/email`, { emails: list, mensagem: message || undefined })
+      toast.success(res.message ?? 'Enviado')
+      setReportFor(null)
+      load()
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Falha ao enviar o e-mail')
+    } finally { setSending(false) }
   }
 
   return (
@@ -214,6 +252,8 @@ function ExcedentesPage() {
                       <Td><Badge variant={st.variant}>{st.label}</Badge></Td>
                       <Td>
                         <div className="flex items-center gap-1.5">
+                          <Button size="sm" variant="secondary" icon={FileText} disabled={busy === r.project_id}
+                            onClick={() => openReport(r)}>Relatório</Button>
                           {r.status !== 'cobrado' && (
                             <Button size="sm" variant="secondary" icon={CheckCircle} disabled={busy === r.project_id}
                               onClick={() => setStatus(r, 'cobrado')}>Cobrado</Button>
@@ -236,6 +276,45 @@ function ExcedentesPage() {
           </div>
         )}
       </div>
+
+      <Modal open={!!reportFor} onClose={() => setReportFor(null)} size="lg">
+        <ModalHeader
+          title={`Horas Excedentes — ${reportFor?.name ?? ''}`}
+          subtitle={reportFor?.envio_em ? `Já enviado em ${new Date(reportFor.envio_em).toLocaleString('pt-BR')}` : 'Revise o relatório e envie ao cliente'}
+          icon={FileText}
+          onClose={() => setReportFor(null)}
+        />
+        <ModalBody>
+          <div className="rounded-xl overflow-hidden mb-4" style={{ border: '1px solid var(--border)', height: 420, background: '#fff' }}>
+            {reportLoading
+              ? <div className="flex items-center justify-center h-full text-sm" style={{ color: 'var(--text-muted)' }}>Gerando relatório…</div>
+              : <iframe title="Relatório de Horas Excedentes" srcDoc={reportHtml} className="w-full h-full border-0" />}
+          </div>
+          <div className="space-y-2">
+            <div>
+              <label className="text-xs" style={{ color: 'var(--text-muted)' }}>E-mails do destino (separe por vírgula)</label>
+              <input value={emails} onChange={e => setEmails(e.target.value)} placeholder="cliente@empresa.com, financeiro@empresa.com"
+                className="w-full mt-1 px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+            </div>
+            <div>
+              <label className="text-xs" style={{ color: 'var(--text-muted)' }}>Mensagem (opcional)</label>
+              <textarea value={message} onChange={e => setMessage(e.target.value)} rows={3} placeholder="Deixe em branco para usar a mensagem padrão."
+                className="w-full mt-1 px-3 py-2 rounded-lg text-sm"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
+            </div>
+            <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
+              Enviado como você (remetente logado), com cópia para os papéis da Central de Workflows. O PDF vai anexo.
+            </p>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="secondary" onClick={() => setReportFor(null)} disabled={sending}>Cancelar</Button>
+          <Button variant="primary" icon={Send} onClick={sendEmail} loading={sending} disabled={sending || reportLoading}>
+            Enviar ao cliente
+          </Button>
+        </ModalFooter>
+      </Modal>
     </AppLayout>
   )
 }
