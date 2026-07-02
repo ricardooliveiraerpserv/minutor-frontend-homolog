@@ -69,8 +69,8 @@ function BalancePill({ value, size = 'sm' }: { value: number; size?: 'sm' | 'lg'
   const isPos  = value > 0
   const isNeg  = value < 0
   const isZero = value === 0
-  const color  = isPos ? '#22c55e' : isNeg ? '#ef4444' : '#71717a'
-  const bg     = isPos ? 'rgba(34,197,94,0.1)' : isNeg ? 'rgba(239,68,68,0.1)' : 'rgba(113,113,122,0.1)'
+  const color  = isPos ? 'var(--success-border)' : isNeg ? 'var(--danger-border)' : 'var(--text-light)'
+  const bg     = isPos ? 'var(--success-bg)' : isNeg ? 'var(--danger-bg)' : 'var(--surface-hover)'
   const Icon   = isPos ? TrendingUp : isNeg ? TrendingDown : Minus
   const cls    = size === 'lg' ? 'text-lg font-bold' : 'text-xs font-semibold'
   return (
@@ -102,8 +102,8 @@ function CurrentMonthCard({
             {fmtMonth(data.year_month)}
           </span>
           {data.status === 'open'
-            ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">Em aberto</span>
-            : <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-500/15 text-zinc-400 border border-zinc-500/20 flex items-center gap-1"><Lock size={8}/> Fechado</span>
+            ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary-soft)]">Em aberto</span>
+            : <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--surface-hover)] text-[var(--text-muted)] border border-[var(--border)] flex items-center gap-1"><Lock size={8}/> Fechado</span>
           }
         </div>
         {data.status === 'open' && (
@@ -133,8 +133,8 @@ function CurrentMonthCard({
         {[
           { label: 'Horas Previstas', value: fmt(data.expected_hours), sub: `${data.working_days} dias úteis`, color: 'var(--brand-muted)' },
           { label: 'Horas Trabalhadas', value: fmt(data.worked_hours), sub: '', color: 'var(--brand-text)' },
-          { label: 'Saldo do Mês', value: fmt(data.month_balance), sub: '', color: data.month_balance >= 0 ? '#22c55e' : '#ef4444' },
-          { label: 'Saldo Anterior', value: fmt(data.previous_balance), sub: '', color: data.previous_balance >= 0 ? '#22c55e' : data.previous_balance < 0 ? '#ef4444' : 'var(--brand-muted)' },
+          { label: 'Saldo do Mês', value: fmt(data.month_balance), sub: '', color: data.month_balance >= 0 ? 'var(--success-border)' : 'var(--danger-border)' },
+          { label: 'Saldo Anterior', value: fmt(data.previous_balance), sub: '', color: data.previous_balance >= 0 ? 'var(--success-border)' : data.previous_balance < 0 ? 'var(--danger-border)' : 'var(--brand-muted)' },
         ].map(item => (
           <div key={item.label} className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
             <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{item.label}</p>
@@ -146,7 +146,7 @@ function CurrentMonthCard({
 
       {/* Resultado */}
       <div className="mt-3 rounded-xl px-4 py-3 flex items-center justify-between"
-        style={{ background: data.paid_hours > 0 ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)', border: `1px solid ${data.paid_hours > 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.15)'}` }}>
+        style={{ background: data.paid_hours > 0 ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${data.paid_hours > 0 ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
         <div>
           <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Saldo Acumulado</p>
           <BalancePill value={data.accumulated_balance} size="lg" />
@@ -156,7 +156,7 @@ function CurrentMonthCard({
             {data.paid_hours > 0 ? 'Horas a Pagar' : 'Saldo Final'}
           </p>
           {data.paid_hours > 0
-            ? <span className="text-lg font-bold text-green-400">{fmt(data.paid_hours)} a pagar</span>
+            ? <span className="text-lg font-bold text-[var(--success)]">{fmt(data.paid_hours)} a pagar</span>
             : <BalancePill value={data.final_balance} size="lg" />
           }
         </div>
@@ -173,7 +173,7 @@ function HistoryRow({ row, onReopen }: { row: HourBankClosing; onReopen: (ym: st
   return (
     <>
       <tr
-        className="border-b cursor-pointer hover:bg-white/[0.02] transition-colors"
+        className="border-b cursor-pointer hover:bg-[var(--surface-hover)] transition-colors"
         style={{ borderColor: 'var(--brand-border)' }}
         onClick={() => setOpen(o => !o)}
       >
@@ -189,31 +189,31 @@ function HistoryRow({ row, onReopen }: { row: HourBankClosing; onReopen: (ym: st
         <td className="px-4 py-3 text-center"><BalancePill value={row.previous_balance} /></td>
         <td className="px-4 py-3 text-center">
           {row.paid_hours > 0
-            ? <span className="text-xs font-semibold text-green-400">{fmt(row.paid_hours)}</span>
+            ? <span className="text-xs font-semibold text-[var(--success)]">{fmt(row.paid_hours)}</span>
             : <span style={{ color: 'var(--brand-subtle)' }} className="text-xs">—</span>
           }
         </td>
         <td className="px-4 py-3 text-center"><BalancePill value={row.final_balance} /></td>
         <td className="px-4 py-3 text-center">
           {row.status === 'closed'
-            ? <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-zinc-400 bg-zinc-500/10"><Lock size={8}/>Fechado</span>
-            : <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">Aberto</span>
+            ? <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-[var(--text-muted)] bg-[var(--surface-hover)]"><Lock size={8}/>Fechado</span>
+            : <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)]">Aberto</span>
           }
         </td>
       </tr>
       {open && (
-        <tr style={{ background: 'rgba(255,255,255,0.015)', borderBottom: `1px solid var(--brand-border)` }}>
+        <tr style={{ background: 'var(--surface-sunken)', borderBottom: `1px solid var(--brand-border)` }}>
           <td colSpan={8} className="px-6 py-3">
             <div className="flex items-start gap-6 text-xs" style={{ color: 'var(--brand-muted)' }}>
-              <span><span className="text-zinc-500">Dias úteis:</span> {row.working_days}</span>
-              <span><span className="text-zinc-500">Feriados:</span> {row.holidays_count}</span>
-              <span><span className="text-zinc-500">H/dia:</span> {row.daily_hours}h</span>
-              <span><span className="text-zinc-500">Acumulado:</span> <BalancePill value={row.accumulated_balance} /></span>
-              {row.notes && <span><span className="text-zinc-500">Obs:</span> {row.notes}</span>}
+              <span><span className="text-[var(--text-light)]">Dias úteis:</span> {row.working_days}</span>
+              <span><span className="text-[var(--text-light)]">Feriados:</span> {row.holidays_count}</span>
+              <span><span className="text-[var(--text-light)]">H/dia:</span> {row.daily_hours}h</span>
+              <span><span className="text-[var(--text-light)]">Acumulado:</span> <BalancePill value={row.accumulated_balance} /></span>
+              {row.notes && <span><span className="text-[var(--text-light)]">Obs:</span> {row.notes}</span>}
               {row.status === 'closed' && (
                 <button
                   onClick={e => { e.stopPropagation(); onReopen(row.year_month) }}
-                  className="ml-auto flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+                  className="ml-auto flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full text-[var(--warning)] bg-[var(--warning-bg)] hover:bg-[var(--warning-bg)] transition-colors"
                 >
                   <Unlock size={9} /> Reabrir
                 </button>
@@ -315,7 +315,7 @@ export default function HoraBancoPage() {
               Acompanhamento mensal de horas previstas, trabalhadas e saldo acumulado
             </p>
           </div>
-          <button onClick={() => setRefreshKey(k => k + 1)} className="p-2 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-subtle)' }}>
+          <button onClick={() => setRefreshKey(k => k + 1)} className="p-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-subtle)' }}>
             <RefreshCw size={14} />
           </button>
         </div>
@@ -336,16 +336,16 @@ export default function HoraBancoPage() {
                   className="w-full flex items-start gap-2.5 px-3 py-3 text-left transition-colors border-b last:border-0"
                   style={{
                     borderColor: 'var(--brand-border)',
-                    background: selected?.id === c.id ? 'rgba(0,245,255,0.06)' : 'transparent',
+                    background: selected?.id === c.id ? 'var(--primary-soft)' : 'transparent',
                   }}
                 >
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5"
-                    style={{ background: selected?.id === c.id ? 'rgba(0,245,255,0.15)' : 'rgba(255,255,255,0.05)', color: selected?.id === c.id ? 'var(--brand-primary)' : 'var(--brand-muted)' }}>
+                    style={{ background: selected?.id === c.id ? 'var(--primary-soft)' : 'var(--surface-hover)', color: selected?.id === c.id ? 'var(--brand-primary)' : 'var(--brand-muted)' }}>
                     {c.name.charAt(0)}
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-medium truncate" style={{ color: selected?.id === c.id ? 'var(--brand-primary)' : 'var(--brand-text)' }}>{c.name}</p>
-                    <p className="text-[10px] mt-0.5" style={{ color: c.current_balance < 0 ? '#ef4444' : c.current_balance > 0 ? '#22c55e' : 'var(--brand-subtle)' }}>
+                    <p className="text-[10px] mt-0.5" style={{ color: c.current_balance < 0 ? 'var(--danger-border)' : c.current_balance > 0 ? 'var(--success-border)' : 'var(--brand-subtle)' }}>
                       {c.current_balance !== 0 ? fmt(c.current_balance) : 'Zerado'}
                     </p>
                   </div>
@@ -382,7 +382,7 @@ export default function HoraBancoPage() {
                     <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum fechamento registrado</p>
                   ) : (
                       <table className="w-full text-xs" style={{ background: 'var(--brand-surface)' }}>
-                        <thead className="sticky top-0 z-10" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--brand-border)' }}>
+                        <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--brand-border)' }}>
                           <tr>
                             {['Mês', 'Previsto', 'Trabalhado', 'Saldo Mês', 'Saldo Ant.', 'Pago', 'Saldo Final', 'Status'].map(h => (
                               <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
@@ -400,9 +400,9 @@ export default function HoraBancoPage() {
 
                 {/* Legenda */}
                 <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--brand-subtle)' }}>
-                  <span className="flex items-center gap-1"><TrendingUp size={10} className="text-green-400" /> Saldo positivo</span>
-                  <span className="flex items-center gap-1"><TrendingDown size={10} className="text-red-400" /> Saldo negativo</span>
-                  <span className="flex items-center gap-1"><Minus size={10} className="text-zinc-500" /> Zerado</span>
+                  <span className="flex items-center gap-1"><TrendingUp size={10} className="text-[var(--success)]" /> Saldo positivo</span>
+                  <span className="flex items-center gap-1"><TrendingDown size={10} className="text-[var(--danger)]" /> Saldo negativo</span>
+                  <span className="flex items-center gap-1"><Minus size={10} className="text-[var(--text-light)]" /> Zerado</span>
                   <span className="ml-auto">HP = Dias úteis × {selected.daily_hours}h/dia</span>
                 </div>
               </>

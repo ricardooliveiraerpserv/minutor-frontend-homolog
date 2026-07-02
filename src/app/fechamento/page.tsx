@@ -127,7 +127,7 @@ function fmtYearMonth(ym: string): string {
 }
 
 function marginColor(pct: number): string {
-  return pct >= 30 ? '#22c55e' : pct >= 10 ? '#f59e0b' : '#ef4444'
+  return pct >= 30 ? 'var(--success-border)' : pct >= 10 ? 'var(--warning-border)' : 'var(--danger-border)'
 }
 
 // ─── Subcomponentes de aba ───────────────────────────────────────────────────
@@ -164,10 +164,10 @@ function TabProducao({ data, loading }: { data: ProducaoRow[]; loading: boolean 
             </Td>
             <Td className="text-xs">{row.cliente_nome}</Td>
             <Td className="text-xs">{row.tipo_contrato}</Td>
-            <Td right className="tabular-nums text-xs font-semibold" style={{ color: '#22c55e' }}>{row.horas_aprovadas.toFixed(1)}h</Td>
-            <Td right className="tabular-nums text-xs" style={{ color: row.horas_pendentes > 0 ? '#f59e0b' : 'var(--brand-subtle)' }}>{row.horas_pendentes.toFixed(1)}h</Td>
-            <Td right className="tabular-nums text-xs font-semibold" style={{ color: '#22c55e' }}>{formatBRL(row.despesas_aprovadas)}</Td>
-            <Td right className="tabular-nums text-xs" style={{ color: row.despesas_pendentes > 0 ? '#f59e0b' : 'var(--brand-subtle)' }}>{formatBRL(row.despesas_pendentes)}</Td>
+            <Td right className="tabular-nums text-xs font-semibold" style={{ color: 'var(--success-border)' }}>{row.horas_aprovadas.toFixed(1)}h</Td>
+            <Td right className="tabular-nums text-xs" style={{ color: row.horas_pendentes > 0 ? 'var(--warning-border)' : 'var(--brand-subtle)' }}>{row.horas_pendentes.toFixed(1)}h</Td>
+            <Td right className="tabular-nums text-xs font-semibold" style={{ color: 'var(--success-border)' }}>{formatBRL(row.despesas_aprovadas)}</Td>
+            <Td right className="tabular-nums text-xs" style={{ color: row.despesas_pendentes > 0 ? 'var(--warning-border)' : 'var(--brand-subtle)' }}>{formatBRL(row.despesas_pendentes)}</Td>
           </Tr>
         ))}
       </Tbody>
@@ -221,11 +221,11 @@ function TabCusto({ data, loading }: { data: CustoData | null; loading: boolean 
 
   return (
     <div className="space-y-4">
-      <Section title="Internos" rows={data.internos} total={data.total_custo_interno} color="#00F5FF" />
-      <Section title="Parceiros" rows={data.parceiros} total={data.total_custo_parceiros} color="#a78bfa" />
+      <Section title="Internos" rows={data.internos} total={data.total_custo_interno} color="var(--primary)" />
+      <Section title="Parceiros" rows={data.parceiros} total={data.total_custo_parceiros} color="var(--purple-border)" />
       <div className="flex justify-end px-2">
         <div className="text-xs font-semibold" style={{ color: 'var(--brand-subtle)' }}>
-          Total Custo: <span className="text-sm font-bold ml-2 tabular-nums" style={{ color: '#f59e0b' }}>
+          Total Custo: <span className="text-sm font-bold ml-2 tabular-nums" style={{ color: 'var(--warning-border)' }}>
             {formatBRL(data.total_custo_interno + data.total_custo_parceiros)}
           </span>
         </div>
@@ -249,7 +249,7 @@ function TabReceita({ data, loading }: { data: ReceitaData | null; loading: bool
       {data.by_cliente.map(cliente => (
         <div key={cliente.cliente_id} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
           <button
-            className="w-full flex items-center justify-between px-4 py-3 transition-colors hover:bg-white/5"
+            className="w-full flex items-center justify-between px-4 py-3 transition-colors hover:bg-[var(--surface-hover)]"
             style={{ background: 'var(--brand-bg)' }}
             onClick={() => setExpanded(prev => ({ ...prev, [cliente.cliente_id]: !prev[cliente.cliente_id] }))}>
             <div className="flex items-center gap-2">
@@ -257,7 +257,7 @@ function TabReceita({ data, loading }: { data: ReceitaData | null; loading: bool
               <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>{cliente.cliente_nome}</span>
               <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{cliente.projetos.length} projeto(s)</span>
             </div>
-            <span className="text-xs font-bold tabular-nums" style={{ color: '#22c55e' }}>{formatBRL(cliente.total_cliente)}</span>
+            <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--success-border)' }}>{formatBRL(cliente.total_cliente)}</span>
           </button>
           {expanded[cliente.cliente_id] && (
             <Table>
@@ -280,10 +280,10 @@ function TabReceita({ data, loading }: { data: ReceitaData | null; loading: bool
                     <Td className="text-xs">{tipoLabel[p.tipo_faturamento] ?? p.tipo_faturamento}</Td>
                     <Td right className="tabular-nums text-xs">{p.horas_aprovadas.toFixed(1)}h</Td>
                     <Td right className="tabular-nums text-xs" style={{ color: 'var(--brand-muted)' }}>{p.valor_base > 0 ? formatBRL(p.valor_base) : '—'}</Td>
-                    <Td right className="tabular-nums text-xs font-bold" style={{ color: '#22c55e' }}>
+                    <Td right className="tabular-nums text-xs font-bold" style={{ color: 'var(--success-border)' }}>
                       {formatBRL(p.total_receita)}
                       {p.extra_receita != null && p.extra_receita > 0 && (
-                        <div className="text-[10px] font-normal" style={{ color: '#f59e0b' }}>+{formatBRL(p.extra_receita)} extra %</div>
+                        <div className="text-[10px] font-normal" style={{ color: 'var(--warning-border)' }}>+{formatBRL(p.extra_receita)} extra %</div>
                       )}
                     </Td>
                   </Tr>
@@ -295,7 +295,7 @@ function TabReceita({ data, loading }: { data: ReceitaData | null; loading: bool
       ))}
       <div className="flex justify-end px-2">
         <div className="text-xs font-semibold" style={{ color: 'var(--brand-subtle)' }}>
-          Total Receita: <span className="text-sm font-bold ml-2 tabular-nums" style={{ color: '#22c55e' }}>
+          Total Receita: <span className="text-sm font-bold ml-2 tabular-nums" style={{ color: 'var(--success-border)' }}>
             {formatBRL(data.total_receita)}
           </span>
         </div>
@@ -316,9 +316,9 @@ function TabConsolidado({ data, loading }: { data: Consolidado | null; loading: 
     <div className="space-y-5 max-w-2xl mx-auto">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {[
-          { label: 'Custo Interno',   value: formatBRL(data.total_custo_interno),   icon: UserCheck,  color: '#00F5FF' },
-          { label: 'Custo Parceiros', value: formatBRL(data.total_custo_parceiros), icon: UserCheck,  color: '#a78bfa' },
-          { label: 'Receita Total',   value: formatBRL(data.total_receita),         icon: TrendingUp, color: '#22c55e' },
+          { label: 'Custo Interno',   value: formatBRL(data.total_custo_interno),   icon: UserCheck,  color: 'var(--primary)' },
+          { label: 'Custo Parceiros', value: formatBRL(data.total_custo_parceiros), icon: UserCheck,  color: 'var(--purple-border)' },
+          { label: 'Receita Total',   value: formatBRL(data.total_receita),         icon: TrendingUp, color: 'var(--success-border)' },
           { label: 'Margem',          value: formatBRL(data.margem),                icon: BarChart2,  color: mColor   },
         ].map(c => (
           <div key={c.label} className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
@@ -336,7 +336,7 @@ function TabConsolidado({ data, loading }: { data: Consolidado | null; loading: 
           <span className="text-xs font-semibold" style={{ color: mColor }}>Margem sobre receita</span>
           <span className="text-xs font-bold tabular-nums" style={{ color: mColor }}>{data.margem_percentual.toFixed(1)}%</span>
         </div>
-        <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+        <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
           <div className="h-full rounded-full transition-all" style={{ width: `${marginPct}%`, background: mColor }} />
         </div>
         <div className="flex justify-between mt-2 text-[10px]" style={{ color: 'var(--brand-subtle)' }}>
@@ -356,10 +356,10 @@ function TabRelatorio({ data, loading }: { data: Consolidado | null; loading: bo
   const totalCusto = data.total_custo_interno + data.total_custo_parceiros
 
   const rows = [
-    { label: 'Custo Interno',   value: data.total_custo_interno,   color: '#00F5FF', bold: false },
-    { label: 'Custo Parceiros', value: data.total_custo_parceiros, color: '#a78bfa', bold: false },
-    { label: 'Total Custo',     value: totalCusto,                 color: '#f59e0b', bold: true  },
-    { label: 'Receita Clientes',value: data.total_receita,         color: '#22c55e', bold: false },
+    { label: 'Custo Interno',   value: data.total_custo_interno,   color: 'var(--primary)', bold: false },
+    { label: 'Custo Parceiros', value: data.total_custo_parceiros, color: 'var(--purple-border)', bold: false },
+    { label: 'Total Custo',     value: totalCusto,                 color: 'var(--warning-border)', bold: true  },
+    { label: 'Receita Clientes',value: data.total_receita,         color: 'var(--success-border)', bold: false },
     { label: 'Resultado (Margem)', value: data.margem,             color: mColor,    bold: true  },
     { label: 'Margem %',        value: null,                       color: mColor,    bold: true, pct: data.margem_percentual },
   ]
@@ -373,7 +373,7 @@ function TabRelatorio({ data, loading }: { data: Consolidado | null; loading: bo
         <table className="w-full text-sm">
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)', background: r.bold ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
+              <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)', background: r.bold ? 'var(--surface-sunken)' : 'transparent' }}>
                 <td className="px-4 py-3" style={{ color: r.bold ? 'var(--brand-text)' : 'var(--brand-muted)', fontWeight: r.bold ? 700 : 400 }}>{r.label}</td>
                 <td className="px-4 py-3 text-right tabular-nums font-bold" style={{ color: r.color }}>
                   {r.pct !== undefined ? `${r.pct.toFixed(1)}%` : formatBRL(r.value!)}
@@ -427,7 +427,7 @@ function ModalValidacao({ yearMonth, onClose, onFechar }: {
       <div className="flex flex-col rounded-2xl w-full max-w-md" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>Validar Fechamento</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
         <div className="px-6 py-5 space-y-3">
           <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Competência: <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>{fmtYearMonth(yearMonth)}</span></p>
@@ -436,15 +436,15 @@ function ModalValidacao({ yearMonth, onClose, onFechar }: {
           ) : !validacao ? null : (
             <div className="space-y-2">
               {validacao.alertas.map((a, i) => (
-                <div key={i} className="flex items-start gap-3 rounded-xl px-4 py-3" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
-                  <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: '#f59e0b' }} />
-                  <span className="text-xs" style={{ color: '#f59e0b' }}>{a.mensagem}</span>
+                <div key={i} className="flex items-start gap-3 rounded-xl px-4 py-3" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" style={{ color: 'var(--warning-border)' }} />
+                  <span className="text-xs" style={{ color: 'var(--warning-border)' }}>{a.mensagem}</span>
                 </div>
               ))}
               {validacao.alertas.length === 0 && (
-                <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
-                  <CheckCircle size={14} className="shrink-0" style={{ color: '#22c55e' }} />
-                  <span className="text-xs" style={{ color: '#22c55e' }}>Tudo ok — pronto para fechar</span>
+                <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)' }}>
+                  <CheckCircle size={14} className="shrink-0" style={{ color: 'var(--success-border)' }} />
+                  <span className="text-xs" style={{ color: 'var(--success-border)' }}>Tudo ok — pronto para fechar</span>
                 </div>
               )}
               {validacao.alertas.length > 0 && (
@@ -456,14 +456,14 @@ function ModalValidacao({ yearMonth, onClose, onFechar }: {
           )}
         </div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
           <button
             onClick={handleFechar}
             disabled={!validacao?.pode_fechar || fechando}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
             style={validacao?.pode_fechar
-              ? { background: '#22c55e', color: '#000' }
-              : { background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)', cursor: 'not-allowed' }}>
+              ? { background: 'var(--success-border)', color: '#000' }
+              : { background: 'var(--surface-hover)', color: 'var(--brand-muted)', cursor: 'not-allowed' }}>
             <Lock size={13} />
             {fechando ? 'Fechando...' : 'Fechar Competência'}
           </button>
@@ -609,7 +609,7 @@ export default function FechamentoPage() {
 
               {isClosed ? (
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: 'var(--success-bg)', color: 'var(--success-border)', border: '1px solid var(--success-border)' }}>
                     <Lock size={11} /> FECHADO
                   </div>
                   {status?.closed_by_name && (
@@ -617,7 +617,7 @@ export default function FechamentoPage() {
                   )}
                   {isAdmin && (
                     <button onClick={handleReabrir} disabled={reabrindo}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-white/5"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-[var(--surface-hover)]"
                       style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
                       <RefreshCw size={11} className={reabrindo ? 'animate-spin' : ''} />
                       Reabrir
@@ -631,7 +631,7 @@ export default function FechamentoPage() {
                     disabled={!isPastMonth}
                     title={!isPastMonth ? 'Só é permitido fechar competências de meses anteriores' : undefined}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}>
+                    style={{ background: 'var(--success-bg)', color: 'var(--success-border)', border: '1px solid var(--success-border)' }}>
                     <Lock size={13} />
                     Validar e Fechar
                   </button>
@@ -643,9 +643,9 @@ export default function FechamentoPage() {
 
         {/* Banner snapshot */}
         {isClosed && (
-          <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs" style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
-            <Lock size={13} style={{ color: '#22c55e' }} />
-            <span style={{ color: '#22c55e' }}>
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs" style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)' }}>
+            <Lock size={13} style={{ color: 'var(--success-border)' }} />
+            <span style={{ color: 'var(--success-border)' }}>
               Dados históricos — competência fechada
               {status?.closed_at && ` em ${new Date(status.closed_at).toLocaleDateString('pt-BR')}`}
               {status?.closed_by_name && ` por ${status.closed_by_name}`}
