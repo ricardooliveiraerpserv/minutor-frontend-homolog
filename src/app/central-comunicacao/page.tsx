@@ -19,8 +19,7 @@ const MANAGERS = ['admin', 'coordenador', 'administrativo']
 // "Comunicação formal" aposentada (só Aviso); TIPO_L mantém o rótulo p/ exibir publicações antigas.
 const TIPOS = [{ k: 'aviso', l: 'Aviso' }, { k: 'marketing', l: 'Marketing' }]
 const TIPO_L: Record<string, string> = { aviso: 'Aviso', formal: 'Comunicação formal', marketing: 'Marketing' }
-// Data de expiração padrão = hoje + 30 dias (campo obrigatório).
-function defaultExpiry(): string { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10) }
+// Data de expiração: sem preenchimento automático (o usuário informa; obrigatório na validação).
 
 interface Customer { id: number; name: string }
 interface CustUser { id: number; name: string; email: string; customer_id: number }
@@ -155,7 +154,7 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
   const [selectedUsers, setSelectedUsers] = useState<Set<number>>(new Set())
   const [externals, setExternals] = useState<string[]>([])
   const [extInput, setExtInput] = useState('')
-  const [expiresAt, setExpiresAt] = useState(defaultExpiry)
+  const [expiresAt, setExpiresAt] = useState('')
   const [lists, setLists] = useState<DistList[]>([])
   const [templates, setTemplates] = useState<CommTemplate[]>([])
   const [preview, setPreview] = useState<{ html: string; recipients: number } | null>(null)
@@ -285,7 +284,7 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
     try {
       const r = await api.post<{ data: { sent: number } }>('/communications/send', { ...body(), confirm })
       toast.success(`Comunicação enviada para ${r.data?.sent ?? 0} destinatário(s)`); setConfirmMass(false)
-      setTitle(''); setPickedCustomers([]); setExternals([]); setExtInput(''); setAllCustomers(false); setExpiresAt(defaultExpiry())
+      setTitle(''); setPickedCustomers([]); setExternals([]); setExtInput(''); setAllCustomers(false); setExpiresAt('')
       setBadge(''); setSubtitle(''); setGreeting('Prezados,'); setPrazo(''); setContato(''); setDatahora(''); setObservacao('')
       setInit({}); benefitRefs.current.clear(); setBenefits([]); setCtaLabel(''); setCtaUrl(''); setSigEnabled(true); setFormKey(k => k + 1)
       onSent?.()
