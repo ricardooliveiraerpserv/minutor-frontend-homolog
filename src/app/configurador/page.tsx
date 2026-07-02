@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
@@ -875,25 +874,7 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<{ id: number; name: string; email: string }[]>([])
   const [picked, setPicked] = useState<Record<number, string>>({})
-  const uWrapRef = useRef<HTMLDivElement>(null)
-  const [uPos, setUPos] = useState<{ top: number; left: number; width: number } | null>(null)
   const [open, setOpen] = useState(false)
-
-  // Posição VIVA do dropdown (portal): recalcula a partir do input atual — segue quando a lista
-  // de selecionados empurra o campo, quando rola a página/painel e no resize.
-  const reposition = useCallback(() => {
-    const el = uWrapRef.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    setUPos({ top: r.bottom + 4, left: r.left, width: r.width })
-  }, [])
-  useEffect(() => {
-    if (!open) return
-    const h = () => reposition()
-    window.addEventListener('scroll', h, true)
-    window.addEventListener('resize', h)
-    return () => { window.removeEventListener('scroll', h, true); window.removeEventListener('resize', h) }
-  }, [open, reposition])
 
   const search = useCallback((term: string) => {
     if (!filter.type && term.trim().length < 2) { setHits([]); return }
@@ -902,16 +883,14 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
     if (filter.type) params.set('type', filter.type)
     if (filter.coord) params.set('coordinator_type', filter.coord)
     api.get<{ data: { id: number; name: string; email: string }[] }>(`/notifications/users?${params.toString()}`)
-      .then(r => setHits(r.data ?? [])).catch(() => {})
+      .then(r => { const data = r.data ?? []; setHits(data); setPicked(p => { const n = { ...p }; data.forEach(u => { n[u.id] = u.name }); return n }) }).catch(() => {})
   }, [filter.type, filter.coord])
   useEffect(() => { const t = setTimeout(() => search(q), 250); return () => clearTimeout(t) }, [q, search])
 
-  // adiciona já como PERMITIDO (verde); pode bloquear depois. Recalcula a posição após o
-  // novo selecionado renderizar (empurra o campo), pra o dropdown não ficar desalinhado.
+  // adiciona já como PERMITIDO (verde); pode bloquear depois. NÃO fecha a lista (permite vários).
   const add = (u: { id: number; name: string }) => {
     setPicked(p => ({ ...p, [u.id]: u.name }))
     if (!ab.users.includes(u.id) && !ab.deny_users.includes(u.id)) onChange({ users: [...ab.users, u.id] })
-    requestAnimationFrame(() => requestAnimationFrame(reposition))
   }
   const setBlocked = (id: number, blocked: boolean) => blocked
     ? onChange({ deny_users: [...new Set([...ab.deny_users, id])], users: ab.users.filter(x => x !== id) })
@@ -938,17 +917,17 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
             <button onClick={() => remove(r.id)} title="Remover override" className="shrink-0"><Trash2 size={12} style={{ color: 'var(--text-light)' }} /></button>
           </div>
         ))}
-      <div ref={uWrapRef} className="relative">
+      <div className="relative">
         <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-light)' }} />
-        <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); reposition() }} onFocus={() => { setOpen(true); reposition() }} onBlur={() => setTimeout(() => setOpen(false), 150)}
+        <input value={q} onChange={e => { setQ(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder="Adicionar usuário (override)…" className="ds-input w-full block" style={{ fontSize: 12, height: 30, paddingTop: 0, paddingBottom: 0, paddingLeft: 26, paddingRight: 8 }} />
-        {open && uPos && availHits.length > 0 && typeof document !== 'undefined' && createPortal(
-          <div className="fixed z-[90] max-h-52 overflow-auto rounded-lg shadow-xl" style={{ top: uPos.top, left: uPos.left, width: uPos.width, background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            {availHits.map(u => <button key={u.id} type="button" onMouseDown={e => { e.preventDefault(); add(u) }} className="block w-full text-left px-3 py-1.5 text-[12px] hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>{u.name} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{u.email}</span></button>)}
-          </div>,
-          document.body,
-        )}
       </div>
+      {/* lista ANCORADA abaixo do campo (no fluxo, empurra o conteúdo — não flutua) */}
+      {open && availHits.length > 0 && (
+        <div className="max-h-52 overflow-auto rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+          {availHits.map(u => <button key={u.id} type="button" onMouseDown={e => { e.preventDefault(); add(u) }} className="block w-full text-left px-3 py-1.5 text-[12px] hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>{u.name} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{u.email}</span></button>)}
+        </div>
+      )}
 
     </div>
   )
