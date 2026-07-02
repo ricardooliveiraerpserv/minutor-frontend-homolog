@@ -47,6 +47,38 @@ function CronogramaDate({ value, canEdit, onSave, placeholder = 'Definir' }: {
   )
 }
 
+/** Responsável editável inline: mostra o chip; ao clicar (com permissão) vira um SearchSelect. */
+function InlineResponsible({ value, user, capacity, options, canEdit, onSave }: {
+  value: string
+  user: React.ComponentProps<typeof ResponsibleChip>['user']
+  capacity: React.ComponentProps<typeof ResponsibleChip>['capacity']
+  options: { id: number; name: string }[]
+  canEdit: boolean
+  onSave: (v: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  if (canEdit && editing) {
+    return (
+      <SearchSelect
+        value={value}
+        onChange={v => { onSave(v); setEditing(false) }}
+        options={options}
+        placeholder="Sem responsável"
+        inline
+        wide
+      />
+    )
+  }
+  const chip = <ResponsibleChip user={user} capacity={capacity} size="sm" />
+  if (!canEdit) return chip
+  return (
+    <button onClick={() => setEditing(true)} title="Clique para definir/alterar o responsável"
+      style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', display: 'inline-flex', alignItems: 'center' }}>
+      {chip}
+    </button>
+  )
+}
+
 interface Props {
   projectId: number
   stages: ScheduleStage[]
@@ -793,10 +825,13 @@ function StageRows(props: StageRowProps) {
           </div>
         </td>
         <td style={cell()}>
-          <ResponsibleChip
+          <InlineResponsible
+            value={stage.responsible_user_id ? String(stage.responsible_user_id) : ''}
             user={stage.responsible}
             capacity={stage.responsible ? capacityByUserId[stage.responsible.id] : undefined}
-            size="sm"
+            options={responsibleOptions}
+            canEdit={canEdit}
+            onSave={v => patchStage('responsible_user_id', v ? Number(v) : null)}
           />
         </td>
         <td style={cell()}>
