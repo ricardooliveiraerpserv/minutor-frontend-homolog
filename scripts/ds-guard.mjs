@@ -20,9 +20,14 @@ const RULES = [
   ['rgba cyan neon (use --primary-soft)',      /rgba\(\s*0\s*,\s*245\s*,\s*255/g,            'error'],
   ['bg-*-950/900 dark leftover',               /\bbg-(amber|yellow|green|emerald|red|rose|blue|cyan|sky|purple|violet|orange|zinc|slate|indigo)-9(00|50)\b/g, 'error'],
   ['zinc/slate estrutural (use tokens)',       /\b(bg|text|border|divide|ring)-(zinc|slate)-\d{2,3}/g, 'error'],
+  ['token antigo --brand-* (use --*)',         /var\(--brand-(bg|panel|surface|text|muted|subtle|border|primary|primary-strong|primary-dim|success|warning|danger)\)/g, 'error'],
   ['text-white (revisar: só sobre cor/ação)',  /\btext-white\b/g,                            'warn'],
   ['hex semântico hardcoded (use --success/--danger/...)', /#(22C55E|EF4444|F59E0B|8B5CF6|0EA5E9)\b/gi, 'warn'],
+  ['radius hardcoded (use rounded-lg/md)',     /rounded-\[\d+px\]/g,                         'warn'],
+  ['shadow Tailwind (prefira token --shadow-*)', /\bshadow-(2xl|xl|lg|md|sm)\b/g,            'warn'],
+  ['box-shadow inline com rgba cru (use var(--shadow-*))', /box-shadow:\s*[^;'"`]*rgba\(/g,  'warn'],
 ]
+// tokens de marca MANTIDOS (não são violação): --brand-logo, --brand-purple, --brand-card-shadow(-md)
 
 function walk(dir) {
   let files = []

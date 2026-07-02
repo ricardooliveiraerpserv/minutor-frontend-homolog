@@ -1,0 +1,8 @@
+#!/bin/sh
+# DS Guard — pre-commit hook. Instalar: ln -sf ../../scripts/hooks/pre-commit .git/hooks/pre-commit
+# Bloqueia commit se houver violações do Design System v1.0.
+echo "› DS Guard…"
+node scripts/ds-guard.mjs || {
+  echo "✖ Commit bloqueado: violações do Design System. Rode 'npm run ds:guard' para detalhes."
+  exit 1
+}

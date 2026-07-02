@@ -122,8 +122,17 @@ Nunca introduzir:
 
 ---
 
-## 8. Governança (anti-regressão)
+## 8. Governança (anti-regressão) — ATIVA
 
-Guard: `node scripts/ds-guard.mjs` — falha (exit 1) se encontrar padrões proibidos (bg-white puro, bg/text/border-cyan, #00F5FF/rgba(0,245,255), bg-*-950, text-white/zinc/slate estrutural, hex semântico conhecido). Rodar em pre-commit/CI. Scorecard de aderência: `node scripts/ds-scorecard.mjs`.
+- **`npm run ds:guard`** (`scripts/ds-guard.mjs`) — falha (exit 1) em padrões proibidos: bg-white puro, bg/text/border-cyan, `#00F5FF`/`rgba(0,245,255)`, bg-*-950, zinc/slate estrutural, **token antigo `var(--brand-*)`** (use `--*`). Avisos: text-white, hex semântico, radius `rounded-[Npx]`, `shadow-*` Tailwind, box-shadow inline com rgba.
+- **`npm run ds:scorecard`** — % de aderência.
+- **CI:** `.github/workflows/ds-guard.yml` roda o guard em push/PR na `main`.
+- **Pre-commit:** `scripts/hooks/pre-commit` (instalar: `ln -sf ../../scripts/hooks/pre-commit .git/hooks/pre-commit`).
+- **Exceções mantidas** (não são violação): `--brand-logo`, `--brand-purple`, `--brand-card-shadow(-md)`.
 
-**Automação plena de lint (ESLint plugin bloqueando classes/hex) fica na Sprint 2** — hoje o guard cobre por grep.
+**Sprint 2 futura:** ESLint plugin (bloqueio em nível de AST) + detecção de componentes duplicados; hoje a cobertura é por grep no guard.
+
+---
+
+## 9. Componentes base oficiais (Sprint 2 · 2b)
+`Checkbox` · `Radio`/`RadioGroup` · `Switch` · `Chip` — em `src/components/ui/`, sobre base-ui, só tokens, a11y completa. Playground: rota interna **`/design-system`** (não linkada na navegação) com todos os estados.
