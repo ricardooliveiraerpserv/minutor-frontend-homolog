@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText } from 'lucide-react'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
+import { Skeleton } from '@/components/ui/loading'
 
 // ─── Types (duplicados da página do kanban — manter idênticos) ──────────────────
 
@@ -245,8 +246,20 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
       <div className="flex flex-col rounded-2xl w-full max-w-4xl max-h-[92vh]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="px-6 pt-5 pb-0 shrink-0">
           <div className="flex items-start justify-between mb-4">
-            {loading || !p ? (
-              <p className="text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando projeto...</p>
+            {!p ? (
+              // Skeleton contextual do cabeçalho (barra de saúde + badges + título + cliente).
+              <div className="flex items-center gap-4 min-w-0 w-full">
+                <Skeleton className="w-1 h-14 rounded-full shrink-0" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-14" />
+                    <Skeleton className="h-4 w-20 rounded-full" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                  <Skeleton className="h-6 w-2/3" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+              </div>
             ) : (
               <div className="flex items-center gap-4 min-w-0">
                 <div className="w-1 h-14 rounded-full shrink-0" style={{ background: bar }} />
@@ -290,11 +303,43 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex-1 flex items-center justify-center py-16">
-            <p className="text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando...</p>
+        {!p ? (
+          // Skeleton contextual do corpo (espelha a aba Visão Geral: KPIs + barra + blocos de infos).
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                    <Skeleton className="h-2.5 w-20 mx-auto mb-3" />
+                    <Skeleton className="h-6 w-16 mx-auto" />
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-xl p-4" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                <div className="flex justify-between items-center mb-3">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="h-4 w-full rounded-full" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {Array.from({ length: 2 }).map((_, col) => (
+                  <div key={col}>
+                    <Skeleton className="h-2.5 w-24 mb-2" />
+                    <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--border)' }}>
+                      {Array.from({ length: 5 }).map((_, r) => (
+                        <div key={r} className="flex items-center justify-between">
+                          <Skeleton className="h-3 w-28" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        ) : !p ? null : (
+        ) : (
           <div className="flex-1 overflow-y-auto p-6">
 
             {tab === 'overview' && (

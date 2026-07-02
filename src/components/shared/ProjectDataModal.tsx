@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { X, Clock, BarChart2, Download } from 'lucide-react'
 import { api } from '@/lib/api'
 import { previewText } from '@/lib/sanitize'
+import { Skeleton, SkeletonTable } from '@/components/ui/loading'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 
@@ -236,8 +237,23 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <p className="text-center text-sm animate-pulse py-16" style={{ color: 'var(--text-light)' }}>Carregando...</p>
+          {loading && activeCount === 0 ? (
+            /* Skeleton contextual: espelha os stats-cards + a tabela da aba ativa
+               (5 cols em Apontamentos, 6 em Despesas). Só aparece sem dados em
+               memória — refiltro/refetch com dados mantém a tabela atual (anti-flicker). */
+            <div className="p-5 space-y-4">
+              <div className={`grid ${tab === 'timesheets' ? 'grid-cols-4' : 'grid-cols-2'} gap-3`}>
+                {Array.from({ length: tab === 'timesheets' ? 4 : 2 }).map((_, i) => (
+                  <div key={i} className="rounded-xl p-3 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                    <Skeleton className="h-2.5 w-16 mx-auto mb-2" />
+                    <Skeleton className="h-6 w-14 mx-auto" />
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--border)' }}>
+                <SkeletonTable rows={6} cols={tab === 'timesheets' ? 5 : 6} />
+              </div>
+            </div>
           ) : tab === 'timesheets' ? (
             timesheets.length === 0 ? (
               <p className="text-center text-sm py-16" style={{ color: 'var(--text-light)' }}>{startDate || endDate ? 'Nenhum apontamento neste período.' : 'Nenhum apontamento.'}</p>
