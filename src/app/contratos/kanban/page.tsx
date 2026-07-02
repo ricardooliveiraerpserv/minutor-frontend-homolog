@@ -377,7 +377,20 @@ function ProjectEditByIdModal({ projectId, onClose, onSaved }: { projectId: numb
   useEffect(() => {
     api.get<ProjectFull>(`/projects/${projectId}`).then(setP).catch(() => toast.error('Erro ao carregar projeto')).finally(() => setLoading(false))
   }, [projectId])
-  if (loading) return <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3" style={{ background: 'var(--bg)' }}><div className="w-6 h-6 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin" /><p className="text-sm" style={{ color: 'var(--text-muted)' }}>Carregando...</p></div>
+  if (loading) return (
+    <div className="p-5">
+      <div className="flex gap-4 overflow-x-auto">
+        {[...Array(4)].map((_, c) => (
+          <div key={c} className="w-72 shrink-0 rounded-xl p-3" style={{ background: 'var(--panel)', border: '1px solid var(--border)' }}>
+            <div className="h-4 w-32 rounded mb-3 animate-pulse" style={{ background: 'var(--surface-hover)' }} />
+            {[...Array(3)].map((_, k) => (
+              <div key={k} className="h-20 rounded-lg mb-2 animate-pulse" style={{ background: 'var(--surface-hover)' }} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
   if (!p) return null
   return <ProjectInlineEditModal project={p} onClose={onClose} onSaved={onSaved} />
 }
