@@ -39,15 +39,10 @@ const OUTLINE: Record<ChipVariant, string> = {
   danger: "border-[var(--danger-border)] text-[var(--danger)]",
 }
 
-function Chip({
-  variant = "neutral",
-  outline = false,
-  icon,
-  onRemove,
-  onClick,
-  className,
-  children,
-}: ChipProps) {
+const Chip = React.forwardRef<HTMLElement, ChipProps>(function Chip(
+  { variant = "neutral", outline = false, icon, onRemove, onClick, className, children },
+  ref
+) {
   const clickable = typeof onClick === "function"
 
   const base = cn(
@@ -83,14 +78,24 @@ function Chip({
 
   if (clickable) {
     return (
-      <button type="button" onClick={onClick} className={base}>
+      <button
+        ref={ref as React.Ref<HTMLButtonElement>}
+        type="button"
+        onClick={onClick}
+        className={base}
+      >
         {content}
       </button>
     )
   }
 
-  return <span className={base}>{content}</span>
-}
+  return (
+    <span ref={ref as React.Ref<HTMLSpanElement>} className={base}>
+      {content}
+    </span>
+  )
+})
+Chip.displayName = "Chip"
 
 export { Chip }
 export type { ChipProps, ChipVariant }
