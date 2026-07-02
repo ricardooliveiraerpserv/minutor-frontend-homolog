@@ -107,8 +107,8 @@ function resolveProfileFromType(type: string | null | undefined): ProfileType | 
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl">
-        <button onClick={onClose} className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300">
+      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md shadow-xl">
+        <button onClick={onClose} className="absolute top-3 right-3 text-[var(--text-light)] hover:text-[var(--text)]">
           <X size={16} />
         </button>
         {children}
@@ -121,10 +121,10 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: () => vo
   return (
     <div className="flex items-center gap-2">
       <button onClick={onChange}
-        className={`w-8 h-4 rounded-full transition-colors relative ${value ? 'bg-blue-600' : 'bg-zinc-700'}`}>
+        className={`w-8 h-4 rounded-full transition-colors relative ${value ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
         <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${value ? 'left-4' : 'left-0.5'}`} />
       </button>
-      <Label className="text-xs text-zinc-400">{label}</Label>
+      <Label className="text-xs text-[var(--text-muted)]">{label}</Label>
     </div>
   )
 }
@@ -138,9 +138,9 @@ function FieldSelect({ label, value, onChange, options, placeholder }: {
 }) {
   return (
     <div>
-      <Label className="text-xs text-zinc-400">{label}</Label>
+      <Label className="text-xs text-[var(--text-muted)]">{label}</Label>
       <select value={value} onChange={e => onChange(e.target.value)}
-        className="mt-1 w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-md h-9 px-2 appearance-none outline-none">
+        className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-9 px-2 appearance-none outline-none">
         {placeholder && <option value="">{placeholder}</option>}
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
@@ -178,7 +178,7 @@ function FieldSearchSelect({ label, value, onChange, options, placeholder }: {
 
   return (
     <div>
-      <Label className="text-xs text-zinc-400">{label}</Label>
+      <Label className="text-xs text-[var(--text-muted)]">{label}</Label>
       <div ref={ref} className="relative mt-1">
         <button
           type="button"
@@ -255,41 +255,41 @@ function ConsultantTypeCard({
 
   return (
     <div>
-      <Label className="text-xs text-zinc-400 mb-1 block">Tipo de Consultor *</Label>
-      <div className="rounded-lg border border-zinc-700 bg-zinc-800 overflow-hidden">
+      <Label className="text-xs text-[var(--text-muted)] mb-1 block">Tipo de Consultor *</Label>
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] overflow-hidden">
         {/* Cabeçalho: mostra selecionado + toggle */}
         <button
           type="button"
           onClick={() => setOpen(o => !o)}
-          className="w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-zinc-700/40 transition-colors"
+          className="w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[var(--surface-hover)] transition-colors"
         >
-          <span className={selected ? 'text-zinc-300 font-medium' : 'text-zinc-500'}>
+          <span className={selected ? 'text-[var(--text)] font-medium' : 'text-[var(--text-light)]'}>
             {selected ? selected.label : 'Selecione o tipo...'}
           </span>
-          <ChevronDown size={12} className={`text-zinc-500 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown size={12} className={`text-[var(--text-light)] transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
         </button>
 
         {/* Legenda do tipo selecionado */}
         {selected && !open && (
-          <div className="px-3 pb-2 text-[10px] text-zinc-500">{selected.desc}</div>
+          <div className="px-3 pb-2 text-[10px] text-[var(--text-light)]">{selected.desc}</div>
         )}
 
         {/* Opções dentro do mesmo card */}
         {open && (
-          <div className="border-t border-zinc-700/60 px-2 pb-2 pt-1.5 space-y-1">
+          <div className="border-t border-[var(--border)]/60 px-2 pb-2 pt-1.5 space-y-1">
             {CONSULTANT_OPTIONS.map(opt => (
               <button key={opt.value} type="button"
                 onClick={() => { onChange(opt.value); setOpen(false) }}
                 className={`w-full flex flex-col items-start px-2.5 py-1.5 rounded-md text-xs text-left transition-colors ${
                   value === opt.value
-                    ? 'bg-blue-600/20 text-blue-300'
-                    : 'text-zinc-400 hover:bg-zinc-700/60 hover:text-zinc-200'
+                    ? 'bg-[var(--primary-soft)] text-[var(--primary)]'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
                 }`}>
                 <div className="flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${value === opt.value ? 'bg-blue-400' : 'bg-zinc-600'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${value === opt.value ? 'bg-[var(--primary)]' : 'bg-[var(--border-strong)]'}`} />
                   <span className="font-medium">{opt.label}</span>
                 </div>
-                <span className="text-[10px] text-zinc-500 pl-3.5">{opt.desc}</span>
+                <span className="text-[10px] text-[var(--text-light)] pl-3.5">{opt.desc}</span>
               </button>
             ))}
           </div>
@@ -612,13 +612,13 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         </h3>
 
         {loadingItem ? (
-          <p className="text-xs text-zinc-500 py-6 text-center">Carregando…</p>
+          <p className="text-xs text-[var(--text-light)] py-6 text-center">Carregando…</p>
         ) : (
         <>
         {/* ── Perfil de acesso (multi-seleção aditiva) ── */}
         <div>
-          <Label className="text-xs text-zinc-400 mb-1 block">Perfil de acesso *</Label>
-          <p className="text-[10px] text-zinc-500 mb-2">Selecione um ou mais perfis — os acessos se somam.</p>
+          <Label className="text-xs text-[var(--text-muted)] mb-1 block">Perfil de acesso *</Label>
+          <p className="text-[10px] text-[var(--text-light)] mb-2">Selecione um ou mais perfis — os acessos se somam.</p>
           <div className="grid grid-cols-3 gap-2">
             {PROFILE_OPTIONS.map(opt => {
               const active        = form.profiles.includes(opt.value)
@@ -631,17 +631,17 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                   className={`py-2 px-3 rounded-lg text-xs font-medium border transition-all text-left ${
                     active
                       ? isAdminOption
-                        ? 'bg-amber-600/20 border-amber-500 text-amber-300'
-                        : 'bg-blue-600/20 border-blue-500 text-blue-300'
+                        ? 'bg-[var(--warning-bg)] border-amber-500 text-[var(--warning)]'
+                        : 'bg-[var(--primary-soft)] border-blue-500 text-[var(--primary)]'
                       : isAdminOption
-                        ? 'bg-zinc-800 border-amber-800/60 text-amber-500/80 hover:border-amber-600'
-                        : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                        ? 'bg-[var(--surface-hover)] border-amber-800/60 text-[var(--warning)]/80 hover:border-amber-600'
+                        : 'bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
                   }`}
                 >
                   <span className={`mr-1.5 inline-block w-3 h-3 rounded border text-center leading-[10px] ${
                     active
-                      ? isAdminOption ? 'border-amber-400 bg-amber-500 text-white' : 'border-blue-400 bg-blue-500 text-white'
-                      : 'border-zinc-600'
+                      ? isAdminOption ? 'border-amber-400 bg-[var(--warning-border)] text-white' : 'border-blue-400 bg-[var(--primary)] text-white'
+                      : 'border-[var(--border-strong)]'
                   }`}>{active ? '✓' : ''}</span>
                   {opt.label}
                 </button>
@@ -654,24 +654,24 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         {form.profiles.length > 0 && (
           <>
             <div>
-              <Label className="text-xs text-zinc-400">Nome *</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Nome *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
             </div>
             <div>
-              <Label className="text-xs text-zinc-400">E-mail *</Label>
+              <Label className="text-xs text-[var(--text-muted)]">E-mail *</Label>
               <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
             </div>
             {showAppPassword && (
               <div>
-                <Label className="text-xs text-zinc-400">App Password (envio de e-mail)</Label>
+                <Label className="text-xs text-[var(--text-muted)]">App Password (envio de e-mail)</Label>
                 <Input type="password" value={form.smtp_app_password}
                   onChange={e => setForm(f => ({ ...f, smtp_app_password: e.target.value }))}
                   placeholder={isEdit ? 'Deixe em branco para manter a atual' : ''}
                   autoComplete="off"
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
-                <p className="mt-1 text-[10px] text-zinc-500">
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                <p className="mt-1 text-[10px] text-[var(--text-light)]">
                   Senha de aplicativo do Office 365 para enviar os fechamentos a partir do e-mail deste usuário. Deixe em branco para manter a atual.
                 </p>
               </div>
@@ -679,11 +679,11 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
             {!isEdit && (
               <div>
-                <Label className="text-xs text-zinc-400">Senha inicial</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Senha inicial</Label>
                 <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   placeholder="Deixe vazio para gerar automaticamente"
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
-                <p className="mt-1 text-[10px] text-zinc-500">
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                <p className="mt-1 text-[10px] text-[var(--text-light)]">
                   {form.password
                     ? 'O usuário receberá esta senha por e-mail de boas-vindas.'
                     : 'Uma senha aleatória será gerada e enviada por e-mail ao usuário.'}
@@ -693,9 +693,9 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
             {/* ── Reenviar boas-vindas (apenas edição) ── */}
             {isEdit && canResetPwd && (
-              <div className="border border-zinc-700/50 rounded-lg p-3 bg-zinc-800/40 space-y-2">
-                <p className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
-                  <Mail size={12} className="text-cyan-400" />
+              <div className="border border-[var(--border)]/50 rounded-lg p-3 bg-[var(--surface-hover)] space-y-2">
+                <p className="text-xs font-medium text-[var(--text)] flex items-center gap-1.5">
+                  <Mail size={12} className="text-[var(--primary)]" />
                   Reenviar e-mail de boas-vindas
                 </p>
                 <div className="flex gap-2">
@@ -704,19 +704,19 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                     value={resendPwd}
                     onChange={e => setResendPwd(e.target.value)}
                     placeholder="Senha predefinida (deixe vazio para gerar nova)"
-                    className="flex-1 bg-zinc-800 border-zinc-700 text-white h-8 text-xs"
+                    className="flex-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs"
                   />
                   <button
                     type="button"
                     onClick={resendWelcomeFromModal}
                     disabled={resendingModal}
-                    className="flex items-center gap-1.5 px-3 h-8 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+                    className="flex items-center gap-1.5 px-3 h-8 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-cyan-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
                   >
                     <Mail size={11} />
                     {resendingModal ? 'Enviando...' : 'Reenviar'}
                   </button>
                 </div>
-                <p className="text-[10px] text-zinc-500">
+                <p className="text-[10px] text-[var(--text-light)]">
                   {resendPwd.trim()
                     ? 'O usuário receberá esta senha no e-mail de boas-vindas.'
                     : 'Uma nova senha temporária será gerada e enviada automaticamente.'}
@@ -726,19 +726,19 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
             {/* ── Remuneração (Consultor / Coordenador / Parceiro) ── */}
             {hasRate && isParceiroAdm && partnerIsFixed ? (
-              <div className="text-[10px] text-zinc-500 bg-zinc-800/50 rounded-md px-3 py-2 border border-zinc-700/50">
+              <div className="text-[10px] text-[var(--text-light)] bg-[var(--surface-hover)] rounded-md px-3 py-2 border border-[var(--border)]/50">
                 Valor hora definido pelo parceiro:{' '}
-                <span className="text-cyan-400 font-medium">
+                <span className="text-[var(--primary)] font-medium">
                   R$ {selectedPartner?.hourly_rate ? Number(selectedPartner.hourly_rate).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'}/h
                 </span>
               </div>
             ) : hasRate && (
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <Label className="text-xs text-zinc-400">Remuneração</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Remuneração</Label>
                   {isEdit && (
                     <button type="button" onClick={openRateHistory}
-                      className="text-[10px] font-medium text-blue-400 hover:underline">
+                      className="text-[10px] font-medium text-[var(--primary)] hover:underline">
                       Histórico de valores
                     </button>
                   )}
@@ -746,18 +746,18 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 <div className="flex gap-2 items-center">
                   {/* Consultor: tipo fixado pelo tipo de consultor; outros: toggle manual */}
                   {isConsultor ? (
-                    <span className="px-3 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800/60 text-xs text-zinc-400 font-medium whitespace-nowrap">
+                    <span className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] text-xs text-[var(--text-muted)] font-medium whitespace-nowrap">
                       {form.rate_type === 'hourly' ? 'Por Hora' : 'Fixo'}
                     </span>
                   ) : (
-                    <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+                    <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
                       {(['hourly', 'monthly'] as const).map(t => (
                         <button key={t} type="button"
                           onClick={() => setForm(f => ({ ...f, rate_type: t }))}
                           className={`px-3 py-1.5 font-medium transition-colors ${
                             form.rate_type === t
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                              ? 'bg-[var(--primary)] text-white'
+                              : 'bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]'
                           }`}>
                           {t === 'hourly' ? 'Por Hora' : 'Fixo'}
                         </button>
@@ -774,8 +774,8 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                       setForm(f => ({ ...f, hourly_rate: digits === '' ? '' : String(parseInt(digits, 10) / 100) }))
                     }}
                     placeholder="0,00"
-                    className="flex-1 bg-zinc-800 border-zinc-700 text-white h-8 text-xs text-right" />
-                  <span className="text-xs text-zinc-500">R$</span>
+                    className="flex-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs text-right" />
+                  <span className="text-xs text-[var(--text-light)]">R$</span>
                 </div>
               </div>
             )}
@@ -783,13 +783,13 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             {/* ── Horas/dia útil (Banco de Horas apenas) ── */}
             {isConsultor && form.consultant_type === 'banco_de_horas' && (
               <div>
-                <Label className="text-xs text-zinc-400 mb-1 block">Horas por dia útil (Banco de Horas)</Label>
+                <Label className="text-xs text-[var(--text-muted)] mb-1 block">Horas por dia útil (Banco de Horas)</Label>
                 <div className="flex items-center gap-2">
                   <Input type="number" min="1" max="24" step="0.5" value={form.daily_hours}
                     onChange={e => setForm(f => ({ ...f, daily_hours: e.target.value }))}
                     placeholder="8"
-                    className="w-24 bg-zinc-800 border-zinc-700 text-white h-8 text-xs" />
-                  <span className="text-xs text-zinc-500">h/dia (padrão: 8h)</span>
+                    className="w-24 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs" />
+                  <span className="text-xs text-[var(--text-light)]">h/dia (padrão: 8h)</span>
                 </div>
               </div>
             )}
@@ -797,14 +797,14 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             {/* ── Data de Início (proporcional) ── */}
             {isConsultor && !!form.consultant_type && (
               <div>
-                <Label className="text-xs text-zinc-400 mb-1 block">Data de Início</Label>
+                <Label className="text-xs text-[var(--text-muted)] mb-1 block">Data de Início</Label>
                 <Input
                   type="date"
                   value={form.bank_hours_start_date}
                   onChange={e => setForm(f => ({ ...f, bank_hours_start_date: e.target.value }))}
-                  className="w-44 bg-zinc-800 border-zinc-700 text-white h-8 text-xs"
+                  className="w-44 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs"
                 />
-                <p className="text-xs text-zinc-500 mt-1">
+                <p className="text-xs text-[var(--text-light)] mt-1">
                   {form.consultant_type === 'banco_de_horas'
                     ? 'Meses anteriores não entram no banco; mês de entrada calculado proporcionalmente'
                     : form.consultant_type === 'horista' && form.guaranteed_hours
@@ -841,16 +841,16 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             {/* ── Horas garantidas (Horista apenas) ── */}
             {isConsultor && form.consultant_type === 'horista' && (
               <div>
-                <Label className="text-xs text-zinc-400 mb-1 block">Horas garantidas / mês</Label>
+                <Label className="text-xs text-[var(--text-muted)] mb-1 block">Horas garantidas / mês</Label>
                 <div className="flex items-center gap-2">
                   <Input type="number" min="0" max="744" step="1"
                     value={form.guaranteed_hours}
                     onChange={e => setForm(f => ({ ...f, guaranteed_hours: e.target.value }))}
                     placeholder="Ex: 160"
-                    className="w-28 bg-zinc-800 border-zinc-700 text-white h-8 text-xs" />
-                  <span className="text-xs text-zinc-500">h/mês (piso mínimo de cobrança)</span>
+                    className="w-28 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs" />
+                  <span className="text-xs text-[var(--text-light)]">h/mês (piso mínimo de cobrança)</span>
                 </div>
-                <p className="text-[10px] text-zinc-500 mt-1">
+                <p className="text-[10px] text-[var(--text-light)] mt-1">
                   Se fizer menos horas, paga como se tivesse feito este mínimo.
                 </p>
               </div>
@@ -859,15 +859,15 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             {/* ── Coordenador: tipo (Projetos ou Sustentação) ── */}
             {isCoordenador && (
               <div>
-                <Label className="text-xs text-zinc-400 mb-1 block">Área do Coordenador *</Label>
-                <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+                <Label className="text-xs text-[var(--text-muted)] mb-1 block">Área do Coordenador *</Label>
+                <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
                   {([['projetos', 'Projetos'], ['sustentacao', 'Sustentação']] as const).map(([val, label]) => (
                     <button key={val} type="button"
                       onClick={() => setForm(f => ({ ...f, coordinator_type: val }))}
                       className={`flex-1 px-3 py-2 font-medium transition-colors ${
                         form.coordinator_type === val
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                          ? 'bg-[var(--primary)] text-white'
+                          : 'bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]'
                       }`}>
                       {label}
                     </button>
@@ -902,12 +902,12 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
               consultorPartnerBound ? (
                 // Consultor vinculado a parceiro: herdado, somente leitura.
                 <div>
-                  <Label className="text-xs text-zinc-400 mb-1 block">Tipo de Contrato</Label>
-                  <div className="flex items-center justify-between gap-2 rounded-md border border-zinc-700 bg-zinc-800/60 h-9 px-3">
-                    <span className="text-xs text-zinc-400">
+                  <Label className="text-xs text-[var(--text-muted)] mb-1 block">Tipo de Contrato</Label>
+                  <div className="flex items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--surface-hover)] h-9 px-3">
+                    <span className="text-xs text-[var(--text-muted)]">
                       {contractLabel(editItem?.contract_type)}
                     </span>
-                    <span className="text-[10px] text-zinc-500">
+                    <span className="text-[10px] text-[var(--text-light)]">
                       Herdado do parceiro{inheritedPartnerName ? ` (${inheritedPartnerName})` : ''}
                     </span>
                   </div>
@@ -922,7 +922,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                     placeholder="—"
                   />
                   {isParceiroAdm && (
-                    <p className="text-[10px] text-zinc-500 mt-1">
+                    <p className="text-[10px] text-[var(--text-light)] mt-1">
                       Define o tipo de contrato de todos os consultores deste parceiro.
                     </p>
                   )}
@@ -932,32 +932,32 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
             {/* ── Folha de pagamento (perfis internos: exceto Cliente/Parceiro) ── */}
             {showPayroll && (
-              <div className="border border-zinc-700/50 rounded-lg p-3 bg-zinc-800/40 space-y-3">
-                <p className="text-xs font-semibold text-zinc-300">Folha de pagamento</p>
+              <div className="border border-[var(--border)]/50 rounded-lg p-3 bg-[var(--surface-hover)] space-y-3">
+                <p className="text-xs font-semibold text-[var(--text)]">Folha de pagamento</p>
                 <div>
-                  <Label className="text-xs text-zinc-400">Nome Completo</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Nome Completo</Label>
                   <Input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
                     placeholder="Nome completo conforme documento"
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <Label className="text-xs text-zinc-400">CPF</Label>
+                    <Label className="text-xs text-[var(--text-muted)]">CPF</Label>
                     <Input value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: formatCpf(e.target.value) }))}
                       placeholder="000.000.000-00" inputMode="numeric"
-                      className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
                   </div>
                   <div className="w-32">
-                    <Label className="text-xs text-zinc-400">Matrícula</Label>
+                    <Label className="text-xs text-[var(--text-muted)]">Matrícula</Label>
                     <Input value={form.matricula} onChange={e => setForm(f => ({ ...f, matricula: e.target.value }))}
                       placeholder="Ex: 26434"
-                      className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
                   </div>
                   <div className="w-40">
-                    <Label className="text-xs text-zinc-400">Data de nascimento</Label>
+                    <Label className="text-xs text-[var(--text-muted)]">Data de nascimento</Label>
                     <Input type="date" value={form.birth_date} onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))}
                       title="Usada na campanha de aniversário"
-                      className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
                   </div>
                 </div>
                 <FieldSelect
@@ -1017,9 +1017,9 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
         <div className="flex gap-2 pt-1 justify-end">
           <Button variant="outline" onClick={onClose}
-            className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+            className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
           <Button onClick={() => save()} disabled={saving || !canSave}
-            className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+            className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
             {saving ? 'Salvando...' : 'Salvar'}
           </Button>
         </div>
@@ -1030,28 +1030,28 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       {/* Vigência do novo valor-hora */}
       {rateModalOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
             <p className="text-sm font-semibold text-white mb-3">Vigência da alteração</p>
-            <p className="text-[13px] leading-relaxed text-zinc-400 mb-4">
+            <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-4">
               A partir de qual mês essa alteração (valor hora / tipo) passa a valer? Meses anteriores (fechamentos já feitos) não mudam.
             </p>
             <div className="mb-5">
-              <Label className="text-xs text-zinc-400 mb-1 block">Mês de vigência</Label>
+              <Label className="text-xs text-[var(--text-muted)] mb-1 block">Mês de vigência</Label>
               <Input
                 type="month"
                 value={rateEffectiveMonth}
                 min={new Date().toISOString().slice(0, 7)}
                 onChange={e => setRateEffectiveMonth(e.target.value)}
-                className="bg-zinc-800 border-zinc-700 text-white h-9 text-xs"
+                className="bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs"
               />
             </div>
             <div className="flex items-center justify-end gap-2">
               <Button variant="outline" onClick={() => setRateModalOpen(false)}
-                className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
               <Button
                 onClick={() => { setRateModalOpen(false); save(`${rateEffectiveMonth}-01`) }}
                 disabled={!rateEffectiveMonth}
-                className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
                 Confirmar
               </Button>
             </div>
@@ -1062,22 +1062,22 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       {/* Histórico de valores-hora (somente leitura) */}
       {rateHistoryOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
+          <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-semibold text-white">Histórico de valores</p>
-              <button onClick={() => setRateHistoryOpen(false)} className="text-zinc-500 hover:text-zinc-300">
+              <button onClick={() => setRateHistoryOpen(false)} className="text-[var(--text-light)] hover:text-[var(--text)]">
                 <X size={16} />
               </button>
             </div>
             {rateHistoryLoading ? (
-              <p className="text-xs text-zinc-500 py-6 text-center">Carregando…</p>
+              <p className="text-xs text-[var(--text-light)] py-6 text-center">Carregando…</p>
             ) : rateHistory.length === 0 ? (
-              <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma alteração registrada.</p>
+              <p className="text-xs text-[var(--text-light)] py-6 text-center">Nenhuma alteração registrada.</p>
             ) : (
-              <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-zinc-800">
+              <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-[var(--border)]">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-zinc-800/60 text-zinc-400">
+                    <tr className="bg-[var(--surface-hover)] text-[var(--text-muted)]">
                       <th className="text-left font-semibold px-3 py-2">Vigência</th>
                       <th className="text-left font-semibold px-3 py-2">Valor</th>
                       <th className="text-left font-semibold px-3 py-2">Alterado por</th>
@@ -1086,19 +1086,19 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                   </thead>
                   <tbody>
                     {rateHistory.filter((h: any, i: number, a: any[]) => a.findIndex((x: any) => String(x.created_at ?? '').slice(0, 10) === String(h.created_at ?? '').slice(0, 10)) === i).map((h, i) => (
-                      <tr key={h.id ?? i} className="border-t border-zinc-800 text-zinc-200">
+                      <tr key={h.id ?? i} className="border-t border-[var(--border)] text-[var(--text)]">
                         <td className="px-3 py-2 whitespace-nowrap">
                           {h.effective_from
                             ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
-                            : <span title="vigência não informada (legado)" className="text-zinc-500">—</span>}
+                            : <span title="vigência não informada (legado)" className="text-[var(--text-light)]">—</span>}
                         </td>
                         <td className="px-3 py-2 tabular-nums whitespace-nowrap">
                           {h.old_hourly_rate != null ? Number(h.old_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
-                          <span className="text-zinc-500"> → </span>
+                          <span className="text-[var(--text-light)]"> → </span>
                           {h.new_hourly_rate != null ? Number(h.new_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
                         </td>
                         <td className="px-3 py-2">{h.changed_by_user?.name ?? '—'}</td>
-                        <td className="px-3 py-2 whitespace-nowrap text-zinc-400">
+                        <td className="px-3 py-2 whitespace-nowrap text-[var(--text-muted)]">
                           {h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : '—'}
                         </td>
                       </tr>
@@ -1109,7 +1109,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             )}
             <div className="flex items-center justify-end mt-5">
               <Button variant="outline" onClick={() => setRateHistoryOpen(false)}
-                className="h-8 text-xs border-zinc-700 text-zinc-300">Fechar</Button>
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Fechar</Button>
             </div>
           </div>
         </div>

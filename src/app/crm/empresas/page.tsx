@@ -148,7 +148,7 @@ export default function CrmEmpresasPage() {
             {loading ? <tr><td colSpan={5} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Carregando…</td></tr>
             : filtered.length === 0 ? <tr><td colSpan={5} className="px-4 py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhuma empresa.</td></tr>
             : filtered.map(c => { const si = statusInfo(c.crm_status); return (
-              <tr key={c.id} onClick={() => open(c)} className="cursor-pointer hover:bg-white/5" style={{ borderTop: '1px solid var(--border)' }}>
+              <tr key={c.id} onClick={() => open(c)} className="cursor-pointer hover:bg-[var(--surface-hover)]" style={{ borderTop: '1px solid var(--border)' }}>
                 <td className="px-4 py-3 font-medium" style={{ color: 'var(--text)' }}>{c.name}{c.company_name && <span className="block text-[11px]" style={{ color: 'var(--text-light)' }}>{c.company_name}</span>}</td>
                 <td className="px-4 py-3" style={{ color: 'var(--text-muted)' }}>{c.cgc}</td>
                 <td className="px-4 py-3"><span className="text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{ background: si.bg, color: si.fg }}>{si.l}</span></td>

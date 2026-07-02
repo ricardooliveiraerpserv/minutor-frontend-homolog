@@ -115,7 +115,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
           <button
             onClick={onMenuClick}
             aria-label="Abrir menu"
-            className="md:hidden p-1.5 rounded-md transition-colors hover:bg-zinc-800 shrink-0"
+            className="md:hidden p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)] shrink-0"
             style={{ color: 'var(--brand-text)' }}
           >
             <Menu size={18} />
@@ -149,7 +149,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
           <div ref={bellRef} className="relative">
             <button
               onClick={() => { setBellOpen(v => !v); fetchNotifications() }}
-              className="relative p-1.5 rounded-md transition-colors hover:bg-zinc-800"
+              className="relative p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
               style={{ color: bellOpen ? '#00F5FF' : '#71717A' }}
             >
               <MessageCircle size={16} />
@@ -179,7 +179,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                       </span>
                     )}
                   </div>
-                  <button onClick={() => setBellOpen(false)} className="p-0.5 rounded hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)' }}>
+                  <button onClick={() => setBellOpen(false)} className="p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)' }}>
                     <X size={12} />
                   </button>
                 </div>
@@ -198,7 +198,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                         <div
                           key={n.id}
                           onClick={() => { setBellOpen(false); if (href) router.push(href) }}
-                          className="flex gap-2 px-4 py-3 hover:bg-white/5 transition-colors border-b cursor-pointer"
+                          className="flex gap-2 px-4 py-3 hover:bg-[var(--surface-hover)] transition-colors border-b cursor-pointer"
                           style={{ borderColor: 'var(--brand-border)' }}
                         >
                           {/* Indicador de não-lida */}
@@ -221,7 +221,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                   )}
                   <button
                     onClick={openAllMessages}
-                    className="block w-full py-2 text-center text-[10px] font-semibold hover:bg-white/5 transition-colors"
+                    className="block w-full py-2 text-center text-[10px] font-semibold hover:bg-[var(--surface-hover)] transition-colors"
                     style={{ color: '#00F5FF' }}
                   >
                     Ver todas as mensagens →
@@ -233,7 +233,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
         )}
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors outline-none">
+          <DropdownMenuTrigger className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-zinc-100 dark:hover:bg-[var(--surface-hover)] transition-colors outline-none">
             <span className="flex items-center gap-2">
               <Avatar className="w-6 h-6">
                 <AvatarImage src={secureUrl(user?.profile_photo_url)} />
@@ -244,7 +244,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-xs text-zinc-700 dark:text-zinc-300 max-w-[120px] truncate">
+              <span className="text-xs text-[var(--text-muted)] dark:text-[var(--text)] max-w-[120px] truncate">
                 {user?.name}
               </span>
             </span>
@@ -255,7 +255,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
               Meu Perfil
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+            <DropdownMenuItem onClick={handleLogout} className="text-[var(--danger)]">
               <LogOut size={14} className="mr-2" />
               Sair
             </DropdownMenuItem>
@@ -273,7 +273,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                 <span className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Todas as mensagens</span>
                 {unread > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>{unread} não lida(s)</span>}
               </div>
-              <button onClick={() => setAllOpen(false)} className="p-1 rounded hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+              <button onClick={() => setAllOpen(false)} className="p-1 rounded hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
             </div>
             <div className="flex-1 overflow-auto">
               {allLoading ? (
@@ -297,7 +297,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                     {allItems.map(n => {
                       const href = hrefForNotif(n)
                       return (
-                        <tr key={n.id} className="border-t hover:bg-white/5" style={{ borderColor: 'var(--brand-border)' }}>
+                        <tr key={n.id} className="border-t hover:bg-[var(--surface-hover)]" style={{ borderColor: 'var(--brand-border)' }}>
                           <td className="px-3 py-2 align-top"><span className="inline-block w-2 h-2 rounded-full" style={{ background: n.is_unread ? '#00F5FF' : 'transparent' }} title={n.is_unread ? 'Não lida' : 'Lida'} /></td>
                           <td className="px-3 py-2 font-mono whitespace-nowrap align-top" style={{ color: '#00F5FF' }}>{[n.project_code, n.customer_name].filter(Boolean).join(' · ')}</td>
                           <td className="px-3 py-2 align-top" style={{ color: 'var(--brand-muted)' }}>{n.project_name}</td>

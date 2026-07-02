@@ -1345,7 +1345,7 @@ export default function FechamentoClientePage() {
                           <tr
                             key={c.customer_id}
                             style={{ cursor: hasMult ? 'pointer' : 'default' }}
-                            className="border-b transition-colors hover:bg-white/5"
+                            className="border-b transition-colors hover:bg-[var(--surface-hover)]"
                             onClick={hasMult ? () => toggleClient(c.customer_id) : undefined}
                           >
                             <td className="px-5 py-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
@@ -1503,7 +1503,7 @@ export default function FechamentoClientePage() {
                         <Td muted className="text-xs">{a.projeto_codigo}</Td>
                         <Td className="text-xs">{a.colaborador}</Td>
                         <Td muted className="text-xs">{a.solicitante ?? '—'}</Td>
-                        <Td muted className="text-xs">{a.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${a.ticket}`} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:text-cyan-400">#{a.ticket}</a> : '—'}</Td>
+                        <Td muted className="text-xs">{a.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${a.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{a.ticket}</a> : '—'}</Td>
                         <Td muted className="text-xs">{a.titulo ?? '—'}</Td>
                         <Td right className="tabular-nums text-xs font-medium">{a.horas.toFixed(2)}h</Td>
                       </Tr>

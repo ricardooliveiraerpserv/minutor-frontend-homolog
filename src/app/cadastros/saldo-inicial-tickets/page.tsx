@@ -110,7 +110,7 @@ export default function SaldoInicialTicketsPage() {
 
         <div className="rounded-2xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           <div className="flex items-center gap-2 mb-3">
-            <Search size={13} className="text-zinc-500" />
+            <Search size={13} className="text-[var(--text-light)]" />
             <input
               type="text"
               inputMode="numeric"
@@ -150,11 +150,11 @@ export default function SaldoInicialTicketsPage() {
                     <td className="px-3 py-2.5 text-xs" style={{ color: 'var(--brand-muted)' }}>{r.creator?.name ?? '—'}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1.5 justify-end">
-                        <button onClick={() => setModal({ open: true, row: r })} className="p-1.5 rounded-lg hover:bg-white/5" title="Editar">
+                        <button onClick={() => setModal({ open: true, row: r })} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]" title="Editar">
                           <Pencil size={12} style={{ color: 'var(--brand-muted)' }} />
                         </button>
-                        <button onClick={() => setDeleteConfirm({ open: true, id: r.id })} className="p-1.5 rounded-lg hover:bg-red-500/10" title="Remover">
-                          <Trash2 size={12} className="text-red-400" />
+                        <button onClick={() => setDeleteConfirm({ open: true, id: r.id })} className="p-1.5 rounded-lg hover:bg-[var(--danger-bg)]" title="Remover">
+                          <Trash2 size={12} className="text-[var(--danger)]" />
                         </button>
                       </div>
                     </td>
@@ -174,10 +174,10 @@ export default function SaldoInicialTicketsPage() {
             <div className="absolute inset-0 bg-black/60" onClick={() => setDeleteConfirm({ open: false })} />
             <div className="relative rounded-2xl p-6 w-full max-w-sm mx-4" style={{ background: '#111113', border: '1px solid #3f3f46' }}>
               <h3 className="text-sm font-semibold text-white mb-3">Remover saldo inicial?</h3>
-              <p className="text-xs text-zinc-400 mb-4">A operação é reversível (soft-delete), mas o saldo sumirá imediatamente da coluna "Hist. de Hs Tikets".</p>
+              <p className="text-xs text-[var(--text-muted)] mb-4">A operação é reversível (soft-delete), mas o saldo sumirá imediatamente da coluna "Hist. de Hs Tikets".</p>
               <div className="flex justify-end gap-2">
-                <button onClick={() => setDeleteConfirm({ open: false })} className="px-3 py-1.5 text-xs rounded-lg text-zinc-300 hover:bg-white/5">Cancelar</button>
-                <button onClick={() => deleteConfirm.id && onDelete(deleteConfirm.id)} className="px-3 py-1.5 text-xs rounded-lg bg-red-600 text-white hover:bg-red-500">Remover</button>
+                <button onClick={() => setDeleteConfirm({ open: false })} className="px-3 py-1.5 text-xs rounded-lg text-[var(--text)] hover:bg-[var(--surface-hover)]">Cancelar</button>
+                <button onClick={() => deleteConfirm.id && onDelete(deleteConfirm.id)} className="px-3 py-1.5 text-xs rounded-lg bg-red-600 text-white hover:bg-[var(--danger-border)]">Remover</button>
               </div>
             </div>
           </div>
@@ -256,8 +256,8 @@ function BalanceModal({ row, onClose, onSaved }: {
           <h3 className="text-sm font-semibold text-white">
             {isEdit ? `Editar saldo — #${row!.ticket}` : 'Novo saldo inicial de ticket'}
           </h3>
-          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-            <X size={14} className="text-zinc-400" />
+          <button onClick={onClose} className="p-1 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
+            <X size={14} className="text-[var(--text-muted)]" />
           </button>
         </div>
 
@@ -280,7 +280,7 @@ function BalanceModal({ row, onClose, onSaved }: {
               <p className="text-[11px] mt-1" style={{ color: 'var(--brand-muted)' }}>Buscando ticket nos apontamentos…</p>
             )}
             {!isEdit && lookupError && (
-              <p className="text-[11px] mt-1 text-red-400">{lookupError}</p>
+              <p className="text-[11px] mt-1 text-[var(--danger)]">{lookupError}</p>
             )}
           </div>
 
@@ -308,7 +308,7 @@ function BalanceModal({ row, onClose, onSaved }: {
               style={inpStyle}
             />
             {hhmm && minutes === null && (
-              <p className="text-[11px] mt-1 text-red-400">Formato inválido — use HH:MM</p>
+              <p className="text-[11px] mt-1 text-[var(--danger)]">Formato inválido — use HH:MM</p>
             )}
           </div>
 
@@ -325,7 +325,7 @@ function BalanceModal({ row, onClose, onSaved }: {
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-semibold transition-colors text-zinc-300 hover:bg-white/5">Cancelar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-semibold transition-colors text-[var(--text)] hover:bg-[var(--surface-hover)]">Cancelar</button>
           <button
             onClick={save}
             disabled={!canSave || saving || minutes === null}

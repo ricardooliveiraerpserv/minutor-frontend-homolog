@@ -1308,7 +1308,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
                               <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{ATT_LABEL[att.type] ?? att.type}{att.size != null ? ` · ${fmtSize(att.size)}` : ''}</p>
                             </div>
                           </div>
-                          <button onClick={() => downloadAttachment(att)} title="Baixar" className="p-1 shrink-0 rounded transition-colors hover:bg-white/10" style={{ color: 'var(--brand-subtle)' }}>
+                          <button onClick={() => downloadAttachment(att)} title="Baixar" className="p-1 shrink-0 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}>
                             <Download size={14} />
                           </button>
                         </div>

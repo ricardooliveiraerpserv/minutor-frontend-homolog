@@ -344,7 +344,7 @@ function ContractKanbanCard({
                 <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
                   <button
                     onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
-                    className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
+                    className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--surface-hover)]"
                     style={{ color: 'var(--brand-subtle)' }}
                   >
                     <MoreVertical size={12} />
@@ -357,7 +357,7 @@ function ContractKanbanCard({
                         return (
                           <button key={item.action}
                             onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
                             style={{ color: 'var(--brand-text)' }}>
                             <Icon size={13} style={{ color: 'var(--brand-subtle)' }} />
                             {item.label}
@@ -413,7 +413,7 @@ function ContractKanbanCard({
             <div className="flex items-center gap-1">
               {onAction && (
                 <button onClick={e => { e.stopPropagation(); onAction('chat') }}
-                  className="p-1 rounded-md hover:bg-white/10 transition-colors" title="Abrir Chat"
+                  className="p-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors" title="Abrir Chat"
                   style={{ color: 'var(--brand-subtle)' }}>
                   <MessageSquare size={11} />
                 </button>
@@ -502,7 +502,7 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
           )}
           {onChat && (
             <button onClick={onChat}
-              className="p-1 rounded-md hover:bg-white/10 transition-colors" title="Abrir Chat"
+              className="p-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors" title="Abrir Chat"
               style={{ color: '#a78bfa' }}>
               <MessageSquare size={11} />
             </button>
@@ -531,7 +531,7 @@ function ListActionMenu({ card, onAction, canWrite }: { card: ContractCard; onAc
   return (
     <div ref={ref} className="relative inline-block">
       <button onClick={e => { e.stopPropagation(); setOpen(v => !v) }}
-        className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+        className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
         style={{ color: 'var(--brand-subtle)' }}>
         <MoreVertical size={14} />
       </button>
@@ -543,7 +543,7 @@ function ListActionMenu({ card, onAction, canWrite }: { card: ContractCard; onAc
             return (
               <button key={item.action}
                 onClick={e => { e.stopPropagation(); setOpen(false); onAction(item.action) }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
                 style={{ color: item.action === 'delete' ? '#f87171' : 'var(--brand-text)' }}>
                 <Icon size={13} style={{ color: item.action === 'delete' ? '#f87171' : 'var(--brand-subtle)' }} />
                 {item.label}
@@ -569,7 +569,7 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
   return (
     <div ref={ref} className="relative inline-block">
       <button onClick={e => { e.stopPropagation(); setOpen(v => !v) }}
-        className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+        className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
         style={{ color: 'var(--brand-subtle)' }}>
         <MoreVertical size={14} />
       </button>
@@ -582,7 +582,7 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
             return (
               <button key={item.action}
                 onClick={e => { e.stopPropagation(); setOpen(false); onAction(item.action) }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
                 style={{ color: isDanger ? '#f87171' : 'var(--brand-text)' }}>
                 <Icon size={13} style={{ color: isDanger ? '#f87171' : 'var(--brand-subtle)' }} />
                 {item.label}
@@ -690,7 +690,7 @@ function ProjectKanbanCard({
               <div ref={menuRef} className="relative" onClick={e => e.stopPropagation()}>
                 <button
                   onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
-                  className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/10"
+                  className="p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--surface-hover)]"
                   style={{ color: 'var(--brand-subtle)' }}
                 >
                   <MoreVertical size={12} />
@@ -704,7 +704,7 @@ function ProjectKanbanCard({
                         <button
                           key={item.action}
                           onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-white/5"
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors hover:bg-[var(--surface-hover)]"
                           style={{ color: 'var(--brand-text)' }}
                         >
                           <Icon size={13} style={{ color: 'var(--brand-subtle)' }} />
@@ -791,7 +791,7 @@ function ProjectKanbanCard({
               {/* Diário do Projeto reativado (2026-06-12): coordenador + executivos; cliente não participa nem vê. */}
               {!isCliente && (
                 <button onClick={e => { e.stopPropagation(); onAction('chat') }}
-                  className="relative p-1 rounded-md hover:bg-white/10 transition-colors" title="Abrir Diário do Projeto"
+                  className="relative p-1 rounded-md hover:bg-[var(--surface-hover)] transition-colors" title="Abrir Diário do Projeto"
                   style={{ color: 'var(--brand-subtle)' }}>
                   <MessageSquare size={11} />
                   {hasUnread && (
@@ -948,7 +948,7 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
                   : { background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
                 {card.is_complete ? 'Completo' : 'Incompleto'}
               </span>
-              <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+              <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
             </div>
           </div>
           <div className="flex gap-1 mt-3">
@@ -1127,7 +1127,7 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
                 {STATUS_LABEL[card.status] ?? card.status}
               </span>
               {/* Botão "Workspace" (etapas/cronograma) removido de prod — rotina em teste só no dev. */}
-              <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+              <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
             </div>
           </div>
           {/* Tabs */}
@@ -1246,7 +1246,7 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
                                   </span>
                                   <button
                                     onClick={() => viewReqAttachment(msg.id, att)}
-                                    className="px-2 py-1.5 border-l transition-colors hover:bg-white/5"
+                                    className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
                                     style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
                                     title="Visualizar"
                                   >
@@ -1254,7 +1254,7 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
                                   </button>
                                   <button
                                     onClick={() => downloadReqAttachment(msg.id, att)}
-                                    className="px-2 py-1.5 border-l transition-colors hover:bg-white/5"
+                                    className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
                                     style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
                                     title="Baixar"
                                   >
@@ -1451,7 +1451,7 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
               <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{card.customer_name}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
         </div>
 
         {/* Step: Decision */}
@@ -1685,7 +1685,7 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
           </p>
           <div className="flex gap-2 justify-center">
             <button onClick={() => setConfirmNegative(false)}
-              className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors"
+              className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
               Cancelar
             </button>
@@ -1863,7 +1863,7 @@ function FinalizeRequestModal({ card, onClose, onDone }: {
               <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{card.customer_name}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
         </div>
         <div className="px-6 py-5">
           <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
@@ -2226,7 +2226,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                   <ExternalLink size={11} /> Editar
                 </button>
               )}
-              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
             </div>
           </div>
 
@@ -2808,7 +2808,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
         )}
 
         <div className="flex justify-end px-6 py-3 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
         </div>
       </div>
       {showEdit && p && (
@@ -2898,7 +2898,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
             <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{project.code}</p>
             <h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>Editar Projeto</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -2986,7 +2986,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
         </div>
 
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
           <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold transition-colors" style={{ background: saving ? 'rgba(0,245,255,0.05)' : 'rgba(0,245,255,0.1)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
@@ -3046,7 +3046,7 @@ function ProjectStatusModal({ projectId, projectName, currentStatus, onClose, on
       <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
         <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
           <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Alterar Status</p><h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={14} style={{ color: 'var(--brand-muted)' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]"><X size={14} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
         <div className="p-5">
           <label className="block text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Novo Status</label>
@@ -3055,7 +3055,7 @@ function ProjectStatusModal({ projectId, projectName, currentStatus, onClose, on
           </select>
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-medium hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-medium hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
           <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ background: 'rgba(0,245,255,0.1)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Salvando...' : 'Confirmar'}
           </button>
@@ -3089,7 +3089,7 @@ function ProjectExpensesModal({ projectId, projectName, onClose }: { projectId: 
       <div className="flex flex-col w-full max-w-2xl rounded-2xl max-h-[85vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
           <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Despesas</p><h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
         {loading ? <div className="flex-1 flex items-center justify-center py-12"><p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p></div> : (
           <div className="flex-1 overflow-y-auto">
@@ -3133,7 +3133,7 @@ function ProjectExpensesModal({ projectId, projectName, onClose }: { projectId: 
           </div>
         )}
         <div className="flex justify-end px-6 py-3 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
         </div>
       </div>
     </div>
@@ -3201,7 +3201,7 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
           <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Aportes de Horas</p><h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
           <div className="flex items-center gap-2">
             <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.2)' }}><Plus size={11} /> Novo Aporte</button>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
           </div>
         </div>
 
@@ -3247,8 +3247,8 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
                             <td className="px-3 py-2.5 max-w-[160px] truncate" style={{ color: 'var(--brand-muted)' }}>{c.description ?? '—'}</td>
                             <td className="px-3 py-2.5">
                               <div className="flex items-center gap-1">
-                                <button onClick={() => openEdit(c)} className="p-1 rounded hover:bg-white/5" title="Editar"><Pencil size={11} style={{ color: 'var(--brand-subtle)' }} /></button>
-                                <button onClick={() => handleDelete(c)} className="p-1 rounded hover:bg-white/5" title="Excluir"><Trash2 size={11} style={{ color: '#ef4444' }} /></button>
+                                <button onClick={() => openEdit(c)} className="p-1 rounded hover:bg-[var(--surface-hover)]" title="Editar"><Pencil size={11} style={{ color: 'var(--brand-subtle)' }} /></button>
+                                <button onClick={() => handleDelete(c)} className="p-1 rounded hover:bg-[var(--surface-hover)]" title="Excluir"><Trash2 size={11} style={{ color: '#ef4444' }} /></button>
                               </div>
                             </td>
                           </tr>
@@ -3262,7 +3262,7 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
           </div>
         )}
         <div className="flex justify-end px-6 py-3 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
         </div>
       </div>
     </div>
@@ -3335,7 +3335,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
       <div className="flex flex-col w-full max-w-lg rounded-2xl max-h-[85vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
           <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Selecionar Equipe</p><h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
         {loading ? <div className="flex-1 flex items-center justify-center py-10"><p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p></div> : isOperational ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 px-8 py-12">
@@ -3358,7 +3358,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                 {projectConsultants.map((c: any) => {
                   const allow = manualIds.has(c.id)
                   return (
-                    <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-white/5">
+                    <div key={c.id} className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
                       <span className="text-xs" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
                       <button onClick={() => setManualIds(prev => toggleSet(prev, c.id))}
                         title={allow ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
@@ -3388,7 +3388,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                 const sel = selectedIds.has(c.id)
                 return (
                   <button key={c.id} onClick={() => setSelectedIds(prev => toggleSet(prev, c.id))}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]"
                     style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
                     <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
                       {sel && <Check size={10} style={{ color: '#a78bfa' }} />}
@@ -3401,7 +3401,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                 const sel = selectedGroupIds.has(g.id)
                 return (
                   <button key={g.id} onClick={() => setSelectedGroupIds(prev => toggleSet(prev, g.id))}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-white/5"
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]"
                     style={{ background: sel ? 'rgba(245,158,11,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(245,158,11,0.25)' : 'transparent'}` }}>
                     <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)' }}>
                       {sel && <Check size={10} style={{ color: '#f59e0b' }} />}
@@ -3420,7 +3420,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
             <button onClick={onClose} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }}>Entendi</button>
           ) : (
             <>
-              <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+              <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
               <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', opacity: saving ? 0.6 : 1 }}>
                 {saving ? 'Salvando...' : 'Salvar Equipe'}
               </button>
@@ -3557,7 +3557,7 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
               <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa' }}>
                 Requisição
               </span>
-              <button onClick={onClose} className="p-1 rounded-lg transition-colors hover:bg-white/10" style={{ color: 'var(--brand-subtle)' }}>
+              <button onClick={onClose} className="p-1 rounded-lg transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}>
                 <X size={16} />
               </button>
             </div>
@@ -3644,7 +3644,7 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
             {/* Back button */}
             <div className="px-4 pt-3 shrink-0">
               <button onClick={() => setTab('details')}
-                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors hover:bg-white/10"
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
                 style={{ color: 'var(--brand-subtle)' }}>
                 <ChevronRight size={12} className="rotate-180" /> Voltar aos detalhes
               </button>
@@ -3692,13 +3692,13 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
                                   window.open(URL.createObjectURL(blob), '_blank')
                                 } catch { toast.error('Erro ao abrir arquivo') }
                               }}
-                              className="px-2 py-1.5 border-l transition-colors hover:bg-white/5"
+                              className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
                               style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
                               title="Visualizar"
                             ><ExternalLink size={10} /></button>
                             <button
                               onClick={() => downloadAttachment(msg.id, att)}
-                              className="px-2 py-1.5 border-l transition-colors hover:bg-white/5"
+                              className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
                               style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
                               title="Baixar"
                             ><Download size={10} /></button>
@@ -4840,7 +4840,7 @@ function KanbanContent() {
                 }
                 const arrow = (k: SortKey) => sortKey !== k ? '' : sortDir === 'asc' ? ' ▲' : ' ▼'
                 const SortTh = ({ k, label, align = 'left' }: { k: SortKey; label: string; align?: 'left' | 'center' }) => (
-                  <th onClick={() => toggleSort(k)} className={`text-${align} px-4 py-3 text-zinc-400 font-medium cursor-pointer select-none hover:text-zinc-200`}>{label}{arrow(k)}</th>
+                  <th onClick={() => toggleSort(k)} className={`text-${align} px-4 py-3 text-[var(--text-muted)] font-medium cursor-pointer select-none hover:text-[var(--text)]`}>{label}{arrow(k)}</th>
                 )
                 return (
                 <div className="rounded-xl border overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
@@ -4863,7 +4863,7 @@ function KanbanContent() {
                     </thead>
                     <tbody>
                       {rows.length === 0 && (
-                        <tr><td colSpan={isCliente ? 7 : 12} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhum projeto.</td></tr>
+                        <tr><td colSpan={isCliente ? 7 : 12} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum projeto.</td></tr>
                       )}
                       {rows.map(p => {
                         const isClosed  = p.status === 'finished' || p.status === 'cancelled'
@@ -4878,7 +4878,7 @@ function KanbanContent() {
                         const saude       = rowHealth(p)
                         const saudeColor  = saude === 'red' ? 'var(--danger-border)' : saude === 'yellow' ? 'var(--warning-border)' : 'var(--success-border)'
                         return (
-                          <tr key={`p-${p.id}`} onClick={() => { if (!isCliente) setSelectedProject(p) }} className={`${isCliente ? '' : 'cursor-pointer'} hover:bg-zinc-800/40 transition-colors group/row`}
+                          <tr key={`p-${p.id}`} onClick={() => { if (!isCliente) setSelectedProject(p) }} className={`${isCliente ? '' : 'cursor-pointer'} hover:bg-[var(--surface-hover)] transition-colors group/row`}
                             style={{ borderTop: '1px solid var(--brand-border)' }}>
                             {!isCliente && (
                               <td className="px-2 py-3 w-10" onClick={e => e.stopPropagation()}>
@@ -4886,18 +4886,18 @@ function KanbanContent() {
                               </td>
                             )}
                             <td className="px-4 py-3 text-white font-medium">{p.customer_name}</td>
-                            <td className="px-4 py-3 text-zinc-300 text-xs">
-                              <p className="text-zinc-300 text-sm">{p.project_name}</p>
-                              <span className="font-mono text-cyan-400">{p.code}</span>
+                            <td className="px-4 py-3 text-[var(--text)] text-xs">
+                              <p className="text-[var(--text)] text-sm">{p.project_name}</p>
+                              <span className="font-mono text-[var(--primary)]">{p.code}</span>
                             </td>
-                            <td className="px-4 py-3 text-zinc-400 text-xs">{p.contract_type ?? '—'}</td>
-                            <td className="px-4 py-3 text-zinc-400 text-xs">{p.service_type ?? '—'}</td>
-                            <td className="px-4 py-3 text-zinc-400 text-xs">{PROJECT_COLS.find(c => c.id === PROJECT_STATUS_TO_COL[p.status])?.label ?? 'Projeto'}</td>
-                            <td className="px-4 py-3 text-center text-zinc-300" title={isCoordRow ? 'Horas de Coordenação' : undefined}>
+                            <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{p.contract_type ?? '—'}</td>
+                            <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{p.service_type ?? '—'}</td>
+                            <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{PROJECT_COLS.find(c => c.id === PROJECT_STATUS_TO_COL[p.status])?.label ?? 'Projeto'}</td>
+                            <td className="px-4 py-3 text-center text-[var(--text)]" title={isCoordRow ? 'Horas de Coordenação' : undefined}>
                               {rowVendidas != null ? `${rowVendidas}h${isCoordRow ? ' *' : ''}` : '—'}
                             </td>
                             {!isCliente && (
-                              <td className="px-4 py-3 text-center text-zinc-300">
+                              <td className="px-4 py-3 text-center text-[var(--text)]">
                                 {hideHours ? '—' : rowConsumed != null ? `${Number(rowConsumed).toFixed(1)}h` : '—'}
                               </td>
                             )}
@@ -4914,7 +4914,7 @@ function KanbanContent() {
                             )}
                             {!isCliente && (() => {
                               const cBank = Number(p.coordination_hours ?? 0)
-                              if (cBank <= 0) return <td className="px-4 py-3 text-center text-zinc-600 text-xs">—</td>
+                              if (cBank <= 0) return <td className="px-4 py-3 text-center text-[var(--text-muted)] text-xs">—</td>
                               const cCons = Number(p.coordination_consumed_hours ?? 0)
                               const cPct  = (cCons / cBank) * 100
                               const cColor = cPct >= 90 ? 'var(--danger-border)' : cPct >= 70 ? 'var(--warning-border)' : 'var(--success-border)'
@@ -4954,33 +4954,33 @@ function KanbanContent() {
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                       <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
-                        <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>
-                        <th className="text-left px-4 py-3 text-zinc-400 font-medium">Projeto / Tipo</th>
-                        <th className="text-left px-4 py-3 text-zinc-400 font-medium">Tipo Contrato</th>
-                        <th className="text-left px-4 py-3 text-zinc-400 font-medium">Tipo Serviço</th>
-                        <th className="text-left px-4 py-3 text-zinc-400 font-medium">Coluna</th>
-                        <th className="text-center px-4 py-3 text-zinc-400 font-medium">Horas</th>
-                        <th className="text-center px-4 py-3 text-zinc-400 font-medium">Status</th>
+                        <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Cliente</th>
+                        <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Projeto / Tipo</th>
+                        <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Tipo Contrato</th>
+                        <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Tipo Serviço</th>
+                        <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Coluna</th>
+                        <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Horas</th>
+                        <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Status</th>
                         {!isCliente && <th className="px-4 py-3" />}
                       </tr>
                     </thead>
                     <tbody>
                       {allContracts.length === 0 && (
-                        <tr><td colSpan={isCliente ? 5 : 6} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhum contrato.</td></tr>
+                        <tr><td colSpan={isCliente ? 5 : 6} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum contrato.</td></tr>
                       )}
                       {allContracts.map(c => (
-                        <tr key={`c-${c.id}`} onClick={() => setSelectedContract(c)} className="cursor-pointer hover:bg-zinc-800/40 transition-colors group/row"
+                        <tr key={`c-${c.id}`} onClick={() => setSelectedContract(c)} className="cursor-pointer hover:bg-[var(--surface-hover)] transition-colors group/row"
                           style={{ borderTop: '1px solid var(--brand-border)' }}>
                           <td className="px-4 py-3 text-white font-medium">{c.customer_name}</td>
-                          <td className="px-4 py-3 text-zinc-400 text-xs">
-                            {c.project_name && <p className="text-zinc-300 text-sm">{c.project_name}</p>}
+                          <td className="px-4 py-3 text-[var(--text-muted)] text-xs">
+                            {c.project_name && <p className="text-[var(--text)] text-sm">{c.project_name}</p>}
                             <span>{c.contract_type ?? '—'}</span>
-                            {c.tipo_faturamento && <span className="ml-1 text-zinc-500">· {c.tipo_faturamento}</span>}
+                            {c.tipo_faturamento && <span className="ml-1 text-[var(--text-light)]">· {c.tipo_faturamento}</span>}
                           </td>
-                          <td className="px-4 py-3 text-zinc-400 text-xs">{c.contract_type ?? '—'}</td>
-                          <td className="px-4 py-3 text-zinc-400 text-xs">{c.service_type ?? '—'}</td>
-                          <td className="px-4 py-3 text-zinc-400 text-xs">{colLabel(c)}</td>
-                          <td className="px-4 py-3 text-center text-zinc-300">{c.horas_contratadas != null ? `${c.horas_contratadas}h` : '—'}</td>
+                          <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{c.contract_type ?? '—'}</td>
+                          <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{c.service_type ?? '—'}</td>
+                          <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{colLabel(c)}</td>
+                          <td className="px-4 py-3 text-center text-[var(--text)]">{c.horas_contratadas != null ? `${c.horas_contratadas}h` : '—'}</td>
                           <td className="px-4 py-3 text-center">
                             {(() => { const b = STATUS_BADGE[c.kanban_status ?? c.status ?? ''] ?? STATUS_BADGE['backlog']; return (
                               <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: b.bg, color: b.color }}>{b.label}</span>
@@ -5004,32 +5004,32 @@ function KanbanContent() {
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
                       <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
-                        <th className="text-left px-4 py-3 text-zinc-400 font-medium">Cliente</th>
-                        <th className="text-left px-4 py-3 text-zinc-400 font-medium">Projeto / Área</th>
-                        <th className="text-left px-4 py-3 text-zinc-400 font-medium">Tipo</th>
-                        <th className="text-center px-4 py-3 text-zinc-400 font-medium">Urgência</th>
-                        <th className="text-center px-4 py-3 text-zinc-400 font-medium">Status</th>
+                        <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Cliente</th>
+                        <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Projeto / Área</th>
+                        <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Tipo</th>
+                        <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Urgência</th>
+                        <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {allRequests.length === 0 && (
-                        <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-600 text-xs">Nenhuma requisição.</td></tr>
+                        <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhuma requisição.</td></tr>
                       )}
                       {allRequests.map(r => (
                         <tr key={`r-${r.id}`}
                           onClick={() => r.kanban_column === 'req_inicio_autorizado' && !r.req_decision ? setPlanDecisionCard(r) : setSelectedRequest(r)}
-                          className="cursor-pointer hover:bg-zinc-800/40 transition-colors"
+                          className="cursor-pointer hover:bg-[var(--surface-hover)] transition-colors"
                           style={{ borderTop: '1px solid var(--brand-border)' }}>
                           <td className="px-4 py-3 text-white font-medium">{r.customer_name}</td>
-                          <td className="px-4 py-3 text-zinc-400 text-xs">
-                            {r.project_name && <p className="text-zinc-300 text-sm">{r.project_name}</p>}
+                          <td className="px-4 py-3 text-[var(--text-muted)] text-xs">
+                            {r.project_name && <p className="text-[var(--text)] text-sm">{r.project_name}</p>}
                             <span>{r.area_requisitante}</span>
-                            {r.product_owner && <span className="ml-1 text-zinc-500">· {r.product_owner}</span>}
+                            {r.product_owner && <span className="ml-1 text-[var(--text-light)]">· {r.product_owner}</span>}
                           </td>
-                          <td className="px-4 py-3 text-zinc-400 text-xs">
+                          <td className="px-4 py-3 text-[var(--text-muted)] text-xs">
                             {TIPO_NECESSIDADE_LABEL[r.tipo_necessidade] ?? r.tipo_necessidade}
                             {r.tipo_necessidade === 'outro' && r.tipo_necessidade_outro && (
-                              <span className="ml-1 text-zinc-500">({r.tipo_necessidade_outro})</span>
+                              <span className="ml-1 text-[var(--text-light)]">({r.tipo_necessidade_outro})</span>
                             )}
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -5434,7 +5434,7 @@ function KanbanContent() {
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={close}>
               <div className="rounded-2xl p-6 flex flex-col gap-4 w-80" style={{ background: '#0f172a', border: '1px solid rgba(239,68,68,0.4)' }} onClick={e => e.stopPropagation()}>
                 <div className="flex items-center gap-3">
-                  <Trash2 size={20} className="text-red-400" />
+                  <Trash2 size={20} className="text-[var(--danger)]" />
                   <p className="font-semibold text-white">Excluir Contrato</p>
                 </div>
                 <p className="text-sm text-slate-300">Tem certeza que deseja excluir <strong className="text-white">{card.project_name}</strong>? Esta ação não pode ser desfeita.</p>

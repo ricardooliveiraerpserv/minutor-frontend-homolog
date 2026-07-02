@@ -20,8 +20,8 @@ import type { CustomerFull, Executive } from '@/types'
 function ActiveBadge({ active }: { active: boolean }) {
   return (
     <Badge variant="outline" className={`text-[10px] border ${active
-      ? 'bg-green-500/20 text-green-400 border-green-500/30'
-      : 'bg-zinc-500/10 text-zinc-400 border-zinc-700'}`}>
+      ? 'bg-[var(--success-bg)] text-[var(--success)] border-green-500/30'
+      : 'bg-[var(--surface-hover)] text-[var(--text-muted)] border-[var(--border)]'}`}>
       {active ? 'Ativo' : 'Inativo'}
     </Badge>
   )
@@ -29,9 +29,9 @@ function ActiveBadge({ active }: { active: boolean }) {
 
 function TableSkeleton() {
   return <>{Array.from({ length: 6 }).map((_, i) => (
-    <tr key={i} className="border-b border-zinc-800">
+    <tr key={i} className="border-b border-[var(--border)]">
       {Array.from({ length: 7 }).map((_, j) => (
-        <td key={j} className="px-3 py-2.5"><Skeleton className="h-3 w-full bg-zinc-800" /></td>
+        <td key={j} className="px-3 py-2.5"><Skeleton className="h-3 w-full bg-[var(--surface-hover)]" /></td>
       ))}
     </tr>
   ))}</>
@@ -40,8 +40,8 @@ function TableSkeleton() {
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75">
-      <div className="relative w-full max-w-lg rounded-xl shadow-2xl bg-zinc-900 border border-zinc-800 max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-3 right-3 p-1 text-zinc-500 hover:text-zinc-300 transition-colors"><X size={14} /></button>
+      <div className="relative w-full max-w-lg rounded-xl shadow-2xl bg-[var(--surface)] border border-[var(--border)] max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-3 right-3 p-1 text-[var(--text-light)] hover:text-[var(--text)] transition-colors"><X size={14} /></button>
         {children}
       </div>
     </div>
@@ -195,24 +195,24 @@ export default function ClientesPage() {
     <AppLayout>
       <div className="p-6 max-w-5xl mx-auto w-full">
         <h2 className="text-sm font-semibold text-white mb-5 flex items-center gap-2">
-          <Users size={14} className="text-zinc-400" />
+          <Users size={14} className="text-[var(--text-muted)]" />
           Clientes
         </h2>
 
         <div className="flex items-center gap-2 mb-4 flex-wrap">
           <div className="relative flex-1 min-w-48">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar por nome, razão social ou CPF/CNPJ..."
-              className="pl-8 bg-zinc-800 border-zinc-700 text-white h-8 text-xs"
+              className="pl-8 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs"
             />
           </div>
           <select
             value={filterExecutive}
             onChange={e => setFilterExecutive(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-xs outline-none appearance-none bg-zinc-800 border border-zinc-700 text-zinc-300 min-w-36"
+            className="px-3 py-1.5 rounded-lg text-xs outline-none appearance-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] min-w-36"
           >
             <option value="">Todos os executivos</option>
             {executives.map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
@@ -220,40 +220,40 @@ export default function ClientesPage() {
           <select
             value={filterStatus}
             onChange={e => setFilterStatus(e.target.value as 'todos' | 'ativo' | 'inativo')}
-            className="px-3 py-1.5 rounded-lg text-xs outline-none appearance-none bg-zinc-800 border border-zinc-700 text-zinc-300"
+            className="px-3 py-1.5 rounded-lg text-xs outline-none appearance-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)]"
           >
             <option value="todos">Todos</option>
             <option value="ativo">Ativo</option>
             <option value="inativo">Inativo</option>
           </select>
-          <Button onClick={exportExcel} disabled={filtered.length === 0} variant="outline" className="border-zinc-700 text-zinc-300 h-8 text-xs gap-1.5">
+          <Button onClick={exportExcel} disabled={filtered.length === 0} variant="outline" className="border-[var(--border)] text-[var(--text)] h-8 text-xs gap-1.5">
             <Download size={13} /> Exportar
           </Button>
           {canCreate && (
-            <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5">
+            <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary)] text-white h-8 text-xs gap-1.5">
               <Plus size={13} /> Novo
             </Button>
           )}
         </div>
 
-        <div className="rounded-lg border border-zinc-800 overflow-clip">
+        <div className="rounded-lg border border-[var(--border)] overflow-clip">
           <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10 bg-zinc-900">
-              <tr className="border-b border-zinc-800 bg-zinc-900">
+            <thead className="sticky top-0 z-10 bg-[var(--surface)]">
+              <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
                 <th className="px-3 py-2.5 w-10"></th>
-                <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
-                <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Razão Social</th>
-                <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">CPF/CNPJ</th>
-                <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden xl:table-cell">Prefixo</th>
-                <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Executivo</th>
-                <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Nome</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Razão Social</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">CPF/CNPJ</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden xl:table-cell">Prefixo</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Executivo</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
               {loading ? <TableSkeleton /> : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 py-8 text-center text-zinc-500">Nenhum cliente encontrado</td></tr>
+                <tr><td colSpan={7} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum cliente encontrado</td></tr>
               ) : filtered.map(item => (
-                <tr key={item.id} className="border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors">
+                <tr key={item.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                   <td className="px-2 py-2.5 w-10">
                     <RowMenu items={[
                       { label: 'Ficha 360°', icon: <LayoutDashboard size={12} />, onClick: () => router.push(`/empresas/${item.id}/360`) },
@@ -261,11 +261,11 @@ export default function ClientesPage() {
                       ...(canDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: deleting === item.id }] : []),
                     ]} />
                   </td>
-                  <td className="px-3 py-2.5 text-zinc-200">{item.name}</td>
-                  <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell">{item.company_name || '—'}</td>
-                  <td className="px-3 py-2.5 text-zinc-400 font-mono hidden sm:table-cell">{item.cgc || '—'}</td>
-                  <td className="px-3 py-2.5 text-zinc-400 font-mono hidden xl:table-cell">{item.code_prefix || '—'}</td>
-                  <td className="px-3 py-2.5 text-zinc-400 hidden lg:table-cell">{item.executive?.name || '—'}</td>
+                  <td className="px-3 py-2.5 text-[var(--text)]">{item.name}</td>
+                  <td className="px-3 py-2.5 text-[var(--text-muted)] hidden md:table-cell">{item.company_name || '—'}</td>
+                  <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden sm:table-cell">{item.cgc || '—'}</td>
+                  <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden xl:table-cell">{item.code_prefix || '—'}</td>
+                  <td className="px-3 py-2.5 text-[var(--text-muted)] hidden lg:table-cell">{item.executive?.name || '—'}</td>
                   <td className="px-3 py-2.5"><ActiveBadge active={item.active} /></td>
                 </tr>
               ))}
@@ -279,23 +279,23 @@ export default function ClientesPage() {
               <h3 className="text-sm font-semibold text-white mb-4">{modal.item ? 'Editar Cliente' : 'Novo Cliente'}</h3>
               <div className="space-y-3">
                 <div>
-                  <Label className="text-xs text-zinc-400">Nome *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Nome *</Label>
                   <Input
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs"
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs"
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Razão Social</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Razão Social</Label>
                   <Input
                     value={form.company_name}
                     onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs"
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs"
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">CPF/CNPJ *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">CPF/CNPJ *</Label>
                   <Input
                     value={form.cgc}
                     inputMode="numeric"
@@ -303,11 +303,11 @@ export default function ClientesPage() {
                     // SEM maxLength: ele cortaria a string mascarada (ex: 21.160.979/0001-08, 18 chars)
                     // antes do onChange rodar. O .slice(0,14) abaixo limita os DÍGITOS depois de tirar a máscara.
                     onChange={e => setForm(f => ({ ...f, cgc: e.target.value.replace(/\D/g, '').slice(0, 14) }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs font-mono"
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs font-mono"
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">CNPJ(s) secundário(s) de faturamento</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">CNPJ(s) secundário(s) de faturamento</Label>
                   {form.secondary_cgcs.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {form.secondary_cgcs.map(c => (
@@ -324,40 +324,40 @@ export default function ClientesPage() {
                       onChange={e => setNovoCgcCli(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCgcCli() } }}
                       placeholder="adicionar CNPJ…"
-                      className="bg-zinc-800 border-zinc-700 text-white h-9 text-xs font-mono" />
-                    <Button variant="outline" onClick={addCgcCli} className="h-9 text-xs border-zinc-700 text-zinc-300 shrink-0">Adicionar</Button>
+                      className="bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs font-mono" />
+                    <Button variant="outline" onClick={addCgcCli} className="h-9 text-xs border-[var(--border)] text-[var(--text)] shrink-0">Adicionar</Button>
                   </div>
-                  <p className="mt-1 text-[11px] text-zinc-500">Une os recebimentos do Keruak (Rentabilidade › Clientes) destes CNPJs sob este cliente.</p>
+                  <p className="mt-1 text-[11px] text-[var(--text-light)]">Une os recebimentos do Keruak (Rentabilidade › Clientes) destes CNPJs sob este cliente.</p>
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Prefixo de Código (3 letras) *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Prefixo de Código (3 letras) *</Label>
                   <Input
                     value={form.code_prefix}
                     onChange={e => setForm(f => ({ ...f, code_prefix: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) }))}
                     placeholder="ex: ABC"
                     maxLength={3}
                     aria-invalid={prefixoDuplicado}
-                    className={`mt-1 bg-zinc-800 text-white h-9 text-xs font-mono uppercase tracking-widest ${prefixoDuplicado ? 'border-red-500' : 'border-zinc-700'}`}
+                    className={`mt-1 bg-[var(--surface-hover)] text-white h-9 text-xs font-mono uppercase tracking-widest ${prefixoDuplicado ? 'border-red-500' : 'border-[var(--border)]'}`}
                   />
                   {prefixoDuplicado ? (
-                    <p className="mt-1 text-[11px] text-red-400">Prefixo já usado por <strong>{prefixoEmUsoPor?.name}</strong>. Escolha outro.</p>
+                    <p className="mt-1 text-[11px] text-[var(--danger)]">Prefixo já usado por <strong>{prefixoEmUsoPor?.name}</strong>. Escolha outro.</p>
                   ) : (
-                    <p className="mt-1 text-[11px] text-zinc-500">Usado para gerar códigos automáticos dos projetos (ex: ABC001-26)</p>
+                    <p className="mt-1 text-[11px] text-[var(--text-light)]">Usado para gerar códigos automáticos dos projetos (ex: ABC001-26)</p>
                   )}
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Executivo</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Executivo</Label>
                   <select
                     value={form.executive_id}
                     onChange={e => setForm(f => ({ ...f, executive_id: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-lg text-xs outline-none appearance-none bg-zinc-800 border border-zinc-700 text-white"
+                    className="mt-1 w-full px-3 py-2 rounded-lg text-xs outline-none appearance-none bg-[var(--surface-hover)] border border-[var(--border)] text-white"
                   >
                     <option value="">Sem executivo</option>
                     {executives.map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">E-mails administrativos</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">E-mails administrativos</Label>
                   {form.emails_administrativos.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {form.emails_administrativos.map(e => (
@@ -374,26 +374,26 @@ export default function ClientesPage() {
                       onChange={e => setNovoEmailCli(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmailCli() } }}
                       placeholder="adicionar e-mail…"
-                      className="bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
-                    <Button variant="outline" onClick={addEmailCli} className="h-9 text-xs border-zinc-700 text-zinc-300 shrink-0">Adicionar</Button>
+                      className="bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                    <Button variant="outline" onClick={addEmailCli} className="h-9 text-xs border-[var(--border)] text-[var(--text)] shrink-0">Adicionar</Button>
                   </div>
-                  <p className="mt-1 text-[11px] text-zinc-500">Mesma lista usada no fechamento e nos comunicados (reajuste) do cliente.</p>
+                  <p className="mt-1 text-[11px] text-[var(--text-light)]">Mesma lista usada no fechamento e nos comunicados (reajuste) do cliente.</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setForm(f => ({ ...f, active: !f.active }))}
-                    className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-blue-600' : 'bg-zinc-700'}`}
+                    className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}
                   >
                     <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
                   </button>
-                  <Label className="text-xs text-zinc-400">Ativo</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
                 </div>
               </div>
               <div className="flex gap-2 mt-5 justify-end">
-                <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-zinc-700 text-zinc-300">
+                <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">
                   Cancelar
                 </Button>
-                <Button onClick={save} disabled={saving || !formValido} className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+                <Button onClick={save} disabled={saving || !formValido} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
                   {saving ? 'Salvando...' : 'Salvar'}
                 </Button>
               </div>

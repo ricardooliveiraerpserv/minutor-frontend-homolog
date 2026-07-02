@@ -178,7 +178,7 @@ export default function WorkflowsPage() {
           <h1 className="text-lg font-bold">Central de Workflows</h1>
         </div>
         <p className="text-sm text-[var(--text-muted)] mb-6">
-          Defina, por papel, quem recebe cada e-mail do sistema — como <b className="text-[var(--success)]">Destinatário</b> ou <b className="text-sky-400">Em cópia</b>. Novos workflows aparecem aqui automaticamente.
+          Defina, por papel, quem recebe cada e-mail do sistema — como <b className="text-[var(--success)]">Destinatário</b> ou <b className="text-[var(--primary)]">Em cópia</b>. Novos workflows aparecem aqui automaticamente.
         </p>
 
         {loading ? (

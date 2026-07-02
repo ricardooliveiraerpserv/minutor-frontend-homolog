@@ -224,7 +224,7 @@ function ReqRow({ req, onClick }: { req: Req; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-white/[0.02]"
+      className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-[var(--surface-hover)]"
       style={{ borderBottom: '1px solid var(--brand-border)' }}
     >
       {/* Urgency bar */}

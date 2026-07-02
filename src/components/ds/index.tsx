@@ -578,7 +578,7 @@ export function Modal({
             <h2 className="font-bold text-base" style={{ color: 'var(--brand-text)' }}>{title}</h2>
             <button
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-white/5"
+              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
               style={{ color: 'var(--brand-muted)' }}
             >
               ✕

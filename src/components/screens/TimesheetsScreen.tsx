@@ -376,31 +376,31 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
           <h3 className="text-sm font-semibold text-white">
             {isBulk ? `% Extras — ${ids.length} apontamentos` : `% Extras — #${ids[0]}`}
           </h3>
-          <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-lg transition-colors">
-            <X size={14} className="text-zinc-400" />
+          <button onClick={onClose} className="p-1 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
+            <X size={14} className="text-[var(--text-muted)]" />
           </button>
         </div>
 
         {isBulk && (
-          <p className="text-[11px] text-zinc-500 mb-3">Campos vazios não serão alterados nos apontamentos selecionados.</p>
+          <p className="text-[11px] text-[var(--text-light)] mb-3">Campos vazios não serão alterados nos apontamentos selecionados.</p>
         )}
 
         <div className="space-y-3">
           <div>
-            <Label className="text-xs text-zinc-400">% Extra Cliente</Label>
+            <Label className="text-xs text-[var(--text-muted)]">% Extra Cliente</Label>
             <div className="relative mt-1">
               <input
                 type="number" min="0" max="999" step="0.01"
                 value={clientPct}
                 onChange={e => setClientPct(e.target.value)}
                 placeholder={isBulk ? 'Não alterar' : '0'}
-                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-amber-400 pointer-events-none">%</span>
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--warning)] pointer-events-none">%</span>
             </div>
           </div>
           <div>
-            <Label className="text-xs text-zinc-400">% Extra Consultor</Label>
+            <Label className="text-xs text-[var(--text-muted)]">% Extra Consultor</Label>
             <div className="relative mt-1">
               <input
                 type="number" min="0" max="999" step="0.01"
@@ -408,23 +408,23 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
                 onChange={e => setConsultantPct(e.target.value)}
                 placeholder={isBillableOnly ? 'N/A — Fat. Admin' : (isBulk ? 'Não alterar' : '0')}
                 disabled={isBillableOnly}
-                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-zinc-800 border border-zinc-700 text-white placeholder-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-white placeholder-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-green-400 pointer-events-none">%</span>
+              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--success)] pointer-events-none">%</span>
             </div>
             {isBillableOnly && (
-              <p className="text-[10px] text-amber-500 mt-1">Apontamento Fat. Admin — % consultor não aplicável.</p>
+              <p className="text-[10px] text-[var(--warning)] mt-1">Apontamento Fat. Admin — % consultor não aplicável.</p>
             )}
           </div>
         </div>
 
         <div className="flex gap-2 mt-5 justify-end">
           <button onClick={() => { setClientPct(''); setConsultantPct('') }}
-            className="px-3 py-2 rounded-xl text-xs text-zinc-400 hover:bg-white/5 transition-colors border border-zinc-700">
+            className="px-3 py-2 rounded-xl text-xs text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors border border-[var(--border)]">
             Limpar
           </button>
           <button onClick={onClose}
-            className="px-3 py-2 rounded-xl text-xs text-zinc-400 hover:bg-white/5 transition-colors border border-zinc-700">
+            className="px-3 py-2 rounded-xl text-xs text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors border border-[var(--border)]">
             Cancelar
           </button>
           <button onClick={save} disabled={saving}
@@ -628,17 +628,17 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
   return (
     <div ref={ref}>
       <button ref={btnRef} onClick={toggle}
-        className={`p-1.5 rounded transition-colors ${open ? 'text-zinc-200 bg-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}>
+        className={`p-1.5 rounded transition-colors ${open ? 'text-[var(--text)] bg-[var(--surface-hover)]' : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'}`}>
         <MoreVertical size={14} />
       </button>
       {pos && (
         <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-          className="min-w-[152px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl py-1 overflow-hidden">
+          className="min-w-[152px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl shadow-2xl py-1 overflow-hidden">
           {items.map((item, i) => (
             <button key={i} disabled={item.disabled} title={item.title}
               onClick={() => { if (item.disabled) return; item.onClick(); setPos(null) }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors text-left ${
-                item.disabled ? 'text-zinc-600 cursor-not-allowed' : item.danger ? 'text-red-400 hover:bg-red-500/10' : 'text-zinc-300 hover:bg-zinc-700'
+                item.disabled ? 'text-[var(--text-muted)] cursor-not-allowed' : item.danger ? 'text-[var(--danger)] hover:bg-[var(--danger-bg)]' : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
               }`}>
               {item.icon}{item.label}
             </button>
@@ -844,7 +844,7 @@ function SearchSelect({ value, onChange, options, placeholder }: {
           </div>
           <div className="max-h-52 overflow-y-auto">
             <button type="button" onClick={() => select('')}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>
               {placeholder}
             </button>
@@ -852,7 +852,7 @@ function SearchSelect({ value, onChange, options, placeholder }: {
               ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
               : filtered.map(o => (
                 <button key={o.id} type="button" onClick={() => select(String(o.id))}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
                   style={{ color: String(o.id) === value ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
                   {o.name}
                 </button>
@@ -869,8 +869,8 @@ function SearchSelect({ value, onChange, options, placeholder }: {
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300 z-10"><X size={16} /></button>
+      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-3 right-3 text-[var(--text-light)] hover:text-[var(--text)] z-10"><X size={16} /></button>
         {children}
       </div>
     </div>
@@ -1463,7 +1463,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           {/* Linha 2: datas + categorias + limpar — escondida em modo Triagem */}
           {!triagemPadrao && (
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+            <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
               {(['month', 'period'] as const).map((mode) => (
                 <button key={mode} onClick={() => setFilterMode(mode)}
                   className="px-3 py-1.5 font-medium transition-colors"
@@ -1542,7 +1542,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             {hasFilters && (
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs transition-all hover:bg-white/5"
+                className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs transition-all hover:bg-[var(--surface-hover)]"
                 style={{ color: 'var(--brand-danger)', border: '1px solid rgba(239,68,68,0.2)' }}
               >
                 <X size={11} /> Limpar
@@ -1694,7 +1694,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   <Th className="w-8">
                     <input
                       type="checkbox"
-                      className="w-3.5 h-3.5 accent-cyan-400 cursor-pointer"
+                      className="w-3.5 h-3.5 accent-[var(--primary)] cursor-pointer"
                       checked={!!(data?.items.length && data.items.every(ts => selectedIds.has(ts.id)))}
                       onChange={e => {
                         if (e.target.checked) setSelectedIds(new Set(data?.items.map(ts => ts.id) ?? []))
@@ -1755,7 +1755,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                     <button
                       onClick={() => setExpandedRow(expandedRow === ts.id ? null : ts.id)}
                       title="Ver acessos desta linha"
-                      className="p-0.5 rounded hover:bg-zinc-700 transition-colors"
+                      className="p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors"
                       style={{ color: expandedRow === ts.id ? 'var(--brand-primary)' : 'var(--text-light)' }}
                     >
                       {expandedRow === ts.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -1781,7 +1781,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                     <Td className="w-8">
                       <input
                         type="checkbox"
-                        className="w-3.5 h-3.5 accent-cyan-400 cursor-pointer"
+                        className="w-3.5 h-3.5 accent-[var(--primary)] cursor-pointer"
                         checked={selectedIds.has(ts.id)}
                         onClick={e => e.stopPropagation()}
                         onChange={e => {
@@ -1940,7 +1940,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   {/* Linha 1: [checkbox] colaborador/projeto + menu */}
                   <div className="flex items-center gap-2">
                     {(isAdmin || isCoordenador) && (
-                      <input type="checkbox" className="w-3.5 h-3.5 accent-cyan-400 shrink-0 cursor-pointer"
+                      <input type="checkbox" className="w-3.5 h-3.5 accent-[var(--primary)] shrink-0 cursor-pointer"
                         checked={selectedIds.has(ts.id)} onClick={e => e.stopPropagation()}
                         onChange={e => setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(ts.id); else next.delete(ts.id); return next })} />
                     )}
@@ -2030,7 +2030,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
       {(isAdmin || isCoordenador) && selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl"
           style={{ background: '#18181B', border: '1px solid #3f3f46' }}>
-          <span className="text-xs text-zinc-300 flex items-center gap-1.5">
+          <span className="text-xs text-[var(--text)] flex items-center gap-1.5">
             {selectedIds.size} apontamento{selectedIds.size > 1 ? 's' : ''} selecionado{selectedIds.size > 1 ? 's' : ''}
             <span style={{ color: 'var(--brand-subtle)' }}>·</span>
             <Clock size={11} style={{ color: 'var(--brand-primary)' }} />
@@ -2070,9 +2070,9 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           )}
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
           >
-            <X size={14} className="text-zinc-400" />
+            <X size={14} className="text-[var(--text-muted)]" />
           </button>
         </div>
       )}
@@ -2142,28 +2142,28 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
       {/* Modal estornar rejeição */}
       {reverseRejectionModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-sm shadow-xl p-5 space-y-4">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-sm shadow-xl p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <RotateCcw size={15} className="text-amber-400" />
+              <RotateCcw size={15} className="text-[var(--warning)]" />
               <h3 className="text-sm font-semibold text-white">Estornar rejeição</h3>
             </div>
-            <p className="text-xs text-zinc-400">O apontamento voltará para <span className="text-white font-medium">Pendente</span>. Informe o motivo do estorno:</p>
+            <p className="text-xs text-[var(--text-muted)]">O apontamento voltará para <span className="text-white font-medium">Pendente</span>. Informe o motivo do estorno:</p>
             <textarea
               value={reverseRejectionReason}
               onChange={e => setReverseRejectionReason(e.target.value)}
               placeholder="Motivo do estorno..."
               rows={3}
-              className="w-full bg-zinc-800 border border-zinc-700 text-white text-xs rounded-md px-3 py-2 resize-none outline-none focus:border-zinc-500"
+              className="w-full bg-[var(--surface-hover)] border border-[var(--border)] text-white text-xs rounded-md px-3 py-2 resize-none outline-none focus:border-[var(--border-strong)]"
             />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setReverseRejectionModal({ open: false })}
-                className="px-3 py-1.5 text-xs text-zinc-400 border border-zinc-700 rounded-md hover:text-zinc-200">
+                className="px-3 py-1.5 text-xs text-[var(--text-muted)] border border-[var(--border)] rounded-md hover:text-[var(--text)]">
                 Cancelar
               </button>
               <button
                 onClick={confirmReverseRejection}
                 disabled={reverseRejecting || !reverseRejectionReason.trim()}
-                className="px-3 py-1.5 text-xs bg-amber-600/80 hover:bg-amber-600 text-white rounded-md disabled:opacity-50 flex items-center gap-1.5"
+                className="px-3 py-1.5 text-xs bg-[var(--warning-bg)] hover:bg-amber-600 text-white rounded-md disabled:opacity-50 flex items-center gap-1.5"
               >
                 <RotateCcw size={11} />
                 {reverseRejecting ? 'Estornando...' : 'Confirmar estorno'}

@@ -100,7 +100,7 @@ export function RowMenu({ items }: { items: RowMenuItem[] }) {
         zIndex: 9999,
         maxHeight: pos.height,
       }}
-      className="min-w-[180px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl py-1 overflow-y-auto"
+      className="min-w-[180px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl shadow-2xl py-1 overflow-y-auto"
     >
       {items.map((item, i) => (
         <button
@@ -109,8 +109,8 @@ export function RowMenu({ items }: { items: RowMenuItem[] }) {
           disabled={item.disabled}
           className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed ${
             item.danger
-              ? 'text-red-400 hover:bg-red-500/10'
-              : 'text-zinc-300 hover:bg-zinc-700'
+              ? 'text-[var(--danger)] hover:bg-[var(--danger-bg)]'
+              : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
           }`}
         >
           {item.icon}
@@ -127,7 +127,7 @@ export function RowMenu({ items }: { items: RowMenuItem[] }) {
         ref={btnRef}
         onClick={toggle}
         className={`p-1.5 rounded transition-colors ${
-          open ? 'text-zinc-200 bg-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+          open ? 'text-[var(--text)] bg-[var(--surface-hover)]' : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'
         }`}
       >
         <MoreVertical size={14} />

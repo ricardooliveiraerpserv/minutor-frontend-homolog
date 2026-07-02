@@ -277,7 +277,7 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
               type="month"
               value={yearMonth}
               onChange={e => setYearMonth(e.target.value)}
-              className="bg-zinc-800 border border-zinc-700 text-zinc-100 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
+              className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
             />
             <input ref={fileRef} type="file" accept=".xls,.xlsx,.csv" className="hidden" onChange={onPickFile} />
             <Button size="sm" variant="secondary" icon={Upload} loading={importing} disabled={importing}

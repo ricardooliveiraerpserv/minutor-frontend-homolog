@@ -964,7 +964,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       <button
         onClick={onClose}
         aria-label="Fechar menu"
-        className="md:hidden absolute top-3 right-3 z-10 p-1.5 rounded-md transition-colors hover:bg-zinc-800"
+        className="md:hidden absolute top-3 right-3 z-10 p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
         style={{ color: 'var(--text-muted)' }}
       >
         <ChevronLeft size={16} />

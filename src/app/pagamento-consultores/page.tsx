@@ -92,7 +92,7 @@ function SearchSelect({
           </div>
           <div className="max-h-52 overflow-y-auto py-1">
             <button type="button" onClick={() => { onChange(''); setOpen(false); setQ('') }}
-              className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--brand-muted)' }}
             >
               {placeholder}
@@ -100,7 +100,7 @@ function SearchSelect({
             {filtered.map(o => (
               <button key={o.id} type="button"
                 onClick={() => { onChange(String(o.id)); setOpen(false); setQ('') }}
-                className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition-colors"
+                className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-hover)] transition-colors"
                 style={{ color: String(o.id) === value ? '#00F5FF' : 'var(--brand-text)' }}
               >
                 {o.name}
@@ -360,7 +360,7 @@ export default function PagamentoConsultoresPage() {
                         type="checkbox"
                         checked={allSelected}
                         onChange={toggleAll}
-                        className="w-4 h-4 rounded accent-cyan-400"
+                        className="w-4 h-4 rounded accent-[var(--primary)]"
                       />
                     </Th>
                     <Th>Data</Th>
@@ -384,7 +384,7 @@ export default function PagamentoConsultoresPage() {
                               type="checkbox"
                               checked={selected.has(ts.id)}
                               onChange={() => toggleOne(ts.id)}
-                              className="w-4 h-4 rounded accent-cyan-400"
+                              className="w-4 h-4 rounded accent-[var(--primary)]"
                             />
                           )}
                         </Td>

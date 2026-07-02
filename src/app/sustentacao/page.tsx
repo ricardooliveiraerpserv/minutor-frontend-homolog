@@ -375,7 +375,7 @@ function DebugClientesTab({ rows, onSync }: { rows: DebugClienteRow[]; onSync: (
                       ? row.cnpj_movidesk
                       : row.match === 'nao'
                         ? <span className="text-[var(--text-light)] italic text-[10px]">sem CNPJ — dept?</span>
-                        : <span className="text-red-400 italic">vazio</span>}
+                        : <span className="text-[var(--danger)] italic">vazio</span>}
                   </td>
                   <td className="px-3 py-2 text-right text-[var(--text)]">{row.tickets}</td>
                   <td className="px-3 py-2 text-right" style={{ color: row.vinculados === row.tickets ? 'var(--success-border)' : row.vinculados > 0 ? 'var(--warning-border)' : 'var(--danger-border)' }}>{row.vinculados}</td>
@@ -433,7 +433,7 @@ function DebugResponsaveisTab({ rows, onSync }: { rows: DebugResponsavelRow[]; o
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-[var(--text)]">Responsáveis por Ticket: Movidesk × Minutor</h2>
         <div className="flex items-center gap-3">
-          {syncing && <span className="text-xs text-cyan-400">⏳ Rodando em background...</span>}
+          {syncing && <span className="text-xs text-[var(--primary)]">⏳ Rodando em background...</span>}
           <span className="text-xs text-[var(--text-muted)]">{filtered.length} de {rows.length} responsáveis</span>
           <button onClick={handleSync} disabled={syncing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
@@ -591,7 +591,7 @@ function DiagnosticoTab({
         loading && !debugResponsaveis
           ? <p className="text-[var(--text-light)] text-sm">Carregando responsáveis...</p>
           : loadError && !debugResponsaveis
-            ? <div className="rounded-xl border border-red-900/40 bg-red-950/20 px-4 py-3 text-sm text-red-400">{loadError}</div>
+            ? <div className="rounded-xl border border-red-900/40 bg-[var(--danger-bg)] px-4 py-3 text-sm text-[var(--danger)]">{loadError}</div>
             : debugResponsaveis
               ? <DebugResponsaveisTab rows={debugResponsaveis.rows} onSync={onSyncResponsaveis} />
               : null
@@ -716,11 +716,11 @@ function DrillTicketTable({ tickets }: { tickets: QueueTicket[] }) {
             style={{ borderColor: 'var(--brand-border)', background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
             <td className="px-4 py-2 font-mono">
               <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
-                className="text-cyan-400 hover:text-cyan-300 hover:underline">{t.ticket_id}</a>
+                className="text-[var(--primary)] hover:text-[var(--primary)] hover:underline">{t.ticket_id}</a>
             </td>
             <td className="px-4 py-2 text-[var(--text)] max-w-[240px] truncate">
               <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
-                className="hover:text-cyan-300 hover:underline">{t.titulo ?? '—'}</a>
+                className="hover:text-[var(--primary)] hover:underline">{t.titulo ?? '—'}</a>
             </td>
             <td className="px-4 py-2">
               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold"
@@ -1259,7 +1259,7 @@ export default function SustentacaoPage() {
           {contextStats && (
             <div className="rounded-xl border p-4 space-y-3" style={{ borderColor: 'var(--primary)', background: 'var(--primary-soft)' }}>
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">
+                <p className="text-xs font-semibold text-[var(--primary)] uppercase tracking-wide">
                   {contextStats.filter.responsavel.length > 0 && contextStats.filter.cliente.length > 0
                     ? 'Visão por Responsável + Cliente'
                     : contextStats.filter.responsavel.length > 0 ? 'Visão por Responsável' : 'Visão por Cliente'}
@@ -1443,11 +1443,11 @@ export default function SustentacaoPage() {
                     style={{ borderColor: 'var(--brand-border)', background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
                     <td className="px-3 py-2 font-mono">
                       <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
-                        className="text-cyan-400 hover:text-cyan-300 hover:underline">{t.ticket_id}</a>
+                        className="text-[var(--primary)] hover:text-[var(--primary)] hover:underline">{t.ticket_id}</a>
                     </td>
                     <td className="px-3 py-2 text-[var(--text)] max-w-[200px] truncate">
                       <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
-                        className="hover:text-cyan-300 hover:underline">{t.titulo ?? '—'}</a>
+                        className="hover:text-[var(--primary)] hover:underline">{t.titulo ?? '—'}</a>
                     </td>
                     <td className="px-3 py-2">
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-bold"
@@ -1487,7 +1487,7 @@ export default function SustentacaoPage() {
           <div className="space-y-6">
             {slaData.breaching_now.length > 0 && (
               <div className="rounded-xl border border-red-500/30 p-4" style={{ background: 'var(--danger-bg)' }}>
-                <h3 className="text-sm font-semibold text-red-400 mb-3 flex items-center gap-1.5">
+                <h3 className="text-sm font-semibold text-[var(--danger)] mb-3 flex items-center gap-1.5">
                   <AlertTriangle size={14} /> {slaData.breaching_now.length} ticket(s) com SLA estourado agora
                 </h3>
                 <div className="space-y-2">
@@ -1495,9 +1495,9 @@ export default function SustentacaoPage() {
                     <div key={t.id} className="flex items-center justify-between text-xs py-1.5 border-b border-red-500/10">
                       <div className="flex gap-3">
                         <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
-                          className="font-mono text-cyan-400 hover:text-cyan-300 hover:underline">#{t.ticket_id}</a>
+                          className="font-mono text-[var(--primary)] hover:text-[var(--primary)] hover:underline">#{t.ticket_id}</a>
                         <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket_id}`} target="_blank" rel="noopener noreferrer"
-                          className="text-[var(--text)] hover:text-cyan-300 hover:underline">{t.titulo ?? '—'}</a>
+                          className="text-[var(--text)] hover:text-[var(--primary)] hover:underline">{t.titulo ?? '—'}</a>
                         <span className="text-[var(--text-muted)]">{clienteMovidesk(t)}</span>
                       </div>
                       <div className="flex gap-4 text-right">
@@ -1869,7 +1869,7 @@ function RoutineTable({ kind, rows, total, loading, onRowClick }: {
                   <td className="px-3 py-2">{r.requester ?? '—'}</td>
                   <td className="px-3 py-2">{r.user?.name ?? '—'}</td>
                   <td className="px-3 py-2">
-                    {r.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-cyan-400 hover:underline" onClick={e => e.stopPropagation()}>#{r.ticket}</a> : <span className="text-[var(--text-light)]">—</span>}
+                    {r.ticket ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${r.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[var(--primary)] hover:underline" onClick={e => e.stopPropagation()}>#{r.ticket}</a> : <span className="text-[var(--text-light)]">—</span>}
                   </td>
                   <td className="px-3 py-2 max-w-xs truncate text-[var(--text)]" title={r.ticket_subject ?? ''}>{r.ticket_subject ?? '—'}</td>
                   <td className="px-3 py-2 max-w-sm truncate text-[var(--text)]" title={previewText(r.description)}>{previewText(r.description) || '—'}</td>
@@ -1900,7 +1900,7 @@ function RoutineDetailModal({ item, kind, onClose }: { item: any; kind: 'timeshe
         <div className="px-6 py-5 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid var(--brand-border)' }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
-              {isExp ? <DollarSign size={20} className="text-cyan-400" /> : <Clock size={20} className="text-cyan-400" />}
+              {isExp ? <DollarSign size={20} className="text-[var(--primary)]" /> : <Clock size={20} className="text-[var(--primary)]" />}
             </div>
             <div>
               <h3 className="text-lg font-semibold text-[var(--text)]">{isExp ? 'Detalhe da Despesa' : 'Detalhe do Apontamento'}</h3>
@@ -1913,7 +1913,7 @@ function RoutineDetailModal({ item, kind, onClose }: { item: any; kind: 'timeshe
           {period && (
             <div className="rounded-xl p-4 mb-2" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
               <p className="text-xs uppercase tracking-wider mb-1 text-[var(--text-muted)]">Período</p>
-              <p className="text-2xl font-bold text-cyan-400">{period} <span className="text-base font-normal text-[var(--text-muted)]">({hoursDisplay})</span></p>
+              <p className="text-2xl font-bold text-[var(--primary)]">{period} <span className="text-base font-normal text-[var(--text-muted)]">({hoursDisplay})</span></p>
             </div>
           )}
           <div className="rounded-xl divide-y" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
@@ -1928,7 +1928,7 @@ function RoutineDetailModal({ item, kind, onClose }: { item: any; kind: 'timeshe
               </>
             )}
             {!isExp && item.ticket && (
-              <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Ticket</div><div className="text-sm font-medium"><a href={`https://erpserv.movidesk.com/Ticket/Edit/${item.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-cyan-400 hover:underline">#{item.ticket}{item.ticket_subject ? ` · ${item.ticket_subject}` : ''}</a></div></div>
+              <div className="px-4 py-2.5"><div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Ticket</div><div className="text-sm font-medium"><a href={`https://erpserv.movidesk.com/Ticket/Edit/${item.ticket}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-[var(--primary)] hover:underline">#{item.ticket}{item.ticket_subject ? ` · ${item.ticket_subject}` : ''}</a></div></div>
             )}
           </div>
           {item.description && (

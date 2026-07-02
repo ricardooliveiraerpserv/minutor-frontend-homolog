@@ -96,11 +96,11 @@ const MONTHS = [
 ]
 
 const STATUS_COLORS: Record<string, string> = {
-  pending:              'bg-yellow-500/15 text-yellow-400 border-yellow-500/25',
-  approved:             'bg-green-500/15  text-green-400  border-green-500/25',
-  rejected:             'bg-red-500/15    text-red-400    border-red-500/25',
-  conflicted:           'bg-orange-500/15 text-orange-400 border-orange-500/25',
-  adjustment_requested: 'bg-blue-500/15   text-blue-400   border-blue-500/25',
+  pending:              'bg-[var(--warning-bg)] text-[var(--warning)] border-yellow-500/25',
+  approved:             'bg-[var(--success-bg)]  text-[var(--success)]  border-green-500/25',
+  rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]    border-red-500/25',
+  conflicted:           'bg-[var(--warning-bg)] text-[var(--warning)] border-orange-500/25',
+  adjustment_requested: 'bg-[var(--primary-soft)]   text-[var(--primary)]   border-blue-500/25',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -285,30 +285,30 @@ function HoristaPaymentSection({
   const isGuaranteed = guaranteedHours !== null && workedHours < Number(guaranteedHours)
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
 
       {/* ESQUERDA */}
       <div className="flex flex-col gap-2 min-w-[120px]">
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">Total a Receber</span>
-        <span className="text-[12px] text-zinc-400 font-medium">{fmtYearMonth(yearMonth)}</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-light)]">Total a Receber</span>
+        <span className="text-[12px] text-[var(--text-muted)] font-medium">{fmtYearMonth(yearMonth)}</span>
         {proporcional && prorationRatio !== undefined && (
           <span className="text-[10px] px-2 py-0.5 rounded-full font-medium w-fit" style={{ background: 'rgba(234,179,8,0.1)', color: '#eab308' }}>
             Proporcional {Math.round(prorationRatio * 100)}%
           </span>
         )}
         {isGuaranteed && guaranteedHours !== null && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full border w-fit bg-yellow-500/10 border-yellow-500/20 text-yellow-400">
+          <span className="text-[10px] px-2 py-0.5 rounded-full border w-fit bg-[var(--warning-bg)] border-yellow-500/20 text-[var(--warning)]">
             Piso {fmtHours(Number(guaranteedHours))}
           </span>
         )}
       </div>
 
       {/* CENTRO — Total a Receber = recebimento do fechamento (com ajustes) quando disponível */}
-      <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8">
+      <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
         <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
           {recebimento != null ? formatBRL(recebimento) : (hourlyRate > 0 ? formatBRL(totalService) : '—')}
         </div>
-        <span className="text-[11px] text-zinc-600 mt-1">
+        <span className="text-[11px] text-[var(--text-muted)] mt-1">
           {recebimento != null
             ? 'recebimento do fechamento (com ajustes)'
             : (hourlyRate > 0 ? `${fmtHours(billableHours)} × ${formatBRL(hourlyRate)}/h` : 'Taxa não configurada')}
@@ -316,25 +316,25 @@ function HoristaPaymentSection({
       </div>
 
       {/* DIREITA — despesas */}
-      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2 min-w-[280px]">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+      <div className="rounded-xl border border-orange-900/40 bg-[var(--warning-bg)] p-3 space-y-2 min-w-[280px]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--warning)]/70 px-0.5">Despesas</p>
         <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
-            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Total no Mês</p>
+          <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
             <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
               {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
             </p>
-            <p className="text-[9px] mt-0.5 text-zinc-600">reembolsos e gastos</p>
+            <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
           </div>
-          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
-            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Valor Pago</p>
-            <p className="text-sm font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
-            <p className="text-[9px] mt-0.5 text-zinc-600">já reembolsado</p>
+          <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Valor Pago</p>
+            <p className="text-sm font-bold text-[var(--success)]">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">já reembolsado</p>
           </div>
-          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
-            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">A Receber</p>
-            <p className="text-sm font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
-            <p className="text-[9px] mt-0.5 text-zinc-600">em aberto</p>
+          <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
+            <p className="text-sm font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
       </div>
@@ -358,12 +358,12 @@ function FixoPaymentSection({
   const expAllTotal = expTotal + expPaid
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
 
       {/* ESQUERDA */}
       <div className="flex flex-col gap-2 min-w-[120px]">
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">Total a Receber</span>
-        <span className="text-[12px] text-zinc-400 font-medium">{fmtYearMonth(yearMonth)}</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-light)]">Total a Receber</span>
+        <span className="text-[12px] text-[var(--text-muted)] font-medium">{fmtYearMonth(yearMonth)}</span>
         {proporcional && prorationRatio !== undefined && (
           <span className="text-[10px] px-2 py-0.5 rounded-full font-medium w-fit" style={{ background: 'rgba(234,179,8,0.1)', color: '#eab308' }}>
             Proporcional {Math.round(prorationRatio * 100)}%
@@ -372,11 +372,11 @@ function FixoPaymentSection({
       </div>
 
       {/* CENTRO — valor fixo */}
-      <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8">
+      <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
         <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
           {fixedMonthly > 0 ? formatBRL(fixedMonthly) : '—'}
         </div>
-        <span className="text-[11px] text-zinc-600 mt-1">
+        <span className="text-[11px] text-[var(--text-muted)] mt-1">
           {proporcional && prorationRatio !== undefined
             ? `${Math.round(prorationRatio * 100)}% do mês (proporcional)`
             : 'valor fixo mensal'}
@@ -384,25 +384,25 @@ function FixoPaymentSection({
       </div>
 
       {/* DIREITA — despesas */}
-      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2 min-w-[280px]">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+      <div className="rounded-xl border border-orange-900/40 bg-[var(--warning-bg)] p-3 space-y-2 min-w-[280px]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--warning)]/70 px-0.5">Despesas</p>
         <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
-            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Total no Mês</p>
+          <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
             <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
               {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
             </p>
-            <p className="text-[9px] mt-0.5 text-zinc-600">reembolsos e gastos</p>
+            <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
           </div>
-          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
-            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Valor Pago</p>
-            <p className="text-sm font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
-            <p className="text-[9px] mt-0.5 text-zinc-600">já reembolsado</p>
+          <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Valor Pago</p>
+            <p className="text-sm font-bold text-[var(--success)]">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">já reembolsado</p>
           </div>
-          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
-            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">A Receber</p>
-            <p className="text-sm font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
-            <p className="text-[9px] mt-0.5 text-zinc-600">em aberto</p>
+          <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
+            <p className="text-sm font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
       </div>
@@ -421,41 +421,41 @@ function ParceiroSimplesSection({
 }) {
   const expAllTotal = expTotal + expPaid
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
       {/* ESQUERDA */}
       <div className="flex flex-col gap-2 min-w-[120px]">
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">Horas no Período</span>
-        <span className="text-[12px] text-zinc-400 font-medium">{fmtYearMonth(yearMonth)}</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-light)]">Horas no Período</span>
+        <span className="text-[12px] text-[var(--text-muted)] font-medium">{fmtYearMonth(yearMonth)}</span>
       </div>
       {/* CENTRO — horas totais */}
-      <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8">
+      <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
         <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
           {minutesToHours(workedMinutes)}
         </div>
-        <span className="text-[11px] text-zinc-600 mt-1">
+        <span className="text-[11px] text-[var(--text-muted)] mt-1">
           {(workedMinutes / 60).toFixed(1)}h apontadas no período
         </span>
       </div>
       {/* DIREITA — despesas */}
-      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2 min-w-[280px]">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+      <div className="rounded-xl border border-orange-900/40 bg-[var(--warning-bg)] p-3 space-y-2 min-w-[280px]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--warning)]/70 px-0.5">Despesas</p>
         <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
-            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Total no Mês</p>
+          <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
             <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
               {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
             </p>
-            <p className="text-[9px] mt-0.5 text-zinc-600">reembolsos e gastos</p>
+            <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
           </div>
-          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
-            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">Valor Pago</p>
-            <p className="text-sm font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
-            <p className="text-[9px] mt-0.5 text-zinc-600">já reembolsado</p>
+          <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Valor Pago</p>
+            <p className="text-sm font-bold text-[var(--success)]">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">já reembolsado</p>
           </div>
-          <div className="rounded-lg p-2.5 border border-zinc-800 bg-zinc-900">
-            <p className="text-[9px] uppercase tracking-wider mb-1 text-zinc-500">A Receber</p>
-            <p className="text-sm font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
-            <p className="text-[9px] mt-0.5 text-zinc-600">em aberto</p>
+          <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
+            <p className="text-sm font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
       </div>
@@ -472,13 +472,13 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
   const expAllTotal  = expTotal + expPaid
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-6 py-5 grid grid-cols-[auto_1fr_auto] gap-x-8 items-center">
       {/* ESQUERDA — contexto */}
       <div className="flex flex-col gap-2 min-w-[120px]">
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">Total a Receber</span>
-        <span className="text-[12px] text-zinc-400 font-medium">{fmtYearMonth(data.year_month)}</span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--text-light)]">Total a Receber</span>
+        <span className="text-[12px] text-[var(--text-muted)] font-medium">{fmtYearMonth(data.year_month)}</span>
         {hasExtra && (
-          <div className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border w-fit bg-green-500/10 border-green-500/20 text-green-400">
+          <div className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border w-fit bg-[var(--success-bg)] border-green-500/20 text-[var(--success)]">
             <TrendingUp size={9} />
             +{fmtHours(extraHours)} extras
           </div>
@@ -486,35 +486,35 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
       </div>
 
       {/* CENTRO — valor (só serviços) */}
-      <div className="flex flex-col gap-1 border-l border-zinc-800 pl-8">
+      <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
         <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
           {fixedSalary > 0 ? formatBRL(totalSalario) : '—'}
         </div>
-        <span className="text-[11px] text-zinc-600 mt-1">
+        <span className="text-[11px] text-[var(--text-muted)] mt-1">
           {hasExtra ? `base + ${fmtHours(extraHours)} extras` : 'base mensal'}
         </span>
       </div>
 
       {/* Despesas — breakdown */}
-      <div className="rounded-xl border border-orange-900/40 bg-orange-950/10 p-3 space-y-2">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-500/70 px-0.5">Despesas</p>
+      <div className="rounded-xl border border-orange-900/40 bg-[var(--warning-bg)] p-3 space-y-2">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--warning)]/70 px-0.5">Despesas</p>
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl p-3 border border-zinc-800 bg-zinc-900">
-            <p className="text-[10px] uppercase tracking-wider mb-1 text-zinc-500">Total no Mês</p>
+          <div className="rounded-xl p-3 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[10px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
             <p className="text-base font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
               {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
             </p>
-            <p className="text-[10px] mt-0.5 text-zinc-600">reembolsos e gastos</p>
+            <p className="text-[10px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
           </div>
-          <div className="rounded-xl p-3 border border-zinc-800 bg-zinc-900">
-            <p className="text-[10px] uppercase tracking-wider mb-1 text-zinc-500">Valor Pago</p>
-            <p className="text-base font-bold text-emerald-400">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
-            <p className="text-[10px] mt-0.5 text-zinc-600">já reembolsado</p>
+          <div className="rounded-xl p-3 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[10px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Valor Pago</p>
+            <p className="text-base font-bold text-[var(--success)]">{expPaid > 0 ? formatBRL(expPaid) : '—'}</p>
+            <p className="text-[10px] mt-0.5 text-[var(--text-muted)]">já reembolsado</p>
           </div>
-          <div className="rounded-xl p-3 border border-zinc-800 bg-zinc-900">
-            <p className="text-[10px] uppercase tracking-wider mb-1 text-zinc-500">A Receber</p>
-            <p className="text-base font-bold text-amber-400">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
-            <p className="text-[10px] mt-0.5 text-zinc-600">em aberto</p>
+          <div className="rounded-xl p-3 border border-[var(--border)] bg-[var(--surface)]">
+            <p className="text-[10px] uppercase tracking-wider mb-1 text-[var(--text-light)]">A Receber</p>
+            <p className="text-base font-bold text-[var(--warning)]">{expTotal > 0 ? formatBRL(expTotal) : '—'}</p>
+            <p className="text-[10px] mt-0.5 text-[var(--text-muted)]">em aberto</p>
           </div>
         </div>
       </div>
@@ -529,12 +529,12 @@ function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isC
     <div className="space-y-3">
       {/* Cabeçalho da seção */}
       <div className="flex items-center gap-2 px-1">
-        <Clock size={12} className="text-zinc-600" />
-        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">Banco de Horas</span>
-        <span className="text-[10px] text-zinc-700">—</span>
-        <span className="text-[11px] text-zinc-400 font-medium">{fmtYearMonth(data.year_month)}</span>
+        <Clock size={12} className="text-[var(--text-muted)]" />
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-light)]">Banco de Horas</span>
+        <span className="text-[10px] text-[var(--text-muted)]">—</span>
+        <span className="text-[11px] text-[var(--text-muted)] font-medium">{fmtYearMonth(data.year_month)}</span>
         {isCurrentMonth && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">Em andamento</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] border border-blue-500/20">Em andamento</span>
         )}
       </div>
 
@@ -546,36 +546,36 @@ function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isC
           { label: 'Saldo do Mês',      value: fmtHours(data.month_balance),    sub: data.month_balance < 0 ? 'Déficit mensal' : data.month_balance > 0 ? 'Superávit' : 'Zerado', neg: data.month_balance < 0, neutral: false },
           { label: 'Saldo Anterior',    value: fmtHours(data.previous_balance), sub: '',                                 neg: data.previous_balance < 0, neutral: data.previous_balance === 0 },
         ] as const).map(item => (
-          <div key={item.label} className={`rounded-xl p-4 border ${item.neg ? 'border-red-500/20 bg-red-500/[0.04]' : 'border-zinc-800 bg-zinc-900'}`}>
-            <p className="text-[10px] uppercase tracking-wider mb-2 text-zinc-500">{item.label}</p>
-            <p className={`text-xl font-bold ${item.neg ? 'text-red-400' : item.neutral ? 'text-zinc-400' : 'text-white'}`}>{item.value}</p>
-            {item.sub && <p className={`text-[10px] mt-1 ${item.neg ? 'text-red-400/60' : 'text-zinc-600'}`}>{item.sub}</p>}
+          <div key={item.label} className={`rounded-xl p-4 border ${item.neg ? 'border-red-500/20 bg-[var(--danger-bg)]' : 'border-[var(--border)] bg-[var(--surface)]'}`}>
+            <p className="text-[10px] uppercase tracking-wider mb-2 text-[var(--text-light)]">{item.label}</p>
+            <p className={`text-xl font-bold ${item.neg ? 'text-[var(--danger)]' : item.neutral ? 'text-[var(--text-muted)]' : 'text-white'}`}>{item.value}</p>
+            {item.sub && <p className={`text-[10px] mt-1 ${item.neg ? 'text-[var(--danger)]/60' : 'text-[var(--text-muted)]'}`}>{item.sub}</p>}
           </div>
         ))}
       </div>
 
       {/* Saldo acumulado banner */}
       <div className={`rounded-xl px-5 py-4 border flex items-center justify-between ${
-        isNegAccum ? 'border-red-500/25 bg-red-500/[0.05]' : 'border-green-500/20 bg-green-500/[0.04]'
+        isNegAccum ? 'border-red-500/25 bg-[var(--danger-bg)]' : 'border-green-500/20 bg-[var(--success-bg)]'
       }`}>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Saldo Acumulado</p>
+          <p className="text-[10px] uppercase tracking-wider text-[var(--text-light)] mb-1.5">Saldo Acumulado</p>
           <div className="flex items-center gap-2">
             <HBBalancePill value={data.accumulated_balance} size="lg" />
-            {isNegAccum && <span className="text-[10px] text-red-400/60 font-medium">Déficit acumulado</span>}
+            {isNegAccum && <span className="text-[10px] text-[var(--danger)]/60 font-medium">Déficit acumulado</span>}
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Saldo Final</p>
+          <p className="text-[10px] uppercase tracking-wider text-[var(--text-light)] mb-1.5">Saldo Final</p>
           <HBBalancePill value={data.final_balance} size="lg" />
         </div>
       </div>
 
       {/* Alerta de saldo negativo */}
       {isNegAccum && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] px-4 py-3">
-          <AlertTriangle size={13} className="text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-amber-300/70">
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-[var(--warning-bg)] px-4 py-3">
+          <AlertTriangle size={13} className="text-[var(--warning)] shrink-0 mt-0.5" />
+          <p className="text-[11px] text-[var(--warning)]/70">
             Saldo negativo indica horas a compensar ou a faturar como extra, conforme contrato.
           </p>
         </div>
@@ -601,8 +601,8 @@ function HBEvolutionChart({ history, current }: { history: HourBankMonth[]; curr
   const lineColor = isAllNeg ? '#ef4444' : '#22c55e'
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500 mb-3">Evolução do Saldo Acumulado</p>
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-light)] mb-3">Evolução do Saldo Acumulado</p>
       <svg viewBox={`0 0 ${W} ${H + 18}`} className="w-full" style={{ minWidth: 280 }}>
         {/* Zero line */}
         <line x1={PADX} y1={zeroY} x2={W - PADX} y2={zeroY} stroke="#3f3f46" strokeWidth={1} strokeDasharray="4 3" />
@@ -633,7 +633,7 @@ function HBHistoryRow({ row }: { row: HourBankMonth }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <tr className="border-b cursor-pointer hover:bg-white/[0.02] transition-colors" style={{ borderColor: 'var(--brand-border)' }}
+      <tr className="border-b cursor-pointer hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--brand-border)' }}
         onClick={() => setOpen(o => !o)}>
         <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
           <span className="flex items-center gap-1.5">
@@ -651,10 +651,10 @@ function HBHistoryRow({ row }: { row: HourBankMonth }) {
         <tr style={{ background: 'rgba(255,255,255,0.015)', borderBottom: `1px solid var(--brand-border)` }}>
           <td colSpan={6} className="px-6 py-3">
             <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--brand-muted)' }}>
-              <span><span className="text-zinc-500">Dias úteis:</span> {row.working_days}</span>
-              <span><span className="text-zinc-500">Feriados:</span> {row.holidays_count}</span>
-              <span><span className="text-zinc-500">H/dia:</span> {row.daily_hours}h</span>
-              <span><span className="text-zinc-500">Acumulado:</span> <HBBalancePill value={row.accumulated_balance} /></span>
+              <span><span className="text-[var(--text-light)]">Dias úteis:</span> {row.working_days}</span>
+              <span><span className="text-[var(--text-light)]">Feriados:</span> {row.holidays_count}</span>
+              <span><span className="text-[var(--text-light)]">H/dia:</span> {row.daily_hours}h</span>
+              <span><span className="text-[var(--text-light)]">Acumulado:</span> <HBBalancePill value={row.accumulated_balance} /></span>
             </div>
           </td>
         </tr>
@@ -785,13 +785,13 @@ function StatusPills({ value, onChange, options }: {
   options: { value: string; label: string }[]
 }) {
   return (
-    <div className="flex items-center gap-0.5 bg-zinc-800/70 border border-zinc-700/50 rounded-full p-1">
+    <div className="flex items-center gap-0.5 bg-[var(--surface-hover)] border border-[var(--border)]/50 rounded-full p-1">
       {options.map(opt => (
         <button key={opt.value} type="button" onClick={() => onChange(opt.value)}
           className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
             value === opt.value
               ? 'bg-cyan-400 text-zinc-900 shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200'
+              : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}>
           {opt.label}
         </button>
@@ -866,12 +866,12 @@ function DateRangePicker({ from, to, onChange }: {
     while (cells.length % 7 !== 0) cells.push(null)
     return (
       <div className="w-[196px]">
-        <div className="text-center text-sm font-semibold text-cyan-400 mb-3">
+        <div className="text-center text-sm font-semibold text-[var(--primary)] mb-3">
           {MONTH_NAMES_PT[m]} {y}
         </div>
         <div className="grid grid-cols-7 mb-1">
           {DAY_NAMES_PT.map(d => (
-            <div key={d} className="text-center text-[10px] text-zinc-600 py-1">{d}</div>
+            <div key={d} className="text-center text-[10px] text-[var(--text-muted)] py-1">{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7">
@@ -889,9 +889,9 @@ function DateRangePicker({ from, to, onChange }: {
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${
                   s || e ? 'bg-cyan-400 text-zinc-900 font-bold'
-                  : ir    ? 'bg-cyan-400/20 text-cyan-300'
-                  : td    ? 'text-cyan-400 font-semibold hover:bg-zinc-700'
-                  :         'text-zinc-300 hover:bg-zinc-700'
+                  : ir    ? 'bg-[var(--primary-soft)] text-[var(--primary)]'
+                  : td    ? 'text-[var(--primary)] font-semibold hover:bg-[var(--surface-hover)]'
+                  :         'text-[var(--text)] hover:bg-[var(--surface-hover)]'
                 }`}>
                 {day}
               </button>
@@ -913,36 +913,36 @@ function DateRangePicker({ from, to, onChange }: {
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => { setOpen(o => !o); setSelecting(null) }}
-        className="flex items-center gap-2 h-9 px-3 bg-zinc-800 border border-zinc-700 text-xs text-zinc-300 rounded-lg hover:border-zinc-500 transition-colors whitespace-nowrap">
-        <CalendarDays size={13} className="text-zinc-500 shrink-0" />
-        <span className={from || to ? 'text-zinc-200' : 'text-zinc-500'}>{displayText}</span>
+        className="flex items-center gap-2 h-9 px-3 bg-[var(--surface-hover)] border border-[var(--border)] text-xs text-[var(--text)] rounded-lg hover:border-[var(--border-strong)] transition-colors whitespace-nowrap">
+        <CalendarDays size={13} className="text-[var(--text-light)] shrink-0" />
+        <span className={from || to ? 'text-[var(--text)]' : 'text-[var(--text-light)]'}>{displayText}</span>
         {(from || to) && (
           <span onClick={e => { e.stopPropagation(); onChange('', '') }}
-            className="ml-1 text-zinc-600 hover:text-zinc-400 cursor-pointer">
+            className="ml-1 text-[var(--text-muted)] hover:text-[var(--text-muted)] cursor-pointer">
             <X size={10} />
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-4 right-0">
+        <div className="absolute z-50 mt-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-2xl p-4 right-0">
           <div className="flex items-center gap-4">
             <button type="button" onClick={prevMonth}
-              className="text-zinc-500 hover:text-zinc-200 p-1 shrink-0">
+              className="text-[var(--text-light)] hover:text-[var(--text)] p-1 shrink-0">
               <ChevronLeft size={14} />
             </button>
             <div className="flex gap-4">
               {renderMonth(leftYM.y, leftYM.m)}
-              <div className="w-px bg-zinc-800" />
+              <div className="w-px bg-[var(--surface-hover)]" />
               {renderMonth(rightYM.y, rightYM.m)}
             </div>
             <button type="button" onClick={nextMonth}
-              className="text-zinc-500 hover:text-zinc-200 p-1 shrink-0">
+              className="text-[var(--text-light)] hover:text-[var(--text)] p-1 shrink-0">
               <ChevronRight size={14} />
             </button>
           </div>
           {selecting && (
-            <p className="text-[11px] text-zinc-500 text-center mt-3">Clique para selecionar a data final</p>
+            <p className="text-[11px] text-[var(--text-light)] text-center mt-3">Clique para selecionar a data final</p>
           )}
         </div>
       )}
@@ -955,9 +955,9 @@ function DateRangePicker({ from, to, onChange }: {
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-lg shadow-2xl">
+      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-lg shadow-2xl">
         <button onClick={onClose}
-          className="absolute top-3.5 right-3.5 text-zinc-500 hover:text-zinc-300 transition-colors">
+          className="absolute top-3.5 right-3.5 text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
           <X size={15} />
         </button>
         {children}
@@ -983,17 +983,17 @@ function SummaryCard({
       className={`rounded-xl p-5 transition-colors ${
         featured
           ? 'border-2 border-[#00F5FF] bg-[rgba(0,245,255,0.06)] shadow-[0_0_20px_rgba(0,245,255,0.15)]'
-          : `border border-zinc-800 bg-zinc-900 ${onClick ? 'cursor-pointer hover:border-zinc-600 hover:bg-zinc-800/60' : ''}`
+          : `border border-[var(--border)] bg-[var(--surface)] ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]' : ''}`
       }`}
     >
       <div className="flex items-start justify-between mb-3">
-        <span className={`text-[11px] font-semibold uppercase tracking-wider ${featured ? 'text-[#00F5FF]' : 'text-zinc-500'}`}>{label}</span>
+        <span className={`text-[11px] font-semibold uppercase tracking-wider ${featured ? 'text-[#00F5FF]' : 'text-[var(--text-light)]'}`}>{label}</span>
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${featured ? 'bg-[rgba(0,245,255,0.15)] text-[#00F5FF]' : accent}`}>
           <Icon size={14} />
         </div>
       </div>
       <div className={`font-bold tracking-tight break-all leading-tight ${featured ? 'text-2xl text-[#00F5FF]' : 'text-lg text-white'}`}>{value}</div>
-      {sub && <div className={`text-xs mt-1.5 ${featured ? 'text-[rgba(0,245,255,0.6)]' : 'text-zinc-500'}`}>{sub}</div>}
+      {sub && <div className={`text-xs mt-1.5 ${featured ? 'text-[rgba(0,245,255,0.6)]' : 'text-[var(--text-light)]'}`}>{sub}</div>}
     </div>
   )
 }
@@ -1004,24 +1004,24 @@ function ExpenseBreakdownCard({ total, paid, pending, count, onClick }: {
   return (
     <div
       onClick={onClick}
-      className={`rounded-xl p-5 border border-zinc-800 bg-zinc-900 transition-colors ${onClick ? 'cursor-pointer hover:border-zinc-600 hover:bg-zinc-800/60' : ''}`}
+      className={`rounded-xl p-5 border border-[var(--border)] bg-[var(--surface)] transition-colors ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]' : ''}`}
     >
       <div className="flex items-start justify-between mb-3">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Total Despesas</span>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-orange-500/15 text-orange-400">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-light)]">Total Despesas</span>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-[var(--warning-bg)] text-[var(--warning)]">
           <Receipt size={14} />
         </div>
       </div>
       <div className="text-lg font-bold text-white tracking-tight">{formatBRL(total)}</div>
-      <div className="text-xs text-zinc-500 mt-1 mb-3">{count} lançamento{count !== 1 ? 's' : ''}</div>
-      <div className="space-y-1.5 border-t border-zinc-800 pt-3">
+      <div className="text-xs text-[var(--text-light)] mt-1 mb-3">{count} lançamento{count !== 1 ? 's' : ''}</div>
+      <div className="space-y-1.5 border-t border-[var(--border)] pt-3">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-zinc-500">Pago</span>
-          <span className="font-semibold text-emerald-400">{formatBRL(paid)}</span>
+          <span className="text-[var(--text-light)]">Pago</span>
+          <span className="font-semibold text-[var(--success)]">{formatBRL(paid)}</span>
         </div>
         <div className="flex items-center justify-between text-xs">
-          <span className="text-zinc-500">Em aberto</span>
-          <span className={`font-semibold ${pending > 0 ? 'text-amber-400' : 'text-zinc-600'}`}>{formatBRL(pending)}</span>
+          <span className="text-[var(--text-light)]">Em aberto</span>
+          <span className={`font-semibold ${pending > 0 ? 'text-[var(--warning)]' : 'text-[var(--text-muted)]'}`}>{formatBRL(pending)}</span>
         </div>
       </div>
     </div>
@@ -1208,11 +1208,11 @@ function BarChartRow({
   const pct = maxMinutes > 0 ? (minutes / maxMinutes) * 100 : 0
   return (
     <div className="flex items-center gap-3">
-      <div className="w-28 text-xs text-zinc-400 text-right truncate shrink-0">{label}</div>
-      <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
+      <div className="w-28 text-xs text-[var(--text-muted)] text-right truncate shrink-0">{label}</div>
+      <div className="flex-1 bg-[var(--surface-hover)] rounded-full h-2 overflow-hidden">
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: color }} />
       </div>
-      <div className="w-14 text-xs text-zinc-400 text-right shrink-0">{minutesToHours(minutes)}</div>
+      <div className="w-14 text-xs text-[var(--text-muted)] text-right shrink-0">{minutesToHours(minutes)}</div>
     </div>
   )
 }
@@ -1221,7 +1221,7 @@ function TableSkeleton({ cols }: { cols: number }) {
   return (
     <>
       {[...Array(5)].map((_, i) => (
-        <tr key={i} className="border-b border-zinc-800">
+        <tr key={i} className="border-b border-[var(--border)]">
           {[...Array(cols)].map((_, j) => (
             <td key={j} className="px-4 py-3.5"><Skeleton className="h-4 w-full" /></td>
           ))}
@@ -1234,7 +1234,7 @@ function TableSkeleton({ cols }: { cols: number }) {
 function StatusBadge({ status, display, reason }: { status: string; display?: string; reason?: string | null }) {
   if (status === 'approved') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full border bg-green-500/15 text-green-400 border-green-500/25">
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full border bg-[var(--success-bg)] text-[var(--success)] border-green-500/25">
         <Lock size={9} />
         Aprovado
       </span>
@@ -1242,7 +1242,7 @@ function StatusBadge({ status, display, reason }: { status: string; display?: st
   }
   return (
     <ReasonTooltip status={status} reason={reason}>
-      <Badge variant="outline" className={`text-[10px] font-medium border ${STATUS_COLORS[status] ?? 'text-zinc-400 border-zinc-700'}`}>
+      <Badge variant="outline" className={`text-[10px] font-medium border ${STATUS_COLORS[status] ?? 'text-[var(--text-muted)] border-[var(--border)]'}`}>
         {STATUS_LABELS[status] ?? display ?? status}
       </Badge>
     </ReasonTooltip>
@@ -1288,19 +1288,19 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
   return (
     <div ref={ref} className="flex justify-end">
       <button ref={btnRef} onClick={toggle}
-        className={`p-1.5 rounded transition-colors ${open ? 'text-zinc-200 bg-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}
+        className={`p-1.5 rounded transition-colors ${open ? 'text-[var(--text)] bg-[var(--surface-hover)]' : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'}`}
       >
         <MoreVertical size={14} />
       </button>
       {pos && (
         <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-          className="min-w-[144px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl py-1 overflow-hidden">
+          className="min-w-[144px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl shadow-2xl py-1 overflow-hidden">
           {items.map((item, i) => (
             <button key={i} onClick={() => { item.onClick(); setPos(null) }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors text-left ${
                 item.danger
-                  ? 'text-red-400 hover:bg-red-500/10'
-                  : 'text-zinc-300 hover:bg-zinc-700'
+                  ? 'text-[var(--danger)] hover:bg-[var(--danger-bg)]'
+                  : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
               }`}>
               {item.icon}
               {item.label}
@@ -1344,37 +1344,37 @@ function SearchableSelect({
     <div ref={ref} className="relative">
       <button type="button"
         onClick={() => { setOpen(o => !o); setQuery('') }}
-        className={`flex items-center justify-between gap-2 h-9 px-3 min-w-[150px] bg-zinc-800 border rounded-lg text-xs transition-colors ${
-          open ? 'border-zinc-500 text-zinc-200' : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'
+        className={`flex items-center justify-between gap-2 h-9 px-3 min-w-[150px] bg-[var(--surface-hover)] border rounded-lg text-xs transition-colors ${
+          open ? 'border-[var(--border-strong)] text-[var(--text)]' : 'border-[var(--border)] text-[var(--text)] hover:border-[var(--border-strong)]'
         }`}>
-        <span className={selected ? 'text-zinc-200' : 'text-zinc-500'}>
+        <span className={selected ? 'text-[var(--text)]' : 'text-[var(--text-light)]'}>
           {selected ? selected.name : placeholder}
         </span>
-        <ChevronDown size={12} className="text-zinc-500 shrink-0" />
+        <ChevronDown size={12} className="text-[var(--text-light)] shrink-0" />
       </button>
       {open && (
-        <div className="absolute z-50 top-full mt-1 left-0 min-w-full w-max max-w-[260px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden">
-          <div className="p-2 border-b border-zinc-700">
+        <div className="absolute z-50 top-full mt-1 left-0 min-w-full w-max max-w-[260px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden">
+          <div className="p-2 border-b border-[var(--border)]">
             <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
               placeholder="Buscar..."
-              className="w-full bg-zinc-900 border border-zinc-600 rounded-lg text-xs text-zinc-200 px-2.5 py-1.5 outline-none focus:border-zinc-400 placeholder:text-zinc-600" />
+              className="w-full bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg text-xs text-[var(--text)] px-2.5 py-1.5 outline-none focus:border-[var(--border-strong)] placeholder:text-[var(--text-muted)]" />
           </div>
           <div className="max-h-48 overflow-y-auto py-1">
             <button type="button" onClick={() => { onChange(''); setOpen(false) }}
-              className={`w-full text-left px-3 py-2 text-xs transition-colors ${!value ? 'text-cyan-400' : 'text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200'}`}>
+              className={`w-full text-left px-3 py-2 text-xs transition-colors ${!value ? 'text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'}`}>
               {placeholder}
             </button>
             {filtered.map(o => (
               <button key={o.id} type="button"
                 onClick={() => { onChange(String(o.id)); setOpen(false) }}
                 className={`w-full text-left px-3 py-2 text-xs transition-colors ${
-                  String(o.id) === value ? 'text-cyan-400 bg-zinc-700/50' : 'text-zinc-300 hover:bg-zinc-700 hover:text-zinc-200'
+                  String(o.id) === value ? 'text-[var(--primary)] bg-[var(--surface-hover)]' : 'text-[var(--text)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
                 }`}>
                 {o.name}
               </button>
             ))}
             {filtered.length === 0 && (
-              <p className="px-3 py-2 text-xs text-zinc-600">Nenhum resultado</p>
+              <p className="px-3 py-2 text-xs text-[var(--text-muted)]">Nenhum resultado</p>
             )}
           </div>
         </div>
@@ -1392,11 +1392,11 @@ function SelectField({ label, value, onChange, children, required }: {
 }) {
   return (
     <div>
-      <Label className="text-xs text-zinc-400">{label}{required && ' *'}</Label>
+      <Label className="text-xs text-[var(--text-muted)]">{label}{required && ' *'}</Label>
       <select
         value={value}
         onChange={e => onChange(e.target.value)}
-        className="mt-1.5 w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-lg h-9 px-2.5 outline-none focus:border-zinc-500 transition-colors appearance-none"
+        className="mt-1.5 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg h-9 px-2.5 outline-none focus:border-[var(--border-strong)] transition-colors appearance-none"
       >
         {children}
       </select>
@@ -1425,7 +1425,7 @@ function SearchSelectField({ label, value, onChange, options, placeholder, requi
 
   return (
     <div ref={ref} className="relative">
-      <Label className="text-xs text-zinc-400">{label}{required && ' *'}</Label>
+      <Label className="text-xs text-[var(--text-muted)]">{label}{required && ' *'}</Label>
       <button type="button" onClick={() => setOpen(o => !o)}
         className="mt-1.5 w-full flex items-center justify-between gap-2 px-2.5 rounded-lg text-xs outline-none text-left h-9"
         style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: selected ? 'var(--brand-text)' : 'var(--brand-subtle)' }}>
@@ -1442,13 +1442,13 @@ function SearchSelectField({ label, value, onChange, options, placeholder, requi
           </div>
           <div className="max-h-48 overflow-y-auto">
             <button type="button" onClick={() => { onChange(''); setOpen(false) }}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>{placeholder}</button>
             {filtered.length === 0
               ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
               : filtered.map(o => (
                 <button key={o.id} type="button" onClick={() => { onChange(String(o.id)); setOpen(false) }}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
                   style={{ color: String(o.id) === value ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
                   {o.name}
                 </button>
@@ -1552,10 +1552,10 @@ function MinhasNotasFiscaisCard({ userId }: { userId: number }) {
           type="month"
           value={ym}
           onChange={e => setYm(e.target.value)}
-          className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-zinc-100 text-xs"
+          className="px-2 py-1 rounded bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs"
         />
       </div>
-      <p className="text-xs text-zinc-500 mb-3">Envie a NFS-e do mês. O administrativo valida (aceita ou recusa com motivo).</p>
+      <p className="text-xs text-[var(--text-light)] mb-3">Envie a NFS-e do mês. O administrativo valida (aceita ou recusa com motivo).</p>
       <NotasPjCell type="consultor" id={userId} yearMonth={ym} notas={notas} canDecide={false} canUpload expectedValue={expectedValue} onChanged={setNotas} />
     </div>
   )
@@ -2444,7 +2444,7 @@ export default function MeuPainelPage() {
               value={minutesToHours(tsTotalMin)}
               sub={`${(tsTotalMin / 60).toFixed(1)}h apontadas`}
               icon={Clock}
-              accent="bg-blue-500/15 text-blue-400"
+              accent="bg-[var(--primary-soft)] text-[var(--primary)]"
               onClick={() => setActiveTab('timesheets')}
             />
             {!isParceiroSimples && (isFixo ? (
@@ -2454,7 +2454,7 @@ export default function MeuPainelPage() {
                   value={fmtHours(workedHours)}
                   sub="apontadas no período"
                   icon={Clock}
-                  accent="bg-blue-500/15 text-blue-400"
+                  accent="bg-[var(--primary-soft)] text-[var(--primary)]"
                   onClick={() => setActiveTab('timesheets')}
                 />
                 <SummaryCard
@@ -2484,7 +2484,7 @@ export default function MeuPainelPage() {
                         ? `Salário base + ${hbExtraHours.toFixed(1)}h extras`
                         : 'Salário base mensal'}
                     icon={TrendingUp}
-                    accent="bg-green-500/15 text-green-400"
+                    accent="bg-[var(--success-bg)] text-[var(--success)]"
                   />
                 )}
               </>
@@ -2508,7 +2508,7 @@ export default function MeuPainelPage() {
                         : `${formatBRL(effectiveRate)}/h × ${workedHours.toFixed(1)}h`
                     : 'Taxa não configurada'}
                   icon={TrendingUp}
-                  accent="bg-green-500/15 text-green-400"
+                  accent="bg-[var(--success-bg)] text-[var(--success)]"
                 />
               </>
             ))}
@@ -2517,7 +2517,7 @@ export default function MeuPainelPage() {
               value={String(notApprTs)}
               sub={`${approvedTs} aprov. · ${rejectedTs} reprov. de ${timesheets.length}`}
               icon={BarChart2}
-              accent="bg-purple-500/15 text-purple-400"
+              accent="bg-[var(--purple-bg)] text-[var(--purple)]"
               onClick={() => setActiveTab('timesheets')}
             />
           </div>}
@@ -2541,11 +2541,11 @@ export default function MeuPainelPage() {
           <div className="grid md:grid-cols-2 gap-4">
 
             {/* Recent timesheets */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900">
-              <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+              <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-white">Apontamentos Recentes</h3>
                 <button onClick={() => setActiveTab('timesheets')}
-                  className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
+                  className="text-[11px] text-[var(--primary)] hover:text-[var(--primary)] transition-colors">
                   Ver todos →
                 </button>
               </div>
@@ -2557,17 +2557,17 @@ export default function MeuPainelPage() {
                       </div>
                     ))
                   : timesheets.length === 0
-                    ? <div className="px-5 py-8 text-center text-sm text-zinc-600">Nenhum apontamento no período</div>
+                    ? <div className="px-5 py-8 text-center text-sm text-[var(--text-muted)]">Nenhum apontamento no período</div>
                     : timesheets.slice(0, 6).map(ts => (
                         <div key={ts.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="text-xs font-medium text-zinc-200 truncate">
+                            <div className="text-xs font-medium text-[var(--text)] truncate">
                               {ts.project?.name ?? '—'}
                             </div>
-                            <div className="text-[11px] text-zinc-600 mt-0.5">{fmt(ts.date)}</div>
+                            <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{fmt(ts.date)}</div>
                           </div>
                           <div className="flex items-center gap-2.5 shrink-0">
-                            <span className="text-xs font-mono font-semibold text-zinc-300">
+                            <span className="text-xs font-mono font-semibold text-[var(--text)]">
                               {ts.effort_hours}
                             </span>
                             <StatusBadge status={ts.status} display={ts.status_display} reason={ts.rejection_reason} />
@@ -2579,11 +2579,11 @@ export default function MeuPainelPage() {
             </div>
 
             {/* Recent expenses */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900">
-              <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+              <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-white">Despesas Recentes</h3>
                 <button onClick={() => setActiveTab('expenses')}
-                  className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors">
+                  className="text-[11px] text-[var(--primary)] hover:text-[var(--primary)] transition-colors">
                   Ver todas →
                 </button>
               </div>
@@ -2595,21 +2595,21 @@ export default function MeuPainelPage() {
                       </div>
                     ))
                   : expenses.length === 0
-                    ? <div className="px-5 py-8 text-center text-sm text-zinc-600">Nenhuma despesa no período</div>
+                    ? <div className="px-5 py-8 text-center text-sm text-[var(--text-muted)]">Nenhuma despesa no período</div>
                     : expenses.slice(0, 6).map(exp => (
                         <div key={exp.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="text-xs font-medium text-zinc-200 truncate">{exp.description}</div>
-                            <div className="text-[11px] text-zinc-600 mt-0.5">
+                            <div className="text-xs font-medium text-[var(--text)] truncate">{exp.description}</div>
+                            <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
                               {fmt(exp.expense_date)} · {exp.project?.name}
                             </div>
                           </div>
                           <div className="flex items-center gap-2.5 shrink-0">
-                            <span className="text-xs font-semibold text-zinc-300">{exp.formatted_amount}</span>
+                            <span className="text-xs font-semibold text-[var(--text)]">{exp.formatted_amount}</span>
                             <StatusBadge status={exp.status} display={exp.status_display} reason={exp.rejection_reason} />
                             {exp.status === 'approved' && (exp.is_paid
-                              ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400">Pago</span>
-                              : <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-amber-400">Em aberto</span>
+                              ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-950 text-[var(--success)]">Pago</span>
+                              : <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-[var(--warning)]">Em aberto</span>
                             )}
                           </div>
                         </div>
@@ -2636,7 +2636,7 @@ export default function MeuPainelPage() {
             <Input value={tsSearch}
               onChange={e => { setTsSearch(e.target.value); setTsPage(1) }}
               placeholder="Buscar por projeto, observação, ticket..."
-              className="flex-1 min-w-40 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+              className="flex-1 min-w-40 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
             <SearchableSelect
               value={tsCustomer}
               onChange={v => { setTsCustomer(v); setTsPage(1) }}
@@ -2655,56 +2655,56 @@ export default function MeuPainelPage() {
             />
             {hasTsFilters && (
               <button onClick={clearTsFilters}
-                className="flex items-center gap-1 h-9 px-3 text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded-lg hover:border-zinc-500 transition-colors shrink-0">
+                className="flex items-center gap-1 h-9 px-3 text-xs text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] rounded-lg hover:border-[var(--border-strong)] transition-colors shrink-0">
                 <X size={11} /> Limpar
               </button>
             )}
             {timesheets.length > 0 && (
               <button onClick={exportTs}
-                className="flex items-center gap-1 h-9 px-3 text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded-lg hover:border-zinc-500 transition-colors shrink-0">
+                className="flex items-center gap-1 h-9 px-3 text-xs text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] rounded-lg hover:border-[var(--border-strong)] transition-colors shrink-0">
                 <FileSpreadsheet size={13} /> Excel
               </button>
             )}
             <Button onClick={openCreateTs}
-              className="bg-blue-600 hover:bg-blue-500 text-white h-9 px-4 text-xs gap-1.5 shrink-0">
+              className="bg-[var(--primary)] hover:bg-[var(--primary)] text-white h-9 px-4 text-xs gap-1.5 shrink-0">
               <Plus size={13} /> Novo
             </Button>
           </div>
 
           {/* Total bar */}
           {!tsLoading && tsTotalMin > 0 && (
-            <div className="flex items-center gap-4 mb-3 text-xs text-zinc-500 flex-wrap">
+            <div className="flex items-center gap-4 mb-3 text-xs text-[var(--text-light)] flex-wrap">
               {tsPctExtraMin > 0 ? (
                 <span className="flex items-center gap-1.5">
-                  <span>Apontadas: <span className="text-zinc-300 font-semibold">{minutesToHours(tsTotalMin)}</span></span>
-                  <span className="text-zinc-600">+</span>
-                  <span>% extra: <span className="text-green-400 font-semibold">+{minutesToHours(tsPctExtraMin)}</span></span>
-                  <span className="text-zinc-600">=</span>
+                  <span>Apontadas: <span className="text-[var(--text)] font-semibold">{minutesToHours(tsTotalMin)}</span></span>
+                  <span className="text-[var(--text-muted)]">+</span>
+                  <span>% extra: <span className="text-[var(--success)] font-semibold">+{minutesToHours(tsPctExtraMin)}</span></span>
+                  <span className="text-[var(--text-muted)]">=</span>
                   <span>Total efetivo: <span className="text-white font-bold">{minutesToHours(tsTotalMin + tsPctExtraMin)}</span></span>
                 </span>
               ) : (
                 <span>Total: <span className="text-white font-semibold">{minutesToHours(tsTotalMin)}</span></span>
               )}
-              <span>Aprovados: <span className="text-green-400 font-medium">{approvedTs}</span></span>
-              <span>Pendentes: <span className="text-yellow-400 font-medium">{notApprTs}</span></span>
+              <span>Aprovados: <span className="text-[var(--success)] font-medium">{approvedTs}</span></span>
+              <span>Pendentes: <span className="text-[var(--warning)] font-medium">{notApprTs}</span></span>
             </div>
           )}
 
           {/* Table */}
-          <div className="rounded-xl border border-zinc-800 overflow-x-auto overflow-y-clip">
+          <div className="rounded-xl border border-[var(--border)] overflow-x-auto overflow-y-clip">
             <table className="w-full min-w-max text-xs">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900">
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium">Data</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium">Projeto</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden lg:table-cell">Ticket #</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden xl:table-cell">Título</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Horário</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium">Horas</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden xl:table-cell">Tipo de Serviço</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden lg:table-cell">Observação</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium">Status</th>
+                <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Data</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden md:table-cell">Cliente</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Projeto</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden lg:table-cell">Ticket #</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden xl:table-cell">Título</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden md:table-cell">Horário</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Horas</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden xl:table-cell">Tipo de Serviço</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden lg:table-cell">Observação</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Status</th>
                   <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
@@ -2713,7 +2713,7 @@ export default function MeuPainelPage() {
                   <TableSkeleton cols={11} />
                 ) : timesheets.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-4 py-14 text-center text-zinc-600">
+                    <td colSpan={10} className="px-4 py-14 text-center text-[var(--text-muted)]">
                       Nenhum apontamento no período
                     </td>
                   </tr>
@@ -2723,25 +2723,25 @@ export default function MeuPainelPage() {
                   return (
                     <tr key={ts.id}
                       {...hover.bind(ts)}
-                      className={`border-b border-zinc-800 transition-colors last:border-0 ${
-                        locked ? 'bg-zinc-900/40' : 'hover:bg-zinc-800/25'
+                      className={`border-b border-[var(--border)] transition-colors last:border-0 ${
+                        locked ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]'
                       }`}>
-                      <td className="px-4 py-3.5 text-zinc-300 font-medium tabular-nums whitespace-nowrap">{fmt(ts.date)}</td>
-                      <td className="px-4 py-3.5 text-zinc-400 hidden md:table-cell max-w-[120px] truncate">
-                        {clientName ?? <span className="text-zinc-700">—</span>}
+                      <td className="px-4 py-3.5 text-[var(--text)] font-medium tabular-nums whitespace-nowrap">{fmt(ts.date)}</td>
+                      <td className="px-4 py-3.5 text-[var(--text-muted)] hidden md:table-cell max-w-[120px] truncate">
+                        {clientName ?? <span className="text-[var(--text-muted)]">—</span>}
                       </td>
-                      <td className="px-4 py-3.5 text-zinc-200 max-w-[140px] truncate">
+                      <td className="px-4 py-3.5 text-[var(--text)] max-w-[140px] truncate">
                         {ts.project?.name ?? '—'}
                       </td>
-                      <td className="px-4 py-3.5 text-zinc-400 font-mono hidden lg:table-cell">
+                      <td className="px-4 py-3.5 text-[var(--text-muted)] font-mono hidden lg:table-cell">
                         {ts.ticket
-                          ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">#{ts.ticket}</a>
-                          : <span className="text-zinc-700">—</span>}
+                          ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{ts.ticket}</a>
+                          : <span className="text-[var(--text-muted)]">—</span>}
                       </td>
-                      <td className="px-4 py-3.5 text-zinc-400 hidden xl:table-cell max-w-[160px] truncate" title={ts.ticket_subject}>
-                        {ts.ticket_subject ?? <span className="text-zinc-700">—</span>}
+                      <td className="px-4 py-3.5 text-[var(--text-muted)] hidden xl:table-cell max-w-[160px] truncate" title={ts.ticket_subject}>
+                        {ts.ticket_subject ?? <span className="text-[var(--text-muted)]">—</span>}
                       </td>
-                      <td className="px-4 py-3.5 text-zinc-500 font-mono hidden md:table-cell whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-[var(--text-light)] font-mono hidden md:table-cell whitespace-nowrap">
                         {ts.start_time} – {ts.end_time}
                       </td>
                       <td className="px-4 py-3.5 text-white font-mono font-bold whitespace-nowrap">
@@ -2751,27 +2751,27 @@ export default function MeuPainelPage() {
                           return (
                             <span className="flex flex-col gap-0.5">
                               <span className="flex items-center gap-1">
-                                <span className="text-zinc-400 font-normal">{ts.effort_hours}</span>
-                                <span className="text-[10px] text-green-400 font-semibold">+{ts.consultant_extra_pct}%</span>
-                                <span className="text-[10px] text-green-400">+{minutesToHours(extraMin)}</span>
+                                <span className="text-[var(--text-muted)] font-normal">{ts.effort_hours}</span>
+                                <span className="text-[10px] text-[var(--success)] font-semibold">+{ts.consultant_extra_pct}%</span>
+                                <span className="text-[10px] text-[var(--success)]">+{minutesToHours(extraMin)}</span>
                               </span>
-                              <span className="text-green-300 text-[11px]">= {minutesToHours(totalMin)}</span>
+                              <span className="text-[var(--success)] text-[11px]">= {minutesToHours(totalMin)}</span>
                             </span>
                           )
                         })() : (
                           <span className="flex items-center gap-1.5">
                             {ts.effort_hours}
-                            {ts.attachment_url && <Paperclip size={10} className="text-zinc-500 shrink-0" aria-label="Tem anexo" />}
+                            {ts.attachment_url && <Paperclip size={10} className="text-[var(--text-light)] shrink-0" aria-label="Tem anexo" />}
                           </span>
                         )}
-                        {ts.consultant_extra_pct && ts.attachment_url && <Paperclip size={10} className="text-zinc-500 shrink-0 mt-0.5" aria-label="Tem anexo" />}
+                        {ts.consultant_extra_pct && ts.attachment_url && <Paperclip size={10} className="text-[var(--text-light)] shrink-0 mt-0.5" aria-label="Tem anexo" />}
                       </td>
-                      <td className="px-4 py-3.5 text-zinc-500 hidden xl:table-cell max-w-[120px] truncate">
-                        {(ts as any).project?.service_type?.name ?? <span className="text-zinc-700">—</span>}
+                      <td className="px-4 py-3.5 text-[var(--text-light)] hidden xl:table-cell max-w-[120px] truncate">
+                        {(ts as any).project?.service_type?.name ?? <span className="text-[var(--text-muted)]">—</span>}
                       </td>
-                      <td className="px-4 py-3.5 text-zinc-500 hidden lg:table-cell max-w-[180px] truncate"
+                      <td className="px-4 py-3.5 text-[var(--text-light)] hidden lg:table-cell max-w-[180px] truncate"
                         title={previewText(ts.observation)}>
-                        {ts.observation ? previewText(ts.observation) : <span className="text-zinc-700">—</span>}
+                        {ts.observation ? previewText(ts.observation) : <span className="text-[var(--text-muted)]">—</span>}
                       </td>
                       <td className="px-4 py-3.5">
                         <StatusBadge status={ts.status} display={ts.status_display} reason={ts.rejection_reason} />
@@ -2800,12 +2800,12 @@ export default function MeuPainelPage() {
           {(tsPage > 1 || tsHasNext) && (
             <div className="flex items-center justify-end gap-2 mt-4">
               <button onClick={() => setTsPage(p => p - 1)} disabled={tsPage === 1}
-                className="p-1.5 text-zinc-500 hover:text-zinc-200 disabled:opacity-30 rounded transition-colors">
+                className="p-1.5 text-[var(--text-light)] hover:text-[var(--text)] disabled:opacity-30 rounded transition-colors">
                 <ChevronLeft size={14} />
               </button>
-              <span className="text-xs text-zinc-500">Página {tsPage}</span>
+              <span className="text-xs text-[var(--text-light)]">Página {tsPage}</span>
               <button onClick={() => setTsPage(p => p + 1)} disabled={!tsHasNext}
-                className="p-1.5 text-zinc-500 hover:text-zinc-200 disabled:opacity-30 rounded transition-colors">
+                className="p-1.5 text-[var(--text-light)] hover:text-[var(--text)] disabled:opacity-30 rounded transition-colors">
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -2828,7 +2828,7 @@ export default function MeuPainelPage() {
             <Input value={expSearch}
               onChange={e => { setExpSearch(e.target.value); setExpPage(1) }}
               placeholder="Buscar por descrição..."
-              className="flex-1 min-w-40 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+              className="flex-1 min-w-40 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
             <SearchableSelect
               value={expCustomer}
               onChange={v => { setExpCustomer(v); setExpPage(1) }}
@@ -2853,22 +2853,22 @@ export default function MeuPainelPage() {
             />
             {hasExpFilters && (
               <button onClick={clearExpFilters}
-                className="flex items-center gap-1 h-9 px-3 text-xs text-zinc-400 hover:text-zinc-200 border border-zinc-700 rounded-lg hover:border-zinc-500 transition-colors shrink-0">
+                className="flex items-center gap-1 h-9 px-3 text-xs text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] rounded-lg hover:border-[var(--border-strong)] transition-colors shrink-0">
                 <X size={11} /> Limpar
               </button>
             )}
             <Button onClick={openCreateExp}
-              className="bg-blue-600 hover:bg-blue-500 text-white h-9 px-4 text-xs gap-1.5 shrink-0">
+              className="bg-[var(--primary)] hover:bg-[var(--primary)] text-white h-9 px-4 text-xs gap-1.5 shrink-0">
               <Plus size={13} /> Nova
             </Button>
           </div>
 
           {/* Total */}
           {!expLoading && expTotal > 0 && (
-            <div className="text-xs text-zinc-500 mb-3">
+            <div className="text-xs text-[var(--text-light)] mb-3">
               Total: <span className="text-white font-semibold">{formatBRL(expTotal)}</span>
               <span className="ml-4">
-                Aprovadas: <span className="text-green-400 font-medium">
+                Aprovadas: <span className="text-[var(--success)] font-medium">
                   {expenses.filter(e => e.status === 'approved').length}
                 </span>
               </span>
@@ -2876,19 +2876,19 @@ export default function MeuPainelPage() {
           )}
 
           {/* Table */}
-          <div className="rounded-xl border border-zinc-800 overflow-x-auto overflow-y-clip">
+          <div className="rounded-xl border border-[var(--border)] overflow-x-auto overflow-y-clip">
             <table className="w-full min-w-max text-xs">
               <thead>
-                <tr className="border-b border-zinc-800 bg-zinc-900">
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium">Data</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Cliente</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium">Descrição</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden md:table-cell">Projeto</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden lg:table-cell">Categoria</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium hidden xl:table-cell">Tipo de Serviço</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium">Valor</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium">Status</th>
-                  <th className="text-left px-4 py-3 text-zinc-500 font-medium">Pagamento</th>
+                <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Data</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden md:table-cell">Cliente</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Descrição</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden md:table-cell">Projeto</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden lg:table-cell">Categoria</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium hidden xl:table-cell">Tipo de Serviço</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Valor</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Status</th>
+                  <th className="text-left px-4 py-3 text-[var(--text-light)] font-medium">Pagamento</th>
                   <th className="px-4 py-3 w-10"></th>
                 </tr>
               </thead>
@@ -2897,7 +2897,7 @@ export default function MeuPainelPage() {
                   <TableSkeleton cols={9} />
                 ) : expenses.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-14 text-center text-zinc-600">
+                    <td colSpan={8} className="px-4 py-14 text-center text-[var(--text-muted)]">
                       Nenhuma despesa no período
                     </td>
                   </tr>
@@ -2905,21 +2905,21 @@ export default function MeuPainelPage() {
                   const locked = isLocked(exp.status)
                   return (
                     <tr key={exp.id}
-                      className={`border-b border-zinc-800 transition-colors last:border-0 ${
-                        locked ? 'bg-zinc-900/40' : 'hover:bg-zinc-800/25'
+                      className={`border-b border-[var(--border)] transition-colors last:border-0 ${
+                        locked ? 'bg-[var(--surface-hover)]' : 'hover:bg-[var(--surface-hover)]'
                       }`}>
-                      <td className="px-4 py-3.5 text-zinc-300 font-medium tabular-nums whitespace-nowrap">{fmt(exp.expense_date)}</td>
-                      <td className="px-4 py-3.5 text-zinc-400 hidden md:table-cell max-w-[120px] truncate">
-                        {exp.project?.customer?.name ?? <span className="text-zinc-700">—</span>}
+                      <td className="px-4 py-3.5 text-[var(--text)] font-medium tabular-nums whitespace-nowrap">{fmt(exp.expense_date)}</td>
+                      <td className="px-4 py-3.5 text-[var(--text-muted)] hidden md:table-cell max-w-[120px] truncate">
+                        {exp.project?.customer?.name ?? <span className="text-[var(--text-muted)]">—</span>}
                       </td>
-                      <td className="px-4 py-3.5 text-zinc-200 max-w-[160px] truncate" title={exp.description}>{exp.description}</td>
-                      <td className="px-4 py-3.5 text-zinc-400 hidden md:table-cell max-w-[260px] truncate">{exp.project?.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-zinc-400 hidden lg:table-cell">{exp.category?.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-zinc-500 hidden xl:table-cell max-w-[120px] truncate">{(exp as any).project?.service_type?.name ?? '—'}</td>
+                      <td className="px-4 py-3.5 text-[var(--text)] max-w-[160px] truncate" title={exp.description}>{exp.description}</td>
+                      <td className="px-4 py-3.5 text-[var(--text-muted)] hidden md:table-cell max-w-[260px] truncate">{exp.project?.name ?? '—'}</td>
+                      <td className="px-4 py-3.5 text-[var(--text-muted)] hidden lg:table-cell">{exp.category?.name ?? '—'}</td>
+                      <td className="px-4 py-3.5 text-[var(--text-light)] hidden xl:table-cell max-w-[120px] truncate">{(exp as any).project?.service_type?.name ?? '—'}</td>
                       <td className="px-4 py-3.5 text-white font-bold whitespace-nowrap">
                         <span className="flex items-center gap-1.5">
                           {exp.formatted_amount}
-                          {exp.receipt_url && <Paperclip size={10} className="text-zinc-500 shrink-0" aria-label="Tem comprovante" />}
+                          {exp.receipt_url && <Paperclip size={10} className="text-[var(--text-light)] shrink-0" aria-label="Tem comprovante" />}
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
@@ -2927,8 +2927,8 @@ export default function MeuPainelPage() {
                       </td>
                       <td className="px-4 py-3.5">
                         {exp.is_paid
-                          ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400">Pago</span>
-                          : exp.status === 'approved' && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-amber-400">Em aberto</span>
+                          ? <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-950 text-[var(--success)]">Pago</span>
+                          : exp.status === 'approved' && <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-950 text-[var(--warning)]">Em aberto</span>
                         }
                       </td>
                       <td className="px-4 py-3.5 w-10">
@@ -2954,12 +2954,12 @@ export default function MeuPainelPage() {
           {(expPage > 1 || expHasNext) && (
             <div className="flex items-center justify-end gap-2 mt-4">
               <button onClick={() => setExpPage(p => p - 1)} disabled={expPage === 1}
-                className="p-1.5 text-zinc-500 hover:text-zinc-200 disabled:opacity-30 rounded transition-colors">
+                className="p-1.5 text-[var(--text-light)] hover:text-[var(--text)] disabled:opacity-30 rounded transition-colors">
                 <ChevronLeft size={14} />
               </button>
-              <span className="text-xs text-zinc-500">Página {expPage}</span>
+              <span className="text-xs text-[var(--text-light)]">Página {expPage}</span>
               <button onClick={() => setExpPage(p => p + 1)} disabled={!expHasNext}
-                className="p-1.5 text-zinc-500 hover:text-zinc-200 disabled:opacity-30 rounded transition-colors">
+                className="p-1.5 text-[var(--text-light)] hover:text-[var(--text)] disabled:opacity-30 rounded transition-colors">
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -2979,8 +2979,8 @@ export default function MeuPainelPage() {
               {indAlerts.map((a, i) => (
                 <div key={i} className={`flex items-start gap-3 px-4 py-3 rounded-xl text-xs border ${
                   a.level === 'danger'
-                    ? 'bg-red-500/8 border-red-500/20 text-red-300'
-                    : 'bg-yellow-500/8 border-yellow-500/20 text-yellow-300'
+                    ? 'bg-[var(--danger-bg)] border-red-500/20 text-[var(--danger)]'
+                    : 'bg-[var(--warning-bg)] border-yellow-500/20 text-[var(--warning)]'
                 }`}>
                   <AlertTriangle size={13} className="mt-0.5 shrink-0" />
                   {a.msg}
@@ -2996,15 +2996,15 @@ export default function MeuPainelPage() {
             {!isParceiroSimples && (
             <div className="rounded-xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 p-5 col-span-2 lg:col-span-1">
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 rounded-lg bg-cyan-500/20">
-                  <DollarSign size={13} className="text-cyan-400" />
+                <div className="p-1.5 rounded-lg bg-[var(--primary-soft)]">
+                  <DollarSign size={13} className="text-[var(--primary)]" />
                 </div>
-                <span className="text-[11px] text-zinc-400 font-medium">Valor Gerado</span>
+                <span className="text-[11px] text-[var(--text-muted)] font-medium">Valor Gerado</span>
               </div>
               <div className="text-2xl font-bold text-white">
                 {estimatedValue !== null ? formatBRL(estimatedValue) : '—'}
               </div>
-              <div className="text-[11px] text-zinc-500 mt-1.5">
+              <div className="text-[11px] text-[var(--text-light)] mt-1.5">
                 {estimatedValue !== null
                   ? prorationRatio === 0
                     ? 'Período anterior à contratação'
@@ -3018,46 +3018,46 @@ export default function MeuPainelPage() {
 
             {/* Ticket Médio */}
             {!isParceiroSimples && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 rounded-lg bg-violet-500/20">
-                  <Zap size={13} className="text-violet-400" />
+                <div className="p-1.5 rounded-lg bg-[var(--purple-bg)]">
+                  <Zap size={13} className="text-[var(--purple)]" />
                 </div>
-                <span className="text-[11px] text-zinc-400 font-medium">Ticket Médio</span>
+                <span className="text-[11px] text-[var(--text-muted)] font-medium">Ticket Médio</span>
               </div>
               <div className="text-2xl font-bold text-white">
                 {avgTicket !== null ? formatBRL(avgTicket) : '—'}
               </div>
-              <div className="text-[11px] text-zinc-500 mt-1.5">por hora trabalhada</div>
+              <div className="text-[11px] text-[var(--text-light)] mt-1.5">por hora trabalhada</div>
             </div>
             )}
 
             {/* Ocupação */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 rounded-lg bg-orange-500/20">
-                  <Target size={13} className="text-orange-400" />
+                <div className="p-1.5 rounded-lg bg-[var(--warning-bg)]">
+                  <Target size={13} className="text-[var(--warning)]" />
                 </div>
-                <span className="text-[11px] text-zinc-400 font-medium">Ocupação</span>
+                <span className="text-[11px] text-[var(--text-muted)] font-medium">Ocupação</span>
               </div>
-              <div className={`text-2xl font-bold ${occupancyPct >= 80 ? 'text-green-400' : occupancyPct >= 60 ? 'text-yellow-400' : 'text-red-400'}`}>
+              <div className={`text-2xl font-bold ${occupancyPct >= 80 ? 'text-[var(--success)]' : occupancyPct >= 60 ? 'text-[var(--warning)]' : 'text-[var(--danger)]'}`}>
                 {occupancyPct}%
               </div>
-              <div className="text-[11px] text-zinc-500 mt-1.5">
+              <div className="text-[11px] text-[var(--text-light)] mt-1.5">
                 {daysWorked} de {workingDaysInMonth} dias úteis
               </div>
             </div>
 
             {/* Total de Horas */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 rounded-lg bg-blue-500/20">
-                  <Activity size={13} className="text-blue-400" />
+                <div className="p-1.5 rounded-lg bg-[var(--primary-soft)]">
+                  <Activity size={13} className="text-[var(--primary)]" />
                 </div>
-                <span className="text-[11px] text-zinc-400 font-medium">Horas Totais</span>
+                <span className="text-[11px] text-[var(--text-muted)] font-medium">Horas Totais</span>
               </div>
               <div className="text-2xl font-bold text-white">{minutesToHours(tsTotalMin)}</div>
-              <div className="text-[11px] text-zinc-500 mt-1.5">{tsByProject.length} projeto{tsByProject.length !== 1 ? 's' : ''}</div>
+              <div className="text-[11px] text-[var(--text-light)] mt-1.5">{tsByProject.length} projeto{tsByProject.length !== 1 ? 's' : ''}</div>
             </div>
           </div>
 
@@ -3071,45 +3071,45 @@ export default function MeuPainelPage() {
               : null
             const remainingToTarget = targetMin !== null ? Math.max(0, targetMin - tsTotalMin) : null
             return (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
                 <div className="flex items-center justify-between mb-5">
-                  <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Ritmo & Progresso</h3>
+                  <h3 className="text-xs font-semibold text-[var(--text)] uppercase tracking-wider">Ritmo & Progresso</h3>
                   {!isCurrentMonth && (
-                    <span className="text-[10px] text-zinc-600 bg-zinc-800 px-2 py-0.5 rounded-full">Mês encerrado</span>
+                    <span className="text-[10px] text-[var(--text-muted)] bg-[var(--surface-hover)] px-2 py-0.5 rounded-full">Mês encerrado</span>
                   )}
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
                   <div>
-                    <div className="text-[11px] text-zinc-500 mb-1">Dias úteis decorridos</div>
-                    <div className="text-lg font-bold text-white">{elapsedWD} <span className="text-xs font-normal text-zinc-500">de {workingDaysInMonth}</span></div>
+                    <div className="text-[11px] text-[var(--text-light)] mb-1">Dias úteis decorridos</div>
+                    <div className="text-lg font-bold text-white">{elapsedWD} <span className="text-xs font-normal text-[var(--text-light)]">de {workingDaysInMonth}</span></div>
                   </div>
                   <div>
-                    <div className="text-[11px] text-zinc-500 mb-1">Dias com apontamento</div>
-                    <div className="text-lg font-bold text-white">{daysWorked} <span className="text-xs font-normal text-zinc-500">dias</span></div>
+                    <div className="text-[11px] text-[var(--text-light)] mb-1">Dias com apontamento</div>
+                    <div className="text-lg font-bold text-white">{daysWorked} <span className="text-xs font-normal text-[var(--text-light)]">dias</span></div>
                   </div>
                   <div>
-                    <div className="text-[11px] text-zinc-500 mb-1">Média por dia</div>
-                    <div className="text-lg font-bold text-white font-mono">{avgHPerDay.toFixed(1)}<span className="text-xs font-normal text-zinc-500">h/dia</span></div>
+                    <div className="text-[11px] text-[var(--text-light)] mb-1">Média por dia</div>
+                    <div className="text-lg font-bold text-white font-mono">{avgHPerDay.toFixed(1)}<span className="text-xs font-normal text-[var(--text-light)]">h/dia</span></div>
                   </div>
                   {isCurrentMonth && remainingWD > 0 ? (
                     <div>
-                      <div className="text-[11px] text-zinc-500 mb-1">Dias úteis restantes</div>
-                      <div className="text-lg font-bold text-yellow-400">{remainingWD} <span className="text-xs font-normal text-zinc-500">dias</span></div>
+                      <div className="text-[11px] text-[var(--text-light)] mb-1">Dias úteis restantes</div>
+                      <div className="text-lg font-bold text-[var(--warning)]">{remainingWD} <span className="text-xs font-normal text-[var(--text-light)]">dias</span></div>
                     </div>
                   ) : (
                     <div>
-                      <div className="text-[11px] text-zinc-500 mb-1">Total apontado</div>
+                      <div className="text-[11px] text-[var(--text-light)] mb-1">Total apontado</div>
                       <div className="text-lg font-bold text-white font-mono">{minutesToHours(tsTotalMin)}</div>
                     </div>
                   )}
                 </div>
 
                 {/* Barra de progresso do mês */}
-                <div className="mb-1.5 flex items-center justify-between text-[11px] text-zinc-500">
+                <div className="mb-1.5 flex items-center justify-between text-[11px] text-[var(--text-light)]">
                   <span>Progresso do mês</span>
                   <span>{projectedPct}% dos dias úteis</span>
                 </div>
-                <div className="h-2 rounded-full bg-zinc-800 overflow-hidden mb-4">
+                <div className="h-2 rounded-full bg-[var(--surface-hover)] overflow-hidden mb-4">
                   <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all duration-500"
                     style={{ width: `${projectedPct}%` }} />
                 </div>
@@ -3117,31 +3117,31 @@ export default function MeuPainelPage() {
                 {/* Meta de horas (se configurada) */}
                 {targetMin !== null && targetPct !== null ? (
                   <>
-                    <div className="mb-1.5 flex items-center justify-between text-[11px] text-zinc-500">
+                    <div className="mb-1.5 flex items-center justify-between text-[11px] text-[var(--text-light)]">
                       <span>Meta de horas ({minutesToHours(targetMin)})</span>
-                      <span className={targetPct >= 100 ? 'text-green-400 font-semibold' : 'text-zinc-400'}>
+                      <span className={targetPct >= 100 ? 'text-[var(--success)] font-semibold' : 'text-[var(--text-muted)]'}>
                         {targetPct}% concluído
                         {remainingToTarget !== null && remainingToTarget > 0 && ` · faltam ${minutesToHours(remainingToTarget)}`}
                         {targetPct >= 100 && ' ✓ atingida'}
                       </span>
                     </div>
-                    <div className="h-2 rounded-full bg-zinc-800 overflow-hidden">
+                    <div className="h-2 rounded-full bg-[var(--surface-hover)] overflow-hidden">
                       <div className={`h-full rounded-full transition-all duration-500 ${targetPct >= 100 ? 'bg-gradient-to-r from-green-500 to-green-400' : 'bg-gradient-to-r from-cyan-500 to-cyan-400'}`}
                         style={{ width: `${targetPct}%` }} />
                     </div>
                     {estimatedValue !== null && !isParceiroSimples && (
-                      <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
-                        <span className="text-[11px] text-zinc-500">Valor pelo mês completo</span>
-                        <span className="text-sm font-bold text-cyan-400">{formatBRL(billableHours * effectiveRate)}</span>
+                      <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center justify-between">
+                        <span className="text-[11px] text-[var(--text-light)]">Valor pelo mês completo</span>
+                        <span className="text-sm font-bold text-[var(--primary)]">{formatBRL(billableHours * effectiveRate)}</span>
                       </div>
                     )}
                   </>
                 ) : estimatedValue !== null && !isParceiroSimples && isCurrentMonth && remainingWD > 0 ? (
-                  <div className="pt-3 border-t border-zinc-800 flex items-center justify-between">
-                    <span className="text-[11px] text-zinc-500">
+                  <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--text-light)]">
                       Se mantiver o ritmo de {avgHPerDay.toFixed(1)}h/dia nos {remainingWD} dias restantes
                     </span>
-                    <span className="text-sm font-bold text-cyan-400">
+                    <span className="text-sm font-bold text-[var(--primary)]">
                       {formatBRL((workedHours + avgHPerDay * remainingWD) * effectiveRate)}
                     </span>
                   </div>
@@ -3151,13 +3151,13 @@ export default function MeuPainelPage() {
           })()}
 
           {/* ── Distribuição por Cliente ──────────────────────────────────────── */}
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
             <div className="flex items-center gap-2 mb-5">
-              <Users size={13} className="text-zinc-400" />
-              <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Distribuição por Cliente</h3>
+              <Users size={13} className="text-[var(--text-muted)]" />
+              <h3 className="text-xs font-semibold text-[var(--text)] uppercase tracking-wider">Distribuição por Cliente</h3>
             </div>
             {tsByCustomer.length === 0 ? (
-              <div className="py-8 text-center text-sm text-zinc-600">Nenhum dado no período</div>
+              <div className="py-8 text-center text-sm text-[var(--text-muted)]">Nenhum dado no período</div>
             ) : (
               <div className="space-y-3">
                 {tsByCustomer.map((c, i) => {
@@ -3167,13 +3167,13 @@ export default function MeuPainelPage() {
                   return (
                     <div key={c.name}>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs text-zinc-300 truncate max-w-[60%]">{c.name}</span>
+                        <span className="text-xs text-[var(--text)] truncate max-w-[60%]">{c.name}</span>
                         <div className="flex items-center gap-3">
-                          <span className="text-xs text-zinc-500">{pct.toFixed(1)}%</span>
-                          <span className="text-xs font-mono font-semibold text-zinc-200 w-14 text-right">{minutesToHours(c.minutes)}</span>
+                          <span className="text-xs text-[var(--text-light)]">{pct.toFixed(1)}%</span>
+                          <span className="text-xs font-mono font-semibold text-[var(--text)] w-14 text-right">{minutesToHours(c.minutes)}</span>
                         </div>
                       </div>
-                      <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                      <div className="h-1.5 rounded-full bg-[var(--surface-hover)] overflow-hidden">
                         <div className="h-full rounded-full transition-all duration-500"
                           style={{ width: `${pct}%`, backgroundColor: color }} />
                       </div>
@@ -3188,10 +3188,10 @@ export default function MeuPainelPage() {
           <div className="grid md:grid-cols-2 gap-4">
 
             {/* Horas por Projeto */}
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-              <h3 className="text-xs font-semibold text-zinc-300 mb-5 uppercase tracking-wider">Horas por Projeto</h3>
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
+              <h3 className="text-xs font-semibold text-[var(--text)] mb-5 uppercase tracking-wider">Horas por Projeto</h3>
               {tsByProject.length === 0 ? (
-                <div className="py-8 text-center text-sm text-zinc-600">Nenhum dado no período</div>
+                <div className="py-8 text-center text-sm text-[var(--text-muted)]">Nenhum dado no período</div>
               ) : (
                 <div className="space-y-3.5">
                   {tsByProject.map(p => (
@@ -3203,51 +3203,51 @@ export default function MeuPainelPage() {
 
             {/* Tabela Detalhamento */}
             {tsByProject.length > 0 ? (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-x-auto">
-                <div className="px-5 py-4 border-b border-zinc-800">
-                  <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Detalhamento</h3>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-x-auto">
+                <div className="px-5 py-4 border-b border-[var(--border)]">
+                  <h3 className="text-xs font-semibold text-[var(--text)] uppercase tracking-wider">Detalhamento</h3>
                 </div>
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b border-zinc-800">
-                      <th className="text-left px-5 py-3 text-zinc-500 font-medium">Projeto</th>
-                      <th className="text-right px-5 py-3 text-zinc-500 font-medium">Horas</th>
-                      <th className="text-right px-5 py-3 text-zinc-500 font-medium">%</th>
+                    <tr className="border-b border-[var(--border)]">
+                      <th className="text-left px-5 py-3 text-[var(--text-light)] font-medium">Projeto</th>
+                      <th className="text-right px-5 py-3 text-[var(--text-light)] font-medium">Horas</th>
+                      <th className="text-right px-5 py-3 text-[var(--text-light)] font-medium">%</th>
                       {estimatedValue !== null && !isParceiroSimples && (
-                        <th className="text-right px-5 py-3 text-zinc-500 font-medium">Valor</th>
+                        <th className="text-right px-5 py-3 text-[var(--text-light)] font-medium">Valor</th>
                       )}
                     </tr>
                   </thead>
                   <tbody>
                     {tsByProject.map(p => (
-                      <tr key={p.name} className="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/20">
-                        <td className="px-5 py-3 text-zinc-200 max-w-[120px] truncate">{p.name}</td>
-                        <td className="px-5 py-3 text-right text-zinc-300 font-mono font-semibold">{minutesToHours(p.minutes)}</td>
-                        <td className="px-5 py-3 text-right text-zinc-500">
+                      <tr key={p.name} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]">
+                        <td className="px-5 py-3 text-[var(--text)] max-w-[120px] truncate">{p.name}</td>
+                        <td className="px-5 py-3 text-right text-[var(--text)] font-mono font-semibold">{minutesToHours(p.minutes)}</td>
+                        <td className="px-5 py-3 text-right text-[var(--text-light)]">
                           {tsTotalMin > 0 ? ((p.minutes / tsTotalMin) * 100).toFixed(1) + '%' : '—'}
                         </td>
                         {estimatedValue !== null && !isParceiroSimples && (
-                          <td className="px-5 py-3 text-right text-cyan-400 font-medium">
+                          <td className="px-5 py-3 text-right text-[var(--primary)] font-medium">
                             {formatBRL((p.minutes / 60) * hourlyRate)}
                           </td>
                         )}
                       </tr>
                     ))}
                     {/* Totals row */}
-                    <tr className="bg-zinc-800/30 border-t border-zinc-700">
-                      <td className="px-5 py-3 text-zinc-300 font-semibold">Total</td>
+                    <tr className="bg-[var(--surface-hover)] border-t border-[var(--border)]">
+                      <td className="px-5 py-3 text-[var(--text)] font-semibold">Total</td>
                       <td className="px-5 py-3 text-right text-white font-mono font-bold">{minutesToHours(tsTotalMin)}</td>
-                      <td className="px-5 py-3 text-right text-zinc-400">100%</td>
+                      <td className="px-5 py-3 text-right text-[var(--text-muted)]">100%</td>
                       {estimatedValue !== null && !isParceiroSimples && (
-                        <td className="px-5 py-3 text-right text-cyan-300 font-bold">{formatBRL(estimatedValue)}</td>
+                        <td className="px-5 py-3 text-right text-[var(--primary)] font-bold">{formatBRL(estimatedValue)}</td>
                       )}
                     </tr>
                   </tbody>
                 </table>
               </div>
             ) : (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900 flex items-center justify-center py-16">
-                <p className="text-sm text-zinc-600">Nenhum projeto no período</p>
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center py-16">
+                <p className="text-sm text-[var(--text-muted)]">Nenhum projeto no período</p>
               </div>
             )}
           </div>
@@ -3319,37 +3319,37 @@ export default function MeuPainelPage() {
             }
 
             return (
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5">
 
                 {/* ── Header ── */}
                 <div className="flex flex-wrap items-start justify-between gap-6 mb-6">
                   <div>
-                    <h3 className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">Evolução — Últimos 12 Meses</h3>
-                    <p className="text-[11px] text-zinc-600 mt-0.5">Horas aprovadas{hasExpHist ? ' · despesas' : ''}{hasRate ? ' · receita' : ''}</p>
+                    <h3 className="text-xs font-semibold text-[var(--text)] uppercase tracking-wider">Evolução — Últimos 12 Meses</h3>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-0.5">Horas aprovadas{hasExpHist ? ' · despesas' : ''}{hasRate ? ' · receita' : ''}</p>
                   </div>
 
                   {/* Stats pills */}
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex flex-col items-end">
-                      <span className="text-[10px] text-zinc-500">Horas médias</span>
+                      <span className="text-[10px] text-[var(--text-light)]">Horas médias</span>
                       <span className="text-sm font-bold text-white font-mono">{avgHours.toFixed(1)}h</span>
                     </div>
                     {hasRate && avgRevenue > 0 && (
-                      <div className="flex flex-col items-end pl-3 border-l border-zinc-800">
-                        <span className="text-[10px] text-zinc-500">Receita média</span>
-                        <span className="text-sm font-bold text-violet-400">{formatBRL(avgRevenue)}</span>
+                      <div className="flex flex-col items-end pl-3 border-l border-[var(--border)]">
+                        <span className="text-[10px] text-[var(--text-light)]">Receita média</span>
+                        <span className="text-sm font-bold text-[var(--purple)]">{formatBRL(avgRevenue)}</span>
                       </div>
                     )}
                     {hasExpHist && avgExpenses > 0 && (
-                      <div className="flex flex-col items-end pl-3 border-l border-zinc-800">
-                        <span className="text-[10px] text-zinc-500">Despesas médias</span>
-                        <span className="text-sm font-bold text-amber-400">{formatBRL(avgExpenses)}</span>
+                      <div className="flex flex-col items-end pl-3 border-l border-[var(--border)]">
+                        <span className="text-[10px] text-[var(--text-light)]">Despesas médias</span>
+                        <span className="text-sm font-bold text-[var(--warning)]">{formatBRL(avgExpenses)}</span>
                       </div>
                     )}
-                    <div className={`flex items-center gap-1.5 pl-3 border-l border-zinc-800 text-sm font-bold ${trendH > 2 ? 'text-green-400' : trendH < -2 ? 'text-red-400' : 'text-zinc-500'}`}>
+                    <div className={`flex items-center gap-1.5 pl-3 border-l border-[var(--border)] text-sm font-bold ${trendH > 2 ? 'text-[var(--success)]' : trendH < -2 ? 'text-[var(--danger)]' : 'text-[var(--text-light)]'}`}>
                       {trendH > 2 ? <TrendingUp size={14} /> : trendH < -2 ? <TrendingDown size={14} /> : <Minus size={14} />}
                       <div className="flex flex-col items-end">
-                        <span className="text-[10px] text-zinc-500 font-normal">Tendência 3m</span>
+                        <span className="text-[10px] text-[var(--text-light)] font-normal">Tendência 3m</span>
                         <span>{trendH > 0 ? '+' : ''}{trendH.toFixed(0)}%</span>
                       </div>
                     </div>
@@ -3358,11 +3358,11 @@ export default function MeuPainelPage() {
 
                 {historyLoading ? (
                   <div className="h-56 flex items-center justify-center">
-                    <div className="text-xs text-zinc-600 animate-pulse">Carregando histórico…</div>
+                    <div className="text-xs text-[var(--text-muted)] animate-pulse">Carregando histórico…</div>
                   </div>
                 ) : history.every(p => p.hours === 0 && p.expenses === 0) ? (
                   <div className="h-56 flex items-center justify-center">
-                    <p className="text-sm text-zinc-600">Nenhum dado aprovado nos últimos 12 meses</p>
+                    <p className="text-sm text-[var(--text-muted)]">Nenhum dado aprovado nos últimos 12 meses</p>
                   </div>
                 ) : (
                   <ResponsiveContainer width="100%" height={230}>
@@ -3468,22 +3468,22 @@ export default function MeuPainelPage() {
 
                 {/* ── Legenda ── */}
                 <div className="flex items-center gap-5 mt-5 justify-center flex-wrap">
-                  <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                  <div className="flex items-center gap-2 text-[11px] text-[var(--text-light)]">
                     <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(0,245,255,0.22)' }} />
                     Horas
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-medium">
+                  <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)] font-medium">
                     <div className="w-3 h-3 rounded-sm bg-cyan-400" />
                     Horas (mês atual)
                   </div>
                   {hasExpHist && (
-                    <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                    <div className="flex items-center gap-2 text-[11px] text-[var(--text-light)]">
                       <div className="w-5 h-0.5 bg-amber-400" />
                       Despesas aprovadas
                     </div>
                   )}
                   {hasRate && (
-                    <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                    <div className="flex items-center gap-2 text-[11px] text-[var(--text-light)]">
                       <div className="w-5 h-0.5 bg-violet-400" />
                       Receita estimada
                     </div>
@@ -3513,7 +3513,7 @@ export default function MeuPainelPage() {
               </p>
             </div>
             {!isHorista && !isFixo && (
-              <button onClick={() => setHbKey(k => k + 1)} className="p-2 rounded-lg hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-subtle)' }}>
+              <button onClick={() => setHbKey(k => k + 1)} className="p-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-subtle)' }}>
                 <RefreshCw size={14} />
               </button>
             )}
@@ -3567,7 +3567,7 @@ export default function MeuPainelPage() {
                           const hrs = ts.effort_minutes / 60
                           const locked = isLocked(ts.status)
                           return (
-                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-white/[0.02] transition-colors" style={{ borderColor: 'var(--brand-border)' }}>
+                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--brand-border)' }}>
                               <td className="px-2 py-2.5 w-10">
                                 <RowMenu items={[
                                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
@@ -3586,12 +3586,12 @@ export default function MeuPainelPage() {
                               <td className="px-4 py-2.5 text-center font-mono" style={{ color: 'var(--brand-text)' }}>{fmtHours(hrs)}</td>
                               <td className="px-4 py-2.5 text-center">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                  ts.status === 'approved' ? 'bg-green-500/15 text-green-400' :
-                                  ts.status === 'rejected' ? 'bg-red-500/15 text-red-400' :
-                                  'bg-zinc-500/15 text-zinc-400'
+                                  ts.status === 'approved' ? 'bg-[var(--success-bg)] text-[var(--success)]' :
+                                  ts.status === 'rejected' ? 'bg-[var(--danger-bg)] text-[var(--danger)]' :
+                                  'bg-[var(--surface-hover)] text-[var(--text-muted)]'
                                 }`}>{ts.status_display}</span>
                                 {ts.rejection_reason && ['rejected', 'adjustment_requested'].includes(ts.status) && (
-                                  <p className="text-[10px] mt-0.5 text-red-400 truncate max-w-[140px] mx-auto" title={ts.rejection_reason}>
+                                  <p className="text-[10px] mt-0.5 text-[var(--danger)] truncate max-w-[140px] mx-auto" title={ts.rejection_reason}>
                                     {ts.rejection_reason}
                                   </p>
                                 )}
@@ -3662,7 +3662,7 @@ export default function MeuPainelPage() {
                           const val = effectiveRate > 0 ? hrs * effectiveRate : null
                           const locked = isLocked(ts.status)
                           return (
-                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-white/[0.02] transition-colors" style={{ borderColor: 'var(--brand-border)' }}>
+                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--brand-border)' }}>
                               <td className="px-2 py-2.5 w-10">
                                 <RowMenu items={[
                                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
@@ -3682,12 +3682,12 @@ export default function MeuPainelPage() {
                               {!isParceiroSimples && <td className="px-4 py-2.5 text-center font-mono" style={{ color: val ? '#22c55e' : 'var(--brand-subtle)' }}>{val ? formatBRL(val) : '—'}</td>}
                               <td className="px-4 py-2.5 text-center">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                                  ts.status === 'approved' ? 'bg-green-500/15 text-green-400' :
-                                  ts.status === 'rejected' ? 'bg-red-500/15 text-red-400' :
-                                  'bg-zinc-500/15 text-zinc-400'
+                                  ts.status === 'approved' ? 'bg-[var(--success-bg)] text-[var(--success)]' :
+                                  ts.status === 'rejected' ? 'bg-[var(--danger-bg)] text-[var(--danger)]' :
+                                  'bg-[var(--surface-hover)] text-[var(--text-muted)]'
                                 }`}>{ts.status_display}</span>
                                 {ts.rejection_reason && ['rejected', 'adjustment_requested'].includes(ts.status) && (
-                                  <p className="text-[10px] mt-0.5 text-red-400 truncate max-w-[140px] mx-auto" title={ts.rejection_reason}>
+                                  <p className="text-[10px] mt-0.5 text-[var(--danger)] truncate max-w-[140px] mx-auto" title={ts.rejection_reason}>
                                     {ts.rejection_reason}
                                   </p>
                                 )}
@@ -3768,9 +3768,9 @@ export default function MeuPainelPage() {
                 )}
 
                 <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--brand-subtle)' }}>
-                  <span className="flex items-center gap-1"><TrendingUp size={10} className="text-green-400" /> Saldo positivo</span>
-                  <span className="flex items-center gap-1"><TrendingDown size={10} className="text-red-400" /> Saldo negativo</span>
-                  <span className="flex items-center gap-1"><Minus size={10} className="text-zinc-500" /> Zerado</span>
+                  <span className="flex items-center gap-1"><TrendingUp size={10} className="text-[var(--success)]" /> Saldo positivo</span>
+                  <span className="flex items-center gap-1"><TrendingDown size={10} className="text-[var(--danger)]" /> Saldo negativo</span>
+                  <span className="flex items-center gap-1"><Minus size={10} className="text-[var(--text-light)]" /> Zerado</span>
                   {hbCurrent && <span className="ml-auto">HP = Dias úteis × {hbCurrent.daily_hours}h/dia</span>}
                 </div>
               </>
@@ -3787,12 +3787,12 @@ export default function MeuPainelPage() {
         <ModalOverlay onClose={() => setConfirmModal(null)}>
           <div className="p-6 space-y-5 w-full max-w-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-500/15 flex items-center justify-center shrink-0">
-                <Trash2 size={18} className="text-red-400" />
+              <div className="w-10 h-10 rounded-full bg-[var(--danger-bg)] flex items-center justify-center shrink-0">
+                <Trash2 size={18} className="text-[var(--danger)]" />
               </div>
               <h3 className="text-base font-semibold text-white">Confirmar exclusão</h3>
             </div>
-            <p className="text-sm text-zinc-400">{confirmModal.message}</p>
+            <p className="text-sm text-[var(--text-muted)]">{confirmModal.message}</p>
             <div className="flex gap-3 justify-end pt-1">
               <Button variant="outline" onClick={() => setConfirmModal(null)}>Cancelar</Button>
               <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={confirmModal.onConfirm}>
@@ -3828,9 +3828,9 @@ export default function MeuPainelPage() {
               const stName = selProj?.service_type?.name
               if (!stName) return null
               const colorMap: Record<string, string> = {
-                default: 'bg-zinc-700/60 text-zinc-300',
-                sustentacao: 'bg-blue-500/20 text-blue-300 border border-blue-500/30',
-                projeto: 'bg-purple-500/20 text-purple-300 border border-purple-500/30',
+                default: 'bg-[var(--surface-hover)] text-[var(--text)]',
+                sustentacao: 'bg-[var(--primary-soft)] text-[var(--primary)] border border-blue-500/30',
+                projeto: 'bg-[var(--purple-bg)] text-[var(--purple)] border border-purple-500/30',
               }
               const normalized = stName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
               const colorKey = normalized.includes('sustentacao') ? 'sustentacao'
@@ -3838,17 +3838,17 @@ export default function MeuPainelPage() {
                 : 'default'
               return (
                 <div className="flex items-center gap-2 -mt-1">
-                  <span className="text-[10px] text-zinc-500 uppercase tracking-wider">Tipo de serviço:</span>
+                  <span className="text-[10px] text-[var(--text-light)] uppercase tracking-wider">Tipo de serviço:</span>
                   <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${colorMap[colorKey]}`}>{stName}</span>
                 </div>
               )
             })()}
 
             <div>
-              <Label className="text-xs text-zinc-400">Data *</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
               <Input type="date" value={tsForm.date} max={todayISO()}
                 onChange={e => setTsForm(f => ({ ...f, date: e.target.value }))}
-                className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
             </div>
 
             {/* Toggle Horário / Total de Horas */}
@@ -3871,7 +3871,7 @@ export default function MeuPainelPage() {
             {!tsModeTotal && (
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label className="text-xs text-zinc-400">Início</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Início</Label>
                   <Input type="time" value={tsForm.start_time}
                     onChange={e => {
                       const start = e.target.value
@@ -3883,10 +3883,10 @@ export default function MeuPainelPage() {
                         return { ...f, start_time: start, end_time: end }
                       })
                     }}
-                    className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Fim</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Fim</Label>
                   <Input type="time" value={tsForm.end_time}
                     onChange={e => {
                       const end = e.target.value
@@ -3897,10 +3897,10 @@ export default function MeuPainelPage() {
                         return { ...f, end_time: end, total_hours: total }
                       })
                     }}
-                    className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Total (h)</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Total (h)</Label>
                   <Input
                     type="number" min="0.5" max="24" step="0.5"
                     value={tsForm.total_hours}
@@ -3915,7 +3915,7 @@ export default function MeuPainelPage() {
                       })
                     }}
                     placeholder="–"
-                    className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
                 </div>
               </div>
             )}
@@ -3927,21 +3927,21 @@ export default function MeuPainelPage() {
                   <span className="font-semibold">Atenção:</span> O lançamento por &quot;Total de Horas&quot; deve ser realizado em comum acordo com o coordenador responsável.
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Total de Horas *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Total de Horas *</Label>
                   <Input
                     type="number" min="0.5" max="24" step="0.5"
                     value={tsForm.total_hours}
                     onChange={e => setTsForm(f => ({ ...f, total_hours: e.target.value, start_time: '', end_time: '' }))}
                     placeholder="ex: 2.5"
-                    className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
                 </div>
               </div>
             )}
 
             <div>
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-zinc-400">Descrição *</Label>
-                <span className={`text-[10px] ${(tsForm.observation?.length ?? 0) < 20 ? 'text-zinc-500' : 'text-green-500'}`}>
+                <Label className="text-xs text-[var(--text-muted)]">Descrição *</Label>
+                <span className={`text-[10px] ${(tsForm.observation?.length ?? 0) < 20 ? 'text-[var(--text-light)]' : 'text-[var(--success)]'}`}>
                   {tsForm.observation?.length ?? 0}/20 mín.
                 </span>
               </div>
@@ -3949,7 +3949,7 @@ export default function MeuPainelPage() {
                 onChange={e => setTsForm(f => ({ ...f, observation: e.target.value }))}
                 rows={3}
                 placeholder="Descreva o que foi feito (mínimo 20 caracteres)..."
-                className="mt-1.5 w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs rounded-lg px-3 py-2.5 outline-none resize-none focus:border-zinc-500 transition-colors" />
+                className="mt-1.5 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2.5 outline-none resize-none focus:border-[var(--border-strong)] transition-colors" />
             </div>
 
             {(() => {
@@ -3957,22 +3957,22 @@ export default function MeuPainelPage() {
               if (!isSustentacao(selProj?.service_type?.name)) return null
               return (
                 <div>
-                  <Label className="text-xs text-zinc-400">Ticket / Chamado *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Ticket / Chamado *</Label>
                   <Input type="number" value={tsForm.ticket}
                     onChange={e => setTsForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
                     placeholder="Ex: 123456"
-                    className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
                 </div>
               )
             })()}
 
             <div className="flex gap-2 justify-end pt-2">
               <Button variant="outline" onClick={() => setTsModal({ open: false })}
-                className="h-9 text-xs border-zinc-700 text-zinc-300">
+                className="h-9 text-xs border-[var(--border)] text-[var(--text)]">
                 Cancelar
               </Button>
               <Button onClick={saveTs} disabled={tsSaving}
-                className="h-9 text-xs bg-blue-600 hover:bg-blue-500 text-white px-6">
+                className="h-9 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white px-6">
                 {tsSaving ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
@@ -4012,39 +4012,39 @@ export default function MeuPainelPage() {
             )}
 
             <div>
-              <Label className="text-xs text-zinc-400">Data *</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
               <Input type="date" value={expForm.expense_date}
                 onChange={e => setExpForm(f => ({ ...f, expense_date: e.target.value }))}
-                className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
             </div>
 
             <div>
-              <Label className="text-xs text-zinc-400">Descrição *</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Descrição *</Label>
               <Input value={expForm.description}
                 onChange={e => setExpForm(f => ({ ...f, description: e.target.value }))}
                 placeholder="Ex.: Passagem para São Paulo"
-                className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
             </div>
 
             <div>
-              <Label className="text-xs text-zinc-400">Valor (R$) *</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Valor (R$) *</Label>
               <Input type="number" min="0" step="0.01" value={expForm.amount}
                 onChange={e => setExpForm(f => ({ ...f, amount: e.target.value }))}
                 placeholder="0,00"
-                className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
             </div>
 
             {/* Receipt upload */}
             <div>
-              <Label className="text-xs text-zinc-400">Comprovante</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Comprovante</Label>
 
               {/* Comprovante existente (modo edição) */}
               {expForm.receipt_url && !expFile && (
-                <div className="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700">
-                  <span className="text-xs text-green-400 flex-1">Comprovante anexado</span>
+                <div className="mt-1.5 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--surface-hover)] border border-[var(--border)]">
+                  <span className="text-xs text-[var(--success)] flex-1">Comprovante anexado</span>
                   <ReceiptLinkInline url={expForm.receipt_url} />
                   <button type="button" onClick={() => fileRef.current?.click()}
-                    className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors">
+                    className="text-[11px] text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
                     Substituir
                   </button>
                 </div>
@@ -4054,10 +4054,10 @@ export default function MeuPainelPage() {
               {(!expForm.receipt_url || expFile) && (
                 <div
                   onClick={() => fileRef.current?.click()}
-                  className="mt-1.5 border border-dashed border-zinc-700 rounded-lg p-4 cursor-pointer hover:border-zinc-500 transition-colors text-center">
-                  <span className="text-xs text-zinc-500">
+                  className="mt-1.5 border border-dashed border-[var(--border)] rounded-lg p-4 cursor-pointer hover:border-[var(--border-strong)] transition-colors text-center">
+                  <span className="text-xs text-[var(--text-light)]">
                     {expFile
-                      ? <span className="text-blue-400">{expFile.name}</span>
+                      ? <span className="text-[var(--primary)]">{expFile.name}</span>
                       : 'Clique para anexar comprovante (opcional)'}
                   </span>
                 </div>
@@ -4069,11 +4069,11 @@ export default function MeuPainelPage() {
 
             <div className="flex gap-2 justify-end pt-2">
               <Button variant="outline" onClick={() => setExpModal({ open: false })}
-                className="h-9 text-xs border-zinc-700 text-zinc-300">
+                className="h-9 text-xs border-[var(--border)] text-[var(--text)]">
                 Cancelar
               </Button>
               <Button onClick={saveExp} disabled={expSaving}
-                className="h-9 text-xs bg-blue-600 hover:bg-blue-500 text-white px-6">
+                className="h-9 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white px-6">
                 {expSaving ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
@@ -4159,12 +4159,12 @@ export default function MeuPainelPage() {
                 <div className="flex items-center justify-end gap-2 pt-1">
                   {canEdit && (
                     <Button variant="outline" onClick={() => { setExpViewItem(null); openEditExp(expViewItem) }}
-                      className="h-8 text-xs border-zinc-700 text-zinc-300 gap-1.5">
+                      className="h-8 text-xs border-[var(--border)] text-[var(--text)] gap-1.5">
                       <Pencil size={11} /> Editar
                     </Button>
                   )}
                   <Button variant="outline" onClick={() => setExpViewItem(null)}
-                    className="h-8 text-xs border-zinc-700 text-zinc-300">
+                    className="h-8 text-xs border-[var(--border)] text-[var(--text)]">
                     Fechar
                   </Button>
                 </div>
@@ -4227,7 +4227,7 @@ export default function MeuPainelPage() {
                   <InfoRowModal icon={FolderOpen} label="Projeto" value={tsViewItem.project?.name} />
                   {tsViewItem.ticket && (
                     <InfoRowModal icon={Tag} label="Ticket">
-                      <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tsViewItem.ticket}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-cyan-400 hover:text-cyan-300">#{tsViewItem.ticket}</a>
+                      <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tsViewItem.ticket}`} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-[var(--primary)] hover:text-[var(--primary)]">#{tsViewItem.ticket}</a>
                     </InfoRowModal>
                   )}
                   <InfoRowModal icon={Paperclip} label="Anexo" last>
@@ -4289,12 +4289,12 @@ export default function MeuPainelPage() {
                 <div className="flex items-center justify-end gap-2 pt-1">
                   {canEditTs && (
                     <Button variant="outline" onClick={() => { setTsViewItem(null); openEditTs(tsViewItem) }}
-                      className="h-8 text-xs border-zinc-700 text-zinc-300 gap-1.5">
+                      className="h-8 text-xs border-[var(--border)] text-[var(--text)] gap-1.5">
                       <Pencil size={11} /> Editar
                     </Button>
                   )}
                   <Button variant="outline" onClick={() => setTsViewItem(null)}
-                    className="h-8 text-xs border-zinc-700 text-zinc-300">
+                    className="h-8 text-xs border-[var(--border)] text-[var(--text)]">
                     Fechar
                   </Button>
                 </div>
@@ -4315,16 +4315,16 @@ export default function MeuPainelPage() {
       {/* ── Modal de conflito ao salvar edição ────────────────────────── */}
       {tsEditConflict && (
         <ModalOverlay onClose={() => setTsEditConflict(null)}>
-          <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800" style={{ background: 'rgba(239,68,68,0.08)' }}>
+          <div className="bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)]" style={{ background: 'rgba(239,68,68,0.08)' }}>
               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.15)' }}>
-                <AlertTriangle size={16} className="text-red-400" />
+                <AlertTriangle size={16} className="text-[var(--danger)]" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-red-400">Conflito de Horário</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">O horário conflita com o apontamento abaixo</p>
+                <p className="text-sm font-bold text-[var(--danger)]">Conflito de Horário</p>
+                <p className="text-[11px] text-[var(--text-light)] mt-0.5">O horário conflita com o apontamento abaixo</p>
               </div>
-              <button onClick={() => setTsEditConflict(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+              <button onClick={() => setTsEditConflict(null)} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -4332,30 +4332,30 @@ export default function MeuPainelPage() {
             <div className="px-5 py-4 space-y-2.5">
               <div className="rounded-xl p-3.5 space-y-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Data</span>
-                  <span className="text-zinc-200 font-medium">{fmt(tsEditConflict.date)}</span>
+                  <span className="text-[var(--text-light)]">Data</span>
+                  <span className="text-[var(--text)] font-medium">{fmt(tsEditConflict.date)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Horário</span>
-                  <span className="text-zinc-200 font-medium font-mono">
+                  <span className="text-[var(--text-light)]">Horário</span>
+                  <span className="text-[var(--text)] font-medium font-mono">
                     {tsEditConflict.start_time ?? '—'} – {tsEditConflict.end_time ?? '—'}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Cliente</span>
-                  <span className="text-zinc-200 font-medium">{tsEditConflict.customer_name ?? '—'}</span>
+                  <span className="text-[var(--text-light)]">Cliente</span>
+                  <span className="text-[var(--text)] font-medium">{tsEditConflict.customer_name ?? '—'}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Projeto</span>
-                  <span className="text-zinc-200 font-medium">{tsEditConflict.project_name ?? '—'}</span>
+                  <span className="text-[var(--text-light)]">Projeto</span>
+                  <span className="text-[var(--text)] font-medium">{tsEditConflict.project_name ?? '—'}</span>
                 </div>
               </div>
-              <p className="text-[11px] text-zinc-600 text-center pt-1">
+              <p className="text-[11px] text-[var(--text-muted)] text-center pt-1">
                 Ajuste o horário para não sobrepor este apontamento.
               </p>
             </div>
 
-            <div className="px-5 py-4 border-t border-zinc-800 flex justify-end">
+            <div className="px-5 py-4 border-t border-[var(--border)] flex justify-end">
               <Button variant="outline" onClick={() => setTsEditConflict(null)}>Entendido</Button>
             </div>
           </div>

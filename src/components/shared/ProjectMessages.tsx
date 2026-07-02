@@ -360,7 +360,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                 {canEdit(msg) && editingId !== msg.id && (
                   <button
                     onClick={() => startEdit(msg)}
-                    className="ml-auto p-0.5 rounded hover:bg-white/10 transition-colors shrink-0"
+                    className="ml-auto p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors shrink-0"
                     title={`Editar (até ${EDIT_WINDOW_HOURS}h após o envio)`}
                     style={{ color: 'var(--brand-subtle)' }}
                   >
@@ -391,7 +391,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                     >
                       <Check size={11} /> Salvar
                     </button>
-                    <button onClick={cancelEdit} className="px-2.5 py-1 rounded-lg text-xs transition-colors hover:bg-white/5" style={{ color: 'var(--brand-subtle)' }}>
+                    <button onClick={cancelEdit} className="px-2.5 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}>
                       Cancelar
                     </button>
                     <span className="text-[10px]" style={{ color: 'var(--brand-muted)' }}>Enter salva · Esc cancela</span>
@@ -421,7 +421,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
           {showAllMention && (
             <button
               onMouseDown={e => { e.preventDefault(); insertAllMention() }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--brand-text)', borderBottom: filteredMentions.length > 0 ? '1px solid var(--brand-border)' : undefined }}
             >
               <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(0,245,255,0.15)', color: 'var(--brand-primary)' }}>
@@ -435,7 +435,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
             <button
               key={u.id}
               onMouseDown={e => { e.preventDefault(); insertMention(u) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--brand-text)' }}
             >
               <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0" style={{ background: 'rgba(0,245,255,0.15)', color: 'var(--brand-primary)' }}>

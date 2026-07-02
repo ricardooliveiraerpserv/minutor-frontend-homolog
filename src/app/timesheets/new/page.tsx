@@ -302,7 +302,7 @@ export default function NewTimesheetPage() {
                 onChange={e => setForm(f => ({ ...f, is_billable_only: e.target.checked }))}
                 className="w-3.5 h-3.5 accent-amber-500"
               />
-              <span className="text-xs text-amber-400">Somente faturável — não reflete no pagamento do consultor</span>
+              <span className="text-xs text-[var(--warning)]">Somente faturável — não reflete no pagamento do consultor</span>
             </label>
           )}
 
@@ -325,41 +325,41 @@ export default function NewTimesheetPage() {
 
       {conflictData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800" style={{ background: 'rgba(239,68,68,0.08)' }}>
+          <div className="bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)]" style={{ background: 'rgba(239,68,68,0.08)' }}>
               <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.15)' }}>
-                <AlertTriangle size={16} className="text-red-400" />
+                <AlertTriangle size={16} className="text-[var(--danger)]" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-red-400">Conflito de Horário</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5">O horário conflita com o apontamento abaixo</p>
+                <p className="text-sm font-bold text-[var(--danger)]">Conflito de Horário</p>
+                <p className="text-[11px] text-[var(--text-light)] mt-0.5">O horário conflita com o apontamento abaixo</p>
               </div>
-              <button onClick={() => setConflictData(null)} className="text-zinc-500 hover:text-zinc-300 transition-colors">
+              <button onClick={() => setConflictData(null)} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
                 <X size={18} />
               </button>
             </div>
             <div className="px-5 py-4 space-y-2.5">
               <div className="rounded-xl p-3.5 space-y-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Data</span>
-                  <span className="text-zinc-200 font-medium">{conflictData.date}</span>
+                  <span className="text-[var(--text-light)]">Data</span>
+                  <span className="text-[var(--text)] font-medium">{conflictData.date}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Horário</span>
-                  <span className="text-zinc-200 font-medium font-mono">{conflictData.start_time ?? '—'} – {conflictData.end_time ?? '—'}</span>
+                  <span className="text-[var(--text-light)]">Horário</span>
+                  <span className="text-[var(--text)] font-medium font-mono">{conflictData.start_time ?? '—'} – {conflictData.end_time ?? '—'}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Cliente</span>
-                  <span className="text-zinc-200 font-medium">{conflictData.customer_name ?? '—'}</span>
+                  <span className="text-[var(--text-light)]">Cliente</span>
+                  <span className="text-[var(--text)] font-medium">{conflictData.customer_name ?? '—'}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-zinc-500">Projeto</span>
-                  <span className="text-zinc-200 font-medium">{conflictData.project_name ?? '—'}</span>
+                  <span className="text-[var(--text-light)]">Projeto</span>
+                  <span className="text-[var(--text)] font-medium">{conflictData.project_name ?? '—'}</span>
                 </div>
               </div>
-              <p className="text-[11px] text-zinc-600 text-center pt-1">Ajuste o horário para não sobrepor este apontamento.</p>
+              <p className="text-[11px] text-[var(--text-muted)] text-center pt-1">Ajuste o horário para não sobrepor este apontamento.</p>
             </div>
-            <div className="px-5 py-4 border-t border-zinc-800 flex justify-end">
+            <div className="px-5 py-4 border-t border-[var(--border)] flex justify-end">
               <Button variant="outline" onClick={() => setConflictData(null)}>Entendido</Button>
             </div>
           </div>

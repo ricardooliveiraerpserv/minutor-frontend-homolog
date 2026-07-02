@@ -170,7 +170,7 @@ export default function ProjectTimesheetsModal({
         {/* Toolbar: filtro de data + exportações */}
         <div className="px-6 py-3 flex flex-wrap items-center justify-between gap-3" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2">
-            <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+            <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
               {(['month', 'period'] as const).map(mode => (
                 <button
                   key={mode}

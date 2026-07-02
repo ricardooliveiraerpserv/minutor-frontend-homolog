@@ -31,7 +31,7 @@ export function AppsMenu() {
         onClick={() => setOpen(v => !v)}
         title="Aplicativos"
         aria-label="Aplicativos"
-        className="p-1.5 rounded-md transition-colors hover:bg-zinc-800"
+        className="p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
         style={{ color: 'var(--brand-text)' }}
       >
         <LayoutGrid size={18} />

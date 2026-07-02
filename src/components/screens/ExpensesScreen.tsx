@@ -138,13 +138,13 @@ function SearchSelect({ value, onChange, options, placeholder }: {
           </div>
           <div className="max-h-52 overflow-y-auto">
             <button type="button" onClick={() => select('')}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>{placeholder}</button>
             {filtered.length === 0
               ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
               : filtered.map(o => (
                 <button key={o.id} type="button" onClick={() => select(String(o.id))}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 transition-colors"
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
                   style={{ color: String(o.id) === value ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
                   {o.name}
                 </button>
@@ -157,10 +157,10 @@ function SearchSelect({ value, onChange, options, placeholder }: {
 }
 
 const STATUS_CLASS: Record<string, string> = {
-  pending:              'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  approved:             'bg-green-500/20 text-green-400 border-green-500/30',
-  rejected:             'bg-red-500/20 text-red-400 border-red-500/30',
-  adjustment_requested: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  pending:              'bg-[var(--warning-bg)] text-[var(--warning)] border-yellow-500/30',
+  approved:             'bg-[var(--success-bg)] text-[var(--success)] border-green-500/30',
+  rejected:             'bg-[var(--danger-bg)] text-[var(--danger)] border-red-500/30',
+  adjustment_requested: 'bg-[var(--warning-bg)] text-[var(--warning)] border-orange-500/30',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -271,9 +271,9 @@ function DateRangePicker({ from, to, onChange }: {
     while (cells.length % 7 !== 0) cells.push(null)
     return (
       <div className="w-[196px]">
-        <div className="text-center text-sm font-semibold mb-3 text-cyan-400">{MONTH_NAMES_PT[m]} {y}</div>
+        <div className="text-center text-sm font-semibold mb-3 text-[var(--primary)]">{MONTH_NAMES_PT[m]} {y}</div>
         <div className="grid grid-cols-7 mb-1">
-          {DAY_NAMES_PT.map(d => <div key={d} className="text-center text-[10px] text-zinc-600 py-1">{d}</div>)}
+          {DAY_NAMES_PT.map(d => <div key={d} className="text-center text-[10px] text-[var(--text-muted)] py-1">{d}</div>)}
         </div>
         <div className="grid grid-cols-7">
           {cells.map((day, i) => {
@@ -287,9 +287,9 @@ function DateRangePicker({ from, to, onChange }: {
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${
                   s || e ? 'bg-cyan-400 text-zinc-900 font-bold'
-                  : ir    ? 'bg-cyan-400/20 text-cyan-300'
-                  : td    ? 'text-cyan-400 font-semibold hover:bg-zinc-700'
-                  :         'text-zinc-300 hover:bg-zinc-700'
+                  : ir    ? 'bg-[var(--primary-soft)] text-[var(--primary)]'
+                  : td    ? 'text-[var(--primary)] font-semibold hover:bg-[var(--surface-hover)]'
+                  :         'text-[var(--text)] hover:bg-[var(--surface-hover)]'
                 }`}>
                 {day}
               </button>
@@ -310,29 +310,29 @@ function DateRangePicker({ from, to, onChange }: {
   return (
     <>
       <button ref={btnRef} type="button" onClick={toggle}
-        className={`flex items-center gap-2 h-8 px-3 bg-zinc-800 border text-xs rounded-md hover:border-zinc-500 transition-colors whitespace-nowrap ${from || to ? 'border-cyan-500/50 text-zinc-200' : 'border-zinc-700 text-zinc-400'}`}>
-        <CalendarDays size={12} className={from || to ? 'text-cyan-400' : 'text-zinc-500'} />
+        className={`flex items-center gap-2 h-8 px-3 bg-[var(--surface-hover)] border text-xs rounded-md hover:border-[var(--border-strong)] transition-colors whitespace-nowrap ${from || to ? 'border-cyan-500/50 text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>
+        <CalendarDays size={12} className={from || to ? 'text-[var(--primary)]' : 'text-[var(--text-light)]'} />
         {displayText}
         {(from || to) && (
           <span onClick={e => { e.stopPropagation(); onChange('', '') }}
-            className="ml-1 text-zinc-600 hover:text-zinc-400 cursor-pointer">
+            className="ml-1 text-[var(--text-muted)] hover:text-[var(--text-muted)] cursor-pointer">
             <X size={10} />
           </span>
         )}
       </button>
       {pos && (
-        <div ref={ref} className="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-4"
+        <div ref={ref} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-2xl p-4"
           style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}>
           <div className="flex items-center gap-4">
-            <button type="button" onClick={prevMonth} className="text-zinc-500 hover:text-zinc-200 p-1 shrink-0"><ChevronLeft size={14} /></button>
+            <button type="button" onClick={prevMonth} className="text-[var(--text-light)] hover:text-[var(--text)] p-1 shrink-0"><ChevronLeft size={14} /></button>
             <div className="flex gap-4">
               {renderMonth(leftYM.y, leftYM.m)}
-              <div className="w-px bg-zinc-800" />
+              <div className="w-px bg-[var(--surface-hover)]" />
               {renderMonth(rightYM.y, rightYM.m)}
             </div>
-            <button type="button" onClick={nextMonth} className="text-zinc-500 hover:text-zinc-200 p-1 shrink-0"><ChevronRight size={14} /></button>
+            <button type="button" onClick={nextMonth} className="text-[var(--text-light)] hover:text-[var(--text)] p-1 shrink-0"><ChevronRight size={14} /></button>
           </div>
-          {selecting && <p className="text-[11px] text-zinc-500 text-center mt-3">Clique para selecionar a data final</p>}
+          {selecting && <p className="text-[11px] text-[var(--text-light)] text-center mt-3">Clique para selecionar a data final</p>}
         </div>
       )}
     </>
@@ -342,8 +342,8 @@ function DateRangePicker({ from, to, onChange }: {
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
-        <button onClick={onClose} className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300 z-10"><X size={16} /></button>
+      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-3 right-3 text-[var(--text-light)] hover:text-[var(--text)] z-10"><X size={16} /></button>
         {children}
       </div>
     </div>
@@ -391,16 +391,16 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
   return (
     <div ref={ref} className="flex justify-end">
       <button ref={btnRef} onClick={toggle}
-        className={`p-1.5 rounded transition-colors ${open ? 'text-zinc-200 bg-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'}`}>
+        className={`p-1.5 rounded transition-colors ${open ? 'text-[var(--text)] bg-[var(--surface-hover)]' : 'text-[var(--text-light)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)]'}`}>
         <MoreVertical size={14} />
       </button>
       {pos && (
         <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-          className="min-w-[152px] bg-zinc-800 border border-zinc-700 rounded-xl shadow-2xl py-1 overflow-hidden">
+          className="min-w-[152px] bg-[var(--surface-hover)] border border-[var(--border)] rounded-xl shadow-2xl py-1 overflow-hidden">
           {items.map((item, i) => (
             <button key={i} onClick={() => { item.onClick(); setPos(null) }}
               className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs transition-colors text-left ${
-                item.danger ? 'text-red-400 hover:bg-red-500/10' : 'text-zinc-300 hover:bg-zinc-700'
+                item.danger ? 'text-[var(--danger)] hover:bg-[var(--danger-bg)]' : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'
               }`}>
               {item.icon}{item.label}
             </button>
@@ -831,7 +831,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+            <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
               {(['month', 'period'] as const).map((mode) => (
                 <button key={mode} onClick={() => setFilterMode(mode)}
                   className="px-3 py-1.5 font-medium transition-colors"
@@ -881,7 +881,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             })}
             {(customerIds.length > 0 || projectId || userIds.length > 0 || coordinatorIds.length > 0 || executiveIds.length > 0 || contractTypeId || dateFrom || dateTo) && (
               <button onClick={() => clearPersistedFilters()}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs transition-all hover:bg-white/5"
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs transition-all hover:bg-[var(--surface-hover)]"
                 style={{ color: 'var(--brand-danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 <X size={11} /> Limpar
               </button>
@@ -1040,10 +1040,10 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                   {!isCliente && (
                     <Td>
                       {exp.is_paid
-                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400">Pago</span>
+                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-[var(--success)]">Pago</span>
                         : (exp.user?.partner_id != null && exp.status === 'approved')
-                          ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400">Pago no fechamento</span>
-                          : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-950 text-amber-400">Em aberto</span>
+                          ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-[var(--success)]">Pago no fechamento</span>
+                          : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-950 text-[var(--warning)]">Em aberto</span>
                       }
                     </Td>
                   )}
@@ -1131,10 +1131,10 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                       <Badge variant={exp.status as any}>{STATUS_LABEL[exp.status] ?? exp.status}</Badge>
                     </ReasonTooltip>
                     {exp.is_paid
-                      ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400">Pago</span>
+                      ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-[var(--success)]">Pago</span>
                       : (exp.user?.partner_id != null && exp.status === 'approved')
-                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400">Pago no fechamento</span>
-                        : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-950 text-amber-400">Em aberto</span>
+                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-[var(--success)]">Pago no fechamento</span>
+                        : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-950 text-[var(--warning)]">Em aberto</span>
                     }
                   </div>
                 )}
@@ -1164,7 +1164,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
               {canActAsUser && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <Label className="text-xs text-zinc-400">Usuário</Label>
+                    <Label className="text-xs text-[var(--text-muted)]">Usuário</Label>
                     <button
                       type="button"
                       onClick={() => setForm(f => ({ ...f, user_id: String(user?.id ?? '') }))}
@@ -1183,7 +1183,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 </div>
               )}
               <div>
-                <Label className="text-xs text-zinc-400">Cliente</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Cliente</Label>
                 <div className="mt-1">
                   <SearchSelect
                     value={form.customer_id}
@@ -1194,7 +1194,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 </div>
               </div>
               <div>
-                <Label className="text-xs text-zinc-400">Projeto *</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Projeto *</Label>
                 <div className="mt-1">
                   <SearchSelect
                     value={form.project_id}
@@ -1217,7 +1217,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 })
                 return (
                   <div>
-                    <Label className="text-xs text-zinc-400">Projeto Real *{soSustentacao ? ' (Sustentação)' : ''}</Label>
+                    <Label className="text-xs text-[var(--text-muted)]">Projeto Real *{soSustentacao ? ' (Sustentação)' : ''}</Label>
                     <div className="mt-1">
                       <SearchSelect
                         value={form.real_project_id}
@@ -1230,7 +1230,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 )
               })()}
               <div>
-                <Label className="text-xs text-zinc-400">Categoria *</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Categoria *</Label>
                 <div className="mt-1">
                   <SearchSelect
                     value={form.expense_category_id}
@@ -1242,36 +1242,36 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs text-zinc-400">Data *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
                   <Input type="date" value={form.expense_date} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Valor *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Valor *</Label>
                   <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
                 </div>
               </div>
               <div>
-                <Label className="text-xs text-zinc-400">Descrição *</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Descrição *</Label>
                 <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
               </div>
               <div>
-                <Label className="text-xs text-zinc-400">Comprovante</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Comprovante</Label>
                 <div className="mt-1 flex items-center gap-2">
-                  <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded-md text-xs text-zinc-300 hover:bg-zinc-700 transition-colors">
+                  <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--surface-hover)] border border-[var(--border)] rounded-md text-xs text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors">
                     <Paperclip size={12} /> {receipt ? receipt.name : 'Selecionar arquivo'}
                   </button>
-                  {receipt && <button onClick={() => setReceipt(null)} className="text-zinc-500 hover:text-zinc-200"><X size={12} /></button>}
+                  {receipt && <button onClick={() => setReceipt(null)} className="text-[var(--text-light)] hover:text-[var(--text)]"><X size={12} /></button>}
                 </div>
                 <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden" onChange={e => setReceipt(e.target.files?.[0] ?? null)} />
               </div>
             </div>
             <div className="flex gap-2 mt-5 justify-end">
-              <UIButton variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</UIButton>
+              <UIButton variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</UIButton>
               <UIButton onClick={save} disabled={saving || !form.project_id || !form.expense_category_id || !form.expense_date || !form.amount || !form.description}
-                className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
                 {saving ? 'Salvando...' : 'Salvar'}
               </UIButton>
             </div>
@@ -1304,29 +1304,29 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-950 flex items-center justify-center">
-                <AlertTriangle size={18} className="text-amber-400" />
+                <AlertTriangle size={18} className="text-[var(--warning)]" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-white">Pagamento não permitido</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">Despesa pendente de aprovação</p>
+                <p className="text-xs text-[var(--text-light)] mt-0.5">Despesa pendente de aprovação</p>
               </div>
             </div>
-            <p className="text-sm text-zinc-300 mb-2">
+            <p className="text-sm text-[var(--text)] mb-2">
               Esta despesa ainda não foi aprovada e <strong className="text-white">não pode ser marcada como paga</strong>.
             </p>
-            <p className="text-sm text-zinc-500 mb-6">
+            <p className="text-sm text-[var(--text-light)] mb-6">
               O pagamento só pode ser registrado após a aprovação pelo gestor responsável. Solicite a aprovação antes de efetuar o pagamento.
             </p>
             {paidBlockModal.expense && (
-              <div className="rounded-lg bg-zinc-800 border border-zinc-700 px-4 py-3 text-xs text-zinc-400 space-y-1 mb-6">
-                <div><span className="text-zinc-500">Descrição:</span> {paidBlockModal.expense.description}</div>
-                <div><span className="text-zinc-500">Status atual:</span> {paidBlockModal.expense.status_display}</div>
-                <div><span className="text-zinc-500">Valor:</span> {paidBlockModal.expense.formatted_amount}</div>
+              <div className="rounded-lg bg-[var(--surface-hover)] border border-[var(--border)] px-4 py-3 text-xs text-[var(--text-muted)] space-y-1 mb-6">
+                <div><span className="text-[var(--text-light)]">Descrição:</span> {paidBlockModal.expense.description}</div>
+                <div><span className="text-[var(--text-light)]">Status atual:</span> {paidBlockModal.expense.status_display}</div>
+                <div><span className="text-[var(--text-light)]">Valor:</span> {paidBlockModal.expense.formatted_amount}</div>
               </div>
             )}
             <button
               onClick={() => setPaidBlockModal({ open: false })}
-              className="w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-sm text-zinc-200 transition-colors"
+              className="w-full py-2 rounded-lg bg-[var(--surface-hover)] hover:bg-[var(--surface-hover)] text-sm text-[var(--text)] transition-colors"
             >
               Entendi
             </button>
@@ -1343,7 +1343,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
               </div>
               <div>
                 <h3 className="text-base font-bold text-white">Estornar Aprovação</h3>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-[var(--text-light)]">
                   Despesa #{revertTarget.id} · {revertTarget.formatted_amount}
                 </p>
               </div>
@@ -1356,7 +1356,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setRevertTarget(null)}
-                className="flex-1 py-2 rounded-xl text-sm font-semibold bg-zinc-800 text-zinc-400 hover:bg-zinc-700 transition-colors"
+                className="flex-1 py-2 rounded-xl text-sm font-semibold bg-[var(--surface-hover)] text-[var(--text-muted)] hover:bg-[var(--surface-hover)] transition-colors"
               >
                 Cancelar
               </button>

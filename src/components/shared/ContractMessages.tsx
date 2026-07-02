@@ -282,7 +282,7 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
         <div className="mx-4 mb-1 rounded-lg border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
           {filteredMentions.slice(0, 6).map(u => (
             <button key={u.id} onMouseDown={e => { e.preventDefault(); insertMention(u) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-white/5 transition-colors"
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--brand-text)' }}>
               <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
                 style={{ background: 'rgba(234,179,8,0.15)', color: 'var(--warning)' }}>

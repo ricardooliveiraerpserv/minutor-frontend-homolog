@@ -580,10 +580,10 @@ export default function SustentacaoProjetosPage() {
           {/* Saúde filter */}
           <div className="flex items-center gap-0.5 bg-[var(--surface-hover)] border border-[var(--border)] rounded-full p-1">
             {([
-              { id: '',       label: 'Todos',    active: 'bg-cyan-400 text-zinc-900',  inactive: 'text-zinc-400 hover:text-zinc-200' },
-              { id: 'green',  label: 'Saudável', active: 'bg-green-500 text-white',    inactive: 'text-green-500 hover:text-green-400' },
-              { id: 'yellow', label: 'Atenção',  active: 'bg-amber-400 text-zinc-900', inactive: 'text-amber-400 hover:text-amber-300' },
-              { id: 'red',    label: 'Crítico',  active: 'bg-red-500 text-white',      inactive: 'text-red-500 hover:text-red-400' },
+              { id: '',       label: 'Todos',    active: 'bg-cyan-400 text-zinc-900',  inactive: 'text-[var(--text-muted)] hover:text-[var(--text)]' },
+              { id: 'green',  label: 'Saudável', active: 'bg-[var(--success-border)] text-white',    inactive: 'text-[var(--success)] hover:text-[var(--success)]' },
+              { id: 'yellow', label: 'Atenção',  active: 'bg-amber-400 text-zinc-900', inactive: 'text-[var(--warning)] hover:text-[var(--warning)]' },
+              { id: 'red',    label: 'Crítico',  active: 'bg-[var(--danger-border)] text-white',      inactive: 'text-[var(--danger)] hover:text-[var(--danger)]' },
             ] as const).map(opt => (
               <button key={opt.id} type="button"
                 onClick={() => setSaudeFilter(opt.id)}

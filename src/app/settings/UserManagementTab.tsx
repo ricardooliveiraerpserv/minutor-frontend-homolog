@@ -177,7 +177,7 @@ function ConsultantTypeCard({ value, onChange }: { value: ConsultantType | ''; o
       <Label className="text-xs text-[var(--text-muted)] mb-1 block">Tipo de Consultor *</Label>
       <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] overflow-hidden">
         <button type="button" onClick={() => setOpen(o => !o)}
-          className="w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-zinc-700/40 transition-colors">
+          className="w-full flex items-center justify-between px-3 py-2 text-xs text-left hover:bg-[var(--surface-hover)] transition-colors">
           <span className={selected ? 'text-[var(--text)] font-medium' : 'text-[var(--text-light)]'}>
             {selected ? selected.label : 'Selecione o tipo...'}
           </span>
@@ -187,11 +187,11 @@ function ConsultantTypeCard({ value, onChange }: { value: ConsultantType | ''; o
           <div className="px-3 pb-2 text-[10px] text-[var(--text-light)]">{selected.desc}</div>
         )}
         {open && (
-          <div className="border-t border-zinc-700/60 px-2 pb-2 pt-1.5 space-y-1">
+          <div className="border-t border-[var(--border)]/60 px-2 pb-2 pt-1.5 space-y-1">
             {CONSULTANT_OPTIONS.map(opt => (
               <button key={opt.value} type="button" onClick={() => { onChange(opt.value); setOpen(false) }}
                 className={`w-full flex flex-col items-start px-2.5 py-1.5 rounded-md text-xs text-left transition-colors ${
-                  value === opt.value ? 'bg-blue-600/20 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-zinc-700/60 hover:text-[var(--text)]'
+                  value === opt.value ? 'bg-[var(--primary-soft)] text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
                 }`}>
                 <div className="flex items-center gap-2">
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${value === opt.value ? 'bg-[var(--primary)]' : 'bg-[var(--border-strong)]'}`} />
@@ -516,7 +516,7 @@ export function UserManagementTab() {
 
       {/* Barra de ação em massa */}
       {selectedIds.size > 0 && (
-        <div className="mb-3 flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-lg bg-blue-600/10 border border-blue-500/20 text-xs">
+        <div className="mb-3 flex items-center gap-2 flex-wrap px-3 py-2.5 rounded-lg bg-[var(--primary-soft)] border border-blue-500/20 text-xs">
           <span className="text-[var(--primary)] font-medium shrink-0">{selectedIds.size} selecionado(s)</span>
           <span className="text-[var(--text-muted)]">|</span>
           <select value={bulkField} onChange={e => { setBulkField(e.target.value as any); setBulkValue('') }}
@@ -579,7 +579,7 @@ export function UserManagementTab() {
             {loading ? <TableSkeleton /> : users.length === 0 ? (
               <tr><td colSpan={6} className="px-3 py-8 text-center text-[var(--text-light)]">Nenhum usuário encontrado</td></tr>
             ) : users.map(user => (
-              <tr key={user.id} className={`border-b border-[var(--border)] hover:bg-zinc-800/40 transition-colors ${selectedIds.has(user.id) ? 'bg-blue-600/5' : ''}`}>
+              <tr key={user.id} className={`border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors ${selectedIds.has(user.id) ? 'bg-[var(--primary-soft)]' : ''}`}>
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
                     { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewUser(user) },
@@ -597,7 +597,7 @@ export function UserManagementTab() {
                 <td className="px-3 py-2.5 hidden sm:table-cell">
                   <div className="flex flex-wrap gap-1 items-center">
                     {user.type && (
-                      <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-[var(--primary)] border-blue-500/20">
+                      <Badge variant="outline" className="text-[10px] bg-[var(--primary-soft)] text-[var(--primary)] border-blue-500/20">
                         {PROFILE_OPTIONS.find(o => resolveTypeForBackend(o.value) === user.type)?.label ?? user.type}
                       </Badge>
                     )}
@@ -610,8 +610,8 @@ export function UserManagementTab() {
                 </td>
                 <td className="px-3 py-2.5">
                   <Badge variant="outline" className={`text-[10px] border ${user.enabled
-                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                    : 'bg-zinc-500/20 text-[var(--text-muted)] border-zinc-500/30'}`}>
+                    ? 'bg-[var(--success-bg)] text-[var(--success)] border-green-500/30'
+                    : 'bg-[var(--surface-hover)] text-[var(--text-muted)] border-[var(--border-strong)]/30'}`}>
                     {user.enabled ? 'Ativo' : 'Inativo'}
                   </Badge>
                 </td>
@@ -649,15 +649,15 @@ export function UserManagementTab() {
                       className={`py-2 px-3 rounded-lg text-xs font-medium border transition-all text-left ${
                         active
                           ? isAdmin
-                            ? 'bg-amber-600/20 border-amber-500 text-amber-300'
-                            : 'bg-blue-600/20 border-blue-500 text-[var(--primary)]'
+                            ? 'bg-[var(--warning-bg)] border-amber-500 text-[var(--warning)]'
+                            : 'bg-[var(--primary-soft)] border-blue-500 text-[var(--primary)]'
                           : isAdmin
-                            ? 'bg-[var(--surface-hover)] border-amber-800/60 text-amber-500/80 hover:border-amber-600'
+                            ? 'bg-[var(--surface-hover)] border-amber-800/60 text-[var(--warning)]/80 hover:border-amber-600'
                             : 'bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
                       }`}>
                       <span className={`mr-1.5 inline-block w-3 h-3 rounded border text-center leading-[10px] ${
                         active
-                          ? isAdmin ? 'border-amber-400 bg-amber-500 text-[var(--primary-fg)]' : 'border-blue-400 bg-[var(--primary)] text-[var(--primary-fg)]'
+                          ? isAdmin ? 'border-amber-400 bg-[var(--warning-border)] text-[var(--primary-fg)]' : 'border-blue-400 bg-[var(--primary)] text-[var(--primary-fg)]'
                           : 'border-[var(--border-strong)]'
                       }`}>{active ? '✓' : ''}</span>
                       {opt.label}
@@ -688,9 +688,9 @@ export function UserManagementTab() {
                   </div>
                 )}
                 {hasRate && isParceiroAdm && partnerIsFixed ? (
-                  <div className="text-[10px] text-[var(--text-light)] bg-zinc-800/50 rounded-md px-3 py-2 border border-zinc-700/50">
+                  <div className="text-[10px] text-[var(--text-light)] bg-[var(--surface-hover)] rounded-md px-3 py-2 border border-[var(--border)]/50">
                     Valor hora definido pelo parceiro:{' '}
-                    <span className="text-cyan-400 font-medium">
+                    <span className="text-[var(--primary)] font-medium">
                       R$ {selectedPartner?.hourly_rate ? Number(selectedPartner.hourly_rate).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'}/h
                     </span>
                   </div>
@@ -699,7 +699,7 @@ export function UserManagementTab() {
                     <Label className="text-xs text-[var(--text-muted)] mb-1 block">Remuneração</Label>
                     <div className="flex gap-2 items-center">
                       {isConsultor ? (
-                        <span className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-zinc-800/60 text-xs text-[var(--text-muted)] font-medium whitespace-nowrap">
+                        <span className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] text-xs text-[var(--text-muted)] font-medium whitespace-nowrap">
                           {form.rate_type === 'hourly' ? 'Por Hora' : 'Fixo'}
                         </span>
                       ) : (
@@ -817,7 +817,7 @@ export function UserManagementTab() {
                       <p className="text-[10px] text-[var(--text-light)] mb-2">
                         Permissões marcadas em cinza já fazem parte do perfil. As desmarcadas podem ser habilitadas individualmente.
                       </p>
-                      <div className="rounded-lg border border-[var(--border)] bg-zinc-800/40 divide-y divide-zinc-700/50">
+                      <div className="rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] divide-y divide-zinc-700/50">
                         {groups.map(group => (
                           <div key={group} className="px-3 py-2">
                             <p className="text-[10px] font-medium text-[var(--text-light)] mb-1.5 uppercase tracking-wide">{group}</p>
@@ -875,7 +875,7 @@ export function UserManagementTab() {
               <>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--warning-bg)] shrink-0">
-                    <KeyRound size={15} className="text-yellow-400" />
+                    <KeyRound size={15} className="text-[var(--warning)]" />
                   </div>
                   <h3 className="text-sm font-semibold text-[var(--text)]">Resetar senha</h3>
                 </div>
@@ -898,13 +898,13 @@ export function UserManagementTab() {
                 <h3 className="text-sm font-semibold text-[var(--text)] mb-1">Senha gerada com sucesso</h3>
                 <p className="text-xs text-[var(--text-muted)] mb-2">Copie a senha abaixo para repassar ao usuário.</p>
                 {resetModal.emailSent
-                  ? <p className="text-xs mb-4 px-2.5 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400">E-mail enviado para <span className="font-medium">{resetModal.userEmail}</span></p>
-                  : <p className="text-xs mb-4 px-2.5 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-[var(--danger)]">Falha ao enviar e-mail — repasse a senha manualmente.</p>
+                  ? <p className="text-xs mb-4 px-2.5 py-1.5 rounded-lg bg-[var(--success-bg)] border border-green-500/20 text-[var(--success)]">E-mail enviado para <span className="font-medium">{resetModal.userEmail}</span></p>
+                  : <p className="text-xs mb-4 px-2.5 py-1.5 rounded-lg bg-[var(--danger-bg)] border border-red-500/20 text-[var(--danger)]">Falha ao enviar e-mail — repasse a senha manualmente.</p>
                 }
                 <div className="flex items-center gap-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-3 py-2.5">
-                  <code className="flex-1 text-sm text-yellow-300 font-mono tracking-wider">{resetModal.tempPassword}</code>
+                  <code className="flex-1 text-sm text-[var(--warning)] font-mono tracking-wider">{resetModal.tempPassword}</code>
                   <button onClick={copyPassword} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
-                    {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                    {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
                   </button>
                 </div>
                 <Button onClick={() => setResetModal({ open: false, confirmed: false })} className="mt-4 w-full h-8 text-xs bg-[var(--surface-hover)] hover:bg-[var(--border-strong)] text-[var(--text)]">Fechar</Button>
@@ -926,7 +926,7 @@ export function UserManagementTab() {
           { label: 'E-mail', value: u.email },
           { label: 'Perfil', value: profileLabel },
           { label: 'Status', value: u.enabled
-              ? <span className="text-green-400 text-xs font-medium">Ativo</span>
+              ? <span className="text-[var(--success)] text-xs font-medium">Ativo</span>
               : <span className="text-[var(--text-muted)] text-xs">Inativo</span> },
         ]
         if (u.hourly_rate != null) rows.push({ label: 'Remuneração', value: `${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(u.hourly_rate))} ${u.rate_type === 'monthly' ? '/ mês' : '/ hora'}` })
@@ -956,7 +956,7 @@ export function UserManagementTab() {
               </div>
               <div className="flex gap-2 mt-5 justify-end">
                 <button onClick={() => { setViewUser(null); openEdit(u) }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/5 border border-[var(--border)] text-[var(--text-muted)]">
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-muted)]">
                   <Pencil size={11} /> Editar
                 </button>
                 <button onClick={() => setViewUser(null)}

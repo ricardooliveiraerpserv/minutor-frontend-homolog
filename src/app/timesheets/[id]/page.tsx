@@ -132,7 +132,7 @@ export default function TimesheetDetailPage() {
           actions={
             <Link href="/timesheets">
               <span
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs transition-colors hover:bg-white/5"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs transition-colors hover:bg-[var(--surface-hover)]"
                 style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}
               >
                 <ArrowLeft size={12} /> Voltar

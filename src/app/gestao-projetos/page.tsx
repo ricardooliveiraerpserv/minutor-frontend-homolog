@@ -283,12 +283,12 @@ function SearchSelect({ value, onChange, options, placeholder, portal = false }:
       </div>
       <div className="max-h-52 overflow-y-auto py-0.5">
         <button type="button" onClick={() => select('')}
-          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${!value ? 'text-cyan-400 bg-[var(--surface-hover)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}>{placeholder}</button>
+          className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${!value ? 'text-[var(--primary)] bg-[var(--surface-hover)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}>{placeholder}</button>
         {filtered.length === 0
           ? <p className="px-3 py-2 text-xs text-[var(--text-light)] italic">Nenhum resultado</p>
           : filtered.map(o => (
             <button key={o.id} type="button" onClick={() => select(String(o.id))}
-              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${String(o.id) === value ? 'text-cyan-400 bg-[var(--surface-hover)]' : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'}`}>
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${String(o.id) === value ? 'text-[var(--primary)] bg-[var(--surface-hover)]' : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'}`}>
               {o.name}
             </button>
           ))}
@@ -338,10 +338,10 @@ function SimpleSelect({ value, onChange, options, placeholder }: {
         <div className="absolute top-full mt-1 left-0 z-50 min-w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden">
           <div className="max-h-52 overflow-y-auto py-0.5">
             <button type="button" onClick={() => select('')}
-              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${!value ? 'text-cyan-400 bg-[var(--surface-hover)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}>{placeholder}</button>
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${!value ? 'text-[var(--primary)] bg-[var(--surface-hover)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'}`}>{placeholder}</button>
             {options.map(o => (
               <button key={o.id} type="button" onClick={() => select(o.id)}
-                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${o.id === value ? 'text-cyan-400 bg-[var(--surface-hover)]' : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'}`}>
+                className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-left transition-colors ${o.id === value ? 'text-[var(--primary)] bg-[var(--surface-hover)]' : 'text-[var(--text)] hover:bg-[var(--surface-hover)]'}`}>
                 {o.name}
               </button>
             ))}
@@ -518,7 +518,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
               type="checkbox"
               checked={!!isSelected}
               onChange={() => onSelect(project.id)}
-              className="w-4 h-4 rounded accent-cyan-400 cursor-pointer"
+              className="w-4 h-4 rounded accent-[var(--primary)] cursor-pointer"
             />
           </td>
         )}
@@ -545,7 +545,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
               },
               ...(canDetach && project.parent_project_id ? [{ label: 'Desvincular do pai', icon: <Layers size={12} />, onClick: () => onMenuAction('detach-parent', project) }] : []),
               ...(canDetach && !project.parent_project_id ? [{ label: 'Vincular como filho', icon: <Layers size={12} />, onClick: () => onMenuAction('attach-parent', project) }] : []),
-              ...(onDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} className="text-red-400" />, onClick: () => onDelete(project), danger: true }] : []),
+              ...(onDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} className="text-[var(--danger)]" />, onClick: () => onDelete(project), danger: true }] : []),
             ]} />
             <button
               onClick={() => onMenuAction('messages', project)}
@@ -1382,7 +1382,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                     </div>
                     {codeChecking && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Verificando código...</p>}
                     {codeExists && !codeChecking && (
-                      <p className="text-[11px] text-red-400">⚠ Código <span className="font-mono font-semibold">{codePreview}</span> já existe em outro projeto.</p>
+                      <p className="text-[11px] text-[var(--danger)]">⚠ Código <span className="font-mono font-semibold">{codePreview}</span> já existe em outro projeto.</p>
                     )}
                     {!form.code_seq && (
                       <p className="text-[11px] italic" style={{ color: 'var(--text-light)' }}>Atual: <span className="font-mono">{d.code}</span> — deixe vazio para manter</p>
@@ -1467,9 +1467,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => downloadProjAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-white/10" style={{ color: 'var(--brand-subtle)' }}><Download size={13} /></button>
+                          <button type="button" onClick={() => downloadProjAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}><Download size={13} /></button>
                           {att.source !== 'contract' && (
-                            <button type="button" onClick={() => deleteProjAtt(att)} title="Remover" className="p-1 rounded transition-colors hover:bg-white/10" style={{ color: 'var(--brand-subtle)' }}><Trash2 size={13} /></button>
+                            <button type="button" onClick={() => deleteProjAtt(att)} title="Remover" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}><Trash2 size={13} /></button>
                           )}
                         </div>
                       </div>
@@ -3181,7 +3181,7 @@ function GestaoProjetosInner() {
                 <tr style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border)' }}>
                   <th className="w-8 pl-3">
                     <input type="checkbox"
-                      className="w-4 h-4 rounded accent-cyan-400 cursor-pointer"
+                      className="w-4 h-4 rounded accent-[var(--primary)] cursor-pointer"
                       checked={selectedProjectIds.size > 0 && (multiContratual ? filteredRows : sortedFiltered).every(p => selectedProjectIds.has(p.id))}
                       onChange={e => {
                         const all = (multiContratual ? filteredRows : sortedFiltered).map(p => p.id)
@@ -3474,7 +3474,7 @@ function GestaoProjetosInner() {
             <div className="flex border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
               {(['consultores', 'grupos'] as const).map(tab => (
                 <button key={tab} onClick={() => setTeamTab(tab)}
-                  className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${teamTab === tab ? 'border-b-2 border-cyan-400 text-cyan-400' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+                  className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${teamTab === tab ? 'border-b-2 border-cyan-400 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
                   style={{ marginBottom: -1 }}>
                   {tab === 'consultores' ? 'Consultores' : 'Grupos de Consultores'}
                 </button>
@@ -3492,13 +3492,13 @@ function GestaoProjetosInner() {
             <div className="flex-1 overflow-y-auto px-4 py-3">
               {teamTab === 'consultores' && allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase())).map(c => (
                 <label key={c.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
-                  <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => setSelectedIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })} className="w-4 h-4 rounded accent-cyan-400" />
+                  <input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => setSelectedIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })} className="w-4 h-4 rounded accent-[var(--primary)]" />
                   <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</span>
                 </label>
               ))}
               {teamTab === 'grupos' && consultantGroups.filter(g => g.name.toLowerCase().includes(teamSearch.toLowerCase())).map(g => (
                 <label key={g.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
-                  <input type="checkbox" checked={selectedGroupIds.has(g.id)} onChange={() => setSelectedGroupIds(prev => { const n = new Set(prev); n.has(g.id) ? n.delete(g.id) : n.add(g.id); return n })} className="w-4 h-4 rounded accent-cyan-400" />
+                  <input type="checkbox" checked={selectedGroupIds.has(g.id)} onChange={() => setSelectedGroupIds(prev => { const n = new Set(prev); n.has(g.id) ? n.delete(g.id) : n.add(g.id); return n })} className="w-4 h-4 rounded accent-[var(--primary)]" />
                   <span className="text-sm" style={{ color: 'var(--text)' }}>{g.name}</span>
                 </label>
               ))}
@@ -3622,7 +3622,7 @@ function GestaoProjetosInner() {
                                   }} className="p-1 rounded hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)' }}>
                                     <Pencil size={12} />
                                   </button>
-                                  <button onClick={() => setContribDeleteConfirm(c)} className="p-1 rounded hover:bg-red-500/10 transition-colors text-red-400">
+                                  <button onClick={() => setContribDeleteConfirm(c)} className="p-1 rounded hover:bg-[var(--danger-bg)] transition-colors text-[var(--danger)]">
                                     <Trash2 size={12} />
                                   </button>
                                 </div>
@@ -3639,7 +3639,7 @@ function GestaoProjetosInner() {
                                       <div key={l.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[11px]">
                                         <span className="font-semibold" style={{ color: 'var(--text)' }}>{l.field_label}:</span>
                                         {l.field_name === 'deleted' ? (
-                                          <span className="text-red-400 font-medium">aporte excluído ({l.old_value})</span>
+                                          <span className="text-[var(--danger)] font-medium">aporte excluído ({l.old_value})</span>
                                         ) : (
                                           <span style={{ color: 'var(--text-muted)' }}>
                                             <span className="line-through opacity-70">{l.old_value_formatted ?? '—'}</span>
@@ -3766,14 +3766,14 @@ function GestaoProjetosInner() {
       {contribDeleteConfirm && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)' }}>
           <div className="rounded-2xl w-full max-w-xs p-6 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <Trash2 size={28} className="mx-auto mb-3 text-red-400" />
+            <Trash2 size={28} className="mx-auto mb-3 text-[var(--danger)]" />
             <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>Excluir aporte?</p>
             <p className="text-xs mb-5" style={{ color: 'var(--text-light)' }}>
               {contribDeleteConfirm.contributed_hours}h em {contribDeleteConfirm.contributed_at?.slice(0, 10).split('-').reverse().join('/')}. Esta ação não pode ser desfeita.
             </p>
             <div className="flex gap-2 justify-center">
               <button onClick={() => setContribDeleteConfirm(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
-              <button onClick={() => doDeleteContrib(contribDeleteConfirm)} className="px-4 py-2 rounded-xl text-sm font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">Excluir</button>
+              <button onClick={() => doDeleteContrib(contribDeleteConfirm)} className="px-4 py-2 rounded-xl text-sm font-bold bg-[var(--danger-bg)] text-[var(--danger)] hover:bg-[var(--danger-bg)] transition-colors">Excluir</button>
             </div>
           </div>
         </div>
@@ -3942,7 +3942,7 @@ function GestaoProjetosInner() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/45">
           <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--danger-border)' }}>
             <div className="px-6 py-5 flex items-center gap-3">
-              <Trash2 size={20} className="text-red-400 shrink-0" />
+              <Trash2 size={20} className="text-[var(--danger)] shrink-0" />
               <div>
                 <p className="font-semibold text-white">Excluir Projeto</p>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">{deleteProject.name} · {deleteProject.code}</p>
@@ -3995,10 +3995,10 @@ function GestaoProjetosInner() {
               </ul>
               <div>
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">
-                  Novo código <span className="text-red-400">*</span>
+                  Novo código <span className="text-[var(--danger)]">*</span>
                   {detachModal.suggestedCode && (
                     <span className="ml-2 text-[var(--text-light)]">
-                      (sugestão: <button type="button" onClick={() => setDetachModal(p => p ? { ...p, newCode: p.suggestedCode, codeError: '' } : p)} className="text-cyan-400 hover:text-cyan-300 font-mono">{detachModal.suggestedCode}</button>)
+                      (sugestão: <button type="button" onClick={() => setDetachModal(p => p ? { ...p, newCode: p.suggestedCode, codeError: '' } : p)} className="text-[var(--primary)] hover:text-[var(--primary)] font-mono">{detachModal.suggestedCode}</button>)
                     </span>
                   )}
                 </label>
@@ -4015,7 +4015,7 @@ function GestaoProjetosInner() {
                   }}
                 />
                 {detachModal.codeError && (
-                  <p className="text-xs text-red-400 mt-1">{detachModal.codeError}</p>
+                  <p className="text-xs text-[var(--danger)] mt-1">{detachModal.codeError}</p>
                 )}
               </div>
             </div>
@@ -4075,7 +4075,7 @@ function GestaoProjetosInner() {
               </ul>
               <div>
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">
-                  Projeto pai <span className="text-red-400">*</span>
+                  Projeto pai <span className="text-[var(--danger)]">*</span>
                 </label>
                 {attachModal.loading ? (
                   <div className="text-xs text-[var(--text-light)]">Carregando projetos disponíveis...</div>
@@ -4155,7 +4155,7 @@ function GestaoProjetosInner() {
             <div className="flex border-b mt-4 shrink-0" style={{ borderColor: 'var(--border)' }}>
               {(['consultores', 'grupos'] as const).map(tab => (
                 <button key={tab} onClick={() => setBulkAllocTab(tab)}
-                  className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${bulkAllocTab === tab ? 'border-b-2 border-cyan-400 text-cyan-400' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+                  className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${bulkAllocTab === tab ? 'border-b-2 border-cyan-400 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
                   style={{ marginBottom: -1 }}>
                   {tab === 'consultores' ? `Consultores (${bulkAllocConsIds.size})` : `Grupos (${bulkAllocGrpIds.size})`}
                 </button>
@@ -4181,7 +4181,7 @@ function GestaoProjetosInner() {
                   <label key={c.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
                     <input type="checkbox" checked={bulkAllocConsIds.has(c.id)}
                       onChange={() => setBulkAllocConsIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })}
-                      className="w-4 h-4 rounded accent-cyan-400" />
+                      className="w-4 h-4 rounded accent-[var(--primary)]" />
                     <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</span>
                   </label>
                 ))}
@@ -4191,7 +4191,7 @@ function GestaoProjetosInner() {
                   <label key={g.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
                     <input type="checkbox" checked={bulkAllocGrpIds.has(g.id)}
                       onChange={() => setBulkAllocGrpIds(prev => { const n = new Set(prev); n.has(g.id) ? n.delete(g.id) : n.add(g.id); return n })}
-                      className="w-4 h-4 rounded accent-cyan-400" />
+                      className="w-4 h-4 rounded accent-[var(--primary)]" />
                     <span className="text-sm" style={{ color: 'var(--text)' }}>{g.name}</span>
                   </label>
                 ))}
@@ -4237,7 +4237,7 @@ function GestaoProjetosInner() {
               <div className="flex border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
                 {(['consultor', 'grupo'] as const).map(tab => (
                   <button key={tab} onClick={() => { setByResTab(tab); setByResConsId(null); setByResGroupId(null) }}
-                    className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${byResTab === tab ? 'border-b-2 border-cyan-400 text-cyan-400' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+                    className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${byResTab === tab ? 'border-b-2 border-cyan-400 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
                     style={{ marginBottom: -1 }}>
                     {tab === 'consultor' ? 'Consultor' : 'Grupo de Consultores'}
                   </button>
@@ -4259,7 +4259,7 @@ function GestaoProjetosInner() {
                     <label key={c.id} className="flex items-center gap-3 py-2.5 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
                       <input type="radio" name="byres-cons" checked={byResConsId === c.id}
                         onChange={() => setByResConsId(c.id)}
-                        className="w-4 h-4 accent-cyan-400" />
+                        className="w-4 h-4 accent-[var(--primary)]" />
                       <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</span>
                     </label>
                   ))}
@@ -4269,7 +4269,7 @@ function GestaoProjetosInner() {
                     <label key={g.id} className="flex items-center gap-3 py-2.5 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
                       <input type="radio" name="byres-grp" checked={byResGroupId === g.id}
                         onChange={() => setByResGroupId(g.id)}
-                        className="w-4 h-4 accent-cyan-400" />
+                        className="w-4 h-4 accent-[var(--primary)]" />
                       <div>
                         <span className="text-sm" style={{ color: 'var(--text)' }}>{g.name}</span>
                         <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>grupo completo</span>
@@ -4345,7 +4345,7 @@ function GestaoProjetosInner() {
                     <label key={p.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
                       <input type="checkbox" checked={byResProjIds.has(p.id)}
                         onChange={() => setByResProjIds(prev => { const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n })}
-                        className="w-4 h-4 rounded accent-cyan-400" />
+                        className="w-4 h-4 rounded accent-[var(--primary)]" />
                       <div>
                         <span className="text-sm" style={{ color: 'var(--text)' }}>{p.name}</span>
                         <span className="ml-2 font-mono text-[11px]" style={{ color: 'var(--text-light)' }}>{p.code}</span>

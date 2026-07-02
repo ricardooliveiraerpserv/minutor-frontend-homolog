@@ -94,7 +94,7 @@ export function MentionsBell() {
     <div ref={ref} className="relative">
       <button
         onClick={handleOpen}
-        className="relative p-1.5 rounded-md transition-colors hover:bg-zinc-800"
+        className="relative p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
         style={{ color: open ? 'var(--primary)' : '#71717A' }}
         title="Mentions"
       >
@@ -122,7 +122,7 @@ export function MentionsBell() {
                 {total}
               </span>
             </div>
-            <button onClick={() => setOpen(false)} className="p-0.5 rounded hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)' }}>
+            <button onClick={() => setOpen(false)} className="p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)' }}>
               <X size={12} />
             </button>
           </div>

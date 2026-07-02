@@ -340,7 +340,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
             {canActAsUser && (
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <Label className="text-xs text-zinc-400">Usuário</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Usuário</Label>
                   <button
                     type="button"
                     onClick={() => setForm(f => ({ ...f, user_id: String(currentUser?.id ?? '') }))}
@@ -361,7 +361,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
 
             {/* Cliente */}
             <div>
-              <Label className="text-xs text-zinc-400">Cliente</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Cliente</Label>
               <div className="mt-1">
                 <SearchSelect
                   value={form.customer_id}
@@ -375,7 +375,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
 
             {/* Projeto */}
             <div>
-              <Label className="text-xs text-zinc-400">Projeto *</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Projeto *</Label>
               <div className="mt-1">
                 <SearchSelect
                   value={form.project_id}
@@ -403,7 +403,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               })
               return (
                 <div>
-                  <Label className="text-xs text-zinc-400">Projeto Real *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Projeto Real *</Label>
                   <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>
                     Projeto verdadeiro da hora. O apontamento continua contabilizado no investimento; o coordenador do projeto real aprova.{soSustentacao ? ' (apenas projetos de Sustentação)' : ''}
                   </p>
@@ -421,7 +421,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
 
             {/* Data */}
             <div>
-              <Label className="text-xs text-zinc-400">Data *</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
               <input type="date" value={form.date}
                 onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
                 className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
@@ -446,19 +446,19 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
             {!useTotal && (
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <Label className="text-xs text-zinc-400">Início *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Início *</Label>
                   <input type="time" value={form.start_time}
                     onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))}
                     className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Fim {timeDriver === 'end' ? '*' : ''}</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Fim {timeDriver === 'end' ? '*' : ''}</Label>
                   <input type="time" value={form.end_time}
                     onChange={e => { setTimeDriver('end'); setForm(f => ({ ...f, end_time: e.target.value })) }}
                     className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none" style={{ background: "var(--surface)", border: "1px solid var(--border)", color: "var(--text)" }} />
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Total {timeDriver === 'total' ? '*' : ''}</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Total {timeDriver === 'total' ? '*' : ''}</Label>
                   {/* Aceita HH:MM ("2:30"), decimal com . ou , ("2.5", "2,5") e inteiro ("2"). parseHHMM converte. */}
                   <input type="text" inputMode="decimal" value={form.total_hours} placeholder="ex: 2:30 ou 2,5"
                     onChange={e => { const v = e.target.value.replace(/[^\d:.,]/g, ''); setTimeDriver('total'); setForm(f => ({ ...f, total_hours: v })) }}
@@ -475,7 +475,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                   <span className="font-semibold">Atenção:</span> O lançamento por "Total de Horas" deve ser realizado em comum acordo com o coordenador responsável.
                 </div>
                 <div>
-                  <Label className="text-xs text-zinc-400">Total de Horas *</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Total de Horas *</Label>
                   {/* Aceita HH:MM ("2:30"), decimal com . ou , ("2.5", "2,5") e inteiro ("2"). parseHHMM converte. */}
                   <input type="text" inputMode="decimal" value={form.total_hours} placeholder="ex: 2:30 ou 2,5"
                     onChange={e => { const v = e.target.value.replace(/[^\d:.,]/g, ''); setForm(f => ({ ...f, total_hours: v })) }}
@@ -487,7 +487,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
             {/* Ticket — apenas para projetos de sustentação */}
             {projects.find(p => String(p.id) === form.project_id)?.service_type_code === 'sustentacao' && (
               <div>
-                <Label className="text-xs text-zinc-400">Ticket</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Ticket</Label>
                 <input type="number" value={form.ticket} placeholder="Ex: 12345"
                   onChange={e => setForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
                   className="mt-1 w-full px-3 py-2 rounded-xl text-sm outline-none [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -497,7 +497,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
 
             {/* Observação */}
             <div>
-              <Label className="text-xs text-zinc-400">Observação</Label>
+              <Label className="text-xs text-[var(--text-muted)]">Observação</Label>
               <textarea value={form.observation} rows={3}
                 placeholder="Descreva as atividades realizadas..."
                 onChange={e => setForm(f => ({ ...f, observation: e.target.value }))}
@@ -514,7 +514,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                   onChange={e => setForm(f => ({ ...f, is_billable_only: e.target.checked }))}
                   className="w-3.5 h-3.5 accent-amber-500"
                 />
-                <span className="text-xs text-amber-400">Somente faturável — não reflete no pagamento do consultor</span>
+                <span className="text-xs text-[var(--warning)]">Somente faturável — não reflete no pagamento do consultor</span>
               </label>
             )}
           </div>

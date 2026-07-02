@@ -72,7 +72,7 @@ export function NotasPjCell({
   const refFor = (k: string) => (k === 'nfse' ? nfseRef : notaRef)
 
   // Entidade não-PJ (ou sem bloco de notas): nada a mostrar.
-  if (!notas) return <span className="text-zinc-600">—</span>
+  if (!notas) return <span className="text-[var(--text-muted)]">—</span>
 
   // Prazo: notas não são aceitas após o dia 15 do mês SEGUINTE à competência
   // (ex: competência 05/2026 → prazo 15/06/2026), salvo liberação do administrativo
@@ -209,19 +209,19 @@ export function NotasPjCell({
         return (
           <div key={key} className="flex flex-col gap-0.5">
            <div className="flex items-center gap-1 flex-nowrap whitespace-nowrap">
-            <span className="text-zinc-400 w-[78px] shrink-0">{label}</span>
+            <span className="text-[var(--text-muted)] w-[78px] shrink-0">{label}</span>
 
             {d.status === 'accepted' && (
-              <span className="px-2 py-1 rounded text-xs font-semibold bg-green-500/15 text-green-400">✓ Nota aceita</span>
+              <span className="px-2 py-1 rounded text-xs font-semibold bg-[var(--success-bg)] text-[var(--success)]">✓ Nota aceita</span>
             )}
             {d.status === 'rejected' && (
-              <span className="px-2 py-1 rounded text-xs font-semibold bg-red-500/15 text-red-400">✗ Recusada</span>
+              <span className="px-2 py-1 rounded text-xs font-semibold bg-[var(--danger-bg)] text-[var(--danger)]">✗ Recusada</span>
             )}
             {d.status === 'pending' && d.has_file && (
-              <span className="px-2 py-1 rounded text-xs font-semibold bg-amber-500/15 text-amber-400">Pendente</span>
+              <span className="px-2 py-1 rounded text-xs font-semibold bg-[var(--warning-bg)] text-[var(--warning)]">Pendente</span>
             )}
             {!d.has_file && (
-              <span className="text-zinc-600 text-xs">sem anexo</span>
+              <span className="text-[var(--text-muted)] text-xs">sem anexo</span>
             )}
 
             {d.valor != null && (
@@ -296,10 +296,10 @@ export function NotasPjCell({
               <span className="flex items-center gap-1">
                 <input autoFocus value={motivo} onChange={e => setMotivo(e.target.value)}
                   placeholder={reasonAction === 'revoke' ? 'Motivo da revogação' : 'Motivo da recusa'}
-                  className="px-1 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-100 text-[10px] w-32" />
+                  className="px-1 py-0.5 rounded bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-[10px] w-32" />
                 <button disabled={busy === key || !motivo.trim()} onClick={() => decide(key, reasonAction, motivo.trim())}
-                  className="text-red-400 font-semibold disabled:opacity-40">OK</button>
-                <button onClick={() => { setRejecting(null); setMotivo('') }} className="text-zinc-500">cancelar</button>
+                  className="text-[var(--danger)] font-semibold disabled:opacity-40">OK</button>
+                <button onClick={() => { setRejecting(null); setMotivo('') }} className="text-[var(--text-light)]">cancelar</button>
               </span>
             )}
 

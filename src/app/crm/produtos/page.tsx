@@ -113,8 +113,8 @@ export default function CrmProdutosPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
-                  <button onClick={() => openEdit(p)} className="p-1.5 rounded hover:bg-white/5" title="Editar" style={{ color: 'var(--text-muted)' }}><Pencil size={14} /></button>
-                  <button onClick={() => remove(p)} className="p-1.5 rounded hover:bg-white/5 ml-1" title="Excluir" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
+                  <button onClick={() => openEdit(p)} className="p-1.5 rounded hover:bg-[var(--surface-hover)]" title="Editar" style={{ color: 'var(--text-muted)' }}><Pencil size={14} /></button>
+                  <button onClick={() => remove(p)} className="p-1.5 rounded hover:bg-[var(--surface-hover)] ml-1" title="Excluir" style={{ color: 'var(--danger)' }}><Trash2 size={14} /></button>
                 </td>
               </tr>
             ))}

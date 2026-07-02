@@ -161,7 +161,7 @@ function SideBlock({
               {onRemove && (
                 <button
                   onClick={() => onRemove(e.id)}
-                  className="p-1 rounded hover:bg-zinc-500/10"
+                  className="p-1 rounded hover:bg-[var(--surface-hover)]"
                   style={{ color: 'var(--text-muted)' }}
                   title="Remover"
                 >
