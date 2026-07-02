@@ -1,0 +1,25 @@
+name: DS Guard
+
+# Governança do Design System v1.0 — bloqueia regressões de linguagem visual.
+# Ver docs/DESIGN_SYSTEM_TEMA_CLARO_v1.md §6.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ds-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # ds-guard.mjs usa só Node builtin — sem install necessário
+      - name: DS Guard (bloqueia cores/tokens proibidos)
+        run: node scripts/ds-guard.mjs
+      - name: DS Scorecard (informativo)
+        if: always()
+        run: node scripts/ds-scorecard.mjs || true
