@@ -755,7 +755,7 @@ export default function RelatorioApontamentosPage() {
                                   <td className="px-3 pt-2 pb-1 text-xs text-gray-700 text-center">{t.user?.name ?? '—'}</td>
                                   <td className="px-3 pt-2 pb-1 text-xs text-gray-500 text-center">
                                     {t.ticket
-                                      ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">#{t.ticket}</a>
+                                      ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${t.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[#5b21b6] hover:text-[#5b21b6]">#{t.ticket}</a>
                                       : '—'}
                                   </td>
                                   <td className="px-3 pt-2 pb-1 text-xs text-gray-700 text-center whitespace-nowrap">
@@ -825,7 +825,7 @@ export default function RelatorioApontamentosPage() {
                           style={{ background: i % 2 === 0 ? '#fff' : '#faf9ff', borderBottom: '1px solid #e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}
                         >
                           <td className="px-3 py-2 text-xs whitespace-nowrap">
-                            <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tk.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:text-[var(--primary)]">
+                            <a href={`https://erpserv.movidesk.com/Ticket/Edit/${tk.ticket}`} target="_blank" rel="noopener noreferrer" className="text-[#5b21b6] hover:text-[#5b21b6]">
                               #{tk.ticket}
                             </a>
                           </td>
@@ -892,7 +892,7 @@ export default function RelatorioApontamentosPage() {
                 <Tr key={i}>
                   <Td className="whitespace-nowrap">
                     <span
-                      style={isLateInclusion(t) ? { color: 'var(--warning)', fontWeight: 600 } : undefined}
+                      style={isLateInclusion(t) ? { color: '#b45309', fontWeight: 600 } : undefined}
                       title={isLateInclusion(t) ? 'Digitado fora da competência (serviço no mês, lançado depois)' : undefined}
                     >
                       {isLateInclusion(t) && '⚠ '}{fmtDateBR(t.created_at)}
