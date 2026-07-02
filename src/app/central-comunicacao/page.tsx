@@ -371,12 +371,13 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
 
         {!allCustomers && (
           <>
-            {lists.length > 0 && (
-              <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Carregar lista de distribuição salva</label>
-                <select className={fieldCls} style={inputStyle} value="" onChange={e => { const l = lists.find(x => x.id === Number(e.target.value)); if (l) loadList(l) }}>
-                  <option value="">— selecionar —</option>{lists.map(l => <option key={l.id} value={l.id}>{l.nome}</option>)}
-                </select></div>
-            )}
+            <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Selecionar grupo de contato</label>
+              <select className={fieldCls} style={inputStyle} value="" disabled={lists.length === 0} onChange={e => { const l = lists.find(x => x.id === Number(e.target.value)); if (l) loadList(l) }}>
+                <option value="">{lists.length === 0 ? '— nenhum grupo salvo ainda (crie abaixo) —' : '— selecionar grupo —'}</option>
+                {lists.map(l => <option key={l.id} value={l.id}>{l.nome}</option>)}
+              </select>
+              <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Carrega os destinatários salvos no grupo. Gerencie em <b>Listas de distribuição</b> (aba acima).</p>
+            </div>
             <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Clientes</label>
               <MultiSelect placeholder="Buscar clientes…" selected={pickedCustomers} onChange={setPickedCustomers} search={searchCustomers} /></div>
 
@@ -402,7 +403,7 @@ export function Compose({ allowedTypes, onSent }: { allowedTypes?: string[]; onS
               </div>
             </div>
 
-            <button onClick={saveList} className="text-xs inline-flex items-center gap-1" style={{ color: 'var(--primary)' }}><Bookmark size={12} /> Salvar seleção como lista</button>
+            <button onClick={saveList} className="text-xs inline-flex items-center gap-1" style={{ color: 'var(--primary)' }}><Bookmark size={12} /> Criar grupo de contato (salvar seleção acima)</button>
           </>
         )}
       </div>
