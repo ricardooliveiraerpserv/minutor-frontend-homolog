@@ -175,6 +175,19 @@ function Inner() {
 
   // ── mutações ──
   const patchMod = (id: number, p: Partial<Mod>) => { setMods(prev => prev.map(m => m.id === id ? { ...m, ...p } : m)); touch() }
+  // Move um nó ↑/↓ dentro da sua própria lista de irmãos (raiz do módulo ou filhos de uma pasta).
+  const reorderNode = (moduleId: number, nodeId: string, dir: -1 | 1) => {
+    const swap = (nodes: NavTreeNode[]): NavTreeNode[] => {
+      const i = nodes.findIndex(n => n.id === nodeId)
+      if (i !== -1) {
+        const j = i + dir
+        if (j < 0 || j >= nodes.length) return nodes
+        const copy = nodes.slice();[copy[i], copy[j]] = [copy[j], copy[i]]; return copy
+      }
+      return nodes.map(n => n.children ? { ...n, children: swap(n.children) } : n)
+    }
+    setMods(prev => prev.map(m => m.id === moduleId ? { ...m, items: swap(m.items) } : m)); touch()
+  }
   const patchTreeNode = (moduleId: number, nodeId: string, fn: (n: NavTreeNode) => NavTreeNode) => {
     setMods(prev => prev.map(m => m.id === moduleId ? { ...m, items: mapNode(m.items, nodeId, fn) } : m)); touch()
   }
@@ -413,6 +426,10 @@ function Inner() {
               <div className="flex items-center gap-1.5 flex-1 min-w-0 rounded-md my-[1px] mr-1 px-2 cursor-grab active:cursor-grabbing"
                 style={{ height: 30, background: (isOver || overIn) ? 'var(--primary-soft)' : 'transparent', border: overIn ? '1px dashed var(--primary)' : '1px solid transparent' }}>
                 {chevron}
+                <span className="flex flex-col shrink-0" style={{ marginRight: 1 }}>
+                  <button onClick={() => reorderNode(moduleId, n.id, -1)} title="Mover para cima" style={{ lineHeight: 0, color: 'var(--text-light)' }}><ChevronUp size={11} /></button>
+                  <button onClick={() => reorderNode(moduleId, n.id, 1)} title="Mover para baixo" style={{ lineHeight: 0, color: 'var(--text-light)' }}><ChevronDown size={11} /></button>
+                </span>
                 <input type="checkbox" checked={selectedIds.has(n.id)} onChange={() => toggleSelect(n.id)} onClick={e => e.stopPropagation()} className="shrink-0" style={{ accentColor: 'var(--primary)', width: 15, height: 15 }} title="Selecionar" />
                 <button onClick={() => setPermOpen(permOpen === n.id ? null : n.id)} className="shrink-0" title="Acessos por usuário">
                   <FileText size={13} style={{ color: permOpen === n.id ? 'var(--primary)' : hasKids ? 'var(--primary)' : 'var(--text-light)' }} />
@@ -492,6 +509,10 @@ function Inner() {
             <div className="flex items-center gap-1.5 flex-1 min-w-0 rounded-md my-[1px] mr-1 px-2 cursor-grab active:cursor-grabbing"
               style={{ height: 32, background: overIn ? 'var(--primary-soft)' : 'var(--surface-sunken)', border: overIn ? '1px dashed var(--primary)' : '1px solid var(--border)' }}>
               {chevron}
+              <span className="flex flex-col shrink-0" style={{ marginRight: 1 }}>
+                <button onClick={() => reorderNode(moduleId, n.id, -1)} title="Mover pasta para cima" style={{ lineHeight: 0, color: 'var(--text-light)' }}><ChevronUp size={11} /></button>
+                <button onClick={() => reorderNode(moduleId, n.id, 1)} title="Mover pasta para baixo" style={{ lineHeight: 0, color: 'var(--text-light)' }}><ChevronDown size={11} /></button>
+              </span>
               <input type="checkbox" checked={selectedIds.has(n.id)} onChange={() => toggleSelect(n.id)} onClick={e => e.stopPropagation()} className="shrink-0" style={{ accentColor: 'var(--primary)', width: 15, height: 15 }} title="Selecionar" />
               <IconPicker value={n.icon} onPick={name => patchTreeNode(moduleId, n.id, g => ({ ...g, icon: name }))} />
               <input value={n.label ?? ''} onChange={e => patchTreeNode(moduleId, n.id, g => ({ ...g, label: e.target.value }))}
