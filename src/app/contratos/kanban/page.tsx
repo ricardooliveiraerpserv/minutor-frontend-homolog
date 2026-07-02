@@ -420,7 +420,7 @@ function ProjectStatusModal({ projectId, projectName, currentStatus, onClose, on
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-medium hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ background: 'rgba(0,245,255,0.1)', color: 'var(--primary)', border: '1px solid rgba(0,245,255,0.3)', opacity: saving ? 0.6 : 1 }}>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Salvando...' : 'Confirmar'}
           </button>
         </div>
@@ -2050,7 +2050,7 @@ function KanbanContent() {
                     : isBizify  ? `${BIZIFY_COLOR}35`
                     : isAporteCol ? `${APORTE_COLOR}45`
                     : col.id === 'aditivos' ? `${ADITIVO_COLOR}45`
-                    : isCoord   ? 'rgba(0,245,255,0.15)'
+                    : isCoord   ? 'var(--primary-soft)'
                     : isPronto  ? `${PRONTO_COLOR}40`
                     : 'var(--brand-border)'
 

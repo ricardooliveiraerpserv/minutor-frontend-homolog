@@ -1475,7 +1475,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                       </div>
                     ))}
                     {pendingAttach.map((pf, i) => (
-                      <div key={`pend-${i}`} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.15)' }}>
+                      <div key={`pend-${i}`} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
                         <div className="min-w-0">
                           <p className="text-xs truncate" style={{ color: 'var(--brand-text)' }}>{pf.file.name}</p>
                           <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{pf.type} · aguardando salvar</p>

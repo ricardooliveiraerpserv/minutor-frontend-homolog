@@ -150,7 +150,7 @@ interface ExecutiveData {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CYAN   = '#00F5FF'
+const CYAN   = 'var(--primary)'
 const GREEN  = '#22c55e'
 const YELLOW = '#eab308'
 const RED    = '#ef4444'

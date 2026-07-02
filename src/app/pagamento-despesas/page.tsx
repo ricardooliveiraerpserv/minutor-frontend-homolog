@@ -122,7 +122,7 @@ function SearchSelect({
                 key={o.id} type="button"
                 onClick={() => { onChange(String(o.id)); setOpen(false); setQ('') }}
                 className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-hover)] transition-colors"
-                style={{ color: String(o.id) === value ? '#00F5FF' : 'var(--brand-text)' }}
+                style={{ color: String(o.id) === value ? 'var(--primary)' : 'var(--brand-text)' }}
               >
                 {o.name}
               </button>
@@ -143,8 +143,8 @@ function SummaryCard({ label, value, sub, icon: Icon, accent }: {
   label: string; value: string; sub?: string
   icon: React.ElementType; accent: 'primary' | 'success' | 'warning' | 'info'
 }) {
-  const color = accent === 'primary' ? '#00F5FF' : accent === 'success' ? '#10B981' : accent === 'info' ? '#8B5CF6' : '#F59E0B'
-  const bg = accent === 'primary' ? 'rgba(0,245,255,0.08)' : accent === 'success' ? 'rgba(16,185,129,0.10)' : accent === 'info' ? 'rgba(139,92,246,0.12)' : 'rgba(245,158,11,0.10)'
+  const color = accent === 'primary' ? 'var(--primary)' : accent === 'success' ? '#10B981' : accent === 'info' ? '#8B5CF6' : '#F59E0B'
+  const bg = accent === 'primary' ? 'var(--primary-soft)' : accent === 'success' ? 'rgba(16,185,129,0.10)' : accent === 'info' ? 'rgba(139,92,246,0.12)' : 'rgba(245,158,11,0.10)'
   return (
     <div
       className="rounded-2xl p-5 flex flex-col gap-3"
@@ -380,7 +380,7 @@ export default function PagamentoDespesasPage() {
               onClick={() => { setMainTab(val); setPage(1); setSelected(new Set()) }}
               className="px-5 py-2 font-medium transition-colors"
               style={{
-                background: mainTab === val ? 'rgba(0,245,255,0.12)' : 'transparent',
+                background: mainTab === val ? 'var(--primary-soft)' : 'transparent',
                 color: mainTab === val ? 'var(--text)' : 'var(--text-muted)',
               }}
             >
@@ -478,7 +478,7 @@ export default function PagamentoDespesasPage() {
                     onClick={() => { setPaidFilter(val); setPage(1) }}
                     className="px-4 py-2 font-medium transition-colors"
                     style={{
-                      background: paidFilter === val ? 'rgba(0,245,255,0.12)' : 'transparent',
+                      background: paidFilter === val ? 'var(--primary-soft)' : 'transparent',
                       color: paidFilter === val ? 'var(--text)' : 'var(--text-muted)',
                     }}
                   >
@@ -500,7 +500,7 @@ export default function PagamentoDespesasPage() {
                     onClick={() => { setStatusFilter(val); setPage(1) }}
                     className="px-4 py-2 font-medium transition-colors"
                     style={{
-                      background: statusFilter === val ? 'rgba(0,245,255,0.12)' : 'transparent',
+                      background: statusFilter === val ? 'var(--primary-soft)' : 'transparent',
                       color: statusFilter === val ? 'var(--text)' : 'var(--text-muted)',
                     }}
                   >
@@ -616,7 +616,7 @@ export default function PagamentoDespesasPage() {
                               onClick={() => openView(exp)}
                               title="Visualizar"
                               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                              style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}
+                              style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
                             >
                               <Eye size={11} /> Ver
                             </button>
@@ -657,7 +657,7 @@ export default function PagamentoDespesasPage() {
                                 : 'Encaminhar ao fechamento do consultor — será pago no fechamento'}
                               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
                               style={exp.pagar_no_fechamento
-                                ? { background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }
+                                ? { background: 'var(--primary-soft)', color: 'var(--primary)' }
                                 : { background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }
                               }
                             >

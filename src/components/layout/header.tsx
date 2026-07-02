@@ -150,7 +150,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
             <button
               onClick={() => { setBellOpen(v => !v); fetchNotifications() }}
               className="relative p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
-              style={{ color: bellOpen ? '#00F5FF' : '#71717A' }}
+              style={{ color: bellOpen ? 'var(--primary)' : '#71717A' }}
             >
               <MessageCircle size={16} />
               {unread > 0 && (
@@ -171,10 +171,10 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                   <div className="flex items-center gap-2">
-                    <MessageCircle size={14} style={{ color: '#00F5FF' }} />
+                    <MessageCircle size={14} style={{ color: 'var(--primary)' }} />
                     <span className="text-xs font-bold" style={{ color: '#FAFAFA' }}>Mensagens não lidas</span>
                     {unread > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                         {unread}
                       </span>
                     )}
@@ -202,10 +202,10 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                           style={{ borderColor: 'var(--brand-border)' }}
                         >
                           {/* Indicador de não-lida */}
-                          <span className="mt-1.5 shrink-0 w-2 h-2 rounded-full" style={{ background: n.is_unread ? '#00F5FF' : 'transparent' }} title={n.is_unread ? 'Não lida' : 'Lida'} />
+                          <span className="mt-1.5 shrink-0 w-2 h-2 rounded-full" style={{ background: n.is_unread ? 'var(--primary)' : 'transparent' }} title={n.is_unread ? 'Não lida' : 'Lida'} />
                           <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                             <div className="flex items-center justify-between w-full">
-                              <span className="text-[10px] font-mono truncate" style={{ color: '#00F5FF' }}>
+                              <span className="text-[10px] font-mono truncate" style={{ color: 'var(--primary)' }}>
                                 {[n.project_code, n.customer_name].filter(Boolean).join(' · ')}
                               </span>
                               <span className="text-[9px] shrink-0 ml-2" style={{ color: 'var(--brand-muted)' }}>
@@ -222,7 +222,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                   <button
                     onClick={openAllMessages}
                     className="block w-full py-2 text-center text-[10px] font-semibold hover:bg-[var(--surface-hover)] transition-colors"
-                    style={{ color: '#00F5FF' }}
+                    style={{ color: 'var(--primary)' }}
                   >
                     Ver todas as mensagens →
                   </button>
@@ -269,9 +269,9 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
           <div className="w-full max-w-4xl max-h-[85vh] rounded-2xl flex flex-col overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
               <div className="flex items-center gap-2">
-                <MessageCircle size={16} style={{ color: '#00F5FF' }} />
+                <MessageCircle size={16} style={{ color: 'var(--primary)' }} />
                 <span className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Todas as mensagens</span>
-                {unread > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>{unread} não lida(s)</span>}
+                {unread > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{unread} não lida(s)</span>}
               </div>
               <button onClick={() => setAllOpen(false)} className="p-1 rounded hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
             </div>
@@ -298,13 +298,13 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                       const href = hrefForNotif(n)
                       return (
                         <tr key={n.id} className="border-t hover:bg-[var(--surface-hover)]" style={{ borderColor: 'var(--brand-border)' }}>
-                          <td className="px-3 py-2 align-top"><span className="inline-block w-2 h-2 rounded-full" style={{ background: n.is_unread ? '#00F5FF' : 'transparent' }} title={n.is_unread ? 'Não lida' : 'Lida'} /></td>
-                          <td className="px-3 py-2 font-mono whitespace-nowrap align-top" style={{ color: '#00F5FF' }}>{[n.project_code, n.customer_name].filter(Boolean).join(' · ')}</td>
+                          <td className="px-3 py-2 align-top"><span className="inline-block w-2 h-2 rounded-full" style={{ background: n.is_unread ? 'var(--primary)' : 'transparent' }} title={n.is_unread ? 'Não lida' : 'Lida'} /></td>
+                          <td className="px-3 py-2 font-mono whitespace-nowrap align-top" style={{ color: 'var(--primary)' }}>{[n.project_code, n.customer_name].filter(Boolean).join(' · ')}</td>
                           <td className="px-3 py-2 align-top" style={{ color: 'var(--brand-muted)' }}>{n.project_name}</td>
                           <td className="px-3 py-2 align-top whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{n.author_name}</td>
                           <td className="px-3 py-2 align-top max-w-xs truncate" style={{ color: n.is_unread ? 'var(--brand-text)' : 'var(--brand-muted)' }} title={n.preview}>{n.preview}</td>
                           <td className="px-3 py-2 align-top whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{new Date(n.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-                          <td className="px-3 py-2 align-top">{href && <button onClick={() => { setAllOpen(false); router.push(href) }} className="font-semibold whitespace-nowrap" style={{ color: '#00F5FF' }}>Acessar →</button>}</td>
+                          <td className="px-3 py-2 align-top">{href && <button onClick={() => { setAllOpen(false); router.push(href) }} className="font-semibold whitespace-nowrap" style={{ color: 'var(--primary)' }}>Acessar →</button>}</td>
                         </tr>
                       )
                     })}

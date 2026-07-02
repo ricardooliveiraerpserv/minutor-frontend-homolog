@@ -43,7 +43,7 @@ function ReceiptLink({ url }: { url: string }) {
     <div className="flex items-center gap-2">
       <button type="button" onClick={() => handle(false)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.15)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }}>
         <Eye size={11} /> {loading ? 'Carregando...' : 'Visualizar'}
       </button>
       <button type="button" onClick={() => handle(true)} disabled={loading}
@@ -84,7 +84,7 @@ function InfoRowModal({ icon: Icon, label, value, children, last }: {
     <div className={`flex items-start gap-3 px-4 py-3 ${!last ? 'border-b' : ''}`}
       style={ !last ? { borderColor: 'var(--brand-border)' } : undefined }>
       <span className="mt-0.5 shrink-0 p-1.5 rounded-lg"
-        style={{ background: 'rgba(0,245,255,0.06)', color: 'var(--brand-primary)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
         <Icon size={11} />
       </span>
       <div className="flex-1 min-w-0">
@@ -863,7 +863,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             )}
             {!isCliente && ([
               { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
-              { id: 'projeto',      label: 'Projeto',     color: '#00F5FF',            bg: 'rgba(0,245,255,0.12)',   border: 'rgba(0,245,255,0.35)' },
+              { id: 'projeto',      label: 'Projeto',     color: 'var(--primary)',            bg: 'var(--primary-soft)',   border: 'var(--primary)' },
               { id: 'bizify',       label: 'Bizify',      color: '#a78bfa',            bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },
               { id: 'investimento', label: 'Investimento', color: '#ef4444',           bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)' },
             ] as const).map(opt => {

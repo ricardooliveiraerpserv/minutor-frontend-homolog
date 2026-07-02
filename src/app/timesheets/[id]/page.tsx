@@ -32,7 +32,7 @@ function AttachmentLink({ url }: { url: string }) {
   return (
     <button type="button" onClick={open} disabled={loading}
       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-      style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.15)' }}>
+      style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }}>
       <Paperclip size={12} />
       {loading ? 'Abrindo...' : 'Visualizar Anexo'}
     </button>
@@ -63,7 +63,7 @@ function InfoRow({
     >
       <span
         className="mt-0.5 shrink-0 p-2 rounded-lg"
-        style={{ background: 'rgba(0,245,255,0.06)', color: 'var(--brand-primary)' }}
+        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}
       >
         <Icon size={13} />
       </span>
@@ -102,7 +102,7 @@ function OriginChip({ origin }: { origin?: string }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
-      style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}
+      style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}
     >
       <Globe size={11} /> Web (manual)
     </span>
@@ -180,7 +180,7 @@ export default function TimesheetDetailPage() {
                   {ts.start_time} – {ts.end_time}
                   <span
                     className="ml-2 px-2 py-0.5 rounded-lg text-xs font-bold"
-                    style={{ background: 'rgba(0,245,255,0.1)', color: 'var(--brand-primary)' }}
+                    style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}
                   >
                     {ts.effort_hours}
                   </span>
@@ -262,7 +262,7 @@ export default function TimesheetDetailPage() {
             {ts.reviewedBy && (
               <div
                 className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs"
-                style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}
+                style={{ background: 'var(--primary-soft)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}
               >
                 <CheckCircle size={13} style={{ color: 'var(--brand-primary)' }} />
                 Revisado por <strong style={{ color: 'var(--brand-muted)' }}>{ts.reviewedBy.name}</strong>

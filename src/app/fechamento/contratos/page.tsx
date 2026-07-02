@@ -91,7 +91,7 @@ function TabButton({ label, active, onClick, count }: {
       {label}
       {count != null && (
         <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full"
-          style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+          style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
           {count}
         </span>
       )}
@@ -172,7 +172,7 @@ function TipoTab({ tipo }: { tipo: TipoContrato }) {
                       </span>
                       {cliente.projetos.length > 1 && (
                         <span className="text-xs px-1.5 py-0.5 rounded-full"
-                          style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+                          style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                           {cliente.projetos.length}
                         </span>
                       )}

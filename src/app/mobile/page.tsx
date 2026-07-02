@@ -17,7 +17,7 @@ export default function MobileHome() {
   if (loading || !user) {
     return (
       <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid rgba(0,245,255,0.2)', borderTopColor: '#00F5FF', animation: 'spin 0.8s linear infinite' }} />
+        <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid var(--primary-soft)', borderTopColor: 'var(--primary)', animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
     )
@@ -39,7 +39,7 @@ export default function MobileHome() {
           width: 40, height: 40, borderRadius: '50%',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 13, fontWeight: 700, letterSpacing: 0.5,
-          background: 'rgba(0,245,255,0.1)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.2)',
+          background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)',
         }}>
           {initials}
         </div>
@@ -61,7 +61,7 @@ export default function MobileHome() {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 20, padding: '24px 20px',
             borderRadius: 20, cursor: 'pointer',
-            background: 'rgba(0,245,255,0.06)', border: '1px solid rgba(0,245,255,0.18)',
+            background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)',
             transition: 'transform 0.12s',
           }}
             onTouchStart={e => (e.currentTarget.style.transform = 'scale(0.97)')}
@@ -70,12 +70,12 @@ export default function MobileHome() {
             <div style={{
               width: 56, height: 56, borderRadius: 16, flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(0,245,255,0.14)',
+              background: 'var(--primary-soft)',
             }}>
-              <Clock size={26} color="#00F5FF" />
+              <Clock size={26} color="var(--primary)" />
             </div>
             <div>
-              <p style={{ fontSize: 18, fontWeight: 700, color: '#00F5FF', margin: 0 }}>Apontamento</p>
+              <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)', margin: 0 }}>Apontamento</p>
               <p style={{ fontSize: 13, color: 'var(--brand-muted)', margin: '4px 0 0' }}>Registrar horas trabalhadas</p>
             </div>
           </div>

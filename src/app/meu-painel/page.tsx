@@ -305,7 +305,7 @@ function HoristaPaymentSection({
 
       {/* CENTRO — Total a Receber = recebimento do fechamento (com ajustes) quando disponível */}
       <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
-        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
+        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[var(--primary)]">
           {recebimento != null ? formatBRL(recebimento) : (hourlyRate > 0 ? formatBRL(totalService) : '—')}
         </div>
         <span className="text-[11px] text-[var(--text-muted)] mt-1">
@@ -373,7 +373,7 @@ function FixoPaymentSection({
 
       {/* CENTRO — valor fixo */}
       <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
-        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
+        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[var(--primary)]">
           {fixedMonthly > 0 ? formatBRL(fixedMonthly) : '—'}
         </div>
         <span className="text-[11px] text-[var(--text-muted)] mt-1">
@@ -429,7 +429,7 @@ function ParceiroSimplesSection({
       </div>
       {/* CENTRO — horas totais */}
       <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
-        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
+        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[var(--primary)]">
           {minutesToHours(workedMinutes)}
         </div>
         <span className="text-[11px] text-[var(--text-muted)] mt-1">
@@ -487,7 +487,7 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
 
       {/* CENTRO — valor (só serviços) */}
       <div className="flex flex-col gap-1 border-l border-[var(--border)] pl-8">
-        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[#00F5FF]">
+        <div className="text-[42px] font-extrabold leading-none tracking-tight text-[var(--primary)]">
           {fixedSalary > 0 ? formatBRL(totalSalario) : '—'}
         </div>
         <span className="text-[11px] text-[var(--text-muted)] mt-1">
@@ -707,7 +707,7 @@ function ReceiptLinkInline({ url, label = 'Visualizar' }: { url: string; label?:
     <div className="flex items-center gap-2">
       <button type="button" onClick={() => handle(false)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.15)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }}>
         <Eye size={11} /> {loading ? 'Carregando...' : label}
       </button>
       <button type="button" onClick={() => handle(true)} disabled={loading}
@@ -748,7 +748,7 @@ function InfoRowModal({ icon: Icon, label, value, children, last }: {
     <div className={`flex items-start gap-3 px-4 py-3 ${!last ? 'border-b' : ''}`}
       style={ !last ? { borderColor: 'var(--brand-border)' } : undefined }>
       <span className="mt-0.5 shrink-0 p-1.5 rounded-lg"
-        style={{ background: 'rgba(0,245,255,0.06)', color: 'var(--brand-primary)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
         <Icon size={11} />
       </span>
       <div className="flex-1 min-w-0">
@@ -982,18 +982,18 @@ function SummaryCard({
       onClick={onClick}
       className={`rounded-xl p-5 transition-colors ${
         featured
-          ? 'border-2 border-[#00F5FF] bg-[rgba(0,245,255,0.06)] shadow-[0_0_20px_rgba(0,245,255,0.15)]'
+          ? 'border-2 border-[var(--primary)] bg-[var(--primary-soft)] shadow-[0_0_20px_var(--primary-soft)]'
           : `border border-[var(--border)] bg-[var(--surface)] ${onClick ? 'cursor-pointer hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)]' : ''}`
       }`}
     >
       <div className="flex items-start justify-between mb-3">
-        <span className={`text-[11px] font-semibold uppercase tracking-wider ${featured ? 'text-[#00F5FF]' : 'text-[var(--text-light)]'}`}>{label}</span>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${featured ? 'bg-[rgba(0,245,255,0.15)] text-[#00F5FF]' : accent}`}>
+        <span className={`text-[11px] font-semibold uppercase tracking-wider ${featured ? 'text-[var(--primary)]' : 'text-[var(--text-light)]'}`}>{label}</span>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${featured ? 'bg-[var(--primary-soft)] text-[var(--primary)]' : accent}`}>
           <Icon size={14} />
         </div>
       </div>
-      <div className={`font-bold tracking-tight break-all leading-tight ${featured ? 'text-2xl text-[#00F5FF]' : 'text-lg text-white'}`}>{value}</div>
-      {sub && <div className={`text-xs mt-1.5 ${featured ? 'text-[rgba(0,245,255,0.6)]' : 'text-[var(--text-light)]'}`}>{sub}</div>}
+      <div className={`font-bold tracking-tight break-all leading-tight ${featured ? 'text-2xl text-[var(--primary)]' : 'text-lg text-white'}`}>{value}</div>
+      {sub && <div className={`text-xs mt-1.5 ${featured ? 'text-[var(--primary)]' : 'text-[var(--text-light)]'}`}>{sub}</div>}
     </div>
   )
 }
@@ -1043,7 +1043,7 @@ function MiniDonut({ services, expenses }: { services: number; expenses: number 
     <svg width={52} height={52} viewBox="0 0 52 52" style={{ transform: 'rotate(-90deg)' }}>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="#27272a" strokeWidth={6} />
       {srvLen > 0 && (
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#00F5FF" strokeWidth={6}
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--primary)" strokeWidth={6}
           strokeDasharray={`${srvLen} ${circ - srvLen}`} strokeDashoffset={0} />
       )}
       {expLen > 0 && (
@@ -1201,7 +1201,7 @@ function HeroTotal({
 }
 
 function BarChartRow({
-  label, minutes, maxMinutes, color = '#00F5FF',
+  label, minutes, maxMinutes, color = 'var(--primary)',
 }: {
   label: string; minutes: number; maxMinutes: number; color?: string
 }) {
@@ -3162,7 +3162,7 @@ export default function MeuPainelPage() {
               <div className="space-y-3">
                 {tsByCustomer.map((c, i) => {
                   const pct = tsTotalMin > 0 ? (c.minutes / tsTotalMin) * 100 : 0
-                  const colors = ['#00F5FF', '#a78bfa', '#fb923c', '#34d399', '#f472b6', '#60a5fa']
+                  const colors = ['var(--primary)', '#a78bfa', '#fb923c', '#34d399', '#f472b6', '#60a5fa']
                   const color  = colors[i % colors.length]
                   return (
                     <div key={c.name}>
@@ -3195,7 +3195,7 @@ export default function MeuPainelPage() {
               ) : (
                 <div className="space-y-3.5">
                   {tsByProject.map(p => (
-                    <BarChartRow key={p.name} label={p.name} minutes={p.minutes} maxMinutes={maxProjectMin} color="#00F5FF" />
+                    <BarChartRow key={p.name} label={p.name} minutes={p.minutes} maxMinutes={maxProjectMin} color="var(--primary)" />
                   ))}
                 </div>
               )}
@@ -3292,7 +3292,7 @@ export default function MeuPainelPage() {
                   {hoursEntry && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 5 }}>
                       <span style={{ fontSize: 11, color: '#71717A' }}>Horas</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#00F5FF', fontFamily: 'monospace' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', fontFamily: 'monospace' }}>
                         {Number(hoursEntry.value).toFixed(1)}h
                         {varH !== null && (
                           <span style={{ marginLeft: 6, fontSize: 10, color: varH >= 0 ? '#4ade80' : '#f87171' }}>
@@ -3407,9 +3407,9 @@ export default function MeuPainelPage() {
                       {avgHours > 0 && (
                         <ReferenceLine
                           yAxisId="hours" y={avgHours}
-                          stroke="rgba(0,245,255,0.2)"
+                          stroke="var(--primary-soft)"
                           strokeDasharray="5 4"
-                          label={{ value: `~${avgHours.toFixed(0)}h`, position: 'insideTopLeft', fill: 'rgba(0,245,255,0.4)', fontSize: 10 }}
+                          label={{ value: `~${avgHours.toFixed(0)}h`, position: 'insideTopLeft', fill: 'var(--primary)', fontSize: 10 }}
                         />
                       )}
 
@@ -3418,7 +3418,7 @@ export default function MeuPainelPage() {
                         {history.map((p) => (
                           <Cell
                             key={p.ym}
-                            fill={p.isCurrent ? '#00F5FF' : 'rgba(0,245,255,0.22)'}
+                            fill={p.isCurrent ? 'var(--primary)' : 'var(--primary)'}
                           />
                         ))}
                       </Bar>
@@ -3469,7 +3469,7 @@ export default function MeuPainelPage() {
                 {/* ── Legenda ── */}
                 <div className="flex items-center gap-5 mt-5 justify-center flex-wrap">
                   <div className="flex items-center gap-2 text-[11px] text-[var(--text-light)]">
-                    <div className="w-3 h-3 rounded-sm" style={{ background: 'rgba(0,245,255,0.22)' }} />
+                    <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--primary)' }} />
                     Horas
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)] font-medium">
@@ -3861,7 +3861,7 @@ export default function MeuPainelPage() {
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={active
                       ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                      : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }
+                      : { background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }
                     }>{label}</button>
                 )
               })}
@@ -4184,7 +4184,7 @@ export default function MeuPainelPage() {
               {/* Header */}
               <div className="px-5 pt-5 pb-4 flex items-start gap-3">
                 <div className="p-2.5 rounded-xl shrink-0"
-                  style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+                  style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                   <Clock size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -4207,7 +4207,7 @@ export default function MeuPainelPage() {
 
                 {/* Horas hero */}
                 <div className="rounded-xl px-4 py-4"
-                  style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.12)' }}>
+                  style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
                   <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--brand-subtle)' }}>Total de Horas</p>
                   <p className="text-2xl font-bold font-mono" style={{ color: 'var(--brand-primary)' }}>{tsViewItem.effort_hours}</p>
                   {tsViewItem.start_time && tsViewItem.end_time && (

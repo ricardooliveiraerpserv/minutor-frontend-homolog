@@ -143,7 +143,7 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       ) : (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}
+          style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
         >
           <Globe size={9} /> Web
         </span>
@@ -257,7 +257,7 @@ function DateRangePicker({ from, to, onChange }: {
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${s || e ? 'font-bold' : ir ? '' : td ? 'font-semibold' : ''}`}
                 style={{
-                  background: s || e ? 'var(--brand-primary)' : ir ? 'rgba(0,245,255,0.15)' : undefined,
+                  background: s || e ? 'var(--brand-primary)' : ir ? 'var(--primary-soft)' : undefined,
                   color: s || e ? '#0A0A0B' : ir ? 'var(--brand-primary)' : td ? 'var(--brand-primary)' : 'var(--brand-text)',
                 }}>
                 {day}
@@ -1347,7 +1347,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         {/* Aviso para cliente */}
         {isCliente && (
           <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl mb-4 text-xs"
-            style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid rgba(0,245,255,0.18)', color: 'var(--brand-muted)' }}>
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)', color: 'var(--brand-muted)' }}>
             <span style={{ color: 'var(--brand-primary)', marginTop: 1 }}>ℹ</span>
             <span>O status de aprovação indica apenas uma validação interna da equipe, sem impacto para o cliente.</span>
           </div>
@@ -1496,7 +1496,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             )}
             {!isCliente && scope !== 'investimento' && ([
               { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
-              { id: 'projeto',      label: 'Projeto',     color: '#00F5FF',            bg: 'rgba(0,245,255,0.12)',   border: 'rgba(0,245,255,0.35)' },
+              { id: 'projeto',      label: 'Projeto',     color: 'var(--primary)',            bg: 'var(--primary-soft)',   border: 'var(--primary)' },
               { id: 'bizify',       label: 'Bizify',      color: '#a78bfa',            bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },
               { id: 'investimento', label: 'Investimento', color: '#ef4444',           bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)' },
             ] as const).map(opt => {
@@ -1514,7 +1514,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             })}
             {projectId && (
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
-                style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: 'var(--brand-primary)' }}>
+                style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)', color: 'var(--brand-primary)' }}>
                 Projeto #{projectId}
                 <button onClick={() => { setProjectId(''); resetPage() }} className="ml-1 hover:opacity-70 transition-opacity">
                   <X size={10} />
@@ -1706,7 +1706,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 {!isCliente && (
                   <th
                     className="hidden lg:table-cell whitespace-nowrap text-center px-5 py-3.5 text-xs font-semibold uppercase tracking-wider"
-                    style={{ color: 'var(--brand-primary)', background: 'rgba(0,245,255,0.06)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
+                    style={{ color: 'var(--brand-primary)', background: 'var(--primary-soft)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
                   >
                     Hist. de Hs Tikets
                   </th>
@@ -1798,7 +1798,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   {!isCliente && (
                     <td
                       className="hidden lg:table-cell font-mono text-center px-5 py-3.5"
-                      style={{ background: 'rgba(0,245,255,0.06)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
+                      style={{ background: 'var(--primary-soft)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
                     >
                       {ts.ticket_total_minutes != null
                         ? <span style={{ color: ticketTotalColor(ts.ticket_total_minutes), fontWeight: 700, fontSize: '0.875rem' }}>{formatMinutes(ts.ticket_total_minutes)}</span>

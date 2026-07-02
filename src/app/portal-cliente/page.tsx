@@ -13,16 +13,16 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
 } from 'recharts'
 
-// Cor primária escolhida em runtime conforme o tema: o ciano #00F5FF é
+// Cor primária escolhida em runtime conforme o tema: o ciano var(--primary) é
 // quase invisível em fundo claro, então no light mode usamos o ciano-escuro
 // (Tailwind cyan-700) que combina com --brand-primary do globals.css.
 function useThemePrimary() {
-  const [primary, setPrimary] = useState('#00F5FF')
+  const [primary, setPrimary] = useState('var(--primary)')
   useEffect(() => {
     if (typeof document === 'undefined') return
     const update = () => {
       const isDark = document.documentElement.classList.contains('dark')
-      setPrimary(isDark ? '#00F5FF' : '#0E7490')
+      setPrimary(isDark ? 'var(--primary)' : '#0E7490')
     }
     update()
     const obs = new MutationObserver(update)

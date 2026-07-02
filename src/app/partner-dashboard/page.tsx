@@ -268,7 +268,7 @@ function RowMenu({ isOwn, onView, onEdit, onDelete }: {
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({
-  icon: Icon, label, value, sub, color = '#00F5FF',
+  icon: Icon, label, value, sub, color = 'var(--primary)',
 }: {
   icon: React.ElementType
   label: string
@@ -1272,7 +1272,7 @@ export default function PartnerDashboardPage() {
                             formatter={(v: any) => [formatBRL(v ?? 0), "Receita"]}
                             labelStyle={{ color: 'var(--text)' }}
                           />
-                          <Bar dataKey="total_amount" fill="#00F5FF" radius={[0, 4, 4, 0]} opacity={0.85} background={{ fill: 'transparent' }} />
+                          <Bar dataKey="total_amount" fill="var(--primary)" radius={[0, 4, 4, 0]} opacity={0.85} background={{ fill: 'transparent' }} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1327,7 +1327,7 @@ export default function PartnerDashboardPage() {
                             labelStyle={{ color: 'var(--text)' }}
                           />
                           <Legend formatter={v => v === 'horas' ? 'Horas' : 'Receita'} wrapperStyle={{ fontSize: 11, color: 'var(--text-muted)' }} />
-                          <Line yAxisId="h" type="monotone" dataKey="horas" stroke="#00F5FF" strokeWidth={2} dot={{ r: 3, fill: '#00F5FF' }} activeDot={{ r: 5 }} />
+                          <Line yAxisId="h" type="monotone" dataKey="horas" stroke="var(--primary)" strokeWidth={2} dot={{ r: 3, fill: 'var(--primary)' }} activeDot={{ r: 5 }} />
                           <Line yAxisId="r" type="monotone" dataKey="receita" stroke="#22c55e" strokeWidth={2} dot={{ r: 3, fill: '#22c55e' }} activeDot={{ r: 5 }} />
                         </LineChart>
                       </ResponsiveContainer>
@@ -1346,7 +1346,7 @@ export default function PartnerDashboardPage() {
                           sub: `${indEfficiency.entries} apontamentos`,
                         },
                         {
-                          icon: Activity, color: '#00F5FF',
+                          icon: Activity, color: 'var(--primary)',
                           label: 'Horas por Dia Útil',
                           value: `${formatNumber(indEfficiency.hoursPerDay)}h`,
                           sub: `${indEfficiency.businessDays} dias úteis no mês`,

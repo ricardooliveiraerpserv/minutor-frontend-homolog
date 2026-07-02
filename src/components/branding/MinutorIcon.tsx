@@ -3,14 +3,14 @@
  *
  * Cor controlada pelo token `--brand-logo` (definido em globals.css):
  *   - light: #06B6D4 (cyan reforçado)
- *   - dark:  #00F5FF (Electric Cyan)
+ *   - dark:  var(--primary) (Electric Cyan)
  *
  * O token é INDEPENDENTE de `--primary` (UI). Mudar paleta de UI
  * não afeta marca; rebrand de cor não afeta UI.
  *
  * Variantes:
  *   - "default" (padrão) — usa `var(--brand-logo)`. Adapta ao tema do app.
- *   - "splash"           — força cyan vibrante (#00F5FF). Para fundos
+ *   - "splash"           — força cyan vibrante (var(--primary)). Para fundos
  *                          escuros fixos onde o app não segue o tema
  *                          (ex: tela de login).
  */
@@ -29,7 +29,7 @@ const BARS = [
   { x: 0.84, h: 0.60, y: 0.40 },
 ] as const
 
-const SPLASH_COLOR = '#00F5FF'
+const SPLASH_COLOR = 'var(--primary)'
 
 export function MinutorIcon({ size = 28, variant = 'default', className }: Props) {
   const fill = variant === 'splash' ? SPLASH_COLOR : 'var(--brand-logo)'

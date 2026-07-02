@@ -31,7 +31,7 @@ function AttachmentLink({ url }: { url: string }) {
   return (
     <button type="button" onClick={open} disabled={loading}
       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-      style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.15)' }}>
+      style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }}>
       <Paperclip size={11} />
       {loading ? 'Abrindo...' : 'Visualizar Anexo'}
     </button>
@@ -46,7 +46,7 @@ function InfoRow({ icon: Icon, label, value, children, last }: {
     <div className={`flex items-center gap-2.5 px-3.5 py-1.5 ${!last ? 'border-b' : ''}`}
       style={!last ? { borderColor: 'var(--brand-border)' } : undefined}>
       <span className="shrink-0 p-1 rounded-md"
-        style={{ background: 'rgba(0,245,255,0.06)', color: 'var(--brand-primary)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
         <Icon size={12} />
       </span>
       <div className="flex-1 min-w-0">
@@ -66,7 +66,7 @@ function OriginChip({ origin }: { origin?: string }) {
   )
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
-      style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+      style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
       <Globe size={11} /> Web (manual)
     </span>
   )
@@ -93,7 +93,7 @@ export function TimesheetViewModal({
         {/* Header */}
         <div className="px-4 pt-3.5 pb-2.5 flex items-center gap-2.5">
           <div className="p-1.5 rounded-lg shrink-0"
-            style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+            style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
             <Clock size={16} />
           </div>
           <div className="flex-1 min-w-0">
@@ -133,7 +133,7 @@ export function TimesheetViewModal({
 
           {/* Período hero */}
           <div className="rounded-xl px-3.5 py-2.5 flex items-baseline justify-between gap-2"
-            style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid rgba(0,245,255,0.15)' }}>
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
             <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--brand-subtle)' }}>Período</p>
             <p className="text-xl font-bold" style={{ color: 'var(--brand-primary)' }}>
               {ts.start_time} – {ts.end_time}
@@ -243,7 +243,7 @@ export function TimesheetViewModal({
           {/* Revisão */}
           {ts.reviewedBy && (
             <div className="flex items-center gap-2 px-5 py-3.5 rounded-2xl text-sm"
-              style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
+              style={{ background: 'var(--primary-soft)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
               <CheckCircle size={14} style={{ color: 'var(--brand-primary)' }} />
               Revisado por <strong style={{ color: 'var(--brand-muted)' }}>{ts.reviewedBy.name}</strong>
               {ts.reviewed_at && ` em ${formatDate(ts.reviewed_at.slice(0, 10))}`}

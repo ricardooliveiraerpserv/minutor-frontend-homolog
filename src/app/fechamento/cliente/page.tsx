@@ -1400,7 +1400,7 @@ export default function FechamentoClientePage() {
                               <td className="py-2.5 text-xs" style={{ color: 'var(--brand-muted)', paddingLeft: '2.75rem' }}>
                                 {p.nome}
                                 <span className="ml-2 opacity-60">{p.codigo}</span>
-                                <span className="ml-2 px-1.5 py-0.5 rounded text-xs" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+                                <span className="ml-2 px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                                   {p.tipo_nome}
                                 </span>
                               </td>
@@ -1558,7 +1558,7 @@ export default function FechamentoClientePage() {
                                   <div className="flex flex-wrap gap-1">
                                     {Array.from(c.tipos).map(t => (
                                       <span key={t} className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap"
-                                        style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>{t}</span>
+                                        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>{t}</span>
                                     ))}
                                   </div>
                                 </Td>

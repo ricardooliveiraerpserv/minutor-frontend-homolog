@@ -325,12 +325,12 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
             key={msg.id}
             className="flex gap-2.5 items-start rounded-lg px-3 py-2"
             style={msg.is_mentioned
-              ? { background: 'rgba(0,245,255,0.04)', borderLeft: '2px solid var(--primary)' }
+              ? { background: 'var(--primary-soft)', borderLeft: '2px solid var(--primary)' }
               : {}}
           >
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
-              style={{ background: 'rgba(0,245,255,0.15)', color: 'var(--brand-primary)' }}
+              style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}
             >
               {getInitials(msg.author?.name ?? '?')}
             </div>
@@ -424,7 +424,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--brand-text)', borderBottom: filteredMentions.length > 0 ? '1px solid var(--brand-border)' : undefined }}
             >
-              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(0,245,255,0.15)', color: 'var(--brand-primary)' }}>
+              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                 <Users size={11} />
               </div>
               <span className="font-semibold">Todos</span>
@@ -438,7 +438,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--brand-text)' }}
             >
-              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0" style={{ background: 'rgba(0,245,255,0.15)', color: 'var(--brand-primary)' }}>
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                 {getInitials(u.name)}
               </div>
               {u.name}
@@ -451,7 +451,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
       {files.length > 0 && (
         <div className="mx-4 mb-2 flex flex-wrap gap-1.5">
           {files.map((f, idx) => (
-            <div key={idx} className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs" style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid rgba(0,245,255,0.2)' }}>
+            <div key={idx} className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
               <FileText size={11} style={{ color: 'var(--brand-primary)' }} />
               <span className="max-w-[120px] truncate" style={{ color: 'var(--brand-text)' }}>{f.name}</span>
               <button onClick={() => removeFile(idx)} className="hover:opacity-70 shrink-0" style={{ color: 'var(--brand-subtle)' }}>
@@ -477,7 +477,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-all shrink-0"
             title="Adicionar anexos"
-            style={{ background: files.length > 0 ? 'rgba(0,245,255,0.08)' : 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: files.length > 0 ? 'var(--text)' : 'var(--text-muted)' }}
+            style={{ background: files.length > 0 ? 'var(--primary-soft)' : 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: files.length > 0 ? 'var(--text)' : 'var(--text-muted)' }}
           >
             <Paperclip size={15} />
           </button>

@@ -674,7 +674,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
           {(['proposta', 'contrato', 'logo'] as const).map(t => (
             <button key={t} onClick={() => setSelectedAttachType(t)}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: selectedAttachType === t ? 'rgba(0,245,255,0.15)' : 'transparent', border: '1px solid var(--brand-border)', color: selectedAttachType === t ? 'var(--text)' : 'var(--text-muted)' }}>
+              style={{ background: selectedAttachType === t ? 'var(--primary-soft)' : 'transparent', border: '1px solid var(--brand-border)', color: selectedAttachType === t ? 'var(--text)' : 'var(--text-muted)' }}>
               {ATTACHMENT_TYPE_LABEL[t]}
             </button>
           ))}
@@ -695,7 +695,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
         <div className="space-y-1">
           <p className="text-xs text-[var(--text-muted)]">Aguardando upload ({pendingFiles.length})</p>
           {pendingFiles.map((pf, i) => (
-            <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.15)' }}>
+            <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
               <div>
                 <p className="text-xs text-[var(--text)]">{pf.file.name}</p>
                 <p className="text-[10px] text-[var(--text-muted)]">{ATTACHMENT_TYPE_LABEL[pf.type]} · {fmt(pf.file.size)}</p>
@@ -717,7 +717,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
             <h2 className="text-base font-semibold text-white">{internalEdit ? 'Editar Contrato' : 'Novo Contrato'}</h2>
             {(selectedContractType || form.service_type_id) && (
               <p className="text-[11px] text-[var(--text-light)] mt-0.5 flex items-center gap-1.5">
-                {selectedContractType && <span style={{ color: '#00F5FF' }}>{selectedContractType.name}</span>}
+                {selectedContractType && <span style={{ color: 'var(--primary)' }}>{selectedContractType.name}</span>}
                 {selectedContractType && form.service_type_id && <span className="text-[var(--text-muted)]">·</span>}
                 {form.service_type_id && <span>{serviceTypes.find(s => String(s.id) === String(form.service_type_id))?.name}</span>}
               </p>
@@ -1327,7 +1327,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-light)]">Do cadastro do cliente</p>
                     <button onClick={addContact}
                       className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium shrink-0"
-                      style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: '#00F5FF' }}>
+                      style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)', color: 'var(--primary)' }}>
                       <Plus size={10} /> Adicionar contato
                     </button>
                   </div>
@@ -1350,8 +1350,8 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                               <div key={cc.id}
                                 className="flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer transition-colors"
                                 style={{
-                                  borderColor: alreadyAdded ? 'rgba(0,245,255,0.4)' : 'var(--brand-border)',
-                                  background: alreadyAdded ? 'rgba(0,245,255,0.06)' : 'transparent',
+                                  borderColor: alreadyAdded ? 'var(--primary)' : 'var(--brand-border)',
+                                  background: alreadyAdded ? 'var(--primary-soft)' : 'transparent',
                                 }}
                                 onClick={() => {
                                   if (alreadyAdded) {
@@ -1366,7 +1366,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                                   <p className="text-[10px] text-[var(--text-light)]">{[cc.cargo, cc.email].filter(Boolean).join(' · ')}</p>
                                 </div>
                                 <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-                                  style={{ background: alreadyAdded ? '#00F5FF' : 'transparent', border: alreadyAdded ? 'none' : '1px solid #52525b' }}>
+                                  style={{ background: alreadyAdded ? 'var(--primary)' : 'transparent', border: alreadyAdded ? 'none' : '1px solid #52525b' }}>
                                   {alreadyAdded && <CheckCircle size={12} style={{ color: '#000' }} />}
                                 </div>
                               </div>
@@ -1489,9 +1489,9 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
               <button onClick={save} disabled={saving || uploading || codeExists}
                 className="px-5 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
                 style={{
-                  background: form.is_aporte ? 'rgba(34,197,94,0.15)' : 'rgba(0,245,255,0.15)',
-                  border: `1px solid ${form.is_aporte ? 'rgba(34,197,94,0.45)' : 'rgba(0,245,255,0.3)'}`,
-                  color: form.is_aporte ? '#22c55e' : '#00F5FF',
+                  background: form.is_aporte ? 'rgba(34,197,94,0.15)' : 'var(--primary-soft)',
+                  border: `1px solid ${form.is_aporte ? 'rgba(34,197,94,0.45)' : 'var(--primary)'}`,
+                  color: form.is_aporte ? '#22c55e' : 'var(--primary)',
                 }}>
                 {saving ? 'Salvando...' : uploading ? 'Enviando arquivos...' : form.is_aporte ? 'Criar aporte' : internalEdit ? 'Salvar alterações' : 'Criar contrato'}
               </button>
