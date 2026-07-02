@@ -38,6 +38,7 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/fechamento/folha',         label: 'Folha Cooperativa',        group: 'Financeiro' },
   { key: '/fechamento/contratos',     label: 'Fechamento Contratos',     group: 'Financeiro' },
   { key: '/fechamento/reajustes',     label: 'Reajuste de Contrato',     group: 'Financeiro' },
+  { key: '/fechamento/excedentes',    label: 'Horas Excedentes',         group: 'Financeiro' },
   { key: '/pagamento-despesas',       label: 'Pagamento de Despesas',    group: 'Financeiro' },
 
   // Administrativo — Relatórios
