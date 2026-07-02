@@ -139,7 +139,7 @@ export function Table({ children, className }: { children: React.ReactNode; clas
 
 export function Thead({ children }: { children: React.ReactNode }) {
   return (
-    <thead style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+    <thead style={{ borderBottom: '1px solid var(--brand-border)', background: 'var(--surface-sunken)' }}>
       {children}
     </thead>
   )
@@ -201,7 +201,7 @@ export function Tr({ children, onClick, className, baseBackground, onMouseEnter,
       className={cn('transition-colors duration-100', onClick && 'cursor-pointer', className)}
       style={{ borderBottom: '1px solid var(--brand-border)', background: base }}
       onMouseEnter={e => {
-        e.currentTarget.style.background = 'rgba(0,245,255,0.03)'
+        e.currentTarget.style.background = 'var(--surface-hover)'
         onMouseEnter?.()
       }}
       onMouseLeave={e => {
@@ -244,28 +244,28 @@ export function Td({
 
 const BADGE_STYLES: Record<string, { bg: string; color: string }> = {
   // generic
-  default:   { bg: 'rgba(161,161,170,0.12)',  color: '#A1A1AA' },
-  primary:   { bg: 'rgba(0,245,255,0.10)',    color: '#00F5FF' },
-  success:   { bg: 'rgba(16,185,129,0.12)',   color: '#10B981' },
-  warning:   { bg: 'rgba(245,158,11,0.12)',   color: '#F59E0B' },
-  danger:    { bg: 'rgba(239,68,68,0.12)',    color: '#EF4444' },
+  default:   { bg: 'rgba(161,161,170,0.12)',  color: 'var(--text-muted)' },
+  primary:   { bg: 'var(--primary-soft)',    color: 'var(--primary)' },
+  success:   { bg: 'var(--success-bg)',   color: 'var(--success)' },
+  warning:   { bg: 'var(--warning-bg)',   color: 'var(--warning)' },
+  danger:    { bg: 'var(--danger-bg)',    color: 'var(--danger)' },
   purple:    { bg: 'var(--purple-bg)',   color: 'var(--purple)' },
   // timesheet statuses
-  pending:              { bg: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
-  approved:             { bg: 'rgba(16,185,129,0.12)',  color: '#10B981' },
-  rejected:             { bg: 'rgba(239,68,68,0.12)',   color: '#EF4444' },
-  conflicted:           { bg: 'rgba(239,68,68,0.14)',   color: '#F87171' },
+  pending:              { bg: 'var(--warning-bg)',  color: 'var(--warning)' },
+  approved:             { bg: 'var(--success-bg)',  color: 'var(--success)' },
+  rejected:             { bg: 'var(--danger-bg)',   color: 'var(--danger)' },
+  conflicted:           { bg: 'var(--danger-bg)',   color: 'var(--danger)' },
   internal:             { bg: 'rgba(100,116,139,0.18)', color: '#94A3B8' },
   released:             { bg: 'rgba(100,116,139,0.18)', color: '#94A3B8' },
-  adjustment_requested: { bg: 'rgba(139,92,246,0.12)',  color: '#8B5CF6' },
+  adjustment_requested: { bg: 'var(--purple-bg)',  color: 'var(--purple)' },
   // project statuses
-  active:    { bg: 'rgba(16,185,129,0.12)',  color: '#10B981' },
-  started:   { bg: 'rgba(0,245,255,0.10)',   color: '#00F5FF' },
-  paused:    { bg: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
-  cancelled: { bg: 'rgba(239,68,68,0.12)',   color: '#EF4444' },
-  finished:  { bg: 'rgba(161,161,170,0.12)', color: '#71717A' },
-  inactive:  { bg: 'rgba(161,161,170,0.12)', color: '#71717A' },
-  closed:    { bg: 'rgba(161,161,170,0.12)', color: '#71717A' },
+  active:    { bg: 'var(--success-bg)',  color: 'var(--success)' },
+  started:   { bg: 'var(--primary-soft)',   color: 'var(--primary)' },
+  paused:    { bg: 'var(--warning-bg)',  color: 'var(--warning)' },
+  cancelled: { bg: 'var(--danger-bg)',   color: 'var(--danger)' },
+  finished:  { bg: 'rgba(161,161,170,0.12)', color: 'var(--text-light)' },
+  inactive:  { bg: 'rgba(161,161,170,0.12)', color: 'var(--text-light)' },
+  closed:    { bg: 'rgba(161,161,170,0.12)', color: 'var(--text-light)' },
 }
 
 export function Badge({
@@ -310,9 +310,9 @@ const BTN_VARIANTS = {
     fontWeight: 500,
   },
   danger: {
-    background: 'rgba(239,68,68,0.12)',
-    color: '#EF4444',
-    border: '1px solid rgba(239,68,68,0.2)',
+    background: 'var(--danger-bg)',
+    color: 'var(--danger)',
+    border: '1px solid var(--danger-border)',
     fontWeight: 600,
   },
 }
@@ -506,7 +506,7 @@ export function EmptyState({
       style={{ border: '1px dashed var(--brand-border)', background: 'transparent' }}
     >
       {Icon && (
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(0,245,255,0.06)' }}>
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
           <Icon size={20} color="var(--brand-primary)" />
         </div>
       )}
@@ -578,7 +578,7 @@ export function Modal({
             <h2 className="font-bold text-base" style={{ color: 'var(--brand-text)' }}>{title}</h2>
             <button
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-white/5"
+              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
               style={{ color: 'var(--brand-muted)' }}
             >
               ✕

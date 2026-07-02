@@ -143,13 +143,13 @@ function ConsumedBreakdownCard({ total, projetos, sustentacao, arquitetura }: { 
   return (
     <div className="rounded-2xl p-5 flex flex-col gap-3 min-w-0 overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
       <div className="flex items-center gap-2 min-w-0">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(0,245,255,0.08)' }}>
-          <Clock size={13} color="#00F5FF" />
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)' }}>
+          <Clock size={13} color="var(--primary)" />
         </div>
         <span className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--brand-subtle)' }}>Consumo Acumulado</span>
       </div>
       <div className="flex items-end gap-1.5">
-        <span className="text-4xl font-extrabold tracking-tight" style={{ color: '#00F5FF', lineHeight: 1 }}>{fmtH(total)}</span>
+        <span className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--primary)', lineHeight: 1 }}>{fmtH(total)}</span>
         <span className="text-base font-medium mb-0.5" style={{ color: 'var(--brand-muted)' }}>h</span>
       </div>
       {(projetos !== undefined || sustentacao !== undefined || showArq) && (
@@ -584,7 +584,7 @@ export default function BankHoursFixedPage() {
         </div>
       ) : (
           <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
-            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'var(--surface-sunken)' }}>
               <tr>
                 {['Código','Projeto','Status','Tipo','Horas Vendidas','Consumo','Início',''].map(col => (
                   <th key={col} className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${['Horas Vendidas','Consumo'].includes(col) ? 'text-right' : 'text-left'}`} style={{ color: 'var(--brand-subtle)' }}>{col}</th>
@@ -601,7 +601,7 @@ export default function BankHoursFixedPage() {
                     key={p.id}
                     className="transition-colors"
                     style={{ borderBottom: '1px solid var(--brand-border)' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td className="px-5 py-3.5">
@@ -620,7 +620,7 @@ export default function BankHoursFixedPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
-                      <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}>{p.status_display}</span>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{p.status_display}</span>
                     </td>
                     <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--brand-muted)' }}>{p.contract_type_display}</td>
                     <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--brand-text)' }}>
@@ -632,7 +632,7 @@ export default function BankHoursFixedPage() {
                       <div className="inline-flex items-center gap-1 justify-end">
                         <button
                           onClick={() => setTsModalProject(p)}
-                          className="p-1.5 rounded-md hover:bg-white/5"
+                          className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]"
                           style={{ color: 'var(--text-muted)' }}
                           title="Ver apontamentos"
                         >
@@ -660,8 +660,8 @@ export default function BankHoursFixedPage() {
 
         {/* Page header */}
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(0,245,255,0.08)' }}>
-            <BarChart2 size={16} color="#00F5FF" />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)' }}>
+            <BarChart2 size={16} color="var(--primary)" />
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>Banco de Horas Fixo</h1>
@@ -715,7 +715,7 @@ export default function BankHoursFixedPage() {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Data</label>
             <div className="flex items-center gap-2">
-              <div className="flex rounded-lg border border-zinc-700 overflow-hidden text-xs">
+              <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
                 {(['month', 'period'] as const).map((mode) => (
                   <button key={mode} onClick={() => setFilterMode(mode)}
                     className="px-3 py-1.5 font-medium transition-colors"
@@ -748,7 +748,7 @@ export default function BankHoursFixedPage() {
         {!hasFilters && (
           <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ border: '1px solid var(--brand-border)' }}>
             <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
-              <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+              <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'var(--surface-sunken)' }}>
                 <tr>
                   {['Código','Projeto','Status'].map(col => (
                     <th key={col} className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
@@ -764,7 +764,7 @@ export default function BankHoursFixedPage() {
                     key={p.id}
                     className="transition-colors"
                     style={{ borderBottom: '1px solid var(--brand-border)' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td className="px-5 py-3.5">
@@ -772,7 +772,7 @@ export default function BankHoursFixedPage() {
                     </td>
                     <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--brand-text)' }}>{p.name}</td>
                     <td className="px-5 py-3.5">
-                      <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}>{p.status_display ?? p.status ?? '—'}</span>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{p.status_display ?? p.status ?? '—'}</span>
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <button
@@ -897,7 +897,7 @@ export default function BankHoursFixedPage() {
                           <h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Histórico de Aporte de Horas</h3>
                         </div>
                           <table className="w-full text-sm">
-                            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+                            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'var(--surface-sunken)' }}>
                               <tr>
                                 {['Projeto','Horas','Motivo','Valor/h','Total','Descrição','Data','Por'].map(col => (
                                   <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
@@ -913,11 +913,11 @@ export default function BankHoursFixedPage() {
                                 </tr>
                               ) : summary.contributed_hours_history!.map(item => (
                                 <tr key={item.id} style={{ borderBottom: '1px solid var(--brand-border)' }}
-                                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                 >
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-text)' }}>{item.project?.code} — {item.project?.name}</td>
-                                  <td className="px-5 py-3 font-bold" style={{ color: '#00F5FF' }}>{Number(item.contributed_hours ?? item.difference ?? 0).toFixed(0)}h</td>
+                                  <td className="px-5 py-3 font-bold" style={{ color: 'var(--primary)' }}>{Number(item.contributed_hours ?? item.difference ?? 0).toFixed(0)}h</td>
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{MOTIVO_LABEL[item.motivo ?? 'aporte'] ?? 'Aporte'}</td>
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.hourly_rate ?? null)}</td>
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.total_value ?? null)}</td>
@@ -1039,7 +1039,7 @@ export default function BankHoursFixedPage() {
             <div className="overflow-x-auto max-h-[70vh]">
               {projectTSModal.isClosed ? (
                 <div className="py-16 px-8 text-center">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4" style={{ background: 'rgba(245,158,11,0.10)', color: '#F59E0B' }}>
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-4" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>
                     <AlertCircle size={24} />
                   </div>
                   <p className="text-base font-semibold mb-2" style={{ color: 'var(--text)' }}>Projeto Fechado</p>
@@ -1130,7 +1130,7 @@ function ProjectActionsMenu({ onViewTimesheets }: { onViewTimesheets: () => void
     <div ref={ref} className="relative inline-block">
       <button
         onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
-        className="p-1.5 rounded-md hover:bg-white/5"
+        className="p-1.5 rounded-md hover:bg-[var(--surface-hover)]"
         style={{ color: 'var(--text-muted)' }}
         title="Ações"
       >
@@ -1143,7 +1143,7 @@ function ProjectActionsMenu({ onViewTimesheets }: { onViewTimesheets: () => void
         >
           <button
             onClick={() => { setOpen(false); onViewTimesheets() }}
-            className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-white/5"
+            className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-[var(--surface-hover)]"
             style={{ color: 'var(--text)' }}
           >
             <Eye size={14} /> Ver Apontamentos
@@ -1168,7 +1168,7 @@ function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => void })
       <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl mt-8 rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
         <div className="px-6 py-5 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(0,245,255,0.10)' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
               <Clock size={20} style={{ color: 'var(--primary)' }} />
             </div>
             <div>
@@ -1181,7 +1181,7 @@ function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => void })
 
         <div className="p-6 space-y-4">
           {period && (
-            <div className="rounded-xl p-4" style={{ background: 'rgba(0,245,255,0.05)', border: '1px solid rgba(0,245,255,0.2)' }}>
+            <div className="rounded-xl p-4" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
               <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Período</p>
               <p className="text-2xl font-bold" style={{ color: 'var(--primary)' }}>
                 {period} <span className="text-base font-normal" style={{ color: 'var(--text-muted)' }}>({hoursDisplay})</span>
@@ -1298,7 +1298,7 @@ function IndicatorCard({
               return (
                 <div
                   key={idx}
-                  className={`flex items-center gap-3 rounded-md px-1 py-0.5 transition-colors ${clickable ? 'cursor-pointer hover:bg-white/[0.03]' : ''}`}
+                  className={`flex items-center gap-3 rounded-md px-1 py-0.5 transition-colors ${clickable ? 'cursor-pointer hover:bg-[var(--surface-hover)]' : ''}`}
                   onClick={clickable ? () => onRowClick!(r) : undefined}
                 >
                   <div className="w-6 text-right text-xs font-mono shrink-0" style={{ color: 'var(--text-muted)' }}>{idx + 1}</div>
@@ -1333,8 +1333,8 @@ function ReverseApprovalBtn({ onClick, busy }: { onClick: () => void; busy: bool
       onClick={(e) => { e.stopPropagation(); onClick() }}
       disabled={busy}
       title="Estornar aprovação"
-      className="inline-flex items-center justify-center p-1.5 rounded-md hover:bg-white/5 disabled:opacity-40"
-      style={{ color: '#f87171' }}
+      className="inline-flex items-center justify-center p-1.5 rounded-md hover:bg-[var(--surface-hover)] disabled:opacity-40"
+      style={{ color: 'var(--danger)' }}
     >
       <Undo2 size={13} />
     </button>

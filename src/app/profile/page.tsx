@@ -118,40 +118,40 @@ export default function ProfilePage() {
       <div className="max-w-lg space-y-6">
 
         {/* ── Dados pessoais ── */}
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-4">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-600/20">
-              <User size={14} className="text-blue-400" />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--primary-soft)]">
+              <User size={14} className="text-[var(--primary)]" />
             </div>
-            <h2 className="text-sm font-semibold text-white">Dados pessoais</h2>
+            <h2 className="text-sm font-semibold text-[var(--text)]">Dados pessoais</h2>
           </div>
 
           <div>
-            <Label className="text-xs text-zinc-400">Nome</Label>
+            <Label className="text-xs text-[var(--text-muted)]">Nome</Label>
             <Input value={name} onChange={e => setName(e.target.value)}
-              className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+              className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
           </div>
           <div>
-            <Label className="text-xs text-zinc-400">E-mail</Label>
+            <Label className="text-xs text-[var(--text-muted)]">E-mail</Label>
             <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+              className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
           </div>
 
           <div className="flex justify-end">
             <Button onClick={saveInfo} disabled={savingInfo || !name || !email}
-              className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+              className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
               {savingInfo ? 'Salvando...' : 'Salvar dados'}
             </Button>
           </div>
         </section>
 
         {/* ── Senha ── */}
-        <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 space-y-4">
+        <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-4">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-yellow-500/15">
-              <Lock size={14} className="text-yellow-400" />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--warning-bg)]">
+              <Lock size={14} className="text-[var(--warning)]" />
             </div>
-            <h2 className="text-sm font-semibold text-white">Senha</h2>
+            <h2 className="text-sm font-semibold text-[var(--text)]">Senha</h2>
           </div>
 
           {/* Modo selector */}
@@ -160,8 +160,8 @@ export default function ProfilePage() {
               onClick={() => selectMode('auto')}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium transition-all ${
                 passwordMode === 'auto'
-                  ? 'bg-yellow-500/15 border-yellow-500/50 text-yellow-300'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  ? 'bg-[var(--warning-bg)] border-[var(--warning-border)] text-[var(--warning)]'
+                  : 'bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
               }`}
             >
               <RefreshCw size={13} />
@@ -171,8 +171,8 @@ export default function ProfilePage() {
               onClick={() => selectMode('manual')}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium transition-all ${
                 passwordMode === 'manual'
-                  ? 'bg-yellow-500/15 border-yellow-500/50 text-yellow-300'
-                  : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                  ? 'bg-[var(--warning-bg)] border-[var(--warning-border)] text-[var(--warning)]'
+                  : 'bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
               }`}
             >
               <Lock size={13} />
@@ -183,29 +183,29 @@ export default function ProfilePage() {
           {/* ── Auto-generate ── */}
           {passwordMode === 'auto' && (
             <div className="space-y-3">
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[var(--text-light)]">
                 Uma nova senha segura será gerada. Copie e guarde antes de fechar.
               </p>
               {generatedPassword ? (
-                <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5">
-                  <code className="flex-1 text-sm text-yellow-300 font-mono tracking-wider">
+                <div className="flex items-center gap-2 bg-[var(--surface-hover)] border border-[var(--border)] rounded-lg px-3 py-2.5">
+                  <code className="flex-1 text-sm text-[var(--warning)] font-mono tracking-wider">
                     {generatedPassword}
                   </code>
                   <button onClick={copyGenerated}
-                    className="text-zinc-500 hover:text-zinc-200 transition-colors">
-                    {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                    className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors">
+                    {copied ? <Check size={14} className="text-[var(--success)]" /> : <Copy size={14} />}
                   </button>
                 </div>
               ) : (
                 <Button onClick={generatePassword} disabled={savingPassword}
-                  className="w-full h-9 text-xs bg-yellow-600/80 hover:bg-yellow-600 text-white gap-2">
+                  className="w-full h-9 text-xs bg-[var(--warning-bg)] hover:bg-[var(--warning-border)] text-[var(--primary-fg)] gap-2">
                   <RefreshCw size={13} className={savingPassword ? 'animate-spin' : ''} />
                   {savingPassword ? 'Gerando...' : 'Gerar nova senha'}
                 </Button>
               )}
               {generatedPassword && (
                 <Button onClick={generatePassword} disabled={savingPassword} variant="outline"
-                  className="w-full h-8 text-xs border-zinc-700 text-zinc-400 gap-1.5">
+                  className="w-full h-8 text-xs border-[var(--border)] text-[var(--text-muted)] gap-1.5">
                   <RefreshCw size={12} /> Gerar outra
                 </Button>
               )}
@@ -216,60 +216,60 @@ export default function ProfilePage() {
           {passwordMode === 'manual' && (
             <div className="space-y-3">
               <div>
-                <Label className="text-xs text-zinc-400">Senha atual *</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Senha atual *</Label>
                 <div className="relative mt-1">
                   <Input
                     type={showCurrent ? 'text' : 'password'}
                     value={currentPassword}
                     onChange={e => setCurrentPassword(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white h-9 text-xs pr-9"
+                    className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs pr-9"
                   />
                   <button onClick={() => setShowCurrent(v => !v)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-[var(--text)]">
                     {showCurrent ? <EyeOff size={13} /> : <Eye size={13} />}
                   </button>
                 </div>
               </div>
               <div>
-                <Label className="text-xs text-zinc-400">Nova senha * (mín. 8 caracteres)</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Nova senha * (mín. 8 caracteres)</Label>
                 <div className="relative mt-1">
                   <Input
                     type={showNew ? 'text' : 'password'}
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white h-9 text-xs pr-9"
+                    className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs pr-9"
                   />
                   <button onClick={() => setShowNew(v => !v)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-[var(--text)]">
                     {showNew ? <EyeOff size={13} /> : <Eye size={13} />}
                   </button>
                 </div>
               </div>
               <div>
-                <Label className="text-xs text-zinc-400">Confirmar nova senha *</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Confirmar nova senha *</Label>
                 <div className="relative mt-1">
                   <Input
                     type={showConfirm ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
-                    className={`bg-zinc-800 border-zinc-700 text-white h-9 text-xs pr-9 ${
-                      confirmPassword && confirmPassword !== newPassword ? 'border-red-500' : ''
+                    className={`bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs pr-9 ${
+                      confirmPassword && confirmPassword !== newPassword ? 'border-[var(--danger-border)]' : ''
                     }`}
                   />
                   <button onClick={() => setShowConfirm(v => !v)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-[var(--text)]">
                     {showConfirm ? <EyeOff size={13} /> : <Eye size={13} />}
                   </button>
                 </div>
                 {confirmPassword && confirmPassword !== newPassword && (
-                  <p className="text-[10px] text-red-400 mt-1">As senhas não conferem</p>
+                  <p className="text-[10px] text-[var(--danger)] mt-1">As senhas não conferem</p>
                 )}
               </div>
               <div className="flex justify-end">
                 <Button
                   onClick={saveManualPassword}
                   disabled={savingPassword || !currentPassword || !newPassword || newPassword !== confirmPassword}
-                  className="h-8 text-xs bg-yellow-600/80 hover:bg-yellow-600 text-white">
+                  className="h-8 text-xs bg-[var(--warning-bg)] hover:bg-[var(--warning-border)] text-[var(--primary-fg)]">
                   {savingPassword ? 'Salvando...' : 'Alterar senha'}
                 </Button>
               </div>

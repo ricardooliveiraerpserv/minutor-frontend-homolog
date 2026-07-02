@@ -61,7 +61,7 @@ function AlertRow({
   icon: React.ElementType; color: string; message: React.ReactNode; action: string; href: string
 }) {
   return (
-    <Link href={href} className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors group">
+    <Link href={href} className="flex items-center justify-between px-4 py-3 hover:bg-[var(--surface-hover)] transition-colors group">
       <div className="flex items-center gap-2.5">
         <Icon size={13} style={{ color }} className="shrink-0" />
         <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{message}</span>
@@ -75,11 +75,11 @@ function AlertRow({
 
 function RecentRow({ left, leftSub, right, badge }: { left: string; leftSub?: string; right: string; badge: string }) {
   const badgeColor =
-    badge === 'approved'  ? { bg: 'rgba(34,197,94,0.1)',  text: '#22c55e', label: 'Aprovado' } :
-    badge === 'rejected'  ? { bg: 'rgba(239,68,68,0.1)',  text: '#ef4444', label: 'Reprovado' } :
-    badge === 'pending'   ? { bg: 'rgba(234,179,8,0.1)',  text: '#eab308', label: 'Pendente' } :
-    badge === 'adjustment_requested' ? { bg: 'rgba(249,115,22,0.1)', text: '#f97316', label: 'Ajuste' } :
-                            { bg: 'rgba(113,113,122,0.1)', text: '#71717a', label: badge }
+    badge === 'approved'  ? { bg: 'var(--success-bg)',  text: 'var(--success-border)', label: 'Aprovado' } :
+    badge === 'rejected'  ? { bg: 'var(--danger-bg)',  text: 'var(--danger-border)', label: 'Reprovado' } :
+    badge === 'pending'   ? { bg: 'var(--warning-bg)',  text: 'var(--warning-border)', label: 'Pendente' } :
+    badge === 'adjustment_requested' ? { bg: 'var(--warning-bg)', text: 'var(--warning-border)', label: 'Ajuste' } :
+                            { bg: 'rgba(113,113,122,0.1)', text: 'var(--text-light)', label: badge }
   return (
     <div className="flex items-center justify-between px-5 py-3.5 border-b last:border-0" style={{ borderColor: 'var(--brand-border)' }}>
       <div className="min-w-0">
@@ -275,7 +275,7 @@ export default function DashboardPage() {
               </Link>
               <Link href="/timesheets" className="flex-1">
                 <div
-                  className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold border transition-all hover:bg-white/[0.04] active:scale-[0.98] w-full"
+                  className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold border transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98] w-full"
                   style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
                 >
                   <Clock size={15} />
@@ -284,7 +284,7 @@ export default function DashboardPage() {
               </Link>
               <Link href="/expenses" className="flex-1">
                 <div
-                  className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold border transition-all hover:bg-white/[0.04] active:scale-[0.98] w-full"
+                  className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold border transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98] w-full"
                   style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
                 >
                   <Receipt size={15} />
@@ -295,21 +295,21 @@ export default function DashboardPage() {
 
             {/* ── Alertas admin ── */}
             {!adminLoading && hasAlerts && (
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(234,179,8,0.2)', background: 'rgba(234,179,8,0.03)' }}>
-                <div className="px-4 py-2.5 border-b flex items-center gap-2" style={{ borderColor: 'rgba(234,179,8,0.12)' }}>
-                  <AlertTriangle size={12} className="text-yellow-400" />
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-yellow-400">Requer atenção</span>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--warning-border)', background: 'var(--warning-bg)' }}>
+                <div className="px-4 py-2.5 border-b flex items-center gap-2" style={{ borderColor: 'var(--warning-border)' }}>
+                  <AlertTriangle size={12} className="text-[var(--warning)]" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--warning)]">Requer atenção</span>
                 </div>
                 {adminPendingTs > 0 && (
                   <AlertRow
-                    icon={Clock} color="#eab308"
+                    icon={Clock} color="var(--warning-border)"
                     message={<><span className="font-semibold">{adminPendingTs}</span> apontamento{adminPendingTs !== 1 ? 's' : ''} aguardando aprovação</>}
                     action="Aprovar" href="/approvals"
                   />
                 )}
                 {adminPendingExp > 0 && (
                   <AlertRow
-                    icon={Receipt} color="#f97316"
+                    icon={Receipt} color="var(--warning-border)"
                     message={<><span className="font-semibold">{adminPendingExp}</span> despesa{adminPendingExp !== 1 ? 's' : ''} aguardando aprovação</>}
                     action="Aprovar" href="/approvals"
                   />
@@ -353,21 +353,21 @@ export default function DashboardPage() {
           <>
             {/* ── Alertas ── */}
             {!admLoading && (admPendingTs > 0 || admPendingExp > 0) && (
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(234,179,8,0.2)', background: 'rgba(234,179,8,0.03)' }}>
-                <div className="px-4 py-2.5 border-b flex items-center gap-2" style={{ borderColor: 'rgba(234,179,8,0.12)' }}>
-                  <AlertTriangle size={12} className="text-yellow-400" />
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-yellow-400">Requer atenção</span>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--warning-border)', background: 'var(--warning-bg)' }}>
+                <div className="px-4 py-2.5 border-b flex items-center gap-2" style={{ borderColor: 'var(--warning-border)' }}>
+                  <AlertTriangle size={12} className="text-[var(--warning)]" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--warning)]">Requer atenção</span>
                 </div>
                 {admPendingTs > 0 && (
                   <AlertRow
-                    icon={Clock} color="#eab308"
+                    icon={Clock} color="var(--warning-border)"
                     message={<><span className="font-semibold">{admPendingTs}</span> apontamento{admPendingTs !== 1 ? 's' : ''} aguardando aprovação</>}
                     action="Ver apontamentos" href="/timesheets"
                   />
                 )}
                 {admPendingExp > 0 && (
                   <AlertRow
-                    icon={Receipt} color="#f97316"
+                    icon={Receipt} color="var(--warning-border)"
                     message={<><span className="font-semibold">{admPendingExp}</span> despesa{admPendingExp !== 1 ? 's' : ''} aguardando aprovação</>}
                     action="Ver despesas" href="/expenses"
                   />
@@ -415,7 +415,7 @@ export default function DashboardPage() {
               >
                 <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Valor a Pagar (Consultores)</p>
                 {admLoading
-                  ? <div className="h-6 w-24 rounded bg-zinc-800 animate-pulse" />
+                  ? <div className="h-6 w-24 rounded bg-[var(--surface-hover)] animate-pulse" />
                   : <p className="text-xl font-bold" style={{ color: 'var(--brand-text)' }}>{formatBRL(admValorPagar)}</p>
                 }
                 <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>custo de produção do mês</p>
@@ -423,7 +423,7 @@ export default function DashboardPage() {
 
               <Link href="/timesheets" className="col-span-1">
                 <div
-                  className="flex items-center gap-3 rounded-xl px-4 py-4 h-full border transition-all hover:bg-white/[0.03] active:scale-[0.98]"
+                  className="flex items-center gap-3 rounded-xl px-4 py-4 h-full border transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98]"
                   style={{ border: '1px solid var(--brand-border)' }}
                 >
                   <Clock size={16} style={{ color: 'var(--brand-primary)' }} />
@@ -437,7 +437,7 @@ export default function DashboardPage() {
 
               <Link href="/expenses" className="col-span-1">
                 <div
-                  className="flex items-center gap-3 rounded-xl px-4 py-4 h-full border transition-all hover:bg-white/[0.03] active:scale-[0.98]"
+                  className="flex items-center gap-3 rounded-xl px-4 py-4 h-full border transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98]"
                   style={{ border: '1px solid var(--brand-border)' }}
                 >
                   <Receipt size={16} style={{ color: 'var(--brand-primary)' }} />
@@ -468,7 +468,7 @@ export default function DashboardPage() {
               </Link>
               <Link href="/meu-painel" className="flex-1">
                 <div
-                  className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold border transition-all hover:bg-white/[0.04] active:scale-[0.98] w-full"
+                  className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold border transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98] w-full"
                   style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
                 >
                   <Receipt size={15} />
@@ -479,28 +479,28 @@ export default function DashboardPage() {
 
             {/* ── Alertas consultor ── */}
             {!loading && hasAlerts && (
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid rgba(234,179,8,0.2)', background: 'rgba(234,179,8,0.03)' }}>
-                <div className="px-4 py-2.5 border-b flex items-center gap-2" style={{ borderColor: 'rgba(234,179,8,0.12)' }}>
-                  <AlertTriangle size={12} className="text-yellow-400" />
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-yellow-400">Requer atenção</span>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--warning-border)', background: 'var(--warning-bg)' }}>
+                <div className="px-4 py-2.5 border-b flex items-center gap-2" style={{ borderColor: 'var(--warning-border)' }}>
+                  <AlertTriangle size={12} className="text-[var(--warning)]" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--warning)]">Requer atenção</span>
                 </div>
                 {pendingTs.length > 0 && (
                   <AlertRow
-                    icon={Clock} color="#eab308"
+                    icon={Clock} color="var(--warning-border)"
                     message={<><span className="font-semibold">{pendingTs.length}</span> apontamento{pendingTs.length !== 1 ? 's' : ''} pendente{pendingTs.length !== 1 ? 's' : ''} de aprovação</>}
                     action="Ver" href="/meu-painel"
                   />
                 )}
                 {rejectedTs.length > 0 && (
                   <AlertRow
-                    icon={X} color="#f87171"
-                    message={<><span className="font-semibold text-red-400">{rejectedTs.length}</span> apontamento{rejectedTs.length !== 1 ? 's' : ''} reprovado{rejectedTs.length !== 1 ? 's' : ''}</>}
+                    icon={X} color="var(--danger-border)"
+                    message={<><span className="font-semibold text-[var(--danger)]">{rejectedTs.length}</span> apontamento{rejectedTs.length !== 1 ? 's' : ''} reprovado{rejectedTs.length !== 1 ? 's' : ''}</>}
                     action="Corrigir" href="/meu-painel"
                   />
                 )}
                 {pendingExp.length > 0 && (
                   <AlertRow
-                    icon={Receipt} color="#eab308"
+                    icon={Receipt} color="var(--warning-border)"
                     message={<><span className="font-semibold">{pendingExp.length}</span> despesa{pendingExp.length !== 1 ? 's' : ''} pendente{pendingExp.length !== 1 ? 's' : ''} de aprovação</>}
                     action="Ver" href="/meu-painel"
                   />
@@ -512,17 +512,17 @@ export default function DashboardPage() {
             {!loading && (
               <div
                 className="rounded-xl px-4 py-3 flex items-center justify-between gap-4"
-                style={{ background: 'var(--brand-surface)', border: `1px solid ${hasTodayTs ? 'rgba(34,197,94,0.2)' : 'var(--brand-border)'}` }}
+                style={{ background: 'var(--brand-surface)', border: `1px solid ${hasTodayTs ? 'var(--success-border)' : 'var(--brand-border)'}` }}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${hasTodayTs ? 'bg-green-500/15' : 'bg-zinc-500/15'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${hasTodayTs ? 'bg-[var(--success-bg)]' : 'bg-[var(--surface-hover)]'}`}>
                     {hasTodayTs
-                      ? <Clock size={14} className="text-green-400" />
-                      : <AlertTriangle size={14} className="text-zinc-500" />
+                      ? <Clock size={14} className="text-[var(--success)]" />
+                      : <AlertTriangle size={14} className="text-[var(--text-light)]" />
                     }
                   </div>
                   <div>
-                    <p className="text-xs font-semibold" style={{ color: hasTodayTs ? '#22c55e' : 'var(--brand-muted)' }}>
+                    <p className="text-xs font-semibold" style={{ color: hasTodayTs ? 'var(--success-border)' : 'var(--brand-muted)' }}>
                       Hoje — {fmtDate(todayISO())}
                     </p>
                     <p className="text-[11px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>

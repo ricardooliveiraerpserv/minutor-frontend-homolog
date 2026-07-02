@@ -354,7 +354,7 @@ export function PermissionGroupsTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-[var(--text-muted)]">
           Crie grupos de permissões e vincule usuários para dar acesso além do perfil base.
         </p>
         <Button size="sm" onClick={openCreate} className="gap-1.5 text-xs h-7 px-2.5">
@@ -364,45 +364,45 @@ export function PermissionGroupsTab() {
 
       {loading ? (
         <div className="space-y-2">
-          {[1, 2, 3].map(i => <div key={i} className="h-12 bg-zinc-800 rounded-lg animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-12 bg-[var(--surface-hover)] rounded-lg animate-pulse" />)}
         </div>
       ) : groups.length === 0 ? (
-        <div className="text-center py-10 text-zinc-500 text-xs">
+        <div className="text-center py-10 text-[var(--text-light)] text-xs">
           Nenhum grupo criado ainda.
         </div>
       ) : (
         <div className="space-y-2">
           {groups.map(g => (
-            <div key={g.id} className="rounded-lg border border-zinc-800 overflow-hidden">
-              <div className="flex items-center gap-3 px-4 py-3 bg-zinc-900">
+            <div key={g.id} className="rounded-lg border border-[var(--border)] overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3 bg-[var(--surface)]">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{g.name}</p>
+                  <p className="text-sm font-medium text-[var(--text)] truncate">{g.name}</p>
                   {g.description && (
-                    <p className="text-xs text-zinc-500 truncate">{g.description}</p>
+                    <p className="text-xs text-[var(--text-light)] truncate">{g.description}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-xs text-zinc-500 mr-2">
+                  <span className="text-xs text-[var(--text-light)] mr-2">
                     {g.permissions.length} perm. · {g.users_count} usuário{g.users_count !== 1 ? 's' : ''}
                   </span>
                   <button
                     onClick={() => openUsers(g)}
                     title="Gerenciar usuários"
-                    className={`p-1.5 rounded hover:bg-zinc-700 transition-colors ${showUsersFor === g.id ? 'text-blue-400' : 'text-zinc-400'}`}
+                    className={`p-1.5 rounded hover:bg-[var(--surface-hover)] transition-colors ${showUsersFor === g.id ? 'text-[var(--primary)]' : 'text-[var(--text-muted)]'}`}
                   >
                     <Users size={13} />
                   </button>
                   <button
                     onClick={() => openEdit(g)}
                     title="Editar grupo"
-                    className="p-1.5 rounded hover:bg-zinc-700 text-zinc-400 transition-colors"
+                    className="p-1.5 rounded hover:bg-[var(--surface-hover)] text-[var(--text-muted)] transition-colors"
                   >
                     <Pencil size={13} />
                   </button>
                   <button
                     onClick={() => del(g)}
                     title="Excluir grupo"
-                    className="p-1.5 rounded hover:bg-zinc-700 text-red-400 transition-colors"
+                    className="p-1.5 rounded hover:bg-[var(--surface-hover)] text-[var(--danger)] transition-colors"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -411,25 +411,25 @@ export function PermissionGroupsTab() {
 
               {/* Users panel */}
               {showUsersFor === g.id && (
-                <div className="border-t border-zinc-800 bg-zinc-900/60 px-4 py-3">
-                  <p className="text-xs font-medium text-zinc-400 mb-2">Usuários vinculados</p>
+                <div className="border-t border-[var(--border)] bg-[var(--surface-hover)] px-4 py-3">
+                  <p className="text-xs font-medium text-[var(--text-muted)] mb-2">Usuários vinculados</p>
 
                   {loadingUsers ? (
-                    <p className="text-xs text-zinc-500">Carregando...</p>
+                    <p className="text-xs text-[var(--text-light)]">Carregando...</p>
                   ) : (
                     <>
                       <div className="space-y-1 mb-3">
                         {groupUsers.length === 0 ? (
-                          <p className="text-xs text-zinc-500">Nenhum usuário vinculado.</p>
+                          <p className="text-xs text-[var(--text-light)]">Nenhum usuário vinculado.</p>
                         ) : groupUsers.map(u => (
                           <div key={u.id} className="flex items-center justify-between py-1">
                             <div>
-                              <span className="text-xs text-white">{u.name}</span>
-                              <span className="text-xs text-zinc-500 ml-2">{u.email}</span>
+                              <span className="text-xs text-[var(--text)]">{u.name}</span>
+                              <span className="text-xs text-[var(--text-light)] ml-2">{u.email}</span>
                             </div>
                             <button
                               onClick={() => removeUser(g.id, u.id)}
-                              className="p-1 rounded hover:bg-zinc-700 text-red-400"
+                              className="p-1 rounded hover:bg-[var(--surface-hover)] text-[var(--danger)]"
                             >
                               <X size={11} />
                             </button>
@@ -464,19 +464,19 @@ export function PermissionGroupsTab() {
       {/* ── Modal: criar / editar grupo ── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-lg shadow-xl flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 shrink-0">
-              <h3 className="text-sm font-semibold text-white">
+          <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-lg shadow-xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] shrink-0">
+              <h3 className="text-sm font-semibold text-[var(--text)]">
                 {editingId ? 'Editar Grupo' : 'Novo Grupo de Permissões'}
               </h3>
-              <button onClick={() => setShowModal(false)} className="text-zinc-500 hover:text-zinc-300">
+              <button onClick={() => setShowModal(false)} className="text-[var(--text-light)] hover:text-[var(--text)]">
                 <X size={16} />
               </button>
             </div>
 
             <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
               <div>
-                <Label className="text-xs text-zinc-400 mb-1 block">Nome *</Label>
+                <Label className="text-xs text-[var(--text-muted)] mb-1 block">Nome *</Label>
                 <Input
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -486,7 +486,7 @@ export function PermissionGroupsTab() {
               </div>
 
               <div>
-                <Label className="text-xs text-zinc-400 mb-1 block">Descrição</Label>
+                <Label className="text-xs text-[var(--text-muted)] mb-1 block">Descrição</Label>
                 <Input
                   value={form.description}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
@@ -497,20 +497,20 @@ export function PermissionGroupsTab() {
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <Label className="text-xs text-zinc-400">
+                  <Label className="text-xs text-[var(--text-muted)]">
                     Permissões ({form.permissions.length} selecionadas)
                   </Label>
                   {form.permissions.length > 0 && (
                     <button
                       onClick={() => setForm(f => ({ ...f, permissions: [] }))}
-                      className="text-xs text-zinc-500 hover:text-zinc-300"
+                      className="text-xs text-[var(--text-light)] hover:text-[var(--text)]"
                     >
                       Limpar tudo
                     </button>
                   )}
                 </div>
 
-                <div className="space-y-1 rounded-lg border border-zinc-700 bg-zinc-800/50 p-3 max-h-64 overflow-y-auto">
+                <div className="space-y-1 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3 max-h-64 overflow-y-auto">
                   {availablePerms.map(cat => {
                     const expanded = expandedCats.has(cat.category)
                     const selected = cat.permissions.filter(p => form.permissions.includes(p)).length
@@ -533,7 +533,7 @@ export function PermissionGroupsTab() {
                           <span className="text-xs" style={{ color: hasAny ? 'var(--primary)' : 'var(--text-light)', fontWeight: hasAny ? 600 : 400 }}>{selected}/{cat.permissions.length}</span>
                           <button
                             onClick={e => { e.stopPropagation(); toggleCatAll(cat) }}
-                            className={`text-xs px-1.5 py-0.5 rounded transition-colors ${allSel ? 'text-blue-400 hover:text-blue-300' : 'text-zinc-500 hover:text-zinc-300'}`}
+                            className={`text-xs px-1.5 py-0.5 rounded transition-colors ${allSel ? 'text-[var(--primary)] hover:text-[var(--primary)]' : 'text-[var(--text-light)] hover:text-[var(--text)]'}`}
                           >
                             {allSel ? 'Remover' : 'Todos'}
                           </button>
@@ -548,13 +548,13 @@ export function PermissionGroupsTab() {
                                   key={perm}
                                   onClick={() => togglePerm(perm)}
                                   className={`w-full flex items-center gap-2 text-xs px-2 py-1 rounded transition-colors text-left ${
-                                    active ? 'bg-blue-500/10 text-blue-300' : 'text-zinc-400 hover:bg-zinc-700/50'
+                                    active ? 'bg-[var(--primary-soft)] text-[var(--primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--surface-hover)]'
                                   }`}
                                 >
                                   <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
-                                    active ? 'bg-blue-600 border-blue-500' : 'border-zinc-600'
+                                    active ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--border-strong)]'
                                   }`}>
-                                    {active && <Check size={9} className="text-white" />}
+                                    {active && <Check size={9} className="text-[var(--primary-fg)]" />}
                                   </span>
                                   {permLabel(perm)}
                                 </button>
@@ -569,7 +569,7 @@ export function PermissionGroupsTab() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-zinc-800 shrink-0">
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-[var(--border)] shrink-0">
               <Button variant="ghost" size="sm" onClick={() => setShowModal(false)} className="text-xs h-7 px-3">
                 Cancelar
               </Button>

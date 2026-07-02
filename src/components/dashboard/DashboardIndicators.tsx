@@ -133,7 +133,7 @@ function TimesheetsModal({
               Ver todos →
             </Link>
             <button onClick={onClose}
-              className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors"
+              className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--brand-muted)' }}>
               <X size={14} />
             </button>
@@ -164,7 +164,7 @@ function TimesheetsModal({
               </thead>
               <tbody>
                 {timesheets.map((ts: any, i: number) => (
-                  <tr key={ts.id ?? i} className="hover:bg-white/[0.02] transition-colors"
+                  <tr key={ts.id ?? i} className="hover:bg-[var(--surface-hover)] transition-colors"
                     style={{ borderBottom: '1px solid var(--brand-border)' }}>
                     <td className="px-4 py-3 whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>
                       {ts.date ? fmtDate(ts.date) : '—'}
@@ -208,7 +208,7 @@ function TimesheetsModal({
                       {ts.id && (
                         <button
                           onClick={e => { e.stopPropagation(); onView(ts.id) }}
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-white/10 transition-colors"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
                           style={{ color: 'var(--brand-primary)' }}
                           title="Visualizar apontamento">
                           <Eye size={13} />
@@ -233,7 +233,7 @@ function TimesheetsModal({
               <div className="flex items-center gap-2">
                 <button disabled={page <= 1} onClick={() => onPage(page - 1)}
                   className="px-3 py-1.5 rounded-lg text-xs disabled:opacity-30 transition-opacity"
-                  style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+                  style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
                   ←
                 </button>
                 <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
@@ -241,7 +241,7 @@ function TimesheetsModal({
                 </span>
                 <button disabled={page >= totalPages} onClick={() => onPage(page + 1)}
                   className="px-3 py-1.5 rounded-lg text-xs disabled:opacity-30 transition-opacity"
-                  style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+                  style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
                   →
                 </button>
               </div>
@@ -258,7 +258,7 @@ function TimesheetsModal({
 function DetailInfoRow({ icon: Icon, label, children }: { icon: React.ElementType; label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3 py-3" style={{ borderBottom: '1px solid var(--brand-border)' }}>
-      <span className="mt-0.5 shrink-0 p-1.5 rounded-lg" style={{ background: 'rgba(0,245,255,0.06)', color: 'var(--brand-primary)' }}>
+      <span className="mt-0.5 shrink-0 p-1.5 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
         <Icon size={12} />
       </span>
       <div className="flex-1 min-w-0">
@@ -293,7 +293,7 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
           style={{ borderBottom: '1px solid var(--brand-border)' }}>
           <div className="flex items-center gap-2">
             <button onClick={onClose}
-              className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors"
+              className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
               style={{ color: 'var(--brand-muted)' }}>
               <ArrowLeft size={14} />
             </button>
@@ -303,7 +303,7 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
             </h2>
           </div>
           <button onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-white/5 transition-colors"
+            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
             style={{ color: 'var(--brand-muted)' }}>
             <X size={14} />
           </button>
@@ -329,12 +329,12 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
                 </span>
                 {ts.origin === 'webhook' ? (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                    style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>
+                    style={{ background: 'var(--purple-bg)', color: 'var(--purple)' }}>
                     <Webhook size={10} /> Auto (Movidesk)
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                    style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+                    style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                     <Globe size={10} /> Web (manual)
                   </span>
                 )}
@@ -348,7 +348,7 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
                 {ts.start_time} – {ts.end_time}
                 {ts.effort_hours && (
                   <span className="ml-2 px-2 py-0.5 rounded text-xs font-bold"
-                    style={{ background: 'rgba(0,245,255,0.1)', color: 'var(--brand-primary)' }}>
+                    style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                     {ts.effort_hours}
                   </span>
                 )}
@@ -359,7 +359,7 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
                 {ts.project?.name ?? '—'}
                 {ts.project?.contract_type_display && (
                   <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded"
-                    style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
+                    style={{ background: 'var(--surface-hover)', color: 'var(--brand-subtle)' }}>
                     {ts.project.contract_type_display}
                   </span>
                 )}
@@ -390,7 +390,7 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
               )}
               {ts.reviewedBy && (
                 <div className="flex items-center gap-2 px-4 py-2.5 mt-3 rounded-xl text-xs"
-                  style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
+                  style={{ background: 'var(--primary-soft)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
                   <CheckCircle size={12} style={{ color: 'var(--brand-primary)' }} />
                   Revisado por <strong style={{ color: 'var(--brand-muted)' }}>{ts.reviewedBy.name}</strong>
                   {ts.reviewed_at && ` em ${fmtDate(ts.reviewed_at.slice(0, 10))}`}
