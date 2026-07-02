@@ -123,6 +123,9 @@ function Inner() {
   const [cascade, setCascade] = useState<{ screenKey: string; moduleId: number; nodeId: string; label: string } | null>(null)  // Admin: ocultar em outros perfis?
   const [denyOpen, setDenyOpen] = useState<string | null>(null)  // painel "visibilidade por usuário" (nó da árvore)
   const [moving, setMoving] = useState<string | null>(null) // nó no fluxo "Mover para…"
+  const [selectMode, setSelectMode] = useState(false)                        // seleção múltipla ligada?
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())     // nós marcados
+  const [bulkMove, setBulkMove] = useState<'move' | 'copy' | null>(null)     // picker de destino em lote
 
   const collapseInit = useRef(false)
   useEffect(() => {
@@ -229,6 +232,45 @@ function Inner() {
 
   // COPIA um módulo existente para o perfil da aba (cópia independente: ids de nó novos, árvore própria).
   const cloneNodes = (nodes: NavTreeNode[]): NavTreeNode[] => nodes.map(n => ({ ...n, id: newId(), children: n.children ? cloneNodes(n.children) : undefined }))
+
+  // ── Seleção múltipla (mover/copiar em lote) ──
+  const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false) }
+  // ids selecionados que NÃO são descendentes de outro selecionado (evita duplicar pai+filho)
+  const topLevelSelected = (): string[] => {
+    const desc = new Set<string>()
+    const mark = (n: NavTreeNode) => n.children?.forEach(c => { desc.add(c.id); mark(c) })
+    mods.forEach(m => { const walk = (ns: NavTreeNode[]) => ns.forEach(n => { if (selectedIds.has(n.id)) mark(n); walk(n.children ?? []) }); walk(m.items) })
+    return [...selectedIds].filter(id => !desc.has(id))
+  }
+  // subárvores selecionadas — o destino não pode estar dentro delas
+  const selectedExcludeIds = (): Set<string> => {
+    const s = new Set<string>(); const add = (n: NavTreeNode) => { s.add(n.id); n.children?.forEach(add) }
+    mods.forEach(m => { const walk = (ns: NavTreeNode[]) => ns.forEach(n => { if (selectedIds.has(n.id)) add(n); else walk(n.children ?? []) }); walk(m.items) })
+    return s
+  }
+  // aplica mover/copiar em lote no destino escolhido
+  const bulkApply = (target: Target) => {
+    const mode = bulkMove; const ids = topLevelSelected()
+    setMods(prev => {
+      let next = prev; const collected: NavTreeNode[] = []
+      ids.forEach(id => { for (const m of next) { const f = findNode(m.items, id); if (f) { collected.push(f); break } } })
+      if (mode === 'move') ids.forEach(id => { next = next.map(m => ({ ...m, items: removeNode(m.items, id)[0] })) })
+      const toAdd = mode === 'copy' ? collected.map(n => cloneNodes([n])[0]) : collected
+      if (target.type === 'group') next = next.map(m => m.id === target.moduleId ? { ...m, items: mapNode(m.items, target.groupId, g => ({ ...g, children: [...(g.children ?? []), ...toAdd] })) } : m)
+      else if (target.type === 'module') next = next.map(m => m.id === target.moduleId ? { ...m, items: [...m.items, ...toAdd] } : m)
+      return next
+    })
+    touch(); setBulkMove(null); clearSelection()
+  }
+  // contexto do "mover" de UM item (exclui a própria subárvore como destino)
+  const moveContext = (id: string): { excludeIds: Set<string>; title: string } => {
+    let node: NavTreeNode | null = null
+    for (const m of mods) { const f = findNode(m.items, id); if (f) { node = f; break } }
+    const s = new Set<string>(); const c = (n: NavTreeNode) => { s.add(n.id); n.children?.forEach(c) }; if (node) c(node)
+    const label = node?.screen ? screenLabel(screens[node.screen], node.screen) : (node?.label ?? 'item')
+    return { excludeIds: s, title: `Mover "${label}" para…` }
+  }
   const attachModule = async (m: Mod) => {
     try {
       await api.post('/nav-modules', { label: m.label, icon: m.icon, profiles: [profile], items: cloneNodes(m.items ?? []) })
@@ -354,6 +396,7 @@ function Inner() {
               <div className="flex items-center gap-1.5 flex-1 min-w-0 rounded-md my-[1px] mr-1 px-2 cursor-grab active:cursor-grabbing"
                 style={{ height: 30, background: (isOver || overIn) ? 'var(--primary-soft)' : 'transparent', border: overIn ? '1px dashed var(--primary)' : '1px solid transparent' }}>
                 {chevron}
+                {selectMode && <input type="checkbox" checked={selectedIds.has(n.id)} onChange={() => toggleSelect(n.id)} onClick={e => e.stopPropagation()} className="shrink-0" style={{ accentColor: 'var(--primary)', width: 15, height: 15 }} />}
                 <button onClick={() => setPermOpen(permOpen === n.id ? null : n.id)} className="shrink-0" title="Acessos por usuário">
                   <FileText size={13} style={{ color: permOpen === n.id ? 'var(--primary)' : hasKids ? 'var(--primary)' : 'var(--text-light)' }} />
                 </button>
@@ -415,6 +458,7 @@ function Inner() {
             <div className="flex items-center gap-1.5 flex-1 min-w-0 rounded-md my-[1px] mr-1 px-2 cursor-grab active:cursor-grabbing"
               style={{ height: 32, background: overIn ? 'var(--primary-soft)' : 'var(--surface-sunken)', border: overIn ? '1px dashed var(--primary)' : '1px solid var(--border)' }}>
               {chevron}
+              {selectMode && <input type="checkbox" checked={selectedIds.has(n.id)} onChange={() => toggleSelect(n.id)} onClick={e => e.stopPropagation()} className="shrink-0" style={{ accentColor: 'var(--primary)', width: 15, height: 15 }} />}
               <IconPicker value={n.icon} onPick={name => patchTreeNode(moduleId, n.id, g => ({ ...g, icon: name }))} />
               <input value={n.label ?? ''} onChange={e => patchTreeNode(moduleId, n.id, g => ({ ...g, label: e.target.value }))}
                 className="flex-1 bg-transparent text-[13px] font-semibold outline-none min-w-0" style={{ color: 'var(--text)' }} />
@@ -488,6 +532,10 @@ function Inner() {
             </button>
           ))}
         </div>
+        {/* seleção múltipla (mover/copiar em lote) — só na árvore */}
+        {view === 'tree' && (
+          <button onClick={() => { setSelectMode(s => !s); setSelectedIds(new Set()) }} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg" style={selectMode ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { border: '1px solid var(--border)', color: 'var(--text-muted)' }}><Check size={13} /> {selectMode ? 'Selecionando' : 'Selecionar'}</button>
+        )}
         {/* toggle árvore / lista */}
         <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
           <button onClick={() => setView('tree')} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5" style={view === 'tree' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}><Network size={13} /> Árvore</button>
@@ -604,34 +652,40 @@ function Inner() {
         </div>
       )}
       {preview && <PreviewModal mods={mods} screens={screens} profile={preview} onClose={() => setPreview(null)} />}
-      {moving && <MovePicker mods={mods} screens={screens} nodeId={moving} onPick={t => { moveNode(moving, t); setMoving(null) }} onClose={() => setMoving(null)} />}
+      {moving && (() => { const ctx = moveContext(moving); return <MovePicker mods={mods} excludeIds={ctx.excludeIds} title={ctx.title} onPick={t => { moveNode(moving, t); setMoving(null) }} onClose={() => setMoving(null)} /> })()}
+      {bulkMove && <MovePicker mods={mods} excludeIds={selectedExcludeIds()} title={`${bulkMove === 'copy' ? 'Copiar' : 'Mover'} ${selectedIds.size} ${selectedIds.size === 1 ? 'item' : 'itens'} para…`} onPick={bulkApply} onClose={() => setBulkMove(null)} />}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed left-1/2 -translate-x-1/2 z-[75] flex items-center gap-2 px-3 py-2 rounded-full shadow-xl" style={{ bottom: 20, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <span className="text-[12px] font-semibold px-1" style={{ color: 'var(--text)' }}>{selectedIds.size} selecionado{selectedIds.size === 1 ? '' : 's'}</span>
+          <button onClick={() => setBulkMove('move')} className="ds-btn-secondary text-[12px] px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><FolderInput size={13} /> Mover para…</button>
+          <button onClick={() => setBulkMove('copy')} className="ds-btn-secondary text-[12px] px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><Repeat size={13} /> Copiar para…</button>
+          <button onClick={clearSelection} className="text-[12px] px-2 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>Limpar</button>
+        </div>
+      )}
     </div>
   )
 }
 
 /** "Mover para…" — fallback ao drag. Escolhe um destino (raiz de módulo ou grupo); exclui a própria subárvore. */
-function MovePicker({ mods, screens, nodeId, onPick, onClose }: { mods: Mod[]; screens: Record<string, NavScreen>; nodeId: string; onPick: (t: Target) => void; onClose: () => void }) {
-  const node = useMemo(() => { for (const m of mods) { const f = findNode(m.items, nodeId); if (f) return f } return null }, [mods, nodeId])
-  const moverLabel = node?.screen ? screenLabel(screens[node.screen], node.screen) : (node?.label ?? 'item')
-  const excluded = useMemo(() => { const s = new Set<string>(); const c = (n: NavTreeNode) => { s.add(n.id); n.children?.forEach(c) }; if (node) c(node); return s }, [node])
+function MovePicker({ mods, excludeIds, title, onPick, onClose }: { mods: Mod[]; excludeIds: Set<string>; title: string; onPick: (t: Target) => void; onClose: () => void }) {
   const [q, setQ] = useState('')
   const query = q.trim().toLowerCase()
   // Destino = APENAS PASTAS (grupos). Coleta todas as pastas de todos os módulos (com profundidade).
   const folders = useMemo(() => {
     const out: { id: string; moduleId: number; label: string; depth: number }[] = []
     const walk = (nodes: NavTreeNode[], moduleId: number, depth: number) => nodes.forEach(n => {
-      if (excluded.has(n.id)) return
+      if (excludeIds.has(n.id)) return
       if (!n.screen) { out.push({ id: n.id, moduleId, label: n.label ?? '', depth }); walk(n.children ?? [], moduleId, depth + 1) }
       else walk(n.children ?? [], moduleId, depth) // desce em telas c/ filhos só p/ achar pastas aninhadas
     })
     mods.forEach(m => walk(m.items, m.id, 0))
     return out
-  }, [mods, excluded])
+  }, [mods, excludeIds])
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
       <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div className="text-sm font-bold inline-flex items-center gap-2 min-w-0" style={{ color: 'var(--text)' }}><FolderInput size={15} style={{ color: 'var(--primary)' }} className="shrink-0" /> <span className="truncate">Mover &quot;{moverLabel}&quot; para…</span></div>
+          <div className="text-sm font-bold inline-flex items-center gap-2 min-w-0" style={{ color: 'var(--text)' }}><FolderInput size={15} style={{ color: 'var(--primary)' }} className="shrink-0" /> <span className="truncate">{title}</span></div>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }} className="shrink-0"><X size={16} /></button>
         </div>
         <div className="px-3 pt-3">
