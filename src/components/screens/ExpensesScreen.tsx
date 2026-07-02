@@ -43,12 +43,12 @@ function ReceiptLink({ url }: { url: string }) {
     <div className="flex items-center gap-2">
       <button type="button" onClick={() => handle(false)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
         <Eye size={11} /> {loading ? 'Carregando...' : 'Visualizar'}
       </button>
       <button type="button" onClick={() => handle(true)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'var(--surface-hover)', color: 'var(--brand-subtle)', border: '1px solid var(--border)' }}>
+        style={{ background: 'var(--surface-hover)', color: 'var(--text-light)', border: '1px solid var(--border)' }}>
         <Download size={11} /> Baixar
       </button>
     </div>
@@ -82,15 +82,15 @@ function InfoRowModal({ icon: Icon, label, value, children, last }: {
 }) {
   return (
     <div className={`flex items-start gap-3 px-4 py-3 ${!last ? 'border-b' : ''}`}
-      style={ !last ? { borderColor: 'var(--brand-border)' } : undefined }>
+      style={ !last ? { borderColor: 'var(--border)' } : undefined }>
       <span className="mt-0.5 shrink-0 p-1.5 rounded-lg"
-        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
         <Icon size={11} />
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
+        <p className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-light)' }}>{label}</p>
         {children ?? (
-          <p className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>{value ?? '—'}</p>
+          <p className="text-xs font-medium" style={{ color: 'var(--text)' }}>{value ?? '—'}</p>
         )}
       </div>
     </div>
@@ -124,28 +124,28 @@ function SearchSelect({ value, onChange, options, placeholder }: {
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm outline-none text-left"
-        style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: selected ? 'var(--brand-text)' : 'var(--brand-subtle)' }}>
+        style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: selected ? 'var(--text)' : 'var(--text-light)' }}>
         <span className="truncate text-sm">{selected ? selected.name : placeholder}</span>
-        <ChevronRight size={12} className="rotate-90 shrink-0" style={{ color: 'var(--brand-subtle)' }} />
+        <ChevronRight size={12} className="rotate-90 shrink-0" style={{ color: 'var(--text-light)' }} />
       </button>
       {open && (
         <div className="absolute top-full mt-1 left-0 z-50 w-full min-w-52 rounded-xl shadow-2xl overflow-hidden"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-          <div className="p-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
             <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar..."
               className="w-full px-3 py-1.5 rounded-lg text-xs outline-none"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
           <div className="max-h-52 overflow-y-auto">
             <button type="button" onClick={() => select('')}
               className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-              style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>{placeholder}</button>
+              style={{ color: !value ? 'var(--primary)' : 'var(--text-light)' }}>{placeholder}</button>
             {filtered.length === 0
-              ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
+              ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>
               : filtered.map(o => (
                 <button key={o.id} type="button" onClick={() => select(String(o.id))}
                   className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-                  style={{ color: String(o.id) === value ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
+                  style={{ color: String(o.id) === value ? 'var(--primary)' : 'var(--text)' }}>
                   {o.name}
                 </button>
               ))}
@@ -837,7 +837,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
 
         {/* Filter card */}
         <div className="p-4 rounded-2xl mb-4 space-y-3"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {isCliente ? (
             <div className="grid grid-cols-1 gap-2">
               <SearchSelect value={projectId} onChange={v => { setProjectId(v); setPage(1) }} options={clienteProjects} placeholder="Todos os projetos" />
@@ -895,7 +895,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                   className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                   style={active
                     ? { background: opt.bg, color: opt.color, border: `1px solid ${opt.border}` }
-                    : { background: 'transparent', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
+                    : { background: 'transparent', color: 'var(--text-light)', border: '1px solid var(--border)' }}>
                   {opt.label}
                 </button>
               )
@@ -903,7 +903,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             {(customerIds.length > 0 || projectId || userIds.length > 0 || coordinatorIds.length > 0 || executiveIds.length > 0 || contractTypeId || dateFrom || dateTo) && (
               <button onClick={() => clearPersistedFilters()}
                 className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs transition-all hover:bg-[var(--surface-hover)]"
-                style={{ color: 'var(--brand-danger)', border: '1px solid var(--danger-border)' }}>
+                style={{ color: 'var(--danger-border)', border: '1px solid var(--danger-border)' }}>
                 <X size={11} /> Limpar
               </button>
             )}
@@ -913,13 +913,13 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
         {/* Pills de tipo de contrato — apenas para cliente */}
         {isCliente && clienteContractTypes.length > 0 && (
           <div className="flex items-center gap-1 p-1 rounded-xl w-fit mb-4"
-            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <button
               onClick={() => { setContractTypeId(''); setPage(1) }}
               className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
               style={!contractTypeId
-                ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                : { color: 'var(--brand-muted)', background: 'transparent' }
+                ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                : { color: 'var(--text-muted)', background: 'transparent' }
               }>
               Total Geral
             </button>
@@ -928,8 +928,8 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 onClick={() => { setContractTypeId(String(ct.id)); setPage(1) }}
                 className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
                 style={contractTypeId === String(ct.id)
-                  ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                  : { color: 'var(--brand-muted)', background: 'transparent' }
+                  ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                  : { color: 'var(--text-muted)', background: 'transparent' }
                 }>
                 {ct.name}
               </button>
@@ -941,7 +941,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
         {!isCliente && (
           <div className="flex flex-wrap items-center gap-3 mb-6">
             <div className="flex items-center gap-1 p-1 rounded-xl w-fit"
-              style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               {[
                 { value: '', label: 'Todos' },
                 { value: 'pending', label: 'Pendente' },
@@ -952,8 +952,8 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 <button key={s.value} onClick={() => { setStatus(s.value); setPage(1) }}
                   className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
                   style={status === s.value
-                    ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                    : { color: 'var(--brand-muted)', background: 'transparent' }
+                    ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                    : { color: 'var(--text-muted)', background: 'transparent' }
                   }>
                   {s.label}
                 </button>
@@ -961,7 +961,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             </div>
             {isAdmin && (
               <div className="flex items-center gap-1 p-1 rounded-xl w-fit"
-                style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 {([
                   { value: '' as const, label: 'Todas' },
                   { value: 'false' as const, label: 'A pagar' },
@@ -971,8 +971,8 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                   <button key={s.value} onClick={() => { setIsPaidFilter(s.value); setPage(1) }}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={isPaidFilter === s.value
-                      ? { background: s.value === 'true' ? 'var(--surface-hover)' : 'var(--brand-primary)', color: s.value === 'true' ? 'var(--text-muted)' : 'var(--bg)' }
-                      : { color: 'var(--brand-muted)', background: 'transparent' }
+                      ? { background: s.value === 'true' ? 'var(--surface-hover)' : 'var(--primary)', color: s.value === 'true' ? 'var(--text-muted)' : 'var(--bg)' }
+                      : { color: 'var(--text-muted)', background: 'transparent' }
                     }>
                     {s.label}
                   </button>
@@ -1045,14 +1045,14 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                   {!isCliente && (
                     <Td className="max-w-[200px]">
                       <div className="flex items-center gap-1.5">
-                        <span className="truncate block" style={{ color: 'var(--brand-text)' }}>{exp.description}</span>
-                        {exp.receipt_url && <Paperclip size={10} aria-label="Tem comprovante" style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />}
+                        <span className="truncate block" style={{ color: 'var(--text)' }}>{exp.description}</span>
+                        {exp.receipt_url && <Paperclip size={10} aria-label="Tem comprovante" style={{ color: 'var(--text-light)', flexShrink: 0 }} />}
                       </div>
                     </Td>
                   )}
                   {!isCliente && <Td muted className="hidden lg:table-cell">{exp.category?.name ?? '—'}</Td>}
                   <Td muted className="hidden xl:table-cell truncate max-w-[120px]">{(exp.project as any)?.service_type?.name ?? '—'}</Td>
-                  <Td right mono className={`font-semibold ${exp.is_paid ? 'opacity-40' : ''}`} style={{ color: exp.is_paid ? 'var(--brand-muted)' : 'var(--brand-primary)' }}>
+                  <Td right mono className={`font-semibold ${exp.is_paid ? 'opacity-40' : ''}`} style={{ color: exp.is_paid ? 'var(--text-muted)' : 'var(--primary)' }}>
                     {formatCurrency(isCliente && (exp.project as any)?.max_expense_per_consultant != null
                       ? Number((exp.project as any).max_expense_per_consultant)
                       : Number(exp.amount))}
@@ -1082,29 +1082,29 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 key={exp.id}
                 onClick={() => setViewItem(exp)}
                 className="rounded-xl border p-3 active:opacity-80 transition"
-                style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}
+                style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
               >
                 {/* Linha 1: descrição + valor (+ menu) */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     {isCliente ? (
-                      <span className="font-medium truncate" style={{ color: 'var(--brand-text)' }}>
+                      <span className="font-medium truncate" style={{ color: 'var(--text)' }}>
                         {exp.project?.name ?? '—'}
                       </span>
                     ) : (
                       <>
-                        <span className="font-medium truncate" style={{ color: 'var(--brand-text)' }}>
+                        <span className="font-medium truncate" style={{ color: 'var(--text)' }}>
                           {exp.description}
                         </span>
                         {exp.receipt_url && (
-                          <Paperclip size={11} aria-label="Tem comprovante" style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />
+                          <Paperclip size={11} aria-label="Tem comprovante" style={{ color: 'var(--text-light)', flexShrink: 0 }} />
                         )}
                       </>
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <span className={`font-bold text-sm ${exp.is_paid ? 'opacity-40' : ''}`}
-                      style={{ color: exp.is_paid ? 'var(--brand-muted)' : 'var(--brand-primary)' }}>
+                      style={{ color: exp.is_paid ? 'var(--text-muted)' : 'var(--primary)' }}>
                       {formatCurrency(isCliente && (exp.project as any)?.max_expense_per_consultant != null
                         ? Number((exp.project as any).max_expense_per_consultant)
                         : Number(exp.amount))}
@@ -1133,7 +1133,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 </div>
 
                 {/* Linha 2: meta (Data · Colaborador · Projeto) */}
-                <div className="mt-1 text-[11px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+                <div className="mt-1 text-[11px] truncate" style={{ color: 'var(--text-light)' }}>
                   {isCliente ? (
                     <>{formatDate(exp.expense_date)}</>
                   ) : (
@@ -1190,7 +1190,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                       type="button"
                       onClick={() => setForm(f => ({ ...f, user_id: String(user?.id ?? '') }))}
                       className="text-xs font-medium transition-colors"
-                      style={{ color: 'var(--brand-primary)' }}
+                      style={{ color: 'var(--primary)' }}
                     >
                       → Colocar-me como responsável
                     </button>

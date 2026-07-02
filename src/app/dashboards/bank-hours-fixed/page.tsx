@@ -113,25 +113,25 @@ const MONTH_OPTIONS = buildMonthOptions()
 
 function ContractedBreakdownCard({ contratadas, aporte }: { contratadas: number; aporte: number }) {
   return (
-    <div className="rounded-2xl p-5 flex flex-col gap-3 min-w-0 overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+    <div className="rounded-2xl p-5 flex flex-col gap-3 min-w-0 overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="flex items-center gap-2 min-w-0">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--surface-hover)' }}>
-          <BarChart2 size={13} style={{ color: 'var(--brand-muted)' }} />
+          <BarChart2 size={13} style={{ color: 'var(--text-muted)' }} />
         </div>
-        <span className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--brand-subtle)' }}>Horas Contratadas + Aporte</span>
+        <span className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--text-light)' }}>Horas Contratadas + Aporte</span>
       </div>
       <div className="flex items-end gap-1.5">
-        <span className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--brand-text)', lineHeight: 1 }}>{fmtH(contratadas + aporte)}</span>
-        <span className="text-base font-medium mb-0.5" style={{ color: 'var(--brand-muted)' }}>h</span>
+        <span className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--text)', lineHeight: 1 }}>{fmtH(contratadas + aporte)}</span>
+        <span className="text-base font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>h</span>
       </div>
-      <div className="flex flex-col gap-1.5 pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="flex flex-col gap-1.5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
         <div className="flex items-baseline justify-between gap-2 min-w-0">
-          <span className="text-[10px] uppercase tracking-wider truncate" style={{ color: 'var(--brand-subtle)' }}>Contratadas</span>
-          <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{fmtH(contratadas)}h</span>
+          <span className="text-[10px] uppercase tracking-wider truncate" style={{ color: 'var(--text-light)' }}>Contratadas</span>
+          <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(contratadas)}h</span>
         </div>
         <div className="flex items-baseline justify-between gap-2 min-w-0">
-          <span className="text-[10px] uppercase tracking-wider truncate" style={{ color: 'var(--brand-subtle)' }}>Aporte</span>
-          <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{fmtH(aporte)}h</span>
+          <span className="text-[10px] uppercase tracking-wider truncate" style={{ color: 'var(--text-light)' }}>Aporte</span>
+          <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(aporte)}h</span>
         </div>
       </div>
     </div>
@@ -141,32 +141,32 @@ function ContractedBreakdownCard({ contratadas, aporte }: { contratadas: number;
 function ConsumedBreakdownCard({ total, projetos, sustentacao, arquitetura }: { total: number; projetos?: number; sustentacao?: number; arquitetura?: number }) {
   const showArq = arquitetura !== undefined && arquitetura > 0
   return (
-    <div className="rounded-2xl p-5 flex flex-col gap-3 min-w-0 overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+    <div className="rounded-2xl p-5 flex flex-col gap-3 min-w-0 overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="flex items-center gap-2 min-w-0">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)' }}>
           <Clock size={13} color="var(--primary)" />
         </div>
-        <span className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--brand-subtle)' }}>Consumo Acumulado</span>
+        <span className="text-xs font-semibold uppercase tracking-wider truncate" style={{ color: 'var(--text-light)' }}>Consumo Acumulado</span>
       </div>
       <div className="flex items-end gap-1.5">
         <span className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--primary)', lineHeight: 1 }}>{fmtH(total)}</span>
-        <span className="text-base font-medium mb-0.5" style={{ color: 'var(--brand-muted)' }}>h</span>
+        <span className="text-base font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>h</span>
       </div>
       {(projetos !== undefined || sustentacao !== undefined || showArq) && (
-        <div className="flex flex-col gap-1.5 pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex flex-col gap-1.5 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-baseline justify-between gap-2 min-w-0">
-            <span className="text-[10px] uppercase tracking-wider truncate" style={{ color: 'var(--brand-subtle)' }}>Projetos</span>
-            <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{fmtH(projetos ?? 0)}h</span>
+            <span className="text-[10px] uppercase tracking-wider truncate" style={{ color: 'var(--text-light)' }}>Projetos</span>
+            <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(projetos ?? 0)}h</span>
           </div>
           {showArq && (
             <div className="flex items-baseline justify-between gap-2 min-w-0">
-              <span className="text-[10px] uppercase tracking-wider truncate" style={{ color: 'var(--brand-subtle)' }}>Arquitetura</span>
-              <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{fmtH(arquitetura ?? 0)}h</span>
+              <span className="text-[10px] uppercase tracking-wider truncate" style={{ color: 'var(--text-light)' }}>Arquitetura</span>
+              <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(arquitetura ?? 0)}h</span>
             </div>
           )}
           <div className="flex items-baseline justify-between gap-2 min-w-0">
-            <span className="text-[10px] uppercase tracking-wider truncate" style={{ color: 'var(--brand-subtle)' }}>Sustentação</span>
-            <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{fmtH(sustentacao ?? 0)}h</span>
+            <span className="text-[10px] uppercase tracking-wider truncate" style={{ color: 'var(--text-light)' }}>Sustentação</span>
+            <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--text)' }}>{fmtH(sustentacao ?? 0)}h</span>
           </div>
         </div>
       )}
@@ -182,8 +182,8 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
       onClick={onClick}
       className="px-5 py-2 text-sm font-semibold rounded-xl transition-all"
       style={active
-        ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-        : { color: 'var(--brand-muted)' }
+        ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+        : { color: 'var(--text-muted)' }
       }
     >
       {label}
@@ -195,9 +195,9 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 
 function SkeletonCard() {
   return (
-    <div className="rounded-2xl p-5 animate-pulse" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-      <div className="h-3 w-32 rounded mb-4" style={{ background: 'var(--brand-border)' }} />
-      <div className="h-10 w-24 rounded" style={{ background: 'var(--brand-border)' }} />
+    <div className="rounded-2xl p-5 animate-pulse" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="h-3 w-32 rounded mb-4" style={{ background: 'var(--border)' }} />
+      <div className="h-10 w-24 rounded" style={{ background: 'var(--border)' }} />
     </div>
   )
 }
@@ -575,39 +575,39 @@ export default function BankHoursFixedPage() {
 
   // Projects table (shared between Projetos and Sustentação)
   const ProjectsTable = ({ items, loading }: { items: ProjectItem[]; loading: boolean }) => (
-    <div className="rounded-2xl overflow-x-auto overflow-y-clip mt-4" style={{ border: '1px solid var(--brand-border)' }}>
+    <div className="rounded-2xl overflow-x-auto overflow-y-clip mt-4" style={{ border: '1px solid var(--border)' }}>
       {loading ? (
         <div className="p-6 space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-10 rounded-xl animate-pulse" style={{ background: 'var(--brand-border)' }} />
+            <div key={i} className="h-10 rounded-xl animate-pulse" style={{ background: 'var(--border)' }} />
           ))}
         </div>
       ) : (
-          <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
-            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'var(--surface-sunken)' }}>
+          <table className="w-full text-sm" style={{ background: 'var(--surface)' }}>
+            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
               <tr>
                 {['Código','Projeto','Status','Tipo','Horas Vendidas','Consumo','Início',''].map(col => (
-                  <th key={col} className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${['Horas Vendidas','Consumo'].includes(col) ? 'text-right' : 'text-left'}`} style={{ color: 'var(--brand-subtle)' }}>{col}</th>
+                  <th key={col} className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${['Horas Vendidas','Consumo'].includes(col) ? 'text-right' : 'text-left'}`} style={{ color: 'var(--text-light)' }}>{col}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr><td colSpan={8} className="py-12 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto encontrado.</td></tr>
+                <tr><td colSpan={8} className="py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum projeto encontrado.</td></tr>
               ) : items.map((p) => {
                 const contributions = p.total_contributions_hours || p.hour_contribution || 0
                 return (
                   <tr
                     key={p.id}
                     className="transition-colors"
-                    style={{ borderBottom: '1px solid var(--brand-border)' }}
+                    style={{ borderBottom: '1px solid var(--border)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td className="px-5 py-3.5">
-                      <span className="font-mono text-xs px-2 py-1 rounded-md" style={{ background: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>{p.code}</span>
+                      <span className="font-mono text-xs px-2 py-1 rounded-md" style={{ background: 'var(--border)', color: 'var(--text-light)' }}>{p.code}</span>
                     </td>
-                    <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--brand-text)' }}>
+                    <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--text)' }}>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span>{p.name}</span>
                         {p.is_auster_frozen && (
@@ -622,12 +622,12 @@ export default function BankHoursFixedPage() {
                     <td className="px-5 py-3.5">
                       <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--info-bg)', color: 'var(--info)' }}>{p.status_display}</span>
                     </td>
-                    <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--brand-muted)' }}>{p.contract_type_display}</td>
-                    <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--brand-text)' }}>
+                    <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--text-muted)' }}>{p.contract_type_display}</td>
+                    <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }}>
                       {p.sold_hours !== null ? (contributions > 0 ? `${p.sold_hours} (+${contributions})` : String(p.sold_hours)) : '—'}
                     </td>
-                    <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--brand-text)' }}>{fmtH(p.consumed_hours ?? 0)}</td>
-                    <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--brand-muted)' }}>{p.start_date ? fmtDate(p.start_date) : '—'}</td>
+                    <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }}>{fmtH(p.consumed_hours ?? 0)}</td>
+                    <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--text-muted)' }}>{p.start_date ? fmtDate(p.start_date) : '—'}</td>
                     <td className="px-3 py-3.5 text-right">
                       <div className="inline-flex items-center gap-1 justify-end">
                         <button
@@ -664,13 +664,13 @@ export default function BankHoursFixedPage() {
             <BarChart2 size={16} color="var(--primary)" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>Banco de Horas Fixo</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>Consumo, saldo e histórico de aporte por projeto</p>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Banco de Horas Fixo</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Consumo, saldo e histórico de aporte por projeto</p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-end gap-4 p-5 rounded-2xl" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="flex flex-wrap items-end gap-4 p-5 rounded-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {isAdmin && (
             <SearchSelect
               label="Executivo"
@@ -704,7 +704,7 @@ export default function BankHoursFixedPage() {
               : { bg: 'var(--info-bg)',    fg: 'var(--info)',    bd: 'var(--info-border)' }
             return (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Status</label>
+                <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Status</label>
                 <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold w-fit" style={{ background: c.bg, color: c.fg, border: `1px solid ${c.bd}` }}>
                   {sel.status_display ?? sel.status}
                 </span>
@@ -713,7 +713,7 @@ export default function BankHoursFixedPage() {
           })()}
           {/* Filtro de data */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Data</label>
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Data</label>
             <div className="flex items-center gap-2">
               <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
                 {(['month', 'period'] as const).map((mode) => (
@@ -746,31 +746,31 @@ export default function BankHoursFixedPage() {
 
         {/* Sem projeto selecionado → lista de projetos com botão "Ver". */}
         {!hasFilters && (
-          <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ border: '1px solid var(--brand-border)' }}>
-            <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
-              <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'var(--surface-sunken)' }}>
+          <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ border: '1px solid var(--border)' }}>
+            <table className="w-full text-sm" style={{ background: 'var(--surface)' }}>
+              <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
                 <tr>
                   {['Código','Projeto','Status'].map(col => (
-                    <th key={col} className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
+                    <th key={col} className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{col}</th>
                   ))}
-                  <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Ação</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Ação</th>
                 </tr>
               </thead>
               <tbody>
                 {projects.length === 0 ? (
-                  <tr><td colSpan={4} className="py-12 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto encontrado.</td></tr>
+                  <tr><td colSpan={4} className="py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum projeto encontrado.</td></tr>
                 ) : projects.map((p) => (
                   <tr
                     key={p.id}
                     className="transition-colors"
-                    style={{ borderBottom: '1px solid var(--brand-border)' }}
+                    style={{ borderBottom: '1px solid var(--border)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td className="px-5 py-3.5">
-                      <span className="font-mono text-xs px-2 py-1 rounded-md" style={{ background: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>{p.code}</span>
+                      <span className="font-mono text-xs px-2 py-1 rounded-md" style={{ background: 'var(--border)', color: 'var(--text-light)' }}>{p.code}</span>
                     </td>
-                    <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--brand-text)' }}>{p.name}</td>
+                    <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--text)' }}>{p.name}</td>
                     <td className="px-5 py-3.5">
                       <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--info-bg)', color: 'var(--info)' }}>{p.status_display ?? p.status ?? '—'}</span>
                     </td>
@@ -778,7 +778,7 @@ export default function BankHoursFixedPage() {
                       <button
                         onClick={() => setSelectedProject(p.id)}
                         className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
-                        style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
+                        style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
                       >
                         <Eye size={14} /> Ver
                       </button>
@@ -801,7 +801,7 @@ export default function BankHoursFixedPage() {
               ← Projetos
             </button>
             {/* Tabs */}
-            <div className="flex gap-1 p-1 rounded-2xl w-fit" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex gap-1 p-1 rounded-2xl w-fit" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <Tab label="Total Geral"  active={activeTab === 'total'}       onClick={() => setActiveTab('total')} />
               {!isLeafProject && (
                 <Tab label="Projetos"     active={activeTab === 'projects'}    onClick={() => setActiveTab('projects')} />
@@ -892,38 +892,38 @@ export default function BankHoursFixedPage() {
                     {/* Histórico de Aporte — sempre exibido (com estado vazio).
                         Contratos de Banco de Horas têm controle de aporte; On Demand
                         é dashboard separado e não cai aqui. */}
-                    <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                          <h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Histórico de Aporte de Horas</h3>
+                    <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+                          <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Histórico de Aporte de Horas</h3>
                         </div>
                           <table className="w-full text-sm">
-                            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'var(--surface-sunken)' }}>
+                            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
                               <tr>
                                 {['Projeto','Horas','Motivo','Valor/h','Total','Descrição','Data','Por'].map(col => (
-                                  <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
+                                  <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{col}</th>
                                 ))}
                               </tr>
                             </thead>
                             <tbody>
                               {(summary.contributed_hours_history?.length ?? 0) === 0 ? (
                                 <tr>
-                                  <td colSpan={8} className="px-5 py-8 text-center text-sm" style={{ color: 'var(--brand-subtle)' }}>
+                                  <td colSpan={8} className="px-5 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>
                                     Nenhum aporte de horas registrado
                                   </td>
                                 </tr>
                               ) : summary.contributed_hours_history!.map(item => (
-                                <tr key={item.id} style={{ borderBottom: '1px solid var(--brand-border)' }}
+                                <tr key={item.id} style={{ borderBottom: '1px solid var(--border)' }}
                                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                 >
-                                  <td className="px-5 py-3" style={{ color: 'var(--brand-text)' }}>{item.project?.code} — {item.project?.name}</td>
+                                  <td className="px-5 py-3" style={{ color: 'var(--text)' }}>{item.project?.code} — {item.project?.name}</td>
                                   <td className="px-5 py-3 font-bold" style={{ color: 'var(--primary)' }}>{Number(item.contributed_hours ?? item.difference ?? 0).toFixed(0)}h</td>
-                                  <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{MOTIVO_LABEL[item.motivo ?? 'aporte'] ?? 'Aporte'}</td>
-                                  <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.hourly_rate ?? null)}</td>
-                                  <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.total_value ?? null)}</td>
-                                  <td className="px-5 py-3 max-w-48 truncate" style={{ color: 'var(--brand-muted)' }}>{item.description || '—'}</td>
-                                  <td className="px-5 py-3 text-sm" style={{ color: 'var(--brand-muted)' }}>{fmtDate(item.created_at)}</td>
-                                  <td className="px-5 py-3 text-sm" style={{ color: 'var(--brand-muted)' }}>{item.changed_by?.name ?? '—'}</td>
+                                  <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>{MOTIVO_LABEL[item.motivo ?? 'aporte'] ?? 'Aporte'}</td>
+                                  <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>{fmtBRL(item.hourly_rate ?? null)}</td>
+                                  <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>{fmtBRL(item.total_value ?? null)}</td>
+                                  <td className="px-5 py-3 max-w-48 truncate" style={{ color: 'var(--text-muted)' }}>{item.description || '—'}</td>
+                                  <td className="px-5 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDate(item.created_at)}</td>
+                                  <td className="px-5 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{item.changed_by?.name ?? '—'}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -931,7 +931,7 @@ export default function BankHoursFixedPage() {
                       </div>
                   </>
                 ) : (
-                  <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum dado disponível.</p>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum dado disponível.</p>
                 )}
               </div>
             )}
@@ -1026,7 +1026,7 @@ export default function BankHoursFixedPage() {
           style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={() => setProjectTSModal(null)}
         >
-          <div onClick={e => e.stopPropagation()} className="w-full max-w-6xl mt-8 rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div onClick={e => e.stopPropagation()} className="w-full max-w-6xl mt-8 rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="px-6 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
               <div>
                 <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Apontamentos — {projectTSModal.projectName}</h3>
@@ -1139,7 +1139,7 @@ function ProjectActionsMenu({ onViewTimesheets }: { onViewTimesheets: () => void
       {open && (
         <div
           className="absolute right-0 mt-1 z-50 rounded-lg overflow-hidden min-w-[180px]"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)', boxShadow: 'var(--brand-card-shadow-md)' }}
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--brand-card-shadow-md)' }}
         >
           <button
             onClick={() => { setOpen(false); onViewTimesheets() }}
@@ -1165,7 +1165,7 @@ function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => void })
   const hoursDisplay = `${Math.floor(hours)}:${String(Math.round((hours - Math.floor(hours)) * 60)).padStart(2, '0')}`
   return (
     <div className="fixed inset-0 z-[90] flex items-start justify-center p-4 overflow-y-auto" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl mt-8 rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl mt-8 rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="px-6 py-5 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
@@ -1189,7 +1189,7 @@ function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => void })
             </div>
           )}
 
-          <div className="rounded-xl divide-y" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl divide-y" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <DetailRow icon={<Calendar size={14} />} label="Data" value={fmtDateBR(ts.date)} />
             <DetailRow icon={<UserIcon size={14} />} label="Colaborador" value={ts.user?.name ?? '—'} />
             <DetailRow icon={<Building2 size={14} />} label="Cliente" value={ts.customer ?? '—'} />
@@ -1210,7 +1210,7 @@ function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => void })
           </div>
 
           {ts.description && (
-            <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="flex items-center gap-2 mb-2">
                 <FileText size={14} style={{ color: 'var(--primary)' }} />
                 <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)' }}>Observação</span>
@@ -1281,7 +1281,7 @@ function IndicatorCard({
 }) {
   const max = Math.max(1, ...rows.map(valueKey))
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{title}</h3>
       </div>
@@ -1365,7 +1365,7 @@ function InlineTimesheetsTable({ rows, loading, variant = 'maintenance', onRowCl
     }
   }
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Apontamentos do período</h3>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{rows.length} registros</span>
@@ -1495,7 +1495,7 @@ function InlineTicketSummaryTable({ rows, loading }: { rows: any[]; loading: boo
   const fmtH = (mins: number) => `${((mins ?? 0) / 60).toFixed(2)}h`
   if (!loading && rows.length === 0) return null
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Apuração por Ticket</h3>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{rows.length} tickets</span>
@@ -1590,7 +1590,7 @@ function InlineExpensesTable({ rows, loading, onReverseApproved, onReverseSucces
     }
   }
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="px-5 py-3 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Despesas do período</h3>
         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{rows.length} registros</span>

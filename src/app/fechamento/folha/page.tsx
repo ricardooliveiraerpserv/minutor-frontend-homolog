@@ -693,7 +693,7 @@ export default function FechamentoFolhaPage() {
       <div className="space-y-6">
 
         {/* Abas por empresa: ERPSERV (cooperativa) | Bizify (lançamentos manuais) */}
-        <div className="flex gap-1 border-b" role="tablist" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex gap-1 border-b" role="tablist" style={{ borderColor: 'var(--border)' }}>
           {([
             { key: 'erpserv' as const, label: 'ERPSERV' },
             { key: 'bizify' as const, label: 'Bizify' },
@@ -739,7 +739,7 @@ export default function FechamentoFolhaPage() {
                 wide
               />
               {/* ── Filtro por categoria de linha ── */}
-              <div className="flex rounded-lg border overflow-hidden text-xs" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="flex rounded-lg border overflow-hidden text-xs" style={{ borderColor: 'var(--border)' }}>
                 {([
                   ['todos',      'Todos'],
                   ['cooperados', 'Cooperados'],
@@ -765,7 +765,7 @@ export default function FechamentoFolhaPage() {
                 title="Mostrar somente linhas com produção (valor > 0)"
                 className="px-2.5 py-1.5 text-xs font-medium rounded-lg border whitespace-nowrap transition-colors"
                 style={{
-                  borderColor: 'var(--brand-border)',
+                  borderColor: 'var(--border)',
                   background: soComProducao ? 'var(--primary-soft)' : 'transparent',
                   color: soComProducao ? 'var(--text)' : 'var(--text-muted)',
                 }}
@@ -978,8 +978,8 @@ export default function FechamentoFolhaPage() {
               />
             )
           ) : (
-            <div className="max-h-[70vh] overflow-auto rounded-2xl" style={{ border: '1px solid var(--brand-border)' }}>
-              <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
+            <div className="max-h-[70vh] overflow-auto rounded-2xl" style={{ border: '1px solid var(--border)' }}>
+              <table className="w-full text-sm" style={{ background: 'var(--surface)' }}>
                 <thead>
                   <tr>
                     <Th className={stickyTh}>CPF</Th>

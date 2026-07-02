@@ -19,14 +19,14 @@ export function ReasonTooltip({
   if (!show) return <>{children}</>
 
   const isRej = status === 'rejected'
-  const accent = isRej ? 'var(--brand-danger)' : 'var(--brand-warning)'
+  const accent = isRej ? 'var(--danger-border)' : 'var(--warning-border)'
 
   return (
     <span className="relative group/reason inline-flex cursor-help">
       {children}
       <span
         className="pointer-events-none absolute bottom-full left-0 mb-1.5 z-50 hidden group-hover/reason:block rounded-lg px-2.5 py-1.5 shadow-lg w-56 whitespace-normal text-[10px] leading-snug"
-        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
       >
         <span className="block font-semibold uppercase tracking-wide text-[9px] mb-0.5" style={{ color: accent }}>
           {isRej ? 'Motivo da rejeição' : 'Motivo do ajuste'}

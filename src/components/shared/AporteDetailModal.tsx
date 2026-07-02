@@ -101,13 +101,13 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
     }
   }
 
-  const inputStyle = { background: 'var(--bg)', border: '1px solid var(--brand-border)', color: 'var(--text)' }
+  const inputStyle = { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
-      <div className="w-full max-w-lg rounded-2xl border overflow-hidden flex flex-col" style={{ background: 'var(--surface)', borderColor: 'var(--brand-border)', maxHeight: '90vh' }}>
+      <div className="w-full max-w-lg rounded-2xl border overflow-hidden flex flex-col" style={{ background: 'var(--surface)', borderColor: 'var(--border)', maxHeight: '90vh' }}>
         <div className="flex items-start justify-between px-5 py-4 border-b shrink-0"
-          style={{ borderColor: 'var(--brand-border)', background: `${APORTE_COLOR}10` }}>
+          style={{ borderColor: 'var(--border)', background: `${APORTE_COLOR}10` }}>
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: APORTE_COLOR }}>
               💰 Aporte · {editing ? (MOTIVO_LABEL[mot] ?? mot) : (MOTIVO_LABEL[motivo] ?? motivo)}
@@ -117,7 +117,7 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
             </h2>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{aporte.project_name ?? '—'}</p>
             {aporte.project_code && (
-              <p className="font-mono text-xs mt-0.5" style={{ color: 'var(--brand-primary)' }}>{aporte.project_code}</p>
+              <p className="font-mono text-xs mt-0.5" style={{ color: 'var(--primary)' }}>{aporte.project_code}</p>
             )}
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors shrink-0">
@@ -228,7 +228,7 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-primary)' }}
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--primary)' }}
               >
                 📎 {aporte.proposta_original_name ?? 'Baixar anexo'}
               </a>
@@ -247,13 +247,13 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
             variant="compact"
           />
 
-          <div className="flex items-center justify-between text-[11px] pt-2 border-t" style={{ color: 'var(--text-light)', borderColor: 'var(--brand-border)' }}>
+          <div className="flex items-center justify-between text-[11px] pt-2 border-t" style={{ color: 'var(--text-light)', borderColor: 'var(--border)' }}>
             <span>Criado por <span className="font-semibold" style={{ color: 'var(--text-muted)' }}>{aporte.contributed_by ?? '—'}</span></span>
             <span>{aporte.contributed_at ? new Date(aporte.contributed_at).toLocaleDateString('pt-BR') : ''}</span>
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t shrink-0" style={{ borderColor: 'var(--brand-border)', background: 'var(--surface-hover)' }}>
+        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t shrink-0" style={{ borderColor: 'var(--border)', background: 'var(--surface-hover)' }}>
           {editing ? (
             <>
               <button onClick={() => setEditing(false)} disabled={saving}
@@ -285,7 +285,7 @@ export function AporteDetailModal({ aporte, onClose, onViewInProject, onMoveToFi
                 {canWrite && (
                   <button onClick={() => setEditing(true)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                    style={{ background: 'var(--surface-hover)', color: 'var(--text)', border: '1px solid var(--brand-border)' }}>
+                    style={{ background: 'var(--surface-hover)', color: 'var(--text)', border: '1px solid var(--border)' }}>
                     <Pencil size={13} /> Editar
                   </button>
                 )}

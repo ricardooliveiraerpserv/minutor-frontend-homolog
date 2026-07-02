@@ -20,7 +20,7 @@ export function ThemeToggle() {
       aria-label={mounted ? `Mudar para tema ${next === 'dark' ? 'escuro' : 'claro'}` : 'Mudar tema'}
       onClick={() => setTheme(next)}
       className="p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
-      style={{ color: 'var(--brand-subtle)' }}
+      style={{ color: 'var(--text-light)' }}
     >
       {/* Placeholder transparente até montar pra evitar flash de ícone errado */}
       {!mounted ? (

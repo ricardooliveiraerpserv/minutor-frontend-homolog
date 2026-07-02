@@ -82,12 +82,12 @@ export function DateRangePicker({ from, to, onChange }: {
     while (cells.length % 7 !== 0) cells.push(null)
     return (
       <div className="w-[196px]">
-        <div className="text-center text-sm font-semibold mb-3" style={{ color: 'var(--brand-primary)' }}>
+        <div className="text-center text-sm font-semibold mb-3" style={{ color: 'var(--primary)' }}>
           {MONTH_NAMES_PT[m]} {y}
         </div>
         <div className="grid grid-cols-7 mb-1">
           {DAY_NAMES_PT.map(d => (
-            <div key={d} className="text-center text-[10px] py-1" style={{ color: 'var(--brand-subtle)' }}>{d}</div>
+            <div key={d} className="text-center text-[10px] py-1" style={{ color: 'var(--text-light)' }}>{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7">
@@ -105,8 +105,8 @@ export function DateRangePicker({ from, to, onChange }: {
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${s || e ? 'font-bold' : ir ? '' : td ? 'font-semibold' : ''}`}
                 style={{
-                  background: s || e ? 'var(--brand-primary)' : ir ? 'var(--primary-soft)' : undefined,
-                  color: s || e ? '#0A0A0B' : ir ? 'var(--brand-primary)' : td ? 'var(--brand-primary)' : 'var(--brand-text)',
+                  background: s || e ? 'var(--primary)' : ir ? 'var(--primary-soft)' : undefined,
+                  color: s || e ? '#0A0A0B' : ir ? 'var(--primary)' : td ? 'var(--primary)' : 'var(--text)',
                 }}>
                 {day}
               </button>
@@ -130,15 +130,15 @@ export function DateRangePicker({ from, to, onChange }: {
       <button ref={btnRef} type="button" onClick={toggle}
         className="flex items-center gap-2 h-8 px-3 rounded-lg text-xs outline-none whitespace-nowrap"
         style={{
-          background: 'var(--brand-bg)',
-          border: `1px solid ${from || to ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
-          color: from || to ? 'var(--brand-text)' : 'var(--brand-subtle)',
+          background: 'var(--bg)',
+          border: `1px solid ${from || to ? 'var(--primary)' : 'var(--border)'}`,
+          color: from || to ? 'var(--text)' : 'var(--text-light)',
         }}>
-        <CalendarDays size={13} style={{ color: from || to ? 'var(--brand-primary)' : 'var(--brand-subtle)', flexShrink: 0 }} />
+        <CalendarDays size={13} style={{ color: from || to ? 'var(--primary)' : 'var(--text-light)', flexShrink: 0 }} />
         <span>{displayText}</span>
         {(from || to) && (
           <span onClick={e => { e.stopPropagation(); onChange('', '') }}
-            className="ml-1 cursor-pointer" style={{ color: 'var(--brand-subtle)' }}>
+            className="ml-1 cursor-pointer" style={{ color: 'var(--text-light)' }}>
             <X size={10} />
           </span>
         )}
@@ -147,28 +147,28 @@ export function DateRangePicker({ from, to, onChange }: {
       {pos && (
         <div ref={ref}
           className="rounded-xl shadow-2xl p-4"
-          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center gap-4">
             <button type="button" onClick={prevMonth}
-              className="p-1 shrink-0" style={{ color: 'var(--brand-subtle)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-text)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--brand-subtle)')}>
+              className="p-1 shrink-0" style={{ color: 'var(--text-light)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-light)')}>
               <ChevronLeft size={14} />
             </button>
             <div className="flex gap-4">
               {renderMonth(leftYM.y, leftYM.m)}
-              <div className="w-px" style={{ background: 'var(--brand-border)' }} />
+              <div className="w-px" style={{ background: 'var(--border)' }} />
               {renderMonth(rightYM.y, rightYM.m)}
             </div>
             <button type="button" onClick={nextMonth}
-              className="p-1 shrink-0" style={{ color: 'var(--brand-subtle)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-text)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--brand-subtle)')}>
+              className="p-1 shrink-0" style={{ color: 'var(--text-light)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-light)')}>
               <ChevronRight size={14} />
             </button>
           </div>
           {selecting && (
-            <p className="text-[11px] text-center mt-3" style={{ color: 'var(--brand-subtle)' }}>
+            <p className="text-[11px] text-center mt-3" style={{ color: 'var(--text-light)' }}>
               Clique para selecionar a data final
             </p>
           )}

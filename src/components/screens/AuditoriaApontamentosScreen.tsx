@@ -107,15 +107,15 @@ export function AuditoriaApontamentosScreen({ scope, embedded }: AuditoriaAponta
 
   const filterField = (label: string, child: React.ReactNode) => (
     <div className="flex flex-col gap-1">
-      <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--brand-subtle)' }}>{label}</label>
+      <label className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-light)' }}>{label}</label>
       {child}
     </div>
   )
 
   const inputStyle: React.CSSProperties = {
-    background: 'var(--brand-surface)',
-    border: '1px solid var(--brand-border)',
-    color: 'var(--brand-text)',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
   }
 
   return (
@@ -129,7 +129,7 @@ export function AuditoriaApontamentosScreen({ scope, embedded }: AuditoriaAponta
       )}
 
       <div className="rounded-xl px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3"
-        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         {filterField('Origem', (
           <select className="rounded-lg px-2 py-1.5 text-xs" style={inputStyle}
             value={filters.source} onChange={e => update('source', e.target.value)}>
@@ -183,7 +183,7 @@ export function AuditoriaApontamentosScreen({ scope, embedded }: AuditoriaAponta
 
       {data && data.last_page > 1 && (
         <div className="flex items-center justify-between text-xs px-1"
-          style={{ color: 'var(--brand-muted)' }}>
+          style={{ color: 'var(--text-muted)' }}>
           <span>Página {data.current_page} de {data.last_page}</span>
           <div className="flex gap-2">
             <button

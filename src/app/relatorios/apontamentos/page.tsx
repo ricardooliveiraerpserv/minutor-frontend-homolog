@@ -477,8 +477,8 @@ export default function RelatorioApontamentosPage() {
       <Card className="mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>
-              Cliente <span style={{ color: 'var(--brand-danger)' }}>*</span>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
+              Cliente <span style={{ color: 'var(--danger-border)' }}>*</span>
             </label>
             <SearchSelect
               value={customerId}
@@ -490,7 +490,7 @@ export default function RelatorioApontamentosPage() {
           </div>
 
           <div>
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
               Projetos
             </label>
             <MultiSelect
@@ -504,7 +504,7 @@ export default function RelatorioApontamentosPage() {
           </div>
 
           <div>
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
               Tipo de Serviço
             </label>
             <MultiSelect
@@ -519,11 +519,11 @@ export default function RelatorioApontamentosPage() {
 
           {/* COMPETÊNCIA (mês do serviço) — Mês/Ano ou Período. Trava a data do serviço. */}
           <div>
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
               Competência (mês do serviço)
             </label>
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex rounded-lg border overflow-hidden text-xs" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="flex rounded-lg border overflow-hidden text-xs" style={{ borderColor: 'var(--border)' }}>
                 {(['month', 'period'] as const).map(mode => (
                   <button
                     key={mode} type="button"
@@ -566,7 +566,7 @@ export default function RelatorioApontamentosPage() {
 
           {/* DIGITAÇÃO (opcional) — filtra a lista por quando foi lançado; vazio = 100% da competência. */}
           <div>
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
               Digitação (opcional)
             </label>
             <div className="flex items-center gap-2">
@@ -577,19 +577,19 @@ export default function RelatorioApontamentosPage() {
               />
               {(digFrom || digTo) && (
                 <button type="button" onClick={() => { setDigFrom(''); setDigTo('') }}
-                  className="text-[11px] px-2 py-1 rounded" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+                  className="text-[11px] px-2 py-1 rounded" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                   limpar
                 </button>
               )}
             </div>
-            <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
               Filtra por quando foi lançado; vazio traz 100% da competência. Digitados fora do mês ficam destacados.
             </p>
           </div>
 
           {/* É FECHAMENTO? — troca o título do documento de "Apontamentos" para "Fechamento". */}
           <div>
-            <label className="block text-xs mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+            <label className="block text-xs mb-1.5" style={{ color: 'var(--text-muted)' }}>
               Tipo de documento
             </label>
             <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -600,10 +600,10 @@ export default function RelatorioApontamentosPage() {
                 className="h-4 w-4 rounded"
                 style={{ accentColor: 'var(--primary)' }}
               />
-              <span className="text-sm" style={{ color: 'var(--brand-text)' }}>É fechamento?</span>
+              <span className="text-sm" style={{ color: 'var(--text)' }}>É fechamento?</span>
             </label>
-            <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>
-              Título: <span style={{ color: 'var(--brand-text)' }}>{reportTitle}</span>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>
+              Título: <span style={{ color: 'var(--text)' }}>{reportTitle}</span>
             </p>
           </div>
         </div>
@@ -631,20 +631,20 @@ export default function RelatorioApontamentosPage() {
         <Card className="mb-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <div className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>
+              <div className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>
                 Relatório de Apontamentos
               </div>
-              <div className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>
+              <div className="text-lg font-bold" style={{ color: 'var(--text)' }}>
                 {customerName || '—'}
               </div>
             </div>
-            <div className="text-right text-xs space-y-0.5" style={{ color: 'var(--brand-muted)' }}>
-              <div>Competência: <span style={{ color: 'var(--brand-text)' }}>{periodInfo.label || '—'}</span></div>
-              <div>Emitido em: <span style={{ color: 'var(--brand-text)' }}>{emittedAt}</span></div>
+            <div className="text-right text-xs space-y-0.5" style={{ color: 'var(--text-muted)' }}>
+              <div>Competência: <span style={{ color: 'var(--text)' }}>{periodInfo.label || '—'}</span></div>
+              <div>Emitido em: <span style={{ color: 'var(--text)' }}>{emittedAt}</span></div>
               <div>
-                Total: <span className="font-semibold" style={{ color: 'var(--brand-primary)' }}>{totalHoras}</span>
-                <span className="mx-2" style={{ color: 'var(--brand-subtle)' }}>•</span>
-                <span style={{ color: 'var(--brand-text)' }}>{items.length}</span> registro{items.length === 1 ? '' : 's'}
+                Total: <span className="font-semibold" style={{ color: 'var(--primary)' }}>{totalHoras}</span>
+                <span className="mx-2" style={{ color: 'var(--text-light)' }}>•</span>
+                <span style={{ color: 'var(--text)' }}>{items.length}</span> registro{items.length === 1 ? '' : 's'}
               </div>
             </div>
           </div>
@@ -919,15 +919,15 @@ export default function RelatorioApontamentosPage() {
                   <Td right className="font-semibold">{fmtHoras(t.effort_minutes ?? 0)}</Td>
                 </Tr>
               ))}
-              <tr style={{ background: 'var(--brand-bg)', borderTop: '2px solid var(--brand-border)' }}>
+              <tr style={{ background: 'var(--bg)', borderTop: '2px solid var(--border)' }}>
                 <td
                   colSpan={10}
                   className="px-5 py-3.5 text-right font-bold"
-                  style={{ color: 'var(--brand-text)' }}
+                  style={{ color: 'var(--text)' }}
                 >
                   Total
                 </td>
-                <td className="px-5 py-3.5 text-right font-bold" style={{ color: 'var(--brand-primary)' }}>
+                <td className="px-5 py-3.5 text-right font-bold" style={{ color: 'var(--primary)' }}>
                   {totalHoras}
                 </td>
               </tr>

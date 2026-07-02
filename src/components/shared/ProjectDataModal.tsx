@@ -169,21 +169,21 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
     >
       <div
         className="flex flex-col w-full max-w-3xl rounded-2xl max-h-[90vh]"
-        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Projeto</p>
-            <h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3>
+            <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Projeto</p>
+            <h3 className="text-base font-bold" style={{ color: 'var(--text)' }}>{projectName}</h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
-            <X size={16} style={{ color: 'var(--brand-muted)' }} />
+            <X size={16} style={{ color: 'var(--text-muted)' }} />
           </button>
         </div>
 
         {/* Tabs + Period */}
-        <div className="flex items-center justify-between gap-4 px-6 py-3 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between gap-4 px-6 py-3 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div className="flex gap-1 p-1 rounded-xl shrink-0" style={{ background: 'var(--surface-sunken)' }}>
             {(['timesheets', 'expenses'] as const).map(t => (
               <button
@@ -191,8 +191,8 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
                 onClick={() => setTab(t)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                 style={tab === t
-                  ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                  : { color: 'var(--brand-muted)' }}
+                  ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                  : { color: 'var(--text-muted)' }}
               >
                 {t === 'timesheets' ? <Clock size={12} /> : <BarChart2 size={12} />}
                 {t === 'timesheets' ? 'Apontamentos' : 'Despesas'}
@@ -201,23 +201,23 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5">
-              <label className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: 'var(--brand-subtle)' }}>Início</label>
+              <label className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: 'var(--text-light)' }}>Início</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
                 className="rounded-lg px-2 py-1.5 text-xs"
-                style={{ background: 'var(--surface-sunken)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }}
               />
             </div>
             <div className="flex items-center gap-1.5">
-              <label className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: 'var(--brand-subtle)' }}>Fim</label>
+              <label className="text-[10px] uppercase tracking-wider shrink-0" style={{ color: 'var(--text-light)' }}>Fim</label>
               <input
                 type="date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
                 className="rounded-lg px-2 py-1.5 text-xs"
-                style={{ background: 'var(--surface-sunken)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text)' }}
               />
             </div>
             {(startDate || endDate) && (
@@ -237,31 +237,31 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <p className="text-center text-sm animate-pulse py-16" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
+            <p className="text-center text-sm animate-pulse py-16" style={{ color: 'var(--text-light)' }}>Carregando...</p>
           ) : tab === 'timesheets' ? (
             timesheets.length === 0 ? (
-              <p className="text-center text-sm py-16" style={{ color: 'var(--brand-subtle)' }}>{startDate || endDate ? 'Nenhum apontamento neste período.' : 'Nenhum apontamento.'}</p>
+              <p className="text-center text-sm py-16" style={{ color: 'var(--text-light)' }}>{startDate || endDate ? 'Nenhum apontamento neste período.' : 'Nenhum apontamento.'}</p>
             ) : (
               <div className="p-5 space-y-4">
                 <div className="grid grid-cols-4 gap-3">
                   {[
                     { label: 'Total Horas', value: `${totalHours.toFixed(1)}h`, color: 'var(--primary)' },
-                    { label: 'Registros', value: String(timesheets.length), color: 'var(--brand-text)' },
+                    { label: 'Registros', value: String(timesheets.length), color: 'var(--text)' },
                     { label: 'Aprovados', value: String(timesheets.filter(t => t.status === 'approved').length), color: 'var(--success-border)' },
                     { label: 'Pendentes', value: String(timesheets.filter(t => t.status === 'pending').length), color: 'var(--warning-border)' },
                   ].map(s => (
-                    <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
-                      <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{s.label}</p>
+                    <div key={s.label} className="rounded-xl p-3 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                      <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>{s.label}</p>
                       <p className="text-lg font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
                     </div>
                   ))}
                 </div>
-                <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
+                <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--border)' }}>
                   <table className="w-full text-xs">
                     <thead style={{ background: 'var(--surface-sunken)' }}>
-                      <tr style={{ borderBottom: '1px solid var(--brand-border)' }}>
+                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
                         {['Data', 'Colaborador', 'Horas', 'Observação', 'Status'].map(h => (
-                          <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                          <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -269,11 +269,11 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
                       {timesheets.map((ts, i) => {
                         const c = STATUS_COLOR[ts.status] ?? '#94a3b8'
                         return (
-                          <tr key={ts.id} style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                            <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{fmtDate(ts.date)}</td>
-                            <td className="px-3 py-2.5" style={{ color: 'var(--brand-text)' }}>{ts.user?.name ?? '—'}</td>
+                          <tr key={ts.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(ts.date)}</td>
+                            <td className="px-3 py-2.5" style={{ color: 'var(--text)' }}>{ts.user?.name ?? '—'}</td>
                             <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--primary)' }}>{fmtHours(ts.effort_hours, ts.effort_minutes)}</td>
-                            <td className="px-3 py-2.5 max-w-[200px] truncate" style={{ color: 'var(--brand-muted)' }} title={previewText(ts.observation)}>{ts.observation ? previewText(ts.observation) : '—'}</td>
+                            <td className="px-3 py-2.5 max-w-[200px] truncate" style={{ color: 'var(--text-muted)' }} title={previewText(ts.observation)}>{ts.observation ? previewText(ts.observation) : '—'}</td>
                             <td className="px-3 py-2.5">
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap" style={{ background: `${c}18`, color: c }}>
                                 {ts.status_display}
@@ -284,7 +284,7 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
                       })}
                       <tr style={{ background: 'var(--primary-soft)', borderTop: '1px solid var(--primary-soft)' }}>
                         <td className="px-3 py-2.5" />
-                        <td className="px-3 py-2.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total</td>
+                        <td className="px-3 py-2.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Total</td>
                         <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--primary)' }}>{totalHours.toFixed(1)}h</td>
                         <td colSpan={2} />
                       </tr>
@@ -295,26 +295,26 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
             )
           ) : (
             expenses.length === 0 ? (
-              <p className="text-center text-sm py-16" style={{ color: 'var(--brand-subtle)' }}>Nenhuma despesa neste período.</p>
+              <p className="text-center text-sm py-16" style={{ color: 'var(--text-light)' }}>Nenhuma despesa neste período.</p>
             ) : (
               <div className="p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { label: 'Total', value: fmtBRL(totalExpenses), color: 'var(--primary)' },
-                    { label: 'Registros', value: String(expenses.length), color: 'var(--brand-text)' },
+                    { label: 'Registros', value: String(expenses.length), color: 'var(--text)' },
                   ].map(s => (
-                    <div key={s.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
-                      <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{s.label}</p>
+                    <div key={s.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                      <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>{s.label}</p>
                       <p className="text-xl font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
                     </div>
                   ))}
                 </div>
-                <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--brand-border)' }}>
+                <div className="rounded-xl overflow-clip" style={{ border: '1px solid var(--border)' }}>
                   <table className="w-full text-xs">
                     <thead style={{ background: 'var(--surface-sunken)' }}>
-                      <tr style={{ borderBottom: '1px solid var(--brand-border)' }}>
+                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
                         {['Data', 'Descrição', 'Categoria', 'Responsável', 'Valor', 'Status'].map(h => (
-                          <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                          <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -322,11 +322,11 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
                       {expenses.map((e, i) => {
                         const c = STATUS_COLOR[e.status] ?? '#94a3b8'
                         return (
-                          <tr key={e.id} style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                            <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>{fmtDate(e.expense_date)}</td>
-                            <td className="px-3 py-2.5 max-w-[150px] truncate" style={{ color: 'var(--brand-text)' }}>{e.description}</td>
-                            <td className="px-3 py-2.5" style={{ color: 'var(--brand-muted)' }}>{e.category?.name ?? '—'}</td>
-                            <td className="px-3 py-2.5" style={{ color: 'var(--brand-muted)' }}>{e.user?.name ?? '—'}</td>
+                          <tr key={e.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td className="px-3 py-2.5 tabular-nums whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{fmtDate(e.expense_date)}</td>
+                            <td className="px-3 py-2.5 max-w-[150px] truncate" style={{ color: 'var(--text)' }}>{e.description}</td>
+                            <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{e.category?.name ?? '—'}</td>
+                            <td className="px-3 py-2.5" style={{ color: 'var(--text-muted)' }}>{e.user?.name ?? '—'}</td>
                             <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--primary)' }}>{fmtBRL(e.amount)}</td>
                             <td className="px-3 py-2.5">
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap" style={{ background: `${c}18`, color: c }}>
@@ -338,7 +338,7 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
                       })}
                       <tr style={{ background: 'var(--primary-soft)', borderTop: '1px solid var(--primary-soft)' }}>
                         <td className="px-3 py-2.5" />
-                        <td className="px-3 py-2.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total</td>
+                        <td className="px-3 py-2.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Total</td>
                         <td colSpan={2} />
                         <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--primary)' }}>{fmtBRL(totalExpenses)}</td>
                         <td />
@@ -352,7 +352,7 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-3 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-6 py-3 border-t shrink-0" style={{ borderColor: 'var(--border)' }}>
           <button
             onClick={exportExcel}
             disabled={loading || activeCount === 0}
@@ -364,7 +364,7 @@ export function ProjectDataModal({ projectId, projectName, initialTab = 'timeshe
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)]"
-            style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}
+            style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
           >
             Fechar
           </button>

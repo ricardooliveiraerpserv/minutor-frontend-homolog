@@ -239,7 +239,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
     <div style={{
       padding: '16px 24px',
       borderBottom: '1px solid var(--border)',
-      background: 'var(--brand-bg)',
+      background: 'var(--bg)',
       position: 'sticky',
       top: 0,
       zIndex: 10,

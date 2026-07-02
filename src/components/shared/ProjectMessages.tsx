@@ -37,7 +37,7 @@ function MessageText({ text }: { text: string }) {
     <>
       {parts.map((part, i) => {
         const m = part.match(/@\[(?:\d+|all):([^\]]+)\]/)
-        if (m) return <span key={i} style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>@{m[1]}</span>
+        if (m) return <span key={i} style={{ color: 'var(--primary)', fontWeight: 600 }}>@{m[1]}</span>
         return <span key={i}>{part}</span>
       })}
     </>
@@ -89,16 +89,16 @@ function AttachmentChip({ att, messageId }: { att: Attachment; messageId: number
     <button
       onClick={handleDownload}
       className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-opacity hover:opacity-80 max-w-[220px]"
-      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
+      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
     >
       {isImage(att.mime_type) ? (
-        <Eye size={11} style={{ color: 'var(--brand-primary)' }} />
+        <Eye size={11} style={{ color: 'var(--primary)' }} />
       ) : (
-        <FileText size={11} style={{ color: 'var(--brand-primary)' }} />
+        <FileText size={11} style={{ color: 'var(--primary)' }} />
       )}
-      <span className="truncate flex-1 text-left" style={{ color: 'var(--brand-text)' }}>{att.original_name}</span>
-      <span className="shrink-0" style={{ color: 'var(--brand-subtle)' }}>{formatBytes(att.file_size)}</span>
-      <Download size={10} className="shrink-0" style={{ color: 'var(--brand-subtle)' }} />
+      <span className="truncate flex-1 text-left" style={{ color: 'var(--text)' }}>{att.original_name}</span>
+      <span className="shrink-0" style={{ color: 'var(--text-light)' }}>{formatBytes(att.file_size)}</span>
+      <Download size={10} className="shrink-0" style={{ color: 'var(--text-light)' }} />
     </button>
   )
 }
@@ -311,13 +311,13 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <span className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Carregando...</span>
+            <span className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando...</span>
           </div>
         )}
         {!loading && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
-            <span className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Nenhuma mensagem ainda.</span>
-            <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>Seja o primeiro a escrever.</span>
+            <span className="text-sm" style={{ color: 'var(--text-light)' }}>Nenhuma mensagem ainda.</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Seja o primeiro a escrever.</span>
           </div>
         )}
         {messages.map(msg => (
@@ -330,20 +330,20 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
           >
             <div
               className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5"
-              style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}
+              style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
             >
               {getInitials(msg.author?.name ?? '?')}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-2 mb-0.5">
-                <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>
+                <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>
                   {msg.author?.name ?? 'Usuário'}
                 </span>
-                <span className="text-[10px]" style={{ color: 'var(--brand-muted)' }}>
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
                   {formatTime(msg.created_at)}
                 </span>
                 {msg.edited_at && (
-                  <span className="text-[10px] italic" style={{ color: 'var(--brand-subtle)' }} title={`Editado ${formatTime(msg.edited_at)}`}>
+                  <span className="text-[10px] italic" style={{ color: 'var(--text-light)' }} title={`Editado ${formatTime(msg.edited_at)}`}>
                     (editado)
                   </span>
                 )}
@@ -353,7 +353,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                   </span>
                 )}
                 {!isCliente && msg.visibility === 'internal' && (
-                  <span className="text-[9px] px-1 py-0.5 rounded font-semibold flex items-center gap-0.5" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-subtle)' }}>
+                  <span className="text-[9px] px-1 py-0.5 rounded font-semibold flex items-center gap-0.5" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-light)' }}>
                     <Lock size={8} /> interno
                   </span>
                 )}
@@ -362,7 +362,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                     onClick={() => startEdit(msg)}
                     className="ml-auto p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors shrink-0"
                     title={`Editar (até ${EDIT_WINDOW_HOURS}h após o envio)`}
-                    style={{ color: 'var(--brand-subtle)' }}
+                    style={{ color: 'var(--text-light)' }}
                   >
                     <Pencil size={11} />
                   </button>
@@ -380,25 +380,25 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                     rows={2}
                     autoFocus
                     className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none transition-colors"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--text)' }}
                   />
                   <div className="flex items-center gap-2 mt-1">
                     <button
                       onClick={() => handleSaveEdit(msg)}
                       disabled={savingEdit || !editText.trim()}
                       className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all"
-                      style={editText.trim() ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' } : { background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}
+                      style={editText.trim() ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}
                     >
                       <Check size={11} /> Salvar
                     </button>
-                    <button onClick={cancelEdit} className="px-2.5 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}>
+                    <button onClick={cancelEdit} className="px-2.5 py-1 rounded-lg text-xs transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}>
                       Cancelar
                     </button>
-                    <span className="text-[10px]" style={{ color: 'var(--brand-muted)' }}>Enter salva · Esc cancela</span>
+                    <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Enter salva · Esc cancela</span>
                   </div>
                 </div>
               ) : msg.message && (
-                <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--brand-text)' }}>
+                <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--text)' }}>
                   <MessageText text={msg.message} />
                 </p>
               )}
@@ -417,18 +417,18 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
 
       {/* Mention autocomplete */}
       {(filteredMentions.length > 0 || showAllMention) && mentionQuery !== null && (
-        <div className="mx-4 mb-1 rounded-lg border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+        <div className="mx-4 mb-1 rounded-lg border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           {showAllMention && (
             <button
               onMouseDown={e => { e.preventDefault(); insertAllMention() }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)] transition-colors"
-              style={{ color: 'var(--brand-text)', borderBottom: filteredMentions.length > 0 ? '1px solid var(--brand-border)' : undefined }}
+              style={{ color: 'var(--text)', borderBottom: filteredMentions.length > 0 ? '1px solid var(--border)' : undefined }}
             >
-              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                 <Users size={11} />
               </div>
               <span className="font-semibold">Todos</span>
-              <span className="text-[10px] ml-auto" style={{ color: 'var(--brand-subtle)' }}>menciona os participantes</span>
+              <span className="text-[10px] ml-auto" style={{ color: 'var(--text-light)' }}>menciona os participantes</span>
             </button>
           )}
           {filteredMentions.slice(0, 6).map(u => (
@@ -436,9 +436,9 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
               key={u.id}
               onMouseDown={e => { e.preventDefault(); insertMention(u) }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)] transition-colors"
-              style={{ color: 'var(--brand-text)' }}
+              style={{ color: 'var(--text)' }}
             >
-              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                 {getInitials(u.name)}
               </div>
               {u.name}
@@ -452,9 +452,9 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
         <div className="mx-4 mb-2 flex flex-wrap gap-1.5">
           {files.map((f, idx) => (
             <div key={idx} className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
-              <FileText size={11} style={{ color: 'var(--brand-primary)' }} />
-              <span className="max-w-[120px] truncate" style={{ color: 'var(--brand-text)' }}>{f.name}</span>
-              <button onClick={() => removeFile(idx)} className="hover:opacity-70 shrink-0" style={{ color: 'var(--brand-subtle)' }}>
+              <FileText size={11} style={{ color: 'var(--primary)' }} />
+              <span className="max-w-[120px] truncate" style={{ color: 'var(--text)' }}>{f.name}</span>
+              <button onClick={() => removeFile(idx)} className="hover:opacity-70 shrink-0" style={{ color: 'var(--text-light)' }}>
                 <X size={11} />
               </button>
             </div>
@@ -464,11 +464,11 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
 
       {/* Input area — cliente em modo histórico não vê composer */}
       {readOnly ? (
-        <div className="px-4 py-3 border-t text-center text-[11px]" style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
+        <div className="px-4 py-3 border-t text-center text-[11px]" style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>
           Você está visualizando o histórico de mensagens. O envio foi encerrado.
         </div>
       ) : (
-      <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
         {/* Chat de projeto é sempre interno — toggle "Visível ao cliente" removido. */}
 
         <div className="flex gap-2 items-end">
@@ -477,7 +477,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-all shrink-0"
             title="Adicionar anexos"
-            style={{ background: files.length > 0 ? 'var(--primary-soft)' : 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: files.length > 0 ? 'var(--text)' : 'var(--text-muted)' }}
+            style={{ background: files.length > 0 ? 'var(--primary-soft)' : 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: files.length > 0 ? 'var(--text)' : 'var(--text-muted)' }}
           >
             <Paperclip size={15} />
           </button>
@@ -491,20 +491,20 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
             placeholder={isCliente ? 'Escreva uma mensagem...' : 'Escreva uma mensagem... Use @ para mencionar'}
             rows={2}
             className="flex-1 resize-none rounded-lg px-3 py-2 text-sm outline-none transition-colors"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--text)' }}
           />
           <button
             onClick={handleSend}
             disabled={(!input.trim() && files.length === 0) || sending}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-all shrink-0"
             style={(input.trim() || files.length > 0)
-              ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-              : { background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}
+              ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+              : { background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}
           >
             <Send size={15} />
           </button>
         </div>
-        <p className="text-[10px] mt-1.5" style={{ color: 'var(--brand-muted)' }}>
+        <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
           Enter para enviar · Shift+Enter para nova linha · Máx. 10 arquivos por mensagem (20 MB cada)
         </p>
       </div>

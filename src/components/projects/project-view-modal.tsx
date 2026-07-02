@@ -191,9 +191,9 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
   }
 
   const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div className="flex items-start justify-between py-2.5 border-b last:border-0" style={{ borderColor: 'var(--brand-border)' }}>
-      <span className="text-xs shrink-0 w-44" style={{ color: 'var(--brand-subtle)' }}>{label}</span>
-      <span className="text-xs font-semibold text-right ml-2" style={{ color: 'var(--brand-text)' }}>{value ?? '—'}</span>
+    <div className="flex items-start justify-between py-2.5 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+      <span className="text-xs shrink-0 w-44" style={{ color: 'var(--text-light)' }}>{label}</span>
+      <span className="text-xs font-semibold text-right ml-2" style={{ color: 'var(--text)' }}>{value ?? '—'}</span>
     </div>
   )
 
@@ -242,17 +242,17 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }}>
-      <div className="flex flex-col rounded-2xl w-full max-w-4xl max-h-[92vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      <div className="flex flex-col rounded-2xl w-full max-w-4xl max-h-[92vh]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="px-6 pt-5 pb-0 shrink-0">
           <div className="flex items-start justify-between mb-4">
             {loading || !p ? (
-              <p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando projeto...</p>
+              <p className="text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando projeto...</p>
             ) : (
               <div className="flex items-center gap-4 min-w-0">
                 <div className="w-1 h-14 rounded-full shrink-0" style={{ background: bar }} />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--brand-subtle)' }}>{p.code}</span>
+                    <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>{p.code}</span>
                     <span className="text-xs font-bold px-2.5 py-0.5 rounded-full" style={sc}>{p.status_display ?? statusLabel[p.status] ?? p.status}</span>
                     <span className="text-xs font-bold" title={`${Math.round(pct)}% consumido`}>{riskEmoji(pct)} {riskLabel(pct)}</span>
                     {p.generated_aporte && (
@@ -264,7 +264,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                     )}
                   </div>
                   <h2 className="ds-text-h2 leading-tight truncate" style={{ color: 'var(--text)' }}>{p.name}</h2>
-                  {p.customer?.name && <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>{p.customer.name}</p>}
+                  {p.customer?.name && <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>{p.customer.name}</p>}
                 </div>
               </div>
             )}
@@ -276,10 +276,10 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   <ExternalLink size={11} /> Editar
                 </button>
               )}
-              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
           </div>
-          <div className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
             {tabs.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className="px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap"
@@ -292,7 +292,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 
         {loading ? (
           <div className="flex-1 flex items-center justify-center py-16">
-            <p className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
+            <p className="text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Carregando...</p>
           </div>
         ) : !p ? null : (
           <div className="flex-1 overflow-y-auto p-6">
@@ -302,15 +302,15 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
                     { label: isCoordViewer ? 'Horas Vendidas (Coord.)' : 'Horas Vendidas',
-                      value: fmt(cardVendidas, 1) + 'h',  color: 'var(--brand-text)', bg: 'var(--surface-hover)' },
-                    { label: 'Horas Consumidas', value: fmt(cardConsumed, 1) + 'h',       color: 'var(--brand-muted)', bg: 'var(--surface-hover)' },
+                      value: fmt(cardVendidas, 1) + 'h',  color: 'var(--text)', bg: 'var(--surface-hover)' },
+                    { label: 'Horas Consumidas', value: fmt(cardConsumed, 1) + 'h',       color: 'var(--text-muted)', bg: 'var(--surface-hover)' },
                     { label: 'Saldo',            value: fmt(cardSaldo, 1) + 'h',
                       color: cardSaldo < 0 ? 'var(--danger-border)' : 'var(--success-border)',
                       bg: cardSaldo < 0 ? 'var(--danger-bg)' : 'var(--success-bg)' },
                     { label: 'Consultores c/h',  value: String(breakdown.length || (p.consultants?.length ?? 0)), color: 'var(--brand-purple)', bg: 'rgba(139,92,246,0.06)' },
                   ].map(it => (
-                    <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: it.bg, border: '1px solid var(--brand-border)' }}>
-                      <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{it.label}</p>
+                    <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: it.bg, border: '1px solid var(--border)' }}>
+                      <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{it.label}</p>
                       <p className="ds-text-kpi ds-text-numeric" style={{ color: it.color }}>{it.value}</p>
                     </div>
                   ))}
@@ -337,13 +337,13 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   return (
                     <div className="rounded-xl p-4" style={{ background: 'var(--surface-hover)', border: `1px solid ${cBar}33` }}>
                       <div className="flex justify-between items-center mb-3">
-                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Horas Apontáveis</span>
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Horas Apontáveis</span>
                         <span className="text-xs font-bold tabular-nums" style={{ color: cBar }}>{cBank > 0 ? `${Math.round(cPct)}% consumido` : 'Sem horas'}</span>
                       </div>
                       <div className="grid grid-cols-3 gap-2 mb-3 text-center">
-                        <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Vendidas</p><p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmt(cBank, 1)}h</p></div>
-                        <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Consumidas</p><p className="text-sm font-bold" style={{ color: 'var(--brand-muted)' }}>{fmt(cCons, 1)}h</p></div>
-                        <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="text-sm font-bold" style={{ color: cSaldo < 0 ? 'var(--danger-border)' : 'var(--success-border)' }}>{fmt(cSaldo, 1)}h</p></div>
+                        <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Vendidas</p><p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{fmt(cBank, 1)}h</p></div>
+                        <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Consumidas</p><p className="text-sm font-bold" style={{ color: 'var(--text-muted)' }}>{fmt(cCons, 1)}h</p></div>
+                        <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Saldo</p><p className="text-sm font-bold" style={{ color: cSaldo < 0 ? 'var(--danger-border)' : 'var(--success-border)' }}>{fmt(cSaldo, 1)}h</p></div>
                       </div>
                       <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-hover)' }}>
                         <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(cPct, 100)}%`, background: cBar }} />
@@ -365,9 +365,9 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
-                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                      <div className="divide-y px-4" style={{ borderColor: 'var(--brand-border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Identificação</p>
+                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                      <div className="divide-y px-4" style={{ borderColor: 'var(--border)' }}>
                         <Row label="Código" value={<span className="font-mono">{p.code}</span>} />
                         <Row label="Cliente" value={p.customer?.name} />
                         <Row label="Tipo de Serviço" value={p.service_type?.name} />
@@ -387,9 +387,9 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                     </div>
 
                     {/* Detalhes do Contrato — campos herdados do contrato original */}
-                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 mt-4" style={{ color: 'var(--brand-subtle)' }}>Detalhes do Contrato</p>
-                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                      <div className="divide-y px-4" style={{ borderColor: 'var(--brand-border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 mt-4" style={{ color: 'var(--text-light)' }}>Detalhes do Contrato</p>
+                    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                      <div className="divide-y px-4" style={{ borderColor: 'var(--border)' }}>
                         <Row label="Tipo de Alocação"     value={(p as any).tipo_alocacao ?? '—'} />
                         <Row label="Condição de Pagamento" value={(p as any).condicao_pagamento ?? '—'} />
                         <Row label="Percentual Gestão"    value={(p as any).coordinator_hours != null ? `${(p as any).coordinator_hours}%` : '—'} />
@@ -403,17 +403,17 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         <Row label="Executivo de Conta"   value={(p as any).executivo_conta?.name ?? '—'} />
                         <Row label="Vendedor"             value={(p as any).vendedor?.name ?? '—'} />
                         {(p as any).observacoes_contrato && (
-                          <Row label="Observações" value={<span className="text-left whitespace-pre-wrap" style={{ color: 'var(--brand-text)' }}>{(p as any).observacoes_contrato}</span>} />
+                          <Row label="Observações" value={<span className="text-left whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{(p as any).observacoes_contrato}</span>} />
                         )}
                       </div>
                     </div>
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Equipe</p>
-                    <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--brand-border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Equipe</p>
+                    <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--border)' }}>
                       {(p.coordinators?.length ?? 0) > 0 && (
                         <div>
-                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Coordenadores</p>
+                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Coordenadores</p>
                           <div className="flex flex-wrap gap-1.5">{p.coordinators!.map(u => (
                             <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{u.name}</span>
                           ))}</div>
@@ -421,14 +421,14 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                       )}
                       {(p.consultants?.length ?? 0) > 0 && (
                         <div>
-                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Consultores</p>
+                          <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Consultores</p>
                           <div className="flex flex-wrap gap-1.5">{p.consultants!.map(u => (
                             <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(139,92,246,0.10)', color: 'var(--brand-purple)' }}>{u.name}</span>
                           ))}</div>
                         </div>
                       )}
                       {(p.coordinators?.length ?? 0) === 0 && (p.consultants?.length ?? 0) === 0 && (
-                        <p className="text-xs text-center py-3" style={{ color: 'var(--brand-subtle)' }}>Sem equipe cadastrada</p>
+                        <p className="text-xs text-center py-3" style={{ color: 'var(--text-light)' }}>Sem equipe cadastrada</p>
                       )}
                     </div>
                   </div>
@@ -440,31 +440,31 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                 {/* Anexos — oculto p/ coordenador */}
                 {!isCoordRole && (
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Anexos</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Anexos</p>
                   {viewAttachments.length > 0 ? (
                     <div className="space-y-1.5">
                       {viewAttachments.map(att => (
-                        <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
+                        <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>
                           <div className="flex items-center gap-2 min-w-0">
-                            <FileText size={13} className="shrink-0" style={{ color: 'var(--brand-subtle)' }} />
+                            <FileText size={13} className="shrink-0" style={{ color: 'var(--text-light)' }} />
                             <div className="min-w-0">
-                              <p className="text-xs truncate" style={{ color: 'var(--brand-text)' }}>{att.original_name}</p>
-                              <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{att.type ?? 'anexo'}{att.source === 'contract' ? ' · do contrato' : ''}</p>
+                              <p className="text-xs truncate" style={{ color: 'var(--text)' }}>{att.original_name}</p>
+                              <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{att.type ?? 'anexo'}{att.source === 'contract' ? ' · do contrato' : ''}</p>
                             </div>
                           </div>
-                          <button type="button" onClick={() => downloadViewAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}><Download size={13} /></button>
+                          <button type="button" onClick={() => downloadViewAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Download size={13} /></button>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum anexo</p>
+                    <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum anexo</p>
                   )}
                 </div>
                 )}
 
                 {breakdown.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Quem está consumindo horas</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Quem está consumindo horas</p>
                     <div className="space-y-2">
                       {[...breakdown].sort((a, b) => b.total_hours - a.total_hours).slice(0, 5).map((c, i) => {
                         const share = totalBreakdownHours > 0 ? (c.total_hours / totalBreakdownHours) * 100 : 0
@@ -472,7 +472,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         const col = colors[i % colors.length]
                         return (
                           <div key={i} className="flex items-center gap-3">
-                            <span className="text-xs shrink-0 w-28 truncate" style={{ color: 'var(--brand-text)' }}>{c.consultant_name}</span>
+                            <span className="text-xs shrink-0 w-28 truncate" style={{ color: 'var(--text)' }}>{c.consultant_name}</span>
                             <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-hover)' }}>
                               <div className="h-full rounded-full" style={{ width: `${share}%`, background: col }} />
                             </div>
@@ -489,18 +489,18 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
             {tab === 'consultants' && (
               <div className="space-y-4">
                 {breakdown.length === 0 ? (
-                  <p className="text-center text-sm py-12" style={{ color: 'var(--brand-subtle)' }}>Nenhum lançamento de horas encontrado.</p>
+                  <p className="text-center text-sm py-12" style={{ color: 'var(--text-light)' }}>Nenhum lançamento de horas encontrado.</p>
                 ) : (
                   <>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                       {[
                         { label: 'Consultores', value: String(breakdown.length), color: 'var(--brand-purple)' },
-                        { label: 'Total Horas', value: fmt(totalBreakdownHours, 1) + 'h', color: 'var(--brand-text)' },
+                        { label: 'Total Horas', value: fmt(totalBreakdownHours, 1) + 'h', color: 'var(--text)' },
                         { label: 'Aprovadas',   value: fmt(breakdown.reduce((s, c) => s + c.approved_hours, 0), 1) + 'h', color: 'var(--success-border)' },
                         { label: 'Custo Total', value: fmtBRL(breakdown.reduce((s, c) => s + c.cost, 0)), color: 'var(--primary)' },
                       ].map(it => (
-                        <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
-                          <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{it.label}</p>
+                        <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                          <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{it.label}</p>
                           <p className="text-lg font-bold tabular-nums" style={{ color: it.color }}>{it.value}</p>
                         </div>
                       ))}
@@ -511,20 +511,20 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         const colors = ['var(--primary)', '#a78bfa', '#22c55e', '#f59e0b', '#f87171', '#34d399', '#60a5fa']
                         const col = colors[i % colors.length]
                         return (
-                          <div key={i} className="rounded-xl p-4" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
+                          <div key={i} className="rounded-xl p-4" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>{c.consultant_name}</span>
+                              <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{c.consultant_name}</span>
                               <span className="text-xs font-bold tabular-nums" style={{ color: col }}>{fmt(c.total_hours, 1)}h · {Math.round(share)}%</span>
                             </div>
                             <div className="w-full h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--surface-hover)' }}>
                               <div className="h-full rounded-full" style={{ width: `${share}%`, background: col }} />
                             </div>
                             <div className={`grid gap-2 text-[10px] ${isCoordRole ? 'grid-cols-2' : 'grid-cols-4'}`}>
-                              <div><span style={{ color: 'var(--brand-subtle)' }}>Aprovadas</span><br /><span style={{ color: 'var(--success-border)' }}>{fmt(c.approved_hours, 1)}h</span></div>
-                              <div><span style={{ color: 'var(--brand-subtle)' }}>Pendentes</span><br /><span style={{ color: c.pending_hours > 0 ? 'var(--warning-border)' : 'var(--brand-subtle)' }}>{fmt(c.pending_hours, 1)}h</span></div>
+                              <div><span style={{ color: 'var(--text-light)' }}>Aprovadas</span><br /><span style={{ color: 'var(--success-border)' }}>{fmt(c.approved_hours, 1)}h</span></div>
+                              <div><span style={{ color: 'var(--text-light)' }}>Pendentes</span><br /><span style={{ color: c.pending_hours > 0 ? 'var(--warning-border)' : 'var(--text-light)' }}>{fmt(c.pending_hours, 1)}h</span></div>
                               {!isCoordRole && <>
-                              <div><span style={{ color: 'var(--brand-subtle)' }}>Taxa/h</span><br /><span style={{ color: 'var(--brand-muted)' }}>{fmtBRL(c.consultant_hourly_rate)}</span></div>
-                              <div><span style={{ color: 'var(--brand-subtle)' }}>Custo</span><br /><span style={{ color: 'var(--primary)' }}>{fmtBRL(c.cost)}</span></div>
+                              <div><span style={{ color: 'var(--text-light)' }}>Taxa/h</span><br /><span style={{ color: 'var(--text-muted)' }}>{fmtBRL(c.consultant_hourly_rate)}</span></div>
+                              <div><span style={{ color: 'var(--text-light)' }}>Custo</span><br /><span style={{ color: 'var(--primary)' }}>{fmtBRL(c.cost)}</span></div>
                               </>}
                             </div>
                           </div>
@@ -539,19 +539,19 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
             {tab === 'timesheets' && (
               <div className="space-y-4">
                 {tsLoading ? (
-                  <p className="text-center text-sm animate-pulse py-12" style={{ color: 'var(--brand-subtle)' }}>Carregando apontamentos...</p>
+                  <p className="text-center text-sm animate-pulse py-12" style={{ color: 'var(--text-light)' }}>Carregando apontamentos...</p>
                 ) : timesheets.length === 0 ? (
-                  <p className="text-center text-sm py-12" style={{ color: 'var(--brand-subtle)' }}>Nenhum apontamento encontrado.</p>
+                  <p className="text-center text-sm py-12" style={{ color: 'var(--text-light)' }}>Nenhum apontamento encontrado.</p>
                 ) : (
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {[
-                        { label: 'Total de Registros', value: String(timesheets.length), color: 'var(--brand-text)' },
+                        { label: 'Total de Registros', value: String(timesheets.length), color: 'var(--text)' },
                         { label: 'Aprovados', value: String(timesheets.filter(t => t.status === 'approved').length), color: 'var(--success-border)' },
                         { label: 'Pendentes', value: String(timesheets.filter(t => t.status === 'pending').length),  color: 'var(--warning-border)' },
                       ].map(it => (
-                        <div key={it.label} className="rounded-xl p-3 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
-                          <p className="text-[10px] mb-1 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{it.label}</p>
+                        <div key={it.label} className="rounded-xl p-3 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                          <p className="text-[10px] mb-1 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{it.label}</p>
                           <p className="ds-text-kpi" style={{ color: it.color }}>{it.value}</p>
                         </div>
                       ))}
@@ -560,16 +560,16 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                       {timesheets.map(ts => {
                         const sColor = tsStatusColor[ts.status] ?? '#94a3b8'
                         return (
-                          <div key={ts.id} className="flex items-start gap-3 rounded-xl px-4 py-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
+                          <div key={ts.id} className="flex items-start gap-3 rounded-xl px-4 py-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>{ts.user?.name ?? '—'}</span>
+                                <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{ts.user?.name ?? '—'}</span>
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${sColor}18`, color: sColor }}>{ts.status_display}</span>
                               </div>
-                              {ts.observation && <p className="text-xs line-clamp-2" style={{ color: 'var(--brand-muted)' }}>{previewText(ts.observation)}</p>}
+                              {ts.observation && <p className="text-xs line-clamp-2" style={{ color: 'var(--text-muted)' }}>{previewText(ts.observation)}</p>}
                             </div>
                             <div className="text-right shrink-0">
-                              <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{fmtDate(ts.date)}</p>
+                              <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{fmtDate(ts.date)}</p>
                               <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{ts.effort_hours}h</p>
                             </div>
                           </div>
@@ -584,31 +584,31 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
             {tab === 'aportes' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: 'var(--brand-subtle)' }}>
+                  <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: 'var(--text-light)' }}>
                     Aportes do projeto
                   </p>
-                  <span className="text-[11px]" style={{ color: 'var(--brand-subtle)' }}>
+                  <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>
                     Para criar/editar/excluir, acesse Gestão de Projetos
                   </span>
                 </div>
                 {aportesLoading && (
-                  <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Carregando aportes…</p>
+                  <p className="text-xs text-center py-8" style={{ color: 'var(--text-light)' }}>Carregando aportes…</p>
                 )}
                 {!aportesLoading && aportesList.length === 0 && (
-                  <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum aporte registrado.</p>
+                  <p className="text-xs text-center py-8" style={{ color: 'var(--text-light)' }}>Nenhum aporte registrado.</p>
                 )}
                 {!aportesLoading && aportesList.length > 0 && (
-                  <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
+                  <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
                     <table className="w-full text-xs">
                       <thead style={{ background: 'var(--surface-sunken)' }}>
                         <tr>
-                          <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--brand-subtle)' }}>Data</th>
-                          <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--brand-subtle)' }}>Motivo</th>
-                          <th className="text-right px-3 py-2 font-medium" style={{ color: 'var(--brand-subtle)' }}>Horas</th>
-                          <th className="text-right px-3 py-2 font-medium" style={{ color: 'var(--brand-subtle)' }}>Valor/h</th>
-                          <th className="text-right px-3 py-2 font-medium" style={{ color: 'var(--brand-subtle)' }}>Total</th>
-                          <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--brand-subtle)' }}>Status</th>
-                          <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--brand-subtle)' }}>Autor</th>
+                          <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Data</th>
+                          <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Motivo</th>
+                          <th className="text-right px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Horas</th>
+                          <th className="text-right px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Valor/h</th>
+                          <th className="text-right px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Total</th>
+                          <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Status</th>
+                          <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--text-light)' }}>Autor</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -619,13 +619,13 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                           const motivoLabel: Record<string, string> = { aporte: 'Aporte', excedentes: 'Excedentes', absorvidas: 'Absorvidas' }
                           const isNovo = a.kanban_status === 'novo_contrato'
                           return (
-                            <tr key={a.id} style={{ borderTop: '1px solid var(--brand-border)' }}>
-                              <td className="px-3 py-2" style={{ color: 'var(--brand-text)' }}>
+                            <tr key={a.id} style={{ borderTop: '1px solid var(--border)' }}>
+                              <td className="px-3 py-2" style={{ color: 'var(--text)' }}>
                                 {a.contributed_at ? new Date(a.contributed_at).toLocaleDateString('pt-BR') : '—'}
                               </td>
-                              <td className="px-3 py-2" style={{ color: 'var(--brand-text)' }}>{motivoLabel[a.motivo] ?? a.motivo}</td>
-                              <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--brand-text)' }}>{h.toFixed(1)}h</td>
-                              <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--brand-text)' }}>{r.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 })}</td>
+                              <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{motivoLabel[a.motivo] ?? a.motivo}</td>
+                              <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--text)' }}>{h.toFixed(1)}h</td>
+                              <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--text)' }}>{r.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 })}</td>
                               <td className="px-3 py-2 text-right tabular-nums font-semibold" style={{ color: 'var(--success-border)' }}>{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                               <td className="px-3 py-2">
                                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
@@ -636,7 +636,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                                   {isNovo ? 'Em revisão' : 'Confirmado'}
                                 </span>
                               </td>
-                              <td className="px-3 py-2" style={{ color: 'var(--brand-subtle)' }}>{a.contributed_by?.name ?? a.contributed_by ?? '—'}</td>
+                              <td className="px-3 py-2" style={{ color: 'var(--text-light)' }}>{a.contributed_by?.name ?? a.contributed_by ?? '—'}</td>
                             </tr>
                           )
                         })}
@@ -685,16 +685,16 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   {[
                     { label: 'Valor do Projeto',        value: fmtBRL(p.project_value),                          color: 'var(--primary)' },
                     { label: 'Valor Total (c/aportes)', value: fmtBRL(p.total_project_value ?? p.project_value), color: 'var(--primary)' },
-                    { label: 'Taxa / Hora',             value: fmtBRL(p.hourly_rate),                            color: 'var(--brand-text)' },
+                    { label: 'Taxa / Hora',             value: fmtBRL(p.hourly_rate),                            color: 'var(--text)' },
                   ].map(it => (
-                    <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
-                      <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{it.label}</p>
+                    <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                      <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{it.label}</p>
                       <p className="text-lg font-bold tabular-nums" style={{ color: it.color }}>{it.value}</p>
                     </div>
                   ))}
                 </div>
-                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                  <div className="divide-y px-4" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                  <div className="divide-y px-4" style={{ borderColor: 'var(--border)' }}>
                     <Row label="Horas Contratadas" value={p.sold_hours != null ? `${fmt(p.sold_hours, 1)}h` : '—'} />
                     <Row label="Total Disponível" value={`${fmt(totalAvail, 1)}h`} />
                     <Row label="Saldo Atual" value={<span style={{ color: (p.general_hours_balance ?? 0) < 0 ? 'var(--danger-border)' : 'var(--success-border)' }}>{fmt(p.general_hours_balance, 1)}h</span>} />
@@ -708,7 +708,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
             {tab === 'cost' && !isCoordRole && (
               <div className="space-y-4">
                 {!costSummary ? (
-                  <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum dado de custo disponível.</p>
+                  <p className="text-xs text-center py-8" style={{ color: 'var(--text-light)' }}>Nenhum dado de custo disponível.</p>
                 ) : (() => {
                   const { project_info: pi, hours_summary: hs, cost_calculation: cc, consultant_breakdown: cb } = costSummary
                   const isPositive = cc.margin >= 0
@@ -734,9 +734,9 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                             { label: 'Aportes',        value: fmtBRL(cc.aportes_total) },
                             { label: 'Receita Total',  value: fmtBRL(cc.receita_total), highlight: true },
                           ].map(c => (
-                            <div key={c.label} className="rounded-lg p-2.5" style={{ background: 'var(--brand-bg)', border: `1px solid ${c.highlight ? 'var(--ring)' : 'var(--brand-border)'}` }}>
-                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p>
-                              <p className="text-sm font-bold tabular-nums" style={{ color: c.highlight ? 'var(--primary)' : 'var(--brand-text)' }}>{c.value}</p>
+                            <div key={c.label} className="rounded-lg p-2.5" style={{ background: 'var(--bg)', border: `1px solid ${c.highlight ? 'var(--ring)' : 'var(--border)'}` }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>{c.label}</p>
+                              <p className="text-sm font-bold tabular-nums" style={{ color: c.highlight ? 'var(--primary)' : 'var(--text)' }}>{c.value}</p>
                             </div>
                           ))}
                         </div>
@@ -753,9 +753,9 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                             { label: 'Custo Operacional', value: fmtBRL(cc.custo_operacional) },
                             { label: 'Custo Total',        value: fmtBRL(cc.custo_total), highlight: true },
                           ].map(c => (
-                            <div key={c.label} className="rounded-lg p-2.5" style={{ background: 'var(--brand-bg)', border: `1px solid ${c.highlight ? 'var(--warning-border)' : 'var(--brand-border)'}` }}>
-                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p>
-                              <p className="text-sm font-bold tabular-nums" style={{ color: c.highlight ? 'var(--warning-border)' : 'var(--brand-text)' }}>{c.value}</p>
+                            <div key={c.label} className="rounded-lg p-2.5" style={{ background: 'var(--bg)', border: `1px solid ${c.highlight ? 'var(--warning-border)' : 'var(--border)'}` }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>{c.label}</p>
+                              <p className="text-sm font-bold tabular-nums" style={{ color: c.highlight ? 'var(--warning-border)' : 'var(--text)' }}>{c.value}</p>
                             </div>
                           ))}
                         </div>
@@ -766,16 +766,16 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: marginColor }}>
                           <BarChart2 size={11} />Resultado
                         </p>
-                        <p className="text-[10px] tabular-nums mb-3" style={{ color: 'var(--brand-subtle)' }}>
+                        <p className="text-[10px] tabular-nums mb-3" style={{ color: 'var(--text-light)' }}>
                           {fmtBRL(cc.receita_total)} <span className="opacity-50">−</span> {fmtBRL(cc.custo_total)} <span className="opacity-50">=</span> <span style={{ color: marginColor }}>{fmtBRL(cc.margin)}</span>
                         </p>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="rounded-lg p-3.5" style={{ background: 'var(--brand-bg)', border: `1px solid ${isPositive ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
-                            <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Margem R$</p>
+                          <div className="rounded-lg p-3.5" style={{ background: 'var(--bg)', border: `1px solid ${isPositive ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Margem R$</p>
                             <p className="ds-text-kpi ds-text-numeric" style={{ color: marginColor }}>{fmtBRL(cc.margin)}</p>
                           </div>
-                          <div className="rounded-lg p-3.5" style={{ background: 'var(--brand-bg)', border: `1px solid ${isPositive ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
-                            <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Margem %</p>
+                          <div className="rounded-lg p-3.5" style={{ background: 'var(--bg)', border: `1px solid ${isPositive ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Margem %</p>
                             <p className="ds-text-kpi ds-text-numeric" style={{ color: marginColor }}>{cc.margin_percentage.toFixed(1)}%</p>
                           </div>
                         </div>
@@ -788,12 +788,12 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                             <UserCheck size={11} />Coordenador
                           </p>
                           <div className="grid grid-cols-2 gap-3">
-                            <div className="rounded-lg p-2.5" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>% da Margem</p>
+                            <div className="rounded-lg p-2.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>% da Margem</p>
                               <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-purple)' }}>{cc.coordinator_percentage.toFixed(1)}%</p>
                             </div>
-                            <div className="rounded-lg p-2.5" style={{ background: 'var(--brand-bg)', border: '1px solid rgba(167,139,250,0.35)' }}>
-                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor a Receber</p>
+                            <div className="rounded-lg p-2.5" style={{ background: 'var(--bg)', border: '1px solid rgba(167,139,250,0.35)' }}>
+                              <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Valor a Receber</p>
                               <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-purple)' }}>{fmtBRL(cc.valor_coordenador)}</p>
                             </div>
                           </div>
@@ -801,69 +801,69 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                       )}
 
                       {/* Bloco 5 — HORAS */}
-                      <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Horas</p>
+                      <div className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Horas</p>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3">
                           {[
-                            { label: 'Iniciais',    value: `${hoursIniciais.toFixed(1)}h`,          color: 'var(--brand-text)' },
-                            { label: 'Apontadas',   value: `${hs.total_logged_hours.toFixed(1)}h`,  color: 'var(--brand-text)' },
-                            { label: 'Consumido',   value: `${horasConsumidas.toFixed(1)}h`,        color: 'var(--brand-text)' },
+                            { label: 'Iniciais',    value: `${hoursIniciais.toFixed(1)}h`,          color: 'var(--text)' },
+                            { label: 'Apontadas',   value: `${hs.total_logged_hours.toFixed(1)}h`,  color: 'var(--text)' },
+                            { label: 'Consumido',   value: `${horasConsumidas.toFixed(1)}h`,        color: 'var(--text)' },
                             { label: '% Uso',       value: `${pctUso.toFixed(1)}%`,                 color: hoursBarColor },
-                            { label: 'Restantes',   value: `${horasRestantes.toFixed(1)}h`,         color: horasRestantes < 10 ? 'var(--danger-border)' : 'var(--brand-text)' },
+                            { label: 'Restantes',   value: `${horasRestantes.toFixed(1)}h`,         color: horasRestantes < 10 ? 'var(--danger-border)' : 'var(--text)' },
                           ].map(c => (
                             <div key={c.label}>
-                              <p className="text-[9px]" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p>
+                              <p className="text-[9px]" style={{ color: 'var(--text-light)' }}>{c.label}</p>
                               <p className="font-bold tabular-nums mt-0.5 text-xs" style={{ color: c.color }}>{c.value}</p>
                             </div>
                           ))}
                         </div>
-                        <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--brand-border)' }}>
+                        <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--border)' }}>
                           <div className="h-1.5 rounded-full transition-all" style={{ width: `${pctUso}%`, background: hoursBarColor }} />
                         </div>
-                        <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{pctUso.toFixed(1)}% das horas utilizadas</p>
+                        <p className="text-[10px] tabular-nums" style={{ color: 'var(--text-light)' }}>{pctUso.toFixed(1)}% das horas utilizadas</p>
                       </div>
 
                       {/* Bloco 6 — HISTÓRICO */}
                       {showHistorico && (
-                        <div className="rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-1" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
-                          <p className="text-[9px] font-semibold uppercase tracking-wider w-full mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Saldo do sistema anterior</p>
-                          <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>Horas iniciais: <strong>{(pi.initial_hours_balance ?? 0) < 0 ? '-' : ''}{Math.abs(pi.initial_hours_balance ?? 0).toFixed(1)}h</strong></span>
-                          <span className="text-xs tabular-nums" style={{ color: 'var(--brand-subtle)' }}>Custo inicial: <strong>{fmtBRL(pi.initial_cost ?? 0)}</strong></span>
+                        <div className="rounded-xl px-4 py-3 flex flex-wrap gap-x-6 gap-y-1" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                          <p className="text-[9px] font-semibold uppercase tracking-wider w-full mb-0.5" style={{ color: 'var(--text-light)' }}>Saldo do sistema anterior</p>
+                          <span className="text-xs tabular-nums" style={{ color: 'var(--text-light)' }}>Horas iniciais: <strong>{(pi.initial_hours_balance ?? 0) < 0 ? '-' : ''}{Math.abs(pi.initial_hours_balance ?? 0).toFixed(1)}h</strong></span>
+                          <span className="text-xs tabular-nums" style={{ color: 'var(--text-light)' }}>Custo inicial: <strong>{fmtBRL(pi.initial_cost ?? 0)}</strong></span>
                         </div>
                       )}
 
                       {/* Tabela de custo por consultor */}
                       {cb.length > 0 && (
-                        <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
-                          <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}>
-                            <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}>
+                        <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
+                          <div className="px-4 py-3" style={{ background: 'var(--surface)' }}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}>
                               <UserCheck size={11} />Custo por Consultor
                             </p>
                           </div>
                           <table className="w-full text-xs">
-                            <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-bg)' }}>
-                              <tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>
+                            <thead className="sticky top-0 z-10" style={{ background: 'var(--bg)' }}>
+                              <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
                                 {['Consultor','Hs Total','Aprovadas','Pendentes','Taxa/h','Custo'].map(h => (
-                                  <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                                  <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{h}</th>
                                 ))}
                               </tr>
                             </thead>
                             <tbody>
                               {cb.map((c, i) => (
-                                <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                                  <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--brand-text)' }}>{c.consultant_name}</td>
-                                  <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-text)' }}>{c.total_hours.toFixed(1)}h</td>
+                                <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--text)' }}>{c.consultant_name}</td>
+                                  <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--text)' }}>{c.total_hours.toFixed(1)}h</td>
                                   <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--success-border)' }}>{c.approved_hours.toFixed(1)}h</td>
                                   <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--warning-border)' }}>{c.pending_hours.toFixed(1)}h</td>
-                                  <td className="px-3 py-2.5 tabular-nums text-[11px]" style={{ color: 'var(--brand-muted)' }}>
+                                  <td className="px-3 py-2.5 tabular-nums text-[11px]" style={{ color: 'var(--text-muted)' }}>
                                     {c.consultant_hourly_rate != null ? fmtBRL(c.consultant_hourly_rate) : '—'}
                                     {c.consultant_rate_type === 'monthly' && <span className="ml-1 opacity-60">÷160</span>}
                                   </td>
-                                  <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--brand-text)' }}>{fmtBRL(c.cost)}</td>
+                                  <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--text)' }}>{fmtBRL(c.cost)}</td>
                                 </tr>
                               ))}
-                              <tr style={{ background: 'var(--primary-soft)', borderTop: '1px solid var(--brand-border)' }}>
-                                <td className="px-3 py-2.5 font-bold text-[11px] uppercase" style={{ color: 'var(--brand-subtle)' }} colSpan={5}>Total Operacional</td>
+                              <tr style={{ background: 'var(--primary-soft)', borderTop: '1px solid var(--border)' }}>
+                                <td className="px-3 py-2.5 font-bold text-[11px] uppercase" style={{ color: 'var(--text-light)' }} colSpan={5}>Total Operacional</td>
                                 <td className="px-3 py-2.5 font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtBRL(cc.custo_operacional)}</td>
                               </tr>
                             </tbody>
@@ -878,8 +878,8 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
           </div>
         )}
 
-        <div className="flex justify-end px-6 py-3 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+        <div className="flex justify-end px-6 py-3 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Fechar</button>
         </div>
       </div>
       {showEdit && p && (
@@ -1088,17 +1088,17 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
     }
   }
 
-  const iStyle: React.CSSProperties = { width: '100%', background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', borderRadius: '0.625rem', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', color: 'var(--brand-text)', outline: 'none' }
-  const lStyle: React.CSSProperties = { fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--brand-subtle)', marginBottom: '0.375rem', display: 'block' }
+  const iStyle: React.CSSProperties = { width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '0.625rem', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', color: 'var(--text)', outline: 'none' }
+  const lStyle: React.CSSProperties = { fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-light)', marginBottom: '0.375rem', display: 'block' }
   const SecTitle = ({ children }: { children: React.ReactNode }) => (
-    <p className="text-[10px] font-semibold uppercase tracking-wider pt-3 pb-2" style={{ color: 'var(--brand-subtle)', borderTop: '1px solid var(--brand-border)' }}>{children}</p>
+    <p className="text-[10px] font-semibold uppercase tracking-wider pt-3 pb-2" style={{ color: 'var(--text-light)', borderTop: '1px solid var(--border)' }}>{children}</p>
   )
   const Toggle2 = ({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) => (
-    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
       <button type="button" onClick={() => onChange(!checked)} className="relative w-10 h-5 rounded-full transition-colors shrink-0" style={{ background: checked ? 'var(--success-border)' : 'var(--border-strong)' }}>
         <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[var(--surface)] transition-transform" style={{ transform: checked ? 'translateX(20px)' : 'translateX(0)' }} />
       </button>
-      <span className="text-xs" style={{ color: 'var(--brand-text)' }}>{label}</span>
+      <span className="text-xs" style={{ color: 'var(--text)' }}>{label}</span>
     </div>
   )
   const STATUS_OPTS = [
@@ -1114,18 +1114,18 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
-      <div className="flex flex-col rounded-2xl w-full max-w-5xl max-h-[94vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--primary-soft)' }}>
-        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="flex flex-col rounded-2xl w-full max-w-5xl max-h-[94vh]" style={{ background: 'var(--surface)', border: '1px solid var(--primary-soft)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{d.code}</p>
-            <h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>Editar Projeto</h3>
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>{d.code}</p>
+            <h3 className="text-base font-bold" style={{ color: 'var(--text)' }}>Editar Projeto</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Identificação</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Identificação</p>
               <div><label style={lStyle}>Nome do Projeto *</label><input value={form.name} onChange={setF('name')} style={iStyle} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label style={lStyle}>Status</label><select value={form.status} onChange={setF('status')} style={iStyle}>{STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
@@ -1148,18 +1148,18 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                 {(projAttachments.length > 0 || pendingAttach.length > 0) ? (
                   <div className="space-y-1.5 mb-2">
                     {projAttachments.map(att => (
-                      <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
+                      <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>
                         <div className="flex items-center gap-2 min-w-0">
-                          <FileText size={13} className="shrink-0" style={{ color: 'var(--brand-subtle)' }} />
+                          <FileText size={13} className="shrink-0" style={{ color: 'var(--text-light)' }} />
                           <div className="min-w-0">
-                            <p className="text-xs truncate" style={{ color: 'var(--brand-text)' }}>{att.original_name}</p>
-                            <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{att.type ?? 'anexo'}{att.size != null ? ` · ${fmtAttSize(att.size)}` : ''}{att.source === 'contract' ? ' · do contrato' : ''}</p>
+                            <p className="text-xs truncate" style={{ color: 'var(--text)' }}>{att.original_name}</p>
+                            <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{att.type ?? 'anexo'}{att.size != null ? ` · ${fmtAttSize(att.size)}` : ''}{att.source === 'contract' ? ' · do contrato' : ''}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => downloadProjAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}><Download size={13} /></button>
+                          <button type="button" onClick={() => downloadProjAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Download size={13} /></button>
                           {att.source !== 'contract' && (
-                            <button type="button" onClick={() => deleteProjAtt(att)} title="Remover" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}><Trash2 size={13} /></button>
+                            <button type="button" onClick={() => deleteProjAtt(att)} title="Remover" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Trash2 size={13} /></button>
                           )}
                         </div>
                       </div>
@@ -1167,22 +1167,22 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                     {pendingAttach.map((pf, i) => (
                       <div key={`pend-${i}`} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
                         <div className="min-w-0">
-                          <p className="text-xs truncate" style={{ color: 'var(--brand-text)' }}>{pf.file.name}</p>
-                          <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{pf.type} · aguardando salvar</p>
+                          <p className="text-xs truncate" style={{ color: 'var(--text)' }}>{pf.file.name}</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{pf.type} · aguardando salvar</p>
                         </div>
-                        <button type="button" onClick={() => setPendingAttach(p => p.filter((_, j) => j !== i))} className="p-1 shrink-0" style={{ color: 'var(--brand-subtle)' }}><X size={12} /></button>
+                        <button type="button" onClick={() => setPendingAttach(p => p.filter((_, j) => j !== i))} className="p-1 shrink-0" style={{ color: 'var(--text-light)' }}><X size={12} /></button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[11px] italic mb-2" style={{ color: 'var(--brand-subtle)' }}>Nenhum anexo</p>
+                  <p className="text-[11px] italic mb-2" style={{ color: 'var(--text-light)' }}>Nenhum anexo</p>
                 )}
                 <input ref={attachFileRef} type="file" className="hidden"
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
                   onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingAttach(p => [...p, { file: f, type: 'proposta' }]); e.target.value = '' } }} />
                 <button type="button" onClick={() => attachFileRef.current?.click()}
                   className="w-full py-3 rounded-lg border-2 border-dashed text-xs transition-colors hover:border-[var(--primary)]"
-                  style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>
                   Clique para adicionar anexo
                 </button>
               </div>
@@ -1244,7 +1244,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                 </div>
                 </>)}
               </div>
-              <div className="grid grid-cols-2 gap-3 rounded-xl p-3" style={{ border: '1px solid var(--brand-border)', background: 'var(--surface-hover)' }}>
+              <div className="grid grid-cols-2 gap-3 rounded-xl p-3" style={{ border: '1px solid var(--border)', background: 'var(--surface-hover)' }}>
                 <div className="col-span-2"><label style={{ ...lStyle, marginBottom: 0 }}>Histórico do sistema anterior</label></div>
                 <div><label style={lStyle}>Saldo Inicial de Horas</label><input type="number" value={form.initial_hours_balance} onChange={setF('initial_hours_balance')} style={iStyle} placeholder="0" step="0.5" /></div>
                 <div><label style={lStyle}>Custo Inicial (R$)</label><input type="number" value={form.initial_cost} onChange={setF('initial_cost')} style={iStyle} placeholder="0.00" step="0.01" /></div>
@@ -1261,7 +1261,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
 
               <SecTitle>Política de Despesas e Apontamentos</SecTitle>
               <div className="grid grid-cols-2 gap-3">
-                <div><label style={lStyle}>Valor Máx. por Consultor (R$)</label><input type="number" value={form.max_expense_per_consultant} onChange={setF('max_expense_per_consultant')} style={iStyle} placeholder="Ilimitado" min="0" step="0.01" /><p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Vazio = ilimitado</p></div>
+                <div><label style={lStyle}>Valor Máx. por Consultor (R$)</label><input type="number" value={form.max_expense_per_consultant} onChange={setF('max_expense_per_consultant')} style={iStyle} placeholder="Ilimitado" min="0" step="0.01" /><p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Vazio = ilimitado</p></div>
                 <div><label style={lStyle}>Prazo para Lançamento (dias)</label><input type="number" value={form.timesheet_retroactive_limit_days} onChange={setF('timesheet_retroactive_limit_days')} style={iStyle} placeholder="Padrão global" min="0" max="365" /></div>
               </div>
               <Toggle2 checked={form.allow_negative_balance} onChange={v => setForm(p => ({ ...p, allow_negative_balance: v }))} label="Permitir saldo negativo de horas" />
@@ -1284,7 +1284,7 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                 return (
                   <div className="rounded-xl p-3 mt-2" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
                     <label style={lStyle} className="block mb-1">Gerenciado por outro coordenador</label>
-                    <p className="text-[10px] mb-2" style={{ color: 'var(--brand-subtle)' }}>
+                    <p className="text-[10px] mb-2" style={{ color: 'var(--text-light)' }}>
                       Ao selecionar um coordenador, o card sai da fila de sustentação e migra pra fila dele.
                       O projeto também some das abas Apontamentos/Despesas/Aprovações do Portal de Sustentação.
                     </p>
@@ -1302,8 +1302,8 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
             </div>
 
             <div className="flex flex-col">
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Equipe Alocada</p>
-              <div className="flex gap-1 mb-3 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Equipe Alocada</p>
+              <div className="flex gap-1 mb-3 border-b" style={{ borderColor: 'var(--border)' }}>
                 {([['coord','Coordenadores',form.coordinator_ids.length],['consult','Consultores',form.consultant_ids.length],['group','Grupos',form.consultant_group_ids.length]] as const).map(([id,label,count]) => (
                   <button key={id} onClick={() => { setTeamTab(id); setTeamSearch('') }}
                     className="px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap"
@@ -1315,13 +1315,13 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
               {teamTab !== 'coord' && (
                 <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)} placeholder="Buscar..."
                   className="w-full text-xs px-3 py-2 rounded-xl outline-none mb-2"
-                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }} />
               )}
-              <div className="flex-1 overflow-y-auto space-y-1 rounded-xl p-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', maxHeight: 520 }}>
+              <div className="flex-1 overflow-y-auto space-y-1 rounded-xl p-2" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', maxHeight: 520 }}>
                 {teamTab === 'coord' && (
                   <div className="px-1 py-1">
                     {form.coordinator_ids.length === 0 ? (
-                      <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum coordenador definido.</p>
+                      <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum coordenador definido.</p>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
                         {form.coordinator_ids.map(cid => {
@@ -1330,31 +1330,31 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
                         })}
                       </div>
                     )}
-                    <p className="text-[10px] mt-3 leading-relaxed" style={{ color: 'var(--brand-subtle)' }}>🔒 O coordenador é definido no Kanban de Contratos e não pode ser editado aqui.</p>
+                    <p className="text-[10px] mt-3 leading-relaxed" style={{ color: 'var(--text-light)' }}>🔒 O coordenador é definido no Kanban de Contratos e não pode ser editado aqui.</p>
                   </div>
                 )}
                 {teamTab === 'consult' && filteredConsults.map(c => {
                   const sel = form.consultant_ids.includes(c.id)
                   return <button key={c.id} onClick={() => setForm(p => ({ ...p, consultant_ids: toggleId(p.consultant_ids, c.id) }))} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ background: sel ? 'rgba(139,92,246,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(139,92,246,0.25)' : 'transparent'}` }}>
-                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>{sel && <Check size={10} style={{ color: 'var(--brand-purple)' }} />}</div>
-                    <span className="text-xs" style={{ color: sel ? 'var(--brand-purple)' : 'var(--brand-text)' }}>{c.name}</span>
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(139,92,246,0.2)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>{sel && <Check size={10} style={{ color: 'var(--brand-purple)' }} />}</div>
+                    <span className="text-xs" style={{ color: sel ? 'var(--brand-purple)' : 'var(--text)' }}>{c.name}</span>
                   </button>
                 })}
                 {teamTab === 'group' && filteredGroups.map(g => {
                   const sel = form.consultant_group_ids.includes(g.id)
                   return <button key={g.id} onClick={() => setForm(p => ({ ...p, consultant_group_ids: toggleId(p.consultant_group_ids, g.id) }))} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ background: sel ? 'var(--warning-bg)' : 'transparent', border: `1px solid ${sel ? 'var(--warning-border)' : 'transparent'}` }}>
-                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'var(--warning-bg)' : 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>{sel && <Check size={10} style={{ color: 'var(--warning-border)' }} />}</div>
-                    <span className="text-xs" style={{ color: sel ? 'var(--warning-border)' : 'var(--brand-text)' }}>{g.name}</span>
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'var(--warning-bg)' : 'var(--surface-hover)', border: '1px solid var(--border)' }}>{sel && <Check size={10} style={{ color: 'var(--warning-border)' }} />}</div>
+                    <span className="text-xs" style={{ color: sel ? 'var(--warning-border)' : 'var(--text)' }}>{g.name}</span>
                   </button>
                 })}
-                {teamTab === 'consult' && filteredConsults.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>}
-                {teamTab === 'group' && filteredGroups.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>}
+                {teamTab === 'consult' && filteredConsults.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>}
+                {teamTab === 'group' && filteredGroups.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>}
               </div>
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
           <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: saving ? 'var(--primary-soft)' : 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
@@ -1364,16 +1364,16 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
       {/* Fluxo de troca de integração Movidesk (modais in-app) */}
       {movideskConflict && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
-          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text)' }}>Integração Movidesk</p>
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>Integração Movidesk</p>
 
             {movideskStep === 'confirm' && (
               <>
-                <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--brand-muted)' }}>
-                  Cliente já tem a integração ativa em <strong style={{ color: 'var(--brand-text)' }}>{movideskConflict.current?.code ?? ''} {movideskConflict.current?.name ?? ''}</strong>. Deseja mudar a integração para este projeto?
+                <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--text-muted)' }}>
+                  Cliente já tem a integração ativa em <strong style={{ color: 'var(--text)' }}>{movideskConflict.current?.code ?? ''} {movideskConflict.current?.name ?? ''}</strong>. Deseja mudar a integração para este projeto?
                 </p>
                 <div className="flex items-center justify-end gap-3">
-                  <button onClick={() => setMovideskConflict(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+                  <button onClick={() => setMovideskConflict(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
                   <button onClick={() => setMovideskStep('migrate')} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}>Sim, mudar</button>
                 </div>
               </>
@@ -1381,11 +1381,11 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
 
             {movideskStep === 'migrate' && (
               <>
-                <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--brand-muted)' }}>
-                  Deseja migrar os apontamentos de origem Movidesk de <strong style={{ color: 'var(--brand-text)' }}>{movideskConflict.current?.code ?? ''} {movideskConflict.current?.name ?? ''}</strong> para este projeto? (somente os apontamentos importados do Movidesk são movidos)
+                <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--text-muted)' }}>
+                  Deseja migrar os apontamentos de origem Movidesk de <strong style={{ color: 'var(--text)' }}>{movideskConflict.current?.code ?? ''} {movideskConflict.current?.name ?? ''}</strong> para este projeto? (somente os apontamentos importados do Movidesk são movidos)
                 </p>
                 <div className="flex items-center justify-end gap-3">
-                  <button onClick={() => submitMovideskSwap(false)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Não migrar</button>
+                  <button onClick={() => submitMovideskSwap(false)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Não migrar</button>
                   <button onClick={() => submitMovideskSwap(true)} className="px-5 py-2 rounded-xl text-sm font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}>Sim, migrar</button>
                 </div>
               </>
@@ -1393,9 +1393,9 @@ export function ProjectInlineEditModal({ project, onClose, onSaved }: { project:
 
             {movideskStep === 'processing' && (
               <>
-                <p className="text-[13px] leading-relaxed mb-4" style={{ color: 'var(--brand-muted)' }}>{movideskMigrating ? 'Migrando apontamentos...' : 'Salvando...'}</p>
-                <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--brand-border)' }}>
-                  <div className="h-full w-1/3 rounded-full animate-[mvProgress_1.1s_ease-in-out_infinite]" style={{ background: 'var(--brand-primary)' }} />
+                <p className="text-[13px] leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>{movideskMigrating ? 'Migrando apontamentos...' : 'Salvando...'}</p>
+                <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                  <div className="h-full w-1/3 rounded-full animate-[mvProgress_1.1s_ease-in-out_infinite]" style={{ background: 'var(--primary)' }} />
                 </div>
                 <style>{`@keyframes mvProgress{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}`}</style>
               </>

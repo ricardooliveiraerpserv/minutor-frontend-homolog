@@ -612,7 +612,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
   const TABS = ['Cliente', 'Classificação', 'Faturamento', 'Despesas', 'Operacional', 'Contatos', 'Financeiro', 'Comercial', 'Observações', 'Anexos']
 
   const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)]'
-  const inputStyle = { border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }
+  const inputStyle = { border: '1px solid var(--border)', color: 'var(--text)' }
   const labelCls   = 'block text-xs text-[var(--text-muted)] mb-1'
 
   const attachmentSection = (
@@ -622,7 +622,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
           <p className="text-xs text-[var(--text-muted)] mb-2">Arquivos já enviados</p>
           <div className="space-y-2">
             {internalEdit.attachments.map(att => (
-              <div key={att.id} className="flex items-center justify-between px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
+              <div key={att.id} className="flex items-center justify-between px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>
                 <div className="flex items-center gap-2">
                   <FileText size={14} className="text-[var(--text-muted)]" />
                   <div>
@@ -646,7 +646,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
           {(['proposta', 'contrato', 'logo'] as const).map(t => (
             <button key={t} onClick={() => setSelectedAttachType(t)}
               className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: selectedAttachType === t ? 'var(--primary-soft)' : 'transparent', border: '1px solid var(--brand-border)', color: selectedAttachType === t ? 'var(--text)' : 'var(--text-muted)' }}>
+              style={{ background: selectedAttachType === t ? 'var(--primary-soft)' : 'transparent', border: '1px solid var(--border)', color: selectedAttachType === t ? 'var(--text)' : 'var(--text-muted)' }}>
               {ATTACHMENT_TYPE_LABEL[t]}
             </button>
           ))}
@@ -658,7 +658,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
           }} />
         <button onClick={() => fileInputRef.current?.click()}
           className="w-full py-6 rounded-lg border-2 border-dashed text-xs text-[var(--text-light)] hover:border-[var(--primary)] hover:text-[var(--text)] transition-colors"
-          style={{ borderColor: 'var(--brand-border)' }}>
+          style={{ borderColor: 'var(--border)' }}>
           Clique para selecionar arquivo ({ATTACHMENT_TYPE_LABEL[selectedAttachType]})
         </button>
       </div>
@@ -682,9 +682,9 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
-      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div>
             <h2 className="text-base font-semibold text-[var(--text)]">{internalEdit ? 'Editar Contrato' : 'Novo Contrato'}</h2>
             {(selectedContractType || form.service_type_id) && (
@@ -700,7 +700,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
 
         {/* Tabs (escondidas quando is_aporte — form de aporte é single-page) */}
         {!form.is_aporte && (
-          <div className="flex border-b overflow-x-auto shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="flex border-b overflow-x-auto shrink-0" style={{ borderColor: 'var(--border)' }}>
             {TABS.map((t, i) => (
               <button key={t} onClick={() => setActiveTab(i)}
                 className="px-4 py-2.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0"
@@ -721,7 +721,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
               {!internalEdit && (
                 <div className="rounded-xl p-3 flex items-center justify-between gap-3"
                   style={{ background: form.is_aporte ? 'var(--success-bg)' : 'var(--surface-hover)',
-                           border: `1px solid ${form.is_aporte ? 'var(--success-border)' : 'var(--brand-border)'}` }}>
+                           border: `1px solid ${form.is_aporte ? 'var(--success-border)' : 'var(--border)'}` }}>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold" style={{ color: form.is_aporte ? 'var(--success-border)' : 'var(--text)' }}>
                       É aporte?
@@ -904,13 +904,13 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                     type="button"
                     onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}
                     className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
-                    style={{ background: form.is_subproject ? 'var(--brand-primary)' : 'var(--surface-hover)' }}
+                    style={{ background: form.is_subproject ? 'var(--primary)' : 'var(--surface-hover)' }}
                   >
                     <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-[var(--surface)] shadow transition-transform"
                       style={{ transform: form.is_subproject ? 'translateX(16px)' : 'translateX(0)' }} />
                   </button>
                   <label className="text-sm cursor-pointer select-none"
-                    style={{ color: form.is_subproject ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}
+                    style={{ color: form.is_subproject ? 'var(--primary)' : 'var(--text-light)' }}
                     onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}>
                     É subprojeto
                   </label>
@@ -952,7 +952,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                         </>
                       )}
                       {codePreview && (
-                        <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'var(--surface-hover)', color: 'var(--brand-subtle)' }}>
+                        <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>
                           {codePreview}{form.is_subproject && !form.sub_seq.trim() ? '-??' : ''}
                         </span>
                       )}
@@ -970,7 +970,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                     <span className="text-xs text-[var(--warning)] italic flex-1">Cliente sem prefixo configurado</span>
                     <a href="/cadastros?tab=customers" target="_blank" rel="noreferrer"
                       className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors hover:opacity-80 shrink-0"
-                      style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
+                      style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
                       Configurar prefixo
                     </a>
                   </div>
@@ -1014,7 +1014,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                 {internalEdit && internalEdit.attachments.length > 0 && (
                   <div className="space-y-1 mb-2">
                     {internalEdit.attachments.map(att => (
-                      <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
+                      <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>
                         <div className="flex items-center gap-2 min-w-0">
                           <FileText size={13} className="shrink-0 text-[var(--text-muted)]" />
                           <div className="min-w-0">
@@ -1321,7 +1321,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                               <div key={cc.id}
                                 className="flex items-center justify-between rounded-lg border px-3 py-2.5 cursor-pointer transition-colors"
                                 style={{
-                                  borderColor: alreadyAdded ? 'var(--primary)' : 'var(--brand-border)',
+                                  borderColor: alreadyAdded ? 'var(--primary)' : 'var(--border)',
                                   background: alreadyAdded ? 'var(--primary-soft)' : 'transparent',
                                 }}
                                 onClick={() => {
@@ -1358,7 +1358,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
                 </div>
                 {contacts.length === 0 && <p className="text-xs text-[var(--text-muted)] py-2 text-center">Nenhum contato selecionado.</p>}
                 {contacts.map((ct, i) => (
-                  <div key={i} className="rounded-lg border p-3 space-y-2 mb-2" style={{ borderColor: 'var(--brand-border)' }}>
+                  <div key={i} className="rounded-lg border p-3 space-y-2 mb-2" style={{ borderColor: 'var(--border)' }}>
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-[var(--text)]">Contato {i + 1}</span>
                       <button onClick={() => removeContact(i)} className="text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"><X size={12} /></button>
@@ -1439,15 +1439,15 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2">
             {!form.is_aporte && activeTab > 0 && (
-              <button onClick={() => setActiveTab(t => t - 1)} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors" style={{ border: '1px solid var(--brand-border)' }}>
+              <button onClick={() => setActiveTab(t => t - 1)} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors" style={{ border: '1px solid var(--border)' }}>
                 ← Anterior
               </button>
             )}
             {!form.is_aporte && activeTab < TABS.length - 1 && (
-              <button onClick={() => setActiveTab(t => t + 1)} className="px-4 py-2 rounded-lg text-sm text-[var(--text)] hover:text-[var(--text)] transition-colors" style={{ border: '1px solid var(--brand-border)' }}>
+              <button onClick={() => setActiveTab(t => t + 1)} className="px-4 py-2 rounded-lg text-sm text-[var(--text)] hover:text-[var(--text)] transition-colors" style={{ border: '1px solid var(--border)' }}>
                 Próximo →
               </button>
             )}

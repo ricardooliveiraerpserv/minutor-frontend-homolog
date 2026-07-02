@@ -669,7 +669,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
         </td>
 
         {/* Consumo Mensal */}
-        <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+        <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--primary)' }}>
           {project.consumo_mensal != null ? fmt(project.consumo_mensal, 1) : '—'}
         </td>
 
@@ -1451,18 +1451,18 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 {(projAttachments.length > 0 || pendingAttach.length > 0) ? (
                   <div className="space-y-1.5 mb-2">
                     {projAttachments.map(att => (
-                      <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
+                      <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>
                         <div className="flex items-center gap-2 min-w-0">
-                          <FileText size={13} className="shrink-0" style={{ color: 'var(--brand-subtle)' }} />
+                          <FileText size={13} className="shrink-0" style={{ color: 'var(--text-light)' }} />
                           <div className="min-w-0">
-                            <p className="text-xs truncate" style={{ color: 'var(--brand-text)' }}>{att.original_name}</p>
-                            <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{att.type ?? 'anexo'}{att.size != null ? ` · ${fmtAttSize(att.size)}` : ''}{att.source === 'contract' ? ' · do contrato' : ''}</p>
+                            <p className="text-xs truncate" style={{ color: 'var(--text)' }}>{att.original_name}</p>
+                            <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{att.type ?? 'anexo'}{att.size != null ? ` · ${fmtAttSize(att.size)}` : ''}{att.source === 'contract' ? ' · do contrato' : ''}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <button type="button" onClick={() => downloadProjAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}><Download size={13} /></button>
+                          <button type="button" onClick={() => downloadProjAtt(att)} title="Baixar" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Download size={13} /></button>
                           {att.source !== 'contract' && (
-                            <button type="button" onClick={() => deleteProjAtt(att)} title="Remover" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}><Trash2 size={13} /></button>
+                            <button type="button" onClick={() => deleteProjAtt(att)} title="Remover" className="p-1 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-light)' }}><Trash2 size={13} /></button>
                           )}
                         </div>
                       </div>
@@ -1470,22 +1470,22 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                     {pendingAttach.map((pf, i) => (
                       <div key={`pend-${i}`} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
                         <div className="min-w-0">
-                          <p className="text-xs truncate" style={{ color: 'var(--brand-text)' }}>{pf.file.name}</p>
-                          <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{pf.type} · aguardando salvar</p>
+                          <p className="text-xs truncate" style={{ color: 'var(--text)' }}>{pf.file.name}</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{pf.type} · aguardando salvar</p>
                         </div>
-                        <button type="button" onClick={() => setPendingAttach(p => p.filter((_, j) => j !== i))} className="p-1 shrink-0" style={{ color: 'var(--brand-subtle)' }}><X size={12} /></button>
+                        <button type="button" onClick={() => setPendingAttach(p => p.filter((_, j) => j !== i))} className="p-1 shrink-0" style={{ color: 'var(--text-light)' }}><X size={12} /></button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[11px] italic mb-2" style={{ color: 'var(--brand-subtle)' }}>Nenhum anexo</p>
+                  <p className="text-[11px] italic mb-2" style={{ color: 'var(--text-light)' }}>Nenhum anexo</p>
                 )}
                 <input ref={attachFileRef} type="file" className="hidden"
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
                   onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingAttach(p => [...p, { file: f, type: 'proposta' }]); e.target.value = '' } }} />
                 <button type="button" onClick={() => attachFileRef.current?.click()}
                   className="w-full py-3 rounded-lg border-2 border-dashed text-xs transition-colors hover:border-[var(--primary-soft)]"
-                  style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>
                   Clique para adicionar anexo
                 </button>
               </div>
@@ -1832,13 +1832,13 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       {/* Fluxo de troca de integração Movidesk (modais in-app) */}
       {movideskConflict && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text)' }}>Integração Movidesk</p>
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>Integração Movidesk</p>
 
             {movideskStep === 'confirm' && (
               <>
-                <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--brand-muted)' }}>
-                  Cliente já tem a integração ativa em <strong style={{ color: 'var(--brand-text)' }}>{movideskConflict.current?.code ?? ''} {movideskConflict.current?.name ?? ''}</strong>. Deseja mudar a integração para este projeto?
+                <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--text-muted)' }}>
+                  Cliente já tem a integração ativa em <strong style={{ color: 'var(--text)' }}>{movideskConflict.current?.code ?? ''} {movideskConflict.current?.name ?? ''}</strong>. Deseja mudar a integração para este projeto?
                 </p>
                 <div className="flex items-center justify-end gap-3">
                   <button onClick={() => setMovideskConflict(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
@@ -1849,8 +1849,8 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
 
             {movideskStep === 'migrate' && (
               <>
-                <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--brand-muted)' }}>
-                  Deseja migrar os apontamentos de origem Movidesk de <strong style={{ color: 'var(--brand-text)' }}>{movideskConflict.current?.code ?? ''} {movideskConflict.current?.name ?? ''}</strong> para este projeto? (somente os apontamentos importados do Movidesk são movidos)
+                <p className="text-[13px] leading-relaxed mb-5" style={{ color: 'var(--text-muted)' }}>
+                  Deseja migrar os apontamentos de origem Movidesk de <strong style={{ color: 'var(--text)' }}>{movideskConflict.current?.code ?? ''} {movideskConflict.current?.name ?? ''}</strong> para este projeto? (somente os apontamentos importados do Movidesk são movidos)
                 </p>
                 <div className="flex items-center justify-end gap-3">
                   <button onClick={() => submitMovideskSwap(false)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Não migrar</button>
@@ -1861,9 +1861,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
 
             {movideskStep === 'processing' && (
               <>
-                <p className="text-[13px] leading-relaxed mb-4" style={{ color: 'var(--brand-muted)' }}>{movideskMigrating ? 'Migrando apontamentos...' : 'Salvando...'}</p>
-                <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--brand-border)' }}>
-                  <div className="h-full w-1/3 rounded-full animate-[mvProgress_1.1s_ease-in-out_infinite]" style={{ background: 'var(--brand-primary)' }} />
+                <p className="text-[13px] leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>{movideskMigrating ? 'Migrando apontamentos...' : 'Salvando...'}</p>
+                <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                  <div className="h-full w-1/3 rounded-full animate-[mvProgress_1.1s_ease-in-out_infinite]" style={{ background: 'var(--primary)' }} />
                 </div>
                 <style>{`@keyframes mvProgress{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}`}</style>
               </>
@@ -1875,9 +1875,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       {/* Vigência do novo valor-hora */}
       {rateModalOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text)' }}>Vigência do valor hora</p>
-            <p className="text-[13px] leading-relaxed mb-4" style={{ color: 'var(--brand-muted)' }}>
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>Vigência do valor hora</p>
+            <p className="text-[13px] leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>
               A partir de qual mês esse novo valor hora passa a valer? Meses anteriores (fechamentos já feitos) não mudam.
             </p>
             <div className="mb-5">
@@ -1906,9 +1906,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       {/* Histórico de valores-hora (somente leitura) */}
       {rateHistoryOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Histórico de valores</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Histórico de valores</p>
               <button onClick={() => setRateHistoryOpen(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
             {rateHistoryLoading ? (
@@ -1959,9 +1959,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       {/* Vigência da nova quantidade de horas vendidas (BH Mensal) */}
       {soldHoursModalOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--brand-text)' }}>Vigência das horas vendidas</p>
-            <p className="text-[13px] leading-relaxed mb-4" style={{ color: 'var(--brand-muted)' }}>
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text)' }}>Vigência das horas vendidas</p>
+            <p className="text-[13px] leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>
               A partir de qual mês essa nova quantidade de horas passa a valer? Meses anteriores (fechamentos já feitos) não mudam.
             </p>
             <div className="mb-5">
@@ -1990,9 +1990,9 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       {/* Histórico de horas vendidas (somente leitura) */}
       {soldHoursHistoryOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Histórico de horas vendidas</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Histórico de horas vendidas</p>
               <button onClick={() => setSoldHoursHistoryOpen(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
             {soldHoursHistoryLoading ? (
@@ -3793,9 +3793,9 @@ function GestaoProjetosInner() {
       {/* ── Histórico de valores-hora (somente leitura) ── */}
       {rateHistoryOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Histórico de valores</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Histórico de valores</p>
               <button onClick={() => setRateHistoryOpen(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
             {rateHistoryLoading ? (

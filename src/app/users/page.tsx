@@ -761,7 +761,7 @@ export default function UsersPage() {
             <div className="p-5">
               <div className="flex items-center gap-3 mb-5">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
-                  style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                  style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                   {u.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
                 </div>
                 <div>
@@ -830,13 +830,13 @@ export default function UsersPage() {
                 {canEdit && (
                 <button onClick={() => { setViewUser(null); openEdit(u) }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-[var(--surface-hover)]"
-                  style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
+                  style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                   <Pencil size={11} /> Editar
                 </button>
                 )}
                 <button onClick={() => setViewUser(null)}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                  style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
+                  style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
                   Fechar
                 </button>
               </div>

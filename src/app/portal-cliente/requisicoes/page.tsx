@@ -93,20 +93,20 @@ function DetailModal({ req, isAdmin, onClose, onReview }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
-      <div className="w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', maxHeight: '90vh' }}>
+      <div className="w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col" style={{ background: 'var(--surface)', border: '1px solid var(--border)', maxHeight: '90vh' }}>
         {/* Header */}
-        <div className="px-6 py-5 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-6 py-5 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{req.area_requisitante}</p>
-              <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>{req.customer.name}</p>
+              <p className="text-base font-bold" style={{ color: 'var(--text)' }}>{req.area_requisitante}</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{req.customer.name}</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
                 style={{ background: `${urgConf.color}15`, color: urgConf.color }}>
                 {urgConf.label}
               </span>
-              <button onClick={onClose} className="p-1.5 rounded-lg transition-opacity hover:opacity-70" style={{ color: 'var(--brand-muted)' }}>
+              <button onClick={onClose} className="p-1.5 rounded-lg transition-opacity hover:opacity-70" style={{ color: 'var(--text-muted)' }}>
                 <X size={15} />
               </button>
             </div>
@@ -126,8 +126,8 @@ function DetailModal({ req, isAdmin, onClose, onReview }: {
               ['Status', statusConf.label],
             ].map(([label, value]) => (
               <div key={label}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
-                <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>{label}</p>
+                <p className="text-sm" style={{ color: 'var(--text)' }}>{value}</p>
               </div>
             ))}
           </div>
@@ -135,20 +135,20 @@ function DetailModal({ req, isAdmin, onClose, onReview }: {
           {/* Textos */}
           {req.descricao && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Descrição</p>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--brand-text)' }}>{req.descricao}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Descrição</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{req.descricao}</p>
             </div>
           )}
           {req.cenario_atual && (
             <div className="rounded-xl p-4" style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.12)' }}>
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#ef4444' }}>6.1 · Cenário Atual</p>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--brand-text)' }}>{req.cenario_atual}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{req.cenario_atual}</p>
             </div>
           )}
           {req.cenario_desejado && (
             <div className="rounded-xl p-4" style={{ background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.12)' }}>
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#22c55e' }}>6.2 · Cenário Desejado</p>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--brand-text)' }}>{req.cenario_desejado}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{req.cenario_desejado}</p>
             </div>
           )}
 
@@ -157,7 +157,7 @@ function DetailModal({ req, isAdmin, onClose, onReview }: {
             <div className="rounded-xl p-4 space-y-3" style={{ background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.2)' }}>
               <p className="text-xs font-bold" style={{ color: '#818cf8' }}>Revisão Interna</p>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Status</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Status</p>
                 <div className="flex gap-2 flex-wrap">
                   {(['em_analise', 'aprovado', 'recusado'] as const).map(s => {
                     const c = STATUS_CONFIG[s]
@@ -166,8 +166,8 @@ function DetailModal({ req, isAdmin, onClose, onReview }: {
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                         style={{
                           background: reviewStatus === s ? `${c.color}18` : 'transparent',
-                          border: `1px solid ${reviewStatus === s ? c.color : 'var(--brand-border)'}`,
-                          color: reviewStatus === s ? c.color : 'var(--brand-muted)',
+                          border: `1px solid ${reviewStatus === s ? c.color : 'var(--border)'}`,
+                          color: reviewStatus === s ? c.color : 'var(--text-muted)',
                         }}>
                         {c.label}
                       </button>
@@ -176,14 +176,14 @@ function DetailModal({ req, isAdmin, onClose, onReview }: {
                 </div>
               </div>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Notas de Revisão</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Notas de Revisão</p>
                 <textarea
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   rows={3}
                   placeholder="Observações, próximos passos..."
                   className="w-full rounded-lg px-3 py-2 text-sm resize-none outline-none"
-                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 />
               </div>
             </div>
@@ -193,14 +193,14 @@ function DetailModal({ req, isAdmin, onClose, onReview }: {
           {!isAdmin && req.notas_revisao && (
             <div className="rounded-xl p-4" style={{ background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)' }}>
               <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#818cf8' }}>Retorno da Equipe</p>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--brand-text)' }}>{req.notas_revisao}</p>
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--text)' }}>{req.notas_revisao}</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t shrink-0 flex justify-end gap-3" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Fechar</button>
+        <div className="px-6 py-4 border-t shrink-0 flex justify-end gap-3" style={{ borderColor: 'var(--border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)' }}>Fechar</button>
           {isAdmin && (
             <button onClick={handleReview} disabled={saving}
               className="px-5 py-2 rounded-lg text-sm font-semibold transition-opacity disabled:opacity-50"
@@ -225,18 +225,18 @@ function ReqRow({ req, onClick }: { req: Req; onClick: () => void }) {
     <button
       onClick={onClick}
       className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-[var(--surface-hover)]"
-      style={{ borderBottom: '1px solid var(--brand-border)' }}
+      style={{ borderBottom: '1px solid var(--border)' }}
     >
       {/* Urgency bar */}
       <div className="w-1 self-stretch rounded-full shrink-0" style={{ background: urgConf.color, opacity: 0.7 }} />
 
       <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
         <div className="col-span-2 min-w-0">
-          <p className="text-sm font-semibold truncate" style={{ color: 'var(--brand-text)' }}>{req.area_requisitante}</p>
-          <p className="text-xs truncate" style={{ color: 'var(--brand-subtle)' }}>{req.customer.name}</p>
+          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{req.area_requisitante}</p>
+          <p className="text-xs truncate" style={{ color: 'var(--text-light)' }}>{req.customer.name}</p>
         </div>
         <div className="min-w-0">
-          <p className="text-xs truncate" style={{ color: 'var(--brand-muted)' }}>{TIPO_LABEL[req.tipo_necessidade] ?? req.tipo_necessidade}</p>
+          <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{TIPO_LABEL[req.tipo_necessidade] ?? req.tipo_necessidade}</p>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${urgConf.color}15`, color: urgConf.color }}>
@@ -250,10 +250,10 @@ function ReqRow({ req, onClick }: { req: Req; onClick: () => void }) {
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
-        <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+        <p className="text-xs" style={{ color: 'var(--text-light)' }}>
           {new Date(req.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
         </p>
-        <ChevronRight size={14} style={{ color: 'var(--brand-subtle)' }} />
+        <ChevronRight size={14} style={{ color: 'var(--text-light)' }} />
       </div>
     </button>
   )
@@ -297,41 +297,41 @@ function RequisicoesContent() {
     <AppLayout>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>
+            <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>
               {isAdmin ? 'Requisições de Clientes' : 'Minhas Requisições'}
             </h1>
-            <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-light)' }}>
               {isAdmin ? 'Analise e aprove as necessidades enviadas pelos clientes' : 'Acompanhe o status das suas requisições'}
             </p>
           </div>
           <button
             onClick={() => router.push('/portal-cliente/nova-requisicao')}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-            style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
+            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
           >
             <Plus size={14} /> Nova Requisição
           </button>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 px-4 md:px-6 py-3 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex flex-wrap items-center gap-3 px-4 md:px-6 py-3 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="relative flex-1 max-w-xs">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar..."
               className="w-full pl-8 pr-3 py-1.5 rounded-lg text-sm outline-none"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
           </div>
           <select
             value={status}
             onChange={e => setStatus(e.target.value)}
             className="px-3 py-1.5 rounded-lg text-sm outline-none"
-            style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
             <option value="">Todos os status</option>
             {Object.entries(STATUS_CONFIG).map(([k, v]) => (
@@ -339,17 +339,17 @@ function RequisicoesContent() {
             ))}
           </select>
           {(search || status) && (
-            <button onClick={() => { setSearch(''); setStatus('') }} className="flex items-center gap-1 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+            <button onClick={() => { setSearch(''); setStatus('') }} className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-light)' }}>
               <X size={12} /> Limpar
             </button>
           )}
-          <span className="ml-auto text-xs" style={{ color: 'var(--brand-subtle)' }}>{data.length} requisição{data.length !== 1 ? 'ões' : ''}</span>
+          <span className="ml-auto text-xs" style={{ color: 'var(--text-light)' }}>{data.length} requisição{data.length !== 1 ? 'ões' : ''}</span>
         </div>
 
         {/* Table header */}
         {data.length > 0 && (
           <div className="hidden md:grid grid-cols-5 gap-3 px-10 py-2 text-[10px] font-semibold uppercase tracking-wider shrink-0"
-            style={{ color: 'var(--brand-subtle)', borderBottom: '1px solid var(--brand-border)' }}>
+            style={{ color: 'var(--text-light)', borderBottom: '1px solid var(--border)' }}>
             <div className="col-span-2">Área / Cliente</div>
             <div>Tipo</div>
             <div>Urgência</div>
@@ -361,15 +361,15 @@ function RequisicoesContent() {
         <div className="flex-1 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center h-40">
-              <p className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Carregando...</p>
+              <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando...</p>
             </div>
           ) : data.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 gap-3">
-              <Inbox size={32} style={{ color: 'var(--brand-subtle)', opacity: 0.4 }} />
-              <p className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Nenhuma requisição encontrada</p>
+              <Inbox size={32} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
+              <p className="text-sm" style={{ color: 'var(--text-light)' }}>Nenhuma requisição encontrada</p>
               <button onClick={() => router.push('/portal-cliente/nova-requisicao')}
                 className="text-xs font-semibold px-4 py-2 rounded-lg"
-                style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }}>
+                style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}>
                 Criar primeira requisição
               </button>
             </div>

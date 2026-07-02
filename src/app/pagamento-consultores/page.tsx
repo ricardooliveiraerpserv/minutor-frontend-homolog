@@ -68,24 +68,24 @@ function SearchSelect({
         type="button"
         onClick={() => setOpen(v => !v)}
         className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm border transition-colors min-w-[180px]"
-        style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)', color: selected ? 'var(--brand-text)' : 'var(--brand-muted)' }}
+        style={{ background: 'var(--surface)', borderColor: 'var(--border)', color: selected ? 'var(--text)' : 'var(--text-muted)' }}
       >
         <span className="flex-1 text-left truncate">{selected?.name ?? placeholder}</span>
         {value ? (
-          <X size={12} onClick={e => { e.stopPropagation(); onChange('') }} style={{ color: 'var(--brand-subtle)' }} />
+          <X size={12} onClick={e => { e.stopPropagation(); onChange('') }} style={{ color: 'var(--text-light)' }} />
         ) : (
-          <ChevronDown size={12} style={{ color: 'var(--brand-subtle)' }} />
+          <ChevronDown size={12} style={{ color: 'var(--text-light)' }} />
         )}
       </button>
       {open && (
         <div className="absolute z-50 mt-1 rounded-xl border shadow-xl min-w-[220px]"
-          style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-          <div className="p-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-2 px-2">
-              <Search size={12} style={{ color: 'var(--brand-subtle)' }} />
+              <Search size={12} style={{ color: 'var(--text-light)' }} />
               <input autoFocus value={q} onChange={e => setQ(e.target.value)}
                 className="flex-1 bg-transparent text-sm outline-none"
-                style={{ color: 'var(--brand-text)' }}
+                style={{ color: 'var(--text)' }}
                 placeholder="Buscar..."
               />
             </div>
@@ -93,7 +93,7 @@ function SearchSelect({
           <div className="max-h-52 overflow-y-auto py-1">
             <button type="button" onClick={() => { onChange(''); setOpen(false); setQ('') }}
               className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-hover)] transition-colors"
-              style={{ color: 'var(--brand-muted)' }}
+              style={{ color: 'var(--text-muted)' }}
             >
               {placeholder}
             </button>
@@ -101,13 +101,13 @@ function SearchSelect({
               <button key={o.id} type="button"
                 onClick={() => { onChange(String(o.id)); setOpen(false); setQ('') }}
                 className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-hover)] transition-colors"
-                style={{ color: String(o.id) === value ? 'var(--primary)' : 'var(--brand-text)' }}
+                style={{ color: String(o.id) === value ? 'var(--primary)' : 'var(--text)' }}
               >
                 {o.name}
               </button>
             ))}
             {filtered.length === 0 && (
-              <p className="px-3 py-2 text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum resultado</p>
+              <p className="px-3 py-2 text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum resultado</p>
             )}
           </div>
         </div>
@@ -126,16 +126,16 @@ function SummaryCard({ label, value, sub, icon: Icon, accent }: {
   const bg = accent === 'primary' ? 'var(--primary-soft)' : accent === 'success' ? 'rgba(16,185,129,0.10)' : 'rgba(245,158,11,0.10)'
   return (
     <div className="rounded-2xl p-5 flex flex-col gap-3"
-      style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</span>
         <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: bg }}>
           <Icon size={15} color={color} />
         </div>
       </div>
       <div>
         <p className="text-2xl font-extrabold tracking-tight" style={{ color }}>{value}</p>
-        {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>{sub}</p>}
+        {sub && <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
       </div>
     </div>
   )
@@ -302,9 +302,9 @@ export default function PagamentoConsultoresPage() {
 
         {/* Filters */}
         <div className="flex flex-wrap items-end gap-4 p-5 rounded-2xl"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Período</label>
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Período</label>
             <MonthYearPicker
               month={refMonth}
               year={refYear}
@@ -312,7 +312,7 @@ export default function PagamentoConsultoresPage() {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Consultor</label>
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Consultor</label>
             <SearchSelect
               value={selectedUser}
               onChange={v => { setSelectedUser(v); setPage(1) }}
@@ -321,9 +321,9 @@ export default function PagamentoConsultoresPage() {
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Status</label>
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Status</label>
             <div className="flex rounded-xl border overflow-hidden text-sm"
-              style={{ borderColor: 'var(--brand-border)' }}>
+              style={{ borderColor: 'var(--border)' }}>
               {([
                 ['pending', 'A Pagar'],
                 ['paid',    'Pagos'],
@@ -350,11 +350,11 @@ export default function PagamentoConsultoresPage() {
             description="Ajuste os filtros para visualizar os apontamentos aprovados." />
         ) : (
           <div className="rounded-2xl overflow-hidden"
-            style={{ border: '1px solid var(--brand-border)' }}>
+            style={{ border: '1px solid var(--border)' }}>
             <div className="overflow-x-auto">
               <Table>
                 <Thead>
-                  <Tr baseBackground="var(--brand-surface)">
+                  <Tr baseBackground="var(--surface)">
                     <Th>
                       <input
                         type="checkbox"
@@ -390,7 +390,7 @@ export default function PagamentoConsultoresPage() {
                         </Td>
                         <Td mono>{fmtDate(ts.date)}</Td>
                         <Td>
-                          <span style={{ color: 'var(--brand-text)' }}>
+                          <span style={{ color: 'var(--text)' }}>
                             {ts.user?.name ?? '—'}
                           </span>
                         </Td>
@@ -405,7 +405,7 @@ export default function PagamentoConsultoresPage() {
                           </span>
                         </Td>
                         <Td right mono>
-                          <span style={{ color: 'var(--brand-text)' }}>
+                          <span style={{ color: 'var(--text)' }}>
                             {formatMinutes(ts.effort_minutes)}
                           </span>
                         </Td>
@@ -442,7 +442,7 @@ export default function PagamentoConsultoresPage() {
               </Table>
             </div>
             {(page > 1 || hasNext) && (
-              <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="px-4 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
                 <Pagination
                   page={page}
                   hasNext={hasNext}

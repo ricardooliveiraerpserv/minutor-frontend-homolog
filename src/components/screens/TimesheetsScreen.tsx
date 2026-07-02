@@ -233,12 +233,12 @@ function DateRangePicker({ from, to, onChange }: {
     while (cells.length % 7 !== 0) cells.push(null)
     return (
       <div className="w-[196px]">
-        <div className="text-center text-sm font-semibold mb-3" style={{ color: 'var(--brand-primary)' }}>
+        <div className="text-center text-sm font-semibold mb-3" style={{ color: 'var(--primary)' }}>
           {MONTH_NAMES_PT[m]} {y}
         </div>
         <div className="grid grid-cols-7 mb-1">
           {DAY_NAMES_PT.map(d => (
-            <div key={d} className="text-center text-[10px] py-1" style={{ color: 'var(--brand-subtle)' }}>{d}</div>
+            <div key={d} className="text-center text-[10px] py-1" style={{ color: 'var(--text-light)' }}>{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7">
@@ -256,8 +256,8 @@ function DateRangePicker({ from, to, onChange }: {
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${s || e ? 'font-bold' : ir ? '' : td ? 'font-semibold' : ''}`}
                 style={{
-                  background: s || e ? 'var(--brand-primary)' : ir ? 'var(--primary-soft)' : undefined,
-                  color: s || e ? 'var(--bg)' : ir ? 'var(--brand-primary)' : td ? 'var(--brand-primary)' : 'var(--brand-text)',
+                  background: s || e ? 'var(--primary)' : ir ? 'var(--primary-soft)' : undefined,
+                  color: s || e ? 'var(--bg)' : ir ? 'var(--primary)' : td ? 'var(--primary)' : 'var(--text)',
                 }}>
                 {day}
               </button>
@@ -281,15 +281,15 @@ function DateRangePicker({ from, to, onChange }: {
       <button ref={btnRef} type="button" onClick={toggle}
         className="flex items-center gap-2 h-10 px-3 rounded-xl text-sm outline-none whitespace-nowrap"
         style={{
-          background: 'var(--brand-bg)',
-          border: `1px solid ${from || to ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
-          color: from || to ? 'var(--brand-text)' : 'var(--brand-subtle)',
+          background: 'var(--bg)',
+          border: `1px solid ${from || to ? 'var(--primary)' : 'var(--border)'}`,
+          color: from || to ? 'var(--text)' : 'var(--text-light)',
         }}>
-        <CalendarDays size={13} style={{ color: from || to ? 'var(--brand-primary)' : 'var(--brand-subtle)', flexShrink: 0 }} />
+        <CalendarDays size={13} style={{ color: from || to ? 'var(--primary)' : 'var(--text-light)', flexShrink: 0 }} />
         <span className="text-sm">{displayText}</span>
         {(from || to) && (
           <span onClick={e => { e.stopPropagation(); onChange('', '') }}
-            className="ml-1 cursor-pointer" style={{ color: 'var(--brand-subtle)' }}>
+            className="ml-1 cursor-pointer" style={{ color: 'var(--text-light)' }}>
             <X size={10} />
           </span>
         )}
@@ -298,28 +298,28 @@ function DateRangePicker({ from, to, onChange }: {
       {pos && (
         <div ref={ref}
           className="rounded-xl shadow-2xl p-4"
-          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center gap-4">
             <button type="button" onClick={prevMonth}
-              className="p-1 shrink-0" style={{ color: 'var(--brand-subtle)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-text)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--brand-subtle)')}>
+              className="p-1 shrink-0" style={{ color: 'var(--text-light)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-light)')}>
               <ChevronLeft size={14} />
             </button>
             <div className="flex gap-4">
               {renderMonth(leftYM.y, leftYM.m)}
-              <div className="w-px" style={{ background: 'var(--brand-border)' }} />
+              <div className="w-px" style={{ background: 'var(--border)' }} />
               {renderMonth(rightYM.y, rightYM.m)}
             </div>
             <button type="button" onClick={nextMonth}
-              className="p-1 shrink-0" style={{ color: 'var(--brand-subtle)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-text)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--brand-subtle)')}>
+              className="p-1 shrink-0" style={{ color: 'var(--text-light)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-light)')}>
               <ChevronRight size={14} />
             </button>
           </div>
           {selecting && (
-            <p className="text-[11px] text-center mt-3" style={{ color: 'var(--brand-subtle)' }}>
+            <p className="text-[11px] text-center mt-3" style={{ color: 'var(--text-light)' }}>
               Clique para selecionar a data final
             </p>
           )}
@@ -428,7 +428,7 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
           </button>
           <button onClick={save} disabled={saving}
             className="px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-40 transition-all"
-            style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
+            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
             {saving ? 'Salvando...' : 'Salvar'}
           </button>
         </div>
@@ -534,7 +534,7 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUse
           </button>
           <button onClick={save} disabled={saving || !customerId || !projectId}
             className="px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-40 transition-all"
-            style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
+            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
             {saving ? 'Salvando...' : 'Aplicar'}
           </button>
         </div>
@@ -704,44 +704,44 @@ function SearchSelect({ value, onChange, options, placeholder }: {
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-sm outline-none text-left"
         style={{
-          background: 'var(--brand-bg)',
-          border: '1px solid var(--brand-border)',
-          color: selected ? 'var(--brand-text)' : 'var(--brand-subtle)',
+          background: 'var(--bg)',
+          border: '1px solid var(--border)',
+          color: selected ? 'var(--text)' : 'var(--text-light)',
         }}
       >
         <span className="truncate text-sm">{selected ? selected.name : placeholder}</span>
-        <ChevronDown size={13} style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />
+        <ChevronDown size={13} style={{ color: 'var(--text-light)', flexShrink: 0 }} />
       </button>
       {open && (
         <div
           className="absolute top-full mt-1 left-0 z-50 w-full min-w-56 rounded-xl shadow-2xl overflow-hidden"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         >
-          <div className="p-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
               <input
                 ref={inputRef}
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Buscar..."
                 className="w-full pl-7 pr-3 py-1.5 rounded-lg text-xs outline-none"
-                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
               />
             </div>
           </div>
           <div className="max-h-52 overflow-y-auto">
             <button type="button" onClick={() => select('')}
               className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-              style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>
+              style={{ color: !value ? 'var(--primary)' : 'var(--text-light)' }}>
               {placeholder}
             </button>
             {filtered.length === 0
-              ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
+              ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>
               : filtered.map(o => (
                 <button key={o.id} type="button" onClick={() => select(String(o.id))}
                   className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-                  style={{ color: String(o.id) === value ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
+                  style={{ color: String(o.id) === value ? 'var(--primary)' : 'var(--text)' }}>
                   {o.name}
                 </button>
               ))}
@@ -1233,8 +1233,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         {/* Aviso para cliente */}
         {isCliente && (
           <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl mb-4 text-xs"
-            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--brand-muted)' }}>
-            <span style={{ color: 'var(--brand-primary)', marginTop: 1 }}>ℹ</span>
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--text-muted)' }}>
+            <span style={{ color: 'var(--primary)', marginTop: 1 }}>ℹ</span>
             <span>O status de aprovação indica apenas uma validação interna da equipe, sem impacto para o cliente.</span>
           </div>
         )}
@@ -1244,7 +1244,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           <button
             onClick={() => setFiltersOpen(true)}
             className="flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-medium"
-            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--text)' }}
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
           >
             <SlidersHorizontal size={15} /> Filtros{hasFilters ? ' • ativos' : ''}
           </button>
@@ -1260,7 +1260,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           className={`p-4 mb-4 space-y-3 ${filtersOpen ? 'block' : 'hidden'} md:block
             fixed inset-y-0 left-0 z-50 w-[86%] max-w-xs overflow-y-auto rounded-none shadow-2xl
             md:static md:z-auto md:w-auto md:max-w-none md:overflow-visible md:rounded-2xl md:shadow-none`}
-          style={{ background: 'var(--panel)', border: '1px solid var(--brand-border)', WebkitOverflowScrolling: 'touch' }}
+          style={{ background: 'var(--panel)', border: '1px solid var(--border)', WebkitOverflowScrolling: 'touch' }}
         >
           {/* Cabeçalho do Drawer (mobile) */}
           <div className="flex items-center justify-between md:hidden">
@@ -1393,14 +1393,14 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                   style={active
                     ? { background: opt.bg, color: opt.color, border: `1px solid ${opt.border}` }
-                    : { background: 'transparent', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
+                    : { background: 'transparent', color: 'var(--text-light)', border: '1px solid var(--border)' }}>
                   {opt.label}
                 </button>
               )
             })}
             {projectId && (
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
-                style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--brand-primary)' }}>
+                style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
                 Projeto #{projectId}
                 <button onClick={() => { setProjectId(''); resetPage() }} className="ml-1 hover:opacity-70 transition-opacity">
                   <X size={10} />
@@ -1429,7 +1429,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               <button
                 onClick={clearFilters}
                 className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs transition-all hover:bg-[var(--surface-hover)]"
-                style={{ color: 'var(--brand-danger)', border: '1px solid var(--danger-border)' }}
+                style={{ color: 'var(--danger-border)', border: '1px solid var(--danger-border)' }}
               >
                 <X size={11} /> Limpar
               </button>
@@ -1441,13 +1441,13 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         {/* Pills de tipo de contrato — apenas para cliente */}
         {isCliente && clienteContractTypes.length > 0 && (
           <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-4"
-            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <button
               onClick={() => { setContractTypeIds([]); resetPage() }}
               className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
               style={contractTypeIds.length === 0
-                ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                : { color: 'var(--brand-muted)', background: 'transparent' }
+                ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                : { color: 'var(--text-muted)', background: 'transparent' }
               }>
               Total Geral
             </button>
@@ -1456,8 +1456,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 onClick={() => { setContractTypeIds([String(ct.id)]); resetPage() }}
                 className="px-4 py-1.5 rounded-lg text-xs font-bold transition-all"
                 style={contractTypeIds.includes(String(ct.id))
-                  ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                  : { color: 'var(--brand-muted)', background: 'transparent' }
+                  ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                  : { color: 'var(--text-muted)', background: 'transparent' }
                 }>
                 {ct.name}
               </button>
@@ -1466,7 +1466,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         )}
 
         {/* Status pills — oculto para clientes e em modo Triagem */}
-        {!isCliente && !triagemPadrao && <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        {!isCliente && !triagemPadrao && <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {STATUS_PILLS.map(s => (
             <button
               key={s.value}
@@ -1474,8 +1474,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={status === s.value
 
-                ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                : { color: 'var(--brand-muted)', background: 'transparent' }
+                ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                : { color: 'var(--text-muted)', background: 'transparent' }
               }
             >
               {s.label}
@@ -1484,7 +1484,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         </div>}
 
         {/* Pills Triagem: filtra por dimensão padrão (user/customer/project) */}
-        {triagemPadrao && <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        {triagemPadrao && <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl max-w-full mb-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {[
             { value: '',         label: 'Todos' },
             { value: 'user',     label: 'Usuário' },
@@ -1496,8 +1496,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               onClick={() => { setTriagemField(s.value); setPage(1) }}
               className="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all"
               style={triagemField === s.value
-                ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                : { color: 'var(--brand-muted)', background: 'transparent' }
+                ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                : { color: 'var(--text-muted)', background: 'transparent' }
               }
             >
               {s.label}
@@ -1539,23 +1539,23 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             <div className="mb-4 flex items-center gap-1 flex-wrap">
               {extraMin > 0 ? (
                 <>
-                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Apontadas:</span>
-                  <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{baseHours}</span>
-                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>+ % extra:</span>
+                  <span className="text-xs" style={{ color: 'var(--text-light)' }}>Apontadas:</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{baseHours}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-light)' }}>+ % extra:</span>
                   <span className="text-sm font-bold" style={{ color: 'var(--success-border)' }}>+{formatMinutes(extraMin)}</span>
-                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>=</span>
-                  <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>Total efetivo: {formatMinutes(totalMin)}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-light)' }}>=</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>Total efetivo: {formatMinutes(totalMin)}</span>
                 </>
               ) : (
                 <>
-                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Total de horas:</span>
-                  <span className="text-sm font-bold" style={{ color: 'var(--brand-primary)' }}>{baseHours}</span>
+                  <span className="text-xs" style={{ color: 'var(--text-light)' }}>Total de horas:</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{baseHours}</span>
                 </>
               )}
               {canSeeFatAdmin && fatAdminMin > 0 && (
                 <>
-                  <span className="text-xs mx-1" style={{ color: 'var(--brand-subtle)' }}>|</span>
-                  <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Fat. Admin:</span>
+                  <span className="text-xs mx-1" style={{ color: 'var(--text-light)' }}>|</span>
+                  <span className="text-xs" style={{ color: 'var(--text-light)' }}>Fat. Admin:</span>
                   <span className="text-sm font-semibold" style={{ color: 'var(--warning-border)' }}>{formatMinutes(fatAdminMin)}</span>
                 </>
               )}
@@ -1567,7 +1567,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         {loading ? (
           <SkeletonTable rows={8} cols={12} />
         ) : error ? (
-          <div className="py-10 text-center text-sm" style={{ color: 'var(--brand-danger)' }}>{error}</div>
+          <div className="py-10 text-center text-sm" style={{ color: 'var(--danger-border)' }}>{error}</div>
         ) : (
           <>
           {/* Desktop: tabela (inalterada) */}
@@ -1592,7 +1592,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 {!isCliente && (
                   <th
                     className="hidden lg:table-cell whitespace-nowrap text-center px-5 py-3.5 text-xs font-semibold uppercase tracking-wider"
-                    style={{ color: 'var(--brand-primary)', background: 'var(--primary-soft)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
+                    style={{ color: 'var(--primary)', background: 'var(--primary-soft)', borderLeft: '2px solid var(--primary)', borderRight: '2px solid var(--primary)' }}
                   >
                     Hist. de Hs Tikets
                   </th>
@@ -1674,11 +1674,11 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   {!isCliente && (
                     <td
                       className="hidden lg:table-cell font-mono text-center px-5 py-3.5"
-                      style={{ background: 'var(--primary-soft)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
+                      style={{ background: 'var(--primary-soft)', borderLeft: '2px solid var(--primary)', borderRight: '2px solid var(--primary)' }}
                     >
                       {ts.ticket_total_minutes != null
                         ? <span style={{ color: ticketTotalColor(ts.ticket_total_minutes), fontWeight: 700, fontSize: '0.875rem' }}>{formatMinutes(ts.ticket_total_minutes)}</span>
-                        : <span style={{ color: 'var(--brand-subtle)' }}>—</span>}
+                        : <span style={{ color: 'var(--text-light)' }}>—</span>}
                     </td>
                   )}
                   <Td>
@@ -1705,7 +1705,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   <Td className="whitespace-nowrap font-medium">{formatDate(ts.date)}</Td>
                   <Td muted className="hidden md:table-cell font-mono tabular-nums">{ts.start_time ?? '—'}</Td>
                   <Td muted className="hidden md:table-cell font-mono tabular-nums">{ts.end_time ?? '—'}</Td>
-                  <Td right mono className="font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                  <Td right mono className="font-semibold" style={{ color: 'var(--primary)' }}>
                     {!isCliente && ts.consultant_extra_pct ? (() => {
                       const extraMin = Math.round(ts.effort_minutes * (Number(ts.consultant_extra_pct) / 100))
                       const totalMin = ts.effort_minutes + extraMin
@@ -1727,7 +1727,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                           rel="noopener noreferrer"
                           onClick={e => e.stopPropagation()}
                           className="hover:underline cursor-pointer"
-                          style={{ color: 'var(--brand-primary)', pointerEvents: 'auto' }}
+                          style={{ color: 'var(--primary)', pointerEvents: 'auto' }}
                         >#{ts.ticket}</a>
                       : '—'}
                   </Td>
@@ -1752,9 +1752,9 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                     <button
                       onClick={() => openView(ts)}
                       className="truncate block text-left transition-colors hover:underline w-full"
-                      style={{ color: 'var(--brand-text)' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-primary)')}
-                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--brand-text)')}
+                      style={{ color: 'var(--text)' }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'var(--primary)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}
                     >
                       {ts.project?.name ?? `Projeto #${ts.project_id}`}
                     </button>
@@ -1768,7 +1768,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   <Td muted className="hidden xl:table-cell max-w-[180px]">
                     {ts.observation ? (
                       <div className="relative group w-full">
-                        <span className="block truncate cursor-default" style={{ color: 'var(--brand-muted)' }}>
+                        <span className="block truncate cursor-default" style={{ color: 'var(--text-muted)' }}>
                           {ts.observation.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
                         </span>
                         <div className="pointer-events-none absolute z-50 left-0 top-full mt-1 hidden group-hover:block w-72 rounded-xl p-3 text-xs leading-relaxed shadow-2xl"
@@ -1803,8 +1803,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               const projeto = ts.project?.name ?? `Projeto #${ts.project_id}`
               return (
                 <div key={ts.id} onClick={() => openView(ts)} {...(isTouch ? {} : hover.bind(ts))}
-                  className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)]"
-                  style={{ borderColor: 'var(--brand-border)' }}>
+                  className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)]"
+                  style={{ borderColor: 'var(--border)' }}>
                   {/* Linha 1: [checkbox] colaborador/projeto + menu */}
                   <div className="flex items-center gap-2">
                     {(isAdmin || isCoordenador) && (
@@ -1812,7 +1812,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                         checked={selectedIds.has(ts.id)} onClick={e => e.stopPropagation()}
                         onChange={e => setSelectedIds(prev => { const next = new Set(prev); if (e.target.checked) next.add(ts.id); else next.delete(ts.id); return next })} />
                     )}
-                    <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--brand-text)' }}>
+                    <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>
                       {(isAdmin || isCoordenador) ? (ts.user?.name ?? '—') : projeto}
                     </span>
                     <div onClick={e => e.stopPropagation()} className="shrink-0">
@@ -1839,8 +1839,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                     {ts.is_paid && <Badge variant="success">Pago</Badge>}
                   </div>
                   {/* Linha 3: resumo (data · tempo · cliente · projeto) */}
-                  <div className="mt-1.5 text-[11px] truncate" style={{ color: 'var(--brand-subtle)' }}>
-                    {formatDate(ts.date)} · <span style={{ color: 'var(--brand-primary)' }}>{formatMinutes(ts.effort_minutes)}</span>
+                  <div className="mt-1.5 text-[11px] truncate" style={{ color: 'var(--text-light)' }}>
+                    {formatDate(ts.date)} · <span style={{ color: 'var(--primary)' }}>{formatMinutes(ts.effort_minutes)}</span>
                     {(isAdmin || isCoordenador) && cliente ? ` · ${cliente}` : ''}
                     {(isAdmin || isCoordenador) ? ` · ${projeto}` : ''}
                   </div>
@@ -1873,7 +1873,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
       )}
       {viewLoading && viewItem && (
         <div className="fixed bottom-4 right-4 z-[60] flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-light)' }}>
           <Clock size={12} className="animate-spin" /> Carregando detalhes...
         </div>
       )}
@@ -1899,9 +1899,9 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <span className="text-xs text-[var(--text)] flex items-center gap-1.5">
             {selectedIds.size} apontamento{selectedIds.size > 1 ? 's' : ''} selecionado{selectedIds.size > 1 ? 's' : ''}
-            <span style={{ color: 'var(--brand-subtle)' }}>·</span>
-            <Clock size={11} style={{ color: 'var(--brand-primary)' }} />
-            <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>{formatMinutes(selectedMinutes)}</span>
+            <span style={{ color: 'var(--text-light)' }}>·</span>
+            <Clock size={11} style={{ color: 'var(--primary)' }} />
+            <span style={{ color: 'var(--primary)', fontWeight: 600 }}>{formatMinutes(selectedMinutes)}</span>
           </span>
           <button
             onClick={() => setBulkPcOpen(true)}
@@ -1913,7 +1913,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           <button
             onClick={() => setExtraPctModalData({ ids: Array.from(selectedIds) })}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-            style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
+            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
           >
             <TrendingUp size={11} /> % Extras
           </button>

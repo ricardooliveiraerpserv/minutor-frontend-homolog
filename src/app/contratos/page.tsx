@@ -340,7 +340,7 @@ export default function ContratosPage() {
   const visibleContracts = listTab === 'projetos' ? tabProjetos : tabContratos
 
   const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)]'
-  const inputStyle = { border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }
+  const inputStyle = { border: '1px solid var(--border)', color: 'var(--text)' }
 
   return (
     <AppLayout title="Contratos">
@@ -353,7 +353,7 @@ export default function ContratosPage() {
         <div className="flex items-center gap-2">
           <button onClick={() => router.push('/contratos/kanban')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
-            style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
             <LayoutGrid size={14} /> Kanban
           </button>
           <button onClick={openNew}
@@ -384,7 +384,7 @@ export default function ContratosPage() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 p-1 rounded-xl w-fit mb-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      <div className="flex gap-1 p-1 rounded-xl w-fit mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         {([
           { id: 'contratos', label: 'Contratos', count: tabContratos.length },
           { id: 'projetos',  label: 'Projetos',  count: tabProjetos.length  },
@@ -392,24 +392,24 @@ export default function ContratosPage() {
           <button key={tab.id} onClick={() => setListTab(tab.id)}
             className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
             style={listTab === tab.id
-              ? { background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary)' }
-              : { color: 'var(--brand-muted)', border: '1px solid transparent' }
+              ? { background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }
+              : { color: 'var(--text-muted)', border: '1px solid transparent' }
             }>
             {tab.label}
             <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
               style={listTab === tab.id
-                ? { background: 'var(--primary-soft)', color: 'var(--brand-primary)' }
-                : { background: 'var(--surface-hover)', color: 'var(--brand-muted)' }
+                ? { background: 'var(--primary-soft)', color: 'var(--primary)' }
+                : { background: 'var(--surface-hover)', color: 'var(--text-muted)' }
               }>{tab.count}</span>
           </button>
         ))}
       </div>
 
       {/* ── Table ── */}
-      <div className="rounded-xl border overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="rounded-xl border overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
         <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
-            <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
+          <thead className="sticky top-0 z-10" style={{ background: 'var(--surface)' }}>
+            <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
               <th className="w-10 px-2 py-3" />
               <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Cliente</th>
               <th className="text-left px-4 py-3 text-[var(--text-muted)] font-medium">Categoria</th>
@@ -433,7 +433,7 @@ export default function ContratosPage() {
               <tr><td colSpan={listTab === 'projetos' ? 11 : 9} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum item encontrado.</td></tr>
             )}
             {!loading && visibleContracts.map((c, i) => (
-              <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--brand-border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
+              <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
                 <td className="w-10 px-2 py-3 text-center relative">
                   <button
                     onClick={e => { e.stopPropagation(); setOpenDropdown(openDropdown === c.id ? null : c.id) }}
@@ -442,7 +442,7 @@ export default function ContratosPage() {
                   </button>
                   {openDropdown === c.id && (
                     <div ref={dropdownRef} className="absolute left-8 top-8 z-[200] rounded-xl overflow-hidden shadow-xl"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--brand-border)', minWidth: 168 }}>
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', minWidth: 168 }}>
                       {listTab === 'projetos' && isAdminOrCoord ? (
                         PROJECT_MENU_ITEMS.map(item => {
                           const Icon = item.icon
@@ -450,7 +450,7 @@ export default function ContratosPage() {
                             <button key={item.action}
                               onClick={e => { e.stopPropagation(); setOpenDropdown(null); handleProjectAction(c, item.action) }}
                               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]"
-                              style={{ color: item.action === 'delete' ? 'var(--danger)' : 'var(--brand-text)' }}>
+                              style={{ color: item.action === 'delete' ? 'var(--danger)' : 'var(--text)' }}>
                               <Icon size={14} className="shrink-0" style={{ color: item.action === 'delete' ? 'var(--danger)' : 'var(--text-muted)' }} /> {item.label}
                             </button>
                           )
@@ -458,11 +458,11 @@ export default function ContratosPage() {
                       ) : (
                         <>
                           <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); openView(c) }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-text)' }}>
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
                             <Eye size={14} className="text-[var(--text-muted)]" /> Visualizar
                           </button>
                           <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); openEdit(c) }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-text)' }}>
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
                             <Pencil size={14} className="text-[var(--text-muted)]" /> Editar
                           </button>
                           <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); setDeleteTarget({ id: c.id, name: c.customer?.name ?? `Contrato #${c.id}`, type: 'contract' }) }}
@@ -566,20 +566,20 @@ export default function ContratosPage() {
         ]
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
-            <div className="w-full max-w-lg rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="w-full max-w-lg rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               {/* Header */}
-              <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{vc.customer?.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>Criado em {fmtDate(vc.created_at)}</p>
+                    <p className="text-base font-bold" style={{ color: 'var(--text)' }}>{vc.customer?.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Criado em {fmtDate(vc.created_at)}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs font-semibold px-2 py-1 rounded-full"
                       style={{ background: `${STATUS_COLOR[vc.status]}22`, color: STATUS_COLOR[vc.status] }}>
                       {STATUS_LABEL[vc.status]}
                     </span>
-                    <button onClick={() => setViewContract(null)} className="p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+                    <button onClick={() => setViewContract(null)} className="p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-light)' }}><X size={16} /></button>
                   </div>
                 </div>
               </div>
@@ -590,24 +590,24 @@ export default function ContratosPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                   {fields.map(([label, value]) => (
                     <div key={label}>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
-                      <p className="text-sm" style={{ color: 'var(--brand-text)' }}>{value}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
+                      <p className="text-sm" style={{ color: 'var(--text)' }}>{value}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* Contatos do cliente */}
-                <div className="pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
                   <CustomerContactsSection customerId={vc.customer?.id ?? vc.customer_id} customerName={vc.customer?.name} />
                 </div>
 
                 {/* Attachments */}
                 {vc.attachments.length > 0 && (
-                  <div className="pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Anexos ({vc.attachments.length})</p>
+                  <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Anexos ({vc.attachments.length})</p>
                     <div className="space-y-2">
                       {vc.attachments.map(att => (
-                        <div key={att.id} className="flex items-center justify-between px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--brand-border)' }}>
+                        <div key={att.id} className="flex items-center justify-between px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>
                           <div className="flex items-center gap-2">
                             <FileText size={13} className="text-[var(--text-muted)]" />
                             <div>
@@ -624,16 +624,16 @@ export default function ContratosPage() {
 
                 {/* Kanban logs */}
                 {viewLogs.length > 0 && (
-                  <div className="pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Histórico de movimentações</p>
+                  <div className="pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Histórico de movimentações</p>
                     <div className="space-y-2">
                       {viewLogs.map((log) => (
-                        <div key={log.id} className="flex items-start gap-2 text-xs" style={{ color: 'var(--brand-muted)' }}>
+                        <div key={log.id} className="flex items-start gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                           <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-current opacity-40 mt-1.5" />
                           <div>
-                            <span style={{ color: 'var(--brand-text)' }}>{log.from_column}</span>
+                            <span style={{ color: 'var(--text)' }}>{log.from_column}</span>
                             <span className="mx-1">→</span>
-                            <span style={{ color: 'var(--brand-text)' }}>{log.to_column}</span>
+                            <span style={{ color: 'var(--text)' }}>{log.to_column}</span>
                             <span className="ml-2 opacity-60">por {log.moved_by}</span>
                             <span className="ml-2 opacity-40">{new Date(log.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span>
                           </div>
@@ -645,14 +645,14 @@ export default function ContratosPage() {
               </div>
 
               {/* Footer */}
-              <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
                 <button onClick={() => setViewContract(null)}
-                  className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>
+                  className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)' }}>
                   Fechar
                 </button>
                 <button onClick={() => { openEdit(vc); setViewContract(null) }}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
+                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
                   <Pencil size={13} /> Editar Contrato
                 </button>
               </div>
@@ -663,8 +663,8 @@ export default function ContratosPage() {
       {/* ── Generate Project Modal ── */}
       {genModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
-          <div className="w-full max-w-md rounded-2xl border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-            <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="w-full max-w-md rounded-2xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
               <h2 className="text-base font-semibold text-[var(--text)] flex items-center gap-2">
                 <Rocket size={16} style={{ color: 'var(--warning-border)' }} /> Gerar Projeto
               </h2>
@@ -685,11 +685,11 @@ export default function ContratosPage() {
                         className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left"
                         style={{
                           background: sel ? 'var(--primary-soft)' : 'var(--surface-hover)',
-                          border: `1px solid ${sel ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
-                          color: sel ? 'var(--brand-primary)' : 'var(--brand-text)',
+                          border: `1px solid ${sel ? 'var(--primary)' : 'var(--border)'}`,
+                          color: sel ? 'var(--primary)' : 'var(--text)',
                         }}>
                         <span className="w-4 h-4 rounded flex items-center justify-center shrink-0 text-[10px] font-bold"
-                          style={{ background: sel ? 'var(--brand-primary)' : 'transparent', border: `1px solid ${sel ? 'var(--brand-primary)' : 'var(--brand-border)'}`, color: 'var(--primary-fg)' }}>
+                          style={{ background: sel ? 'var(--primary)' : 'transparent', border: `1px solid ${sel ? 'var(--primary)' : 'var(--border)'}`, color: 'var(--primary-fg)' }}>
                           {sel ? '✓' : ''}
                         </span>
                         {u.name}
@@ -702,7 +702,7 @@ export default function ContratosPage() {
                 )}
               </div>
             </div>
-            <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <button onClick={() => setGenModal(null)} disabled={generating}
                 className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
                 Cancelar
@@ -746,7 +746,7 @@ export default function ContratosPage() {
       {/* ── Delete confirmation modal ── */}
       {deleteTarget && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70">
-          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--danger-border)' }}>
+          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--danger-border)' }}>
             <div className="px-6 py-5 flex items-center gap-3">
               <Trash2 size={20} className="text-[var(--danger)] shrink-0" />
               <div>
@@ -757,7 +757,7 @@ export default function ContratosPage() {
             <div className="px-6 pb-4">
               <p className="text-sm text-[var(--text)]">Tem certeza? Esta ação não pode ser desfeita.</p>
             </div>
-            <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <button onClick={() => setDeleteTarget(null)} disabled={deleting}
                 className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
                 Cancelar
@@ -822,8 +822,8 @@ function ProjectStatusModal({ projectId, projectName, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-      <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-        <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-base font-bold text-[var(--text)]">Alterar Status</p>
@@ -839,15 +839,15 @@ function ProjectStatusModal({ projectId, projectName, onClose, onSaved }: {
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left"
               style={{
                 background: selected === s.value ? `${s.color}12` : 'var(--surface-hover)',
-                border: `1px solid ${selected === s.value ? s.color : 'var(--brand-border)'}`,
-                color: selected === s.value ? s.color : 'var(--brand-text)',
+                border: `1px solid ${selected === s.value ? s.color : 'var(--border)'}`,
+                color: selected === s.value ? s.color : 'var(--text)',
               }}>
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
               {s.label}
             </button>
           ))}
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
           <button onClick={onClose} disabled={saving} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
             Cancelar
           </button>

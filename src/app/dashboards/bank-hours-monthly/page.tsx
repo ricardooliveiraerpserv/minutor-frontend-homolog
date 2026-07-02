@@ -111,7 +111,7 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
     <button
       onClick={onClick}
       className="px-5 py-2 text-sm font-semibold rounded-xl transition-all"
-      style={active ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' } : { color: 'var(--brand-muted)' }}
+      style={active ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}
     >
       {label}
     </button>
@@ -122,45 +122,45 @@ function Tab({ label, active, onClick }: { label: string; active: boolean; onCli
 
 function ProjectsTable({ items, loading, onViewTimesheets }: { items: ProjectItem[]; loading: boolean; onViewTimesheets: (p: ProjectItem) => void }) {
   return (
-    <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+    <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       {loading ? (
         <div className="p-6 space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-10 rounded-xl animate-pulse" style={{ background: 'var(--brand-border)' }} />
+            <div key={i} className="h-10 rounded-xl animate-pulse" style={{ background: 'var(--border)' }} />
           ))}
         </div>
       ) : (
           <table className="w-full text-sm">
-            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
               <tr>
                 {['Código','Projeto','Status','Tipo','Horas Vendidas','Consumo','Início',''].map(col => (
-                  <th key={col} className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${['Horas Vendidas','Consumo'].includes(col) ? 'text-right' : 'text-left'}`} style={{ color: 'var(--brand-subtle)' }}>{col}</th>
+                  <th key={col} className={`px-5 py-3.5 text-xs font-semibold uppercase tracking-wider ${['Horas Vendidas','Consumo'].includes(col) ? 'text-right' : 'text-left'}`} style={{ color: 'var(--text-light)' }}>{col}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {items.length === 0
-                ? <tr><td colSpan={8} className="py-12 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto encontrado.</td></tr>
+                ? <tr><td colSpan={8} className="py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum projeto encontrado.</td></tr>
                 : items.map(p => {
                   const contributions = p.total_contributions_hours || p.hour_contribution || 0
                   return (
-                    <tr key={p.id} className="transition-colors" style={{ borderBottom: '1px solid var(--brand-border)' }}
+                    <tr key={p.id} className="transition-colors" style={{ borderBottom: '1px solid var(--border)' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       <td className="px-5 py-3.5">
-                        <span className="font-mono text-xs px-2 py-1 rounded-md" style={{ background: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>{p.code}</span>
+                        <span className="font-mono text-xs px-2 py-1 rounded-md" style={{ background: 'var(--border)', color: 'var(--text-light)' }}>{p.code}</span>
                       </td>
-                      <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--brand-text)' }}>{p.name}</td>
+                      <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--text)' }}>{p.name}</td>
                       <td className="px-5 py-3.5">
                         <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--info-bg)', color: 'var(--info)' }}>{p.status_display}</span>
                       </td>
-                      <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--brand-muted)' }}>{p.contract_type_display}</td>
-                      <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--brand-text)' }}>
+                      <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--text-muted)' }}>{p.contract_type_display}</td>
+                      <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }}>
                         {p.sold_hours !== null ? (contributions > 0 ? `${p.sold_hours} (+${contributions})` : String(p.sold_hours)) : '—'}
                       </td>
-                      <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--brand-text)' }}>{fmtH(p.consumed_hours ?? 0)}</td>
-                      <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--brand-muted)' }}>{p.start_date ? fmtDate(p.start_date) : '—'}</td>
+                      <td className="px-5 py-3.5 text-right font-medium" style={{ color: 'var(--text)' }}>{fmtH(p.consumed_hours ?? 0)}</td>
+                      <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--text-muted)' }}>{p.start_date ? fmtDate(p.start_date) : '—'}</td>
                       <td className="px-3 py-3.5 text-right">
                         <button
                           onClick={() => onViewTimesheets(p)}
@@ -354,11 +354,11 @@ export default function BankHoursMonthlyPage() {
             </svg>
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>Banco de Horas Mensais</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>Consumo e saldo de horas por mês e projeto</p>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Banco de Horas Mensais</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Consumo e saldo de horas por mês e projeto</p>
             {summary && (summary.contracted_hours ?? 0) > 0 && (
               <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-xs font-medium"
-                style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)', color: 'var(--primary)' }}>
                 Contrato mensal · {fmtH(summary.contracted_hours)} contratadas por mês
               </span>
             )}
@@ -366,7 +366,7 @@ export default function BankHoursMonthlyPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-end gap-4 p-5 rounded-2xl" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="flex flex-wrap items-end gap-4 p-5 rounded-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {isAdmin && (
             <SearchSelect
               label="Executivo"
@@ -400,7 +400,7 @@ export default function BankHoursMonthlyPage() {
               : { bg: 'var(--info-bg)',    fg: 'var(--info)',    bd: 'var(--info-border)' }
             return (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Status</label>
+                <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Status</label>
                 <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-bold w-fit" style={{ background: c.bg, color: c.fg, border: `1px solid ${c.bd}` }}>
                   {sel.status_display ?? sel.status}
                 </span>
@@ -409,7 +409,7 @@ export default function BankHoursMonthlyPage() {
           })()}
           {/* Filtro de data */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Data</label>
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Data</label>
             <div className="flex items-center gap-2">
               <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
                 {(['month', 'period'] as const).map((mode) => (
@@ -442,28 +442,28 @@ export default function BankHoursMonthlyPage() {
 
         {/* Sem projeto selecionado → lista de projetos com botão "Ver". */}
         {!hasFilters && (
-          <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+              <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
                 <tr>
                   {['Código','Projeto','Status'].map(col => (
-                    <th key={col} className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
+                    <th key={col} className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{col}</th>
                   ))}
-                  <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Ação</th>
+                  <th className="px-5 py-3.5 text-right text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Ação</th>
                 </tr>
               </thead>
               <tbody>
                 {projects.length === 0 ? (
-                  <tr><td colSpan={4} className="py-12 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto encontrado.</td></tr>
+                  <tr><td colSpan={4} className="py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum projeto encontrado.</td></tr>
                 ) : projects.map(p => (
-                  <tr key={p.id} className="transition-colors" style={{ borderBottom: '1px solid var(--brand-border)' }}
+                  <tr key={p.id} className="transition-colors" style={{ borderBottom: '1px solid var(--border)' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td className="px-5 py-3.5">
-                      <span className="font-mono text-xs px-2 py-1 rounded-md" style={{ background: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>{p.code}</span>
+                      <span className="font-mono text-xs px-2 py-1 rounded-md" style={{ background: 'var(--border)', color: 'var(--text-light)' }}>{p.code}</span>
                     </td>
-                    <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--brand-text)' }}>{p.name}</td>
+                    <td className="px-5 py-3.5 font-medium" style={{ color: 'var(--text)' }}>{p.name}</td>
                     <td className="px-5 py-3.5">
                       <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold" style={{ background: 'var(--info-bg)', color: 'var(--info)' }}>{p.status_display ?? p.status ?? '—'}</span>
                     </td>
@@ -471,7 +471,7 @@ export default function BankHoursMonthlyPage() {
                       <button
                         onClick={() => setSelectedProject(p.id)}
                         className="inline-flex items-center px-4 py-1.5 rounded-lg text-sm font-semibold transition-all"
-                        style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
+                        style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
                       >
                         Ver
                       </button>
@@ -494,7 +494,7 @@ export default function BankHoursMonthlyPage() {
               ← Projetos
             </button>
             {/* Tabs */}
-            <div className="flex gap-1 p-1 rounded-2xl w-fit" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div className="flex gap-1 p-1 rounded-2xl w-fit" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <Tab label="Total Geral"  active={activeTab === 'total'}       onClick={() => setActiveTab('total')} />
               <Tab label="Projetos"     active={activeTab === 'projects'}    onClick={() => setActiveTab('projects')} />
               {isSustentacaoContract && (
@@ -514,25 +514,25 @@ export default function BankHoursMonthlyPage() {
                   <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)' }}>
                     <div className="flex items-center gap-2">
                       <AlertTriangle size={14} style={{ color: '#EF4444' }} />
-                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
                         Saldo Devedor — ERPSERV <span style={{ opacity: 0.7 }}>(informativo)</span>
                       </span>
                     </div>
                     <span className="text-3xl font-extrabold tracking-tight" style={{ color: '#EF4444', lineHeight: 1 }}>
                       {fmtH(CONCRESERV_SALDO_DEVEDOR.saldo)}
                     </span>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-1 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Horas contratadas</p>
-                        <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmtH(CONCRESERV_SALDO_DEVEDOR.contratadas)}</p>
+                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Horas contratadas</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{fmtH(CONCRESERV_SALDO_DEVEDOR.contratadas)}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Horas consumidas</p>
-                        <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmtH(CONCRESERV_SALDO_DEVEDOR.consumidas)}</p>
+                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Horas consumidas</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{fmtH(CONCRESERV_SALDO_DEVEDOR.consumidas)}</p>
                       </div>
                       <div className="col-span-2">
-                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Referência</p>
-                        <p className="text-sm font-medium" style={{ color: 'var(--brand-muted)' }}>{CONCRESERV_SALDO_DEVEDOR.referencia}</p>
+                        <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Referência</p>
+                        <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{CONCRESERV_SALDO_DEVEDOR.referencia}</p>
                       </div>
                     </div>
                   </div>
@@ -540,9 +540,9 @@ export default function BankHoursMonthlyPage() {
                 {loadingSummary ? (
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <div key={i} className="rounded-2xl p-5 animate-pulse" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                        <div className="h-3 w-24 rounded mb-4" style={{ background: 'var(--brand-border)' }} />
-                        <div className="h-10 w-20 rounded" style={{ background: 'var(--brand-border)' }} />
+                      <div key={i} className="rounded-2xl p-5 animate-pulse" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                        <div className="h-3 w-24 rounded mb-4" style={{ background: 'var(--border)' }} />
+                        <div className="h-10 w-20 rounded" style={{ background: 'var(--border)' }} />
                       </div>
                     ))}
                   </div>
@@ -561,26 +561,26 @@ export default function BankHoursMonthlyPage() {
                           ? new Date(summary.start_date + 'T00:00:00').toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' })
                           : '—'
                         return (
-                          <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total Contratado</span>
-                            <span className="text-3xl font-extrabold tracking-tight" style={{ color: 'var(--brand-text)', lineHeight: 1 }}>
+                          <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Total Contratado</span>
+                            <span className="text-3xl font-extrabold tracking-tight" style={{ color: 'var(--text)', lineHeight: 1 }}>
                               {fmtH(totalDisp)}
                             </span>
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-1 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-2 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
                               <div>
-                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>H/mês</p>
-                                <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmtH(hrsPerMonth)}</p>
+                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>H/mês</p>
+                                <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{fmtH(hrsPerMonth)}</p>
                               </div>
                               <div>
-                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Meses</p>
-                                <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{months}</p>
+                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Meses</p>
+                                <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{months}</p>
                               </div>
                               <div>
-                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Início</p>
-                                <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{startDate}</p>
+                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Início</p>
+                                <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{startDate}</p>
                               </div>
                               <div>
-                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Aporte</p>
+                                <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Aporte</p>
                                 <p className="text-sm font-bold" style={{ color: '#a78bfa' }}>{fmtH(aporte)}</p>
                               </div>
                             </div>
@@ -588,21 +588,21 @@ export default function BankHoursMonthlyPage() {
                         )
                       })()}
                       {/* Consumo Acumulado with breakdown */}
-                      <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Consumo Acumulado</span>
+                      <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Consumo Acumulado</span>
                         <div className="flex items-end gap-1.5">
                           <span className="text-3xl font-extrabold tracking-tight" style={{ color: 'var(--primary)', lineHeight: 1 }}>{fmtH(summary.consumed_hours)}</span>
                         </div>
                         {(summary.projects_consumed_hours !== undefined || summary.maintenance_consumed_hours !== undefined) && (
-                          <div className="flex gap-3 pt-1 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                          <div className="flex gap-3 pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
                             <div>
-                              <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Projetos</p>
-                              <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmtH(summary.projects_consumed_hours ?? 0)}</p>
+                              <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Projetos</p>
+                              <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{fmtH(summary.projects_consumed_hours ?? 0)}</p>
                             </div>
-                            <div className="w-px" style={{ background: 'var(--brand-border)' }} />
+                            <div className="w-px" style={{ background: 'var(--border)' }} />
                             <div>
-                              <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Sustentação</p>
-                              <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{fmtH(summary.maintenance_consumed_hours ?? 0)}</p>
+                              <p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Sustentação</p>
+                              <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{fmtH(summary.maintenance_consumed_hours ?? 0)}</p>
                             </div>
                           </div>
                         )}
@@ -644,38 +644,38 @@ export default function BankHoursMonthlyPage() {
                     )}
 
                     {/* Histórico de Aporte — sempre exibido (com estado vazio). */}
-                    <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                          <h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Histórico de Aporte de Horas</h3>
+                    <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                        <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+                          <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Histórico de Aporte de Horas</h3>
                         </div>
                           <table className="w-full text-sm">
-                            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--brand-border)', background: 'rgba(255,255,255,0.02)' }}>
+                            <thead className="sticky top-0 z-10" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
                               <tr>
                                 {['Projeto','Horas','Motivo','Valor/h','Total','Descrição','Data','Por'].map(col => (
-                                  <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{col}</th>
+                                  <th key={col} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{col}</th>
                                 ))}
                               </tr>
                             </thead>
                             <tbody>
                               {(summary.contributed_hours_history?.length ?? 0) === 0 ? (
                                 <tr>
-                                  <td colSpan={8} className="px-5 py-8 text-center text-sm" style={{ color: 'var(--brand-subtle)' }}>
+                                  <td colSpan={8} className="px-5 py-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>
                                     Nenhum aporte de horas registrado
                                   </td>
                                 </tr>
                               ) : summary.contributed_hours_history!.map(item => (
-                                <tr key={item.id} style={{ borderBottom: '1px solid var(--brand-border)' }}
+                                <tr key={item.id} style={{ borderBottom: '1px solid var(--border)' }}
                                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                 >
-                                  <td className="px-5 py-3" style={{ color: 'var(--brand-text)' }}>{item.project?.code} — {item.project?.name}</td>
+                                  <td className="px-5 py-3" style={{ color: 'var(--text)' }}>{item.project?.code} — {item.project?.name}</td>
                                   <td className="px-5 py-3 font-bold" style={{ color: 'var(--primary)' }}>{Number(item.contributed_hours ?? item.difference ?? 0).toFixed(0)}h</td>
-                                  <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{MOTIVO_LABEL[item.motivo ?? 'aporte'] ?? 'Aporte'}</td>
-                                  <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.hourly_rate ?? null)}</td>
-                                  <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.total_value ?? null)}</td>
-                                  <td className="px-5 py-3 max-w-48 truncate" style={{ color: 'var(--brand-muted)' }}>{item.description || '—'}</td>
-                                  <td className="px-5 py-3 text-sm" style={{ color: 'var(--brand-muted)' }}>{fmtDate(item.created_at)}</td>
-                                  <td className="px-5 py-3 text-sm" style={{ color: 'var(--brand-muted)' }}>{item.changed_by?.name ?? '—'}</td>
+                                  <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>{MOTIVO_LABEL[item.motivo ?? 'aporte'] ?? 'Aporte'}</td>
+                                  <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>{fmtBRL(item.hourly_rate ?? null)}</td>
+                                  <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>{fmtBRL(item.total_value ?? null)}</td>
+                                  <td className="px-5 py-3 max-w-48 truncate" style={{ color: 'var(--text-muted)' }}>{item.description || '—'}</td>
+                                  <td className="px-5 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{fmtDate(item.created_at)}</td>
+                                  <td className="px-5 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{item.changed_by?.name ?? '—'}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -683,7 +683,7 @@ export default function BankHoursMonthlyPage() {
                       </div>
                   </>
                 ) : (
-                  <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum dado disponível.</p>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum dado disponível.</p>
                 )}
               </div>
             )}

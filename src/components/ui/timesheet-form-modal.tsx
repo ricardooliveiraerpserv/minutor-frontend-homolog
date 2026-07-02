@@ -360,7 +360,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                     type="button"
                     onClick={() => setForm(f => ({ ...f, user_id: String(currentUser?.id ?? '') }))}
                     className="text-xs font-medium transition-colors"
-                    style={{ color: 'var(--brand-primary)' }}
+                    style={{ color: 'var(--primary)' }}
                   >
                     → Colocar-me como responsável
                   </button>
@@ -453,8 +453,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                   <button key={label} type="button" onClick={() => setUseTotal(i === 1)}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={active
-                      ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                      : { background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }
+                      ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                      : { background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }
                     }>{label}</button>
                 )
               })}
@@ -545,7 +545,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
             </button>
             <button onClick={save} disabled={saving || !form.project_id}
               className="h-8 px-4 text-xs rounded-lg font-semibold disabled:opacity-40 transition-all"
-              style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
+              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>

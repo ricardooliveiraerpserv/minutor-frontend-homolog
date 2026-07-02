@@ -54,7 +54,7 @@ export function Card({ children, className, padding = 'md' }: CardProps) {
   return (
     <div
       className={cn('rounded-2xl', p, className)}
-      style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
     >
       {children}
     </div>
@@ -127,9 +127,9 @@ function injectLabels(children: React.ReactNode, labels: string[]): React.ReactN
 export function Table({ children, className }: { children: React.ReactNode; className?: string }) {
   const content = injectLabels(children, collectLabels(children))
   return (
-    <div className={cn('ds-table-wrap rounded-2xl overflow-hidden', className)} style={{ border: '1px solid var(--brand-border)' }}>
+    <div className={cn('ds-table-wrap rounded-2xl overflow-hidden', className)} style={{ border: '1px solid var(--border)' }}>
       <ScrollableX>
-        <table className="ds-table w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
+        <table className="ds-table w-full text-sm" style={{ background: 'var(--surface)' }}>
           {content}
         </table>
       </ScrollableX>
@@ -139,7 +139,7 @@ export function Table({ children, className }: { children: React.ReactNode; clas
 
 export function Thead({ children }: { children: React.ReactNode }) {
   return (
-    <thead style={{ borderBottom: '1px solid var(--brand-border)', background: 'var(--surface-sunken)' }}>
+    <thead style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
       {children}
     </thead>
   )
@@ -168,13 +168,13 @@ export function Th({
         sortable && 'cursor-pointer select-none',
         className
       )}
-      style={{ color: 'var(--brand-subtle)' }}
+      style={{ color: 'var(--text-light)' }}
       onClick={onClick}
     >
       {sortable ? (
         <span className="inline-flex items-center gap-1.5">
           {children}
-          <SortIcon size={11} style={{ color: active ? 'var(--brand-primary)' : undefined, opacity: active ? 1 : 0.4 }} />
+          <SortIcon size={11} style={{ color: active ? 'var(--primary)' : undefined, opacity: active ? 1 : 0.4 }} />
         </span>
       ) : children}
     </th>
@@ -199,7 +199,7 @@ export function Tr({ children, onClick, className, baseBackground, onMouseEnter,
   return (
     <tr
       className={cn('transition-colors duration-100', onClick && 'cursor-pointer', className)}
-      style={{ borderBottom: '1px solid var(--brand-border)', background: base }}
+      style={{ borderBottom: '1px solid var(--border)', background: base }}
       onMouseEnter={e => {
         e.currentTarget.style.background = 'var(--surface-hover)'
         onMouseEnter?.()
@@ -233,7 +233,7 @@ export function Td({
       colSpan={colSpan}
       data-label={label || undefined}
       className={cn('px-5 py-3.5', right && 'text-right', mono && 'font-mono text-xs', className)}
-      style={{ color: muted ? 'var(--brand-muted)' : 'var(--brand-text)', ...style }}
+      style={{ color: muted ? 'var(--text-muted)' : 'var(--text)', ...style }}
     >
       {children}
     </td>
@@ -292,20 +292,20 @@ export function Badge({
 
 const BTN_VARIANTS = {
   primary: {
-    background: 'var(--brand-primary)',
+    background: 'var(--primary)',
     color: 'var(--primary-fg)',
     border: 'none',
     fontWeight: 700,
   },
   secondary: {
     background: 'transparent',
-    color: 'var(--brand-text)',
-    border: '1px solid var(--brand-border)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
     fontWeight: 500,
   },
   ghost: {
     background: 'transparent',
-    color: 'var(--brand-muted)',
+    color: 'var(--text-muted)',
     border: 'none',
     fontWeight: 500,
   },
@@ -372,7 +372,7 @@ export function TextInput({ label, icon: Icon, className, ...props }: InputProps
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+        <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
           {label}
         </label>
       )}
@@ -381,7 +381,7 @@ export function TextInput({ label, icon: Icon, className, ...props }: InputProps
           <Icon
             size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: 'var(--brand-subtle)' }}
+            style={{ color: 'var(--text-light)' }}
           />
         )}
         <input
@@ -391,9 +391,9 @@ export function TextInput({ label, icon: Icon, className, ...props }: InputProps
             className
           )}
           style={{
-            background: 'var(--brand-surface)',
-            border: '1px solid var(--brand-border)',
-            color: 'var(--brand-text)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            color: 'var(--text)',
           }}
           {...props}
         />
@@ -412,16 +412,16 @@ export function Select({ label, className, children, ...props }: SelectProps) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+        <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
           {label}
         </label>
       )}
       <select
         className={cn('rounded-xl px-4 py-2.5 text-sm cursor-pointer appearance-none outline-none transition-colors', className)}
         style={{
-          background: 'var(--brand-surface)',
-          border: '1px solid var(--brand-border)',
-          color: 'var(--brand-text)',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          color: 'var(--text)',
         }}
         {...props}
       >
@@ -448,7 +448,7 @@ export function Pagination({
 }) {
   return (
     <div className="flex items-center justify-between mt-4">
-      <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+      <span className="text-xs" style={{ color: 'var(--text-light)' }}>
         {total !== undefined ? `${total} registros` : `Página ${page}`}
       </span>
       <div className="flex items-center gap-1">
@@ -457,16 +457,16 @@ export function Pagination({
           disabled={page <= 1}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           style={{
-            background: 'var(--brand-surface)',
-            border: '1px solid var(--brand-border)',
-            color: 'var(--brand-muted)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-muted)',
           }}
         >
           <ChevronLeft size={13} /> Anterior
         </button>
         <span
           className="px-3 py-1.5 rounded-lg text-xs font-bold min-w-[36px] text-center"
-          style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
+          style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
         >
           {page}
         </span>
@@ -475,9 +475,9 @@ export function Pagination({
           disabled={!hasNext}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           style={{
-            background: 'var(--brand-surface)',
-            border: '1px solid var(--brand-border)',
-            color: 'var(--brand-muted)',
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-muted)',
           }}
         >
           Próxima <ChevronRight size={13} />
@@ -503,17 +503,17 @@ export function EmptyState({
   return (
     <div
       className="flex flex-col items-center justify-center gap-4 py-20 text-center rounded-2xl"
-      style={{ border: '1px dashed var(--brand-border)', background: 'transparent' }}
+      style={{ border: '1px dashed var(--border)', background: 'transparent' }}
     >
       {Icon && (
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
-          <Icon size={20} color="var(--brand-primary)" />
+          <Icon size={20} color="var(--primary)" />
         </div>
       )}
       <div>
-        <p className="font-semibold text-sm" style={{ color: 'var(--brand-text)' }}>{title}</p>
+        <p className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{title}</p>
         {description && (
-          <p className="text-sm mt-1" style={{ color: 'var(--brand-muted)' }}>{description}</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{description}</p>
         )}
       </div>
       {action}
@@ -527,7 +527,7 @@ export function Skeleton({ className }: { className?: string }) {
   return (
     <div
       className={cn('animate-pulse rounded-lg', className)}
-      style={{ background: 'var(--brand-border)' }}
+      style={{ background: 'var(--border)' }}
     />
   )
 }
@@ -571,15 +571,15 @@ export function Modal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
       <div
         className={cn('relative w-full rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto', width)}
-        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 pt-5 pb-4" style={{ borderBottom: '1px solid var(--brand-border)' }}>
-            <h2 className="font-bold text-base" style={{ color: 'var(--brand-text)' }}>{title}</h2>
+          <div className="flex items-center justify-between px-6 pt-5 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>
+            <h2 className="font-bold text-base" style={{ color: 'var(--text)' }}>{title}</h2>
             <button
               onClick={onClose}
               className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
-              style={{ color: 'var(--brand-muted)' }}
+              style={{ color: 'var(--text-muted)' }}
             >
               ✕
             </button>

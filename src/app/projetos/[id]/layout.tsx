@@ -62,7 +62,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
         <div style={{
           padding: '8px 24px',
           borderBottom: '1px solid var(--border)',
-          background: 'var(--brand-bg)',
+          background: 'var(--bg)',
         }}>
           <Link
             href={back.href}
@@ -75,7 +75,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
           </Link>
         </div>
         <ProjectHeaderExecutive project={project} onProjectChange={refetch} />
-        <div style={{ padding: '0 24px', background: 'var(--brand-bg)' }}>
+        <div style={{ padding: '0 24px', background: 'var(--bg)' }}>
           <ProjectTabs projectId={project.id} isOperational={project.is_operational !== false} />
         </div>
         <div style={{ flex: 1, padding: 24, background: 'var(--bg)' }}>

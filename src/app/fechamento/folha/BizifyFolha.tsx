@@ -301,7 +301,7 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
 
       {/* Abas Ativos / Canceladas */}
       {!loading && (
-        <div className="flex gap-1 border-b" role="tablist" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex gap-1 border-b" role="tablist" style={{ borderColor: 'var(--border)' }}>
           {([
             { key: 'ativos' as const, label: 'Ativos', count: ativosCount },
             { key: 'canceladas' as const, label: 'Canceladas', count: canceladasCount },
@@ -372,8 +372,8 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
               : 'Importe a planilha da Bizify ou clique em "Nova linha" para lançar manualmente.'}
           />
         ) : (
-          <div className="max-h-[70vh] overflow-auto rounded-2xl" style={{ border: '1px solid var(--brand-border)' }}>
-            <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
+          <div className="max-h-[70vh] overflow-auto rounded-2xl" style={{ border: '1px solid var(--border)' }}>
+            <table className="w-full text-sm" style={{ background: 'var(--surface)' }}>
               <thead>
                 <tr>
                   <Th className={stickyTh}>Matrícula</Th>
@@ -474,7 +474,7 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
               </tbody>
               {visibleRows.length > 0 && (
                 <tfoot>
-                  <tr style={{ borderTop: '2px solid var(--brand-border)' }}>
+                  <tr style={{ borderTop: '2px solid var(--border)' }}>
                     <Td className="font-semibold" >Total ({visibleRows.length})</Td>
                     <Td /><Td /><Td /><Td /><Td /><Td /><Td />
                     <Td right mono className="tabular-nums font-semibold">{formatBRL(grand.cred)}</Td>

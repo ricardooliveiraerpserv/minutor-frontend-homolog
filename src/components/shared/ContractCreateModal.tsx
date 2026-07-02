@@ -888,9 +888,9 @@ export function ContractCreateModal({
                                 className={inputCls} style={inputStyle} />
                               <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Meses anteriores não mudam.</p>
                             </div>
-                            <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                            <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Valor do Contrato (mensal)</span>
-                              <span className="text-sm font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                              <span className="text-sm font-semibold" style={{ color: 'var(--primary)' }}>
                                 R$ {oldContract.toFixed(2)} → R$ {newContract.toFixed(2)}
                               </span>
                             </div>

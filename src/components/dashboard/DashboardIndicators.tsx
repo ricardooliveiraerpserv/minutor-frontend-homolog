@@ -114,27 +114,27 @@ function TimesheetsModal({
     >
       <div
         className="w-full max-w-4xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden"
-        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 shrink-0"
-          style={{ borderBottom: '1px solid var(--brand-border)' }}>
-          <h2 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>
+          style={{ borderBottom: '1px solid var(--border)' }}>
+          <h2 className="text-sm font-bold" style={{ color: 'var(--text)' }}>
             Apontamentos
             {total > 0 && (
-              <span className="ml-2 text-xs font-normal" style={{ color: 'var(--brand-muted)' }}>
+              <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
                 ({total})
               </span>
             )}
           </h2>
           <div className="flex items-center gap-3">
             <Link href={fullUrl} className="text-xs font-medium hover:opacity-80 transition-opacity"
-              style={{ color: 'var(--brand-primary)' }}>
+              style={{ color: 'var(--primary)' }}>
               Ver todos →
             </Link>
             <button onClick={onClose}
               className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
-              style={{ color: 'var(--brand-muted)' }}>
+              style={{ color: 'var(--text-muted)' }}>
               <X size={14} />
             </button>
           </div>
@@ -145,56 +145,56 @@ function TimesheetsModal({
           {loading ? (
             <div className="flex flex-col gap-3 p-6">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--brand-border)' }} />
+                <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--border)' }} />
               ))}
             </div>
           ) : timesheets.length === 0 ? (
             <div className="p-10 text-center">
-              <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum apontamento encontrado.</p>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum apontamento encontrado.</p>
             </div>
           ) : (
             <table className="w-full text-xs">
-              <thead className="sticky top-0" style={{ background: 'var(--brand-surface)' }}>
-                <tr style={{ borderBottom: '1px solid var(--brand-border)' }}>
+              <thead className="sticky top-0" style={{ background: 'var(--surface)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   {['Data', 'Ticket', 'Tempo', 'Colaborador', 'Projeto', 'Descrição', ''].map(h => (
                     <th key={h} className="px-4 py-3 text-left font-semibold uppercase tracking-wider"
-                      style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                      style={{ color: 'var(--text-light)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {timesheets.map((ts: any, i: number) => (
                   <tr key={ts.id ?? i} className="hover:bg-[var(--surface-hover)] transition-colors"
-                    style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                    <td className="px-4 py-3 whitespace-nowrap" style={{ color: 'var(--brand-muted)' }}>
+                    style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td className="px-4 py-3 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
                       {ts.date ? fmtDate(ts.date) : '—'}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {ts.ticket && ts.ticket.length >= 5 ? (
                         <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
                           target="_blank" rel="noopener noreferrer"
-                          className="hover:underline" style={{ color: 'var(--brand-primary)' }}
+                          className="hover:underline" style={{ color: 'var(--primary)' }}
                           onClick={e => e.stopPropagation()}>
                           #{ts.ticket}
                         </a>
                       ) : (
-                        <span style={{ color: 'var(--brand-muted)' }}>#{ts.ticket || '0'}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>#{ts.ticket || '0'}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap font-mono font-bold"
-                      style={{ color: 'var(--brand-primary)' }}>
+                      style={{ color: 'var(--primary)' }}>
                       {ts.effort_minutes != null ? fmtMinutes(ts.effort_minutes) : ts.effort_hours ?? '—'}
                     </td>
-                    <td className="px-4 py-3" style={{ color: 'var(--brand-text)' }}>
+                    <td className="px-4 py-3" style={{ color: 'var(--text)' }}>
                       {ts.user?.name ?? '—'}
                     </td>
-                    <td className="px-4 py-3" style={{ color: 'var(--brand-muted)' }}>
+                    <td className="px-4 py-3" style={{ color: 'var(--text-muted)' }}>
                       {ts.project?.name ?? '—'}
                     </td>
                     <td className="px-4 py-3 max-w-[180px]">
                       {ts.observation ? (
                         <div className="relative group">
-                          <span className="block truncate cursor-default text-xs" style={{ color: 'var(--brand-muted)' }}>
+                          <span className="block truncate cursor-default text-xs" style={{ color: 'var(--text-muted)' }}>
                             {ts.observation.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
                           </span>
                           <div className="pointer-events-none absolute z-50 left-0 top-full mt-1 hidden group-hover:block w-72 rounded-xl p-3 text-xs leading-relaxed shadow-2xl"
@@ -202,14 +202,14 @@ function TimesheetsModal({
                             {ts.observation.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
                           </div>
                         </div>
-                      ) : <span style={{ color: 'var(--brand-muted)' }}>—</span>}
+                      ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {ts.id && (
                         <button
                           onClick={e => { e.stopPropagation(); onView(ts.id) }}
                           className="inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
-                          style={{ color: 'var(--brand-primary)' }}
+                          style={{ color: 'var(--primary)' }}
                           title="Visualizar apontamento">
                           <Eye size={13} />
                         </button>
@@ -225,23 +225,23 @@ function TimesheetsModal({
         {/* Footer / Pagination */}
         {(totalPages > 1 || total > 0) && (
           <div className="flex items-center justify-between px-6 py-3 shrink-0"
-            style={{ borderTop: '1px solid var(--brand-border)' }}>
-            <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+            style={{ borderTop: '1px solid var(--border)' }}>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
               {total} apontamento{total !== 1 ? 's' : ''}
             </span>
             {totalPages > 1 && (
               <div className="flex items-center gap-2">
                 <button disabled={page <= 1} onClick={() => onPage(page - 1)}
                   className="px-3 py-1.5 rounded-lg text-xs disabled:opacity-30 transition-opacity"
-                  style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+                  style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                   ←
                 </button>
-                <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   {page} / {totalPages}
                 </span>
                 <button disabled={page >= totalPages} onClick={() => onPage(page + 1)}
                   className="px-3 py-1.5 rounded-lg text-xs disabled:opacity-30 transition-opacity"
-                  style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+                  style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                   →
                 </button>
               </div>
@@ -257,13 +257,13 @@ function TimesheetsModal({
 
 function DetailInfoRow({ icon: Icon, label, children }: { icon: React.ElementType; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 py-3" style={{ borderBottom: '1px solid var(--brand-border)' }}>
-      <span className="mt-0.5 shrink-0 p-1.5 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+    <div className="flex items-start gap-3 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+      <span className="mt-0.5 shrink-0 p-1.5 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
         <Icon size={12} />
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
-        <div className="text-sm font-medium" style={{ color: 'var(--brand-text)' }}>{children}</div>
+        <p className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-light)' }}>{label}</p>
+        <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{children}</div>
       </div>
     </div>
   )
@@ -287,24 +287,24 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
       style={{ background: 'rgba(0,0,0,0.85)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="w-full max-w-xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden"
-        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 shrink-0"
-          style={{ borderBottom: '1px solid var(--brand-border)' }}>
+          style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2">
             <button onClick={onClose}
               className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
-              style={{ color: 'var(--brand-muted)' }}>
+              style={{ color: 'var(--text-muted)' }}>
               <ArrowLeft size={14} />
             </button>
-            <h2 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>
+            <h2 className="text-sm font-bold" style={{ color: 'var(--text)' }}>
               Detalhe do Apontamento
-              {ts && <span className="ml-2 text-xs font-normal" style={{ color: 'var(--brand-muted)' }}>#{ts.id}</span>}
+              {ts && <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>#{ts.id}</span>}
             </h2>
           </div>
           <button onClick={onClose}
             className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-[var(--surface-hover)] transition-colors"
-            style={{ color: 'var(--brand-muted)' }}>
+            style={{ color: 'var(--text-muted)' }}>
             <X size={14} />
           </button>
         </div>
@@ -314,11 +314,11 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
           {loading && (
             <div className="flex flex-col gap-3 py-4">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--brand-border)' }} />
+                <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: 'var(--border)' }} />
               ))}
             </div>
           )}
-          {err && <p className="text-sm py-6 text-center" style={{ color: 'var(--brand-danger)' }}>{err}</p>}
+          {err && <p className="text-sm py-6 text-center" style={{ color: 'var(--danger-border)' }}>{err}</p>}
           {!loading && ts && (
             <div>
               {/* Status badge */}
@@ -334,12 +334,12 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                    style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                    style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                     <Globe size={10} /> Web (manual)
                   </span>
                 )}
                 {ts.rejection_reason && (
-                  <span className="text-xs" style={{ color: 'var(--brand-danger)' }}>{ts.rejection_reason}</span>
+                  <span className="text-xs" style={{ color: 'var(--danger-border)' }}>{ts.rejection_reason}</span>
                 )}
               </div>
 
@@ -348,7 +348,7 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
                 {ts.start_time} – {ts.end_time}
                 {ts.effort_hours && (
                   <span className="ml-2 px-2 py-0.5 rounded text-xs font-bold"
-                    style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                    style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                     {ts.effort_hours}
                   </span>
                 )}
@@ -359,7 +359,7 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
                 {ts.project?.name ?? '—'}
                 {ts.project?.contract_type_display && (
                   <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded"
-                    style={{ background: 'var(--surface-hover)', color: 'var(--brand-subtle)' }}>
+                    style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>
                     {ts.project.contract_type_display}
                   </span>
                 )}
@@ -368,31 +368,31 @@ function TimesheetDetailModal({ id, onClose }: { id: number; onClose: () => void
                 <DetailInfoRow icon={Ticket} label="Ticket">
                   <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`}
                     target="_blank" rel="noopener noreferrer"
-                    style={{ color: 'var(--brand-primary)' }} className="hover:underline">
+                    style={{ color: 'var(--primary)' }} className="hover:underline">
                     #{ts.ticket}
                   </a>
-                  {ts.ticket_subject && <span className="ml-2" style={{ color: 'var(--brand-muted)' }}>— {ts.ticket_subject}</span>}
+                  {ts.ticket_subject && <span className="ml-2" style={{ color: 'var(--text-muted)' }}>— {ts.ticket_subject}</span>}
                 </DetailInfoRow>
               )}
               {ts.movidesk_appointment_id && (
                 <DetailInfoRow icon={Hash} label="ID Movidesk">{String(ts.movidesk_appointment_id)}</DetailInfoRow>
               )}
               {ts.observation && (
-                <div className="mt-3 rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                  <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                    <FileText size={12} style={{ color: 'var(--brand-primary)' }} />
-                    <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'var(--brand-subtle)' }}>Observação</span>
+                <div className="mt-3 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                  <div className="flex items-center gap-2 px-4 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+                    <FileText size={12} style={{ color: 'var(--primary)' }} />
+                    <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'var(--text-light)' }}>Observação</span>
                   </div>
                   <div className="px-4 py-3 text-sm leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg"
-                    style={{ color: 'var(--brand-muted)' }}
+                    style={{ color: 'var(--text-muted)' }}
                     dangerouslySetInnerHTML={{ __html: sanitizeHtml(ts.observation) }} />
                 </div>
               )}
               {ts.reviewedBy && (
                 <div className="flex items-center gap-2 px-4 py-2.5 mt-3 rounded-xl text-xs"
-                  style={{ background: 'var(--primary-soft)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
-                  <CheckCircle size={12} style={{ color: 'var(--brand-primary)' }} />
-                  Revisado por <strong style={{ color: 'var(--brand-muted)' }}>{ts.reviewedBy.name}</strong>
+                  style={{ background: 'var(--primary-soft)', border: '1px solid var(--border)', color: 'var(--text-light)' }}>
+                  <CheckCircle size={12} style={{ color: 'var(--primary)' }} />
+                  Revisado por <strong style={{ color: 'var(--text-muted)' }}>{ts.reviewedBy.name}</strong>
                   {ts.reviewed_at && ` em ${fmtDate(ts.reviewed_at.slice(0, 10))}`}
                 </div>
               )}
@@ -411,14 +411,14 @@ function ChartCard({ title, children, fullWidth = false, onOpen }: {
 }) {
   return (
     <div className={`rounded-2xl p-5 flex flex-col gap-4 ${fullWidth ? 'col-span-full' : ''}`}
-      style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+        <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
           {title}
         </h3>
         {onOpen && (
           <button onClick={onOpen} className="text-xs font-medium hover:opacity-80 transition-opacity"
-            style={{ color: 'var(--brand-primary)' }}>
+            style={{ color: 'var(--primary)' }}>
             Ver apontamentos →
           </button>
         )}
@@ -429,11 +429,11 @@ function ChartCard({ title, children, fullWidth = false, onOpen }: {
 }
 
 function Empty() {
-  return <p className="text-xs py-6 text-center" style={{ color: 'var(--brand-subtle)' }}>Nenhum dado disponível.</p>
+  return <p className="text-xs py-6 text-center" style={{ color: 'var(--text-light)' }}>Nenhum dado disponível.</p>
 }
 
 function ChartSkeleton() {
-  return <div className="animate-pulse rounded-xl h-52" style={{ background: 'var(--brand-border)' }} />
+  return <div className="animate-pulse rounded-xl h-52" style={{ background: 'var(--border)' }} />
 }
 
 function CustomTooltip({ active, payload, label, valueLabel }: any) {
@@ -537,7 +537,7 @@ export default function DashboardIndicators({ basePath, params, disabled = false
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className={`rounded-2xl p-5 ${i >= 6 ? 'col-span-full' : ''}`}
-            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <ChartSkeleton />
           </div>
         ))}
@@ -546,8 +546,8 @@ export default function DashboardIndicators({ basePath, params, disabled = false
   }
 
   if (error) return (
-    <div className="rounded-2xl p-10 text-center" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-      <p className="text-sm" style={{ color: 'var(--brand-danger)' }}>Erro ao carregar indicadores.</p>
+    <div className="rounded-2xl p-10 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <p className="text-sm" style={{ color: 'var(--danger-border)' }}>Erro ao carregar indicadores.</p>
     </div>
   )
 

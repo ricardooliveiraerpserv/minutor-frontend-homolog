@@ -17,9 +17,9 @@ interface PaginatedResponse<T> { items: T[] }
 
 const inputCls = `w-full px-3 py-2 rounded-xl text-sm outline-none`
 const inputStyle = {
-  background: 'var(--brand-bg)',
-  border: '1px solid var(--brand-border)',
-  color: 'var(--brand-text)',
+  background: 'var(--bg)',
+  border: '1px solid var(--border)',
+  color: 'var(--text)',
 }
 
 function addMinutes(time: string, mins: number): string {
@@ -173,7 +173,7 @@ export default function NewTimesheetPage() {
         <Link
           href="/timesheets"
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors"
-          style={{ color: 'var(--brand-muted)' }}
+          style={{ color: 'var(--text-muted)' }}
         >
           <ArrowLeft size={12} /> Voltar
         </Link>
@@ -185,7 +185,7 @@ export default function NewTimesheetPage() {
           {/* Usuário (admin only) */}
           {isAdmin && (
             <div>
-              <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Usuário</Label>
+              <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Usuário</Label>
               <SearchSelect
                 value={form.user_id}
                 onChange={v => setForm(f => ({ ...f, user_id: v, customer_id: '', project_id: '', is_billable_only: false }))}
@@ -195,7 +195,7 @@ export default function NewTimesheetPage() {
 
           {/* Cliente */}
           <div>
-            <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Cliente</Label>
+            <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Cliente</Label>
             <SearchSelect
               value={form.customer_id}
               onChange={v => setForm(f => ({ ...f, customer_id: v, project_id: '' }))}
@@ -204,7 +204,7 @@ export default function NewTimesheetPage() {
 
           {/* Projeto */}
           <div>
-            <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Projeto *</Label>
+            <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Projeto *</Label>
             <SearchSelect value={form.project_id} onChange={v => set('project_id', v)}
               options={projects}
               placeholder={form.customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'} />
@@ -212,7 +212,7 @@ export default function NewTimesheetPage() {
 
           {/* Data */}
           <div>
-            <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Data *</Label>
+            <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Data *</Label>
             <input type="date" value={form.date} onChange={e => set('date', e.target.value)}
               className={inputCls} style={inputStyle} />
           </div>
@@ -225,8 +225,8 @@ export default function NewTimesheetPage() {
                 <button key={label} type="button" onClick={() => setUseTotal(i === 1)}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                   style={active
-                    ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                    : { background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }
+                    ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                    : { background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }
                   }>{label}</button>
               )
             })}
@@ -236,19 +236,19 @@ export default function NewTimesheetPage() {
           {!useTotal && (
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Início *</Label>
+                <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Início *</Label>
                 <input type="time" value={form.start_time}
                   onChange={e => set('start_time', e.target.value)}
                   className={inputCls} style={inputStyle} />
               </div>
               <div>
-                <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Fim {timeDriver === 'end' ? '*' : ''}</Label>
+                <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Fim {timeDriver === 'end' ? '*' : ''}</Label>
                 <input type="time" value={form.end_time}
                   onChange={e => { setTimeDriver('end'); set('end_time', e.target.value) }}
                   className={inputCls} style={inputStyle} />
               </div>
               <div>
-                <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Total {timeDriver === 'total' ? '*' : ''}</Label>
+                <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Total {timeDriver === 'total' ? '*' : ''}</Label>
                 {/* Aceita HH:MM ("2:30"), decimal . ou , ("2.5", "2,5") e inteiro ("2"). parseHHMM converte. */}
                 <input type="text" inputMode="decimal" value={form.total_hours} placeholder="ex: 2:30 ou 2,5"
                   onChange={e => { const v = e.target.value.replace(/[^\d:.,]/g, ''); setTimeDriver('total'); set('total_hours', v) }}
@@ -265,7 +265,7 @@ export default function NewTimesheetPage() {
                 <span className="font-semibold">Atenção:</span> O lançamento por "Total de Horas" deve ser realizado em comum acordo com o coordenador responsável.
               </div>
               <div>
-                <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Total de Horas *</Label>
+                <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Total de Horas *</Label>
                 {/* Aceita HH:MM ("2:30"), decimal . ou , ("2.5", "2,5") e inteiro ("2"). parseHHMM converte. */}
                 <input type="text" inputMode="decimal" value={form.total_hours} placeholder="ex: 2:30 ou 2,5"
                   onChange={e => { const v = e.target.value.replace(/[^\d:.,]/g, ''); set('total_hours', v) }}
@@ -277,7 +277,7 @@ export default function NewTimesheetPage() {
           {/* Ticket — apenas para projetos de sustentação */}
           {projects.find(p => String(p.id) === form.project_id)?.service_type_code === 'sustentacao' && (
             <div>
-              <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Ticket</Label>
+              <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Ticket</Label>
               <input type="number" value={form.ticket} placeholder="Ex: 12345"
                 onChange={e => set('ticket', e.target.value.replace(/\D/g, ''))}
                 className={`${inputCls} [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`} style={inputStyle} />
@@ -286,7 +286,7 @@ export default function NewTimesheetPage() {
 
           {/* Observação */}
           <div>
-            <Label className="text-xs mb-1 block" style={{ color: 'var(--brand-muted)' }}>Observação</Label>
+            <Label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Observação</Label>
             <textarea value={form.observation} rows={4}
               placeholder="Descreva as atividades realizadas..."
               onChange={e => set('observation', e.target.value)}
@@ -310,13 +310,13 @@ export default function NewTimesheetPage() {
           <div className="flex gap-2 pt-2">
             <button type="submit" disabled={saving || !form.project_id}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-40"
-              style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
+              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
               <Save size={12} />
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
             <Link href="/timesheets"
               className="flex items-center px-4 py-2 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+              style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
               Cancelar
             </Link>
           </div>

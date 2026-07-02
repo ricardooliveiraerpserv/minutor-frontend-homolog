@@ -112,7 +112,7 @@ export function TimesheetLogsList({ logs, loading, empty = 'Nenhum log encontrad
 
   if (logs.length === 0) {
     return (
-      <div className="text-center py-10 text-sm" style={{ color: 'var(--brand-muted)' }}>
+      <div className="text-center py-10 text-sm" style={{ color: 'var(--text-muted)' }}>
         {empty}
       </div>
     )
@@ -129,7 +129,7 @@ export function TimesheetLogsList({ logs, loading, empty = 'Nenhum log encontrad
           <div
             key={log.id}
             className="rounded-xl px-4 py-3"
-            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             {/* Header: ação + source + autor + data */}
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
@@ -149,7 +149,7 @@ export function TimesheetLogsList({ logs, loading, empty = 'Nenhum log encontrad
                   {source.label}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+              <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-light)' }}>
                 <User size={11} />
                 <span>{log.changed_by?.name ?? '—'}</span>
                 <span>·</span>
@@ -160,7 +160,7 @@ export function TimesheetLogsList({ logs, loading, empty = 'Nenhum log encontrad
 
             {/* Info do timesheet (só na tela de auditoria) */}
             {showTimesheetInfo && log.timesheet && (
-              <div className="mb-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+              <div className="mb-2 text-xs" style={{ color: 'var(--text-light)' }}>
                 Apontamento <strong>#{log.timesheet.id}</strong>
                 {log.timesheet.customer ? ` · ${log.timesheet.customer.name}` : ''}
                 {` · Serviço ${fmtValue(log.timesheet.date)}`}
@@ -172,13 +172,13 @@ export function TimesheetLogsList({ logs, loading, empty = 'Nenhum log encontrad
 
             {/* Changes (diff) */}
             {Object.keys(log.changes ?? {}).length > 0 ? (
-              <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+              <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
                 <table className="w-full text-xs">
                   <thead style={{ background: 'rgba(255,255,255,0.03)' }}>
                     <tr>
-                      <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Campo</th>
-                      <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>De</th>
-                      <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Para</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Campo</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>De</th>
+                      <th className="px-3 py-2 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Para</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -188,14 +188,14 @@ export function TimesheetLogsList({ logs, loading, empty = 'Nenhum log encontrad
                       const oldDisplay = diff.old_label ?? fmtValue(diff.old)
                       const newDisplay = diff.new_label ?? fmtValue(diff.new)
                       return (
-                        <tr key={field} style={{ borderTop: '1px solid var(--brand-border)' }}>
-                          <td className="px-3 py-2 font-medium" style={{ color: 'var(--brand-text)' }}>{fieldLabel(field)}</td>
-                          <td className="px-3 py-2" style={{ color: 'var(--brand-muted)' }}>
+                        <tr key={field} style={{ borderTop: '1px solid var(--border)' }}>
+                          <td className="px-3 py-2 font-medium" style={{ color: 'var(--text)' }}>{fieldLabel(field)}</td>
+                          <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>
                             <code className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.08)' }}>
                               {oldDisplay}
                             </code>
                           </td>
-                          <td className="px-3 py-2" style={{ color: 'var(--brand-muted)' }}>
+                          <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>
                             <code className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(16,185,129,0.08)' }}>
                               {newDisplay}
                             </code>
@@ -207,7 +207,7 @@ export function TimesheetLogsList({ logs, loading, empty = 'Nenhum log encontrad
                 </table>
               </div>
             ) : (
-              <p className="text-xs italic" style={{ color: 'var(--brand-subtle)' }}>
+              <p className="text-xs italic" style={{ color: 'var(--text-light)' }}>
                 (sem detalhes de campo)
               </p>
             )}

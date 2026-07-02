@@ -35,7 +35,7 @@ const URGENCIAS = [
 
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--brand-subtle)' }}>
+    <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>
       {children} {required && <span style={{ color: '#ef4444' }}>*</span>}
     </label>
   )
@@ -52,12 +52,12 @@ function Input({ value, onChange, placeholder, disabled }: {
       disabled={disabled}
       className="w-full rounded-lg px-3 py-2.5 text-sm transition-all outline-none"
       style={{
-        background: 'var(--brand-bg)',
-        border: '1px solid var(--brand-border)',
-        color: 'var(--brand-text)',
+        background: 'var(--bg)',
+        border: '1px solid var(--border)',
+        color: 'var(--text)',
       }}
-      onFocus={e => { e.currentTarget.style.borderColor = 'var(--brand-primary)'; e.currentTarget.style.boxShadow = '0 0 0 2px var(--primary-soft)' }}
-      onBlur={e => { e.currentTarget.style.borderColor = 'var(--brand-border)'; e.currentTarget.style.boxShadow = 'none' }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 0 0 2px var(--primary-soft)' }}
+      onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none' }}
     />
   )
 }
@@ -73,12 +73,12 @@ function Textarea({ value, onChange, placeholder, rows = 4 }: {
       rows={rows}
       className="w-full rounded-lg px-3 py-2.5 text-sm transition-all outline-none resize-none"
       style={{
-        background: 'var(--brand-bg)',
-        border: '1px solid var(--brand-border)',
-        color: 'var(--brand-text)',
+        background: 'var(--bg)',
+        border: '1px solid var(--border)',
+        color: 'var(--text)',
       }}
-      onFocus={e => { e.currentTarget.style.borderColor = 'var(--brand-primary)'; e.currentTarget.style.boxShadow = '0 0 0 2px var(--primary-soft)' }}
-      onBlur={e => { e.currentTarget.style.borderColor = 'var(--brand-border)'; e.currentTarget.style.boxShadow = 'none' }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 0 0 2px var(--primary-soft)' }}
+      onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none' }}
     />
   )
 }
@@ -87,10 +87,10 @@ function SectionTitle({ number, title }: { number: string; title: string }) {
   return (
     <div className="flex items-center gap-3 mb-4">
       <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-        style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
+        style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
         {number}
       </div>
-      <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{title}</p>
+      <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{title}</p>
     </div>
   )
 }
@@ -104,18 +104,18 @@ function SuccessScreen({ onNew, onClose }: { onNew: () => void; onClose: () => v
         <CheckCircle size={32} style={{ color: '#22c55e' }} />
       </div>
       <div className="text-center max-w-sm">
-        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--brand-text)' }}>Requisição enviada!</h2>
-        <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
+        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text)' }}>Requisição enviada!</h2>
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
           Sua necessidade foi registrada e será analisada pela nossa equipe. Você receberá um retorno em breve.
         </p>
       </div>
       <div className="flex gap-3 flex-wrap justify-center">
         <button onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--text-light)' }}>
           Fechar
         </button>
         <button onClick={onNew} className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-opacity hover:opacity-80"
-          style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
+          style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
           Nova Requisição
         </button>
       </div>
@@ -257,14 +257,14 @@ function NovaRequisicaoContent() {
     <AppLayout>
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 md:px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-4 md:px-6 py-4 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="p-1.5 rounded-lg transition-opacity hover:opacity-70" style={{ color: 'var(--brand-muted)' }}>
+            <button onClick={() => router.back()} className="p-1.5 rounded-lg transition-opacity hover:opacity-70" style={{ color: 'var(--text-muted)' }}>
               <ChevronLeft size={16} />
             </button>
             <div>
-              <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>Formulário de Requisição</h1>
-              <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Descreva sua necessidade e nossa equipe entrará em contato</p>
+              <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Formulário de Requisição</h1>
+              <p className="text-xs" style={{ color: 'var(--text-light)' }}>Descreva sua necessidade e nossa equipe entrará em contato</p>
             </div>
           </div>
         </div>
@@ -277,11 +277,11 @@ function NovaRequisicaoContent() {
 
               {/* Seletor de cliente (apenas para admin/coordenador) */}
               {!isCliente && (
-                <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--primary)' }}>
+                <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--primary)' }}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                      style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>C</div>
-                    <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Cliente</p>
+                      style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>C</div>
+                    <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>Cliente</p>
                   </div>
                   <Label required>Selecione o Cliente</Label>
                   <div className="w-full">
@@ -302,7 +302,7 @@ function NovaRequisicaoContent() {
               )}
 
               {/* Seção 1–3: Identificação */}
-              <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+              <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <SectionTitle number="1" title="Identificação da Requisição" />
                 <div className="space-y-4">
                   <div>
@@ -327,16 +327,16 @@ function NovaRequisicaoContent() {
               </div>
 
               {/* Seção 2: Em cópia (acompanhamento) */}
-              <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+              <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <SectionTitle number="2" title="Em cópia (acompanhamento)" />
-                <p className="text-xs mb-3" style={{ color: 'var(--brand-subtle)' }}>
+                <p className="text-xs mb-3" style={{ color: 'var(--text-light)' }}>
                   Adicione e-mails de pessoas que devem acompanhar esta requisição.
                   Quem já tem usuário no Minutor entra automaticamente no chat e segue o projeto.
                   Quem não tem cadastro fica registrado, mas não recebe acesso.
                 </p>
 
                 <div className="flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 min-h-[42px]"
-                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   {ccEmails.map(e => {
                     const linked = !!e.user
                     const bg = e.resolving
@@ -345,18 +345,18 @@ function NovaRequisicaoContent() {
                         ? 'rgba(34,197,94,0.08)'
                         : 'rgba(234,179,8,0.08)'
                     const border = e.resolving
-                      ? 'var(--brand-border)'
+                      ? 'var(--border)'
                       : linked
                         ? 'rgba(34,197,94,0.35)'
                         : 'rgba(234,179,8,0.35)'
-                    const fg = e.resolving ? 'var(--brand-muted)' : linked ? '#22c55e' : '#eab308'
+                    const fg = e.resolving ? 'var(--text-muted)' : linked ? '#22c55e' : '#eab308'
                     return (
                       <span key={e.email}
                         className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px]"
                         style={{ background: bg, border: `1px solid ${border}`, color: fg }}>
                         {linked ? <UserCheck size={11} /> : <Mail size={11} />}
                         <span className="font-medium">{e.email}</span>
-                        {e.user && <span style={{ color: 'var(--brand-muted)' }}>· {e.user.name}</span>}
+                        {e.user && <span style={{ color: 'var(--text-muted)' }}>· {e.user.name}</span>}
                         <button type="button" onClick={() => removeCcEmail(e.email)}
                           className="ml-1 opacity-60 hover:opacity-100 transition-opacity">
                           <X size={11} />
@@ -378,7 +378,7 @@ function NovaRequisicaoContent() {
                     onBlur={() => { if (ccDraft.trim()) { addCcEmail(ccDraft); setCcDraft('') } }}
                     placeholder={ccEmails.length ? '' : 'email@exemplo.com — Enter para adicionar'}
                     className="flex-1 min-w-[200px] bg-transparent outline-none text-sm px-1"
-                    style={{ color: 'var(--brand-text)' }}
+                    style={{ color: 'var(--text)' }}
                   />
                 </div>
                 {ccEmails.some(e => e.user === null && !e.resolving) && (
@@ -389,7 +389,7 @@ function NovaRequisicaoContent() {
               </div>
 
               {/* Seção 4: Tipo de Necessidade */}
-              <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+              <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <SectionTitle number="4" title="Tipo de Necessidade" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {TIPOS.map(t => (
@@ -399,14 +399,14 @@ function NovaRequisicaoContent() {
                       className="flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm text-left transition-all"
                       style={{
                         background: form.tipo_necessidade === t.value ? 'var(--primary-soft)' : 'rgba(255,255,255,0.02)',
-                        border: `1px solid ${form.tipo_necessidade === t.value ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
-                        color: form.tipo_necessidade === t.value ? 'var(--brand-primary)' : 'var(--brand-muted)',
+                        border: `1px solid ${form.tipo_necessidade === t.value ? 'var(--primary)' : 'var(--border)'}`,
+                        color: form.tipo_necessidade === t.value ? 'var(--primary)' : 'var(--text-muted)',
                       }}
                     >
                       <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center"
                         style={{
-                          border: `2px solid ${form.tipo_necessidade === t.value ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
-                          background: form.tipo_necessidade === t.value ? 'var(--brand-primary)' : 'transparent',
+                          border: `2px solid ${form.tipo_necessidade === t.value ? 'var(--primary)' : 'var(--border)'}`,
+                          background: form.tipo_necessidade === t.value ? 'var(--primary)' : 'transparent',
                         }}>
                         {form.tipo_necessidade === t.value && <div className="w-1.5 h-1.5 rounded-full bg-black" />}
                       </div>
@@ -432,7 +432,7 @@ function NovaRequisicaoContent() {
               </div>
 
               {/* Seção 5: Urgência */}
-              <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+              <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <SectionTitle number="5" title="Nível de Urgência" />
                 <div className="flex flex-col gap-2">
                   {URGENCIAS.map(u => (
@@ -442,13 +442,13 @@ function NovaRequisicaoContent() {
                       className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-left transition-all"
                       style={{
                         background: form.nivel_urgencia === u.value ? `${u.color}12` : 'rgba(255,255,255,0.02)',
-                        border: `1px solid ${form.nivel_urgencia === u.value ? u.color : 'var(--brand-border)'}`,
-                        color: form.nivel_urgencia === u.value ? u.color : 'var(--brand-muted)',
+                        border: `1px solid ${form.nivel_urgencia === u.value ? u.color : 'var(--border)'}`,
+                        color: form.nivel_urgencia === u.value ? u.color : 'var(--text-muted)',
                       }}
                     >
                       <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center"
                         style={{
-                          border: `2px solid ${form.nivel_urgencia === u.value ? u.color : 'var(--brand-border)'}`,
+                          border: `2px solid ${form.nivel_urgencia === u.value ? u.color : 'var(--border)'}`,
                           background: form.nivel_urgencia === u.value ? u.color : 'transparent',
                         }}>
                         {form.nivel_urgencia === u.value && <div className="w-1.5 h-1.5 rounded-full bg-[var(--surface)]" />}
@@ -463,7 +463,7 @@ function NovaRequisicaoContent() {
               </div>
 
               {/* Seção 6: Descrição */}
-              <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+              <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <SectionTitle number="6" title="Descrição da Necessidade" />
                 <div className="space-y-4">
                   <div>
@@ -483,14 +483,14 @@ function NovaRequisicaoContent() {
 
               {/* Submit */}
               <div className="flex items-center justify-between pb-8">
-                <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                <p className="text-xs" style={{ color: 'var(--text-light)' }}>
                   <span style={{ color: '#ef4444' }}>*</span> Campos obrigatórios
                 </p>
                 <button
                   onClick={handleSubmit}
                   disabled={!isValid || saving}
                   className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
-                  style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
+                  style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
                 >
                   <Send size={15} />
                   {saving ? 'Enviando...' : 'Enviar Requisição'}

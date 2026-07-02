@@ -55,12 +55,12 @@ function ReceiptLink({ url }: { url: string }) {
     <div className="flex items-center gap-2">
       <button type="button" onClick={() => handle(false)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}>
         <Eye size={11} /> {loading ? 'Carregando...' : 'Visualizar'}
       </button>
       <button type="button" onClick={() => handle(true)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-subtle)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-light)', border: '1px solid rgba(255,255,255,0.1)' }}>
         <Download size={11} /> Baixar
       </button>
     </div>
@@ -73,14 +73,14 @@ function InfoRow({ icon: Icon, label, value, children, last }: {
 }) {
   return (
     <div className={`flex items-center gap-2.5 px-3.5 py-1.5 ${!last ? 'border-b' : ''}`}
-      style={!last ? { borderColor: 'var(--brand-border)' } : undefined}>
+      style={!last ? { borderColor: 'var(--border)' } : undefined}>
       <span className="shrink-0 p-1 rounded-md"
-        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
         <Icon size={12} />
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
-        {children ?? <p className="text-[13px] font-medium" style={{ color: 'var(--brand-text)' }}>{value ?? '—'}</p>}
+        <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
+        {children ?? <p className="text-[13px] font-medium" style={{ color: 'var(--text)' }}>{value ?? '—'}</p>}
       </div>
     </div>
   )
@@ -98,22 +98,22 @@ export function ExpenseViewModal({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 overflow-y-auto" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="relative w-full max-w-lg mt-6 rounded-2xl shadow-2xl"
-        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <button onClick={onClose}
           className="absolute top-3 right-3 z-10 p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
-          style={{ color: 'var(--brand-subtle)' }}>
+          style={{ color: 'var(--text-light)' }}>
           <X size={16} />
         </button>
 
         {/* Header */}
         <div className="px-4 pt-3.5 pb-2.5 flex items-center gap-2.5">
           <div className="p-1.5 rounded-lg shrink-0"
-            style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
             <Receipt size={16} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold" style={{ color: 'var(--brand-text)' }}>Detalhes da Despesa</h3>
-            <p className="text-[11px]" style={{ color: 'var(--brand-subtle)' }}>
+            <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Detalhes da Despesa</h3>
+            <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
               #{expense.id} · {formatDate(expense.expense_date)}
             </p>
           </div>
@@ -128,7 +128,7 @@ export function ExpenseViewModal({
             </span>
             {expense.category?.name && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <Tag size={11} /> {expense.category.name}
               </span>
             )}
@@ -140,20 +140,20 @@ export function ExpenseViewModal({
               <p className="text-[11px] uppercase tracking-widest font-semibold mb-1" style={{ color: sc.color }}>
                 {expense.status === 'rejected' ? 'Motivo da rejeição' : 'Motivo do ajuste'}
               </p>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--brand-text)' }}>{expense.rejection_reason}</p>
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--text)' }}>{expense.rejection_reason}</p>
             </div>
           )}
 
           {/* Valor hero */}
           <div className="rounded-xl px-3.5 py-2.5 flex items-baseline justify-between gap-2"
             style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
-            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--brand-subtle)' }}>Valor Total</p>
-            <p className="text-xl font-bold" style={{ color: 'var(--brand-primary)' }}>{formatCurrency(expense.amount)}</p>
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-light)' }}>Valor Total</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--primary)' }}>{formatCurrency(expense.amount)}</p>
           </div>
 
           {/* Info card */}
           <div className="rounded-xl overflow-hidden"
-            style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
             <InfoRow icon={Calendar} label="Data" value={formatDate(expense.expense_date)} />
             {expense.user?.name && (
               <InfoRow icon={Building2} label="Colaborador" value={expense.user.name} />
@@ -172,13 +172,13 @@ export function ExpenseViewModal({
             <InfoRow icon={Paperclip} label="Comprovante" last>
               {expense.receipt_url
                 ? <ReceiptLink url={expense.receipt_url} />
-                : <span className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Sem comprovante</span>
+                : <span className="text-sm" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>
               }
             </InfoRow>
             {/* FASE 11.2.FE — Painel composto: lista + upload de extras via nova camada.
                 Coexiste com receipt_url legado acima. Quando 11.4 deprecar legado,
                 a InfoRow "Comprovante" sai daqui e este painel é a fonte única. */}
-            <div className="px-3.5 py-2.5" style={{ borderTop: '1px solid var(--brand-border)' }}>
+            <div className="px-3.5 py-2.5" style={{ borderTop: '1px solid var(--border)' }}>
               <EntityAttachmentsPanel
                 entityType="EXPENSE"
                 entityId={expense.id}
@@ -195,12 +195,12 @@ export function ExpenseViewModal({
           {/* Descrição */}
           {expense.description && (
             <div className="rounded-2xl overflow-hidden"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-              <div className="flex items-center gap-2 px-3.5 py-2" style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                <FileText size={13} style={{ color: 'var(--brand-primary)' }} />
-                <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: 'var(--brand-subtle)' }}>Descrição</span>
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2 px-3.5 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+                <FileText size={13} style={{ color: 'var(--primary)' }} />
+                <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: 'var(--text-light)' }}>Descrição</span>
               </div>
-              <p className="px-3.5 py-2 text-[13px] leading-relaxed" style={{ color: 'var(--brand-muted)' }}>
+              <p className="px-3.5 py-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                 {expense.description}
               </p>
             </div>
@@ -211,13 +211,13 @@ export function ExpenseViewModal({
             {onEdit && (
               <button onClick={onEdit}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--surface-hover)]"
-                style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                 <Pencil size={14} /> Editar
               </button>
             )}
             <button onClick={onClose}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--surface-hover)]"
-              style={{ color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
+              style={{ color: 'var(--text-light)', border: '1px solid var(--border)' }}>
               Fechar
             </button>
           </div>
