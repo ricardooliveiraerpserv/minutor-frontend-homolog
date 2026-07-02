@@ -890,7 +890,7 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
 
   // adiciona já como PERMITIDO (verde); pode bloquear depois
   const add = (u: { id: number; name: string }) => {
-    setPicked(p => ({ ...p, [u.id]: u.name })); setQ(''); setHits([])
+    setPicked(p => ({ ...p, [u.id]: u.name }))
     if (!ab.users.includes(u.id) && !ab.deny_users.includes(u.id)) onChange({ users: [...ab.users, u.id] })
   }
   const setBlocked = (id: number, blocked: boolean) => blocked
@@ -899,18 +899,10 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
   const remove = (id: number) => onChange({ users: ab.users.filter(x => x !== id), deny_users: ab.deny_users.filter(x => x !== id) })
 
   const rows = [...ab.users.map(id => ({ id, blocked: false })), ...ab.deny_users.map(id => ({ id, blocked: true }))]
+  const availHits = hits.filter(u => !ab.users.includes(u.id) && !ab.deny_users.includes(u.id))
 
   return (
     <div className="mt-2 pt-2 space-y-1.5" style={{ borderTop: '1px dashed var(--border)' }}>
-      <div ref={uWrapRef} className="relative">
-        <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-light)' }} />
-        <input value={q} onChange={e => setQ(e.target.value)} onFocus={() => { if (uWrapRef.current) { const r = uWrapRef.current.getBoundingClientRect(); setUPos({ top: r.bottom + 4, left: r.left, width: r.width }) } }} placeholder="Adicionar usuário (override)…" className="ds-input w-full block" style={{ fontSize: 12, height: 30, paddingTop: 0, paddingBottom: 0, paddingLeft: 26, paddingRight: 8 }} />
-        {hits.length > 0 && (
-          <div className="fixed z-[90] max-h-40 overflow-auto rounded-lg shadow-xl" style={{ top: uPos?.top ?? 0, left: uPos?.left ?? 0, width: uPos?.width, background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            {hits.map(u => <button key={u.id} onClick={() => add(u)} className="block w-full text-left px-3 py-1 text-[12px] hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>{u.name} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{u.email}</span></button>)}
-          </div>
-        )}
-      </div>
       {rows.length === 0
         ? <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum override — busque um usuário para permitir ou bloquear.</p>
         : rows.map(r => (
@@ -926,6 +918,16 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
             <button onClick={() => remove(r.id)} title="Remover override" className="shrink-0"><Trash2 size={12} style={{ color: 'var(--text-light)' }} /></button>
           </div>
         ))}
+      <div ref={uWrapRef} className="relative">
+        <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-light)' }} />
+        <input value={q} onChange={e => setQ(e.target.value)} onFocus={() => { if (uWrapRef.current) { const r = uWrapRef.current.getBoundingClientRect(); setUPos({ top: r.bottom + 4, left: r.left, width: r.width }) } }} placeholder="Adicionar usuário (override)…" className="ds-input w-full block" style={{ fontSize: 12, height: 30, paddingTop: 0, paddingBottom: 0, paddingLeft: 26, paddingRight: 8 }} />
+        {availHits.length > 0 && (
+          <div className="fixed z-[90] max-h-40 overflow-auto rounded-lg shadow-xl" style={{ top: uPos?.top ?? 0, left: uPos?.left ?? 0, width: uPos?.width, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            {availHits.map(u => <button key={u.id} onClick={() => add(u)} className="block w-full text-left px-3 py-1 text-[12px] hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>{u.name} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{u.email}</span></button>)}
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }
