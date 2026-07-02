@@ -17,6 +17,7 @@ import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
 import { TimesheetHoverTooltip, useTimesheetHover } from '@/components/ui/timesheet-hover-tooltip'
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { api, ApiError } from '@/lib/api'
 import { fetchAsBlob } from '@/lib/attachments'
 import { previewText } from '@/lib/sanitize'
@@ -631,7 +632,6 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
 
   // Selection & actions (only timesheets use bulk)
   const [selected,     setSelected]     = useState<number[]>([])
-  const [approving,    setApproving]    = useState(false)
   const [actioning,    setActioning]    = useState<number | null>(null)
   const [rejectModal,  setRejectModal]  = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] })
   const [rejectReason, setRejectReason] = useState('')
@@ -789,31 +789,23 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
     finally { setActioning(null) }
   }
 
-  // Approve expense (via modal with charge_client)
-  const approveExp = async (chargeClient: boolean) => {
+  // Approve expense (via modal with charge_client) — Fase 2: state machine via useAsyncAction
+  const approveExpAction = useAsyncAction(async (chargeClient: boolean) => {
     if (!expApprove) return
-    setApproving(true)
-    try {
-      await api.post(`/expenses/${expApprove.id}/approve`, { charge_client: chargeClient })
-      toast.success('Despesa aprovada')
-      setExpApprove(null)
-      loadExp()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao aprovar') }
-    finally { setApproving(false) }
-  }
+    await api.post(`/expenses/${expApprove.id}/approve`, { charge_client: chargeClient })
+    toast.success('Despesa aprovada')
+    setExpApprove(null)
+    loadExp()
+  }, { onError: e => toast.error(e instanceof ApiError ? e.message : 'Erro ao aprovar') })
 
   // Request adjustment on expense (from modal)
-  const requestAdjustmentExp = async (reason: string) => {
+  const requestAdjustmentExpAction = useAsyncAction(async (reason: string) => {
     if (!expApprove) return
-    setApproving(true)
-    try {
-      await api.post(`/expenses/${expApprove.id}/request-adjustment`, { reason })
-      toast.success('Ajuste solicitado ao colaborador')
-      setExpApprove(null)
-      loadExp()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao solicitar ajuste') }
-    finally { setApproving(false) }
-  }
+    await api.post(`/expenses/${expApprove.id}/request-adjustment`, { reason })
+    toast.success('Ajuste solicitado ao colaborador')
+    setExpApprove(null)
+    loadExp()
+  }, { onError: e => toast.error(e instanceof ApiError ? e.message : 'Erro ao solicitar ajuste') })
 
   // Request adjustment (from row button) — works for both timesheets and expenses
   const handleAdjustment = async () => {
@@ -851,17 +843,13 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
   }
 
   // Bulk approve timesheets only
-  const bulkApproveTs = async () => {
+  const bulkApproveTsAction = useAsyncAction(async () => {
     if (!selected.length) return
-    setApproving(true)
-    try {
-      await api.post('/approvals/timesheets/bulk-approve', { timesheet_ids: selected })
-      toast.success(`${selected.length} apontamento(s) aprovado(s)`)
-      setSelected([])
-      loadTs()
-    } catch { toast.error('Erro ao aprovar em lote') }
-    finally { setApproving(false) }
-  }
+    await api.post('/approvals/timesheets/bulk-approve', { timesheet_ids: selected })
+    toast.success(`${selected.length} apontamento(s) aprovado(s)`)
+    setSelected([])
+    loadTs()
+  }, { onError: () => toast.error('Erro ao aprovar em lote') })
 
   // Bulk request adjustment
   const bulkAdjTs = async () => {
@@ -880,30 +868,29 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
   }
 
   // Reject
-  const handleReject = async () => {
+  const handleRejectAction = useAsyncAction(async () => {
     if (!rejectModal.ids.length) return
     if (!rejectReason.trim()) { toast.error('Informe o motivo da rejeição'); return }
-    setApproving(true)
-    try {
-      if (tab === 'timesheets') {
-        if (rejectModal.ids.length === 1)
-          await api.post(`/timesheets/${rejectModal.ids[0]}/reject`, { reason: rejectReason })
-        else
-          await api.post('/approvals/timesheets/bulk-reject', { timesheet_ids: rejectModal.ids, reason: rejectReason })
-        toast.success(`${rejectModal.ids.length} apontamento(s) rejeitado(s)`)
-        loadTs()
-      } else {
-        await api.post(`/expenses/${rejectModal.ids[0]}/reject`, { reason: rejectReason })
-        toast.success('Despesa rejeitada')
-        setExpApprove(null)
-        loadExp()
-      }
-      setSelected([])
-      setRejectModal({ open: false, ids: [] })
-      setRejectReason('')
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao rejeitar') }
-    finally { setApproving(false) }
-  }
+    if (tab === 'timesheets') {
+      if (rejectModal.ids.length === 1)
+        await api.post(`/timesheets/${rejectModal.ids[0]}/reject`, { reason: rejectReason })
+      else
+        await api.post('/approvals/timesheets/bulk-reject', { timesheet_ids: rejectModal.ids, reason: rejectReason })
+      toast.success(`${rejectModal.ids.length} apontamento(s) rejeitado(s)`)
+      loadTs()
+    } else {
+      await api.post(`/expenses/${rejectModal.ids[0]}/reject`, { reason: rejectReason })
+      toast.success('Despesa rejeitada')
+      setExpApprove(null)
+      loadExp()
+    }
+    setSelected([])
+    setRejectModal({ open: false, ids: [] })
+    setRejectReason('')
+  }, { onError: e => toast.error(e instanceof ApiError ? e.message : 'Erro ao rejeitar') })
+
+  // Cross-disable compartilhado (imediato) — deriva do pending das 4 ações do cluster.
+  const approving = approveExpAction.pending || requestAdjustmentExpAction.pending || bulkApproveTsAction.pending || handleRejectAction.pending
 
   const handleTabChange = (t: 'timesheets' | 'expenses') => {
     setTab(t); setSelected([])
@@ -1078,7 +1065,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
             {selected.length} apontamento(s) selecionado(s)
             <span className="ml-2 font-semibold text-[var(--primary)]">· {fmtMin(selectedMinutes)}</span>
           </span>
-          <button onClick={bulkApproveTs} disabled={approving}
+          <button onClick={() => bulkApproveTsAction.run()} disabled={approving}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-600 hover:bg-[var(--success-border)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
             <Check size={12} />{approving ? 'Aprovando...' : 'Aprovar todos'}
           </button>
@@ -1447,8 +1434,8 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
           approving={approving}
           isOwn={(expApprove.user?.id ?? (expApprove as any).user_id) === user?.id}
           onClose={() => setExpApprove(null)}
-          onApprove={approveExp}
-          onRequestAdjustment={requestAdjustmentExp}
+          onApprove={approveExpAction.run}
+          onRequestAdjustment={requestAdjustmentExpAction.run}
           onReject={() => {
             setRejectModal({ open: true, ids: [expApprove.id] })
             setRejectReason('')
@@ -1528,7 +1515,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setRejectModal({ open: false, ids: [] }); setRejectReason('') }}
                 className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-              <Button onClick={handleReject} disabled={approving || !rejectReason.trim()}
+              <Button onClick={() => handleRejectAction.run()} disabled={approving || !rejectReason.trim()}
                 className="h-8 text-xs bg-red-600 hover:bg-[var(--danger-border)] text-[var(--primary-fg)] disabled:opacity-50">
                 {approving ? 'Rejeitando...' : 'Confirmar rejeição'}
               </Button>
