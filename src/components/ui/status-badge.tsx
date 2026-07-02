@@ -249,7 +249,7 @@ const STYLES: Record<StatusVariant, { bg: string; border: string; fg: string }> 
   danger:  { bg: 'var(--danger-bg)',  border: 'var(--danger-border)',  fg: 'var(--danger)'  },
   info:    { bg: 'var(--info-bg)',    border: 'var(--info-border)',    fg: 'var(--info)'    },
   neutral: { bg: 'var(--surface-hover)', border: 'var(--border)',       fg: 'var(--text-muted)' },
-  primary: { bg: 'var(--primary-soft)',  border: 'var(--ring)',          fg: 'var(--primary)' },
+  primary: { bg: 'var(--info-bg)',       border: 'var(--info-border)',   fg: 'var(--info)' },
 }
 
 interface StatusBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {

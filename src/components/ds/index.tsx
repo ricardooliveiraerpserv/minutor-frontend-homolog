@@ -245,7 +245,7 @@ export function Td({
 const BADGE_STYLES: Record<string, { bg: string; color: string }> = {
   // generic
   default:   { bg: 'rgba(161,161,170,0.12)',  color: 'var(--text-muted)' },
-  primary:   { bg: 'var(--primary-soft)',    color: 'var(--primary)' },
+  primary:   { bg: 'var(--info-bg)',    color: 'var(--info)' },
   success:   { bg: 'var(--success-bg)',   color: 'var(--success)' },
   warning:   { bg: 'var(--warning-bg)',   color: 'var(--warning)' },
   danger:    { bg: 'var(--danger-bg)',    color: 'var(--danger)' },
@@ -260,7 +260,7 @@ const BADGE_STYLES: Record<string, { bg: string; color: string }> = {
   adjustment_requested: { bg: 'var(--purple-bg)',  color: 'var(--purple)' },
   // project statuses
   active:    { bg: 'var(--success-bg)',  color: 'var(--success)' },
-  started:   { bg: 'var(--primary-soft)',   color: 'var(--primary)' },
+  started:   { bg: 'var(--info-bg)',   color: 'var(--info)' },
   paused:    { bg: 'var(--warning-bg)',  color: 'var(--warning)' },
   cancelled: { bg: 'var(--danger-bg)',   color: 'var(--danger)' },
   finished:  { bg: 'rgba(161,161,170,0.12)', color: 'var(--text-light)' },
