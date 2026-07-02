@@ -123,8 +123,7 @@ function Inner() {
   const [cascade, setCascade] = useState<{ screenKey: string; moduleId: number; nodeId: string; label: string } | null>(null)  // Admin: ocultar em outros perfis?
   const [denyOpen, setDenyOpen] = useState<string | null>(null)  // painel "visibilidade por usuário" (nó da árvore)
   const [moving, setMoving] = useState<string | null>(null) // nó no fluxo "Mover para…"
-  const [selectMode, setSelectMode] = useState(false)                        // seleção múltipla ligada?
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())     // nós marcados
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())     // nós marcados (checkbox sempre visível)
   const [bulkMove, setBulkMove] = useState<'move' | 'copy' | null>(null)     // picker de destino em lote
 
   const collapseInit = useRef(false)
@@ -235,7 +234,7 @@ function Inner() {
 
   // ── Seleção múltipla (mover/copiar em lote) ──
   const toggleSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
-  const clearSelection = () => { setSelectedIds(new Set()); setSelectMode(false) }
+  const clearSelection = () => { setSelectedIds(new Set()); setBulkMove(null) }
   // ids selecionados que NÃO são descendentes de outro selecionado (evita duplicar pai+filho)
   const topLevelSelected = (): string[] => {
     const desc = new Set<string>()
@@ -396,7 +395,7 @@ function Inner() {
               <div className="flex items-center gap-1.5 flex-1 min-w-0 rounded-md my-[1px] mr-1 px-2 cursor-grab active:cursor-grabbing"
                 style={{ height: 30, background: (isOver || overIn) ? 'var(--primary-soft)' : 'transparent', border: overIn ? '1px dashed var(--primary)' : '1px solid transparent' }}>
                 {chevron}
-                {selectMode && <input type="checkbox" checked={selectedIds.has(n.id)} onChange={() => toggleSelect(n.id)} onClick={e => e.stopPropagation()} className="shrink-0" style={{ accentColor: 'var(--primary)', width: 15, height: 15 }} />}
+                <input type="checkbox" checked={selectedIds.has(n.id)} onChange={() => toggleSelect(n.id)} onClick={e => e.stopPropagation()} className="shrink-0" style={{ accentColor: 'var(--primary)', width: 15, height: 15 }} title="Selecionar" />
                 <button onClick={() => setPermOpen(permOpen === n.id ? null : n.id)} className="shrink-0" title="Acessos por usuário">
                   <FileText size={13} style={{ color: permOpen === n.id ? 'var(--primary)' : hasKids ? 'var(--primary)' : 'var(--text-light)' }} />
                 </button>
@@ -458,7 +457,7 @@ function Inner() {
             <div className="flex items-center gap-1.5 flex-1 min-w-0 rounded-md my-[1px] mr-1 px-2 cursor-grab active:cursor-grabbing"
               style={{ height: 32, background: overIn ? 'var(--primary-soft)' : 'var(--surface-sunken)', border: overIn ? '1px dashed var(--primary)' : '1px solid var(--border)' }}>
               {chevron}
-              {selectMode && <input type="checkbox" checked={selectedIds.has(n.id)} onChange={() => toggleSelect(n.id)} onClick={e => e.stopPropagation()} className="shrink-0" style={{ accentColor: 'var(--primary)', width: 15, height: 15 }} />}
+              <input type="checkbox" checked={selectedIds.has(n.id)} onChange={() => toggleSelect(n.id)} onClick={e => e.stopPropagation()} className="shrink-0" style={{ accentColor: 'var(--primary)', width: 15, height: 15 }} title="Selecionar" />
               <IconPicker value={n.icon} onPick={name => patchTreeNode(moduleId, n.id, g => ({ ...g, icon: name }))} />
               <input value={n.label ?? ''} onChange={e => patchTreeNode(moduleId, n.id, g => ({ ...g, label: e.target.value }))}
                 className="flex-1 bg-transparent text-[13px] font-semibold outline-none min-w-0" style={{ color: 'var(--text)' }} />
@@ -532,10 +531,6 @@ function Inner() {
             </button>
           ))}
         </div>
-        {/* seleção múltipla (mover/copiar em lote) — só na árvore */}
-        {view === 'tree' && (
-          <button onClick={() => { setSelectMode(s => !s); setSelectedIds(new Set()) }} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg" style={selectMode ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { border: '1px solid var(--border)', color: 'var(--text-muted)' }}><Check size={13} /> {selectMode ? 'Selecionando' : 'Selecionar'}</button>
-        )}
         {/* toggle árvore / lista */}
         <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
           <button onClick={() => setView('tree')} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5" style={view === 'tree' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}><Network size={13} /> Árvore</button>
@@ -653,34 +648,80 @@ function Inner() {
       )}
       {preview && <PreviewModal mods={mods} screens={screens} profile={preview} onClose={() => setPreview(null)} />}
       {moving && (() => { const ctx = moveContext(moving); return <MovePicker mods={mods} excludeIds={ctx.excludeIds} title={ctx.title} onPick={t => { moveNode(moving, t); setMoving(null) }} onClose={() => setMoving(null)} /> })()}
-      {bulkMove && <MovePicker mods={mods} excludeIds={selectedExcludeIds()} title={`${bulkMove === 'copy' ? 'Copiar' : 'Mover'} ${selectedIds.size} ${selectedIds.size === 1 ? 'item' : 'itens'} para…`} onPick={bulkApply} onClose={() => setBulkMove(null)} />}
-      {selectMode && selectedIds.size > 0 && (
-        <div className="fixed left-1/2 -translate-x-1/2 z-[75] flex items-center gap-2 px-3 py-2 rounded-full shadow-xl" style={{ bottom: 20, background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <span className="text-[12px] font-semibold px-1" style={{ color: 'var(--text)' }}>{selectedIds.size} selecionado{selectedIds.size === 1 ? '' : 's'}</span>
-          <button onClick={() => setBulkMove('move')} className="ds-btn-secondary text-[12px] px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><FolderInput size={13} /> Mover para…</button>
-          <button onClick={() => setBulkMove('copy')} className="ds-btn-secondary text-[12px] px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><Repeat size={13} /> Copiar para…</button>
-          <button onClick={clearSelection} className="text-[12px] px-2 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>Limpar</button>
+      {selectedIds.size > 0 && (
+        <div className="fixed left-1/2 -translate-x-1/2 z-[75] flex flex-col items-center gap-2" style={{ bottom: 20, width: 'min(560px, 92vw)' }}>
+          {/* destino INLINE (não modal): escolhe a pasta ali mesmo */}
+          {bulkMove && (
+            <div className="w-full rounded-2xl overflow-hidden shadow-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                <span className="text-[12px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}>{bulkMove === 'copy' ? <Repeat size={13} /> : <FolderInput size={13} />} {bulkMove === 'copy' ? 'Copiar' : 'Mover'} {selectedIds.size} {selectedIds.size === 1 ? 'item' : 'itens'} para…</span>
+                <button onClick={() => setBulkMove(null)} style={{ color: 'var(--text-muted)' }}><X size={15} /></button>
+              </div>
+              <FolderPickerBody mods={mods} excludeIds={selectedExcludeIds()} onPick={bulkApply} />
+            </div>
+          )}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-full shadow-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <span className="text-[12px] font-semibold px-1" style={{ color: 'var(--text)' }}>{selectedIds.size} selecionado{selectedIds.size === 1 ? '' : 's'}</span>
+            <button onClick={() => setBulkMove(bulkMove === 'move' ? null : 'move')} className="text-[12px] px-3 py-1.5 rounded-lg inline-flex items-center gap-1" style={bulkMove === 'move' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { border: '1px solid var(--border)', color: 'var(--text)' }}><FolderInput size={13} /> Mover para…</button>
+            <button onClick={() => setBulkMove(bulkMove === 'copy' ? null : 'copy')} className="text-[12px] px-3 py-1.5 rounded-lg inline-flex items-center gap-1" style={bulkMove === 'copy' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { border: '1px solid var(--border)', color: 'var(--text)' }}><Repeat size={13} /> Copiar para…</button>
+            <button onClick={() => { setSelectedIds(new Set()); setBulkMove(null) }} className="text-[12px] px-2 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>Limpar</button>
+          </div>
         </div>
       )}
     </div>
   )
 }
 
-/** "Mover para…" — fallback ao drag. Escolhe um destino (raiz de módulo ou grupo); exclui a própria subárvore. */
-function MovePicker({ mods, excludeIds, title, onPick, onClose }: { mods: Mod[]; excludeIds: Set<string>; title: string; onPick: (t: Target) => void; onClose: () => void }) {
+/** Corpo do seletor de PASTA (busca + lista) — reusado no modal (1 item) e inline (lote). */
+function FolderPickerBody({ mods, excludeIds, onPick }: { mods: Mod[]; excludeIds: Set<string>; onPick: (t: Target) => void }) {
   const [q, setQ] = useState('')
   const query = q.trim().toLowerCase()
-  // Destino = APENAS PASTAS (grupos). Coleta todas as pastas de todos os módulos (com profundidade).
   const folders = useMemo(() => {
     const out: { id: string; moduleId: number; label: string; depth: number }[] = []
     const walk = (nodes: NavTreeNode[], moduleId: number, depth: number) => nodes.forEach(n => {
       if (excludeIds.has(n.id)) return
       if (!n.screen) { out.push({ id: n.id, moduleId, label: n.label ?? '', depth }); walk(n.children ?? [], moduleId, depth + 1) }
-      else walk(n.children ?? [], moduleId, depth) // desce em telas c/ filhos só p/ achar pastas aninhadas
+      else walk(n.children ?? [], moduleId, depth)
     })
     mods.forEach(m => walk(m.items, m.id, 0))
     return out
   }, [mods, excludeIds])
+  return (
+    <>
+      <div className="px-3 pt-3">
+        <div className="relative">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-light)' }} />
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar pasta…" className="ds-input w-full block" style={{ fontSize: 12, height: 32, paddingTop: 0, paddingBottom: 0, paddingLeft: 28, paddingRight: 8 }} />
+        </div>
+      </div>
+      <div className="p-2 max-h-[45vh] overflow-auto">
+        {mods.map(m => {
+          const mFolders = folders.filter(f => f.moduleId === m.id && (!query || f.label.toLowerCase().includes(query)))
+          const rootMatch = !query || m.label.toLowerCase().includes(query)
+          if (!rootMatch && mFolders.length === 0) return null
+          return (
+            <div key={m.id} className="mb-1">
+              <button onClick={() => onPick({ type: 'module', moduleId: m.id })} className="flex items-center gap-1.5 w-full text-left py-1.5 px-2 text-[13px] font-semibold rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                <Network size={13} style={{ color: 'var(--text-muted)' }} /> {m.label} <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}>(raiz)</span>
+              </button>
+              {mFolders.map(f => (
+                <button key={f.id} onClick={() => onPick({ type: 'group', moduleId: f.moduleId, groupId: f.id })} className="flex items-center gap-1.5 w-full text-left py-1.5 text-[12px] rounded-md hover:bg-[var(--surface-hover)]" style={{ paddingLeft: 12 + (query ? 1 : f.depth + 1) * 16, paddingRight: 8, color: 'var(--text)' }}>
+                  <Folder size={13} style={{ color: 'var(--primary)' }} /> {f.label}
+                </button>
+              ))}
+            </div>
+          )
+        })}
+        {query && !folders.some(f => f.label.toLowerCase().includes(query)) && !mods.some(m => m.label.toLowerCase().includes(query)) && (
+          <p className="text-[12px] text-center py-4" style={{ color: 'var(--text-light)' }}>Nenhuma pasta encontrada.</p>
+        )}
+      </div>
+    </>
+  )
+}
+
+/** "Mover para…" de UM item (modal). Escolhe um destino (raiz de módulo ou pasta). */
+function MovePicker({ mods, excludeIds, title, onPick, onClose }: { mods: Mod[]; excludeIds: Set<string>; title: string; onPick: (t: Target) => void; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
       <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
@@ -688,34 +729,7 @@ function MovePicker({ mods, excludeIds, title, onPick, onClose }: { mods: Mod[];
           <div className="text-sm font-bold inline-flex items-center gap-2 min-w-0" style={{ color: 'var(--text)' }}><FolderInput size={15} style={{ color: 'var(--primary)' }} className="shrink-0" /> <span className="truncate">{title}</span></div>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }} className="shrink-0"><X size={16} /></button>
         </div>
-        <div className="px-3 pt-3">
-          <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-light)' }} />
-            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar pasta…" className="ds-input w-full block" style={{ fontSize: 12, height: 32, paddingTop: 0, paddingBottom: 0, paddingLeft: 28, paddingRight: 8 }} />
-          </div>
-        </div>
-        <div className="p-2 max-h-[55vh] overflow-auto">
-          {mods.map(m => {
-            const mFolders = folders.filter(f => f.moduleId === m.id && (!query || f.label.toLowerCase().includes(query)))
-            const rootMatch = !query || m.label.toLowerCase().includes(query)
-            if (!rootMatch && mFolders.length === 0) return null
-            return (
-              <div key={m.id} className="mb-1">
-                <button onClick={() => onPick({ type: 'module', moduleId: m.id })} className="flex items-center gap-1.5 w-full text-left py-1.5 px-2 text-[13px] font-semibold rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
-                  <Network size={13} style={{ color: 'var(--text-muted)' }} /> {m.label} <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}>(raiz)</span>
-                </button>
-                {mFolders.map(f => (
-                  <button key={f.id} onClick={() => onPick({ type: 'group', moduleId: f.moduleId, groupId: f.id })} className="flex items-center gap-1.5 w-full text-left py-1.5 text-[12px] rounded-md hover:bg-[var(--surface-hover)]" style={{ paddingLeft: 12 + (query ? 1 : f.depth + 1) * 16, paddingRight: 8, color: 'var(--text)' }}>
-                    <Folder size={13} style={{ color: 'var(--primary)' }} /> {f.label}
-                  </button>
-                ))}
-              </div>
-            )
-          })}
-          {query && !folders.some(f => f.label.toLowerCase().includes(query)) && !mods.some(m => m.label.toLowerCase().includes(query)) && (
-            <p className="text-[12px] text-center py-4" style={{ color: 'var(--text-light)' }}>Nenhuma pasta encontrada.</p>
-          )}
-        </div>
+        <FolderPickerBody mods={mods} excludeIds={excludeIds} onPick={onPick} />
         <div className="px-4 py-2.5 border-t text-[11px]" style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>
           Só <b>pastas</b> (e a raiz do módulo) como destino. O item vai para o fim do destino.
         </div>
