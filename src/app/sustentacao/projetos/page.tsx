@@ -156,7 +156,7 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
             <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{project.name}</p>
             <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{project.code}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -166,7 +166,7 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
               {project.status_display ?? STATUS_LABEL[project.status] ?? project.status}
             </span>
             {(project.contract_type_display ?? project.contract_type?.name) && (
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)', border: '1px solid var(--border)' }}>
                 {project.contract_type_display ?? project.contract_type?.name}
               </span>
             )}
@@ -178,7 +178,7 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
             <div className="grid grid-cols-3 gap-4 text-xs mb-3">
               <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Vendidas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{fmt(vendidas)}h</p></div>
               <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Consumidas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{fmt(consumed, 1)}h</p></div>
-              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (project.general_hours_balance ?? 0) < 0 ? '#ef4444' : 'var(--brand-text)' }}>{fmt(project.general_hours_balance, 1)}h</p></div>
+              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (project.general_hours_balance ?? 0) < 0 ? 'var(--danger-border)' : 'var(--brand-text)' }}>{fmt(project.general_hours_balance, 1)}h</p></div>
             </div>
             {vendidas > 0 ? (
               <>
@@ -216,7 +216,7 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
                 <div>
                   <p className="text-[10px] mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Coordenadores</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {project.coordinators!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}>{u.name}</span>)}
+                    {project.coordinators!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{u.name}</span>)}
                   </div>
                 </div>
               )}
@@ -224,7 +224,7 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
                 <div>
                   <p className="text-[10px] mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Consultores</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {project.consultants!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}>{u.name}</span>)}
+                    {project.consultants!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)' }}>{u.name}</span>)}
                   </div>
                 </div>
               )}
@@ -233,7 +233,7 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
         </div>
 
         <div className="flex justify-end px-5 py-3 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
         </div>
       </div>
     </div>
@@ -255,7 +255,7 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
 
   const hs = summary?.hours_summary
   const cc = summary?.cost_calculation
-  const marginColor = cc ? (cc.margin >= 0 ? '#22c55e' : '#ef4444') : 'var(--brand-text)'
+  const marginColor = cc ? (cc.margin >= 0 ? 'var(--success-border)' : 'var(--danger-border)') : 'var(--brand-text)'
   const hoursUsedPct = hs ? Math.min(hs.hours_percentage, 100) : 0
 
   return (
@@ -266,7 +266,7 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
             <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Custo do Projeto</p>
             <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{project.name}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {loading ? (
@@ -279,8 +279,8 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
             <>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Valor do Projeto', value: formatBRL(summary.project_info.project_value ?? 0), color: '#00F5FF' },
-                  { label: 'Custo Total',       value: formatBRL(cc!.total_cost),                          color: '#f59e0b' },
+                  { label: 'Valor do Projeto', value: formatBRL(summary.project_info.project_value ?? 0), color: 'var(--primary)' },
+                  { label: 'Custo Total',       value: formatBRL(cc!.total_cost),                          color: 'var(--warning-border)' },
                   { label: 'Margem',            value: formatBRL(cc!.margin),                               color: marginColor },
                   { label: 'Margem %',          value: `${cc!.margin_percentage.toFixed(1)}%`,             color: marginColor },
                 ].map(c => (
@@ -295,10 +295,10 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
                 <div className="grid grid-cols-3 gap-4 text-xs mb-3">
                   <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Disponíveis</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{(hs!.total_available_hours ?? summary.project_info.total_available_hours ?? 0).toFixed(1)}h</p></div>
                   <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Apontadas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{hs!.total_logged_hours.toFixed(1)}h</p></div>
-                  <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (hs!.general_balance ?? hs!.remaining_hours) < 0 ? '#ef4444' : 'var(--brand-text)' }}>{(hs!.general_balance ?? hs!.remaining_hours).toFixed(1)}h</p></div>
+                  <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (hs!.general_balance ?? hs!.remaining_hours) < 0 ? 'var(--danger-border)' : 'var(--brand-text)' }}>{(hs!.general_balance ?? hs!.remaining_hours).toFixed(1)}h</p></div>
                 </div>
                 <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--brand-border)' }}>
-                  <div className="h-1.5 rounded-full" style={{ width: `${hoursUsedPct}%`, background: hoursUsedPct >= 90 ? '#ef4444' : hoursUsedPct >= 70 ? '#f59e0b' : '#22c55e' }} />
+                  <div className="h-1.5 rounded-full" style={{ width: `${hoursUsedPct}%`, background: hoursUsedPct >= 90 ? 'var(--danger-border)' : hoursUsedPct >= 70 ? 'var(--warning-border)' : 'var(--success-border)' }} />
                 </div>
                 <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{hoursUsedPct.toFixed(1)}% das horas utilizadas</p>
               </div>
@@ -316,14 +316,14 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
                         <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)' }}>
                           <td className="px-3 py-2 font-medium" style={{ color: 'var(--brand-text)' }}>{c.consultant_name}</td>
                           <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--brand-text)' }}>{c.total_hours.toFixed(1)}h</td>
-                          <td className="px-3 py-2 tabular-nums" style={{ color: '#22c55e' }}>{c.approved_hours.toFixed(1)}h</td>
-                          <td className="px-3 py-2 tabular-nums" style={{ color: '#f59e0b' }}>{c.pending_hours.toFixed(1)}h</td>
+                          <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--success-border)' }}>{c.approved_hours.toFixed(1)}h</td>
+                          <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--warning-border)' }}>{c.pending_hours.toFixed(1)}h</td>
                           <td className="px-3 py-2 tabular-nums font-bold" style={{ color: 'var(--brand-text)' }}>{formatBRL(c.cost)}</td>
                         </tr>
                       ))}
-                      <tr style={{ background: 'rgba(0,245,255,0.04)', borderTop: '1px solid var(--brand-border)' }}>
+                      <tr style={{ background: 'var(--primary-soft)', borderTop: '1px solid var(--brand-border)' }}>
                         <td className="px-3 py-2 font-bold text-[11px] uppercase" style={{ color: 'var(--brand-subtle)' }} colSpan={4}>Total</td>
-                        <td className="px-3 py-2 font-bold tabular-nums" style={{ color: '#00F5FF' }}>{formatBRL(cc!.total_cost)}</td>
+                        <td className="px-3 py-2 font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{formatBRL(cc!.total_cost)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -333,7 +333,7 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
           )}
         </div>
         <div className="flex justify-end px-5 py-3 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
         </div>
       </div>
     </div>
@@ -536,7 +536,7 @@ export default function SustentacaoProjetosPage() {
               >
                 {tab.label}
                 <span className="text-xs px-1.5 py-0.5 rounded-full" style={{
-                  background: active ? 'rgba(0,245,255,0.12)' : 'rgba(255,255,255,0.06)',
+                  background: active ? 'var(--primary-soft)' : 'var(--surface-hover)',
                   color: active ? 'var(--text)' : 'var(--text-muted)',
                 }}>
                   {count}
@@ -560,7 +560,7 @@ export default function SustentacaoProjetosPage() {
             />
           </div>
           {/* Status filter */}
-          <div className="flex items-center gap-0.5 bg-zinc-800/70 border border-zinc-700/50 rounded-full p-1">
+          <div className="flex items-center gap-0.5 bg-[var(--surface-hover)] border border-[var(--border)] rounded-full p-1">
             {([
               { id: '',           label: 'Todos' },
               { id: 'started',    label: 'Em Andamento' },
@@ -572,13 +572,13 @@ export default function SustentacaoProjetosPage() {
                 className="px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
                 style={statusFilter === opt.id
                   ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
-                  : { color: '#71717A' }}>
+                  : { color: 'var(--text-light)' }}>
                 {opt.label}
               </button>
             ))}
           </div>
           {/* Saúde filter */}
-          <div className="flex items-center gap-0.5 bg-zinc-800/70 border border-zinc-700/50 rounded-full p-1">
+          <div className="flex items-center gap-0.5 bg-[var(--surface-hover)] border border-[var(--border)] rounded-full p-1">
             {([
               { id: '',       label: 'Todos',    active: 'bg-cyan-400 text-zinc-900',  inactive: 'text-zinc-400 hover:text-zinc-200' },
               { id: 'green',  label: 'Saudável', active: 'bg-green-500 text-white',    inactive: 'text-green-500 hover:text-green-400' },
@@ -635,7 +635,7 @@ export default function SustentacaoProjetosPage() {
                   const hasUnread = unreadIds.has(p.id)
 
                   return (
-                    <tr key={p.id} className="border-b transition-colors hover:bg-white/[0.015] cursor-pointer"
+                    <tr key={p.id} className="border-b transition-colors hover:bg-[var(--surface-hover)] cursor-pointer"
                       style={{ borderColor: 'var(--brand-border)' }}
                       onClick={() => setViewProject(p)}>
                       {/* Actions */}
@@ -650,12 +650,12 @@ export default function SustentacaoProjetosPage() {
                             { label: 'Despesas',        icon: <BarChart2 size={12} />,  onClick: () => router.push(`/expenses?project_id=${p.id}`) },
                             // 'Aportes' removido do menu de linha (2026-05-28): aporte se cria via "É aporte?" no Novo Contrato.
                             { label: 'Selecionar Equipe', icon: <Users size={12} />,    onClick: () => openTeam(p) },
-                            ...(isAdmin ? [{ label: 'Excluir', icon: <Trash2 size={12} className="text-red-400" />, onClick: () => setDeleteProject(p), danger: true }] : []),
+                            ...(isAdmin ? [{ label: 'Excluir', icon: <Trash2 size={12} className="text-[var(--danger)]" />, onClick: () => setDeleteProject(p), danger: true }] : []),
                           ]} />
                           <button
                             onClick={e => { e.stopPropagation(); setMessagesProject(p) }}
                             className="relative flex items-center justify-center w-7 h-7 rounded transition-colors"
-                            style={hasUnread ? { color: '#00F5FF', background: 'rgba(0,245,255,0.12)' } : { color: '#52525B' }}
+                            style={hasUnread ? { color: 'var(--primary)', background: 'var(--primary-soft)' } : { color: '#52525B' }}
                             title="Mensagens"
                           >
                             <MessageCircle size={13} />
@@ -695,14 +695,14 @@ export default function SustentacaoProjetosPage() {
 
                       {/* Balance */}
                       <td className="py-3 px-4 text-sm text-center tabular-nums font-semibold"
-                        style={{ color: saldo != null && saldo < 0 ? '#ef4444' : 'var(--brand-text)' }}>
+                        style={{ color: saldo != null && saldo < 0 ? 'var(--danger-border)' : 'var(--brand-text)' }}>
                         {saldo != null ? fmt(saldo, 1) : '—'}
                       </td>
 
                       {/* % usage + bar */}
                       <td className="py-3 px-4" style={{ minWidth: 140 }}>
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
                             <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%`, background: hs.bar }} />
                           </div>
                           <span className="text-xs tabular-nums w-9 text-center" style={{ color: hs.text }}>
@@ -745,10 +745,10 @@ export default function SustentacaoProjetosPage() {
               value={statusModal.newStatus}
               onChange={e => setStatusModal(s => ({ ...s, newStatus: e.target.value }))}
               className="w-full appearance-none px-3 py-2.5 rounded-xl text-sm outline-none mb-5"
-              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
             >
               {PROJECT_STATUSES.map(s => (
-                <option key={s.value} value={s.value} style={{ background: '#161618' }}>{s.label}</option>
+                <option key={s.value} value={s.value} style={{ background: 'var(--surface)' }}>{s.label}</option>
               ))}
             </select>
             <div className="flex gap-2 justify-end">
@@ -774,7 +774,7 @@ export default function SustentacaoProjetosPage() {
                 <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Equipe</p>
                 <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{teamProject.name}</h2>
               </div>
-              <button onClick={() => setTeamProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+              <button onClick={() => setTeamProject(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
             </div>
             <div className="px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
               <div className="relative">
@@ -787,10 +787,10 @@ export default function SustentacaoProjetosPage() {
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3">
               {allConsultants.filter(c => c.name.toLowerCase().includes(teamSearch.toLowerCase())).map(c => (
-                <label key={c.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors">
+                <label key={c.id} className="flex items-center gap-3 py-2 px-2 rounded-lg cursor-pointer hover:bg-[var(--surface-hover)] transition-colors">
                   <input type="checkbox" checked={selectedIds.has(c.id)}
                     onChange={() => setSelectedIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })}
-                    className="w-4 h-4 rounded accent-cyan-400" />
+                    className="w-4 h-4 rounded accent-[var(--primary)]" />
                   <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
                 </label>
               ))}
@@ -798,8 +798,8 @@ export default function SustentacaoProjetosPage() {
             <div className="flex justify-between items-center px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
               <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{selectedIds.size} consultor(es)</span>
               <div className="flex gap-2">
-                <button onClick={() => setTeamProject(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
-                <button onClick={saveTeam} disabled={teamSaving} className="px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}>{teamSaving ? 'Salvando...' : 'Salvar'}</button>
+                <button onClick={() => setTeamProject(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+                <button onClick={saveTeam} disabled={teamSaving} className="px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary)' }}>{teamSaving ? 'Salvando...' : 'Salvar'}</button>
               </div>
             </div>
           </div>
@@ -809,22 +809,22 @@ export default function SustentacaoProjetosPage() {
       {/* Excluir Projeto */}
       {deleteProject && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70">
-          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(239,68,68,0.4)' }}>
+          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--danger-border)' }}>
             <div className="px-6 py-5 flex items-center gap-3">
-              <Trash2 size={20} className="text-red-400 shrink-0" />
+              <Trash2 size={20} className="text-[var(--danger)] shrink-0" />
               <div>
-                <p className="font-semibold text-white">Excluir Projeto</p>
-                <p className="text-xs text-zinc-400 mt-0.5">{deleteProject.name} · {deleteProject.code}</p>
+                <p className="font-semibold text-[var(--text)]">Excluir Projeto</p>
+                <p className="text-xs text-[var(--text-muted)] mt-0.5">{deleteProject.name} · {deleteProject.code}</p>
               </div>
             </div>
             <div className="px-6 pb-4">
-              <p className="text-sm text-zinc-300">Tem certeza? Esta ação não pode ser desfeita.</p>
+              <p className="text-sm text-[var(--text)]">Tem certeza? Esta ação não pode ser desfeita.</p>
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-              <button onClick={() => setDeleteProject(null)} disabled={deleting} className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition-colors">Cancelar</button>
+              <button onClick={() => setDeleteProject(null)} disabled={deleting} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">Cancelar</button>
               <button disabled={deleting} onClick={handleDelete}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
+                style={{ background: 'var(--danger-bg)', color: '#f87171', border: '1px solid var(--danger-border)' }}>
                 <Trash2 size={14} /> {deleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
@@ -859,7 +859,7 @@ export default function SustentacaoProjetosPage() {
                   const [lbl, c] = M[messagesProject.status] ?? [messagesProject.status, '#94a3b8']
                   return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: `${c}22`, color: c, border: `1px solid ${c}55` }}>{lbl}</span>
                 })()}
-                <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+                <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
               </div>
             </div>
             <div className="flex-1 overflow-hidden">

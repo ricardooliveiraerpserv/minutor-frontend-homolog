@@ -30,8 +30,8 @@ interface PartnerItem {
 function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="relative bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-md shadow-xl">
-        <button onClick={onClose} className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300">
+      <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-md shadow-xl">
+        <button onClick={onClose} className="absolute top-3 right-3 text-[var(--text-light)] hover:text-[var(--text)]">
           <X size={16} />
         </button>
         {children}
@@ -44,7 +44,7 @@ function TableSkeleton() {
   return (
     <>
       {[...Array(6)].map((_, i) => (
-        <tr key={i} className="border-b border-zinc-800">
+        <tr key={i} className="border-b border-[var(--border)]">
           {[...Array(7)].map((_, j) => (
             <td key={j} className="px-3 py-2.5"><Skeleton className="h-4 w-full" /></td>
           ))}
@@ -191,40 +191,40 @@ export default function PartnersPage() {
       {/* Filtros */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         <div className="relative flex-1 min-w-48">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
           <Input
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="Buscar por nome..."
-            className="pl-8 bg-zinc-800 border-zinc-700 text-white h-8 text-xs"
+            className="pl-8 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs"
           />
         </div>
         <select
           value={filterActive}
           onChange={e => { setFilterActive(e.target.value); setPage(1) }}
-          className="bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs rounded-md h-8 px-2"
+          className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md h-8 px-2"
         >
           <option value="">Todos</option>
           <option value="true">Ativos</option>
           <option value="false">Inativos</option>
         </select>
-        <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-500 text-white h-8 text-xs gap-1.5">
+        <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
           <Plus size={13} /> Novo
         </Button>
       </div>
 
       {/* Tabela */}
-      <div className="rounded-lg border border-zinc-800 overflow-clip">
+      <div className="rounded-lg border border-[var(--border)] overflow-clip">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 z-10 bg-zinc-900">
-            <tr className="border-b border-zinc-800 bg-zinc-900">
+          <thead className="sticky top-0 z-10 bg-[var(--surface)]">
+            <tr className="border-b border-[var(--border)] bg-[var(--surface)]">
               <th className="px-3 py-2.5 w-10"></th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Nome</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">Documento</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden md:table-cell">E-mail</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden sm:table-cell">Telefone</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium hidden lg:table-cell">Precificação</th>
-              <th className="text-left px-3 py-2.5 text-zinc-500 font-medium">Status</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Nome</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Documento</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">E-mail</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">Telefone</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Precificação</th>
+              <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -232,38 +232,38 @@ export default function PartnersPage() {
               <TableSkeleton />
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-3 py-12 text-center text-zinc-500">
+                <td colSpan={7} className="px-3 py-12 text-center text-[var(--text-light)]">
                   <div className="flex flex-col items-center gap-2">
-                    <Handshake size={24} className="text-zinc-700" />
+                    <Handshake size={24} className="text-[var(--text-muted)]" />
                     <span>Nenhum parceiro encontrado</span>
                   </div>
                 </td>
               </tr>
             ) : items.map(item => (
-              <tr key={item.id} className="border-b border-zinc-800 hover:bg-zinc-800/40 transition-colors">
+              <tr key={item.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
                     { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: deleting === item.id },
                   ]} />
                 </td>
-                <td className="px-3 py-2.5 text-zinc-200 font-medium">{item.name}</td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell">{item.document ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden md:table-cell">{item.email ?? '—'}</td>
-                <td className="px-3 py-2.5 text-zinc-400 hidden sm:table-cell">{item.phone ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text)] font-medium">{item.name}</td>
+                <td className="px-3 py-2.5 text-[var(--text-muted)] hidden md:table-cell">{item.document ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-muted)] hidden md:table-cell">{item.email ?? '—'}</td>
+                <td className="px-3 py-2.5 text-[var(--text-muted)] hidden sm:table-cell">{item.phone ?? '—'}</td>
                 <td className="px-3 py-2.5 hidden lg:table-cell">
                   {item.pricing_type === 'fixed' ? (
-                    <span className="text-zinc-300 text-[10px]">
-                      Único {item.hourly_rate ? <span className="text-zinc-400">R$ {Number(item.hourly_rate).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/h</span> : ''}
+                    <span className="text-[var(--text)] text-[10px]">
+                      Único {item.hourly_rate ? <span className="text-[var(--text-muted)]">R$ {Number(item.hourly_rate).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/h</span> : ''}
                     </span>
                   ) : (
-                    <span className="text-[10px] text-purple-400">Por consultor</span>
+                    <span className="text-[10px] text-[var(--brand-purple)]">Por consultor</span>
                   )}
                 </td>
                 <td className="px-3 py-2.5">
                   <Badge variant="outline" className={`text-[10px] border ${item.active
-                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                    : 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30'}`}>
+                    ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]'
+                    : 'bg-[var(--surface-hover)] text-[var(--text-muted)] border-[var(--border)]'}`}>
                     {item.active ? 'Ativo' : 'Inativo'}
                   </Badge>
                 </td>
@@ -277,12 +277,12 @@ export default function PartnersPage() {
       {(page > 1 || hasNext) && (
         <div className="flex items-center justify-end gap-2 mt-3">
           <button onClick={() => setPage(page - 1)} disabled={page === 1}
-            className="p-1 text-zinc-500 hover:text-zinc-200 disabled:opacity-30">
+            className="p-1 text-[var(--text-light)] hover:text-[var(--text)] disabled:opacity-30">
             <ChevronLeft size={14} />
           </button>
-          <span className="text-xs text-zinc-500">Página {page}</span>
+          <span className="text-xs text-[var(--text-light)]">Página {page}</span>
           <button onClick={() => setPage(page + 1)} disabled={!hasNext}
-            className="p-1 text-zinc-500 hover:text-zinc-200 disabled:opacity-30">
+            className="p-1 text-[var(--text-light)] hover:text-[var(--text)] disabled:opacity-30">
             <ChevronRight size={14} />
           </button>
         </div>
@@ -292,34 +292,34 @@ export default function PartnersPage() {
       {modal.open && (
         <ModalOverlay onClose={() => setModal({ open: false })}>
           <div className="p-5 max-h-[85vh] overflow-y-auto">
-            <h3 className="text-sm font-semibold text-white mb-4">
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-4">
               {modal.item ? 'Editar Parceiro' : 'Novo Parceiro'}
             </h3>
             <div className="space-y-3">
               <div>
-                <Label className="text-xs text-zinc-400">Nome *</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Nome *</Label>
                 <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
               </div>
               <div>
-                <Label className="text-xs text-zinc-400">CNPJ / CPF</Label>
+                <Label className="text-xs text-[var(--text-muted)]">CNPJ / CPF</Label>
                 <Input value={form.document} onChange={e => setForm(f => ({ ...f, document: e.target.value }))}
                   placeholder="00.000.000/0000-00"
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
               </div>
               <div>
-                <Label className="text-xs text-zinc-400">E-mail</Label>
+                <Label className="text-xs text-[var(--text-muted)]">E-mail</Label>
                 <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
               </div>
               <div>
-                <Label className="text-xs text-zinc-400">Telefone</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Telefone</Label>
                 <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
                   placeholder="(00) 00000-0000"
-                  className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs" />
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
               </div>
               <div>
-                <Label className="text-xs text-zinc-400 mb-1.5 block">Contrato</Label>
+                <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Contrato</Label>
                 <div className="flex gap-2">
                   {([['cooperado', 'Cooperado'], ['clt', 'CLT'], ['pj', 'PJ']] as const).map(([ct, label]) => (
                     <button
@@ -328,18 +328,18 @@ export default function PartnersPage() {
                       onClick={() => setForm(f => ({ ...f, contract_type: f.contract_type === ct ? '' : ct }))}
                       className={`flex-1 py-1.5 rounded-md text-xs font-medium border transition-all ${
                         form.contract_type === ct
-                          ? 'border-blue-500 bg-blue-600/20 text-blue-300'
-                          : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'
+                          ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]'
+                          : 'border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
                       }`}
                     >
                       {label}
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-zinc-500 mt-1">Aplica a todos os consultores do parceiro.</p>
+                <p className="text-[10px] text-[var(--text-light)] mt-1">Aplica a todos os consultores do parceiro.</p>
               </div>
               <div>
-                <Label className="text-xs text-zinc-400 mb-1.5 block">Tipo de precificação *</Label>
+                <Label className="text-xs text-[var(--text-muted)] mb-1.5 block">Tipo de precificação *</Label>
                 <div className="flex gap-2">
                   {(['fixed', 'variable'] as const).map(pt => (
                     <button
@@ -348,8 +348,8 @@ export default function PartnersPage() {
                       onClick={() => setForm(f => ({ ...f, pricing_type: pt, hourly_rate: pt === 'variable' ? '' : f.hourly_rate }))}
                       className={`flex-1 py-1.5 rounded-md text-xs font-medium border transition-all ${
                         form.pricing_type === pt
-                          ? 'border-blue-500 bg-blue-600/20 text-blue-300'
-                          : 'border-zinc-700 bg-zinc-800 text-zinc-400 hover:border-zinc-600'
+                          ? 'border-[var(--primary)] bg-[var(--primary-soft)] text-[var(--primary)]'
+                          : 'border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
                       }`}
                     >
                       {pt === 'fixed' ? 'Valor único' : 'Valores por consultor'}
@@ -360,10 +360,10 @@ export default function PartnersPage() {
               {form.pricing_type === 'fixed' && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <Label className="text-xs text-zinc-400">Valor hora do parceiro (R$) *</Label>
+                    <Label className="text-xs text-[var(--text-muted)]">Valor hora do parceiro (R$) *</Label>
                     {modal.item && (
                       <button type="button" onClick={openRateHistory}
-                        className="text-[10px] font-medium text-blue-400 hover:underline">
+                        className="text-[10px] font-medium text-[var(--primary)] hover:underline">
                         Histórico de valores
                       </button>
                     )}
@@ -375,28 +375,28 @@ export default function PartnersPage() {
                     value={form.hourly_rate}
                     onChange={e => setForm(f => ({ ...f, hourly_rate: e.target.value }))}
                     placeholder="0,00"
-                    className="mt-1 bg-zinc-800 border-zinc-700 text-white h-9 text-xs"
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
                   />
                 </div>
               )}
               {form.pricing_type === 'variable' && (
-                <p className="text-[10px] text-zinc-500 bg-zinc-800/50 rounded-md px-3 py-2 border border-zinc-700/50">
+                <p className="text-[10px] text-[var(--text-light)] bg-[var(--surface-hover)] rounded-md px-3 py-2 border border-[var(--border)]">
                   Cada consultor deste parceiro terá seu próprio valor hora definido no cadastro de usuário.
                 </p>
               )}
               <div className="flex items-center gap-2">
                 <button onClick={() => setForm(f => ({ ...f, active: !f.active }))}
-                  className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-blue-600' : 'bg-zinc-700'}`}>
+                  className={`w-8 h-4 rounded-full transition-colors relative ${form.active ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
                   <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${form.active ? 'left-4' : 'left-0.5'}`} />
                 </button>
-                <Label className="text-xs text-zinc-400">Ativo</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Ativo</Label>
               </div>
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <Button variant="outline" onClick={() => setModal({ open: false })}
-                className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+                className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
               <Button onClick={() => save()} disabled={saving || !form.name || (form.pricing_type === 'fixed' && !form.hourly_rate)}
-                className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                 {saving ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
@@ -405,28 +405,28 @@ export default function PartnersPage() {
           {/* Vigência do novo valor-hora */}
           {rateModalOpen && (
             <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
-              <div className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
-                <p className="text-sm font-semibold text-white mb-3">Vigência do valor hora</p>
-                <p className="text-[13px] leading-relaxed text-zinc-400 mb-4">
+              <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
+                <p className="text-sm font-semibold text-[var(--text)] mb-3">Vigência do valor hora</p>
+                <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-4">
                   A partir de qual mês esse novo valor hora passa a valer? Meses anteriores (fechamentos já feitos) não mudam.
                 </p>
                 <div className="mb-5">
-                  <Label className="text-xs text-zinc-400 mb-1 block">Mês de vigência</Label>
+                  <Label className="text-xs text-[var(--text-muted)] mb-1 block">Mês de vigência</Label>
                   <Input
                     type="month"
                     value={rateEffectiveMonth}
                     min={new Date().toISOString().slice(0, 7)}
                     onChange={e => setRateEffectiveMonth(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white h-9 text-xs"
+                    className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
                   />
                 </div>
                 <div className="flex items-center justify-end gap-2">
                   <Button variant="outline" onClick={() => setRateModalOpen(false)}
-                    className="h-8 text-xs border-zinc-700 text-zinc-300">Cancelar</Button>
+                    className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
                   <Button
                     onClick={() => { setRateModalOpen(false); save(`${rateEffectiveMonth}-01`) }}
                     disabled={!rateEffectiveMonth}
-                    className="h-8 text-xs bg-blue-600 hover:bg-blue-500 text-white">
+                    className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                     Confirmar
                   </Button>
                 </div>
@@ -437,22 +437,22 @@ export default function PartnersPage() {
           {/* Histórico de valores-hora (somente leitura) */}
           {rateHistoryOpen && (
             <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
-              <div className="w-full max-w-lg rounded-xl border border-zinc-800 bg-zinc-900 p-6 shadow-xl">
+              <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm font-semibold text-white">Histórico de valores</p>
-                  <button onClick={() => setRateHistoryOpen(false)} className="text-zinc-500 hover:text-zinc-300">
+                  <p className="text-sm font-semibold text-[var(--text)]">Histórico de valores</p>
+                  <button onClick={() => setRateHistoryOpen(false)} className="text-[var(--text-light)] hover:text-[var(--text)]">
                     <X size={16} />
                   </button>
                 </div>
                 {rateHistoryLoading ? (
-                  <p className="text-xs text-zinc-500 py-6 text-center">Carregando…</p>
+                  <p className="text-xs text-[var(--text-light)] py-6 text-center">Carregando…</p>
                 ) : rateHistory.length === 0 ? (
-                  <p className="text-xs text-zinc-500 py-6 text-center">Nenhuma alteração registrada.</p>
+                  <p className="text-xs text-[var(--text-light)] py-6 text-center">Nenhuma alteração registrada.</p>
                 ) : (
-                  <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-zinc-800">
+                  <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-[var(--border)]">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="bg-zinc-800/60 text-zinc-400">
+                        <tr className="bg-[var(--surface-hover)] text-[var(--text-muted)]">
                           <th className="text-left font-semibold px-3 py-2">Vigência</th>
                           <th className="text-left font-semibold px-3 py-2">Valor</th>
                           <th className="text-left font-semibold px-3 py-2">Alterado por</th>
@@ -461,19 +461,19 @@ export default function PartnersPage() {
                       </thead>
                       <tbody>
                         {rateHistory.filter((h: any, i: number, a: any[]) => a.findIndex((x: any) => String(x.created_at ?? '').slice(0, 10) === String(h.created_at ?? '').slice(0, 10)) === i).map((h, i) => (
-                          <tr key={h.id ?? i} className="border-t border-zinc-800 text-zinc-200">
+                          <tr key={h.id ?? i} className="border-t border-[var(--border)] text-[var(--text)]">
                             <td className="px-3 py-2 whitespace-nowrap">
                               {h.effective_from
                                 ? (() => { const [y, m] = String(h.effective_from).slice(0, 7).split('-'); return `${m}/${y}` })()
-                                : <span title="vigência não informada (legado)" className="text-zinc-500">—</span>}
+                                : <span title="vigência não informada (legado)" className="text-[var(--text-light)]">—</span>}
                             </td>
                             <td className="px-3 py-2 tabular-nums whitespace-nowrap">
                               {h.old_hourly_rate != null ? Number(h.old_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
-                              <span className="text-zinc-500"> → </span>
+                              <span className="text-[var(--text-light)]"> → </span>
                               {h.new_hourly_rate != null ? Number(h.new_hourly_rate).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
                             </td>
                             <td className="px-3 py-2">{h.changed_by_user?.name ?? '—'}</td>
-                            <td className="px-3 py-2 whitespace-nowrap text-zinc-400">
+                            <td className="px-3 py-2 whitespace-nowrap text-[var(--text-muted)]">
                               {h.created_at ? new Date(h.created_at).toLocaleDateString('pt-BR') : '—'}
                             </td>
                           </tr>
@@ -484,7 +484,7 @@ export default function PartnersPage() {
                 )}
                 <div className="flex items-center justify-end mt-5">
                   <Button variant="outline" onClick={() => setRateHistoryOpen(false)}
-                    className="h-8 text-xs border-zinc-700 text-zinc-300">Fechar</Button>
+                    className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Fechar</Button>
                 </div>
               </div>
             </div>

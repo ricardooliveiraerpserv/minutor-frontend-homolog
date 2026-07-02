@@ -263,14 +263,14 @@ export default function MovideskIntegracaoPage() {
 
         {/* Header */}
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(0,245,255,0.10)', border: '1px solid rgba(0,245,255,0.2)' }}>
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
             <Webhook size={22} style={{ color: 'var(--primary)' }} />
           </div>
           <div>
             <h1 className="text-xl font-bold" style={{ color: 'var(--brand-text)' }}>Integração Movidesk</h1>
             <p className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Importação automática de apontamentos via webhook e varredura a cada 20 min</p>
           </div>
-          <button onClick={loadStatus} className="ml-auto p-2 rounded-lg transition-colors hover:bg-white/[0.06]" title="Atualizar status">
+          <button onClick={loadStatus} className="ml-auto p-2 rounded-lg transition-colors hover:bg-[var(--surface-hover)]" title="Atualizar status">
             <RefreshCw size={15} style={{ color: 'var(--brand-subtle)' }} className={statusLoading ? 'animate-spin' : ''} />
           </button>
         </div>
@@ -305,12 +305,12 @@ export default function MovideskIntegracaoPage() {
 
         {/* Token alerta */}
         {status && !status.token_configured && (
-          <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
-            <AlertTriangle size={16} style={{ color: '#ef4444', marginTop: 1, flexShrink: 0 }} />
+          <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+            <AlertTriangle size={16} style={{ color: 'var(--danger-border)', marginTop: 1, flexShrink: 0 }} />
             <div>
-              <p className="text-sm font-semibold" style={{ color: '#ef4444' }}>Token da API não configurado</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--danger-border)' }}>Token da API não configurado</p>
               <p className="text-xs mt-1" style={{ color: '#fca5a5' }}>
-                Configure a variável de ambiente <code className="font-mono bg-white/[0.08] px-1 rounded">MOVIDESK_API_TOKEN</code> no servidor com o token gerado no painel Movidesk em <strong>Configurações → Integrações → API</strong>.
+                Configure a variável de ambiente <code className="font-mono bg-[var(--surface-hover)] px-1 rounded">MOVIDESK_API_TOKEN</code> no servidor com o token gerado no painel Movidesk em <strong>Configurações → Integrações → API</strong>.
               </p>
             </div>
           </div>
@@ -329,21 +329,21 @@ export default function MovideskIntegracaoPage() {
             </p>
             <div className="flex items-center gap-2 p-3 rounded-xl font-mono text-xs" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-primary)' }}>
               <span className="flex-1 truncate">{WEBHOOK_URL}</span>
-              <button onClick={copyWebhook} className="flex items-center gap-1 px-2 py-1 rounded-lg transition-colors hover:bg-white/[0.08] shrink-0" style={{ color: copied ? '#22c55e' : 'var(--brand-subtle)' }}>
+              <button onClick={copyWebhook} className="flex items-center gap-1 px-2 py-1 rounded-lg transition-colors hover:bg-[var(--surface-hover)] shrink-0" style={{ color: copied ? 'var(--success-border)' : 'var(--brand-subtle)' }}>
                 {copied ? <Check size={12} /> : <Copy size={12} />}
                 {copied ? 'Copiado' : 'Copiar'}
               </button>
             </div>
           </div>
 
-          <div className="rounded-xl p-3 text-xs space-y-1.5" style={{ background: 'rgba(0,245,255,0.04)', border: '1px solid rgba(0,245,255,0.12)' }}>
+          <div className="rounded-xl p-3 text-xs space-y-1.5" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
             <p className="font-semibold" style={{ color: 'var(--primary)' }}>Configuração no Movidesk</p>
             <ol className="space-y-1 list-decimal list-inside" style={{ color: 'var(--brand-muted)' }}>
               <li>Acesse <strong>Configurações → API</strong> e gere um token de integração</li>
-              <li>Configure <code className="font-mono bg-white/[0.08] px-1 rounded">MOVIDESK_API_TOKEN</code> no servidor com esse token</li>
+              <li>Configure <code className="font-mono bg-[var(--surface-hover)] px-1 rounded">MOVIDESK_API_TOKEN</code> no servidor com esse token</li>
               <li>Acesse <strong>Configurações → Gatilhos</strong> e crie um gatilho POST para a URL acima</li>
               <li>Selecione os eventos: <em>Ticket criado</em>, <em>Ticket atualizado</em>, <em>Apontamento adicionado</em></li>
-              <li>No corpo do gatilho, envie: <code className="font-mono bg-white/[0.08] px-1 rounded">{`{"id":"{{ticket.id}}"}`}</code></li>
+              <li>No corpo do gatilho, envie: <code className="font-mono bg-[var(--surface-hover)] px-1 rounded">{`{"id":"{{ticket.id}}"}`}</code></li>
             </ol>
           </div>
         </div>
@@ -351,20 +351,20 @@ export default function MovideskIntegracaoPage() {
         {/* Padrões de importação */}
         <div className="rounded-2xl p-5 space-y-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           <div className="flex items-center gap-2">
-            <Settings size={16} style={{ color: '#a78bfa' }} />
+            <Settings size={16} style={{ color: 'var(--brand-purple)' }} />
             <h2 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Padrões de Importação</h2>
             <span className="text-xs ml-1" style={{ color: 'var(--brand-subtle)' }}>— usados quando usuário, cliente ou projeto não são identificados automaticamente</span>
           </div>
 
-          <div className="rounded-xl p-3 text-xs" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
-            <p style={{ color: '#f59e0b' }}>
+          <div className="rounded-xl p-3 text-xs" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+            <p style={{ color: 'var(--warning-border)' }}>
               <strong>Regra:</strong> apontamentos com duração inferior a 5 minutos são descartados automaticamente. Todos os demais são importados — se o usuário, cliente ou projeto não forem identificados, o apontamento é alocado nos padrões abaixo para tratamento manual.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Usuário Padrão <span style={{ color: '#ef4444' }}>*</span></label>
+              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Usuário Padrão <span style={{ color: 'var(--danger-border)' }}>*</span></label>
               <SearchSelect
                 value={defaultUser}
                 onChange={setDefaultUser}
@@ -375,7 +375,7 @@ export default function MovideskIntegracaoPage() {
               <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Usado quando o agente do Movidesk não existe no sistema</p>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Cliente Padrão <span style={{ color: '#ef4444' }}>*</span></label>
+              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Cliente Padrão <span style={{ color: 'var(--danger-border)' }}>*</span></label>
               <SearchSelect
                 value={defaultCustomer}
                 onChange={setDefaultCustomer}
@@ -386,7 +386,7 @@ export default function MovideskIntegracaoPage() {
               <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Usado quando a organização do ticket não é encontrada</p>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Projeto Padrão <span style={{ color: '#ef4444' }}>*</span></label>
+              <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--brand-subtle)' }}>Projeto Padrão <span style={{ color: 'var(--danger-border)' }}>*</span></label>
               <SearchSelect
                 value={defaultProject}
                 onChange={setDefaultProject}
@@ -417,7 +417,7 @@ export default function MovideskIntegracaoPage() {
                   type="button"
                   onClick={() => setImportStartDate('')}
                   className="mt-6 text-xs px-3 py-1.5 rounded-lg"
-                  style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}
+                  style={{ background: 'var(--danger-bg)', color: 'var(--danger-border)', border: '1px solid var(--danger-border)' }}
                 >
                   Limpar
                 </button>
@@ -497,11 +497,11 @@ export default function MovideskIntegracaoPage() {
             </div>
             <div className="flex items-center gap-2">
               {orgs.length > 0 && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: orgs.filter(o => !o.project_id).length > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)', color: orgs.filter(o => !o.project_id).length > 0 ? '#ef4444' : '#22c55e' }}>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: orgs.filter(o => !o.project_id).length > 0 ? 'var(--danger-bg)' : 'var(--success-bg)', color: orgs.filter(o => !o.project_id).length > 0 ? 'var(--danger-border)' : 'var(--success-border)' }}>
                   {orgs.filter(o => !o.project_id).length} sem projeto
                 </span>
               )}
-              <button onClick={loadOrgs} className="p-1.5 rounded-lg hover:bg-white/[0.06]" title="Recarregar">
+              <button onClick={loadOrgs} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]" title="Recarregar">
                 <RefreshCw size={13} style={{ color: 'var(--brand-subtle)' }} className={orgsLoading ? 'animate-spin' : ''} />
               </button>
             </div>
@@ -526,7 +526,7 @@ export default function MovideskIntegracaoPage() {
             {!orgsLoading && orgs.filter(o =>
               !orgSearch || o.org_name.toLowerCase().includes(orgSearch.toLowerCase()) || (o.customer_name ?? '').toLowerCase().includes(orgSearch.toLowerCase())
             ).map(org => (
-              <div key={org.org_id} className="rounded-xl px-3 py-2.5 transition-colors" style={{ background: 'var(--brand-bg)', border: `1px solid ${!org.project_id ? 'rgba(239,68,68,0.3)' : 'var(--brand-border)'}` }}>
+              <div key={org.org_id} className="rounded-xl px-3 py-2.5 transition-colors" style={{ background: 'var(--brand-bg)', border: `1px solid ${!org.project_id ? 'var(--danger-border)' : 'var(--brand-border)'}` }}>
                 {editingOrgId === org.org_id ? (
                   <div className="space-y-2">
                     <p className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>{org.org_name}</p>
@@ -544,7 +544,7 @@ export default function MovideskIntegracaoPage() {
                         {savingOrg ? 'Salvando...' : 'Salvar'}
                       </button>
                       <button onClick={() => setEditingOrgId(null)}
-                        className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors hover:bg-white/[0.06]"
+                        className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors hover:bg-[var(--surface-hover)]"
                         style={{ color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
                         Cancelar
                       </button>
@@ -559,17 +559,17 @@ export default function MovideskIntegracaoPage() {
                     <div className="text-right shrink-0">
                       {org.project_id ? (
                         <div>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: org.project_source === 'manual' ? 'var(--primary-soft)' : 'rgba(167,139,250,0.18)', color: org.project_source === 'manual' ? 'var(--primary)' : '#7C3AED' }}>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: org.project_source === 'manual' ? 'var(--primary-soft)' : 'rgba(167,139,250,0.18)', color: org.project_source === 'manual' ? 'var(--primary)' : 'var(--brand-purple)' }}>
                             {org.project_source === 'manual' ? 'Manual' : 'Sustentação'}
                           </span>
                           <p className="text-[10px] mt-0.5 truncate max-w-[160px]" style={{ color: 'var(--brand-muted)' }}>{org.project_name}</p>
                         </div>
                       ) : (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>Sem projeto</span>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: 'var(--danger-bg)', color: 'var(--danger-border)' }}>Sem projeto</span>
                       )}
                     </div>
                     <button onClick={() => { setEditingOrgId(org.org_id); setEditingProjectId(String(org.linked_project_id ?? '')) }}
-                      className="ml-1 p-1.5 rounded-lg hover:bg-white/[0.06] shrink-0" title="Editar projeto">
+                      className="ml-1 p-1.5 rounded-lg hover:bg-[var(--surface-hover)] shrink-0" title="Editar projeto">
                       <Settings size={12} style={{ color: 'var(--brand-subtle)' }} />
                     </button>
                   </div>
@@ -583,15 +583,15 @@ export default function MovideskIntegracaoPage() {
         <div className="rounded-2xl p-5 space-y-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
-              <AlertTriangle size={16} style={{ color: '#f59e0b' }} />
+              <AlertTriangle size={16} style={{ color: 'var(--warning-border)' }} />
               <h2 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Tickets travados (slow-lane)</h2>
               {problemTickets.length > 0 && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>
                   {problemTickets.length}
                 </span>
               )}
             </div>
-            <button onClick={loadProblemTickets} className="p-1.5 rounded-lg hover:bg-white/[0.06]" title="Recarregar">
+            <button onClick={loadProblemTickets} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]" title="Recarregar">
               <RefreshCw size={13} style={{ color: 'var(--brand-subtle)' }} className={problemLoading ? 'animate-spin' : ''} />
             </button>
           </div>
@@ -623,7 +623,7 @@ export default function MovideskIntegracaoPage() {
             <div className="space-y-1 max-h-96 overflow-y-auto pr-1">
               {problemTickets.map(t => (
                 <div key={t.id} className="rounded-xl px-3 py-2.5"
-                  style={{ background: 'var(--brand-bg)', border: `1px solid ${t.status === 'blacklisted' ? 'rgba(239,68,68,0.3)' : 'var(--brand-border)'}` }}>
+                  style={{ background: 'var(--brand-bg)', border: `1px solid ${t.status === 'blacklisted' ? 'var(--danger-border)' : 'var(--brand-border)'}` }}>
                   <div className="flex items-center gap-3 flex-wrap">
                     <a href={t.movidesk_url} target="_blank" rel="noopener noreferrer"
                        className="text-xs font-semibold hover:underline" style={{ color: 'var(--primary)' }}>
@@ -631,8 +631,8 @@ export default function MovideskIntegracaoPage() {
                     </a>
                     <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
                       style={{
-                        background: t.status === 'blacklisted' ? 'rgba(239,68,68,0.12)' : 'rgba(245,158,11,0.12)',
-                        color:      t.status === 'blacklisted' ? '#ef4444' : '#f59e0b',
+                        background: t.status === 'blacklisted' ? 'var(--danger-bg)' : 'var(--warning-bg)',
+                        color:      t.status === 'blacklisted' ? 'var(--danger-border)' : 'var(--warning-border)',
                       }}>
                       {t.status === 'blacklisted' ? 'BLACKLIST' : `Tentativa ${t.attempts}/3`}
                     </span>
@@ -647,8 +647,8 @@ export default function MovideskIntegracaoPage() {
                       Retry agora
                     </button>
                     <button onClick={() => handleProblemDrop(t.id, t.ticket_id)} disabled={problemActingId === t.id}
-                      className="px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors hover:bg-white/[0.06] disabled:opacity-50"
-                      style={{ color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}
+                      className="px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50"
+                      style={{ color: 'var(--danger-border)', border: '1px solid var(--danger-border)' }}
                       title="Remove da fila definitivamente">
                       Remover
                     </button>
@@ -667,7 +667,7 @@ export default function MovideskIntegracaoPage() {
         {/* Sync manual */}
         <div className="rounded-2xl p-5 space-y-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
           <div className="flex items-center gap-2">
-            <PlayCircle size={16} style={{ color: '#22c55e' }} />
+            <PlayCircle size={16} style={{ color: 'var(--success-border)' }} />
             <h2 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Sincronização Manual</h2>
           </div>
           <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
@@ -678,12 +678,12 @@ export default function MovideskIntegracaoPage() {
               onClick={handleSync}
               disabled={syncing || !status?.token_configured}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
-              style={{ background: '#22c55e', color: '#fff' }}>
+              style={{ background: 'var(--success-border)', color: '#fff' }}>
               <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
               {syncing ? 'Sincronizando...' : 'Sincronizar Agora'}
             </button>
             {!status?.token_configured && (
-              <span className="text-xs mt-2" style={{ color: '#f59e0b' }}>Token não configurado — configure antes de sincronizar</span>
+              <span className="text-xs mt-2" style={{ color: 'var(--warning-border)' }}>Token não configurado — configure antes de sincronizar</span>
             )}
           </div>
           {syncOutput && (
@@ -695,9 +695,9 @@ export default function MovideskIntegracaoPage() {
 
         {/* Info cron */}
         <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.15)' }}>
-          <Clock size={14} style={{ color: '#a78bfa', marginTop: 1, flexShrink: 0 }} />
+          <Clock size={14} style={{ color: 'var(--brand-purple)', marginTop: 1, flexShrink: 0 }} />
           <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-            <strong style={{ color: '#a78bfa' }}>Varredura automática:</strong> roda no intervalo configurado em background, buscando apontamentos da última janela sincronizada com sobreposição para garantir que nenhum registro seja perdido. O webhook garante importação em tempo real assim que o ticket é atualizado no Movidesk.
+            <strong style={{ color: 'var(--brand-purple)' }}>Varredura automática:</strong> roda no intervalo configurado em background, buscando apontamentos da última janela sincronizada com sobreposição para garantir que nenhum registro seja perdido. O webhook garante importação em tempo real assim que o ticket é atualizado no Movidesk.
           </p>
         </div>
 
