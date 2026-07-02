@@ -139,10 +139,10 @@
  */
 :root {
   /* ── NEUTRO ──────────────────────────────────────── */
-  --brand-bg:       #E6EAF1;   /* fundo cinza-claro (menos "branco duro"); cards brancos dão profundidade */
+  --brand-bg:       #DEE4EE;   /* fundo cinza-claro (menos "branco duro"); cards brancos dão profundidade */
   --brand-surface:  #FFFFFF;
-  --brand-panel:    #F1F4F9;   /* Nível 1: painéis/seções/colunas kanban (Sprint 1) */
-  --brand-border:   #E2E8F0;
+  --brand-panel:    #E8EDF4;   /* Nível 1: painéis/seções/colunas kanban (Sprint 1) */
+  --brand-border:   #CDD6E2;
   --brand-text:     #0F172A;
   --brand-muted:    #475569;   /* spec text-secondary */
   --brand-subtle:   #64748B;   /* text terciário — contraste WCAG no claro (Sprint 1) */
@@ -183,13 +183,13 @@
   --bg:            var(--brand-bg);
   --surface:       var(--brand-surface);
   --panel:         var(--brand-panel);
-  --surface-hover: #F1F5F9;
-  --surface-sunken:#EEF2F6;   /* inputs, table header — superfície "afundada" */
+  --surface-hover: #E9EEF6;
+  --surface-sunken:#E6ECF3;   /* inputs, table header — superfície "afundada" */
   --text:          var(--brand-text);
   --text-muted:    var(--brand-muted);
   --text-light:    var(--brand-subtle);
   --border:        var(--brand-border);
-  --border-strong: #CBD5E1;   /* divisores fortes, hover de inputs */
+  --border-strong: #B4C0CE;   /* divisores fortes, hover de inputs */
   --ring:          rgba(6, 182, 212, 0.30);  /* focus ring (primary @ 30%) */
 
   /* PRIMARY */
