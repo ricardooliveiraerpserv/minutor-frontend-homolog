@@ -181,11 +181,11 @@ function MyClosingBlock({ closing }: { closing: MyClosing | null }) {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending:              'bg-yellow-500/15 text-yellow-400',
-  approved:             'bg-green-500/15  text-green-400',
-  rejected:             'bg-red-500/15    text-red-400',
+  pending:              'bg-[var(--warning-bg)] text-[var(--warning-border)]',
+  approved:             'bg-[var(--success-bg)]  text-[var(--success)]',
+  rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]',
   conflicted:           'bg-orange-500/15 text-orange-400',
-  adjustment_requested: 'bg-blue-500/15   text-blue-400',
+  adjustment_requested: 'bg-[var(--primary-soft)]   text-[var(--primary)]',
 }
 
 // ─── Row action menu ──────────────────────────────────────────────────────────
@@ -223,24 +223,24 @@ function RowMenu({ isOwn, onView, onEdit, onDelete }: {
     <div
       ref={menuRef}
       className="fixed z-[9999] w-44 rounded-xl py-1 shadow-2xl"
-      style={{ top: pos.top, right: pos.right, background: '#1a1a1e', border: '1px solid var(--brand-border)' }}
+      style={{ top: pos.top, right: pos.right, background: 'var(--surface)', border: '1px solid var(--brand-border)' }}
     >
       <button onClick={() => { setOpen(false); onView() }}
-        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.06]"
+        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--surface-hover)]"
         style={{ color: 'var(--brand-text)' }}>
         <Eye size={14} style={{ color: 'var(--brand-subtle)' }} /> Visualizar
       </button>
       {isOwn && (
         <>
           <button onClick={() => { setOpen(false); onEdit() }}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-white/[0.06]"
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--surface-hover)]"
             style={{ color: 'var(--brand-text)' }}>
             <Pencil size={14} style={{ color: 'var(--brand-subtle)' }} /> Editar
           </button>
           {onDelete && (
             <button onClick={() => { setOpen(false); onDelete() }}
-              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-red-500/10"
-              style={{ color: '#f87171' }}>
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors hover:bg-[var(--danger-bg)]"
+              style={{ color: 'var(--danger-border)' }}>
               <Trash2 size={14} /> Excluir
             </button>
           )}
@@ -255,7 +255,7 @@ function RowMenu({ isOwn, onView, onEdit, onDelete }: {
       <button
         ref={btnRef}
         onClick={toggle}
-        className="p-1.5 rounded-lg transition-colors hover:bg-white/[0.08]"
+        className="p-1.5 rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
         style={{ color: 'var(--brand-subtle)' }}
       >
         <MoreVertical size={15} />
@@ -290,7 +290,7 @@ function KpiCard({
         </div>
         <span className="text-xs font-medium" style={{ color: 'var(--brand-subtle)' }}>{label}</span>
       </div>
-      <p className="text-2xl font-bold text-white leading-tight">{value}</p>
+      <p className="text-2xl font-bold text-[var(--text)] leading-tight">{value}</p>
       {sub && <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{sub}</p>}
     </div>
   )
@@ -698,7 +698,7 @@ export default function PartnerDashboardPage() {
               Painel do Parceiro
             </p>
             {data ? (
-              <h1 className="text-3xl font-bold text-white leading-tight">{data.partner.name}</h1>
+              <h1 className="text-3xl font-bold text-[var(--text)] leading-tight">{data.partner.name}</h1>
             ) : (
               <div className="h-9 w-48 rounded-lg animate-pulse" style={{ background: 'var(--brand-surface)' }} />
             )}
@@ -708,7 +708,7 @@ export default function PartnerDashboardPage() {
           </div>
           <button
             onClick={handleRefresh}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/[0.06] shrink-0"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-[var(--surface-hover)] shrink-0"
             style={{ color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}
           >
             <RefreshCw size={13} />
@@ -726,11 +726,11 @@ export default function PartnerDashboardPage() {
             <label className="text-[11px] font-medium" style={{ color: 'var(--brand-subtle)' }}>Período</label>
             <div className="flex items-center gap-1 rounded-lg border px-1.5 py-1" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-bg)' }}>
               <button onClick={prevMonth}
-                className="p-1.5 rounded transition-colors hover:bg-white/[0.06]"
+                className="p-1.5 rounded transition-colors hover:bg-[var(--surface-hover)]"
                 style={{ color: 'var(--brand-muted)' }}>
                 <ChevronLeft size={14} />
               </button>
-              <span className="text-sm font-semibold text-white min-w-[148px] text-center select-none">
+              <span className="text-sm font-semibold text-[var(--text)] min-w-[148px] text-center select-none">
                 {MONTHS[month]} {year}
               </span>
               <button onClick={nextMonth} disabled={isAtCurrentMonth}
@@ -747,7 +747,7 @@ export default function PartnerDashboardPage() {
               <select
                 value={partnerId}
                 onChange={e => { setPartnerId(e.target.value); setConsultantId('') }}
-                className="px-2.5 py-1.5 rounded-lg text-sm bg-[#0A0A0B] border outline-none text-white min-w-[200px]"
+                className="px-2.5 py-1.5 rounded-lg text-sm bg-[var(--bg)] border outline-none text-[var(--text)] min-w-[200px]"
                 style={{ borderColor: 'var(--brand-border)' }}
               >
                 {partners.length === 0 && <option value="">Carregando…</option>}
@@ -764,7 +764,7 @@ export default function PartnerDashboardPage() {
               <select
                 value={consultantId}
                 onChange={e => setConsultantId(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg text-sm bg-[#0A0A0B] border outline-none text-white"
+                className="px-2.5 py-1.5 rounded-lg text-sm bg-[var(--bg)] border outline-none text-[var(--text)]"
                 style={{ borderColor: 'var(--brand-border)' }}
               >
                 <option value="">Todos</option>
@@ -778,7 +778,7 @@ export default function PartnerDashboardPage() {
           {consultantId && (
             <button
               onClick={() => setConsultantId('')}
-              className="text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-white/[0.06]"
+              className="text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
               style={{ color: 'var(--brand-subtle)' }}
             >
               Limpar
@@ -867,7 +867,7 @@ export default function PartnerDashboardPage() {
           {activeTab === 'consultores' && (
             <div className="overflow-x-auto" style={{ background: 'var(--brand-surface)' }}>
               <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-border)' }}>
-                <h2 className="text-sm font-semibold text-white">Consultores</h2>
+                <h2 className="text-sm font-semibold text-[var(--text)]">Consultores</h2>
                 {data && (
                   <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
                     {data.consultants.length} consultor{data.consultants.length !== 1 ? 'es' : ''}
@@ -911,14 +911,14 @@ export default function PartnerDashboardPage() {
                         key={c.id}
                         style={{
                           borderBottom: '1px solid var(--brand-border)',
-                          background: idx % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent',
+                          background: idx % 2 === 1 ? 'var(--surface-sunken)' : 'transparent',
                         }}
                       >
-                        <td className="px-4 py-3 font-medium text-white">
+                        <td className="px-4 py-3 font-medium text-[var(--text)]">
                           <div className="flex items-center gap-2">
                             <div
                               className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                              style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}
+                              style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
                             >
                               {c.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
                             </div>
@@ -926,20 +926,20 @@ export default function PartnerDashboardPage() {
                             {c.is_admin && (
                               <span
                                 className="px-1.5 py-0.5 rounded text-[10px] font-bold ml-1"
-                                style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}
+                                style={{ background: 'rgba(139,92,246,0.12)', color: 'var(--brand-purple)' }}
                               >
                                 Admin
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-white tabular-nums">
+                        <td className="px-4 py-3 text-[var(--text)] tabular-nums">
                           {formatNumber(c.total_hours)}h
                         </td>
                         <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-subtle)' }}>
                           {formatBRL(c.hourly_rate)}
                         </td>
-                        <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: '#00F5FF' }}>
+                        <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: 'var(--primary)' }}>
                           {formatBRL(c.total_amount)}
                         </td>
                       </tr>
@@ -948,11 +948,11 @@ export default function PartnerDashboardPage() {
                 </tbody>
                 {!loading && data && data.consultants.length > 0 && (
                   <tfoot>
-                    <tr style={{ borderTop: '2px solid var(--brand-border)', background: 'rgba(0,245,255,0.04)' }}>
+                    <tr style={{ borderTop: '2px solid var(--brand-border)', background: 'var(--primary-soft)' }}>
                       <td className="px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total</td>
-                      <td className="px-4 py-3 font-bold text-white tabular-nums">{formatNumber(data.kpis.total_hours)}h</td>
+                      <td className="px-4 py-3 font-bold text-[var(--text)] tabular-nums">{formatNumber(data.kpis.total_hours)}h</td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--brand-subtle)' }}>Ticket médio: {formatBRL(data.kpis.avg_ticket)}/h</td>
-                      <td className="px-4 py-3 font-bold tabular-nums" style={{ color: '#00F5FF' }}>{formatBRL(data.kpis.total_amount)}</td>
+                      <td className="px-4 py-3 font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{formatBRL(data.kpis.total_amount)}</td>
                     </tr>
                   </tfoot>
                 )}
@@ -964,7 +964,7 @@ export default function PartnerDashboardPage() {
           {activeTab === 'apontamentos' && (
             <div className="overflow-x-auto" style={{ background: 'var(--brand-surface)' }}>
               <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-border)' }}>
-                <h2 className="text-sm font-semibold text-white">Apontamentos da Equipe</h2>
+                <h2 className="text-sm font-semibold text-[var(--text)]">Apontamentos da Equipe</h2>
                 <div className="flex items-center gap-3">
                   {!tsLoading && (
                     <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
@@ -987,7 +987,7 @@ export default function PartnerDashboardPage() {
                         'apontamentos'
                       )}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                      style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}
+                      style={{ background: 'var(--surface-hover)', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}
                     >
                       <FileSpreadsheet size={12} />
                       Excel
@@ -996,7 +996,7 @@ export default function PartnerDashboardPage() {
                   <button
                     onClick={() => setNewTsOpen(true)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                    style={{ background: 'rgba(0,245,255,0.10)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.25)' }}
+                    style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}
                   >
                     <Plus size={12} />
                     Incluir
@@ -1034,15 +1034,15 @@ export default function PartnerDashboardPage() {
                           key={t.id}
                           style={{
                             borderBottom: '1px solid var(--brand-border)',
-                            background: idx % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent',
+                            background: idx % 2 === 1 ? 'var(--surface-sunken)' : 'transparent',
                           }}
                         >
-                          <td className="px-4 py-3 font-medium text-white">
+                          <td className="px-4 py-3 font-medium text-[var(--text)]">
                             <div className="flex items-center gap-2">
                               {t.user && (
                                 <div
                                   className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                                  style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}
+                                  style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
                                 >
                                   {(t.user.name ?? '').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()}
                                 </div>
@@ -1053,14 +1053,14 @@ export default function PartnerDashboardPage() {
                           <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-subtle)' }}>
                             {new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR')}
                           </td>
-                          <td className="px-4 py-3 text-white max-w-[200px] truncate">
+                          <td className="px-4 py-3 text-[var(--text)] max-w-[200px] truncate">
                             {t.project?.name ?? '—'}
                           </td>
-                          <td className="px-4 py-3 tabular-nums text-white">
+                          <td className="px-4 py-3 tabular-nums text-[var(--text)]">
                             {t.effort_hours}
                           </td>
                           <td className="px-4 py-3">
-                            <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${STATUS_COLORS[t.status] ?? 'bg-white/10 text-white'}`}>
+                            <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${STATUS_COLORS[t.status] ?? 'bg-[var(--surface-hover)] text-[var(--text)]'}`}>
                               {t.status_display}
                             </span>
                           </td>
@@ -1085,7 +1085,7 @@ export default function PartnerDashboardPage() {
           {activeTab === 'despesas' && (
             <div className="overflow-x-auto" style={{ background: 'var(--brand-surface)' }}>
               <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-border)' }}>
-                <h2 className="text-sm font-semibold text-white">Despesas da Equipe</h2>
+                <h2 className="text-sm font-semibold text-[var(--text)]">Despesas da Equipe</h2>
                 <div className="flex items-center gap-3">
                   {!expLoading && (
                     <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
@@ -1095,7 +1095,7 @@ export default function PartnerDashboardPage() {
                   <button
                     onClick={openExpCreate}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                    style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.2)' }}
+                    style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}
                   >
                     <Plus size={12} /> Nova
                   </button>
@@ -1133,15 +1133,15 @@ export default function PartnerDashboardPage() {
                         key={e.id}
                         style={{
                           borderBottom: '1px solid var(--brand-border)',
-                          background: idx % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent',
+                          background: idx % 2 === 1 ? 'var(--surface-sunken)' : 'transparent',
                         }}
                       >
-                        <td className="px-4 py-3 font-medium text-white">
+                        <td className="px-4 py-3 font-medium text-[var(--text)]">
                           <div className="flex items-center gap-2">
                             {e.user && (
                               <div
                                 className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                                style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}
+                                style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
                               >
                                 {(e.user.name ?? '').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()}
                               </div>
@@ -1152,24 +1152,24 @@ export default function PartnerDashboardPage() {
                         <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-subtle)' }}>
                           {new Date(e.expense_date + 'T12:00:00').toLocaleDateString('pt-BR')}
                         </td>
-                        <td className="px-4 py-3 text-white max-w-[160px] truncate">
+                        <td className="px-4 py-3 text-[var(--text)] max-w-[160px] truncate">
                           {e.project?.name ?? '—'}
                         </td>
                         <td className="px-4 py-3 max-w-[160px] truncate" style={{ color: 'var(--brand-subtle)' }}>
                           {e.description}
                         </td>
-                        <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: '#22c55e' }}>
+                        <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: 'var(--success-border)' }}>
                           {e.formatted_amount ?? formatBRL(e.amount)}
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${STATUS_COLORS[e.status] ?? 'bg-white/10 text-white'}`}>
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${STATUS_COLORS[e.status] ?? 'bg-[var(--surface-hover)] text-[var(--text)]'}`}>
                             {e.status_display}
                           </span>
                         </td>
                         <td className="px-4 py-3">
                           {e.is_paid
-                            ? <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-500/20 text-emerald-400">Pago</span>
-                            : <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/20 text-amber-400">Em aberto</span>
+                            ? <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[var(--success-bg)] text-[var(--success)]">Pago</span>
+                            : <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-[var(--warning-bg)] text-[var(--warning-border)]">Em aberto</span>
                           }
                         </td>
                         <td className="px-4 py-3">
@@ -1185,9 +1185,9 @@ export default function PartnerDashboardPage() {
                 </tbody>
                 {!expLoading && expenses.length > 0 && (
                   <tfoot>
-                    <tr style={{ borderTop: '2px solid var(--brand-border)', background: 'rgba(34,197,94,0.04)' }}>
+                    <tr style={{ borderTop: '2px solid var(--brand-border)', background: 'var(--success-bg)' }}>
                       <td colSpan={4} className="px-4 py-3 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Total</td>
-                      <td className="px-4 py-3 font-bold tabular-nums" style={{ color: '#22c55e' }}>
+                      <td className="px-4 py-3 font-bold tabular-nums" style={{ color: 'var(--success-border)' }}>
                         {formatBRL(expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0))}
                       </td>
                       <td colSpan={3} />
@@ -1222,7 +1222,7 @@ export default function PartnerDashboardPage() {
                         </thead>
                         <tbody>
                           {indConsultants.map((c, idx) => (
-                            <tr key={c.id} style={{ borderBottom: '1px solid var(--brand-border)', background: idx % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent' }}>
+                            <tr key={c.id} style={{ borderBottom: '1px solid var(--brand-border)', background: idx % 2 === 1 ? 'var(--surface-sunken)' : 'transparent' }}>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
                                   {idx === 0 && <span className="text-xs">🥇</span>}
@@ -1230,23 +1230,23 @@ export default function PartnerDashboardPage() {
                                   {idx === 2 && <span className="text-xs">🥉</span>}
                                   {idx > 2 && (
                                     <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
-                                      style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}>
+                                      style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                                       {idx + 1}
                                     </div>
                                   )}
-                                  <span className="font-medium text-white">{c.name}</span>
-                                  {c.is_admin && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>Admin</span>}
+                                  <span className="font-medium text-[var(--text)]">{c.name}</span>
+                                  {c.is_admin && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ background: 'rgba(139,92,246,0.12)', color: 'var(--brand-purple)' }}>Admin</span>}
                                 </div>
                               </td>
-                              <td className="px-4 py-3 tabular-nums text-white">{formatNumber(c.total_hours)}h</td>
-                              <td className="px-4 py-3 tabular-nums font-semibold" style={{ color: '#22c55e' }}>{formatBRL(c.total_amount)}</td>
+                              <td className="px-4 py-3 tabular-nums text-[var(--text)]">{formatNumber(c.total_hours)}h</td>
+                              <td className="px-4 py-3 tabular-nums font-semibold" style={{ color: 'var(--success-border)' }}>{formatBRL(c.total_amount)}</td>
                               <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{formatBRL(c.hourly_rate)}/h</td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
-                                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                                  <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
                                     <div className="h-full rounded-full" style={{ width: `${c.participation}%`, background: 'var(--primary)' }} />
                                   </div>
-                                  <span className="text-xs tabular-nums font-medium text-white min-w-[36px] text-right">{c.participation.toFixed(1)}%</span>
+                                  <span className="text-xs tabular-nums font-medium text-[var(--text)] min-w-[36px] text-right">{c.participation.toFixed(1)}%</span>
                                 </div>
                               </td>
                             </tr>
@@ -1268,9 +1268,9 @@ export default function PartnerDashboardPage() {
                           <YAxis type="category" dataKey="name" tick={{ fill: '#a1a1aa', fontSize: 11 }} width={80}
                             tickFormatter={v => v.split(' ')[0]} axisLine={false} tickLine={false} />
                           <Tooltip
-                            cursor={{ fill: 'transparent' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }}
+                            cursor={{ fill: 'transparent' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--surface-hover)', borderRadius: 8, fontSize: 12 }}
                             formatter={(v: any) => [formatBRL(v ?? 0), "Receita"]}
-                            labelStyle={{ color: '#fff' }}
+                            labelStyle={{ color: 'var(--text)' }}
                           />
                           <Bar dataKey="total_amount" fill="#00F5FF" radius={[0, 4, 4, 0]} opacity={0.85} background={{ fill: 'transparent' }} />
                         </BarChart>
@@ -1294,9 +1294,9 @@ export default function PartnerDashboardPage() {
                             <YAxis type="category" dataKey="name" tick={{ fill: '#a1a1aa', fontSize: 10 }} width={90}
                               tickFormatter={v => v.length > 12 ? v.slice(0, 12) + '…' : v} axisLine={false} tickLine={false} />
                             <Tooltip
-                              cursor={{ fill: 'transparent' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }}
+                              cursor={{ fill: 'transparent' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--surface-hover)', borderRadius: 8, fontSize: 12 }}
                               formatter={(v: any) => [`${Number(v ?? 0).toFixed(1)}%`, 'Participação']}
-                              labelStyle={{ color: '#fff' }}
+                              labelStyle={{ color: 'var(--text)' }}
                             />
                             <Bar dataKey="participation" fill="#8B5CF6" radius={[0, 4, 4, 0]} opacity={0.85} background={{ fill: 'transparent' }} />
                           </BarChart>
@@ -1322,11 +1322,11 @@ export default function PartnerDashboardPage() {
                           <YAxis yAxisId="r" orientation="right" tick={{ fill: '#71717a', fontSize: 10 }} axisLine={false} tickLine={false}
                             tickFormatter={v => `R$${(v / 1000).toFixed(0)}k`} width={44} />
                           <Tooltip
-                            cursor={{ fill: 'transparent' }} contentStyle={{ background: '#18181b', border: '1px solid #27272a', borderRadius: 8, fontSize: 12 }}
+                            cursor={{ fill: 'transparent' }} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--surface-hover)', borderRadius: 8, fontSize: 12 }}
                             formatter={(v: any, name: any) => [name === 'horas' ? `${formatNumber(v ?? 0)}h` : formatBRL(v ?? 0), name === 'horas' ? 'Horas' : 'Receita']}
-                            labelStyle={{ color: '#fff' }}
+                            labelStyle={{ color: 'var(--text)' }}
                           />
-                          <Legend formatter={v => v === 'horas' ? 'Horas' : 'Receita'} wrapperStyle={{ fontSize: 11, color: '#a1a1aa' }} />
+                          <Legend formatter={v => v === 'horas' ? 'Horas' : 'Receita'} wrapperStyle={{ fontSize: 11, color: 'var(--text-muted)' }} />
                           <Line yAxisId="h" type="monotone" dataKey="horas" stroke="#00F5FF" strokeWidth={2} dot={{ r: 3, fill: '#00F5FF' }} activeDot={{ r: 5 }} />
                           <Line yAxisId="r" type="monotone" dataKey="receita" stroke="#22c55e" strokeWidth={2} dot={{ r: 3, fill: '#22c55e' }} activeDot={{ r: 5 }} />
                         </LineChart>
@@ -1366,7 +1366,7 @@ export default function PartnerDashboardPage() {
                           </div>
                           <div>
                             <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{e.label}</p>
-                            <p className="text-lg font-bold text-white">{e.value}</p>
+                            <p className="text-lg font-bold text-[var(--text)]">{e.value}</p>
                             <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{e.sub}</p>
                           </div>
                         </div>
@@ -1385,12 +1385,12 @@ export default function PartnerDashboardPage() {
                       {indAlerts.map((a, i) => (
                         <div key={i} className="flex items-start gap-3 px-4 py-3 rounded-xl"
                           style={{
-                            background: a.type === 'danger' ? 'rgba(239,68,68,0.07)' : a.type === 'warning' ? 'rgba(245,158,11,0.07)' : 'rgba(0,245,255,0.05)',
-                            border: `1px solid ${a.type === 'danger' ? 'rgba(239,68,68,0.2)' : a.type === 'warning' ? 'rgba(245,158,11,0.2)' : 'rgba(0,245,255,0.15)'}`,
+                            background: a.type === 'danger' ? 'var(--danger-bg)' : a.type === 'warning' ? 'var(--warning-bg)' : 'var(--primary-soft)',
+                            border: `1px solid ${a.type === 'danger' ? 'var(--danger-border)' : a.type === 'warning' ? 'var(--warning-border)' : 'var(--primary)'}`,
                           }}>
                           <AlertTriangle size={14} className="shrink-0 mt-0.5"
-                            style={{ color: a.type === 'danger' ? '#ef4444' : a.type === 'warning' ? '#f59e0b' : '#00F5FF' }} />
-                          <p className="text-sm" style={{ color: a.type === 'danger' ? '#fca5a5' : a.type === 'warning' ? '#fcd34d' : 'var(--brand-muted)' }}>
+                            style={{ color: a.type === 'danger' ? 'var(--danger-border)' : a.type === 'warning' ? 'var(--warning-border)' : 'var(--primary)' }} />
+                          <p className="text-sm" style={{ color: a.type === 'danger' ? 'var(--danger-border)' : a.type === 'warning' ? 'var(--warning-border)' : 'var(--brand-muted)' }}>
                             {a.text}
                           </p>
                         </div>
@@ -1434,10 +1434,10 @@ export default function PartnerDashboardPage() {
       {/* ── Create Expense Modal ── */}
       {expModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="w-full max-w-md rounded-2xl shadow-2xl" style={{ background: '#18181b', border: '1px solid var(--brand-border)' }}>
+          <div className="w-full max-w-md rounded-2xl shadow-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--brand-border)' }}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-border)' }}>
-              <h3 className="text-sm font-semibold text-white">Nova Despesa</h3>
-              <button onClick={() => setExpModal(false)} className="text-zinc-500 hover:text-white transition-colors text-lg leading-none">×</button>
+              <h3 className="text-sm font-semibold text-[var(--text)]">Nova Despesa</h3>
+              <button onClick={() => setExpModal(false)} className="text-[var(--text-light)] hover:text-[var(--text)] transition-colors text-lg leading-none">×</button>
             </div>
             <div className="p-5 space-y-3">
               <div>
@@ -1445,7 +1445,7 @@ export default function PartnerDashboardPage() {
                 <select
                   value={expForm.user_id}
                   onChange={e => setExpForm(f => ({ ...f, user_id: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] focus:outline-none"
                 >
                   <option value="">Selecione...</option>
                   {expTeam.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -1456,7 +1456,7 @@ export default function PartnerDashboardPage() {
                 <select
                   value={expForm.customer_id}
                   onChange={e => setExpForm(f => ({ ...f, customer_id: e.target.value, project_id: '' }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] focus:outline-none"
                 >
                   <option value="">Selecione...</option>
                   {expCustomers.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1467,7 +1467,7 @@ export default function PartnerDashboardPage() {
                 <select
                   value={expForm.project_id}
                   onChange={e => setExpForm(f => ({ ...f, project_id: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] focus:outline-none"
                   disabled={!expForm.customer_id}
                 >
                   <option value="">{expForm.customer_id ? 'Selecione...' : 'Selecione um cliente primeiro'}</option>
@@ -1479,7 +1479,7 @@ export default function PartnerDashboardPage() {
                 <select
                   value={expForm.expense_category_id}
                   onChange={e => setExpForm(f => ({ ...f, expense_category_id: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] focus:outline-none"
                 >
                   <option value="">Selecione...</option>
                   {expCategories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -1492,7 +1492,7 @@ export default function PartnerDashboardPage() {
                     type="date"
                     value={expForm.expense_date}
                     onChange={e => setExpForm(f => ({ ...f, expense_date: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1504,7 +1504,7 @@ export default function PartnerDashboardPage() {
                     placeholder="0,00"
                     value={expForm.amount}
                     onChange={e => setExpForm(f => ({ ...f, amount: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] focus:outline-none"
                   />
                 </div>
               </div>
@@ -1515,7 +1515,7 @@ export default function PartnerDashboardPage() {
                   placeholder="Descreva a despesa..."
                   value={expForm.description}
                   onChange={e => setExpForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                  className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] focus:outline-none"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -1524,7 +1524,7 @@ export default function PartnerDashboardPage() {
                   <select
                     value={expForm.expense_type}
                     onChange={e => setExpForm(f => ({ ...f, expense_type: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] focus:outline-none"
                   >
                     <option value="reimbursement">Reembolso</option>
                     <option value="advance">Adiantamento</option>
@@ -1536,7 +1536,7 @@ export default function PartnerDashboardPage() {
                   <select
                     value={expForm.payment_method}
                     onChange={e => setExpForm(f => ({ ...f, payment_method: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg text-sm bg-zinc-900 border border-zinc-700 text-white focus:outline-none"
+                    className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] focus:outline-none"
                   >
                     <option value="pix">Pix</option>
                     <option value="transfer">Transferência</option>
@@ -1549,7 +1549,7 @@ export default function PartnerDashboardPage() {
             <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: 'var(--brand-border)' }}>
               <button
                 onClick={() => setExpModal(false)}
-                className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-white transition-colors"
+                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
               >
                 Cancelar
               </button>
@@ -1557,7 +1557,7 @@ export default function PartnerDashboardPage() {
                 onClick={saveExpense}
                 disabled={expSaving}
                 className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
-                style={{ background: 'rgba(0,245,255,0.15)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)' }}
+                style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}
               >
                 {expSaving ? 'Salvando...' : 'Salvar'}
               </button>
