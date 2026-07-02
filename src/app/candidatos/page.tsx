@@ -37,7 +37,7 @@ interface Candidate {
 
 const COLUMNS: Array<{ status: CandStatus; label: string; color: string; bg: string }> = [
   { status: 'new',        label: 'Novo',        color: 'var(--text-muted)',     bg: 'transparent' },
-  { status: 'screening',  label: 'Triagem',     color: 'var(--primary)',        bg: 'var(--primary-soft)' },
+  { status: 'screening',  label: 'Triagem',     color: 'var(--info)',           bg: 'var(--info-bg)' },
   { status: 'interview',  label: 'Entrevista',  color: 'var(--warning)',        bg: 'var(--warning-bg)' },
   { status: 'approved',   label: 'Aprovado',    color: 'var(--success)',        bg: 'var(--success-bg)' },
   { status: 'allocated',  label: 'Alocado',     color: 'var(--success)',        bg: 'var(--success-bg)' },

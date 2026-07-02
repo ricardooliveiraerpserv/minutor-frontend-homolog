@@ -86,11 +86,11 @@ export default function IndicadoresAusterPage() {
   const statusBadge = (s: string, label: string) => {
     const palette: Record<string, { bg: string; fg: string }> = {
       finished:             { bg: 'var(--success-bg)', fg: 'var(--success)' },
-      started:              { bg: 'var(--primary-soft)', fg: 'var(--primary)' },
+      started:              { bg: 'var(--info-bg)', fg: 'var(--info)' },
       paused:               { bg: 'var(--warning-bg)', fg: 'var(--warning)' },
       cancelled:            { bg: 'var(--danger-bg)',  fg: 'var(--danger)'  },
       awaiting_start:       { bg: 'var(--surface-hover)', fg: 'var(--text-muted)' },
-      liberado_para_testes: { bg: 'var(--primary-soft)', fg: 'var(--primary)' },
+      liberado_para_testes: { bg: 'var(--warning-bg)', fg: 'var(--warning)' },
     }
     const c = palette[s] ?? { bg: 'var(--surface-hover)', fg: 'var(--text-muted)' }
     return (

@@ -155,7 +155,7 @@ export const STATUS_META: Record<string, StatusMeta> = {
   },
   projeto_ativo: {
     label: 'Projeto Ativo',
-    variant: 'primary',
+    variant: 'success',
     priority: 5,
   },
   sustentacao: {
