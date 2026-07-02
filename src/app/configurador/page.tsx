@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
@@ -941,10 +942,11 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
         <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-light)' }} />
         <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); reposition() }} onFocus={() => { setOpen(true); reposition() }} onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder="Adicionar usuário (override)…" className="ds-input w-full block" style={{ fontSize: 12, height: 30, paddingTop: 0, paddingBottom: 0, paddingLeft: 26, paddingRight: 8 }} />
-        {open && uPos && availHits.length > 0 && (
+        {open && uPos && availHits.length > 0 && typeof document !== 'undefined' && createPortal(
           <div className="fixed z-[90] max-h-52 overflow-auto rounded-lg shadow-xl" style={{ top: uPos.top, left: uPos.left, width: uPos.width, background: 'var(--surface)', border: '1px solid var(--border)' }}>
             {availHits.map(u => <button key={u.id} type="button" onMouseDown={e => { e.preventDefault(); add(u) }} className="block w-full text-left px-3 py-1.5 text-[12px] hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>{u.name} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{u.email}</span></button>)}
-          </div>
+          </div>,
+          document.body,
         )}
       </div>
 
