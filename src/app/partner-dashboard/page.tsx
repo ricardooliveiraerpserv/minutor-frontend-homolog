@@ -12,6 +12,7 @@ import { formatBRL, formatNumber } from '@/lib/format'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
+import { SectionLoader, InlineLoader } from '@/components/ui/loading'
 import { TimesheetViewModal } from '@/components/ui/timesheet-view-modal'
 import { ExpenseViewModal } from '@/components/ui/expense-view-modal'
 import type { Timesheet, Expense } from '@/types'
@@ -1203,9 +1204,7 @@ export default function PartnerDashboardPage() {
             <div className="p-5 space-y-6" style={{ background: 'var(--surface)' }}>
 
               {!data ? (
-                <div className="flex items-center justify-center py-16 text-sm" style={{ color: 'var(--text-light)' }}>
-                  <Clock size={14} className="animate-spin mr-2" /> Carregando...
-                </div>
+                <SectionLoader />
               ) : (
                 <>
                   {/* 2. Performance por Consultor */}
@@ -1281,9 +1280,7 @@ export default function PartnerDashboardPage() {
                     <div className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                       <p className="text-[11px] uppercase tracking-widest font-semibold mb-4" style={{ color: 'var(--text-light)' }}>Distribuição por Projeto</p>
                       {tsLoading ? (
-                        <div className="flex items-center justify-center h-[200px] text-xs" style={{ color: 'var(--text-light)' }}>
-                          <Clock size={12} className="animate-spin mr-2" /> Carregando...
-                        </div>
+                        <SectionLoader className="h-[200px] py-0" />
                       ) : projectDist.length === 0 ? (
                         <div className="flex items-center justify-center h-[200px] text-xs" style={{ color: 'var(--text-light)' }}>Sem dados</div>
                       ) : (
@@ -1309,9 +1306,7 @@ export default function PartnerDashboardPage() {
                   <div className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                     <p className="text-[11px] uppercase tracking-widest font-semibold mb-4" style={{ color: 'var(--text-light)' }}>Evolução — Últimos 6 Meses</p>
                     {evoLoading ? (
-                      <div className="flex items-center justify-center h-[200px] text-xs" style={{ color: 'var(--text-light)' }}>
-                        <Clock size={12} className="animate-spin mr-2" /> Carregando evolução...
-                      </div>
+                      <SectionLoader label="Carregando evolução…" className="h-[200px] py-0" />
                     ) : (
                       <ResponsiveContainer width="100%" height={220}>
                         <LineChart data={evoData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
@@ -1372,7 +1367,7 @@ export default function PartnerDashboardPage() {
                         </div>
                       )) : (
                         <div className="col-span-3 text-xs py-4 text-center" style={{ color: 'var(--text-light)' }}>
-                          {tsLoading ? <><Clock size={12} className="animate-spin inline mr-1" /> Carregando...</> : 'Sem dados de apontamentos no período'}
+                          {tsLoading ? <InlineLoader /> : 'Sem dados de apontamentos no período'}
                         </div>
                       )}
                     </div>

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { AlertTriangle, Clock, Hourglass, Inbox, RefreshCw } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { CardsSkeleton } from '@/components/ui/loading'
 import { useMyCards, type MyCard, type MyCardsSection } from '@/hooks/use-my-cards'
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -199,14 +200,14 @@ export default function MeusCardsPage() {
           </button>
         </div>
 
-        {loading && (
-          <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Carregando…</div>
+        {loading && total === 0 && (
+          <CardsSkeleton count={4} />
         )}
         {error && (
           <div style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>
         )}
 
-        {!loading && !error && (
+        {!error && !(loading && total === 0) && (
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',

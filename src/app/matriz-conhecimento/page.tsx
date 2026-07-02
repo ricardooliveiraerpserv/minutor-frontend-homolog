@@ -1,6 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
+import { SectionLoader, InlineLoader } from '@/components/ui/loading'
 import Link from 'next/link'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { api } from '@/lib/api'
@@ -304,7 +305,7 @@ export default function MatrizConhecimentoPage() {
             )}
           </div>
           {loadingMeta && (
-            <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Carregando consultores…</p>
+            <InlineLoader label="Carregando consultores…" className="mt-2" />
           )}
         </div>
 
@@ -352,7 +353,7 @@ export default function MatrizConhecimentoPage() {
                 {expanded && (
                   <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
                     {loading && (
-                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Carregando…</p>
+                      <InlineLoader />
                     )}
                     {!loading && list && list.length === 0 && (
                       <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -509,7 +510,7 @@ export default function MatrizConhecimentoPage() {
           <>
             {loadingSkills && (
               <div className="ds-card ds-card-pad">
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Carregando skills…</p>
+                <SectionLoader label="Carregando skills…" />
               </div>
             )}
 

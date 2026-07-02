@@ -6,6 +6,7 @@ import { ArrowLeft, Check, Search, AlertTriangle, X, ChevronRight } from 'lucide
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { api, ApiError } from '@/lib/api'
+import { SectionLoader, InlineLoader } from '@/components/ui/loading'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -280,8 +281,7 @@ export default function MobileApontamento() {
   // ── Loading state ────────────────────────────────────────────────────────────
   if (loading || !user) return (
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid var(--primary-soft)', borderTopColor: 'var(--primary)', animation: 'spin 0.8s linear infinite' }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      <SectionLoader />
     </div>
   )
 
@@ -315,9 +315,15 @@ export default function MobileApontamento() {
       {/* Lista */}
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '8px 20px 40px' }}>
         {filteredCustomers.length === 0 && (
-          <p style={{ textAlign: 'center', color: 'var(--text-light)', fontSize: 14, paddingTop: 32 }}>
-            {customers.length === 0 ? 'Carregando…' : 'Nenhum cliente encontrado'}
-          </p>
+          customers.length === 0 ? (
+            <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 32 }}>
+              <InlineLoader label="Carregando…" />
+            </div>
+          ) : (
+            <p style={{ textAlign: 'center', color: 'var(--text-light)', fontSize: 14, paddingTop: 32 }}>
+              Nenhum cliente encontrado
+            </p>
+          )
         )}
         {filteredCustomers.map(c => (
           <button key={c.id} onClick={() => selectCustomer(c)}
@@ -394,7 +400,7 @@ export default function MobileApontamento() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={lbl}>Projeto *</span>
                   {projectsLoading && (
-                    <span style={{ fontSize: 10, color: 'var(--text-light)' }}>Carregando…</span>
+                    <InlineLoader label="Carregando…" className="text-xs" />
                   )}
                 </div>
 
