@@ -1326,7 +1326,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                                 const temProj = dProj.length > 0
                                 return (
                                   <Fragment key="despesas">
-                                  <tr style={{ borderTop: '1px solid var(--border)', background: 'rgba(245,158,11,0.10)', cursor: temProj ? 'pointer' : 'default' }}
+                                  <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--warning-bg)', cursor: temProj ? 'pointer' : 'default' }}
                                     onClick={() => { if (temProj) setExpandedCons(prev => { const n = new Set(prev); n.has(dKey) ? n.delete(dKey) : n.add(dKey); return n }) }}>
                                     <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)', fontWeight: 600 }}>
                                       {temProj && (dOpen ? <ChevronDown size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
@@ -1463,7 +1463,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                                 const temProj = dProj.length > 0
                                 return (
                                   <Fragment key="despesas">
-                                  <tr style={{ borderTop: '1px solid var(--border)', background: 'rgba(245,158,11,0.10)', cursor: temProj ? 'pointer' : 'default' }}
+                                  <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--warning-bg)', cursor: temProj ? 'pointer' : 'default' }}
                                     onClick={() => { if (temProj) setExpandedCons(prev => { const n = new Set(prev); n.has(dKey) ? n.delete(dKey) : n.add(dKey); return n }) }}>
                                     <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)', fontWeight: 600 }}>
                                       {temProj && (dOpen ? <ChevronDown size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
@@ -1574,7 +1574,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                       <Tr key={`${r.key}:${visao === 'projeto' ? c.user_id : c.project_id}`} baseBackground="var(--surface-hover)">
                         <Td>
                           <span className="inline-flex items-center gap-1.5 pl-6" style={{ color: 'var(--text-muted)' }}>
-                            <span className="text-zinc-600">↳</span>
+                            <span className="text-[var(--text-muted)]">↳</span>
                             <span className="truncate max-w-[220px]">
                               {visao !== 'projeto' && c.is_investimento && <span style={{ color: 'var(--danger)', marginRight: 4 }}>●</span>}
                               {visao === 'projeto' ? c.consultor : c.projeto}

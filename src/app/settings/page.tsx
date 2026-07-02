@@ -114,46 +114,46 @@ function GeneralTab() {
   return (
     <div className="space-y-8 max-w-lg">
       <section>
-        <h3 className="text-sm font-medium text-zinc-300 mb-4 pb-2 border-b border-zinc-800">Apontamento de Horas</h3>
+        <h3 className="text-sm font-medium text-[var(--text)] mb-4 pb-2 border-b border-[var(--border)]">Apontamento de Horas</h3>
         <div className="space-y-3">
           <div>
-            <Label className="text-xs text-zinc-400">Limite de dias para lançamento retroativo</Label>
+            <Label className="text-xs text-[var(--text-muted)]">Limite de dias para lançamento retroativo</Label>
             <Input
               type="number" min={0} max={365}
               value={settings.timesheet_retroactive_limit_days ?? ''}
               onChange={e => setSettings(s => ({ ...s, timesheet_retroactive_limit_days: Number(e.target.value) }))}
-              className="mt-1.5 bg-zinc-800 border-zinc-700 text-white h-9 w-40"
+              className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 w-40"
             />
-            <p className="text-[11px] text-zinc-500 mt-1">0 = sem limite. Máximo 365 dias.</p>
+            <p className="text-[11px] text-[var(--text-light)] mt-1">0 = sem limite. Máximo 365 dias.</p>
           </div>
         </div>
       </section>
 
       <section>
-        <h3 className="text-sm font-medium text-zinc-300 mb-4 pb-2 border-b border-zinc-800">Integração Movidesk</h3>
+        <h3 className="text-sm font-medium text-[var(--text)] mb-4 pb-2 border-b border-[var(--border)]">Integração Movidesk</h3>
 
         {/* Status panel */}
         {movideskStatus && (
-          <div className="mb-5 rounded-xl border border-zinc-800 bg-zinc-900 p-4 space-y-3">
+          <div className="mb-5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-400">Status da integração</span>
+              <span className="text-xs font-medium text-[var(--text-muted)]">Status da integração</span>
               {movideskStatus.token_configured
-                ? <span className="inline-flex items-center gap-1 text-[11px] text-green-400"><CheckCircle size={11} /> Token configurado</span>
-                : <span className="inline-flex items-center gap-1 text-[11px] text-red-400"><XCircle size={11} /> Token não configurado</span>
+                ? <span className="inline-flex items-center gap-1 text-[11px] text-[var(--success)]"><CheckCircle size={11} /> Token configurado</span>
+                : <span className="inline-flex items-center gap-1 text-[11px] text-[var(--danger)]"><XCircle size={11} /> Token não configurado</span>
               }
             </div>
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-lg bg-zinc-800 px-3 py-2">
-                <p className="text-[10px] text-zinc-500 mb-0.5">Último sync</p>
-                <p className="text-xs font-semibold text-zinc-200">{movideskStatus.last_sync_human ?? '—'}</p>
+              <div className="rounded-lg bg-[var(--surface-hover)] px-3 py-2">
+                <p className="text-[10px] text-[var(--text-light)] mb-0.5">Último sync</p>
+                <p className="text-xs font-semibold text-[var(--text)]">{movideskStatus.last_sync_human ?? '—'}</p>
               </div>
-              <div className="rounded-lg bg-zinc-800 px-3 py-2">
-                <p className="text-[10px] text-zinc-500 mb-0.5">Importados hoje</p>
-                <p className="text-xs font-semibold text-zinc-200">{movideskStatus.today_imported}</p>
+              <div className="rounded-lg bg-[var(--surface-hover)] px-3 py-2">
+                <p className="text-[10px] text-[var(--text-light)] mb-0.5">Importados hoje</p>
+                <p className="text-xs font-semibold text-[var(--text)]">{movideskStatus.today_imported}</p>
               </div>
-              <div className="rounded-lg bg-zinc-800 px-3 py-2">
-                <p className="text-[10px] text-zinc-500 mb-0.5">Total importado</p>
-                <p className="text-xs font-semibold text-zinc-200">{movideskStatus.total_imported}</p>
+              <div className="rounded-lg bg-[var(--surface-hover)] px-3 py-2">
+                <p className="text-[10px] text-[var(--text-light)] mb-0.5">Total importado</p>
+                <p className="text-xs font-semibold text-[var(--text)]">{movideskStatus.total_imported}</p>
               </div>
             </div>
             <Button
@@ -175,7 +175,7 @@ function GeneralTab() {
               </Button>
             )}
             {syncOutput && (
-              <pre className="rounded-lg bg-zinc-950 border border-zinc-800 p-3 text-[10px] text-zinc-400 whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
+              <pre className="rounded-lg bg-[var(--bg)] border border-[var(--border)] p-3 text-[10px] text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed max-h-40 overflow-y-auto">
                 {syncOutput}
               </pre>
             )}
@@ -199,21 +199,21 @@ function GeneralTab() {
           </div>
 
           {/* Data início importação */}
-          <div className="pt-3 border-t border-zinc-800">
-            <Label className="text-xs text-zinc-400 block mb-1.5">Data início da importação</Label>
-            <p className="text-[11px] text-zinc-500 mb-1.5">Apontamentos com data anterior a esta serão ignorados na importação.</p>
+          <div className="pt-3 border-t border-[var(--border)]">
+            <Label className="text-xs text-[var(--text-muted)] block mb-1.5">Data início da importação</Label>
+            <p className="text-[11px] text-[var(--text-light)] mb-1.5">Apontamentos com data anterior a esta serão ignorados na importação.</p>
             <div className="flex items-center gap-2">
               <Input
                 type="date"
                 value={settings.movidesk_import_start_date ?? ''}
                 onChange={e => setSettings(s => ({ ...s, movidesk_import_start_date: e.target.value || null }))}
-                className="bg-zinc-800 border-zinc-700 text-white h-9 w-44 text-xs"
+                className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 w-44 text-xs"
               />
               {settings.movidesk_import_start_date && (
                 <button
                   type="button"
                   onClick={() => setSettings(s => ({ ...s, movidesk_import_start_date: null }))}
-                  className="text-[11px] text-zinc-500 hover:text-zinc-200 flex items-center gap-1"
+                  className="text-[11px] text-[var(--text-light)] hover:text-[var(--text)] flex items-center gap-1"
                 >
                   <X size={11} /> Limpar
                 </button>
@@ -222,14 +222,14 @@ function GeneralTab() {
           </div>
 
           {/* Intervalos de varredura */}
-          <div className="pt-3 border-t border-zinc-800 space-y-3">
-            <p className="text-xs font-medium text-zinc-400">Intervalos de varredura automática</p>
+          <div className="pt-3 border-t border-[var(--border)] space-y-3">
+            <p className="text-xs font-medium text-[var(--text-muted)]">Intervalos de varredura automática</p>
             {([
               { label: 'Sync de organizações', key: 'movidesk_sync_orgs_interval_minutes' },
               { label: 'Sync do Portal de Sustentação', key: 'movidesk_portal_sync_interval_minutes' },
             ] as const).map(({ label, key }) => (
               <div key={key}>
-                <Label className="text-xs text-zinc-500 block mb-1.5">{label}</Label>
+                <Label className="text-xs text-[var(--text-light)] block mb-1.5">{label}</Label>
                 <div className="flex flex-wrap gap-1.5">
                   {[5, 10, 15, 20, 30, 60].map(v => (
                     <button
@@ -238,8 +238,8 @@ function GeneralTab() {
                       onClick={() => setSettings(s => ({ ...s, [key]: v }))}
                       className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
                         (settings[key] ?? 30) === v
-                          ? 'bg-blue-600 border-blue-500 text-white'
-                          : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-500'
+                          ? 'bg-[var(--primary)] border-[var(--primary)] text-[var(--primary-fg)]'
+                          : 'bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
                       }`}
                     >
                       {v} min
@@ -252,7 +252,7 @@ function GeneralTab() {
         </div>
       </section>
 
-      <Button onClick={save} disabled={saving} className="bg-blue-600 hover:bg-blue-500 text-white h-9 text-xs">
+      <Button onClick={save} disabled={saving} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-9 text-xs">
         {saving ? 'Salvando...' : 'Salvar configurações'}
       </Button>
     </div>
@@ -280,8 +280,8 @@ export default function SettingsPage() {
                     onClick={() => setActiveTab(tab.id)}
                     className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-colors text-left ${
                       activeTab === tab.id
-                        ? 'bg-zinc-800 text-white'
-                        : 'text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300'
+                        ? 'bg-[var(--surface-hover)] text-[var(--text)]'
+                        : 'text-[var(--text-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
                     }`}
                   >
                     <Icon size={13} />
@@ -300,7 +300,7 @@ export default function SettingsPage() {
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors ${
-                  activeTab === tab.id ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:bg-zinc-800/60'
+                  activeTab === tab.id ? 'bg-[var(--surface-hover)] text-[var(--text)]' : 'text-[var(--text-light)] hover:bg-[var(--surface-hover)]'
                 }`}>
                 <Icon size={12} />
                 {tab.label}
@@ -311,8 +311,8 @@ export default function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold text-white mb-5 flex items-center gap-2">
-            <active.icon size={14} className="text-zinc-400" />
+          <h2 className="text-sm font-semibold text-[var(--text)] mb-5 flex items-center gap-2">
+            <active.icon size={14} className="text-[var(--text-muted)]" />
             {active.label}
           </h2>
 

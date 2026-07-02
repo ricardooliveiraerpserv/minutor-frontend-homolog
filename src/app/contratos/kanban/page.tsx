@@ -417,7 +417,7 @@ function ProjectStatusModal({ projectId, projectName, currentStatus, onClose, on
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-medium hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ background: 'rgba(0,245,255,0.1)', color: 'var(--primary)', border: '1px solid rgba(0,245,255,0.3)', opacity: saving ? 0.6 : 1 }}>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Salvando...' : 'Confirmar'}
           </button>
         </div>
@@ -499,7 +499,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                       <button onClick={() => setManualIds(prev => toggleSet(prev, c.id))}
                         title={allow ? 'Bloquear apontamento manual' : 'Liberar apontamento manual'}
                         className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold transition-colors shrink-0"
-                        style={{ background: allow ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.05)', border: `1px solid ${allow ? 'rgba(34,197,94,0.4)' : 'var(--brand-border)'}`, color: allow ? '#22c55e' : 'var(--brand-subtle)' }}>
+                        style={{ background: allow ? 'var(--success-bg)' : 'var(--surface-hover)', border: `1px solid ${allow ? 'rgba(34,197,94,0.4)' : 'var(--brand-border)'}`, color: allow ? 'var(--success-border)' : 'var(--brand-subtle)' }}>
                         <Clock size={10} />{allow ? 'Liberado' : 'Bloqueado'}
                       </button>
                     </div>
@@ -539,10 +539,10 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                   <button key={g.id} onClick={() => setSelectedGroupIds(prev => toggleSet(prev, g.id))}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-hover)]"
                     style={{ background: sel ? 'rgba(245,158,11,0.06)' : 'transparent', border: `1px solid ${sel ? 'rgba(245,158,11,0.25)' : 'transparent'}` }}>
-                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'rgba(245,158,11,0.2)' : 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
-                      {sel && <Check size={10} style={{ color: '#f59e0b' }} />}
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: sel ? 'var(--warning-bg)' : 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
+                      {sel && <Check size={10} style={{ color: 'var(--warning-border)' }} />}
                     </div>
-                    <span className="text-xs" style={{ color: sel ? '#f59e0b' : 'var(--brand-text)' }}>{g.name}</span>
+                    <span className="text-xs" style={{ color: sel ? 'var(--warning-border)' : 'var(--brand-text)' }}>{g.name}</span>
                   </button>
                 )
               })}
@@ -749,8 +749,8 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                           <button key={item.action}
                             onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
                             className="ds-row-hover w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors"
-                            style={{ color: isDanger ? '#ef4444' : 'var(--brand-text)' }}>
-                            <Icon size={13} style={{ color: isDanger ? '#ef4444' : 'var(--brand-subtle)' }} />
+                            style={{ color: isDanger ? 'var(--danger-border)' : 'var(--brand-text)' }}>
+                            <Icon size={13} style={{ color: isDanger ? 'var(--danger-border)' : 'var(--brand-subtle)' }} />
                             {item.label}
                           </button>
                         )
@@ -972,8 +972,8 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
                         <button key={item.action}
                           onClick={e => { e.stopPropagation(); setMenuOpen(false); onAction(item.action) }}
                           className="ds-row-hover w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-left transition-colors"
-                          style={{ color: isDanger ? '#ef4444' : 'var(--brand-text)' }}>
-                          <Icon size={13} style={{ color: isDanger ? '#ef4444' : 'var(--brand-subtle)' }} />
+                          style={{ color: isDanger ? 'var(--danger-border)' : 'var(--brand-text)' }}>
+                          <Icon size={13} style={{ color: isDanger ? 'var(--danger-border)' : 'var(--brand-subtle)' }} />
                           {item.label}
                         </button>
                       )
@@ -1124,7 +1124,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
   ]
 
   const tabStyle = (t: string) => tab === t
-    ? { background: 'rgba(234,179,8,0.12)', color: '#eab308', border: '1px solid rgba(234,179,8,0.3)' }
+    ? { background: 'var(--warning-bg)', color: 'var(--warning-border)', border: '1px solid var(--warning-border)' }
     : { color: 'var(--brand-subtle)', border: '1px solid transparent' }
 
   return (
@@ -1305,7 +1305,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
                               <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{ATT_LABEL[att.type] ?? att.type}{att.size != null ? ` · ${fmtSize(att.size)}` : ''}</p>
                             </div>
                           </div>
-                          <button onClick={() => downloadAttachment(att)} title="Baixar" className="p-1 shrink-0 rounded transition-colors hover:bg-white/10" style={{ color: 'var(--brand-subtle)' }}>
+                          <button onClick={() => downloadAttachment(att)} title="Baixar" className="p-1 shrink-0 rounded transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-subtle)' }}>
                             <Download size={14} />
                           </button>
                         </div>
@@ -1318,7 +1318,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
               )}
               {!card.is_complete && (
                 <div className="flex items-start gap-2 rounded-xl px-3 py-2.5 text-xs"
-                  style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444' }}>
+                  style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)', color: 'var(--danger-border)' }}>
                   <AlertCircle size={13} className="mt-0.5 shrink-0" />
                   <span>Contrato incompleto — preencha cliente, horas, tipo de contrato e faturamento para alocar a um coordenador.</span>
                 </div>
@@ -1328,7 +1328,7 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
               <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--brand-muted)' }}>Fechar</button>
               <button onClick={() => { onClose(); onEditContract?.(card.id) }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}>
                 <Pencil size={13} /> Editar Contrato
               </button>
               <button onClick={() => { window.location.href = '/contratos' }}
@@ -2047,7 +2047,7 @@ function KanbanContent() {
                     : isBizify  ? `${BIZIFY_COLOR}35`
                     : isAporteCol ? `${APORTE_COLOR}45`
                     : col.id === 'aditivos' ? `${ADITIVO_COLOR}45`
-                    : isCoord   ? 'rgba(0,245,255,0.15)'
+                    : isCoord   ? 'var(--primary-soft)'
                     : isPronto  ? `${PRONTO_COLOR}40`
                     : 'var(--brand-border)'
 
@@ -2399,8 +2399,8 @@ function KanbanContent() {
               <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                 <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}>
-                      <Trash2 size={16} style={{ color: '#ef4444' }} />
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+                      <Trash2 size={16} style={{ color: 'var(--danger-border)' }} />
                     </div>
                     <div>
                       <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{card.is_aditivo ? 'Excluir Aditivo' : 'Excluir Contrato'}</p>
@@ -2429,7 +2429,7 @@ function KanbanContent() {
                       }
                     }}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                    style={{ background: '#ef4444', color: '#fff' }}>
+                    style={{ background: 'var(--danger-border)', color: 'var(--primary-fg)' }}>
                     <Trash2 size={13} /> Excluir
                   </button>
                 </div>
@@ -2466,8 +2466,8 @@ function KanbanContent() {
               <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                 <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-border)' }}>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)' }}>
-                      <Trash2 size={16} style={{ color: '#ef4444' }} />
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-border)' }}>
+                      <Trash2 size={16} style={{ color: 'var(--danger-border)' }} />
                     </div>
                     <div>
                       <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Excluir Projeto</p>
@@ -2494,7 +2494,7 @@ function KanbanContent() {
                       }
                     }}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                    style={{ background: '#ef4444', color: '#fff' }}>
+                    style={{ background: 'var(--danger-border)', color: 'var(--primary-fg)' }}>
                     <Trash2 size={13} /> Excluir
                   </button>
                 </div>
