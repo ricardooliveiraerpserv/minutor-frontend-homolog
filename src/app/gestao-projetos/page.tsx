@@ -1281,7 +1281,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
       <button type="button" onClick={() => onChange(!checked)}
         className="relative w-10 h-5 rounded-full transition-colors shrink-0"
         style={{ background: checked ? 'var(--success-border)' : 'var(--border-strong)' }}>
-        <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: checked ? 'translateX(20px)' : 'translateX(0)' }} />
+        <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-[var(--surface)] transition-transform" style={{ transform: checked ? 'translateX(20px)' : 'translateX(0)' }} />
       </button>
       <span className="text-xs" style={{ color: 'var(--text)' }}>{label}</span>
     </div>

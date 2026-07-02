@@ -146,7 +146,7 @@ function Toggle({ value, onChange, label }: { value: boolean; onChange: () => vo
     <div className="flex items-center gap-2">
       <button onClick={onChange}
         className={`w-8 h-4 rounded-full transition-colors relative ${value ? 'bg-[var(--primary)]' : 'bg-[var(--surface-hover)]'}`}>
-        <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${value ? 'left-4' : 'left-0.5'}`} />
+        <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-[var(--surface)] transition-all ${value ? 'left-4' : 'left-0.5'}`} />
       </button>
       <Label className="text-xs text-[var(--text-muted)]">{label}</Label>
     </div>

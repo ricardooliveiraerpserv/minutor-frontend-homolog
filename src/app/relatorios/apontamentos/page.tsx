@@ -661,7 +661,7 @@ export default function RelatorioApontamentosPage() {
 
           <div id="print-relatorio">
             <div
-              className="bg-white text-gray-900 rounded-2xl shadow-lg mx-auto"
+              className="bg-[var(--surface)] text-gray-900 rounded-2xl shadow-lg mx-auto"
               style={{ maxWidth: 1280, width: '100%', fontFamily: 'Arial, sans-serif' }}
             >
               {/* Cabeçalho */}

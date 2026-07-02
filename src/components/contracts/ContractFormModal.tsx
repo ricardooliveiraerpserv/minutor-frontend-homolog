@@ -764,7 +764,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                     className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors"
                     style={{ background: form.is_aporte ? '#22c55e' : 'rgba(255,255,255,0.18)' }}
                   >
-                    <span className="pointer-events-none inline-block h-5 w-5 mt-0.5 ml-0.5 rounded-full bg-white shadow transition-transform"
+                    <span className="pointer-events-none inline-block h-5 w-5 mt-0.5 ml-0.5 rounded-full bg-[var(--surface)] shadow transition-transform"
                       style={{ transform: form.is_aporte ? 'translateX(20px)' : 'translateX(0)' }} />
                   </button>
                 </div>
@@ -934,7 +934,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                     className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
                     style={{ background: form.is_subproject ? 'var(--brand-primary)' : 'rgba(255,255,255,0.12)' }}
                   >
-                    <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+                    <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-[var(--surface)] shadow transition-transform"
                       style={{ transform: form.is_subproject ? 'translateX(16px)' : 'translateX(0)' }} />
                   </button>
                   <label className="text-sm cursor-pointer select-none"

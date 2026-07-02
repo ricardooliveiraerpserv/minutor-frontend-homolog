@@ -78,7 +78,7 @@ export function NotificationBell() {
         {(bellCount > 0 || pendCount > 0) && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center" style={{ background: pendCount > 0 ? 'var(--danger-border)' : 'var(--warning-border)', color: '#fff' }}>
             {bellCount > 0 ? (bellCount > 9 ? '9+' : bellCount) : ''}
-            {bellCount === 0 && pendCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+            {bellCount === 0 && pendCount > 0 && <span className="w-1.5 h-1.5 rounded-full bg-[var(--surface)]" />}
           </span>
         )}
       </button>
