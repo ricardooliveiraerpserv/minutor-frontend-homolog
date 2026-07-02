@@ -217,6 +217,9 @@
   --info:           #0369A1;
   --info-border:    #0EA5E9;
   --info-bg:        #E0F2FE;
+  --purple:         #6D28D9;
+  --purple-border:  #8B5CF6;
+  --purple-bg:      #EDE9FE;
 
   /* Aliases retrocompat (usar --success/etc em código novo) */
   --text-success: var(--success);
@@ -289,6 +292,9 @@
   --info:           var(--brand-primary);
   --info-border:    var(--brand-primary);
   --info-bg:        rgba(0, 245, 255, 0.10);
+  --purple:         #A78BFA;
+  --purple-border:  #A78BFA;
+  --purple-bg:      rgba(139, 92, 246, 0.15);
 }
 
 /* ── Light mode polish ───────────────────────────────────────
