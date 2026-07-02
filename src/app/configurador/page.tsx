@@ -702,14 +702,16 @@ function IconPicker({ value, onPick, fallback }: { value?: string; onPick: (name
 function AddScreen({ usedKeys, onAdd, compact, childMode, prominent }: { usedKeys: Set<string>; onAdd: (key: string) => void; compact?: boolean; childMode?: boolean; prominent?: boolean }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const term = q.trim().toLowerCase()
   const results = term
     ? NAV_CATALOG.filter(c => c.label.toLowerCase().includes(term) || c.group.toLowerCase().includes(term) || c.key.toLowerCase().includes(term))
     : NAV_CATALOG
   const close = () => { setOpen(false); setQ('') }
   return (
-    <div className="relative shrink-0">
-      <button onClick={() => setOpen(o => !o)} title="Inserir no menu uma tela já existente do sistema (referência)"
+    <div ref={wrapRef} className="relative shrink-0">
+      <button onClick={() => { if (!open && wrapRef.current) { const r = wrapRef.current.getBoundingClientRect(); setPos({ top: r.bottom + 4, left: Math.min(r.left, (typeof window !== 'undefined' ? window.innerWidth : 1280) - 296) }) } setOpen(o => !o) }} title="Inserir no menu uma tela já existente do sistema (referência)"
         className={`inline-flex items-center justify-center gap-1.5 rounded-lg ${prominent ? 'text-[12px] font-medium py-1.5 px-3' : `text-[12px] border border-dashed ${compact ? 'px-2 py-1' : 'py-1.5 px-3'}`}`}
         style={prominent ? { background: 'var(--surface-sunken)', color: 'var(--text)', border: '1px solid var(--border)' } : { borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
         <Plus size={prominent ? 14 : 12} /> {childMode ? 'filho' : (prominent ? 'Adicionar tela' : 'tela')}
@@ -717,7 +719,7 @@ function AddScreen({ usedKeys, onAdd, compact, childMode, prominent }: { usedKey
       {open && (
         <>
           <div className="fixed inset-0 z-20" onClick={close} />
-          <div className="absolute z-30 left-0 mt-1 w-72 rounded-lg shadow-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="fixed z-[90] w-72 rounded-lg shadow-xl" style={{ top: pos?.top ?? 0, left: pos?.left ?? 0, background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="p-2 sticky top-0" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
               <div className="relative">
                 <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-light)' }} />
@@ -872,6 +874,8 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<{ id: number; name: string; email: string }[]>([])
   const [picked, setPicked] = useState<Record<number, string>>({})
+  const uWrapRef = useRef<HTMLDivElement>(null)
+  const [uPos, setUPos] = useState<{ top: number; left: number; width: number } | null>(null)
 
   const search = useCallback((term: string) => {
     if (!filter.type && term.trim().length < 2) { setHits([]); return }
@@ -898,11 +902,11 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
 
   return (
     <div className="mt-2 pt-2 space-y-1.5" style={{ borderTop: '1px dashed var(--border)' }}>
-      <div className="relative">
+      <div ref={uWrapRef} className="relative">
         <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-light)' }} />
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Adicionar usuário (override)…" className="ds-input w-full block" style={{ fontSize: 12, height: 30, paddingTop: 0, paddingBottom: 0, paddingLeft: 26, paddingRight: 8 }} />
+        <input value={q} onChange={e => setQ(e.target.value)} onFocus={() => { if (uWrapRef.current) { const r = uWrapRef.current.getBoundingClientRect(); setUPos({ top: r.bottom + 4, left: r.left, width: r.width }) } }} placeholder="Adicionar usuário (override)…" className="ds-input w-full block" style={{ fontSize: 12, height: 30, paddingTop: 0, paddingBottom: 0, paddingLeft: 26, paddingRight: 8 }} />
         {hits.length > 0 && (
-          <div className="absolute z-20 left-0 right-0 mt-1 max-h-40 overflow-auto rounded-lg shadow-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="fixed z-[90] max-h-40 overflow-auto rounded-lg shadow-xl" style={{ top: uPos?.top ?? 0, left: uPos?.left ?? 0, width: uPos?.width, background: 'var(--surface)', border: '1px solid var(--border)' }}>
             {hits.map(u => <button key={u.id} onClick={() => add(u)} className="block w-full text-left px-3 py-1 text-[12px] hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>{u.name} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{u.email}</span></button>)}
           </div>
         )}
