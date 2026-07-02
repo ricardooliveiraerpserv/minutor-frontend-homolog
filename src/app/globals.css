@@ -139,18 +139,18 @@
  */
 :root {
   /* ── NEUTRO ──────────────────────────────────────── */
-  --brand-bg:       #E4E5E8;   /* fundo cinza-claro (menos "branco duro"); cards brancos dão profundidade */
-  --brand-surface:  #FFFFFF;
-  --brand-panel:    #ECEDEF;   /* Nível 1: painéis/seções/colunas kanban (Sprint 1) */
-  --brand-border:   #D6D8DD;
-  --brand-text:     #0F172A;
+  --brand-bg:       #E3E5EA;   /* fundo cinza-claro (menos "branco duro"); cards brancos dão profundidade */
+  --brand-surface:  #FBFBFD;
+  --brand-panel:    #F0F1F4;   /* Nível 1: painéis/seções/colunas kanban (Sprint 1) */
+  --brand-border:   #E2E4E9;
+  --brand-text:     #14161B;
   --brand-muted:    #475569;   /* spec text-secondary */
   --brand-subtle:   #64748B;   /* text terciário — contraste WCAG no claro (Sprint 1) */
 
   /* ── PRIMARY (ação — cyan brand premium) ─────────── */
-  --brand-primary:        #06B6D4;   /* cyan brand brilhante */
-  --brand-primary-strong: #0891B2;   /* hover ~5% mais escuro */
-  --brand-primary-dim:    #ECEEF2;   /* sidebar active / badge soft (spec) */
+  --brand-primary:        #157582;   /* cyan brand brilhante */
+  --brand-primary-strong: #0E5C67;   /* hover ~5% mais escuro */
+  --brand-primary-dim:    #E9F0F1;   /* sidebar active / badge soft (spec) */
 
   /* ── Semantic — light (tons de border/accent) ────── */
   --brand-success:  #22C55E;
@@ -183,14 +183,14 @@
   --bg:            var(--brand-bg);
   --surface:       var(--brand-surface);
   --panel:         var(--brand-panel);
-  --surface-hover: #EEEFF2;
-  --surface-sunken:#EAEBEE;   /* inputs, table header — superfície "afundada" */
+  --surface-hover: #ECEDF1;
+  --surface-sunken:#F1F2F5;   /* inputs, table header — superfície "afundada" */
   --text:          var(--brand-text);
   --text-muted:    var(--brand-muted);
   --text-light:    var(--brand-subtle);
   --border:        var(--brand-border);
-  --border-strong: #BCBFC6;   /* divisores fortes, hover de inputs */
-  --ring:          rgba(6, 182, 212, 0.30);  /* focus ring (primary @ 30%) */
+  --border-strong: #CBCFD7;   /* divisores fortes, hover de inputs */
+  --ring:          rgba(21,117,130,0.32);  /* focus ring (primary @ 30%) */
 
   /* PRIMARY */
   --primary:       var(--brand-primary);
