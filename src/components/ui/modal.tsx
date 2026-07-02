@@ -65,12 +65,12 @@ export function Modal({
   if (!open) return null
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4"
+      className="fixed inset-0 flex items-center justify-center p-4 animate-in fade-in-0 duration-150"
       style={{ background: 'rgba(0,0,0,0.45)', zIndex }}
       onClick={closeOnOverlay ? (e) => { if (e.target === e.currentTarget) onClose() } : undefined}
     >
       <div
-        className={`flex flex-col w-full ${SIZE_MAP[size]} max-h-[90vh] rounded-2xl overflow-hidden`}
+        className={`flex flex-col w-full ${SIZE_MAP[size]} max-h-[90vh] rounded-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200`}
         style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',
