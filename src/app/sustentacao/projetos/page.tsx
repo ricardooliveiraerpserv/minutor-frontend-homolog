@@ -103,7 +103,10 @@ function getTab(p: SustProject): string {
 function isSustProject(p: SustProject): boolean {
   const ct = (p.contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
   const st = (p.service_type?.name ?? '').toLowerCase()
+  // Investimento Suporte (todos os clientes) conta como sustentação.
+  const isInvestSuporte = !!(p as any).is_investimento_comercial && (p as any).categoria_interna === 'Suporte'
   return (
+    isInvestSuporte ||
     ct.includes('sust') || ct.includes('cloud') || ct.includes('bizify') ||
     ct.includes('bh fixo') || ct.includes('bh mensal') || ct.includes('bh_fixo') || ct.includes('bh_mensal') ||
     st.includes('sust') || st.includes('cloud') || st.includes('bizify')
