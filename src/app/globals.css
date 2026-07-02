@@ -147,7 +147,7 @@
   --brand-border:   #E2E8F0;
   --brand-text:     #0F172A;
   --brand-muted:    #475569;   /* spec text-secondary */
-  --brand-subtle:   #94A3B8;   /* spec text-muted */
+  --brand-subtle:   #64748B;   /* text terciário — contraste WCAG no claro (Sprint 1) */
 
   /* ── PRIMARY (ação — cyan brand premium) ─────────── */
   --brand-primary:        #06B6D4;   /* cyan brand brilhante */
