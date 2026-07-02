@@ -876,6 +876,23 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
   const [picked, setPicked] = useState<Record<number, string>>({})
   const uWrapRef = useRef<HTMLDivElement>(null)
   const [uPos, setUPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const [open, setOpen] = useState(false)
+
+  // Posição VIVA do dropdown (portal): recalcula a partir do input atual — segue quando a lista
+  // de selecionados empurra o campo, quando rola a página/painel e no resize.
+  const reposition = useCallback(() => {
+    const el = uWrapRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setUPos({ top: r.bottom + 4, left: r.left, width: r.width })
+  }, [])
+  useEffect(() => {
+    if (!open) return
+    const h = () => reposition()
+    window.addEventListener('scroll', h, true)
+    window.addEventListener('resize', h)
+    return () => { window.removeEventListener('scroll', h, true); window.removeEventListener('resize', h) }
+  }, [open, reposition])
 
   const search = useCallback((term: string) => {
     if (!filter.type && term.trim().length < 2) { setHits([]); return }
@@ -888,10 +905,12 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
   }, [filter.type, filter.coord])
   useEffect(() => { const t = setTimeout(() => search(q), 250); return () => clearTimeout(t) }, [q, search])
 
-  // adiciona já como PERMITIDO (verde); pode bloquear depois
+  // adiciona já como PERMITIDO (verde); pode bloquear depois. Recalcula a posição após o
+  // novo selecionado renderizar (empurra o campo), pra o dropdown não ficar desalinhado.
   const add = (u: { id: number; name: string }) => {
     setPicked(p => ({ ...p, [u.id]: u.name }))
     if (!ab.users.includes(u.id) && !ab.deny_users.includes(u.id)) onChange({ users: [...ab.users, u.id] })
+    requestAnimationFrame(() => requestAnimationFrame(reposition))
   }
   const setBlocked = (id: number, blocked: boolean) => blocked
     ? onChange({ deny_users: [...new Set([...ab.deny_users, id])], users: ab.users.filter(x => x !== id) })
@@ -920,10 +939,11 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
         ))}
       <div ref={uWrapRef} className="relative">
         <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-light)' }} />
-        <input value={q} onChange={e => setQ(e.target.value)} onFocus={() => { if (uWrapRef.current) { const r = uWrapRef.current.getBoundingClientRect(); setUPos({ top: r.bottom + 4, left: r.left, width: r.width }) } }} placeholder="Adicionar usuário (override)…" className="ds-input w-full block" style={{ fontSize: 12, height: 30, paddingTop: 0, paddingBottom: 0, paddingLeft: 26, paddingRight: 8 }} />
-        {availHits.length > 0 && (
-          <div className="fixed z-[90] max-h-40 overflow-auto rounded-lg shadow-xl" style={{ top: uPos?.top ?? 0, left: uPos?.left ?? 0, width: uPos?.width, background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            {availHits.map(u => <button key={u.id} onClick={() => add(u)} className="block w-full text-left px-3 py-1 text-[12px] hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>{u.name} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{u.email}</span></button>)}
+        <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); reposition() }} onFocus={() => { setOpen(true); reposition() }} onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Adicionar usuário (override)…" className="ds-input w-full block" style={{ fontSize: 12, height: 30, paddingTop: 0, paddingBottom: 0, paddingLeft: 26, paddingRight: 8 }} />
+        {open && uPos && availHits.length > 0 && (
+          <div className="fixed z-[90] max-h-52 overflow-auto rounded-lg shadow-xl" style={{ top: uPos.top, left: uPos.left, width: uPos.width, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            {availHits.map(u => <button key={u.id} type="button" onMouseDown={e => { e.preventDefault(); add(u) }} className="block w-full text-left px-3 py-1.5 text-[12px] hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>{u.name} <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{u.email}</span></button>)}
           </div>
         )}
       </div>
