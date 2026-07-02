@@ -8,6 +8,7 @@ import { api } from '@/lib/api'
 import { previewText } from '@/lib/sanitize'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
+import { SkeletonTable } from '@/components/ui/loading'
 
 // Apontamento retornado por /dashboards/bank-hours-fixed/project-timesheets.
 interface TimesheetRow {
@@ -224,8 +225,11 @@ export default function ProjectTimesheetsModal({
 
         {/* Tabela */}
         <div className="overflow-x-auto max-h-[65vh]">
-          {loading ? (
-            <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+          {loading && rows.length === 0 ? (
+            /* Skeleton contextual: mesma tabela (5 cols:
+               Data · Consultor · Ticket · Título · Horas). Refiltro com dados
+               em memória mantém a tabela atual (anti-flicker). */
+            <SkeletonTable rows={8} cols={5} />
           ) : rows.length === 0 ? (
             <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sem apontamentos no período.</div>
           ) : (

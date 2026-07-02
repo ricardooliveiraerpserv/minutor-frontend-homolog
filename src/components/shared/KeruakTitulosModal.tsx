@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { X, Receipt } from 'lucide-react'
 import { api } from '@/lib/api'
+import { SkeletonTable } from '@/components/ui/loading'
 
 interface Titulo {
   emissao: string | null
@@ -123,10 +124,10 @@ export function KeruakTitulosModal({ cliente, cnpjs, valorInicial = 0, onClose }
 
         {/* Body */}
         <div className="overflow-auto p-4">
-          {loading ? (
-            <div className="p-10 text-center">
-              <div className="animate-pulse h-4 w-32 mx-auto rounded" style={{ background: 'var(--border)' }} />
-            </div>
+          {loading && titulos.length === 0 ? (
+            /* Skeleton contextual: mesma tabela de títulos (5 cols:
+               Emissão · Recebimento · Empresa · Observação · Valor). */
+            <SkeletonTable rows={6} cols={5} />
           ) : !hasContent ? (
             <div className="p-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
               Nenhum título do Keruak no período para este cliente.
