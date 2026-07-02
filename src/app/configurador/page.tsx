@@ -153,21 +153,6 @@ function Inner() {
     return map
   }, [mods])
 
-  // Onde cada tela aparece — CAMINHO completo (Módulo › Pasta › …), deduplicado. Usado no indicador
-  // "já existe em outra pasta" por linha. Cópias por perfil com o mesmo caminho colapsam (não poluem).
-  const locationsByScreen = useMemo(() => {
-    const set: Record<string, Set<string>> = {}
-    const walk = (nodes: NavTreeNode[], trail: string[]) => nodes.forEach(n => {
-      if (n.screen) {
-        (set[n.screen] ??= new Set()).add(trail.join(' › '))
-        if (n.children) walk(n.children, [...trail, screenLabel(screens[n.screen], n.screen)])
-      } else if (n.children) walk(n.children, [...trail, n.label ?? ''])
-    })
-    mods.forEach(m => walk(m.items, [m.label]))
-    const out: Record<string, string[]> = {}
-    Object.entries(set).forEach(([k, s]) => { out[k] = [...s] })
-    return out
-  }, [mods, screens])
 
   const orphanRefs = useMemo(() => Object.keys(usageByScreen)
     .filter(k => noPerm(screens[k]))
@@ -357,6 +342,23 @@ function Inner() {
     return map
   }, [scopedMods])
 
+  // Onde cada tela aparece DENTRO DESTE PERFIL — caminho completo (Módulo › Pasta › …), deduplicado.
+  // Base do indicador "existe em outra pasta" e da regra de exclusão (só exclui se houver outra cópia
+  // NO MESMO PERFIL). Cada aba/perfil é avaliada separadamente (usa scopedMods, não mods).
+  const locationsByScreen = useMemo(() => {
+    const set: Record<string, Set<string>> = {}
+    const walk = (nodes: NavTreeNode[], trail: string[]) => nodes.forEach(n => {
+      if (n.screen) {
+        (set[n.screen] ??= new Set()).add(trail.join(' › '))
+        if (n.children) walk(n.children, [...trail, screenLabel(screens[n.screen], n.screen)])
+      } else if (n.children) walk(n.children, [...trail, n.label ?? ''])
+    })
+    scopedMods.forEach(m => walk(m.items, [m.label]))
+    const out: Record<string, string[]> = {}
+    Object.entries(set).forEach(([k, s]) => { out[k] = [...s] })
+    return out
+  }, [scopedMods, screens])
+
   // ── render recursivo com guias de árvore ──
   // guides[a] = true se o ancestral de nível `a` ainda tem irmão depois dele (desenha linha vertical contínua).
   // Qualquer nó (grupo OU tela) pode ter filhos → tela com filhos = SUBMENU (pai/filhos).
@@ -439,7 +441,7 @@ function Inner() {
                 {hasKids && <span title="Submenu (pai)" className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>{n.children!.length}</span>}
                 {inOtherFolders && (
                   <button onClick={() => setLocOpen(locOpen === n.id ? null : n.id)}
-                    title={`Esta tela também está em ${locs.length - 1} outra(s) pasta(s) — clique para ver onde`}
+                    title={`Neste perfil, esta tela também está em ${locs.length - 1} outra(s) pasta(s) — clique para ver onde`}
                     className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full shrink-0"
                     style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)', border: '1px solid var(--warning-border)' }}>
                     <Repeat size={10} /> {locs.length}× {locOpen === n.id ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
@@ -464,6 +466,13 @@ function Inner() {
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0">
                   <span title="Adicionar tela-filha (submenu)"><AddScreen usedKeys={usedKeys} onAdd={k => addScreen(moduleId, n.id, k)} compact childMode /></span>
                   <button onClick={() => setMoving(n.id)} title="Mover para…"><FolderInput size={13} style={{ color: 'var(--text-muted)' }} /></button>
+                  {inOtherFolders ? (
+                    <button onClick={() => { if (confirm(`Excluir "${screenLabel(s, n.screen!)}" desta pasta?\n\nEla continua neste perfil em ${locs.length - 1} outra(s) pasta(s):\n${locs.join('\n')}`)) removeTreeNode(moduleId, n.id) }}
+                      title={`Excluir desta pasta (há outra cópia neste perfil)`}><Trash2 size={13} style={{ color: 'var(--danger-border)' }} /></button>
+                  ) : (
+                    <button disabled title="Única ocorrência neste perfil — não pode excluir (senão some do perfil). Use o 👁 para apenas OCULTAR."
+                      style={{ opacity: 0.3, cursor: 'not-allowed' }}><Trash2 size={13} style={{ color: 'var(--text-light)' }} /></button>
+                  )}
                 </div>
               </div>
             </div>
@@ -471,7 +480,7 @@ function Inner() {
             {locOpen === n.id && (
               <div className="mr-1 mb-1.5 rounded-lg overflow-hidden" style={{ marginLeft: (depth + 1) * INDENT, border: '1px solid var(--warning-border)', background: 'var(--warning-bg)' }}>
                 <div className="p-3">
-                  <p className="text-[11px] font-semibold mb-1.5 inline-flex items-center gap-1.5" style={{ color: 'var(--warning-border)' }}><Repeat size={12} /> Esta tela aparece em {locs.length} pastas:</p>
+                  <p className="text-[11px] font-semibold mb-1.5 inline-flex items-center gap-1.5" style={{ color: 'var(--warning-border)' }}><Repeat size={12} /> Neste perfil, esta tela está em {locs.length} pastas:</p>
                   <ul className="space-y-1">
                     {locs.map((p, i) => (
                       <li key={i} className="text-[12px] inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}><Folder size={12} style={{ color: 'var(--warning-border)' }} /> {p}</li>
