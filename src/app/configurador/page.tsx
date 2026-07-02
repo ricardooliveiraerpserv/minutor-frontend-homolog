@@ -346,17 +346,15 @@ function Inner() {
   // Base do indicador "existe em outra pasta" e da regra de exclusão (só exclui se houver outra cópia
   // NO MESMO PERFIL). Cada aba/perfil é avaliada separadamente (usa scopedMods, não mods).
   const locationsByScreen = useMemo(() => {
-    const set: Record<string, Set<string>> = {}
-    const walk = (nodes: NavTreeNode[], trail: string[]) => nodes.forEach(n => {
+    const map: Record<string, { path: string; moduleId: number; nodeId: string }[]> = {}
+    const walk = (nodes: NavTreeNode[], moduleId: number, trail: string[]) => nodes.forEach(n => {
       if (n.screen) {
-        (set[n.screen] ??= new Set()).add(trail.join(' › '))
-        if (n.children) walk(n.children, [...trail, screenLabel(screens[n.screen], n.screen)])
-      } else if (n.children) walk(n.children, [...trail, n.label ?? ''])
+        (map[n.screen] ??= []).push({ path: trail.join(' › '), moduleId, nodeId: n.id })
+        if (n.children) walk(n.children, moduleId, [...trail, screenLabel(screens[n.screen], n.screen)])
+      } else if (n.children) walk(n.children, moduleId, [...trail, n.label ?? ''])
     })
-    scopedMods.forEach(m => walk(m.items, [m.label]))
-    const out: Record<string, string[]> = {}
-    Object.entries(set).forEach(([k, s]) => { out[k] = [...s] })
-    return out
+    scopedMods.forEach(m => walk(m.items, m.id, [m.label]))
+    return map
   }, [scopedMods, screens])
 
   // ── render recursivo com guias de árvore ──
@@ -467,7 +465,7 @@ function Inner() {
                   <span title="Adicionar tela-filha (submenu)"><AddScreen usedKeys={usedKeys} onAdd={k => addScreen(moduleId, n.id, k)} compact childMode /></span>
                   <button onClick={() => setMoving(n.id)} title="Mover para…"><FolderInput size={13} style={{ color: 'var(--text-muted)' }} /></button>
                   {inOtherFolders ? (
-                    <button onClick={() => { if (confirm(`Excluir "${screenLabel(s, n.screen!)}" desta pasta?\n\nEla continua neste perfil em ${locs.length - 1} outra(s) pasta(s):\n${locs.join('\n')}`)) removeTreeNode(moduleId, n.id) }}
+                    <button onClick={() => { if (confirm(`Excluir "${screenLabel(s, n.screen!)}" desta pasta?\n\nEla continua neste perfil em ${locs.length - 1} outra(s) pasta(s):\n${locs.map(l => l.path).join('\n')}`)) removeTreeNode(moduleId, n.id) }}
                       title={`Excluir desta pasta (há outra cópia neste perfil)`}><Trash2 size={13} style={{ color: 'var(--danger-border)' }} /></button>
                   ) : (
                     <button disabled title="Única ocorrência neste perfil — não pode excluir (senão some do perfil). Use o 👁 para apenas OCULTAR."
@@ -482,11 +480,21 @@ function Inner() {
                 <div className="p-3">
                   <p className="text-[11px] font-semibold mb-1.5 inline-flex items-center gap-1.5" style={{ color: 'var(--warning-border)' }}><Repeat size={12} /> Neste perfil, esta tela está em {locs.length} pastas:</p>
                   <ul className="space-y-1">
-                    {locs.map((p, i) => (
-                      <li key={i} className="text-[12px] inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}><Folder size={12} style={{ color: 'var(--warning-border)' }} /> {p}</li>
-                    ))}
+                    {locs.map((l, i) => {
+                      const isCurrent = l.nodeId === n.id
+                      return (
+                        <li key={i} className="text-[12px] flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+                          <Folder size={12} style={{ color: 'var(--warning-border)', flexShrink: 0 }} />
+                          <span className="flex-1 min-w-0 truncate">{l.path}{isCurrent && <span className="ml-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>(esta)</span>}</span>
+                          {locs.length > 1 && (
+                            <button onClick={() => { if (confirm(`Excluir "${screenLabel(s, n.screen!)}" de:\n${l.path}\n\nContinua neste perfil em ${locs.length - 1} outra(s) pasta(s).`)) removeTreeNode(l.moduleId, l.nodeId) }}
+                              title="Excluir a tela desta pasta" className="shrink-0"><Trash2 size={12} style={{ color: 'var(--danger-border)' }} /></button>
+                          )}
+                        </li>
+                      )
+                    })}
                   </ul>
-                  <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>É a mesma tela reutilizada — editar o rótulo/permissões afeta todas as ocorrências.</p>
+                  <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>É a mesma tela reutilizada — o 🗑 remove só daquela pasta; enquanto houver ≥2, dá pra excluir de qualquer uma. Editar rótulo/permissões afeta todas.</p>
                 </div>
               </div>
             )}
