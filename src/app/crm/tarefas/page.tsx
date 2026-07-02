@@ -77,7 +77,7 @@ export default function TarefasPage() {
   }
 
   const Card = ({ label, value, cor, on }: { label: string; value: number; cor: string; on: () => void }) => (
-    <button onClick={on} className="rounded-xl p-3 text-left" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+    <button onClick={on} className="rounded-xl p-3 text-left" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
       <p className="text-xl font-bold mt-0.5" style={{ color: cor }}>{value}</p>
     </button>

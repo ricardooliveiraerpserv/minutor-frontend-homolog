@@ -64,7 +64,7 @@ function AlertRow({
     <Link href={href} className="flex items-center justify-between px-4 py-3 hover:bg-[var(--surface-hover)] transition-colors group">
       <div className="flex items-center gap-2.5">
         <Icon size={13} style={{ color }} className="shrink-0" />
-        <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{message}</span>
+        <span className="text-sm" style={{ color: 'var(--text)' }}>{message}</span>
       </div>
       <span className="text-xs font-semibold flex items-center gap-1 group-hover:gap-1.5 transition-all" style={{ color }}>
         {action} <ChevronRight size={11} />
@@ -81,13 +81,13 @@ function RecentRow({ left, leftSub, right, badge }: { left: string; leftSub?: st
     badge === 'adjustment_requested' ? { bg: 'rgba(249,115,22,0.1)', text: '#f97316', label: 'Ajuste' } :
                             { bg: 'rgba(113,113,122,0.1)', text: '#71717a', label: badge }
   return (
-    <div className="flex items-center justify-between px-5 py-3.5 border-b last:border-0" style={{ borderColor: 'var(--brand-border)' }}>
+    <div className="flex items-center justify-between px-5 py-3.5 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
       <div className="min-w-0">
-        <p className="text-xs font-medium truncate" style={{ color: 'var(--brand-text)' }}>{left}</p>
-        {leftSub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{leftSub}</p>}
+        <p className="text-xs font-medium truncate" style={{ color: 'var(--text)' }}>{left}</p>
+        {leftSub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>{leftSub}</p>}
       </div>
       <div className="flex items-center gap-2.5 shrink-0 ml-3">
-        <span className="text-xs font-semibold font-mono" style={{ color: 'var(--brand-muted)' }}>{right}</span>
+        <span className="text-xs font-semibold font-mono" style={{ color: 'var(--text-muted)' }}>{right}</span>
         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: badgeColor.bg, color: badgeColor.text }}>
           {badgeColor.label}
         </span>
@@ -244,10 +244,10 @@ export default function DashboardPage() {
         {/* ── Saudação ── */}
         {user && !loading && (
           <div>
-            <h2 className="text-base font-semibold" style={{ color: 'var(--brand-text)' }}>
+            <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
               Olá, {user.name.split(' ')[0]} 👋
             </h2>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-light)' }}>
               {isAdmin          ? 'Visão operacional do sistema'
               : isAdministrativo ? `Hoje é ${fmtDate(todayISO())} — resumo financeiro e operacional`
               : `Hoje é ${fmtDate(todayISO())} — veja o que precisa de atenção`}
@@ -280,7 +280,7 @@ export default function DashboardPage() {
               <Link href="/timesheets" className="flex-1">
                 <div
                   className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold border transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98] w-full"
-                  style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
                 >
                   <Clock size={15} />
                   Ver apontamentos
@@ -289,7 +289,7 @@ export default function DashboardPage() {
               <Link href="/expenses" className="flex-1">
                 <div
                   className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold border transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98] w-full"
-                  style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
                 >
                   <Receipt size={15} />
                   Ver despesas
@@ -331,10 +331,10 @@ export default function DashboardPage() {
 
             {/* ── Recentes (admin) ── */}
             {!adminLoading && adminRecentTs.length > 0 && (
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                  <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Apontamentos Recentes</p>
-                  <Link href="/timesheets" className="text-[11px] hover:opacity-80 transition-opacity" style={{ color: 'var(--brand-primary)' }}>Ver todos →</Link>
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Apontamentos Recentes</p>
+                  <Link href="/timesheets" className="text-[11px] hover:opacity-80 transition-opacity" style={{ color: 'var(--primary)' }}>Ver todos →</Link>
                 </div>
                 {adminRecentTs.map((ts, i) => (
                   <RecentRow
@@ -413,41 +413,41 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div
                 className="col-span-1 rounded-xl p-4"
-                style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
               >
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--brand-subtle)' }}>Valor a Pagar (Consultores)</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Valor a Pagar (Consultores)</p>
                 {admLoading
                   ? <div className="h-6 w-24 rounded bg-[var(--surface-hover)] animate-pulse" />
-                  : <p className="text-xl font-bold" style={{ color: 'var(--brand-text)' }}>{formatBRL(admValorPagar)}</p>
+                  : <p className="text-xl font-bold" style={{ color: 'var(--text)' }}>{formatBRL(admValorPagar)}</p>
                 }
-                <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>custo de produção do mês</p>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>custo de produção do mês</p>
               </div>
 
               <Link href="/timesheets" className="col-span-1">
                 <div
                   className="flex items-center gap-3 rounded-xl px-4 py-4 h-full border transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98]"
-                  style={{ border: '1px solid var(--brand-border)' }}
+                  style={{ border: '1px solid var(--border)' }}
                 >
-                  <Clock size={16} style={{ color: 'var(--brand-primary)' }} />
+                  <Clock size={16} style={{ color: 'var(--primary)' }} />
                   <div>
-                    <p className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>Apontamentos</p>
-                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>Visualizar e gerenciar</p>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--text)' }}>Apontamentos</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>Visualizar e gerenciar</p>
                   </div>
-                  <ChevronRight size={13} className="ml-auto" style={{ color: 'var(--brand-subtle)' }} />
+                  <ChevronRight size={13} className="ml-auto" style={{ color: 'var(--text-light)' }} />
                 </div>
               </Link>
 
               <Link href="/expenses" className="col-span-1">
                 <div
                   className="flex items-center gap-3 rounded-xl px-4 py-4 h-full border transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98]"
-                  style={{ border: '1px solid var(--brand-border)' }}
+                  style={{ border: '1px solid var(--border)' }}
                 >
-                  <Receipt size={16} style={{ color: 'var(--brand-primary)' }} />
+                  <Receipt size={16} style={{ color: 'var(--primary)' }} />
                   <div>
-                    <p className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>Despesas</p>
-                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>Aprovar e pagar</p>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--text)' }}>Despesas</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>Aprovar e pagar</p>
                   </div>
-                  <ChevronRight size={13} className="ml-auto" style={{ color: 'var(--brand-subtle)' }} />
+                  <ChevronRight size={13} className="ml-auto" style={{ color: 'var(--text-light)' }} />
                 </div>
               </Link>
             </div>
@@ -471,7 +471,7 @@ export default function DashboardPage() {
               <Link href="/meu-painel" className="flex-1">
                 <div
                   className="flex items-center justify-center gap-2.5 rounded-xl px-5 py-4 text-sm font-semibold border transition-all hover:bg-[var(--surface-hover)] active:scale-[0.98] w-full"
-                  style={{ border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
                 >
                   <Receipt size={15} />
                   Lançar despesa
@@ -514,7 +514,7 @@ export default function DashboardPage() {
             {!loading && (
               <div
                 className="rounded-xl px-4 py-3 flex items-center justify-between gap-4"
-                style={{ background: 'var(--brand-surface)', border: `1px solid ${hasTodayTs ? 'rgba(34,197,94,0.2)' : 'var(--brand-border)'}` }}
+                style={{ background: 'var(--surface)', border: `1px solid ${hasTodayTs ? 'rgba(34,197,94,0.2)' : 'var(--border)'}` }}
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${hasTodayTs ? 'bg-[var(--success-bg)]' : 'bg-[var(--surface-hover)]'}`}>
@@ -524,10 +524,10 @@ export default function DashboardPage() {
                     }
                   </div>
                   <div>
-                    <p className="text-xs font-semibold" style={{ color: hasTodayTs ? '#22c55e' : 'var(--brand-muted)' }}>
+                    <p className="text-xs font-semibold" style={{ color: hasTodayTs ? '#22c55e' : 'var(--text-muted)' }}>
                       Hoje — {fmtDate(todayISO())}
                     </p>
-                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>
                       {hasTodayTs
                         ? `${fmtHours(todayMin)} lançadas em ${todayTs.length} apontamento${todayTs.length !== 1 ? 's' : ''}`
                         : 'Nenhuma hora lançada ainda hoje'
@@ -580,10 +580,10 @@ export default function DashboardPage() {
             {!loading && (recentTs.length > 0 || recentExp.length > 0) && (
               <div className="grid md:grid-cols-2 gap-4">
                 {recentTs.length > 0 && (
-                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                    <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                      <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Apontamentos Recentes</p>
-                      <Link href="/meu-painel" className="text-[11px] hover:opacity-80 transition-opacity" style={{ color: 'var(--brand-primary)' }}>Ver todos →</Link>
+                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                    <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                      <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Apontamentos Recentes</p>
+                      <Link href="/meu-painel" className="text-[11px] hover:opacity-80 transition-opacity" style={{ color: 'var(--primary)' }}>Ver todos →</Link>
                     </div>
                     {recentTs.map((ts, i) => (
                       <RecentRow
@@ -597,10 +597,10 @@ export default function DashboardPage() {
                   </div>
                 )}
                 {recentExp.length > 0 && (
-                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                    <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                      <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Despesas Recentes</p>
-                      <Link href="/meu-painel" className="text-[11px] hover:opacity-80 transition-opacity" style={{ color: 'var(--brand-primary)' }}>Ver todas →</Link>
+                  <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                    <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                      <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Despesas Recentes</p>
+                      <Link href="/meu-painel" className="text-[11px] hover:opacity-80 transition-opacity" style={{ color: 'var(--primary)' }}>Ver todas →</Link>
                     </div>
                     {recentExp.map((exp, i) => (
                       <RecentRow

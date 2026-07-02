@@ -29,7 +29,7 @@ export default function ContratadaConfig() {
           <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Dados da Contratada</h1>
         </div>
         <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>Aparecem no Aceite de <b>todas</b> as propostas. Cadastre uma vez.</p>
-        <div className="space-y-3 rounded-xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="space-y-3 rounded-xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <label className="block"><span className="text-[11px] font-semibold block mb-0.5" style={{ color: 'var(--text-muted)' }}>Nome / Razão social</span>
             <input value={f.nome} onChange={e => set('nome', e.target.value)} className="w-full text-sm rounded-lg px-2.5 py-1.5 outline-none" style={inputStyle} /></label>
           <div className="grid grid-cols-2 gap-3">

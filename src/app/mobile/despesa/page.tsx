@@ -26,7 +26,7 @@ function ProgressBar({ step }: { step: number }) {
       {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
         <div key={i} style={{
           flex: 1, height: 3, borderRadius: 99,
-          background: i <= step ? '#8B5CF6' : 'var(--brand-border)',
+          background: i <= step ? '#8B5CF6' : 'var(--border)',
           transition: 'background 0.3s',
         }} />
       ))}
@@ -37,7 +37,7 @@ function ProgressBar({ step }: { step: number }) {
 function StepLabel({ step }: { step: number }) {
   const labels = ['Projeto', 'Valor', 'Categoria', 'Comprovante']
   return (
-    <p style={{ fontSize: 11, color: 'var(--brand-subtle)', marginTop: 4, marginBottom: 0 }}>
+    <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 4, marginBottom: 0 }}>
       Etapa {step + 1} de {TOTAL_STEPS} — {labels[step]}
     </p>
   )
@@ -153,9 +153,9 @@ export default function MobileDespesa() {
       <div style={{ padding: '48px 24px 16px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           <button onClick={back} style={{ background: 'none', border: 'none', padding: '8px 8px 8px 0', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-            <ArrowLeft size={20} color="var(--brand-muted)" />
+            <ArrowLeft size={20} color="var(--text-muted)" />
           </button>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--brand-text)', margin: 0 }}>Nova Despesa</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Nova Despesa</h1>
         </div>
         <ProgressBar step={step} />
         <StepLabel step={step} />
@@ -167,9 +167,9 @@ export default function MobileDespesa() {
         {/* Step 0: Projeto */}
         {step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--brand-text)', margin: '0 0 4px' }}>Qual projeto?</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>Qual projeto?</h2>
             <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--brand-subtle)', pointerEvents: 'none' }} />
+              <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)', pointerEvents: 'none' }} />
               <input
                 ref={searchRef}
                 value={search}
@@ -177,13 +177,13 @@ export default function MobileDespesa() {
                 placeholder="Buscar projeto ou cliente..."
                 style={{
                   width: '100%', padding: '14px 14px 14px 38px', borderRadius: 12, fontSize: 15, outline: 'none', boxSizing: 'border-box',
-                  background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)',
+                  background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)',
                 }}
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '55vh', overflowY: 'auto' }}>
               {filteredProjects.length === 0 && (
-                <p style={{ color: 'var(--brand-subtle)', fontSize: 13, textAlign: 'center', paddingTop: 16 }}>
+                <p style={{ color: 'var(--text-light)', fontSize: 13, textAlign: 'center', paddingTop: 16 }}>
                   {projects.length === 0 ? 'Carregando projetos...' : 'Nenhum projeto encontrado'}
                 </p>
               )}
@@ -192,11 +192,11 @@ export default function MobileDespesa() {
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
                     padding: '14px 16px', borderRadius: 12, textAlign: 'left', cursor: 'pointer', width: '100%',
-                    background: form.project_id === String(p.id) ? 'rgba(139,92,246,0.08)' : 'var(--brand-surface)',
-                    border: form.project_id === String(p.id) ? '1px solid rgba(139,92,246,0.3)' : '1px solid var(--brand-border)',
+                    background: form.project_id === String(p.id) ? 'rgba(139,92,246,0.08)' : 'var(--surface)',
+                    border: form.project_id === String(p.id) ? '1px solid rgba(139,92,246,0.3)' : '1px solid var(--border)',
                   }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--brand-text)' }}>{p.name}</span>
-                  {p.customer_name && <span style={{ fontSize: 12, color: 'var(--brand-subtle)' }}>{p.customer_name}</span>}
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
+                  {p.customer_name && <span style={{ fontSize: 12, color: 'var(--text-light)' }}>{p.customer_name}</span>}
                 </button>
               ))}
             </div>
@@ -207,13 +207,13 @@ export default function MobileDespesa() {
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--brand-text)', margin: '0 0 4px' }}>Qual o valor?</h2>
-              <p style={{ fontSize: 13, color: 'var(--brand-muted)', margin: 0 }}>{form.project_name}</p>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>Qual o valor?</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>{form.project_name}</p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label style={{ fontSize: 12, color: 'var(--brand-subtle)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>Valor (R$)</label>
+              <label style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>Valor (R$)</label>
               <div style={{ position: 'relative' }}>
-                <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 20, fontWeight: 700, color: 'var(--brand-muted)' }}>R$</span>
+                <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 20, fontWeight: 700, color: 'var(--text-muted)' }}>R$</span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -225,7 +225,7 @@ export default function MobileDespesa() {
                   autoFocus
                   style={{
                     padding: '18px 16px 18px 56px', borderRadius: 12, fontSize: 32, fontWeight: 800, outline: 'none',
-                    background: 'var(--brand-surface)', border: '1px solid var(--brand-border)',
+                    background: 'var(--surface)', border: '1px solid var(--border)',
                     color: '#8B5CF6', width: '100%', boxSizing: 'border-box',
                     letterSpacing: 1,
                   }}
@@ -233,20 +233,20 @@ export default function MobileDespesa() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label style={{ fontSize: 12, color: 'var(--brand-subtle)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>Data</label>
+              <label style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>Data</label>
               <input
                 type="date"
                 value={form.expense_date}
                 onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))}
                 style={{
                   padding: '14px 16px', borderRadius: 12, fontSize: 15, outline: 'none',
-                  background: 'var(--brand-surface)', border: '1px solid var(--brand-border)',
-                  color: 'var(--brand-text)', width: '100%', boxSizing: 'border-box',
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  color: 'var(--text)', width: '100%', boxSizing: 'border-box',
                 }}
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label style={{ fontSize: 12, color: 'var(--brand-subtle)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>Descrição (opcional)</label>
+              <label style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>Descrição (opcional)</label>
               <input
                 type="text"
                 placeholder="Ex: Almoço com cliente, passagem..."
@@ -254,8 +254,8 @@ export default function MobileDespesa() {
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                 style={{
                   padding: '14px 16px', borderRadius: 12, fontSize: 15, outline: 'none',
-                  background: 'var(--brand-surface)', border: '1px solid var(--brand-border)',
-                  color: 'var(--brand-text)', width: '100%', boxSizing: 'border-box',
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  color: 'var(--text)', width: '100%', boxSizing: 'border-box',
                 }}
               />
             </div>
@@ -265,9 +265,9 @@ export default function MobileDespesa() {
         {/* Step 2: Categoria */}
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--brand-text)', margin: '0 0 4px' }}>Categoria</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>Categoria</h2>
             <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--brand-subtle)', pointerEvents: 'none' }} />
+              <Search size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)', pointerEvents: 'none' }} />
               <input
                 value={catSearch}
                 onChange={e => setCatSearch(e.target.value)}
@@ -275,13 +275,13 @@ export default function MobileDespesa() {
                 autoFocus
                 style={{
                   width: '100%', padding: '14px 14px 14px 38px', borderRadius: 12, fontSize: 15, outline: 'none', boxSizing: 'border-box',
-                  background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)',
+                  background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)',
                 }}
               />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '55vh', overflowY: 'auto' }}>
               {filteredCategories.length === 0 && (
-                <p style={{ color: 'var(--brand-subtle)', fontSize: 13, textAlign: 'center', paddingTop: 16 }}>
+                <p style={{ color: 'var(--text-light)', fontSize: 13, textAlign: 'center', paddingTop: 16 }}>
                   {categories.length === 0 ? 'Carregando categorias...' : 'Nenhuma categoria encontrada'}
                 </p>
               )}
@@ -290,11 +290,11 @@ export default function MobileDespesa() {
                   style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2,
                     padding: '14px 16px', borderRadius: 12, textAlign: 'left', cursor: 'pointer', width: '100%',
-                    background: form.expense_category_id === String(c.id) ? 'rgba(139,92,246,0.08)' : 'var(--brand-surface)',
-                    border: form.expense_category_id === String(c.id) ? '1px solid rgba(139,92,246,0.3)' : '1px solid var(--brand-border)',
+                    background: form.expense_category_id === String(c.id) ? 'rgba(139,92,246,0.08)' : 'var(--surface)',
+                    border: form.expense_category_id === String(c.id) ? '1px solid rgba(139,92,246,0.3)' : '1px solid var(--border)',
                   }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--brand-text)' }}>{c.name}</span>
-                  {c.parent_name && <span style={{ fontSize: 12, color: 'var(--brand-subtle)' }}>{c.parent_name}</span>}
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{c.name}</span>
+                  {c.parent_name && <span style={{ fontSize: 12, color: 'var(--text-light)' }}>{c.parent_name}</span>}
                 </button>
               ))}
             </div>
@@ -305,8 +305,8 @@ export default function MobileDespesa() {
         {step === 3 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--brand-text)', margin: '0 0 4px' }}>Comprovante</h2>
-              <p style={{ fontSize: 13, color: 'var(--brand-muted)', margin: 0 }}>Opcional — foto ou PDF</p>
+              <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', margin: '0 0 4px' }}>Comprovante</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Opcional — foto ou PDF</p>
             </div>
 
             <input ref={fileRef} type="file" accept="image/*,.pdf" capture="environment" style={{ display: 'none' }}
@@ -315,29 +315,29 @@ export default function MobileDespesa() {
             <button onClick={() => fileRef.current?.click()}
               style={{
                 padding: '32px 20px', borderRadius: 16, cursor: 'pointer', textAlign: 'center',
-                background: receipt ? 'rgba(139,92,246,0.08)' : 'var(--brand-surface)',
-                border: receipt ? '2px dashed rgba(139,92,246,0.4)' : '2px dashed var(--brand-border)',
+                background: receipt ? 'rgba(139,92,246,0.08)' : 'var(--surface)',
+                border: receipt ? '2px dashed rgba(139,92,246,0.4)' : '2px dashed var(--border)',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
               }}>
-              <Upload size={28} color={receipt ? '#8B5CF6' : 'var(--brand-subtle)'} />
+              <Upload size={28} color={receipt ? '#8B5CF6' : 'var(--text-light)'} />
               {receipt
                 ? <p style={{ fontSize: 14, color: '#8B5CF6', fontWeight: 600, margin: 0 }}>{receipt.name}</p>
                 : <>
-                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--brand-text)', margin: 0 }}>Tirar foto ou escolher arquivo</p>
-                    <p style={{ fontSize: 12, color: 'var(--brand-subtle)', margin: 0 }}>Imagem ou PDF</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Tirar foto ou escolher arquivo</p>
+                    <p style={{ fontSize: 12, color: 'var(--text-light)', margin: 0 }}>Imagem ou PDF</p>
                   </>
               }
             </button>
 
             {receipt && (
-              <button onClick={() => setReceipt(null)} style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--brand-subtle)', cursor: 'pointer', textDecoration: 'underline' }}>
+              <button onClick={() => setReceipt(null)} style={{ background: 'none', border: 'none', fontSize: 13, color: 'var(--text-light)', cursor: 'pointer', textDecoration: 'underline' }}>
                 Remover comprovante
               </button>
             )}
 
             {/* Resumo */}
-            <div style={{ padding: '16px', borderRadius: 12, background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--brand-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, margin: 0 }}>Resumo</p>
+            <div style={{ padding: '16px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-light)', textTransform: 'uppercase', letterSpacing: 0.5, margin: 0 }}>Resumo</p>
               <Row label="Projeto" value={form.project_name} />
               <Row label="Valor" value={`R$ ${Number(form.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
               <Row label="Categoria" value={form.category_name} />
@@ -356,8 +356,8 @@ export default function MobileDespesa() {
               width: '100%', padding: '16px', borderRadius: 14, fontSize: 16, fontWeight: 700,
               cursor: canAdvance() ? 'pointer' : 'not-allowed',
               background: canAdvance() ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.04)',
-              border: canAdvance() ? '1px solid rgba(139,92,246,0.3)' : '1px solid var(--brand-border)',
-              color: canAdvance() ? '#8B5CF6' : 'var(--brand-subtle)',
+              border: canAdvance() ? '1px solid rgba(139,92,246,0.3)' : '1px solid var(--border)',
+              color: canAdvance() ? '#8B5CF6' : 'var(--text-light)',
               transition: 'all 0.15s',
             }}>
             Próximo
@@ -369,8 +369,8 @@ export default function MobileDespesa() {
               width: '100%', padding: '16px', borderRadius: 14, fontSize: 16, fontWeight: 700,
               cursor: saving ? 'not-allowed' : 'pointer',
               background: saving ? 'rgba(255,255,255,0.04)' : 'rgba(139,92,246,0.1)',
-              border: saving ? '1px solid var(--brand-border)' : '1px solid rgba(139,92,246,0.3)',
-              color: saving ? 'var(--brand-subtle)' : '#8B5CF6',
+              border: saving ? '1px solid var(--border)' : '1px solid rgba(139,92,246,0.3)',
+              color: saving ? 'var(--text-light)' : '#8B5CF6',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               transition: 'all 0.15s',
             }}>
@@ -385,8 +385,8 @@ export default function MobileDespesa() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-      <span style={{ fontSize: 12, color: 'var(--brand-subtle)' }}>{label}</span>
-      <span style={{ fontSize: 12, color: 'var(--brand-text)', fontWeight: 600, textAlign: 'right' }}>{value}</span>
+      <span style={{ fontSize: 12, color: 'var(--text-light)' }}>{label}</span>
+      <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, textAlign: 'right' }}>{value}</span>
     </div>
   )
 }

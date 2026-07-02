@@ -62,7 +62,7 @@ const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString('pt-BR'
 
 function Card({ label, value, sub, danger }: { label: string; value: string; sub?: string; danger?: boolean }) {
   return (
-    <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+    <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
       <p className="text-xl font-bold mt-1" style={{ color: danger ? 'var(--danger-border)' : 'var(--text)' }}>{value}</p>
       {sub && <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
@@ -72,7 +72,7 @@ function Card({ label, value, sub, danger }: { label: string; value: string; sub
 
 function MiniTable({ title, rows }: { title: string; rows: { label: string; value: string; extra?: string }[] }) {
   return (
-    <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+    <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>{title}</h3>
       <div className="space-y-1.5">
         {rows.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem dados.</p>
@@ -131,7 +131,7 @@ export default function CrmDashboardsPage() {
               <span key={k} className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: 'var(--surface-sunken)', color: RISCO_COR[k] }}>{k}: {risco.risco[k]}</span>
             ))}
           </div>
-          <div className="rounded-xl overflow-x-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl overflow-x-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <table className="w-full text-sm whitespace-nowrap">
               <thead><tr style={{ color: 'var(--text-light)' }}>
                 {['Risco', 'Cliente', 'Contrato', 'Vencimento', 'Dias', 'Utilização', 'Saúde', 'Score'].map((h, i) => <th key={h} className={`px-3 py-2 text-[11px] font-semibold ${i > 3 ? 'text-right' : 'text-left'}`}>{h}</th>)}
@@ -174,7 +174,7 @@ export default function CrmDashboardsPage() {
       {origem.length > 0 && (
         <div className="mb-6">
           <h2 className="text-sm font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Origem real da receita</h2>
-          <div className="rounded-xl overflow-x-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl overflow-x-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <table className="w-full text-sm whitespace-nowrap">
               <thead><tr style={{ color: 'var(--text-light)' }}>
                 {['Origem', 'Leads', 'Oport.', 'Ganhas', 'Contratos', 'Receita', 'Ticket médio', 'Conv. Lead→Contrato', 'Tempo fech.'].map((h, i) => (
@@ -215,7 +215,7 @@ export default function CrmDashboardsPage() {
               Propostas: fn.conversoes.oportunidade_proposta, Contratos: fn.conversoes.proposta_contrato,
             }
             return (
-              <div className="rounded-xl p-4 mb-3 space-y-2" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+              <div className="rounded-xl p-4 mb-3 space-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 {fn.etapas.map((e, i) => (
                   <div key={e.etapa} className="flex items-center gap-3">
                     <span className="w-28 text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>{e.etapa}</span>
@@ -272,7 +272,7 @@ export default function CrmDashboardsPage() {
             <Card label="Sem próx. ação" value={String(ld.sem_proxima_acao)} danger={ld.sem_proxima_acao > 0} />
             <Card label="Sem atividade" value={String(ld.sem_atividade)} danger={ld.sem_atividade > 0} />
           </div>
-          <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <h3 className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Indicadores por origem</h3>
             {ld.por_origem.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem dados.</p> : (
               <table className="w-full text-sm">
@@ -343,7 +343,7 @@ export default function CrmDashboardsPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Card label="Tempo médio até fechamento" value={`${s.tempo_medio_fechamento_dias} dias`} />
-            <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               {s.sem_proxima_acao > 0 && <AlertTriangle size={20} style={{ color: 'var(--warning-border)' }} />}
               <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{s.sem_proxima_acao > 0 ? `${s.sem_proxima_acao} oportunidade(s) sem próxima ação — defina o próximo passo.` : 'Todas as oportunidades têm próxima ação. 👍'}</p>
             </div>

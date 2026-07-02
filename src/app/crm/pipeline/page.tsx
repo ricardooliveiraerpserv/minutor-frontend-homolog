@@ -481,7 +481,7 @@ export default function CrmPipelinePage() {
       {loading ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</p> : (
         <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
           {cols.map(col => (
-            <div key={col.stage.id} className="shrink-0 w-72 rounded-xl flex flex-col" style={{ background: 'var(--brand-bg)', border: '1px solid var(--border)' }}>
+            <div key={col.stage.id} className="shrink-0 w-72 rounded-xl flex flex-col" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
               <div className="px-3 py-2.5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
                 <span className="text-xs font-bold uppercase tracking-wide" style={{ color: col.stage.is_won ? 'var(--success-border)' : col.stage.is_lost ? 'var(--danger)' : 'var(--text-muted)' }}>{col.stage.name}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--surface-sunken)', color: 'var(--text-light)' }}>{col.count}</span>
@@ -498,7 +498,7 @@ export default function CrmPipelinePage() {
               </div>
               <div className="p-2 space-y-2 overflow-y-auto flex-1">
                 {col.opportunities.map(o => (
-                  <div key={o.id} onClick={() => abrirDetalhe(o.id)} className="rounded-lg p-2.5 cursor-pointer hover:opacity-90" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+                  <div key={o.id} onClick={() => abrirDetalhe(o.id)} className="rounded-lg p-2.5 cursor-pointer hover:opacity-90" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                     <div className="flex items-start justify-between gap-1">
                       <span className="text-sm font-semibold leading-tight" style={{ color: 'var(--text)' }}>{o.title}</span>
                       <span className="flex items-center gap-1 shrink-0">
@@ -555,7 +555,7 @@ export default function CrmPipelinePage() {
 
       {newOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setNewOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl flex flex-col max-h-[90vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-md rounded-2xl flex flex-col max-h-[90vh]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0"><h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Nova oportunidade</h2><button onClick={() => setNewOpen(false)} style={{ color: 'var(--text-muted)' }}><X size={18} /></button></div>
             <div className="space-y-3 overflow-y-auto px-5 flex-1">
               <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Pipeline *</label>
@@ -674,7 +674,7 @@ function LossModal({ reasons, onCancel, onConfirm }: { reasons: { id: number; na
   const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onCancel}>
-      <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3"><h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Marcar como perdida</h2><button onClick={onCancel} style={{ color: 'var(--text-muted)' }}><X size={18} /></button></div>
         <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Motivo da perda *</label>
         <select value={reasonId} onChange={e => setReasonId(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
@@ -946,7 +946,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
-      <div className="w-full max-w-md h-full overflow-y-auto p-5" style={{ background: 'var(--brand-surface)', borderLeft: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md h-full overflow-y-auto p-5" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         {!o ? <p style={{ color: 'var(--text-light)' }}>Carregando…</p> : (<>
           <div className="flex items-start justify-between mb-1">
             <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>{o.title}</h2>
@@ -985,7 +985,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
               {!descr.trim() && <p className="text-[10px] mt-1" style={{ color: 'var(--warning-border)' }}>Obrigatória antes de criar a proposta.</p>}
             </div>
 
-            <div className="text-xs space-y-1 rounded-lg px-3 py-2" style={{ background: 'var(--brand-bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            <div className="text-xs space-y-1 rounded-lg px-3 py-2" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
               <div className="flex items-center justify-between gap-2">
                 <span>Valor</span>
                 <div className="flex items-center gap-1.5">
@@ -1001,7 +1001,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
             {/* Previsibilidade — probabilidade, valor ponderado, saúde, motivo da parada */}
             <div className="mt-4">
               <h3 className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Previsibilidade</h3>
-              <div className="text-xs space-y-2 rounded-lg px-3 py-2.5" style={{ background: 'var(--brand-bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+              <div className="text-xs space-y-2 rounded-lg px-3 py-2.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                 <div className="flex items-center justify-between gap-2">
                   <span>Probabilidade {o.probabilidade_manual == null && <span style={{ color: 'var(--text-light)' }}>(da etapa)</span>}</span>
                   <div className="flex items-center gap-1.5">
@@ -1039,7 +1039,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
                   <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Qualificação do deal</h3>
                   {o.saude.qualidade && <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ background: o.saude.qualidade === 'alta' ? 'var(--success-bg)' : o.saude.qualidade === 'media' ? 'var(--warning-bg)' : 'var(--danger-bg)', color: o.saude.qualidade === 'alta' ? 'var(--success-border)' : o.saude.qualidade === 'media' ? 'var(--warning-border)' : 'var(--danger-border)' }}>qualidade {o.saude.qualidade}</span>}
                 </div>
-                <div className="space-y-1 rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--brand-bg)', border: '1px solid var(--border)' }}>
+                <div className="space-y-1 rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   <div className="flex items-center justify-between"><span style={{ color: 'var(--text-muted)' }}>Proposta enviada</span><span style={{ color: o.saude.sinais.proposta_enviada ? 'var(--success-border)' : 'var(--text-light)' }}>{o.saude.sinais.proposta_enviada ? '✓ Sim' : '— derivado da proposta'}</span></div>
                   {([['decisor_identificado', 'Decisor identificado', o.saude.sinais.decisor], ['champion_identificado', 'Champion identificado', o.saude.sinais.champion], ['budget_confirmado', 'Budget confirmado', o.saude.sinais.budget]] as const).map(([k, label, val]) => (
                     <label key={k} className="flex items-center justify-between cursor-pointer">
@@ -1088,7 +1088,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
                   <span>Da proposta vinculada</span><span>{showDeriv ? '▾' : '▸'}</span>
                 </button>
                 {showDeriv && (
-                  <div className="text-xs space-y-1 rounded-lg px-3 py-2 mt-1.5" style={{ background: 'var(--brand-bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                  <div className="text-xs space-y-1 rounded-lg px-3 py-2 mt-1.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                     {DERIV_LABELS.filter(([k]) => o.derivado?.[k] != null && o.derivado?.[k] !== '').map(([k, label]) => (
                       <div key={k} className={k === 'escopo' ? '' : 'flex justify-between gap-3'}>
                         <span>{label}</span>
@@ -1105,7 +1105,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
           {tab === 'propostas' && (<div>
             <div className="space-y-1.5 mb-2">
               {proposals.map(p => (
-                <div key={p.id} className="flex items-center gap-2 text-xs rounded-lg px-2 py-1.5 cursor-pointer ds-row-hover" style={{ background: 'var(--brand-bg)', border: '1px solid var(--border)' }} onClick={() => router.push(`/crm/propostas/${p.id}`)} title="Abrir editor">
+                <div key={p.id} className="flex items-center gap-2 text-xs rounded-lg px-2 py-1.5 cursor-pointer ds-row-hover" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }} onClick={() => router.push(`/crm/propostas/${p.id}`)} title="Abrir editor">
                   <span className="font-semibold whitespace-nowrap" style={{ color: 'var(--text)' }}>{p.codigo ? p.codigo : `#${p.numero}`}<span style={{ color: 'var(--text-light)' }}>.{p.versao}</span></span>
                   {p.tipo && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{tipoShort(p.tipo)}</span>}
                   <span className="flex-1 tabular-nums text-right" style={{ color: 'var(--text-muted)' }}>{fmtBRL(p.total)}{Number(p.descontos) > 0 && <span style={{ color: 'var(--text-light)' }}> (desc. {fmtBRL(p.descontos)})</span>}</span>
@@ -1145,7 +1145,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
               {(o.tasks ?? []).map(t => {
                 const atrasado = !t.concluida_at && !!t.data && new Date(t.data) < new Date()
                 if (editTask?.id === t.id) return (
-                  <div key={t.id} className="space-y-1.5 text-xs rounded-lg px-2 py-2" style={{ background: 'var(--brand-bg)', border: '1px solid var(--primary)' }}>
+                  <div key={t.id} className="space-y-1.5 text-xs rounded-lg px-2 py-2" style={{ background: 'var(--bg)', border: '1px solid var(--primary)' }}>
                     <div className="flex gap-1.5">
                       <select value={editTask.tipo} onChange={e => setEditTask(p => p && { ...p, tipo: e.target.value })} className="text-xs rounded-lg px-2 py-1.5 outline-none" style={inputStyle}>
                         {contactTypes.map(ct => <option key={ct.slug} value={ct.slug}>{ct.nome}</option>)}
@@ -1160,7 +1160,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
                   </div>
                 )
                 return (
-                <div key={t.id} className="flex items-start gap-2 text-xs rounded-lg px-2 py-1.5" style={{ background: 'var(--brand-bg)', border: '1px solid var(--border)' }}>
+                <div key={t.id} className="flex items-start gap-2 text-xs rounded-lg px-2 py-1.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   <button onClick={() => complete(t.id, !t.concluida_at)} className="shrink-0 mt-0.5" title={t.concluida_at ? 'Reabrir' : 'Concluir'} style={{ color: t.concluida_at ? 'var(--success-border)' : 'var(--text-light)' }}><Check size={14} /></button>
                   <span className="flex-1" style={{ color: 'var(--text)', textDecoration: t.concluida_at ? 'line-through' : 'none' }}>
                     <b>{tipoNome(t.tipo)}</b>
@@ -1210,7 +1210,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
             <button onClick={() => attFileRef.current?.click()} className="w-full py-1.5 rounded-lg text-xs font-semibold mb-2" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>+ Enviar anexo</button>
             <div className="space-y-1.5">
               {atts.map(a => (
-                <div key={a.id} className="flex items-center gap-2 text-xs rounded-lg px-2 py-1.5" style={{ background: 'var(--brand-bg)', border: '1px solid var(--border)' }}>
+                <div key={a.id} className="flex items-center gap-2 text-xs rounded-lg px-2 py-1.5" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                   <a href={`/api/v1/crm/opportunities/${id}/attachments/${a.id}/download`} target="_blank" rel="noreferrer" className="flex-1 truncate" style={{ color: 'var(--text)' }}>{a.original_name ?? a.file_name ?? 'arquivo'}</a>
                   <button onClick={() => delAtt(a.id)} style={{ color: 'var(--text-light)' }} title="Remover"><X size={12} /></button>
                 </div>

@@ -988,7 +988,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         <div className={`grid gap-3 mb-4 ${visao === 'clientes' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-2 md:grid-cols-4'}`}>
           {(visao === 'clientes' ? [
             // Valor Recebido (Keruak M+1) e Custo Total (Operação + Despesa + 40% do recebido).
-            { label: 'Valor Recebido', value: formatBRL(clientesTot.recebido), color: 'var(--brand-primary)' },
+            { label: 'Valor Recebido', value: formatBRL(clientesTot.recebido), color: 'var(--primary)' },
             { label: 'Custo', lines: [
               { k: 'Operação', v: formatBRL(clientesTot.custo - clientesTot.despesa - clientesTot.investimentoMo) },
               { k: 'Despesa', v: formatBRL(clientesTot.despesa - clientesTot.investimentoDesp) },
@@ -999,7 +999,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
           ] : [
             { label: 'Receita', value: formatBRL(tot.receita), color: 'var(--text)' },
             { label: 'Custo', value: formatBRL(tot.custo), color: 'var(--text)' },
-            { label: 'Margem', value: formatBRL(tot.margem), color: 'var(--brand-primary)' },
+            { label: 'Margem', value: formatBRL(tot.margem), color: 'var(--primary)' },
             { label: 'Margem %', value: tot.pct == null ? '—' : tot.pct.toFixed(1) + '%', color: pctColor(tot.pct) },
           ]).map(c => (
             <div key={c.label} className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -1069,7 +1069,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         {visao !== 'clientes' && (
           <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-2 mb-3">
-              <BarChart2 size={15} style={{ color: 'var(--brand-primary)' }} />
+              <BarChart2 size={15} style={{ color: 'var(--primary)' }} />
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
                 {fConsultor.length > 0 ? 'Apontamento por período (mês)' : 'Apontamento por consultor'}
               </span>
@@ -1112,7 +1112,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         {visao !== 'clientes' && (
           <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-2 mb-3">
-              <BarChart2 size={15} style={{ color: 'var(--brand-primary)' }} />
+              <BarChart2 size={15} style={{ color: 'var(--primary)' }} />
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Horas apontadas por dia</span>
               <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{diaChart.total.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h {diaChart.limitado ? '· últimos 60 dias' : 'no período'}</span>
             </div>
@@ -1140,7 +1140,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         {visao !== 'clientes' && fixosData.length > 0 && (
           <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-2 mb-3">
-              <Wallet size={15} style={{ color: 'var(--brand-primary)' }} />
+              <Wallet size={15} style={{ color: 'var(--primary)' }} />
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Recebe Fixo — Custo × Receita × Resultado</span>
               <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fixosData[0].nMeses} mês(es) · custo = salário × meses</span>
             </div>
@@ -1187,7 +1187,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
         {visao !== 'clientes' && horistasData.length > 0 && (
           <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-2 mb-3">
-              <Clock size={15} style={{ color: 'var(--brand-primary)' }} />
+              <Clock size={15} style={{ color: 'var(--primary)' }} />
               <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Horistas — Custo × Receita × Resultado</span>
               <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>custo = horas × R$/h apontado</span>
             </div>

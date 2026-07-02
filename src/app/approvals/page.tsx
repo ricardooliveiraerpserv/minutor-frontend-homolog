@@ -358,14 +358,14 @@ function ExpInfoRow({ icon: Icon, label, value, children, last }: {
 }) {
   return (
     <div className={`flex items-center gap-2.5 px-3.5 py-1.5 ${!last ? 'border-b' : ''}`}
-      style={!last ? { borderColor: 'var(--brand-border)' } : undefined}>
+      style={!last ? { borderColor: 'var(--border)' } : undefined}>
       <span className="shrink-0 p-1 rounded-md"
-        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
         <Icon size={12} />
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
-        {children ?? <p className="text-[13px] font-medium" style={{ color: 'var(--brand-text)' }}>{value ?? '—'}</p>}
+        <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
+        {children ?? <p className="text-[13px] font-medium" style={{ color: 'var(--text)' }}>{value ?? '—'}</p>}
       </div>
     </div>
   )
@@ -405,21 +405,21 @@ function ExpApproveModal({
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 overflow-y-auto"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="relative w-full max-w-lg mt-6 rounded-2xl shadow-2xl"
-        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <button onClick={onClose}
           className="absolute top-3 right-3 z-10 p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
-          style={{ color: 'var(--brand-subtle)' }}>
+          style={{ color: 'var(--text-light)' }}>
           <X size={16} />
         </button>
 
         {/* Header */}
         <div className="px-4 pt-3.5 pb-2.5 flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+          <div className="p-1.5 rounded-lg shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
             <Receipt size={16} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold" style={{ color: 'var(--brand-text)' }}>Detalhes da Despesa</h3>
-            <p className="text-[11px]" style={{ color: 'var(--brand-subtle)' }}>#{item.id} · {fmt(item.expense_date)}</p>
+            <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Detalhes da Despesa</h3>
+            <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>#{item.id} · {fmt(item.expense_date)}</p>
           </div>
         </div>
 
@@ -430,7 +430,7 @@ function ExpApproveModal({
               style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
             {item.category?.name && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <Tag size={11} /> {item.category.name}
               </span>
             )}
@@ -439,13 +439,13 @@ function ExpApproveModal({
           {/* Valor hero */}
           <div className="rounded-xl px-3.5 py-2.5 flex items-baseline justify-between gap-2"
             style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
-            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--brand-subtle)' }}>Valor Total</p>
-            <p className="text-xl font-bold" style={{ color: 'var(--brand-primary)' }}>{fmtBRL(Number(item.amount))}</p>
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-light)' }}>Valor Total</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--primary)' }}>{fmtBRL(Number(item.amount))}</p>
           </div>
 
           {/* Info card */}
           <div className="rounded-xl overflow-hidden"
-            style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
             <ExpInfoRow icon={Calendar} label="Data" value={fmt(item.expense_date)} />
             <ExpInfoRow icon={User} label="Colaborador" value={item.user?.name} />
             <ExpInfoRow icon={Building2} label="Cliente" value={(item.project as any)?.customer?.name} />
@@ -456,19 +456,19 @@ function ExpApproveModal({
             <ExpInfoRow icon={Paperclip} label="Comprovante" last>
               {item.receipt_url
                 ? <ReceiptLink url={item.receipt_url} />
-                : <span className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Sem comprovante</span>}
+                : <span className="text-sm" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>}
             </ExpInfoRow>
           </div>
 
           {/* Descrição */}
           {item.description && (
             <div className="rounded-2xl overflow-hidden"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-              <div className="flex items-center gap-2 px-3.5 py-2" style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                <FileText size={13} style={{ color: 'var(--brand-primary)' }} />
-                <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: 'var(--brand-subtle)' }}>Descrição</span>
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2 px-3.5 py-2" style={{ borderBottom: '1px solid var(--border)' }}>
+                <FileText size={13} style={{ color: 'var(--primary)' }} />
+                <span className="text-[10px] uppercase tracking-wider font-medium" style={{ color: 'var(--text-light)' }}>Descrição</span>
               </div>
-              <p className="px-3.5 py-2 text-[13px] leading-relaxed" style={{ color: 'var(--brand-muted)' }}>{item.description}</p>
+              <p className="px-3.5 py-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>{item.description}</p>
             </div>
           )}
 
@@ -1021,7 +1021,7 @@ export default function ApprovalsPage() {
                     className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors self-end mb-0.5"
                     style={active
                       ? { background: opt.bg, color: opt.color, border: `1px solid ${opt.border}` }
-                      : { background: 'transparent', color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
+                      : { background: 'transparent', color: 'var(--text-light)', border: '1px solid var(--border)' }}>
                     {opt.label}
                   </button>
                 )
@@ -1127,7 +1127,7 @@ export default function ApprovalsPage() {
               {tab === 'timesheets' && (
                 <th
                   className="text-center px-3 py-2.5 font-medium hidden lg:table-cell whitespace-nowrap"
-                  style={{ color: 'var(--brand-primary)', background: 'var(--primary-soft)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
+                  style={{ color: 'var(--primary)', background: 'var(--primary-soft)', borderLeft: '2px solid var(--primary)', borderRight: '2px solid var(--primary)' }}
                 >Hist. de Hs Tikets</th>
               )}
               <SortTh label="Data" field="date" />
@@ -1204,11 +1204,11 @@ export default function ApprovalsPage() {
                 </td>
                 <td
                   className="px-3 py-2.5 font-mono text-center hidden lg:table-cell"
-                  style={{ background: 'var(--primary-soft)', borderLeft: '2px solid var(--brand-primary)', borderRight: '2px solid var(--brand-primary)' }}
+                  style={{ background: 'var(--primary-soft)', borderLeft: '2px solid var(--primary)', borderRight: '2px solid var(--primary)' }}
                 >
                   {ts.ticket_total_minutes != null
                     ? <span style={{ color: ticketTotalColor(ts.ticket_total_minutes), fontWeight: 700, fontSize: '0.875rem' }}>{fmtMin(ts.ticket_total_minutes)}</span>
-                    : <span style={{ color: 'var(--brand-subtle)' }}>—</span>}
+                    : <span style={{ color: 'var(--text-light)' }}>—</span>}
                 </td>
                 <td className="px-3 py-2.5 text-[var(--text)] whitespace-nowrap">{fmt(ts.date)}</td>
                 <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden md:table-cell">{ts.start_time ?? '—'}</td>
@@ -1326,13 +1326,13 @@ export default function ApprovalsPage() {
       {/* ── Cards (mobile) — mesmo formato dos Apontamentos: toca abre modal, realce no toque ── */}
       <div className="md:hidden space-y-2">
         {currentLoading && Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="rounded-lg border p-2.5" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+          <div key={i} className="rounded-lg border p-2.5" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
             <div className="flex items-center justify-between gap-2 mb-2"><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-5" /></div>
             <Skeleton className="h-4 w-20 mb-2" /><Skeleton className="h-3 w-full" />
           </div>
         ))}
         {!currentLoading && currentItems.length === 0 && (
-          <div className="rounded-lg border px-3 py-16 text-center text-[var(--text-light)]" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+          <div className="rounded-lg border px-3 py-16 text-center text-[var(--text-light)]" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
             <CheckSquare size={28} className="mx-auto mb-2 opacity-20" />
             <p className="text-sm">Nenhum item pendente de aprovação</p>
             {hasFilters && <button onClick={clearFilters} className="mt-2 text-xs text-[var(--primary)] hover:text-[var(--primary)]">Limpar filtros</button>}
@@ -1340,13 +1340,13 @@ export default function ApprovalsPage() {
         )}
         {!currentLoading && tab === 'timesheets' && tsItems.map(ts => (
           <div key={ts.id} onClick={() => openTsView(ts)}
-            className={`rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)] ${selected.includes(ts.id) ? 'ring-1 ring-blue-500/40' : ''}`}
-            style={{ borderColor: 'var(--brand-border)' }}>
+            className={`rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)] ${selected.includes(ts.id) ? 'ring-1 ring-blue-500/40' : ''}`}
+            style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-2">
               <span onClick={e => e.stopPropagation()} className="shrink-0 flex">
                 <input type="checkbox" checked={selected.includes(ts.id)} onChange={() => toggleOne(ts.id)} className="rounded border-[var(--border-strong)] bg-[var(--surface-hover)] accent-blue-500" />
               </span>
-              <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--brand-text)' }}>{ts.user?.name ?? '—'}</span>
+              <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>{ts.user?.name ?? '—'}</span>
               <div onClick={e => e.stopPropagation()} className="shrink-0">
                 <RowMenu items={[
                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openTsView(ts) },
@@ -1357,17 +1357,17 @@ export default function ApprovalsPage() {
               </div>
             </div>
             <div className="mt-1.5 flex items-center gap-1.5 flex-wrap"><TsStatusBadge status={ts.status} display={ts.status_display} /></div>
-            <div className="mt-1.5 text-[11px] truncate" style={{ color: 'var(--brand-subtle)' }}>
+            <div className="mt-1.5 text-[11px] truncate" style={{ color: 'var(--text-light)' }}>
               {fmt(ts.date)}{ts.ticket ? ` · #${ts.ticket}` : ''} · {fmtMin(ts.effort_minutes)}{ts.project?.customer?.name ? ` · ${ts.project.customer.name}` : ''}{ts.project?.name ? ` · ${ts.project.name}` : ''}
             </div>
           </div>
         ))}
         {!currentLoading && tab === 'expenses' && expItems.map(exp => (
           <div key={exp.id} onClick={() => openExpApprove(exp)}
-            className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--brand-surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)]"
-            style={{ borderColor: 'var(--brand-border)' }}>
+            className="rounded-lg border p-2.5 cursor-pointer transition-colors bg-[var(--surface)] active:bg-[var(--surface-hover)] md:hover:bg-[var(--surface-hover)]"
+            style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-2">
-              <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--brand-text)' }}>{exp.user?.name ?? '—'}</span>
+              <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>{exp.user?.name ?? '—'}</span>
               <div onClick={e => e.stopPropagation()} className="shrink-0">
                 <RowMenu items={[
                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openExpApprove(exp) },
@@ -1379,7 +1379,7 @@ export default function ApprovalsPage() {
               </div>
             </div>
             <div className="mt-1.5 flex items-center gap-1.5 flex-wrap"><TsStatusBadge status={exp.status} display={exp.status_display} /></div>
-            <div className="mt-1.5 text-[11px] truncate flex items-center gap-1" style={{ color: 'var(--brand-subtle)' }}>
+            <div className="mt-1.5 text-[11px] truncate flex items-center gap-1" style={{ color: 'var(--text-light)' }}>
               {exp.receipt_url && <Paperclip size={10} className="shrink-0" />}
               {fmt(exp.expense_date)} · {fmtBRL(parseFloat(String(exp.amount)) || 0)}{exp.category?.name ? ` · ${exp.category.name}` : ''}{exp.project?.customer?.name ? ` · ${exp.project.customer.name}` : ''}
             </div>

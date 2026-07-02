@@ -958,7 +958,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         'md:static md:h-screen md:shrink-0 md:translate-x-0 md:transition-all',
         collapsedRaw ? 'md:w-[60px]' : 'md:w-[248px]',
       )}
-      style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       {/* Fechar (só mobile) */}
       <button
@@ -972,7 +972,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       {/* ── Logo + módulo atual ── */}
       <div
         className="flex flex-col justify-center h-18 px-5 border-b shrink-0"
-        style={{ borderColor: 'var(--brand-border)' }}
+        style={{ borderColor: 'var(--border)' }}
       >
         {(() => {
           const mod = navModules.find(m => m.key === selectedModule)
@@ -1004,7 +1004,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       {user && user.type !== 'cliente' && (
         <div
           className="flex items-center gap-2.5 px-3.5 py-3 border-b shrink-0"
-          style={{ borderColor: 'var(--brand-border)' }}
+          style={{ borderColor: 'var(--border)' }}
         >
           {!collapsed && (
             <>
@@ -1016,7 +1016,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold truncate leading-tight" style={{ color: 'var(--text)' }}>{user.name}</p>
-                <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+                <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--text-light)' }}>
                   {user.type === 'admin' ? 'Administrador'
                     : user.type === 'coordenador' ? 'Coordenador'
                     : user.type === 'administrativo' ? 'Administrativo'
@@ -1055,7 +1055,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
               placeholder="Buscar no menu…"
               aria-label="Buscar no menu"
               className="w-full pl-8 pr-3 py-2 rounded-lg text-sm outline-none border"
-              style={{ background: 'var(--surface-hover)', color: 'var(--text)', borderColor: 'var(--brand-border)' }}
+              style={{ background: 'var(--surface-hover)', color: 'var(--text)', borderColor: 'var(--border)' }}
             />
           </div>
         </div>
@@ -1162,7 +1162,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                 />
               </button>
               {open && (
-                <div className="ml-3 mt-0.5 space-y-0.5 border-l pl-2" style={{ borderColor: 'var(--brand-border)' }}>
+                <div className="ml-3 mt-0.5 space-y-0.5 border-l pl-2" style={{ borderColor: 'var(--border)' }}>
                   {group.items.map(sub => {
                     // Sub-grupo aninhado
                     if (!isNavLink(sub)) {
@@ -1182,7 +1182,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                             <ChevronDown size={11} className={cn('transition-transform duration-200', sgOpen && 'rotate-180')} />
                           </button>
                           {sgOpen && (
-                            <div className="ml-3 mt-0.5 space-y-0.5 border-l pl-2" style={{ borderColor: 'var(--brand-border)' }}>
+                            <div className="ml-3 mt-0.5 space-y-0.5 border-l pl-2" style={{ borderColor: 'var(--border)' }}>
                               {sub.items.map(leaf => {
                                 const LeafIcon = leaf.icon
                                 const leafActive = isActive(leaf.href, undefined, leaf.exactMatch)
@@ -1231,7 +1231,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
 
       {/* ── Company logo ── */}
       {!collapsed && (
-        <div className="flex items-center justify-center px-5 py-3 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-center px-5 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
           <Image
             src="/logo.png"
             alt="ERPServ"
@@ -1246,7 +1246,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       <button
         onClick={() => setCollapsed(c => !c)}
         className="hidden md:flex items-center justify-center h-10 border-t transition-colors"
-        style={{ borderColor: 'var(--brand-border)', color: 'var(--text-muted)' }}
+        style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
       >

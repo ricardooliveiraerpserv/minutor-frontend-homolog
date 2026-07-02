@@ -141,7 +141,7 @@ export default function CrmOportunidadesPage() {
   }
 
   const card = (label: string, valor: string, sub: string, cor: string, onClick: () => void, ativo = false) => (
-    <button onClick={onClick} className="rounded-xl p-3 text-left transition hover:brightness-110" style={{ background: 'var(--brand-surface)', border: `1px solid ${ativo ? cor : 'var(--border)'}` }}>
+    <button onClick={onClick} className="rounded-xl p-3 text-left transition hover:brightness-110" style={{ background: 'var(--surface)', border: `1px solid ${ativo ? cor : 'var(--border)'}` }}>
       <p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
       <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: cor }}>{valor}</p>
       <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{sub}</p>
@@ -169,7 +169,7 @@ export default function CrmOportunidadesPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
         {card('Oportunidades abertas', String(abertas.length), fmtBRL(totalValorAberto) + ' · limpar filtros', 'var(--text)', limpar)}
         {/* Forecast do mês com contexto de META / GAP */}
-        <button onClick={() => { setSoMes(true); setSoRisco(false) }} className="rounded-xl p-3 text-left transition hover:brightness-110" style={{ background: 'var(--brand-surface)', border: `1px solid ${soMes ? 'var(--primary)' : 'var(--border)'}` }}>
+        <button onClick={() => { setSoMes(true); setSoRisco(false) }} className="rounded-xl p-3 text-left transition hover:brightness-110" style={{ background: 'var(--surface)', border: `1px solid ${soMes ? 'var(--primary)' : 'var(--border)'}` }}>
           <p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Forecast do mês</p>
           <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: 'var(--primary)' }}>{fmtBRL(previstoMes)}</p>
           {metaMes > 0
@@ -299,7 +299,7 @@ function QuickAction({ opp, contactTypes, onClose, onSaved }: { opp: Opp; contac
   }
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         <h2 className="text-base font-bold mb-1" style={{ color: 'var(--text)' }}>Próxima ação</h2>
         <p className="text-xs mb-3" style={{ color: 'var(--text-light)' }}>{opp.customer?.name} · {opp.title}</p>
         <div className="grid grid-cols-2 gap-2 mb-2">

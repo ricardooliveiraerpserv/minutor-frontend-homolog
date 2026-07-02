@@ -44,7 +44,7 @@ export default function AppsLauncherPage() {
             type="button"
             onClick={() => pick(m.id)}
             className="flex flex-col items-center justify-center gap-3 rounded-2xl p-10 transition-all hover:scale-[1.02]"
-            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <span className="text-5xl" aria-hidden>{m.emoji}</span>
             <span className="text-xl font-bold" style={{ color: 'var(--text)' }}>{m.label}</span>

@@ -58,7 +58,7 @@ interface Statement {
 
 function tokens(variant: 'brand' | 'default') {
   return variant === 'brand'
-    ? { surface: 'var(--brand-surface)', border: 'var(--brand-border)', text: 'var(--brand-text)', muted: 'var(--brand-muted)', subtle: 'var(--brand-subtle)' }
+    ? { surface: 'var(--surface)', border: 'var(--border)', text: 'var(--text)', muted: 'var(--text-muted)', subtle: 'var(--text-light)' }
     : { surface: 'var(--surface)', border: 'var(--border)', text: 'var(--text)', muted: 'var(--text-muted)', subtle: 'var(--text-light)' }
 }
 

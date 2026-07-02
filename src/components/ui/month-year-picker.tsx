@@ -63,15 +63,15 @@ export function MonthYearPicker({ month, year, onChange, placeholder = 'Mês/Ano
       <button ref={btnRef} type="button" onClick={toggle}
         className="flex items-center gap-2 h-8 px-3 rounded-lg text-xs outline-none whitespace-nowrap"
         style={{
-          background: 'var(--brand-bg)',
-          border: `1px solid ${hasValue ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
-          color: hasValue ? 'var(--brand-text)' : 'var(--brand-subtle)',
+          background: 'var(--bg)',
+          border: `1px solid ${hasValue ? 'var(--primary)' : 'var(--border)'}`,
+          color: hasValue ? 'var(--text)' : 'var(--text-light)',
         }}>
-        <CalendarDays size={13} style={{ color: hasValue ? 'var(--brand-primary)' : 'var(--brand-subtle)', flexShrink: 0 }} />
+        <CalendarDays size={13} style={{ color: hasValue ? 'var(--primary)' : 'var(--text-light)', flexShrink: 0 }} />
         <span>{displayText}</span>
         {hasValue && (
           <span onClick={e => { e.stopPropagation(); onChange(0, 0) }}
-            className="ml-1 cursor-pointer" style={{ color: 'var(--brand-subtle)' }}>
+            className="ml-1 cursor-pointer" style={{ color: 'var(--text-light)' }}>
             <X size={10} />
           </span>
         )}
@@ -80,20 +80,20 @@ export function MonthYearPicker({ month, year, onChange, placeholder = 'Mês/Ano
       {open && pos && (
         <div ref={ref}
           className="rounded-xl shadow-2xl p-3 w-56"
-          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {/* Year navigation */}
           <div className="flex items-center justify-between mb-3">
             <button type="button" onClick={() => setNavYear(y => y - 1)}
-              className="p-1 rounded" style={{ color: 'var(--brand-subtle)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-text)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--brand-subtle)')}>
+              className="p-1 rounded" style={{ color: 'var(--text-light)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-light)')}>
               <ChevronLeft size={14} />
             </button>
-            <span className="text-sm font-semibold" style={{ color: 'var(--brand-primary)' }}>{navYear}</span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--primary)' }}>{navYear}</span>
             <button type="button" onClick={() => setNavYear(y => y + 1)}
-              className="p-1 rounded" style={{ color: 'var(--brand-subtle)' }}
-              onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-text)')}
-              onMouseLeave={e => (e.currentTarget.style.color = 'var(--brand-subtle)')}>
+              className="p-1 rounded" style={{ color: 'var(--text-light)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-light)')}>
               <ChevronRight size={14} />
             </button>
           </div>
@@ -107,8 +107,8 @@ export function MonthYearPicker({ month, year, onChange, placeholder = 'Mês/Ano
                 <button key={m} type="button" onClick={() => select(mNum)}
                   className="py-1.5 rounded-lg text-xs font-medium transition-all"
                   style={{
-                    background: isSelected ? 'var(--brand-primary)' : isToday ? 'var(--primary-soft)' : undefined,
-                    color: isSelected ? '#0A0A0B' : isToday ? 'var(--brand-primary)' : 'var(--brand-text)',
+                    background: isSelected ? 'var(--primary)' : isToday ? 'var(--primary-soft)' : undefined,
+                    color: isSelected ? '#0A0A0B' : isToday ? 'var(--primary)' : 'var(--text)',
                     border: isToday && !isSelected ? '1px solid var(--primary)' : '1px solid transparent',
                   }}>
                   {m}

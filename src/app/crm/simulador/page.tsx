@@ -44,7 +44,7 @@ function NumRow({ label, value, onChange, step = '1' }: { label: string; value: 
 }
 function KpiCard({ label, value, tone }: { label: string; value: string; tone?: 'pos' | 'neg' }) {
   return (
-    <div className="rounded-xl p-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+    <div className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
       <p className="text-xl font-bold mt-0.5" style={{ color: tone === 'neg' ? 'var(--danger-border)' : tone === 'pos' ? '#22c55e' : 'var(--text)' }}>{value}</p>
     </div>

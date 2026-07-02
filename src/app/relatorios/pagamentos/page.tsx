@@ -248,7 +248,7 @@ export default function PagamentosPage() {
         <div className="flex items-center gap-2 mb-3 text-sm">
           <Users size={14} style={{ color: 'var(--text-muted)' }} />
           <span style={{ color: 'var(--text-muted)' }}>{filtered.length} registro{filtered.length !== 1 ? 's' : ''} ·</span>
-          <span className="font-bold" style={{ color: 'var(--brand-primary)' }}>Total: {formatBRL(total)}</span>
+          <span className="font-bold" style={{ color: 'var(--primary)' }}>Total: {formatBRL(total)}</span>
         </div>
 
         {/* Tabela */}
@@ -274,7 +274,7 @@ export default function PagamentosPage() {
                   <Td className="font-medium" style={{ color: 'var(--text)' }}>{r.nome}</Td>
                   <Td>
                     <span className="text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider"
-                      style={{ background: 'var(--surface-hover)', color: r.tipo === 'parceiro' ? 'var(--warning)' : 'var(--brand-muted)' }}>
+                      style={{ background: 'var(--surface-hover)', color: r.tipo === 'parceiro' ? 'var(--warning)' : 'var(--text-muted)' }}>
                       {r.tipo === 'parceiro' ? 'Parceiro' : 'Consultor'}
                     </span>
                   </Td>

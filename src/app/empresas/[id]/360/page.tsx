@@ -59,7 +59,7 @@ const FU_CAT = ['retorno', 'proposta', 'reclamacao', 'aprovacao', 'sinalizou_ren
 
 function Kpi({ label, value, sub, pending }: { label: string; value: string; sub?: string; pending?: boolean }) {
   return (
-    <div className="rounded-xl p-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+    <div className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
       <p className="text-lg font-bold mt-0.5" style={{ color: pending ? 'var(--text-light)' : 'var(--text)' }}>{value}</p>
       {sub && <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{sub}</p>}
@@ -121,7 +121,7 @@ export default function Ficha360Page() {
         : !d ? <p style={{ color: 'var(--text-light)' }}>Empresa não encontrada.</p> : (
         <div className="space-y-5">
           {/* CABEÇALHO */}
-          <div className="rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-start gap-3">
               <Building2 size={22} style={{ color: 'var(--primary)' }} />
               <div className="flex-1">
@@ -203,7 +203,7 @@ export default function Ficha360Page() {
           {tab === 'crm' && crm && (
             <div className="space-y-4">
               {/* Relacionamento — Follow-ups (Fase 7) */}
-              <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+              <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <h3 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><MessageSquare size={12} /> Relacionamento (follow-ups)</h3>
                 <div className="space-y-1 mb-2 max-h-40 overflow-y-auto">
                   {fups.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem follow-ups.</p>
@@ -229,7 +229,7 @@ export default function Ficha360Page() {
                 <Kpi label="Conversões" value={String(crm.conversoes_count)} />
               </div>
 
-              <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+              <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <h3 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Briefcase size={12} /> Oportunidades</h3>
                 {crm.oportunidades.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhuma oportunidade.</p> : (
                   <div className="space-y-1.5">
@@ -246,13 +246,13 @@ export default function Ficha360Page() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+                <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <h3 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Package size={12} /> Produtos de interesse</h3>
                   {crm.produtos_interesse.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>—</p> : (
                     <div className="flex flex-wrap gap-1.5">{crm.produtos_interesse.map((p, i) => <span key={i} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{p.name}</span>)}</div>
                   )}
                 </div>
-                <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+                <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <h3 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><XCircle size={12} /> Perdas</h3>
                   {crm.perdas.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhuma.</p> : (
                     <div className="space-y-1">{crm.perdas.map((p, i) => <div key={i} className="text-xs flex justify-between"><span style={{ color: 'var(--text-muted)' }}>{p.title}</span><span style={{ color: 'var(--danger-border)' }}>{p.motivo ?? '—'}</span></div>)}</div>
@@ -273,7 +273,7 @@ export default function Ficha360Page() {
               </div>
 
               {/* Financeiro sob demanda (Receita / Rentabilidade) */}
-              <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+              <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><DollarSign size={12} /> Receita & Rentabilidade (Rentabilidade × Keruak)</h3>
                   <div className="flex items-center gap-2">
@@ -296,7 +296,7 @@ export default function Ficha360Page() {
               </div>
 
               {/* Contratos */}
-              <div className="rounded-xl overflow-x-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+              <div className="rounded-xl overflow-x-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <table className="w-full text-sm whitespace-nowrap">
                   <thead><tr style={{ color: 'var(--text-light)' }}>
                     {['Contrato', 'Tipo', 'Status', 'Valor', 'Horas', 'Vencimento', 'Executivo', 'Vendedor'].map(hd => <th key={hd} className="text-left px-3 py-2 text-[11px] font-semibold">{hd}</th>)}
@@ -331,7 +331,7 @@ export default function Ficha360Page() {
               </div>
 
               {/* Projetos */}
-              <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+              <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <h3 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Briefcase size={12} /> Projetos</h3>
                 {serv.projetos.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum projeto.</p> : (
                   <div className="space-y-1.5">
@@ -348,7 +348,7 @@ export default function Ficha360Page() {
               </div>
 
               {/* Apontamentos recentes */}
-              <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+              <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <h3 className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Clock size={12} /> Apontamentos recentes</h3>
                 {serv.apontamentos.recentes.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem apontamentos.</p> : (
                   <div className="space-y-1">
@@ -372,7 +372,7 @@ export default function Ficha360Page() {
           )}
 
           {tab === 'timeline' && (
-            <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <h3 className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Trophy size={12} /> Timeline única <span className="font-normal normal-case" style={{ color: 'var(--text-light)' }}>({d.timeline.total} eventos)</span></h3>
               {d.timeline.eventos.length === 0 ? <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem eventos.</p> : (
                 <div className="space-y-2 max-h-[28rem] overflow-y-auto">

@@ -50,9 +50,9 @@ interface Analytics {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const inputStyle  = { background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }
-const surfaceStyle = { background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }
-const cardStyle   = { background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }
+const inputStyle  = { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }
+const surfaceStyle = { background: 'var(--surface)', border: '1px solid var(--border)' }
+const cardStyle   = { background: 'var(--bg)', border: '1px solid var(--border)' }
 
 function periodBounds(month: number, year: number) {
   const start = `${year}-${String(month).padStart(2, '0')}-01`
@@ -385,7 +385,7 @@ export default function InvestimentoComercialPage() {
         <Td>
           <span className={`flex items-center gap-2 ${nameIndent}`}>
             <span className="text-[var(--text-muted)]">{depth === 0 ? '└' : '↳'}</span>
-            <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{project.name || '—'}</span>
+            <span className="text-sm" style={{ color: 'var(--text)' }}>{project.name || '—'}</span>
             {project.categoria_interna && (
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider"
                 style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
@@ -393,19 +393,19 @@ export default function InvestimentoComercialPage() {
               </span>
             )}
           </span>
-          <span className={`block ${subIndent} text-[10px] mt-0.5`} style={{ color: 'var(--brand-subtle)' }}>
+          <span className={`block ${subIndent} text-[10px] mt-0.5`} style={{ color: 'var(--text-light)' }}>
             Aprovador: {project.coordinators?.[0]?.name ?? '— (só admin)'}
           </span>
         </Td>
         <Td><span className="text-xs font-mono font-medium px-2 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{project.code}</span></Td>
         <Td>
           {project.consultants.length === 0
-            ? <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum alocado</span>
+            ? <span className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum alocado</span>
             : <div className="flex flex-wrap gap-1">
                 {project.consultants.slice(0, 4).map(c => (
-                  <span key={c.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)' }}>{c.name.split(' ')[0]}</span>
+                  <span key={c.id} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{c.name.split(' ')[0]}</span>
                 ))}
-                {project.consultants.length > 4 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--brand-subtle)' }}>+{project.consultants.length - 4}</span>}
+                {project.consultants.length > 4 && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>+{project.consultants.length - 4}</span>}
               </div>
           }
         </Td>
@@ -486,9 +486,9 @@ export default function InvestimentoComercialPage() {
                   <Tr baseBackground="transparent">
                     <Td colSpan={5}>
                       <div className="flex items-center gap-2 py-1">
-                        <div className="flex-1 h-px" style={{ background: 'var(--brand-border)' }} />
-                        <span className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--brand-subtle)' }}>Clientes</span>
-                        <div className="flex-1 h-px" style={{ background: 'var(--brand-border)' }} />
+                        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                        <span className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-light)' }}>Clientes</span>
+                        <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
                       </div>
                     </Td>
                   </Tr>
@@ -578,7 +578,7 @@ export default function InvestimentoComercialPage() {
           <Tbody>
             {data.map(r => (
               <Tr key={r.customer_id}>
-                <Td><span className="font-medium text-sm" style={{ color: 'var(--brand-text)' }}>{r.customer_name}</span></Td>
+                <Td><span className="font-medium text-sm" style={{ color: 'var(--text)' }}>{r.customer_name}</span></Td>
                 <Td>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{fmtHours(r.total_hours)}</span>
@@ -616,7 +616,7 @@ export default function InvestimentoComercialPage() {
             const myDetail = detail.filter(d => d.user_id === r.user_id)
             return [
               <Tr key={r.user_id}>
-                <Td><span className="font-medium text-sm" style={{ color: 'var(--brand-text)' }}>{r.user_name}</span></Td>
+                <Td><span className="font-medium text-sm" style={{ color: 'var(--text)' }}>{r.user_name}</span></Td>
                 <Td>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{fmtHours(r.total_hours)}</span>
@@ -624,12 +624,12 @@ export default function InvestimentoComercialPage() {
                   </div>
                 </Td>
                 <Td><span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{fmtCurrency(r.total_cost)}</span></Td>
-                <Td><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)' }}>{r.num_customers} cliente{r.num_customers !== 1 ? 's' : ''}</span></Td>
+                <Td><span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{r.num_customers} cliente{r.num_customers !== 1 ? 's' : ''}</span></Td>
                 <Td>
                   {myDetail.length > 0 && (
                     <button onClick={() => setExpandedConsultant(expanded ? null : r.user_id)}
                       className="flex items-center gap-1 text-xs transition-colors hover:opacity-70"
-                      style={{ color: 'var(--brand-subtle)' }}>
+                      style={{ color: 'var(--text-light)' }}>
                       {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                       {expanded ? 'fechar' : 'ver'}
                     </button>
@@ -639,10 +639,10 @@ export default function InvestimentoComercialPage() {
               ...(expanded ? myDetail.map(d => (
                 <Tr key={`${r.user_id}-${d.customer_id}`} baseBackground="var(--surface-hover)">
                   <Td>
-                    <span className="ml-5 text-xs" style={{ color: 'var(--brand-subtle)' }}>↳ {d.customer_name}</span>
+                    <span className="ml-5 text-xs" style={{ color: 'var(--text-light)' }}>↳ {d.customer_name}</span>
                   </Td>
-                  <Td><span className="text-xs tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtHours(d.total_hours)}</span></Td>
-                  <Td><span className="text-xs tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtCurrency(d.total_cost)}</span></Td>
+                  <Td><span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtHours(d.total_hours)}</span></Td>
+                  <Td><span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtCurrency(d.total_cost)}</span></Td>
                   <Td /><Td />
                 </Tr>
               )) : [])
@@ -663,7 +663,7 @@ export default function InvestimentoComercialPage() {
       <div className="space-y-3">
         {/* Gráfico de barras simples */}
         <div className="rounded-xl p-4" style={cardStyle}>
-          <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--brand-subtle)' }}>Horas por Mês</p>
+          <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--text-light)' }}>Horas por Mês</p>
           <div className="flex items-end gap-1.5 h-28">
             {data.map(r => {
               const pct = maxH > 0 ? (r.total_hours / maxH) * 100 : 0
@@ -671,7 +671,7 @@ export default function InvestimentoComercialPage() {
                 <div key={r.month} className="flex-1 flex flex-col items-center gap-1 group">
                   <span className="text-[9px] opacity-0 group-hover:opacity-100 transition-opacity tabular-nums" style={{ color: 'var(--primary)' }}>{fmtHours(r.total_hours)}</span>
                   <div className="w-full rounded-t-sm transition-all" style={{ height: `${Math.max(4, pct)}%`, background: 'var(--primary)', minHeight: 4 }} />
-                  <span className="text-[9px] rotate-0 whitespace-nowrap" style={{ color: 'var(--brand-subtle)', fontSize: '8px' }}>{fmtMonth(r.month)}</span>
+                  <span className="text-[9px] rotate-0 whitespace-nowrap" style={{ color: 'var(--text-light)', fontSize: '8px' }}>{fmtMonth(r.month)}</span>
                 </div>
               )
             })}
@@ -684,7 +684,7 @@ export default function InvestimentoComercialPage() {
           <Tbody>
             {data.map(r => (
               <Tr key={r.month}>
-                <Td><span className="font-medium text-sm" style={{ color: 'var(--brand-text)' }}>{fmtMonth(r.month)}</span></Td>
+                <Td><span className="font-medium text-sm" style={{ color: 'var(--text)' }}>{fmtMonth(r.month)}</span></Td>
                 <Td>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{fmtHours(r.total_hours)}</span>
@@ -717,8 +717,8 @@ export default function InvestimentoComercialPage() {
         <Tbody>
           {data.map((r, i) => (
             <Tr key={i}>
-              <Td><span className="text-sm" style={{ color: 'var(--brand-text)' }}>{r.user_name}</span></Td>
-              <Td><span className="text-sm" style={{ color: 'var(--brand-muted)' }}>{r.customer_name}</span></Td>
+              <Td><span className="text-sm" style={{ color: 'var(--text)' }}>{r.user_name}</span></Td>
+              <Td><span className="text-sm" style={{ color: 'var(--text-muted)' }}>{r.customer_name}</span></Td>
               <Td><span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{fmtHours(r.total_hours)}</span></Td>
               <Td><span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{fmtCurrency(r.total_cost)}</span></Td>
             </Tr>
@@ -741,7 +741,7 @@ export default function InvestimentoComercialPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         {activeTab === 'projetos' && (
           <div className="relative min-w-48 flex-1 max-w-xs">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
             <input type="text" placeholder="Filtrar por cliente ou consultor..." value={clientSearch}
               onChange={e => setClientSearch(e.target.value)}
               className="w-full pl-9 pr-3 h-9 rounded-xl text-xs outline-none" style={inputStyle} />
@@ -753,7 +753,7 @@ export default function InvestimentoComercialPage() {
 
         {activeTab === 'projetos' && (
           <>
-            <span className="text-xs ml-auto" style={{ color: 'var(--brand-subtle)' }}>
+            <span className="text-xs ml-auto" style={{ color: 'var(--text-light)' }}>
               {filtered.length} cliente{filtered.length !== 1 ? 's' : ''}
               {filterMonth > 0 && !hoursLoading && (
                 <span> · <span className="font-semibold" style={{ color: 'var(--text)' }}>{fmtHours(totalHours)}</span> total</span>
@@ -781,7 +781,7 @@ export default function InvestimentoComercialPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
               style={active
                 ? { background: 'var(--primary)', color: 'var(--primary-fg)', border: '1px solid var(--primary)' }
-                : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--brand-border)' }
+                : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }
               }>
               <Icon size={12} /> {tab.label}
             </button>
@@ -807,7 +807,7 @@ export default function InvestimentoComercialPage() {
                 className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors"
                 style={active
                   ? { background: 'var(--primary)', color: 'var(--primary-fg)', border: '1px solid var(--primary)' }
-                  : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--brand-border)' }}>
+                  : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                 {opt.label}
               </button>
             )
@@ -829,26 +829,26 @@ export default function InvestimentoComercialPage() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}
           onClick={() => !creatingProject && setNewProjectOpen(false)}>
           <div className="flex flex-col rounded-2xl w-full max-w-md" onClick={e => e.stopPropagation()}
-            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-              <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{leadMode ? 'Novo Lead' : 'Novo Projeto Interno'}</h2>
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>{leadMode ? 'Novo Lead' : 'Novo Projeto Interno'}</h2>
               <button onClick={() => !creatingProject && setNewProjectOpen(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
-                <X size={16} style={{ color: 'var(--brand-muted)' }} />
+                <X size={16} style={{ color: 'var(--text-muted)' }} />
               </button>
             </div>
             <div className="px-6 py-5 space-y-4">
-              <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
-                Cliente: <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>ERPSERV</span> · sem horas e sem valor de contrato
+              <p className="text-xs" style={{ color: 'var(--text-light)' }}>
+                Cliente: <span className="font-semibold" style={{ color: 'var(--text)' }}>ERPSERV</span> · sem horas e sem valor de contrato
               </p>
               {leadMode ? (
-                <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
-                  Lead abaixo de: <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>
+                <p className="text-xs" style={{ color: 'var(--text-light)' }}>
+                  Lead abaixo de: <span className="font-semibold" style={{ color: 'var(--text)' }}>
                     {projects.find(p => String(p.id) === newProjectParent)?.name ?? 'Investimento Comercial'}
                   </span>
                 </p>
               ) : (
                 <div>
-                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
                     Investimento pai (opcional)
                   </label>
                   <SearchSelect
@@ -860,11 +860,11 @@ export default function InvestimentoComercialPage() {
                       .map(p => ({ id: p.id, name: p.name || p.code }))}
                     placeholder="Aninhar abaixo de um investimento (ex.: Investimento Leads)..."
                   />
-                  <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Deixe vazio para um projeto de topo. Selecione p/ criar um lead abaixo do investimento.</p>
+                  <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Deixe vazio para um projeto de topo. Selecione p/ criar um lead abaixo do investimento.</p>
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
                   {leadMode ? 'Nome do Cliente' : 'Nome do Projeto'} <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input type="text" autoFocus value={newProjectName}
@@ -875,7 +875,7 @@ export default function InvestimentoComercialPage() {
               </div>
               {!leadMode && (
                 <div>
-                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+                  <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
                     Categoria <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <select value={newProjectCategoria}
@@ -891,9 +891,9 @@ export default function InvestimentoComercialPage() {
               )}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-medium" style={{ color: 'var(--brand-muted)' }}>Aprovador</label>
+                  <label className="block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Aprovador</label>
                   <button type="button" onClick={() => setNewProjectApprover(String(user?.id ?? ''))}
-                    className="text-[11px] font-medium transition-colors" style={{ color: 'var(--brand-primary)' }}>
+                    className="text-[11px] font-medium transition-colors" style={{ color: 'var(--primary)' }}>
                     → Me colocar como aprovador
                   </button>
                 </div>
@@ -904,10 +904,10 @@ export default function InvestimentoComercialPage() {
                   options={approverOptions}
                   placeholder="Quem aprova os apontamentos (coordenador)..."
                 />
-                <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Sem aprovador, só admin aprova os apontamentos deste projeto.</p>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Sem aprovador, só admin aprova os apontamentos deste projeto.</p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <Button variant="ghost" onClick={() => setNewProjectOpen(false)} disabled={creatingProject}>Cancelar</Button>
               <Button variant="primary" onClick={handleCreateProject} disabled={creatingProject || newProjectName.trim().length < 2}>
                 {creatingProject ? 'Criando...' : (leadMode ? 'Criar Lead' : 'Criar Projeto')}
@@ -922,20 +922,20 @@ export default function InvestimentoComercialPage() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}
           onClick={() => !savingEdit && closeEditModal()}>
           <div className="flex flex-col rounded-2xl w-full max-w-md" onClick={e => e.stopPropagation()}
-            style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-              <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>Editar Projeto Interno</h2>
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Editar Projeto Interno</h2>
               <button onClick={() => !savingEdit && closeEditModal()} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]">
-                <X size={16} style={{ color: 'var(--brand-muted)' }} />
+                <X size={16} style={{ color: 'var(--text-muted)' }} />
               </button>
             </div>
             <div className="px-6 py-5 space-y-4">
-              <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
-                Cliente: <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>{editProject.customer?.name ?? '—'}</span>
+              <p className="text-xs" style={{ color: 'var(--text-light)' }}>
+                Cliente: <span className="font-semibold" style={{ color: 'var(--text)' }}>{editProject.customer?.name ?? '—'}</span>
                 {' · '}<span className="font-mono">{editProject.code}</span>
               </p>
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>
                   Nome do Projeto <span style={{ color: '#ef4444' }}>*</span>
                 </label>
                 <input type="text" autoFocus value={editName}
@@ -944,7 +944,7 @@ export default function InvestimentoComercialPage() {
                   className="w-full px-3 h-9 rounded-xl text-sm outline-none" style={inputStyle} />
               </div>
               <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>Categoria</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Categoria</label>
                 <select value={editCategoria}
                   onChange={e => setEditCategoria(e.target.value as EditableCategoria)}
                   className="w-full px-3 h-9 rounded-xl text-sm outline-none" style={inputStyle}>
@@ -958,9 +958,9 @@ export default function InvestimentoComercialPage() {
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-medium" style={{ color: 'var(--brand-muted)' }}>Aprovador</label>
+                  <label className="block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Aprovador</label>
                   <button type="button" onClick={() => setEditApprover(String(user?.id ?? ''))}
-                    className="text-[11px] font-medium transition-colors" style={{ color: 'var(--brand-primary)' }}>
+                    className="text-[11px] font-medium transition-colors" style={{ color: 'var(--primary)' }}>
                     → Me colocar como aprovador
                   </button>
                 </div>
@@ -973,7 +973,7 @@ export default function InvestimentoComercialPage() {
                 />
               </div>
             </div>
-            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <button
                 type="button"
                 onClick={handleDeleteEdit}
@@ -1015,14 +1015,14 @@ export default function InvestimentoComercialPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-semibold" style={{ color: 'var(--primary)' }}>Investimento Interno</p>
-                  <h2 className="text-base font-bold mt-0.5" style={{ color: 'var(--brand-text)' }}>{modal.project!.customer?.name ?? '—'}</h2>
-                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{modal.project!.name} · <span className="font-mono">{modal.project!.code}</span></p>
+                  <h2 className="text-base font-bold mt-0.5" style={{ color: 'var(--text)' }}>{modal.project!.customer?.name ?? '—'}</h2>
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>{modal.project!.name} · <span className="font-mono">{modal.project!.code}</span></p>
                 </div>
-                <button onClick={closeModal} className="p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+                <button onClick={closeModal} className="p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-light)' }}><X size={16} /></button>
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>Consultores</label>
+                <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Consultores</label>
                 <MultiSelect
                   fullWidth
                   value={selected.map(String)}
@@ -1034,7 +1034,7 @@ export default function InvestimentoComercialPage() {
 
               {groups.length > 0 && (
                 <div>
-                  <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>Adicionar grupo (atalho)</label>
+                  <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Adicionar grupo (atalho)</label>
                   <SearchSelect
                     fullWidth
                     value=""
@@ -1042,13 +1042,13 @@ export default function InvestimentoComercialPage() {
                     options={groupOpts}
                     placeholder="Selecione um grupo para adicionar todos os consultores..."
                   />
-                  <p className="text-[10px] mt-1" style={{ color: 'var(--brand-subtle)' }}>Adiciona todos os consultores do grupo à seleção acima.</p>
+                  <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Adiciona todos os consultores do grupo à seleção acima.</p>
                 </div>
               )}
 
               {selected.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--brand-muted)' }}>{selected.length} selecionado{selected.length !== 1 ? 's' : ''}</p>
+                  <p className="text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>{selected.length} selecionado{selected.length !== 1 ? 's' : ''}</p>
                   <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                     {selected.map(id => {
                       const u = usersById.get(id)

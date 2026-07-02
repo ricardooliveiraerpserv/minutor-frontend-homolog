@@ -32,8 +32,8 @@ export default function MobileHome() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 48, paddingBottom: 8 }}>
         <div>
-          <p style={{ fontSize: 12, color: 'var(--brand-subtle)', marginBottom: 2 }}>Olá,</p>
-          <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--brand-text)', lineHeight: 1.2 }}>{firstName}</p>
+          <p style={{ fontSize: 12, color: 'var(--text-light)', marginBottom: 2 }}>Olá,</p>
+          <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{firstName}</p>
         </div>
         <div style={{
           width: 40, height: 40, borderRadius: '50%',
@@ -47,10 +47,10 @@ export default function MobileHome() {
 
       {/* Title */}
       <div style={{ paddingTop: 24, paddingBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--brand-text)', lineHeight: 1.2, margin: 0 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)', lineHeight: 1.2, margin: 0 }}>
           Lançamento rápido
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--brand-muted)', marginTop: 6, margin: '6px 0 0' }}>
+        <p style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 6, margin: '6px 0 0' }}>
           O que vai registrar hoje?
         </p>
       </div>
@@ -76,7 +76,7 @@ export default function MobileHome() {
             </div>
             <div>
               <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)', margin: 0 }}>Apontamento</p>
-              <p style={{ fontSize: 13, color: 'var(--brand-muted)', margin: '4px 0 0' }}>Registrar horas trabalhadas</p>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>Registrar horas trabalhadas</p>
             </div>
           </div>
         </Link>
@@ -100,7 +100,7 @@ export default function MobileHome() {
             </div>
             <div>
               <p style={{ fontSize: 18, fontWeight: 700, color: '#8B5CF6', margin: 0 }}>Despesa</p>
-              <p style={{ fontSize: 13, color: 'var(--brand-muted)', margin: '4px 0 0' }}>Registrar gasto ou reembolso</p>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0' }}>Registrar gasto ou reembolso</p>
             </div>
           </div>
         </Link>
@@ -108,7 +108,7 @@ export default function MobileHome() {
 
       {/* Quick tip */}
       <div style={{ marginTop: 'auto', paddingTop: 40 }}>
-        <p style={{ fontSize: 11, color: 'var(--brand-subtle)', textAlign: 'center' }}>
+        <p style={{ fontSize: 11, color: 'var(--text-light)', textAlign: 'center' }}>
           Lançamento em menos de 10 segundos
         </p>
       </div>

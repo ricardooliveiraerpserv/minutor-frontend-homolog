@@ -115,7 +115,7 @@ export default function CrmEmpresasPage() {
           // conta cliente + qualquer dado residual contrato_ativo sob "cliente"
           const si = statusInfo(v); const n = list.filter(c => (c.crm_status === 'contrato_ativo' ? 'cliente' : c.crm_status) === v).length
           return (
-            <button key={v} onClick={() => setFStatus(f => f === v ? '' : v)} className="rounded-xl p-3 text-left transition" style={{ background: 'var(--brand-surface)', border: `1px solid ${fStatus === v ? si.fg : 'var(--border)'}` }}>
+            <button key={v} onClick={() => setFStatus(f => f === v ? '' : v)} className="rounded-xl p-3 text-left transition" style={{ background: 'var(--surface)', border: `1px solid ${fStatus === v ? si.fg : 'var(--border)'}` }}>
               <p className="text-xl font-bold tabular-nums" style={{ color: si.fg }}>{n}</p>
               <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{si.l}</p>
             </button>
@@ -166,7 +166,7 @@ export default function CrmEmpresasPage() {
 
       {sel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setSel(null)}>
-          <div className="w-full max-w-xl rounded-2xl p-5 max-h-[92vh] overflow-y-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-xl rounded-2xl p-5 max-h-[92vh] overflow-y-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>{sel.name} — perfil comercial</h2>
               <button onClick={() => setSel(null)} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>

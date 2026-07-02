@@ -228,8 +228,8 @@ export default function DashboardReajustesPage() {
         ) : filtered.length === 0 ? (
           <EmptyState icon={TrendingUp} title="Nenhum contrato" description="Nenhum contrato recorrente para os filtros atuais." />
         ) : (
-          <div className="rounded-2xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
-            <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
+          <div className="rounded-2xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
+            <table className="w-full text-sm" style={{ background: 'var(--surface)' }}>
               <thead>
                 <tr>
                   <Th>Cliente</Th>

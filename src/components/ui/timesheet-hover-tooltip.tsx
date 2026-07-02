@@ -160,7 +160,7 @@ export function TimesheetHoverTooltip({ ts }: { ts: TimesheetPreview | null }) {
         {execName && (
           <div><span style={{ color: 'var(--text-muted)' }}>Executivo:</span> <span className="font-medium">{execName}</span></div>
         )}
-        <div><span style={{ color: 'var(--text-muted)' }}>Horas:</span> <span className="font-semibold" style={{ color: 'var(--brand-primary)' }}>{horas}</span></div>
+        <div><span style={{ color: 'var(--text-muted)' }}>Horas:</span> <span className="font-semibold" style={{ color: 'var(--primary)' }}>{horas}</span></div>
         {ts.ticket && (
           <div><span style={{ color: 'var(--text-muted)' }}>Ticket:</span> <span className="font-medium">#{ts.ticket}</span></div>
         )}
@@ -259,7 +259,7 @@ export function ExpenseHoverTooltip({ exp }: { exp: ExpensePreview | null }) {
         {categoria && (
           <div><span style={{ color: 'var(--text-muted)' }}>Categoria:</span> <span className="font-medium">{categoria}</span></div>
         )}
-        <div><span style={{ color: 'var(--text-muted)' }}>Valor:</span> <span className="font-semibold" style={{ color: 'var(--brand-primary)' }}>{valor}</span></div>
+        <div><span style={{ color: 'var(--text-muted)' }}>Valor:</span> <span className="font-semibold" style={{ color: 'var(--primary)' }}>{valor}</span></div>
         {descPreview && (
           <div className="pt-2 mt-2" style={{ borderTop: '1px solid var(--border)' }}>
             <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>Descrição</p>

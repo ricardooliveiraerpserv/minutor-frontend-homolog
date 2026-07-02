@@ -39,7 +39,7 @@ export default function TiposContatoConfig() {
 
         <div className="space-y-1.5">
           {rows.map(r => (
-            <div key={r.id} className="flex items-center gap-2 text-sm rounded-lg px-3 py-2" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)', opacity: r.ativo ? 1 : 0.5 }}>
+            <div key={r.id} className="flex items-center gap-2 text-sm rounded-lg px-3 py-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)', opacity: r.ativo ? 1 : 0.5 }}>
               <input defaultValue={r.nome} onBlur={e => rename(r, e.target.value.trim())} className="flex-1 bg-transparent outline-none" style={{ color: 'var(--text)' }} />
               <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{r.slug}</span>
               <button onClick={() => toggle(r)} className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: r.ativo ? 'var(--success-bg)' : 'var(--surface-sunken)', color: r.ativo ? 'var(--success-border)' : 'var(--text-muted)' }}>

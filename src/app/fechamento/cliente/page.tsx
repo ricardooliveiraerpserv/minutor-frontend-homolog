@@ -358,7 +358,7 @@ export default function FechamentoClientePage() {
   }
 
   const renderInvoiceToggle = (projetoId: number, invoiced: boolean, isOd: boolean) => {
-    if (!isOd) return <span style={{ color: 'var(--brand-muted)' }}>—</span>
+    if (!isOd) return <span style={{ color: 'var(--text-muted)' }}>—</span>
     return (
       <button type="button" disabled={!canInvoice}
         onClick={e => { e.stopPropagation(); toggleInvoiced(projetoId, invoiced) }}
@@ -366,7 +366,7 @@ export default function FechamentoClientePage() {
         title={invoiced ? 'Faturado e NFS-e enviada — clique p/ desmarcar' : 'Marcar como faturado / NFS-e enviada'}
         style={invoiced
           ? { background: 'var(--success-bg)', color: 'var(--success-border)', border: '1px solid var(--success-border)' }
-          : { background: 'transparent', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+          : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
         {invoiced ? <><Check size={11} /> Faturado</> : 'Marcar faturado'}
       </button>
     )
@@ -1080,14 +1080,14 @@ export default function FechamentoClientePage() {
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
 
         {/* ── Header ── */}
-        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex flex-wrap items-center gap-3">
-            <Building2 size={20} style={{ color: 'var(--brand-primary)' }} />
-            <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>
+            <Building2 size={20} style={{ color: 'var(--primary)' }} />
+            <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
               Fechamento On Demand
             </h1>
             {periodo && (
-              <span className="text-sm" style={{ color: 'var(--brand-muted)' }}>{periodo}</span>
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{periodo}</span>
             )}
           </div>
 
@@ -1096,7 +1096,7 @@ export default function FechamentoClientePage() {
             {/* Pickers De/Até */}
             <div className="flex items-center gap-2">
               <div>
-                <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>De</div>
+                <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>De</div>
                 <MonthYearPicker
                   month={fromMonth}
                   year={fromYear}
@@ -1112,9 +1112,9 @@ export default function FechamentoClientePage() {
                   }}
                 />
               </div>
-              <span className="text-sm pb-1" style={{ color: 'var(--brand-subtle)' }}>—</span>
+              <span className="text-sm pb-1" style={{ color: 'var(--text-light)' }}>—</span>
               <div>
-                <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Até</div>
+                <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Até</div>
                 <MonthYearPicker
                   month={toMonth}
                   year={toYear}
@@ -1126,7 +1126,7 @@ export default function FechamentoClientePage() {
             {/* Filtro de contrato (projeto) */}
             {headerProjetoOptions.length > 0 && (
               <div>
-                <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>
+                <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                   {tab === 'servicos' ? 'Projeto' : 'Contrato'}
                 </div>
                 <SearchSelect
@@ -1218,7 +1218,7 @@ export default function FechamentoClientePage() {
         )}
 
         {/* ── Tabs — sempre visíveis ── */}
-        <div className="flex gap-1 px-4 md:px-6 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex gap-1 px-4 md:px-6 border-b overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
           {([
             { key: 'global',    label: 'Visão Global' },
             { key: 'servicos',  label: 'Apontamentos' },
@@ -1230,8 +1230,8 @@ export default function FechamentoClientePage() {
               onClick={() => setTab(t.key)}
               className="px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap"
               style={{
-                color: tab === t.key ? 'var(--brand-primary)' : 'var(--brand-muted)',
-                borderBottom: tab === t.key ? '2px solid var(--brand-primary)' : '2px solid transparent',
+                color: tab === t.key ? 'var(--primary)' : 'var(--text-muted)',
+                borderBottom: tab === t.key ? '2px solid var(--primary)' : '2px solid transparent',
               }}
             >
               {t.label}
@@ -1295,25 +1295,25 @@ export default function FechamentoClientePage() {
               <div>
                 {/* Cards de resumo */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                  <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Clientes com movimento</div>
-                    <div className="text-2xl font-bold" style={{ color: 'var(--brand-text)' }}>{lista.length}</div>
+                  <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Clientes com movimento</div>
+                    <div className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{lista.length}</div>
                   </div>
-                  <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Horas Aprovadas</div>
-                    <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>
+                  <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Horas Aprovadas</div>
+                    <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--text)' }}>
                       {totalHoras.toFixed(2)}h
                     </div>
                   </div>
-                  <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>
+                  <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
                       {totalDesconto > 0 ? 'Total Geral (com desconto)' : 'Total Geral'}
                     </div>
-                    <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+                    <div className="text-2xl font-bold tabular-nums" style={{ color: 'var(--primary)' }}>
                       {formatBRL(totalLiquido)}
                     </div>
                     {totalDesconto > 0 && (
-                      <div className="text-xs mt-1 tabular-nums" style={{ color: 'var(--brand-muted)' }}>
+                      <div className="text-xs mt-1 tabular-nums" style={{ color: 'var(--text-muted)' }}>
                         Cheio {formatBRL(totalReceita)} · <span style={{ color: 'var(--danger)' }}>desconto −{formatBRL(totalDesconto)}</span>
                       </div>
                     )}
@@ -1348,15 +1348,15 @@ export default function FechamentoClientePage() {
                             className="border-b transition-colors hover:bg-[var(--surface-hover)]"
                             onClick={hasMult ? () => toggleClient(c.customer_id) : undefined}
                           >
-                            <td className="px-5 py-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+                            <td className="px-5 py-3 text-sm font-medium" style={{ color: 'var(--text)' }}>
                               <div className="flex items-center gap-2">
                                 {hasMult
-                                  ? (expanded ? <ChevronDown size={14} style={{ color: 'var(--brand-muted)' }} /> : <ChevronRight size={14} style={{ color: 'var(--brand-muted)' }} />)
-                                  : <ChevronRight size={14} style={{ color: 'var(--brand-muted)' }} />
+                                  ? (expanded ? <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />)
+                                  : <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
                                 }
                                 <span>{c.nome}</span>
                                 {!hasMult && c.projetos[0] && (
-                                  <span className="text-xs font-normal" style={{ color: 'var(--brand-muted)' }}>
+                                  <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
                                     — {c.projetos[0].nome}
                                   </span>
                                 )}
@@ -1365,30 +1365,30 @@ export default function FechamentoClientePage() {
                             <td className="px-5 py-3">
                               {st === 'closed'
                                 ? <Badge variant="success"><Lock size={10} className="mr-1" />Fechado</Badge>
-                                : <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>Aberto</span>
+                                : <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Aberto</span>
                               }
                             </td>
-                            <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: 'var(--brand-text)' }}>
+                            <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: 'var(--text)' }}>
                               {c.total_horas.toFixed(2)}h
                             </td>
-                            <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: 'var(--brand-muted)' }}>
+                            <td className="px-5 py-3 text-right tabular-nums text-sm" style={{ color: 'var(--text-muted)' }}>
                               {!hasMult && c.projetos[0] ? formatBRL(c.projetos[0].valor_hora) : '—'}
                             </td>
-                            <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                            <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--primary)' }}>
                               {formatBRL(c.total_receita)}
                             </td>
                             <td className="px-5 py-3 text-right tabular-nums text-sm">
                               {descClienteVG(c.customer_id) > 0
                                 ? <span title={descontoMap.get(c.customer_id)?.descricao ?? undefined} style={{ color: 'var(--danger)' }}>− {formatBRL(descClienteVG(c.customer_id))}</span>
-                                : <span style={{ color: 'var(--brand-muted)' }}>—</span>}
+                                : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                             </td>
-                            <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--brand-text)' }}>
+                            <td className="px-5 py-3 text-right tabular-nums font-semibold" style={{ color: 'var(--text)' }}>
                               {formatBRL(liquidoCliente(c))}
                             </td>
                             <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
                               {!hasMult && c.projetos[0]
                                 ? renderInvoiceToggle(c.projetos[0].projeto_id, !!c.projetos[0].invoiced, c.projetos[0].tipo_code === 'on_demand')
-                                : <span style={{ color: 'var(--brand-muted)' }}>—</span>}
+                                : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                             </td>
                           </tr>
                           {/* Linhas dos projetos (expandido ou multi-projeto) */}
@@ -1397,25 +1397,25 @@ export default function FechamentoClientePage() {
                               key={`${c.customer_id}-${p.projeto_id}`}
                               className="border-b"
                             >
-                              <td className="py-2.5 text-xs" style={{ color: 'var(--brand-muted)', paddingLeft: '2.75rem' }}>
+                              <td className="py-2.5 text-xs" style={{ color: 'var(--text-muted)', paddingLeft: '2.75rem' }}>
                                 {p.nome}
                                 <span className="ml-2 opacity-60">{p.codigo}</span>
-                                <span className="ml-2 px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                                <span className="ml-2 px-1.5 py-0.5 rounded text-xs" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                                   {p.tipo_nome}
                                 </span>
                               </td>
                               <td />
-                              <td className="px-5 py-2.5 text-right tabular-nums text-xs" style={{ color: 'var(--brand-muted)' }}>
+                              <td className="px-5 py-2.5 text-right tabular-nums text-xs" style={{ color: 'var(--text-muted)' }}>
                                 {p.horas.toFixed(2)}h
                               </td>
-                              <td className="px-5 py-2.5 text-right tabular-nums text-xs" style={{ color: 'var(--brand-muted)' }}>
+                              <td className="px-5 py-2.5 text-right tabular-nums text-xs" style={{ color: 'var(--text-muted)' }}>
                                 {formatBRL(p.valor_hora)}
                               </td>
-                              <td className="px-5 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: 'var(--brand-primary)' }}>
+                              <td className="px-5 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: 'var(--primary)' }}>
                                 {formatBRL(p.total_display)}
                               </td>
-                              <td className="px-5 py-2.5 text-right" style={{ color: 'var(--brand-muted)' }}>—</td>
-                              <td className="px-5 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: 'var(--brand-muted)' }}>
+                              <td className="px-5 py-2.5 text-right" style={{ color: 'var(--text-muted)' }}>—</td>
+                              <td className="px-5 py-2.5 text-right tabular-nums text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                                 {formatBRL(p.total_display)}
                               </td>
                               <td className="px-5 py-2.5">
@@ -1432,29 +1432,29 @@ export default function FechamentoClientePage() {
                 {/* Rodapé */}
                 <div className="flex justify-end pt-4">
                   <div className="px-5 py-3 rounded-xl flex items-center gap-4 flex-wrap"
-                    style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                    <span className="text-sm font-semibold" style={{ color: 'var(--brand-muted)' }}>
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>
                       {totalHoras.toFixed(2)}h
                     </span>
                     {totalDesconto > 0 ? (
                       <>
-                        <span className="text-sm tabular-nums" style={{ color: 'var(--brand-muted)' }}>
-                          Cheio <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>{formatBRL(totalReceita)}</span>
+                        <span className="text-sm tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                          Cheio <span className="font-semibold" style={{ color: 'var(--text)' }}>{formatBRL(totalReceita)}</span>
                         </span>
                         <span className="text-sm tabular-nums" style={{ color: 'var(--danger)' }}>
                           Desconto −{formatBRL(totalDesconto)}
                         </span>
-                        <span className="text-sm font-semibold" style={{ color: 'var(--brand-muted)' }}>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>
                           Com desconto
                         </span>
-                        <span className="text-base font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+                        <span className="text-base font-bold tabular-nums" style={{ color: 'var(--primary)' }}>
                           {formatBRL(totalLiquido)}
                         </span>
                       </>
                     ) : (
                       <>
-                        <span className="text-sm font-semibold" style={{ color: 'var(--brand-muted)' }}>Total Geral</span>
-                        <span className="text-base font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>Total Geral</span>
+                        <span className="text-base font-bold tabular-nums" style={{ color: 'var(--primary)' }}>
                           {formatBRL(totalReceita)}
                         </span>
                       </>
@@ -1478,7 +1478,7 @@ export default function FechamentoClientePage() {
                     {apsFiltered.length} apontamento{apsFiltered.length === 1 ? '' : 's'}
                     {customerId ? '' : ' · todos os clientes'} em <span className="font-semibold">{fmtYMFull(toYM)}</span>
                   </p>
-                  <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+                  <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--primary)' }}>
                     {apsHorasTotal.toFixed(2)}h
                   </div>
                 </div>
@@ -1509,10 +1509,10 @@ export default function FechamentoClientePage() {
                       </Tr>
                     ))}
                     <Tr>
-                      <td colSpan={7} className="px-5 py-3 text-right text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>
+                      <td colSpan={7} className="px-5 py-3 text-right text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
                         TOTAL DE HORAS
                       </td>
-                      <Td right className="font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+                      <Td right className="font-bold tabular-nums" style={{ color: 'var(--primary)' }}>
                         {apsHorasTotal.toFixed(2)}h
                       </Td>
                     </Tr>
@@ -1558,7 +1558,7 @@ export default function FechamentoClientePage() {
                                   <div className="flex flex-wrap gap-1">
                                     {Array.from(c.tipos).map(t => (
                                       <span key={t} className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap"
-                                        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>{t}</span>
+                                        style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{t}</span>
                                     ))}
                                   </div>
                                 </Td>
@@ -1586,16 +1586,16 @@ export default function FechamentoClientePage() {
                             )
                           })}
                           <Tr>
-                            <td className="px-5 py-3 text-right text-xs font-bold" style={{ color: 'var(--brand-muted)' }} colSpan={2}>TOTAL GERAL</td>
+                            <td className="px-5 py-3 text-right text-xs font-bold" style={{ color: 'var(--text-muted)' }} colSpan={2}>TOTAL GERAL</td>
                             <Td right muted className="tabular-nums text-xs">{clientesServicos.reduce((s, c) => s + c.total_horas, 0).toFixed(2)}h</Td>
-                            <Td right className="tabular-nums font-bold" style={{ color: 'var(--brand-primary)' }}>{formatBRL(clientesServicos.reduce((s, c) => s + c.total_receita, 0))}</Td>
+                            <Td right className="tabular-nums font-bold" style={{ color: 'var(--primary)' }}>{formatBRL(clientesServicos.reduce((s, c) => s + c.total_receita, 0))}</Td>
                             <Td right className="tabular-nums text-xs font-bold" style={{ color: 'var(--danger)' }}>
                               {(() => {
                                 const tot = clientesServicos.reduce((s, c) => s + (descontoMap.get(c.customer_id)?.valor ?? 0), 0)
                                 return tot > 0 ? <>− {formatBRL(tot)}</> : '—'
                               })()}
                             </Td>
-                            <Td right className="tabular-nums font-bold" style={{ color: 'var(--brand-primary)' }}>
+                            <Td right className="tabular-nums font-bold" style={{ color: 'var(--primary)' }}>
                               {formatBRL(clientesServicos.reduce((s, c) => s + Math.max(0, c.total_receita - (descontoMap.get(c.customer_id)?.valor ?? 0)), 0))}
                             </Td>
                             <Td /><Td right />
@@ -1650,9 +1650,9 @@ export default function FechamentoClientePage() {
                           )
                         })}
                         <Tr>
-                          <td className="px-5 py-3 text-right text-xs font-bold" style={{ color: 'var(--brand-muted)' }}>TOTAL GERAL</td>
+                          <td className="px-5 py-3 text-right text-xs font-bold" style={{ color: 'var(--text-muted)' }}>TOTAL GERAL</td>
                           <Td right muted className="tabular-nums text-xs">{despCobranca.reduce((s, r) => s + r.qtd, 0)}</Td>
-                          <Td right className="tabular-nums font-bold" style={{ color: 'var(--brand-primary)' }}>{formatBRL(despCobranca.reduce((s, r) => s + r.total, 0))}</Td>
+                          <Td right className="tabular-nums font-bold" style={{ color: 'var(--primary)' }}>{formatBRL(despCobranca.reduce((s, r) => s + r.total, 0))}</Td>
                           <Td /><Td right />
                         </Tr>
                       </Tbody>

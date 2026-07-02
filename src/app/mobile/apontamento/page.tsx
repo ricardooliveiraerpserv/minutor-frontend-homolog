@@ -42,8 +42,8 @@ function calcTotal(start: string, end: string): string {
 // fontSize 16px mínimo em todos os inputs → sem zoom iOS
 const field: React.CSSProperties = {
   padding: '14px 16px', borderRadius: 12, fontSize: 16, outline: 'none',
-  background: 'var(--brand-surface)', border: '1px solid var(--brand-border)',
-  color: 'var(--brand-text)', width: '100%', boxSizing: 'border-box',
+  background: 'var(--surface)', border: '1px solid var(--border)',
+  color: 'var(--text)', width: '100%', boxSizing: 'border-box',
   WebkitAppearance: 'none',
 }
 
@@ -52,7 +52,7 @@ const timeField: React.CSSProperties = {
 }
 
 const lbl: React.CSSProperties = {
-  fontSize: 11, color: 'var(--brand-subtle)', fontWeight: 600,
+  fontSize: 11, color: 'var(--text-light)', fontWeight: 600,
   letterSpacing: 0.5, textTransform: 'uppercase',
 }
 
@@ -66,7 +66,7 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
       {Array.from({ length: total }).map((_, i) => (
         <div key={i} style={{
           flex: 1, height: 3, borderRadius: 99, transition: 'background 0.25s',
-          background: i <= step ? 'var(--primary)' : 'var(--brand-border)',
+          background: i <= step ? 'var(--primary)' : 'var(--border)',
         }} />
       ))}
     </div>
@@ -76,8 +76,8 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
 function Row({ label: l, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
-      <span style={{ fontSize: 12, color: 'var(--brand-subtle)', flexShrink: 0 }}>{l}</span>
-      <span style={{ fontSize: 12, color: 'var(--brand-text)', fontWeight: 600, textAlign: 'right', wordBreak: 'break-word' }}>{value}</span>
+      <span style={{ fontSize: 12, color: 'var(--text-light)', flexShrink: 0 }}>{l}</span>
+      <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600, textAlign: 'right', wordBreak: 'break-word' }}>{value}</span>
     </div>
   )
 }
@@ -290,19 +290,19 @@ export default function MobileApontamento() {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 100,
       display: 'flex', flexDirection: 'column',
-      background: 'var(--brand-bg)',
+      background: 'var(--bg)',
     }}>
       {/* Header picker */}
-      <div style={{ padding: 'max(44px, env(safe-area-inset-top)) 20px 12px', flexShrink: 0, borderBottom: '1px solid var(--brand-border)' }}>
+      <div style={{ padding: 'max(44px, env(safe-area-inset-top)) 20px 12px', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <button onClick={() => { setPickingCustomer(false); setCustomerSearch('') }}
             style={{ background: 'none', border: 'none', padding: '8px 8px 8px 0', cursor: 'pointer', display: 'flex', ...tap }}>
-            <X size={22} color="var(--brand-muted)" />
+            <X size={22} color="var(--text-muted)" />
           </button>
-          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--brand-text)' }}>Selecionar Cliente</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Selecionar Cliente</span>
         </div>
         <div style={{ position: 'relative' }}>
-          <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--brand-subtle)', pointerEvents: 'none' }} />
+          <Search size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)', pointerEvents: 'none' }} />
           <input
             ref={customerSearchRef}
             value={customerSearch}
@@ -315,7 +315,7 @@ export default function MobileApontamento() {
       {/* Lista */}
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '8px 20px 40px' }}>
         {filteredCustomers.length === 0 && (
-          <p style={{ textAlign: 'center', color: 'var(--brand-subtle)', fontSize: 14, paddingTop: 32 }}>
+          <p style={{ textAlign: 'center', color: 'var(--text-light)', fontSize: 14, paddingTop: 32 }}>
             {customers.length === 0 ? 'Carregando…' : 'Nenhum cliente encontrado'}
           </p>
         )}
@@ -324,11 +324,11 @@ export default function MobileApontamento() {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               width: '100%', padding: '14px 16px', borderRadius: 14, marginBottom: 8,
-              background: form.customer_id === String(c.id) ? 'var(--primary-soft)' : 'var(--brand-surface)',
-              border: form.customer_id === String(c.id) ? '1px solid var(--primary-soft)' : '1px solid var(--brand-border)',
+              background: form.customer_id === String(c.id) ? 'var(--primary-soft)' : 'var(--surface)',
+              border: form.customer_id === String(c.id) ? '1px solid var(--primary-soft)' : '1px solid var(--border)',
               cursor: 'pointer', textAlign: 'left', ...tap,
             }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--brand-text)' }}>{c.name}</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{c.name}</span>
             {form.customer_id === String(c.id) && <Check size={16} color="var(--primary)" />}
           </button>
         ))}
@@ -346,14 +346,14 @@ export default function MobileApontamento() {
       <div style={{ padding: 'max(44px, env(safe-area-inset-top)) 20px 14px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <button onClick={back} style={{ background: 'none', border: 'none', padding: '8px 8px 8px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, ...tap }}>
-            <ArrowLeft size={22} color="var(--brand-muted)" />
+            <ArrowLeft size={22} color="var(--text-muted)" />
           </button>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--brand-text)', margin: 0 }}>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
             Novo Apontamento
           </h1>
         </div>
         <ProgressBar step={step} total={TOTAL_STEPS} />
-        <p style={{ fontSize: 11, color: 'var(--brand-subtle)', marginTop: 6, marginBottom: 0 }}>
+        <p style={{ fontSize: 11, color: 'var(--text-light)', marginTop: 6, marginBottom: 0 }}>
           Etapa {step + 1} de {TOTAL_STEPS} — {STEP_LABELS[step]}
         </p>
       </div>
@@ -374,17 +374,17 @@ export default function MobileApontamento() {
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '14px 16px', borderRadius: 14, width: '100%', cursor: 'pointer',
-                  background: form.customer_id ? 'var(--primary-soft)' : 'var(--brand-surface)',
-                  border: form.customer_id ? '1px solid var(--primary-soft)' : '1px solid var(--brand-border)',
+                  background: form.customer_id ? 'var(--primary-soft)' : 'var(--surface)',
+                  border: form.customer_id ? '1px solid var(--primary-soft)' : '1px solid var(--border)',
                   textAlign: 'left', ...tap,
                 }}>
                 <span style={{
                   fontSize: 15, fontWeight: form.customer_id ? 700 : 400,
-                  color: form.customer_id ? 'var(--brand-text)' : 'var(--brand-subtle)',
+                  color: form.customer_id ? 'var(--text)' : 'var(--text-light)',
                 }}>
                   {form.customer_name || 'Selecionar cliente…'}
                 </span>
-                <ChevronRight size={18} color={form.customer_id ? 'var(--primary)' : 'var(--brand-subtle)'} />
+                <ChevronRight size={18} color={form.customer_id ? 'var(--primary)' : 'var(--text-light)'} />
               </button>
             </div>
 
@@ -394,13 +394,13 @@ export default function MobileApontamento() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={lbl}>Projeto *</span>
                   {projectsLoading && (
-                    <span style={{ fontSize: 10, color: 'var(--brand-subtle)' }}>Carregando…</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-light)' }}>Carregando…</span>
                   )}
                 </div>
 
                 {/* Busca de projeto */}
                 <div style={{ position: 'relative' }}>
-                  <Search size={14} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--brand-subtle)', pointerEvents: 'none' }} />
+                  <Search size={14} style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)', pointerEvents: 'none' }} />
                   <input
                     ref={projectSearchRef}
                     value={projectSearch}
@@ -413,7 +413,7 @@ export default function MobileApontamento() {
                 {/* Lista de projetos */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {!projectsLoading && filteredProjects.length === 0 && (
-                    <p style={{ textAlign: 'center', color: 'var(--brand-subtle)', fontSize: 14, paddingTop: 12 }}>
+                    <p style={{ textAlign: 'center', color: 'var(--text-light)', fontSize: 14, paddingTop: 12 }}>
                       {projectSearch ? 'Nenhum projeto encontrado' : 'Nenhum projeto aberto para este cliente'}
                     </p>
                   )}
@@ -422,19 +422,19 @@ export default function MobileApontamento() {
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '14px 16px', borderRadius: 14, width: '100%', cursor: 'pointer',
-                        background: form.project_id === String(p.id) ? 'var(--primary-soft)' : 'var(--brand-surface)',
-                        border: form.project_id === String(p.id) ? '1px solid var(--primary-soft)' : '1px solid var(--brand-border)',
+                        background: form.project_id === String(p.id) ? 'var(--primary-soft)' : 'var(--surface)',
+                        border: form.project_id === String(p.id) ? '1px solid var(--primary-soft)' : '1px solid var(--border)',
                         textAlign: 'left', ...tap,
                       }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--brand-text)' }}>{p.name}</span>
+                        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
                         {p.is_sustentacao && (
-                          <span style={{ fontSize: 11, color: 'var(--brand-subtle)' }}>Sustentação</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-light)' }}>Sustentação</span>
                         )}
                       </div>
                       {form.project_id === String(p.id)
                         ? <Check size={16} color="var(--primary)" />
-                        : <ChevronRight size={16} color="var(--brand-subtle)" />
+                        : <ChevronRight size={16} color="var(--text-light)" />
                       }
                     </button>
                   ))}
@@ -444,7 +444,7 @@ export default function MobileApontamento() {
 
             {/* Dica quando não há cliente selecionado */}
             {!form.customer_id && (
-              <p style={{ textAlign: 'center', color: 'var(--brand-subtle)', fontSize: 13, paddingTop: 8 }}>
+              <p style={{ textAlign: 'center', color: 'var(--text-light)', fontSize: 13, paddingTop: 8 }}>
                 Selecione o cliente para ver os projetos disponíveis
               </p>
             )}
@@ -455,23 +455,23 @@ export default function MobileApontamento() {
         {step === 1 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--brand-text)', margin: '0 0 2px' }}>
+              <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: '0 0 2px' }}>
                 Horário trabalhado
               </h2>
-              <p style={{ fontSize: 13, color: 'var(--brand-muted)', margin: 0 }}>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
                 {form.project_name} · {form.customer_name}
               </p>
             </div>
 
             {/* Toggle tipo */}
-            <div style={{ display: 'flex', gap: 8, background: 'var(--brand-surface)', borderRadius: 12, padding: 4 }}>
+            <div style={{ display: 'flex', gap: 8, background: 'var(--surface)', borderRadius: 12, padding: 4 }}>
               {(['horario', 'total'] as Tipo[]).map(t => (
                 <button key={t} onClick={() => set('tipo', t)}
                   style={{
                     flex: 1, padding: '8px 0', borderRadius: 9, fontSize: 13, fontWeight: 600,
                     cursor: 'pointer', border: 'none', transition: 'all 0.15s',
                     background: form.tipo === t ? 'var(--primary)' : 'transparent',
-                    color: form.tipo === t ? 'var(--primary-fg)' : 'var(--brand-subtle)',
+                    color: form.tipo === t ? 'var(--primary-fg)' : 'var(--text-light)',
                     ...tap,
                   }}>
                   {t === 'horario' ? 'Início / Fim' : 'Total de horas'}
@@ -552,11 +552,11 @@ export default function MobileApontamento() {
         {step === 2 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
-              <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--brand-text)', margin: '0 0 4px' }}>Confirmar</h2>
-              <p style={{ fontSize: 13, color: 'var(--brand-muted)', margin: 0 }}>Revise antes de salvar</p>
+              <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text)', margin: '0 0 4px' }}>Confirmar</h2>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>Revise antes de salvar</p>
             </div>
 
-            <div style={{ borderRadius: 16, overflow: 'hidden', background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+            <div style={{ borderRadius: 16, overflow: 'hidden', background: 'var(--surface)', border: '1px solid var(--border)' }}>
               {[
                 { l: 'Cliente',  v: form.customer_name },
                 { l: 'Projeto',  v: form.project_name },
@@ -569,18 +569,18 @@ export default function MobileApontamento() {
                 <div key={r!.l} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
                   padding: '13px 16px',
-                  borderBottom: i < arr.length - 1 ? '1px solid var(--brand-border)' : 'none',
+                  borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
                 }}>
-                  <span style={{ fontSize: 13, color: 'var(--brand-subtle)', flexShrink: 0 }}>{r!.l}</span>
-                  <span style={{ fontSize: 13, color: 'var(--brand-text)', fontWeight: 600, textAlign: 'right', wordBreak: 'break-word' }}>{r!.v}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-light)', flexShrink: 0 }}>{r!.l}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, textAlign: 'right', wordBreak: 'break-word' }}>{r!.v}</span>
                 </div>
               ))}
             </div>
 
             <button onClick={() => setStep(1)} style={{
               padding: '12px', borderRadius: 12, fontSize: 14, fontWeight: 600,
-              background: 'transparent', border: '1px solid var(--brand-border)',
-              color: 'var(--brand-muted)', cursor: 'pointer', width: '100%', ...tap,
+              background: 'transparent', border: '1px solid var(--border)',
+              color: 'var(--text-muted)', cursor: 'pointer', width: '100%', ...tap,
             }}>
               ← Voltar e editar
             </button>
@@ -592,8 +592,8 @@ export default function MobileApontamento() {
       <div style={{
         padding: `12px 20px max(28px, env(safe-area-inset-bottom))`,
         flexShrink: 0,
-        borderTop: step > 0 ? '1px solid var(--brand-border)' : 'none',
-        background: 'var(--brand-bg)',
+        borderTop: step > 0 ? '1px solid var(--border)' : 'none',
+        background: 'var(--bg)',
       }}>
         {step === 1 && (
           <button onClick={() => setStep(2)} disabled={!canAdvanceStep1()}
@@ -601,8 +601,8 @@ export default function MobileApontamento() {
               width: '100%', padding: '16px', borderRadius: 14, fontSize: 16, fontWeight: 700,
               cursor: canAdvanceStep1() ? 'pointer' : 'not-allowed', transition: 'all 0.15s',
               background: canAdvanceStep1() ? 'var(--primary-soft)' : 'var(--surface-hover)',
-              border: canAdvanceStep1() ? '1px solid var(--primary-soft)' : '1px solid var(--brand-border)',
-              color: canAdvanceStep1() ? 'var(--primary)' : 'var(--brand-subtle)', ...tap,
+              border: canAdvanceStep1() ? '1px solid var(--primary-soft)' : '1px solid var(--border)',
+              color: canAdvanceStep1() ? 'var(--primary)' : 'var(--text-light)', ...tap,
             }}>
             Revisar →
           </button>
@@ -614,7 +614,7 @@ export default function MobileApontamento() {
               width: '100%', padding: '16px', borderRadius: 14, fontSize: 16, fontWeight: 700,
               cursor: saving ? 'not-allowed' : 'pointer', border: 'none',
               background: saving ? 'var(--surface-hover)' : 'var(--primary)',
-              color: saving ? 'var(--brand-subtle)' : 'var(--primary-fg)',
+              color: saving ? 'var(--text-light)' : 'var(--primary-fg)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               transition: 'all 0.15s', ...tap,
             }}>
@@ -656,7 +656,7 @@ export default function MobileApontamento() {
               <button onClick={() => setConflictData(null)} style={{
                 padding: '14px', borderRadius: 12, fontSize: 15, fontWeight: 700,
                 background: 'var(--surface-hover)', border: '1px solid var(--surface-hover)',
-                color: 'var(--brand-text)', cursor: 'pointer', width: '100%', ...tap,
+                color: 'var(--text)', cursor: 'pointer', width: '100%', ...tap,
               }}>Entendido, vou corrigir</button>
             </div>
           </div>

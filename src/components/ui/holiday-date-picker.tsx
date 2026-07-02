@@ -129,8 +129,8 @@ export function HolidayDatePicker({
           style={{
             position: 'fixed', left: pos.left,
             ...(pos.top != null ? { top: pos.top } : { bottom: pos.bottom }),
-            width, zIndex: 9999, background: 'var(--brand-surface)',
-            border: '1px solid var(--brand-border)', borderRadius: 12,
+            width, zIndex: 9999, background: 'var(--surface)',
+            border: '1px solid var(--border)', borderRadius: 12,
             boxShadow: '0 10px 40px rgba(0,0,0,.3)', padding: 10,
           }}
         >
@@ -169,8 +169,8 @@ export function HolidayDatePicker({
                   style={{
                     height: 28, borderRadius: 6, fontSize: 12,
                     cursor: nonBiz && !isSel ? 'not-allowed' : 'pointer',
-                    border: isToday && !isSel ? '1px solid var(--brand-primary)' : '1px solid transparent',
-                    background: isSel ? 'var(--brand-primary)' : 'transparent',
+                    border: isToday && !isSel ? '1px solid var(--primary)' : '1px solid transparent',
+                    background: isSel ? 'var(--primary)' : 'transparent',
                     color, fontWeight: isSel || isToday ? 600 : 400,
                     opacity: nonBiz && !isSel ? 0.4 : 1,
                     position: 'relative',
@@ -185,7 +185,7 @@ export function HolidayDatePicker({
             })}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--brand-border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
             <button type="button" onClick={() => { onChange(null); setOpen(false) }} style={linkBtn}>Limpar</button>
             <button type="button" onClick={() => { onChange(iso(new Date())); setOpen(false) }} style={linkBtn}>Hoje</button>
           </div>

@@ -67,7 +67,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+        <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
           {label}
         </label>
       )}
@@ -78,43 +78,43 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
         disabled={disabled}
         className={`flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl text-sm outline-none text-left disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : wide ? 'min-w-52' : 'min-w-36'}`}
         style={{
-          background: 'var(--brand-bg)',
-          border: `1px solid ${selected ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
-          color: selected ? 'var(--brand-text)' : 'var(--brand-subtle)',
+          background: 'var(--bg)',
+          border: `1px solid ${selected ? 'var(--primary)' : 'var(--border)'}`,
+          color: selected ? 'var(--text)' : 'var(--text-light)',
         }}
       >
         <span className="truncate text-sm">{selected ? selected.name : placeholder}</span>
-        <ChevronDown size={13} style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />
+        <ChevronDown size={13} style={{ color: 'var(--text-light)', flexShrink: 0 }} />
       </button>
 
       {open && (() => {
         const menu = (
           <>
-            <div className="p-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
               <div className="relative">
-                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
                 <input
                   ref={inputRef}
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   placeholder="Buscar..."
                   className="w-full pl-7 pr-3 py-1.5 rounded-lg text-xs outline-none"
-                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 />
               </div>
             </div>
             <div className="max-h-52 overflow-y-auto">
               <button type="button" onClick={() => select('')}
                 className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-                style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>
+                style={{ color: !value ? 'var(--primary)' : 'var(--text-light)' }}>
                 {placeholder}
               </button>
               {filtered.length === 0
-                ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
+                ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>
                 : filtered.map(o => (
                   <button key={o.id} type="button" onClick={() => select(String(o.id))}
                     className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-                    style={{ color: String(o.id) === String(value) ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
+                    style={{ color: String(o.id) === String(value) ? 'var(--primary)' : 'var(--text)' }}>
                     {o.name}
                   </button>
                 ))}
@@ -129,7 +129,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
             <div
               ref={ref}
               className="rounded-xl overflow-hidden mt-1"
-              style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', boxShadow: 'var(--shadow-md, 0 4px 12px rgba(15,23,42,.08))', minWidth: fullWidth ? undefined : (wide ? 240 : 200) }}
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-md, 0 4px 12px rgba(15,23,42,.08))', minWidth: fullWidth ? undefined : (wide ? 240 : 200) }}
             >
               {menu}
             </div>
@@ -143,7 +143,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
             className="rounded-xl shadow-2xl overflow-hidden"
             style={{
               position: 'fixed', top: pos.top, left: pos.left, width: pos.width,
-              zIndex: 9999, background: 'var(--brand-surface)', border: '1px solid var(--brand-border)',
+              zIndex: 9999, background: 'var(--surface)', border: '1px solid var(--border)',
             }}
           >
             {menu}

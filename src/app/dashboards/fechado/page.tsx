@@ -34,8 +34,8 @@ function NoTrackingNotice() {
   return (
     <div className="flex items-start gap-3 px-5 py-4 rounded-2xl" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.20)' }}>
       <Info size={16} color="#8B5CF6" className="shrink-0 mt-0.5" />
-      <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>
-        Projetos com contrato <strong style={{ color: 'var(--brand-text)' }}>Fechado</strong> não possuem controle de saldo ou consumo de horas.<br />
+      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+        Projetos com contrato <strong style={{ color: 'var(--text)' }}>Fechado</strong> não possuem controle de saldo ou consumo de horas.<br />
         O acompanhamento é feito apenas pelo valor total contratado e seus aportes.
       </p>
     </div>
@@ -103,8 +103,8 @@ export default function FechadoPage() {
             <CheckSquare size={16} color="#8B5CF6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>Fechado</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Fechado</h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
               {isCliente
                 ? 'Projetos com contrato fechado — período de início'
                 : 'Projetos com contrato fechado — horas vendidas por projeto e período de início'}
@@ -113,7 +113,7 @@ export default function FechadoPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-end gap-4 p-5 rounded-2xl" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="flex flex-wrap items-end gap-4 p-5 rounded-2xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {isAdmin && (
             <SearchSelect
               label="Executivo"
@@ -147,26 +147,26 @@ export default function FechadoPage() {
         <NoTrackingNotice />
 
         {/* Projetos fechados — sempre visível (sem seleção de projeto). */}
-        <div className="rounded-2xl overflow-x-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="rounded-2xl overflow-x-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {loadingProjects ? (
             <div className="p-10 text-center">
-              <div className="animate-pulse h-4 w-32 mx-auto rounded" style={{ background: 'var(--brand-border)' }} />
+              <div className="animate-pulse h-4 w-32 mx-auto rounded" style={{ background: 'var(--border)' }} />
             </div>
           ) : displayedRows.length === 0 ? (
             <div className="p-10 text-center">
-              <FolderOpen size={32} className="mx-auto mb-3" style={{ color: 'var(--brand-muted)' }} />
-              <p className="text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto fechado encontrado.</p>
+              <FolderOpen size={32} className="mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum projeto fechado encontrado.</p>
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
-                <tr style={{ borderBottom: '1px solid var(--brand-border)' }}>
+              <thead className="sticky top-0 z-10" style={{ background: 'var(--surface)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   {/* Cliente NÃO vê informação de horas em contrato Fechado. */}
                   {(isCliente
                     ? ['Código', 'Projeto', 'Status', 'Início']
                     : ['Código', 'Projeto', 'Status', 'Horas Base', 'Aportes', 'Total', 'Início']
                   ).map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -174,14 +174,14 @@ export default function FechadoPage() {
                 {displayedRows.map((row, idx) => (
                   <tr
                     key={row.id}
-                    style={{ borderBottom: idx < displayedRows.length - 1 ? '1px solid var(--brand-border)' : undefined }}
+                    style={{ borderBottom: idx < displayedRows.length - 1 ? '1px solid var(--border)' : undefined }}
                   >
-                    <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--brand-muted)' }}>{row.code}</td>
-                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--brand-text)' }}>{row.name}</td>
+                    <td className="px-4 py-3 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{row.code}</td>
+                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--text)' }}>{row.name}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{
                         background: row.status === 'active' ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.06)',
-                        color: row.status === 'active' ? '#10B981' : 'var(--brand-muted)',
+                        color: row.status === 'active' ? '#10B981' : 'var(--text-muted)',
                       }}>
                         {row.status === 'active' ? 'Ativo' : row.status === 'closed' ? 'Encerrado' : row.status}
                       </span>
@@ -189,12 +189,12 @@ export default function FechadoPage() {
                     {/* Cliente NÃO vê Horas Base / Aportes / Total em contrato Fechado. */}
                     {!isCliente && (
                       <>
-                        <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtH(row.base_hours)} h</td>
+                        <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtH(row.base_hours)} h</td>
                         <td className="px-4 py-3 tabular-nums" style={{ color: '#8B5CF6' }}>{fmtH(row.contribution_hours)} h</td>
                         <td className="px-4 py-3 font-semibold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtH(row.sold_hours)} h</td>
                       </>
                     )}
-                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--brand-muted)' }}>
+                    <td className="px-4 py-3 tabular-nums" style={{ color: 'var(--text-muted)' }}>
                       {row.start_date ? new Date(row.start_date + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}
                     </td>
                   </tr>

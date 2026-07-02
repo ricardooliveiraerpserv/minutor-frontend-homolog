@@ -84,14 +84,14 @@ function TabButton({ label, active, onClick, count }: {
       onClick={onClick}
       className="px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap"
       style={{
-        color: active ? 'var(--brand-primary)' : 'var(--brand-muted)',
-        borderBottom: active ? '2px solid var(--brand-primary)' : '2px solid transparent',
+        color: active ? 'var(--primary)' : 'var(--text-muted)',
+        borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent',
       }}
     >
       {label}
       {count != null && (
         <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full"
-          style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+          style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
           {count}
         </span>
       )}
@@ -102,10 +102,10 @@ function TabButton({ label, active, onClick, count }: {
 function SummaryCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-xl px-4 py-3"
-      style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-      <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>{label}</div>
-      <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>{value}</div>
-      {sub && <div className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{sub}</div>}
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{label}</div>
+      <div className="text-sm font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{value}</div>
+      {sub && <div className="text-xs mt-0.5" style={{ color: 'var(--text-light)' }}>{sub}</div>}
     </div>
   )
 }
@@ -164,15 +164,15 @@ function TipoTab({ tipo }: { tipo: TipoContrato }) {
                   <Td>
                     <div className="flex items-center gap-2">
                       {isOpen
-                        ? <ChevronDown size={14} style={{ color: 'var(--brand-primary)' }} />
-                        : <ChevronRight size={14} style={{ color: 'var(--brand-muted)' }} />
+                        ? <ChevronDown size={14} style={{ color: 'var(--primary)' }} />
+                        : <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
                       }
-                      <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>
                         {cliente.nome}
                       </span>
                       {cliente.projetos.length > 1 && (
                         <span className="text-xs px-1.5 py-0.5 rounded-full"
-                          style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                          style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                           {cliente.projetos.length}
                         </span>
                       )}
@@ -186,12 +186,12 @@ function TipoTab({ tipo }: { tipo: TipoContrato }) {
                   )}
                   {isBH && (
                     <Td right className="tabular-nums text-xs"
-                      style={{ color: excTotal > 0 ? '#EF4444' : 'var(--brand-muted)' }}>
+                      style={{ color: excTotal > 0 ? '#EF4444' : 'var(--text-muted)' }}>
                       {excTotal > 0 ? formatBRL(excTotal) : '—'}
                     </Td>
                   )}
                   <Td right className="tabular-nums text-sm font-semibold"
-                    style={{ color: 'var(--brand-primary)' }}>
+                    style={{ color: 'var(--primary)' }}>
                     {formatBRL(cliente.total_receita)}
                   </Td>
                 </Tr>
@@ -200,8 +200,8 @@ function TipoTab({ tipo }: { tipo: TipoContrato }) {
                   <Tr key={`p-${p.projeto_id}`}>
                     <Td>
                       <div className="pl-8">
-                        <div className="text-xs" style={{ color: 'var(--brand-text)' }}>{p.nome}</div>
-                        <div className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{p.codigo}</div>
+                        <div className="text-xs" style={{ color: 'var(--text)' }}>{p.nome}</div>
+                        <div className="text-xs" style={{ color: 'var(--text-light)' }}>{p.codigo}</div>
                       </div>
                     </Td>
                     {!isClosed && (
@@ -210,21 +210,21 @@ function TipoTab({ tipo }: { tipo: TipoContrato }) {
                     {isBH && (
                       <Td right className="tabular-nums text-xs" muted>
                         {formatBRL(p.valor_mensal)}
-                        <div className="text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                        <div className="text-xs" style={{ color: 'var(--text-light)' }}>
                           {p.horas.toFixed(0)}h/{(p.horas > 0 ? p.valor_hora : 0).toFixed(0)} /h
                         </div>
                       </Td>
                     )}
                     {isBH && (
                       <Td right className="tabular-nums text-xs"
-                        style={{ color: p.excedente_horas > 0 ? '#EF4444' : 'var(--brand-subtle)' }}>
+                        style={{ color: p.excedente_horas > 0 ? '#EF4444' : 'var(--text-light)' }}>
                         {p.excedente_horas > 0
                           ? `${p.excedente_horas.toFixed(2)}h · ${formatBRL(p.excedente_valor)}`
                           : '—'}
                       </Td>
                     )}
                     <Td right className="tabular-nums text-xs font-semibold"
-                      style={{ color: 'var(--brand-primary)' }}>
+                      style={{ color: 'var(--primary)' }}>
                       {formatBRL(p.total_receita)}
                     </Td>
                   </Tr>
@@ -235,7 +235,7 @@ function TipoTab({ tipo }: { tipo: TipoContrato }) {
 
           {/* Linha de total */}
           <Tr>
-            <td className="px-5 py-3.5" style={{ color: 'var(--brand-text)' }}>
+            <td className="px-5 py-3.5" style={{ color: 'var(--text)' }}>
               <span className="font-bold">TOTAL</span>
             </td>
             {!isClosed && (
@@ -244,7 +244,7 @@ function TipoTab({ tipo }: { tipo: TipoContrato }) {
             {isBH && <Td right />}
             {isBH && <Td right />}
             <Td right className="tabular-nums text-base font-bold"
-              style={{ color: 'var(--brand-primary)' }}>
+              style={{ color: 'var(--primary)' }}>
               {formatBRL(tipo.total_receita)}
             </Td>
           </Tr>
@@ -273,7 +273,7 @@ function ResumoTab({ data }: { data: ContratoData }) {
             <Tr key={t.code}>
               <Td>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text)' }}>
                     {t.nome}
                   </span>
                 </div>
@@ -283,18 +283,18 @@ function ResumoTab({ data }: { data: ContratoData }) {
                 {t.code === 'closed' ? '—' : `${t.total_horas.toFixed(2)}h`}
               </Td>
               <Td right className="tabular-nums font-semibold"
-                style={{ color: 'var(--brand-primary)' }}>
+                style={{ color: 'var(--primary)' }}>
                 {formatBRL(t.total_receita)}
               </Td>
             </Tr>
           ))}
           <Tr>
-            <td colSpan={3} className="px-5 py-3.5" style={{ color: 'var(--brand-text)' }}>
+            <td colSpan={3} className="px-5 py-3.5" style={{ color: 'var(--text)' }}>
               <span className="text-base font-bold">TOTAL GERAL</span>
             </td>
             <Td right>
               <span className="text-base tabular-nums font-bold"
-                style={{ color: 'var(--brand-primary)' }}>
+                style={{ color: 'var(--primary)' }}>
                 {formatBRL(data.total_geral)}
               </span>
             </Td>
@@ -354,14 +354,14 @@ export default function FechamentoContratosPage() {
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
 
         {/* Header */}
-        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex flex-wrap items-center gap-3">
-            <FileText size={20} style={{ color: 'var(--brand-primary)' }} />
-            <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>
+            <FileText size={20} style={{ color: 'var(--primary)' }} />
+            <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
               Fechamento — Por Contrato
             </h1>
             {yearMonth && (
-              <span className="text-sm" style={{ color: 'var(--brand-muted)' }}>
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
                 {fmtYearMonth(yearMonth)}
               </span>
             )}
@@ -396,7 +396,7 @@ export default function FechamentoContratosPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 px-4 md:px-6 border-b overflow-x-auto"
-          style={{ borderColor: 'var(--brand-border)' }}>
+          style={{ borderColor: 'var(--border)' }}>
           {tabs.map(t => (
             <TabButton
               key={t.code}

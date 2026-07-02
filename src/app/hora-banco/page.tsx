@@ -94,11 +94,11 @@ function CurrentMonthCard({
   const [notes, setNotes] = useState('')
 
   return (
-    <div className="rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+    <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <CalendarDays size={15} color="var(--brand-primary)" />
-          <span className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>
+          <CalendarDays size={15} color="var(--primary)" />
+          <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
             {fmtMonth(data.year_month)}
           </span>
           {data.status === 'open'
@@ -114,13 +114,13 @@ function CurrentMonthCard({
               placeholder="Observação (opcional)"
               rows={1}
               className="text-xs px-3 py-1.5 rounded-xl resize-none outline-none"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)', width: '220px' }}
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)', width: '220px' }}
             />
             <button
               onClick={() => onClose()}
               disabled={closing}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:opacity-90 disabled:opacity-40"
-              style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
+              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
             >
               <Lock size={11} />
               {closing ? 'Fechando...' : 'Fechar Mês'}
@@ -131,15 +131,15 @@ function CurrentMonthCard({
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Horas Previstas', value: fmt(data.expected_hours), sub: `${data.working_days} dias úteis`, color: 'var(--brand-muted)' },
-          { label: 'Horas Trabalhadas', value: fmt(data.worked_hours), sub: '', color: 'var(--brand-text)' },
+          { label: 'Horas Previstas', value: fmt(data.expected_hours), sub: `${data.working_days} dias úteis`, color: 'var(--text-muted)' },
+          { label: 'Horas Trabalhadas', value: fmt(data.worked_hours), sub: '', color: 'var(--text)' },
           { label: 'Saldo do Mês', value: fmt(data.month_balance), sub: '', color: data.month_balance >= 0 ? 'var(--success-border)' : 'var(--danger-border)' },
-          { label: 'Saldo Anterior', value: fmt(data.previous_balance), sub: '', color: data.previous_balance >= 0 ? 'var(--success-border)' : data.previous_balance < 0 ? 'var(--danger-border)' : 'var(--brand-muted)' },
+          { label: 'Saldo Anterior', value: fmt(data.previous_balance), sub: '', color: data.previous_balance >= 0 ? 'var(--success-border)' : data.previous_balance < 0 ? 'var(--danger-border)' : 'var(--text-muted)' },
         ].map(item => (
-          <div key={item.label} className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{item.label}</p>
+          <div key={item.label} className="rounded-xl p-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>{item.label}</p>
             <p className="text-xl font-bold" style={{ color: item.color }}>{item.value}</p>
-            {item.sub && <p className="text-[10px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{item.sub}</p>}
+            {item.sub && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>{item.sub}</p>}
           </div>
         ))}
       </div>
@@ -148,11 +148,11 @@ function CurrentMonthCard({
       <div className="mt-3 rounded-xl px-4 py-3 flex items-center justify-between"
         style={{ background: data.paid_hours > 0 ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${data.paid_hours > 0 ? 'var(--success-border)' : 'var(--danger-border)'}` }}>
         <div>
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Saldo Acumulado</p>
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Saldo Acumulado</p>
           <BalancePill value={data.accumulated_balance} size="lg" />
         </div>
         <div className="text-right">
-          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+          <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
             {data.paid_hours > 0 ? 'Horas a Pagar' : 'Saldo Final'}
           </p>
           {data.paid_hours > 0
@@ -174,23 +174,23 @@ function HistoryRow({ row, onReopen }: { row: HourBankClosing; onReopen: (ym: st
     <>
       <tr
         className="border-b cursor-pointer hover:bg-[var(--surface-hover)] transition-colors"
-        style={{ borderColor: 'var(--brand-border)' }}
+        style={{ borderColor: 'var(--border)' }}
         onClick={() => setOpen(o => !o)}
       >
-        <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+        <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--text)' }}>
           <span className="flex items-center gap-1.5">
             {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             {fmtMonth(row.year_month)}
           </span>
         </td>
-        <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--brand-muted)' }}>{fmt(row.expected_hours)}</td>
-        <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--brand-text)' }}>{fmt(row.worked_hours)}</td>
+        <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--text-muted)' }}>{fmt(row.expected_hours)}</td>
+        <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--text)' }}>{fmt(row.worked_hours)}</td>
         <td className="px-4 py-3 text-center"><BalancePill value={row.month_balance} /></td>
         <td className="px-4 py-3 text-center"><BalancePill value={row.previous_balance} /></td>
         <td className="px-4 py-3 text-center">
           {row.paid_hours > 0
             ? <span className="text-xs font-semibold text-[var(--success)]">{fmt(row.paid_hours)}</span>
-            : <span style={{ color: 'var(--brand-subtle)' }} className="text-xs">—</span>
+            : <span style={{ color: 'var(--text-light)' }} className="text-xs">—</span>
           }
         </td>
         <td className="px-4 py-3 text-center"><BalancePill value={row.final_balance} /></td>
@@ -202,9 +202,9 @@ function HistoryRow({ row, onReopen }: { row: HourBankClosing; onReopen: (ym: st
         </td>
       </tr>
       {open && (
-        <tr style={{ background: 'var(--surface-sunken)', borderBottom: `1px solid var(--brand-border)` }}>
+        <tr style={{ background: 'var(--surface-sunken)', borderBottom: `1px solid var(--border)` }}>
           <td colSpan={8} className="px-6 py-3">
-            <div className="flex items-start gap-6 text-xs" style={{ color: 'var(--brand-muted)' }}>
+            <div className="flex items-start gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
               <span><span className="text-[var(--text-light)]">Dias úteis:</span> {row.working_days}</span>
               <span><span className="text-[var(--text-light)]">Feriados:</span> {row.holidays_count}</span>
               <span><span className="text-[var(--text-light)]">H/dia:</span> {row.daily_hours}h</span>
@@ -310,12 +310,12 @@ export default function HoraBancoPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>Banco de Horas — Consultores</h1>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+            <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Banco de Horas — Consultores</h1>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-light)' }}>
               Acompanhamento mensal de horas previstas, trabalhadas e saldo acumulado
             </p>
           </div>
-          <button onClick={() => setRefreshKey(k => k + 1)} className="p-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-subtle)' }}>
+          <button onClick={() => setRefreshKey(k => k + 1)} className="p-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-light)' }}>
             <RefreshCw size={14} />
           </button>
         </div>
@@ -323,29 +323,29 @@ export default function HoraBancoPage() {
         <div className="flex gap-6">
           {/* ── Sidebar: lista de consultores ── */}
           <div className="w-64 shrink-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--brand-subtle)' }}>Consultores</p>
-            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)', background: 'var(--brand-surface)' }}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-1" style={{ color: 'var(--text-light)' }}>Consultores</p>
+            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
               {loadingConsultants ? (
                 <div className="p-3 space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}</div>
               ) : consultants.length === 0 ? (
-                <p className="text-xs text-center py-6" style={{ color: 'var(--brand-subtle)' }}>Nenhum consultor</p>
+                <p className="text-xs text-center py-6" style={{ color: 'var(--text-light)' }}>Nenhum consultor</p>
               ) : consultants.map(c => (
                 <button
                   key={c.id}
                   onClick={() => setSelected(c)}
                   className="w-full flex items-start gap-2.5 px-3 py-3 text-left transition-colors border-b last:border-0"
                   style={{
-                    borderColor: 'var(--brand-border)',
+                    borderColor: 'var(--border)',
                     background: selected?.id === c.id ? 'var(--primary-soft)' : 'transparent',
                   }}
                 >
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5"
-                    style={{ background: selected?.id === c.id ? 'var(--primary-soft)' : 'var(--surface-hover)', color: selected?.id === c.id ? 'var(--brand-primary)' : 'var(--brand-muted)' }}>
+                    style={{ background: selected?.id === c.id ? 'var(--primary-soft)' : 'var(--surface-hover)', color: selected?.id === c.id ? 'var(--primary)' : 'var(--text-muted)' }}>
                     {c.name.charAt(0)}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-xs font-medium truncate" style={{ color: selected?.id === c.id ? 'var(--brand-primary)' : 'var(--brand-text)' }}>{c.name}</p>
-                    <p className="text-[10px] mt-0.5" style={{ color: c.current_balance < 0 ? 'var(--danger-border)' : c.current_balance > 0 ? 'var(--success-border)' : 'var(--brand-subtle)' }}>
+                    <p className="text-xs font-medium truncate" style={{ color: selected?.id === c.id ? 'var(--primary)' : 'var(--text)' }}>{c.name}</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: c.current_balance < 0 ? 'var(--danger-border)' : c.current_balance > 0 ? 'var(--success-border)' : 'var(--text-light)' }}>
                       {c.current_balance !== 0 ? fmt(c.current_balance) : 'Zerado'}
                     </p>
                   </div>
@@ -357,9 +357,9 @@ export default function HoraBancoPage() {
           {/* ── Conteúdo ── */}
           <div className="flex-1 min-w-0 space-y-5">
             {!selected ? (
-              <div className="flex flex-col items-center justify-center py-20 rounded-2xl" style={{ border: '1px dashed var(--brand-border)' }}>
-                <User size={32} style={{ color: 'var(--brand-subtle)' }} />
-                <p className="mt-3 text-sm" style={{ color: 'var(--brand-subtle)' }}>Selecione um consultor para ver o banco de horas</p>
+              <div className="flex flex-col items-center justify-center py-20 rounded-2xl" style={{ border: '1px dashed var(--border)' }}>
+                <User size={32} style={{ color: 'var(--text-light)' }} />
+                <p className="mt-3 text-sm" style={{ color: 'var(--text-light)' }}>Selecione um consultor para ver o banco de horas</p>
               </div>
             ) : loadingData ? (
               <div className="space-y-4">
@@ -374,18 +374,18 @@ export default function HoraBancoPage() {
                 )}
 
                 {/* Histórico */}
-                <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ border: '1px solid var(--brand-border)' }}>
-                  <div className="px-4 py-3 border-b" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                    <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Histórico de Fechamentos</p>
+                <div className="rounded-2xl overflow-x-auto overflow-y-clip" style={{ border: '1px solid var(--border)' }}>
+                  <div className="px-4 py-3 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Histórico de Fechamentos</p>
                   </div>
                   {history.length === 0 ? (
-                    <p className="text-xs text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Nenhum fechamento registrado</p>
+                    <p className="text-xs text-center py-8" style={{ color: 'var(--text-light)' }}>Nenhum fechamento registrado</p>
                   ) : (
-                      <table className="w-full text-xs" style={{ background: 'var(--brand-surface)' }}>
-                        <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--brand-border)' }}>
+                      <table className="w-full text-xs" style={{ background: 'var(--surface)' }}>
+                        <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border)' }}>
                           <tr>
                             {['Mês', 'Previsto', 'Trabalhado', 'Saldo Mês', 'Saldo Ant.', 'Pago', 'Saldo Final', 'Status'].map(h => (
-                              <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                              <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--text-light)' }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
@@ -399,7 +399,7 @@ export default function HoraBancoPage() {
                 </div>
 
                 {/* Legenda */}
-                <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--brand-subtle)' }}>
+                <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--text-light)' }}>
                   <span className="flex items-center gap-1"><TrendingUp size={10} className="text-[var(--success)]" /> Saldo positivo</span>
                   <span className="flex items-center gap-1"><TrendingDown size={10} className="text-[var(--danger)]" /> Saldo negativo</span>
                   <span className="flex items-center gap-1"><Minus size={10} className="text-[var(--text-light)]" /> Zerado</span>

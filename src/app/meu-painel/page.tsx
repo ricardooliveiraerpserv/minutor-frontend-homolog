@@ -184,35 +184,35 @@ function RecebimentoFechamentoBlock({ closing }: { closing: MyClosing | null }) 
   const temAjustes = closing.desconto !== 0 || closing.adiantamento !== 0 || closing.adicional !== 0
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)', background: 'var(--brand-surface)' }}>
-      <div className="px-5 py-3.5 border-b flex items-center gap-2" style={{ borderColor: 'var(--brand-border)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+      <div className="px-5 py-3.5 border-b flex items-center gap-2" style={{ borderColor: 'var(--border)' }}>
         <DollarSign size={15} style={{ color: 'var(--primary)' }} />
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Recebimento do fechamento</h3>
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Recebimento do fechamento</h3>
       </div>
 
       <div className="px-5 py-4 space-y-2.5">
         {/* Total do fechamento (serviço) */}
         <div className="flex items-center justify-between text-sm">
-          <span style={{ color: 'var(--brand-muted)' }}>Total do fechamento</span>
-          <span className="font-semibold tabular-nums" style={{ color: 'var(--brand-text)' }}>{formatBRL(closing.total_servico)}</span>
+          <span style={{ color: 'var(--text-muted)' }}>Total do fechamento</span>
+          <span className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{formatBRL(closing.total_servico)}</span>
         </div>
 
         {/* Despesa do mês (entra no recebimento) */}
         {closing.total_despesas > 0 && (
           <div className="flex items-center justify-between text-sm">
-            <span style={{ color: 'var(--brand-muted)' }}>+ Despesa</span>
+            <span style={{ color: 'var(--text-muted)' }}>+ Despesa</span>
             <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--success)' }}>+ {formatBRL(closing.total_despesas)}</span>
           </div>
         )}
 
         {temAjustes && (
-          <div className="space-y-2 pt-1 mt-1 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="space-y-2 pt-1 mt-1 border-t" style={{ borderColor: 'var(--border)' }}>
             {closing.desconto !== 0 && (
               <div className="flex items-start justify-between text-sm">
                 <div className="min-w-0">
-                  <span style={{ color: 'var(--brand-muted)' }}>− Desconto</span>
+                  <span style={{ color: 'var(--text-muted)' }}>− Desconto</span>
                   {closing.desconto_desc && (
-                    <p className="text-[11px] mt-0.5 break-words" style={{ color: 'var(--brand-subtle)' }}>{closing.desconto_desc}</p>
+                    <p className="text-[11px] mt-0.5 break-words" style={{ color: 'var(--text-light)' }}>{closing.desconto_desc}</p>
                   )}
                 </div>
                 <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--danger)' }}>− {formatBRL(closing.desconto)}</span>
@@ -220,16 +220,16 @@ function RecebimentoFechamentoBlock({ closing }: { closing: MyClosing | null }) 
             )}
             {closing.adiantamento !== 0 && (
               <div className="flex items-start justify-between text-sm">
-                <span style={{ color: 'var(--brand-muted)' }}>− Adiantamento</span>
+                <span style={{ color: 'var(--text-muted)' }}>− Adiantamento</span>
                 <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--danger)' }}>− {formatBRL(closing.adiantamento)}</span>
               </div>
             )}
             {closing.adicional !== 0 && (
               <div className="flex items-start justify-between text-sm">
                 <div className="min-w-0">
-                  <span style={{ color: 'var(--brand-muted)' }}>+ Adicional</span>
+                  <span style={{ color: 'var(--text-muted)' }}>+ Adicional</span>
                   {closing.adicional_desc && (
-                    <p className="text-[11px] mt-0.5 break-words" style={{ color: 'var(--brand-subtle)' }}>{closing.adicional_desc}</p>
+                    <p className="text-[11px] mt-0.5 break-words" style={{ color: 'var(--text-light)' }}>{closing.adicional_desc}</p>
                   )}
                 </div>
                 <span className="font-medium tabular-nums shrink-0 ml-3" style={{ color: 'var(--success)' }}>+ {formatBRL(closing.adicional)}</span>
@@ -239,8 +239,8 @@ function RecebimentoFechamentoBlock({ closing }: { closing: MyClosing | null }) 
         )}
 
         {/* Recebimento final em destaque */}
-        <div className="flex items-center justify-between pt-2.5 mt-1 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-          <span className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Recebimento</span>
+        <div className="flex items-center justify-between pt-2.5 mt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Recebimento</span>
           <span className="text-lg font-bold tabular-nums" style={{ color: 'var(--success)' }}>{formatBRL(closing.recebimento)}</span>
         </div>
       </div>
@@ -321,7 +321,7 @@ function HoristaPaymentSection({
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
-            <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
+            <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--text-muted)' }}>
               {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
             </p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
@@ -389,7 +389,7 @@ function FixoPaymentSection({
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
-            <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
+            <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--text-muted)' }}>
               {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
             </p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
@@ -442,7 +442,7 @@ function ParceiroSimplesSection({
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-lg p-2.5 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[9px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
-            <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
+            <p className="text-sm font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--text-muted)' }}>
               {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
             </p>
             <p className="text-[9px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
@@ -501,7 +501,7 @@ function HBPaymentSection({ data, fixedSalary, expTotal, expPaid, showExtras = t
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl p-3 border border-[var(--border)] bg-[var(--surface)]">
             <p className="text-[10px] uppercase tracking-wider mb-1 text-[var(--text-light)]">Total no Mês</p>
-            <p className="text-base font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--brand-muted)' }}>
+            <p className="text-base font-bold" style={{ color: expAllTotal > 0 ? '#f97316' : 'var(--text-muted)' }}>
               {expAllTotal > 0 ? formatBRL(expAllTotal) : '—'}
             </p>
             <p className="text-[10px] mt-0.5 text-[var(--text-muted)]">reembolsos e gastos</p>
@@ -633,24 +633,24 @@ function HBHistoryRow({ row }: { row: HourBankMonth }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <tr className="border-b cursor-pointer hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--brand-border)' }}
+      <tr className="border-b cursor-pointer hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--border)' }}
         onClick={() => setOpen(o => !o)}>
-        <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+        <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--text)' }}>
           <span className="flex items-center gap-1.5">
             {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             {fmtYearMonth(row.year_month)}
           </span>
         </td>
-        <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--brand-muted)' }}>{fmtHours(row.expected_hours)}</td>
-        <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--brand-text)' }}>{fmtHours(row.worked_hours)}</td>
+        <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--text-muted)' }}>{fmtHours(row.expected_hours)}</td>
+        <td className="px-4 py-3 text-sm text-center" style={{ color: 'var(--text)' }}>{fmtHours(row.worked_hours)}</td>
         <td className="px-4 py-3 text-center"><HBBalancePill value={row.month_balance} /></td>
         <td className="px-4 py-3 text-center"><HBBalancePill value={row.previous_balance} /></td>
         <td className="px-4 py-3 text-center"><HBBalancePill value={row.final_balance} /></td>
       </tr>
       {open && (
-        <tr style={{ background: 'rgba(255,255,255,0.015)', borderBottom: `1px solid var(--brand-border)` }}>
+        <tr style={{ background: 'rgba(255,255,255,0.015)', borderBottom: `1px solid var(--border)` }}>
           <td colSpan={6} className="px-6 py-3">
-            <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--brand-muted)' }}>
+            <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
               <span><span className="text-[var(--text-light)]">Dias úteis:</span> {row.working_days}</span>
               <span><span className="text-[var(--text-light)]">Feriados:</span> {row.holidays_count}</span>
               <span><span className="text-[var(--text-light)]">H/dia:</span> {row.daily_hours}h</span>
@@ -707,12 +707,12 @@ function ReceiptLinkInline({ url, label = 'Visualizar' }: { url: string; label?:
     <div className="flex items-center gap-2">
       <button type="button" onClick={() => handle(false)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}>
         <Eye size={11} /> {loading ? 'Carregando...' : label}
       </button>
       <button type="button" onClick={() => handle(true)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-subtle)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-light)', border: '1px solid rgba(255,255,255,0.1)' }}>
         <Download size={11} /> Baixar
       </button>
     </div>
@@ -746,15 +746,15 @@ function InfoRowModal({ icon: Icon, label, value, children, last }: {
 }) {
   return (
     <div className={`flex items-start gap-3 px-4 py-3 ${!last ? 'border-b' : ''}`}
-      style={ !last ? { borderColor: 'var(--brand-border)' } : undefined }>
+      style={ !last ? { borderColor: 'var(--border)' } : undefined }>
       <span className="mt-0.5 shrink-0 p-1.5 rounded-lg"
-        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
         <Icon size={11} />
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
+        <p className="text-[10px] uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-light)' }}>{label}</p>
         {children ?? (
-          <p className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>{value ?? '—'}</p>
+          <p className="text-xs font-medium" style={{ color: 'var(--text)' }}>{value ?? '—'}</p>
         )}
       </div>
     </div>
@@ -1428,28 +1428,28 @@ function SearchSelectField({ label, value, onChange, options, placeholder, requi
       <Label className="text-xs text-[var(--text-muted)]">{label}{required && ' *'}</Label>
       <button type="button" onClick={() => setOpen(o => !o)}
         className="mt-1.5 w-full flex items-center justify-between gap-2 px-2.5 rounded-lg text-xs outline-none text-left h-9"
-        style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: selected ? 'var(--brand-text)' : 'var(--brand-subtle)' }}>
+        style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: selected ? 'var(--text)' : 'var(--text-light)' }}>
         <span className="truncate">{selected ? selected.name : placeholder}</span>
-        <ChevronRight size={12} className="rotate-90 shrink-0" style={{ color: 'var(--brand-subtle)' }} />
+        <ChevronRight size={12} className="rotate-90 shrink-0" style={{ color: 'var(--text-light)' }} />
       </button>
       {open && (
         <div className="absolute top-full mt-1 left-0 z-50 w-full rounded-xl shadow-2xl overflow-hidden"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-          <div className="p-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
             <input ref={inputRef} value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar..."
               className="w-full px-3 py-1.5 rounded-lg text-xs outline-none"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
           <div className="max-h-48 overflow-y-auto">
             <button type="button" onClick={() => { onChange(''); setOpen(false) }}
               className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-              style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>{placeholder}</button>
+              style={{ color: !value ? 'var(--primary)' : 'var(--text-light)' }}>{placeholder}</button>
             {filtered.length === 0
-              ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
+              ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>Nenhum resultado</p>
               : filtered.map(o => (
                 <button key={o.id} type="button" onClick={() => { onChange(String(o.id)); setOpen(false) }}
                   className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-                  style={{ color: String(o.id) === value ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
+                  style={{ color: String(o.id) === value ? 'var(--primary)' : 'var(--text)' }}>
                   {o.name}
                 </button>
               ))}
@@ -1545,9 +1545,9 @@ function MinhasNotasFiscaisCard({ userId }: { userId: number }) {
   if (isPj !== true) return null // não-PJ ou ainda carregando: não mostra
 
   return (
-    <div className="mb-4 rounded-xl border p-4" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+    <div className="mb-4 rounded-xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
       <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Minhas Notas Fiscais (PJ)</h3>
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Minhas Notas Fiscais (PJ)</h3>
         <input
           type="month"
           value={ym}
@@ -2295,7 +2295,7 @@ export default function MeuPainelPage() {
       <div
         ref={stickyHeaderRef}
         className="sticky top-0 z-20 -mx-8 px-8 border-b"
-        style={{ background: 'var(--bg)', borderColor: 'var(--brand-border)' }}
+        style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}
       >
         {/* Header row */}
         <div className="flex items-center justify-between py-3 gap-3 flex-wrap">
@@ -2303,7 +2303,7 @@ export default function MeuPainelPage() {
           {/* Period selector */}
           <div
             className="flex items-center gap-1 rounded-lg border px-1.5 py-1"
-            style={{ background: 'var(--surface)', borderColor: 'var(--brand-border)' }}
+            style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
           >
             <button onClick={prevMonth}
               className="p-1.5 rounded transition-colors"
@@ -2332,7 +2332,7 @@ export default function MeuPainelPage() {
             </Button>
             <Button onClick={openCreateExp} variant="outline"
               className="h-9 px-4 text-xs gap-2"
-              style={{ borderColor: 'var(--brand-border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
+              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)', background: 'var(--surface)' }}>
               <Receipt size={13} />
               Despesa
             </Button>
@@ -2340,7 +2340,7 @@ export default function MeuPainelPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-0.5 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex gap-0.5 border-b overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
           {TABS.map(tab => {
             const Icon = tab.icon
             const active = validTab === tab.id
@@ -3503,17 +3503,17 @@ export default function MeuPainelPage() {
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold" style={{ color: 'var(--brand-text)' }}>
+              <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
                 {isHorista ? 'Horas & Remuneração' : isFixo ? 'Remuneração Fixo' : 'Banco de Horas'}
               </h2>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-light)' }}>
                 {isHorista || isFixo
                   ? `Horas trabalhadas e remuneração — ${MONTHS[month]} ${year}`
                   : `Horas previstas, trabalhadas e saldo acumulado — ${MONTHS[month]} ${year}`}
               </p>
             </div>
             {!isHorista && !isFixo && (
-              <button onClick={() => setHbKey(k => k + 1)} className="p-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-subtle)' }}>
+              <button onClick={() => setHbKey(k => k + 1)} className="p-2 rounded-lg hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-light)' }}>
                 <RefreshCw size={14} />
               </button>
             )}
@@ -3525,12 +3525,12 @@ export default function MeuPainelPage() {
           {isFixo ? (
             /* ── Fixo: valor mensal fixo + horas trabalhadas (sem extras) ── */
             timesheets.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl" style={{ border: '1px dashed var(--brand-border)' }}>
-                <Clock size={28} style={{ color: 'var(--brand-subtle)' }} />
-                <p className="mt-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+              <div className="flex flex-col items-center justify-center py-16 rounded-2xl" style={{ border: '1px dashed var(--border)' }}>
+                <Clock size={28} style={{ color: 'var(--text-light)' }} />
+                <p className="mt-3 text-sm font-medium" style={{ color: 'var(--text)' }}>
                   Nenhum apontamento no período
                 </p>
-                <p className="mt-1 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                <p className="mt-1 text-xs" style={{ color: 'var(--text-light)' }}>
                   {MONTHS[month]} {year}
                 </p>
               </div>
@@ -3546,19 +3546,19 @@ export default function MeuPainelPage() {
                 )}
 
                 {/* Apontamentos do período */}
-                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                  <div className="px-4 py-3 border-b" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                    <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>
+                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                  <div className="px-4 py-3 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
                       Apontamentos do Período — {timesheets.length} registro{timesheets.length !== 1 ? 's' : ''}
                     </p>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs" style={{ background: 'var(--brand-surface)' }}>
-                      <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--brand-border)' }}>
+                    <table className="w-full text-xs" style={{ background: 'var(--surface)' }}>
+                      <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
                         <tr>
                           <th className="px-2 py-2.5 w-10" />
                           {['Data', 'Projeto', 'Horas', 'Status'].map(h => (
-                            <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                            <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--text-light)' }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -3567,7 +3567,7 @@ export default function MeuPainelPage() {
                           const hrs = ts.effort_minutes / 60
                           const locked = isLocked(ts.status)
                           return (
-                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--brand-border)' }}>
+                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--border)' }}>
                               <td className="px-2 py-2.5 w-10">
                                 <RowMenu items={[
                                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
@@ -3581,9 +3581,9 @@ export default function MeuPainelPage() {
                                   ] : []),
                                 ]} />
                               </td>
-                              <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--brand-text)' }}>{fmt(ts.date)}</td>
-                              <td className="px-4 py-2.5 text-center max-w-[280px] truncate" style={{ color: 'var(--brand-muted)' }}>{ts.project?.name ?? '—'}</td>
-                              <td className="px-4 py-2.5 text-center font-mono" style={{ color: 'var(--brand-text)' }}>{fmtHours(hrs)}</td>
+                              <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--text)' }}>{fmt(ts.date)}</td>
+                              <td className="px-4 py-2.5 text-center max-w-[280px] truncate" style={{ color: 'var(--text-muted)' }}>{ts.project?.name ?? '—'}</td>
+                              <td className="px-4 py-2.5 text-center font-mono" style={{ color: 'var(--text)' }}>{fmtHours(hrs)}</td>
                               <td className="px-4 py-2.5 text-center">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                                   ts.status === 'approved' ? 'bg-[var(--success-bg)] text-[var(--success)]' :
@@ -3604,7 +3604,7 @@ export default function MeuPainelPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--brand-subtle)' }}>
+                <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--text-light)' }}>
                   {!isParceiroSimples && <span>Valor fixo: {hourlyRate > 0 ? formatBRL(hourlyRate) : '—'}/mês</span>}
                   <span className="ml-auto">Total trabalhado: {fmtHours(workedHours)}</span>
                 </div>
@@ -3613,12 +3613,12 @@ export default function MeuPainelPage() {
           ) : isHorista ? (
             /* ── Horista: view baseada nos apontamentos já carregados ── */
             timesheets.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl" style={{ border: '1px dashed var(--brand-border)' }}>
-                <Clock size={28} style={{ color: 'var(--brand-subtle)' }} />
-                <p className="mt-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+              <div className="flex flex-col items-center justify-center py-16 rounded-2xl" style={{ border: '1px dashed var(--border)' }}>
+                <Clock size={28} style={{ color: 'var(--text-light)' }} />
+                <p className="mt-3 text-sm font-medium" style={{ color: 'var(--text)' }}>
                   Nenhum apontamento no período
                 </p>
-                <p className="mt-1 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                <p className="mt-1 text-xs" style={{ color: 'var(--text-light)' }}>
                   {MONTHS[month]} {year}
                 </p>
               </div>
@@ -3640,19 +3640,19 @@ export default function MeuPainelPage() {
                 )}
 
                 {/* Apontamentos do período */}
-                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                  <div className="px-4 py-3 border-b" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                    <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>
+                <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                  <div className="px-4 py-3 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
                       Apontamentos do Período — {timesheets.length} registro{timesheets.length !== 1 ? 's' : ''}
                     </p>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-xs" style={{ background: 'var(--brand-surface)' }}>
-                      <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--brand-border)' }}>
+                    <table className="w-full text-xs" style={{ background: 'var(--surface)' }}>
+                      <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
                         <tr>
                           <th className="px-2 py-2.5 w-10" />
                           {['Data', 'Projeto', 'Horas', ...(isParceiroSimples ? [] : ['Valor']), 'Status'].map(h => (
-                            <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                            <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--text-light)' }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -3662,7 +3662,7 @@ export default function MeuPainelPage() {
                           const val = effectiveRate > 0 ? hrs * effectiveRate : null
                           const locked = isLocked(ts.status)
                           return (
-                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--brand-border)' }}>
+                            <tr key={ts.id} {...hover.bind(ts)} className="border-b hover:bg-[var(--surface-hover)] transition-colors" style={{ borderColor: 'var(--border)' }}>
                               <td className="px-2 py-2.5 w-10">
                                 <RowMenu items={[
                                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setTsViewItem(ts) },
@@ -3676,10 +3676,10 @@ export default function MeuPainelPage() {
                                   ] : []),
                                 ]} />
                               </td>
-                              <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--brand-text)' }}>{fmt(ts.date)}</td>
-                              <td className="px-4 py-2.5 text-center max-w-[280px] truncate" style={{ color: 'var(--brand-muted)' }}>{ts.project?.name ?? '—'}</td>
-                              <td className="px-4 py-2.5 text-center font-mono" style={{ color: 'var(--brand-text)' }}>{fmtHours(hrs)}</td>
-                              {!isParceiroSimples && <td className="px-4 py-2.5 text-center font-mono" style={{ color: val ? '#22c55e' : 'var(--brand-subtle)' }}>{val ? formatBRL(val) : '—'}</td>}
+                              <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--text)' }}>{fmt(ts.date)}</td>
+                              <td className="px-4 py-2.5 text-center max-w-[280px] truncate" style={{ color: 'var(--text-muted)' }}>{ts.project?.name ?? '—'}</td>
+                              <td className="px-4 py-2.5 text-center font-mono" style={{ color: 'var(--text)' }}>{fmtHours(hrs)}</td>
+                              {!isParceiroSimples && <td className="px-4 py-2.5 text-center font-mono" style={{ color: val ? '#22c55e' : 'var(--text-light)' }}>{val ? formatBRL(val) : '—'}</td>}
                               <td className="px-4 py-2.5 text-center">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                                   ts.status === 'approved' ? 'bg-[var(--success-bg)] text-[var(--success)]' :
@@ -3700,7 +3700,7 @@ export default function MeuPainelPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--brand-subtle)' }}>
+                <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--text-light)' }}>
                   {!isParceiroSimples && <span>Taxa: {hourlyRate > 0 ? formatBRL(hourlyRate) : '—'}/h</span>}
                   {!isParceiroSimples && guaranteedHours !== null && <span>Garantido: {fmtHours(Number(guaranteedHours))}/mês</span>}
                   <span className="ml-auto">Total faturável: {fmtHours(billableHours)}</span>
@@ -3715,12 +3715,12 @@ export default function MeuPainelPage() {
                 <Skeleton className="h-64 w-full rounded-2xl" />
               </div>
             ) : !hbCurrent && hbStartDate ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-2xl" style={{ border: '1px dashed var(--brand-border)' }}>
-                <CalendarDays size={28} style={{ color: 'var(--brand-subtle)' }} />
-                <p className="mt-3 text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+              <div className="flex flex-col items-center justify-center py-16 rounded-2xl" style={{ border: '1px dashed var(--border)' }}>
+                <CalendarDays size={28} style={{ color: 'var(--text-light)' }} />
+                <p className="mt-3 text-sm font-medium" style={{ color: 'var(--text)' }}>
                   Banco de horas não iniciado neste período
                 </p>
-                <p className="mt-1 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                <p className="mt-1 text-xs" style={{ color: 'var(--text-light)' }}>
                   Inicia em {fmtYearMonth(hbStartDate.substring(0, 7))}
                 </p>
               </div>
@@ -3744,16 +3744,16 @@ export default function MeuPainelPage() {
                 )}
 
                 {hbHistory.length > 0 && (
-                  <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-                    <div className="px-4 py-3 border-b" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
-                      <p className="text-xs font-semibold" style={{ color: 'var(--brand-muted)' }}>Meses Anteriores</p>
+                  <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                    <div className="px-4 py-3 border-b" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+                      <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Meses Anteriores</p>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-xs" style={{ background: 'var(--brand-surface)' }}>
-                        <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--brand-border)' }}>
+                      <table className="w-full text-xs" style={{ background: 'var(--surface)' }}>
+                        <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
                           <tr>
                             {['Mês', 'Previsto', 'Trabalhado', 'Saldo Mês', 'Saldo Ant.', 'Saldo Final'].map(h => (
-                              <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--brand-subtle)' }}>{h}</th>
+                              <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--text-light)' }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
@@ -3767,7 +3767,7 @@ export default function MeuPainelPage() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--brand-subtle)' }}>
+                <div className="flex items-center gap-4 text-[10px] px-1" style={{ color: 'var(--text-light)' }}>
                   <span className="flex items-center gap-1"><TrendingUp size={10} className="text-[var(--success)]" /> Saldo positivo</span>
                   <span className="flex items-center gap-1"><TrendingDown size={10} className="text-[var(--danger)]" /> Saldo negativo</span>
                   <span className="flex items-center gap-1"><Minus size={10} className="text-[var(--text-light)]" /> Zerado</span>
@@ -3860,8 +3860,8 @@ export default function MeuPainelPage() {
                     onClick={() => setTsModeTotal(i === 1)}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={active
-                      ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                      : { background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }
+                      ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                      : { background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }
                     }>{label}</button>
                 )
               })}
@@ -4096,7 +4096,7 @@ export default function MeuPainelPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold text-white">Detalhes da Despesa</h3>
-                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>
                     #{expViewItem.id} · {fmt(expViewItem.expense_date)}
                   </p>
                 </div>
@@ -4111,7 +4111,7 @@ export default function MeuPainelPage() {
                   </span>
                   {expViewItem.category?.name && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
-                      style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+                      style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                       <Tag size={9} /> {expViewItem.category.name}
                     </span>
                   )}
@@ -4120,13 +4120,13 @@ export default function MeuPainelPage() {
                 {/* Valor hero */}
                 <div className="rounded-xl px-4 py-4"
                   style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)' }}>
-                  <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor Total</p>
+                  <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--text-light)' }}>Valor Total</p>
                   <p className="text-2xl font-bold" style={{ color: '#F97316' }}>{expViewItem.formatted_amount}</p>
                 </div>
 
                 {/* Info card */}
                 <div className="rounded-xl overflow-hidden"
-                  style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <InfoRowModal icon={CalendarDays} label="Data" value={fmt(expViewItem.expense_date)} />
                   {expViewItem.project?.customer?.name && (
                     <InfoRowModal icon={Building2} label="Cliente" value={expViewItem.project.customer.name} />
@@ -4135,7 +4135,7 @@ export default function MeuPainelPage() {
                   <InfoRowModal icon={Paperclip} label="Comprovante" last>
                     {expViewItem.receipt_url
                       ? <ReceiptLinkInline url={expViewItem.receipt_url} label="Visualizar Comprovante" />
-                      : <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Sem comprovante</span>
+                      : <span className="text-xs" style={{ color: 'var(--text-light)' }}>Sem comprovante</span>
                     }
                   </InfoRowModal>
                 </div>
@@ -4143,13 +4143,13 @@ export default function MeuPainelPage() {
                 {/* Descrição */}
                 {expViewItem.description && (
                   <div className="rounded-xl overflow-hidden"
-                    style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                     <div className="flex items-center gap-2 px-4 py-2.5"
-                      style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                      <FileText size={11} style={{ color: 'var(--brand-primary)' }} />
-                      <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'var(--brand-subtle)' }}>Descrição</span>
+                      style={{ borderBottom: '1px solid var(--border)' }}>
+                      <FileText size={11} style={{ color: 'var(--primary)' }} />
+                      <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'var(--text-light)' }}>Descrição</span>
                     </div>
-                    <p className="px-4 py-3 text-sm leading-relaxed" style={{ color: 'var(--brand-muted)' }}>
+                    <p className="px-4 py-3 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                       {expViewItem.description}
                     </p>
                   </div>
@@ -4184,12 +4184,12 @@ export default function MeuPainelPage() {
               {/* Header */}
               <div className="px-5 pt-5 pb-4 flex items-start gap-3">
                 <div className="p-2.5 rounded-xl shrink-0"
-                  style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                  style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                   <Clock size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold text-white">Detalhes do Apontamento</h3>
-                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--brand-subtle)' }}>
+                  <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>
                     #{tsViewItem.id} · {fmt(tsViewItem.date)}
                   </p>
                 </div>
@@ -4208,10 +4208,10 @@ export default function MeuPainelPage() {
                 {/* Horas hero */}
                 <div className="rounded-xl px-4 py-4"
                   style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
-                  <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--brand-subtle)' }}>Total de Horas</p>
-                  <p className="text-2xl font-bold font-mono" style={{ color: 'var(--brand-primary)' }}>{tsViewItem.effort_hours}</p>
+                  <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--text-light)' }}>Total de Horas</p>
+                  <p className="text-2xl font-bold font-mono" style={{ color: 'var(--primary)' }}>{tsViewItem.effort_hours}</p>
                   {tsViewItem.start_time && tsViewItem.end_time && (
-                    <p className="text-[11px] mt-1 font-mono" style={{ color: 'var(--brand-muted)' }}>
+                    <p className="text-[11px] mt-1 font-mono" style={{ color: 'var(--text-muted)' }}>
                       {tsViewItem.start_time} → {tsViewItem.end_time}
                     </p>
                   )}
@@ -4219,7 +4219,7 @@ export default function MeuPainelPage() {
 
                 {/* Info card */}
                 <div className="rounded-xl overflow-hidden"
-                  style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   <InfoRowModal icon={CalendarDays} label="Data" value={fmt(tsViewItem.date)} />
                   {tsViewItem.project?.customer?.name && (
                     <InfoRowModal icon={Building2} label="Cliente" value={tsViewItem.project.customer.name} />
@@ -4233,7 +4233,7 @@ export default function MeuPainelPage() {
                   <InfoRowModal icon={Paperclip} label="Anexo" last>
                     {tsViewItem.attachment_url
                       ? <ReceiptLinkInline url={tsViewItem.attachment_url} label="Visualizar Anexo" />
-                      : <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Sem anexo</span>
+                      : <span className="text-xs" style={{ color: 'var(--text-light)' }}>Sem anexo</span>
                     }
                   </InfoRowModal>
                 </div>
@@ -4241,28 +4241,28 @@ export default function MeuPainelPage() {
                 {/* Observação */}
                 {tsViewItem.observation && (
                   <div className="rounded-xl overflow-hidden"
-                    style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                     <div className="flex items-center gap-2 px-4 py-2.5"
-                      style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                      <FileText size={11} style={{ color: 'var(--brand-primary)' }} />
-                      <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'var(--brand-subtle)' }}>Observação</span>
+                      style={{ borderBottom: '1px solid var(--border)' }}>
+                      <FileText size={11} style={{ color: 'var(--primary)' }} />
+                      <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'var(--text-light)' }}>Observação</span>
                     </div>
                     <div
                       className="
                         px-4 py-3 text-sm leading-relaxed
                         [&_img]:max-w-full [&_img]:rounded-lg
                         [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse
-                        [&_th]:border [&_th]:border-[var(--brand-border)] [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold [&_th]:bg-[var(--brand-bg)]
-                        [&_td]:border [&_td]:border-[var(--brand-border)] [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top
+                        [&_th]:border [&_th]:border-[var(--border)] [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold [&_th]:bg-[var(--bg)]
+                        [&_td]:border [&_td]:border-[var(--border)] [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top
                         [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1.5
                         [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1.5
                         [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1
                         [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:mt-2 [&_h4]:mb-1
                         [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5
-                        [&_a]:underline [&_a]:text-[var(--brand-primary)]
-                        [&_hr]:my-3 [&_hr]:border-[var(--brand-border)]
+                        [&_a]:underline [&_a]:text-[var(--primary)]
+                        [&_hr]:my-3 [&_hr]:border-[var(--border)]
                       "
-                      style={{ color: 'var(--brand-muted)' }}
+                      style={{ color: 'var(--text-muted)' }}
                       dangerouslySetInnerHTML={{ __html: sanitizeHtml(tsViewItem.observation) }}
                     />
                   </div>

@@ -20,7 +20,7 @@ const inputStyle = { background: 'var(--surface)', border: '1px solid var(--bord
 
 function Card({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
   return (
-    <div className="rounded-xl p-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+    <div className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
       <p className="text-lg font-bold mt-0.5" style={{ color: danger ? 'var(--danger-border)' : 'var(--text)' }}>{value}</p>
     </div>

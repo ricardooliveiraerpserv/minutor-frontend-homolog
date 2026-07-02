@@ -154,7 +154,7 @@ export default function ProjectTimesheetsModal({
       <div
         onClick={e => e.stopPropagation()}
         className="w-full max-w-6xl mt-8 rounded-2xl overflow-hidden"
-        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         {/* Header */}
         <div className="px-6 py-4 flex items-center justify-between gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -215,7 +215,7 @@ export default function ProjectTimesheetsModal({
               onClick={exportPDF}
               disabled={rows.length === 0 || downloadingPdf}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-40"
-              style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
+              style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
             >
               <FileText size={14} /> {downloadingPdf ? 'Gerando…' : 'PDF'}
             </button>
@@ -230,7 +230,7 @@ export default function ProjectTimesheetsModal({
             <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Sem apontamentos no período.</div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
+              <thead className="sticky top-0 z-10" style={{ background: 'var(--surface)' }}>
                 <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
                   <th className="text-left px-3 py-2 text-xs uppercase tracking-wide">Data</th>
                   <th className="text-left px-3 py-2 text-xs uppercase tracking-wide">Consultor</th>

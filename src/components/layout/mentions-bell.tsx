@@ -112,9 +112,9 @@ export function MentionsBell() {
       {open && (
         <div
           className="absolute right-0 top-full mt-2 rounded-xl shadow-2xl z-50 overflow-hidden"
-          style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', width: 440 }}
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', width: 440 }}
         >
-          <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
             <div className="flex items-center gap-2">
               <AtSign size={14} style={{ color: 'var(--primary)' }} />
               <span className="text-xs font-bold" style={{ color: 'var(--text)' }}>Mentions</span>
@@ -122,7 +122,7 @@ export function MentionsBell() {
                 {total}
               </span>
             </div>
-            <button onClick={() => setOpen(false)} className="p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)' }}>
+            <button onClick={() => setOpen(false)} className="p-0.5 rounded hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)' }}>
               <X size={12} />
             </button>
           </div>
@@ -130,8 +130,8 @@ export function MentionsBell() {
           <div className="max-h-96 overflow-y-auto">
             {displayItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 gap-1">
-                <AtSign size={20} style={{ color: 'var(--brand-muted)' }} />
-                <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhuma menção ainda</p>
+                <AtSign size={20} style={{ color: 'var(--text-muted)' }} />
+                <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhuma menção ainda</p>
               </div>
             ) : (
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>

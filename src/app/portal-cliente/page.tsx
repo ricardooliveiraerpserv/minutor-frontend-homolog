@@ -126,10 +126,10 @@ function EvolutionTooltip({ active, payload, label, primary }: any) {
   const tickets = payload.find((p: any) => p.dataKey === 'tickets')?.value ?? 0
   const horas   = payload.find((p: any) => p.dataKey === 'consumed_hours')?.value ?? 0
   return (
-    <div className="px-3 py-2 rounded-lg shadow-xl text-[11px]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-      <p className="font-semibold mb-1" style={{ color: 'var(--brand-text)' }}>{label}</p>
-      <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm shrink-0" style={{ background: primary }} /><span style={{ color: 'var(--brand-muted)' }}>{tickets} ticket{tickets === 1 ? '' : 's'}</span></div>
-      <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm shrink-0" style={{ background: '#A78BFA' }} /><span style={{ color: 'var(--brand-muted)' }}>{Number(horas).toFixed(1)}h consumidas</span></div>
+    <div className="px-3 py-2 rounded-lg shadow-xl text-[11px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <p className="font-semibold mb-1" style={{ color: 'var(--text)' }}>{label}</p>
+      <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm shrink-0" style={{ background: primary }} /><span style={{ color: 'var(--text-muted)' }}>{tickets} ticket{tickets === 1 ? '' : 's'}</span></div>
+      <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm shrink-0" style={{ background: '#A78BFA' }} /><span style={{ color: 'var(--text-muted)' }}>{Number(horas).toFixed(1)}h consumidas</span></div>
     </div>
   )
 }
@@ -147,28 +147,28 @@ function MonthlyEvolution({ series }: { series: MonthlyPoint[] }) {
       }}
     >
       <div className="mb-1">
-        <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--brand-muted)' }}>
+        <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
           Evolução Mensal — Tickets e Consumo de Horas
         </h2>
       </div>
-      <p className="text-[10px] mb-4" style={{ color: 'var(--brand-subtle)' }}>
-        Horas referem-se apenas a apontamentos de <strong style={{ color: 'var(--brand-muted)' }}>Sustentação</strong>.
-        Histórico apurado a partir de <strong style={{ color: 'var(--brand-muted)' }}>maio/2025</strong> (início do Minutor).
+      <p className="text-[10px] mb-4" style={{ color: 'var(--text-light)' }}>
+        Horas referem-se apenas a apontamentos de <strong style={{ color: 'var(--text-muted)' }}>Sustentação</strong>.
+        Histórico apurado a partir de <strong style={{ color: 'var(--text-muted)' }}>maio/2025</strong> (início do Minutor).
       </p>
       {!hasAny ? (
-        <p className="py-10 text-center text-sm" style={{ color: 'var(--brand-subtle)' }}>Sem movimentação nos últimos 12 meses.</p>
+        <p className="py-10 text-center text-sm" style={{ color: 'var(--text-light)' }}>Sem movimentação nos últimos 12 meses.</p>
       ) : (
         <>
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={series} margin={{ top: 16, right: 24, left: 8, bottom: 28 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(125,125,125,0.18)" vertical />
-                <XAxis dataKey="label" tick={{ fill: 'var(--brand-subtle)', fontSize: 11 }} tickLine={false} axisLine={false} />
+                <XAxis dataKey="label" tick={{ fill: 'var(--text-light)', fontSize: 11 }} tickLine={false} axisLine={false} />
                 <YAxis yAxisId="left"  orientation="left"  tick={{ fill: primary, fontSize: 11 }} tickLine={false} axisLine={false} label={{ value: 'Tickets', angle: -90, position: 'insideLeft', fill: primary, fontSize: 11 }} allowDecimals={false} />
                 <YAxis yAxisId="right" orientation="right" tick={{ fill: '#A78BFA', fontSize: 11 }} tickLine={false} axisLine={false} label={{ value: 'Horas',   angle: 90,  position: 'insideRight', fill: '#A78BFA', fontSize: 11 }} tickFormatter={(v: number) => `${v}h`} />
                 <RTooltip content={<EvolutionTooltip primary={primary} />} cursor={{ stroke: 'rgba(125,125,125,0.25)' }} />
-                <Line yAxisId="right" type="monotone" dataKey="consumed_hours" stroke="#A78BFA" strokeWidth={2.5} dot={{ r: 4, fill: 'var(--brand-surface)', strokeWidth: 2 }} activeDot={{ r: 6 }} />
-                <Line yAxisId="left"  type="monotone" dataKey="tickets"        stroke={primary}  strokeWidth={2.5} dot={{ r: 4, fill: 'var(--brand-surface)', strokeWidth: 2, stroke: primary }} activeDot={{ r: 6 }} />
+                <Line yAxisId="right" type="monotone" dataKey="consumed_hours" stroke="#A78BFA" strokeWidth={2.5} dot={{ r: 4, fill: 'var(--surface)', strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                <Line yAxisId="left"  type="monotone" dataKey="tickets"        stroke={primary}  strokeWidth={2.5} dot={{ r: 4, fill: 'var(--surface)', strokeWidth: 2, stroke: primary }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -235,9 +235,9 @@ function ProjectTreeNode({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span className="font-mono text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{p.code}</span>
-            <span className="text-sm font-medium" style={{ color: 'var(--brand-text)' }}>{p.name}</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>{p.name}</span>
             {p.contract_type && (
-              <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>· {p.contract_type}</span>
+              <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>· {p.contract_type}</span>
             )}
             {hasChildren && (
               <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider" style={{ background: 'var(--info-bg)', color: 'var(--info)' }}>
@@ -254,16 +254,16 @@ function ProjectTreeNode({
             null
           ) : noHealth ? (
             /* Sem saúde (cliente não acompanha): só as horas contratadas, neutro. */
-            <p className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--brand-text)' }}>
+            <p className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
               {fmtH(p.sold_hours)}
             </p>
           ) : isOnDemand ? (
-            <p className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--brand-text)' }}>
+            <p className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
               {fmtH(p.consumed_hours)} consumido
             </p>
           ) : (
             <>
-              <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+              <p className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
                 {fmtH(p.consumed_hours)} / {fmtH(p.sold_hours)}
               </p>
               {p.balance_hours !== null && (
@@ -373,14 +373,14 @@ export default function PortalClientePage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
               <Building2 size={18} />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>
+              <h1 className="text-xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
                 {summary?.customer.name ?? 'Home'}
               </h1>
-              <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>
+              <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
                 Resumo executivo do cliente
               </p>
             </div>
@@ -400,7 +400,7 @@ export default function PortalClientePage() {
 
         {/* Loading */}
         {loading && (
-          <div className="rounded-2xl p-10 text-center text-sm" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
+          <div className="rounded-2xl p-10 text-center text-sm" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
             Carregando…
           </div>
         )}
@@ -414,7 +414,7 @@ export default function PortalClientePage() {
 
         {/* Sem cliente */}
         {!loading && !error && !summary && (
-          <div className="rounded-2xl p-10 text-center text-sm" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}>
+          <div className="rounded-2xl p-10 text-center text-sm" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
             Selecione um cliente para visualizar o resumo.
           </div>
         )}
@@ -452,17 +452,17 @@ export default function PortalClientePage() {
                 boxShadow: 'var(--shadow-sm)',
               }}
             >
-              <div className="px-5 py-3.5 flex items-center gap-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-                <TrendingUp size={14} style={{ color: 'var(--brand-primary)' }} />
-                <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--brand-muted)' }}>Projetos</h2>
+              <div className="px-5 py-3.5 flex items-center gap-2 border-b" style={{ borderColor: 'var(--border)' }}>
+                <TrendingUp size={14} style={{ color: 'var(--primary)' }} />
+                <h2 className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Projetos</h2>
               </div>
 
               {projetosOrdenados.length === 0 ? (
-                <div className="p-8 text-center text-sm" style={{ color: 'var(--brand-subtle)' }}>
+                <div className="p-8 text-center text-sm" style={{ color: 'var(--text-light)' }}>
                   Nenhum projeto cadastrado.
                 </div>
               ) : (
-                <ul className="divide-y" style={{ borderColor: 'var(--brand-border)' }}>
+                <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
                   {projetosOrdenados.map(p => (
                     <ProjectTreeNode
                       key={p.id}

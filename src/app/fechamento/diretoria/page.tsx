@@ -86,7 +86,7 @@ function CoopPills({ value, onChange, disabled }: { value: Coop; onChange: (c: C
           className="px-2 py-1 text-[10px] font-semibold uppercase transition-colors disabled:opacity-60"
           title={c === 'erpserv' ? 'ERPSERV' : 'BIZIFY'}
           style={value === c
-            ? { background: 'var(--brand-primary)', color: '#000' }
+            ? { background: 'var(--primary)', color: '#000' }
             : { background: 'transparent', color: 'var(--text-muted)' }}>
           {c === 'erpserv' ? 'ERP' : 'BIZ'}
         </button>
@@ -386,18 +386,18 @@ export default function FechamentoDiretoriaPage() {
     <AppLayout title="Fechamento Diretoria">
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
         {/* Header */}
-        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex flex-wrap items-center gap-3">
-            <Users size={20} style={{ color: 'var(--brand-primary)' }} />
-            <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>Fechamento Diretoria</h1>
+            <Users size={20} style={{ color: 'var(--primary)' }} />
+            <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Fechamento Diretoria</h1>
           </div>
           <div className="mt-4 flex flex-wrap items-end gap-3">
             <div>
-              <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Competência</div>
+              <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Competência</div>
               <MonthYearPicker month={month} year={year} onChange={(m, y) => { if (m && y) { setMonth(m); setYear(y) } }} />
             </div>
             <div className="min-w-[260px]">
-              <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Diretor</div>
+              <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Diretor</div>
               <SearchSelect value={userId} onChange={setUserId} options={diretores.map(d => ({ id: d.id, name: d.nome }))} placeholder="Abrir fechamento de um diretor…" fullWidth />
             </div>
             {userId && (
@@ -428,11 +428,11 @@ export default function FechamentoDiretoriaPage() {
             <>
               {/* Folha do diretor */}
               {folha && (
-                <div className="rounded-xl p-4 flex flex-wrap items-center gap-x-6 gap-y-2" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--brand-primary)' }}>Folha de {folha.nome ?? diretorNome}</span>
+                <div className="rounded-xl p-4 flex flex-wrap items-center gap-x-6 gap-y-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--primary)' }}>Folha de {folha.nome ?? diretorNome}</span>
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Produção {fmt(folha.producao)}</span>
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Débitos {fmt(folha.total_debitos)}</span>
-                  <span className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Líquido {fmt(folha.liquido)}</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Líquido {fmt(folha.liquido)}</span>
                   {!ro && folha.liquido > 0 && <Button size="sm" variant="secondary" onClick={lancarFolha}>Lançar líquido</Button>}
                 </div>
               )}
@@ -440,11 +440,11 @@ export default function FechamentoDiretoriaPage() {
               {/* Rótulo + Taxa (campo) + importar */}
               <div className="flex flex-wrap items-end gap-3">
                 <div className="flex-1 min-w-[220px] max-w-md">
-                  <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Cooperativa (rótulo)</div>
+                  <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Cooperativa (rótulo)</div>
                   <input disabled={ro} className={inputStyle} value={cooperativa} onChange={e => setCooperativa(e.target.value)} placeholder={`Ex.: ${diretorNome || 'Nome'} - REPASSE NOVA COOP`} />
                 </div>
                 <div className="w-44">
-                  <div className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>Taxa + INSS (campo)</div>
+                  <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Taxa + INSS (campo)</div>
                   <input disabled={ro} className={`${inputStyle} text-right tabular-nums`} inputMode="decimal" value={taxaInss} onChange={e => setTaxaInss(e.target.value)} placeholder="0,00" />
                 </div>
                 {!ro && <Button variant="secondary" size="sm" icon={Calculator} onClick={() => setTaxaInss(String(taxaInssCalc))} title="Calcula a Taxa + INSS pelo gross-up: acha o repasse cujo líquido = soma dos lançamentos (INSS 20% da produção + Taxa Adm 1% sobre o repasse)">Calcular Taxa + INSS</Button>}
@@ -585,30 +585,30 @@ export default function FechamentoDiretoriaPage() {
 
                 {/* INSS pago por UMA coop — a taxa de cada coop é recalculada automaticamente */}
                 {!ro && (
-                  <div className="mt-3 rounded-lg px-3 py-3 flex flex-wrap items-center gap-3" style={{ background: 'var(--primary-soft)', border: '1px solid var(--brand-primary)' }}>
-                    <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>INSS pago por:</span>
+                  <div className="mt-3 rounded-lg px-3 py-3 flex flex-wrap items-center gap-3" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+                    <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>INSS pago por:</span>
                     <div className="flex gap-1">
                       {(['erpserv', 'bizify'] as const).map(c => (
                         <button key={c} onClick={() => setInssCoop(c)}
                           className="px-3 py-1.5 rounded-md text-xs font-semibold transition-all"
                           style={inssCoop === c
-                            ? { background: 'var(--brand-primary)', color: '#000' }
+                            ? { background: 'var(--primary)', color: '#000' }
                             : { background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                           {c === 'erpserv' ? 'ERPSERV' : 'BIZIFY'}
                         </button>
                       ))}
                     </div>
-                    <span className="text-[11px]" style={{ color: 'var(--brand-muted)' }}>Taxa adm rateada por coop + INSS inteiro na escolhida — fecha com a Taxa + INSS do cabeçalho.</span>
+                    <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Taxa adm rateada por coop + INSS inteiro na escolhida — fecha com a Taxa + INSS do cabeçalho.</span>
                   </div>
                 )}
                 <div className="mt-3 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ borderTop: '1px solid var(--border)' }}>
                   <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                     <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{folhaCol('erpserv')} → Folha ERPSERV</span>
-                    <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{fmt(prodErp)}</span>
+                    <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--text)' }}>{fmt(prodErp)}</span>
                   </div>
                   <div className="rounded-lg px-3 py-2 flex items-center justify-between" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
                     <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{folhaCol('bizify')} → Folha BIZIFY</span>
-                    <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--brand-text)' }}>{fmt(prodBiz)}</span>
+                    <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--text)' }}>{fmt(prodBiz)}</span>
                   </div>
                 </div>
               </div>
@@ -632,15 +632,15 @@ export default function FechamentoDiretoriaPage() {
       <Modal open={emailOpen} onClose={() => setEmailOpen(false)} title="Enviar fechamento por e-mail" width="max-w-3xl">
         <div className="flex flex-col gap-3">
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Destinatários</label>
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Destinatários</label>
             <textarea className="ds-input w-full mt-1 text-sm" rows={2} value={emailTo} onChange={e => setEmailTo(e.target.value)} placeholder="email@exemplo.com (separe vários por vírgula)" />
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Mensagem (opcional)</label>
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Mensagem (opcional)</label>
             <textarea className="ds-input w-full mt-1 text-sm resize-none" rows={2} value={emailMsg} onChange={e => setEmailMsg(e.target.value)} placeholder="Texto adicional antes do relatório" />
           </div>
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Prévia do e-mail</label>
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Prévia do e-mail</label>
             <p className="text-[11px] mb-1" style={{ color: 'var(--text-light)' }}>Corpo do e-mail abaixo; o relatório completo vai em <strong>PDF anexo</strong>. (Reflete o que está salvo.)</p>
             {emailPreviewHtml === null
               ? <div className="text-xs italic p-4" style={{ color: 'var(--text-light)' }}>Carregando prévia…</div>

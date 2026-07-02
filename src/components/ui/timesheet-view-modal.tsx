@@ -31,7 +31,7 @@ function AttachmentLink({ url }: { url: string }) {
   return (
     <button type="button" onClick={open} disabled={loading}
       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-      style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }}>
+      style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}>
       <Paperclip size={11} />
       {loading ? 'Abrindo...' : 'Visualizar Anexo'}
     </button>
@@ -44,14 +44,14 @@ function InfoRow({ icon: Icon, label, value, children, last }: {
 }) {
   return (
     <div className={`flex items-center gap-2.5 px-3.5 py-1.5 ${!last ? 'border-b' : ''}`}
-      style={!last ? { borderColor: 'var(--brand-border)' } : undefined}>
+      style={!last ? { borderColor: 'var(--border)' } : undefined}>
       <span className="shrink-0 p-1 rounded-md"
-        style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
         <Icon size={12} />
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{label}</p>
-        {children ?? <p className="text-[13px] font-medium" style={{ color: 'var(--brand-text)' }}>{value ?? '—'}</p>}
+        <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
+        {children ?? <p className="text-[13px] font-medium" style={{ color: 'var(--text)' }}>{value ?? '—'}</p>}
       </div>
     </div>
   )
@@ -66,7 +66,7 @@ function OriginChip({ origin }: { origin?: string }) {
   )
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
-      style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+      style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
       <Globe size={11} /> Web (manual)
     </span>
   )
@@ -83,22 +83,22 @@ export function TimesheetViewModal({
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 overflow-y-auto" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="relative w-full max-w-lg mt-6 rounded-2xl shadow-2xl"
-        style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <button onClick={onClose}
           className="absolute top-3 right-3 z-10 p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
-          style={{ color: 'var(--brand-subtle)' }}>
+          style={{ color: 'var(--text-light)' }}>
           <X size={16} />
         </button>
 
         {/* Header */}
         <div className="px-4 pt-3.5 pb-2.5 flex items-center gap-2.5">
           <div className="p-1.5 rounded-lg shrink-0"
-            style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
             <Clock size={16} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold" style={{ color: 'var(--brand-text)' }}>Detalhe do Apontamento</h3>
-            <p className="text-[11px]" style={{ color: 'var(--brand-subtle)' }}>
+            <h3 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Detalhe do Apontamento</h3>
+            <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
               #{ts.id} · {formatDate(ts.date)}
             </p>
           </div>
@@ -126,7 +126,7 @@ export function TimesheetViewModal({
                 <p className="text-[11px] uppercase tracking-widest font-semibold mb-1" style={{ color: col }}>
                   {isRej ? 'Motivo da rejeição' : 'Motivo do ajuste'}
                 </p>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--brand-text)' }}>{ts.rejection_reason}</p>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text)' }}>{ts.rejection_reason}</p>
               </div>
             )
           })()}
@@ -134,25 +134,25 @@ export function TimesheetViewModal({
           {/* Período hero */}
           <div className="rounded-xl px-3.5 py-2.5 flex items-baseline justify-between gap-2"
             style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
-            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--brand-subtle)' }}>Período</p>
-            <p className="text-xl font-bold" style={{ color: 'var(--brand-primary)' }}>
+            <p className="text-[10px] uppercase tracking-widest" style={{ color: 'var(--text-light)' }}>Período</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--primary)' }}>
               {ts.start_time} – {ts.end_time}
-              <span className="ml-2 text-sm font-medium" style={{ color: 'var(--brand-muted)' }}>({ts.effort_hours})</span>
+              <span className="ml-2 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>({ts.effort_hours})</span>
             </p>
           </div>
 
           {/* Info card */}
           <div className="rounded-xl overflow-hidden"
-            style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
             <InfoRow icon={Calendar} label="Data" value={formatDate(ts.date)} />
             <InfoRow icon={User} label="Colaborador" value={ts.user?.name} />
             <InfoRow icon={Building2} label="Cliente" value={ts.customer?.name ?? ts.project?.customer?.name} />
             <InfoRow icon={FolderOpen} label="Projeto">
-              <p className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>
+              <p className="text-xs font-medium" style={{ color: 'var(--text)' }}>
                 {ts.project?.name ?? '—'}
                 {ts.project?.contract_type_display && (
                   <span className="ml-2 text-xs px-2 py-0.5 rounded-md"
-                    style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--brand-subtle)' }}>
+                    style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-light)' }}>
                     {ts.project.contract_type_display}
                   </span>
                 )}
@@ -160,24 +160,24 @@ export function TimesheetViewModal({
             </InfoRow>
             {ts.ticket && (
               <InfoRow icon={Ticket} label="Ticket">
-                <p className="text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+                <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
                   {ts.ticket.length >= 5
                     ? <a href={`https://erpserv.movidesk.com/Ticket/Edit/${ts.ticket}`} target="_blank" rel="noopener noreferrer"
-                        className="hover:underline" style={{ color: 'var(--brand-primary)' }}>#{ts.ticket}</a>
-                    : <span style={{ color: 'var(--brand-primary)' }}>#{ts.ticket}</span>
+                        className="hover:underline" style={{ color: 'var(--primary)' }}>#{ts.ticket}</a>
+                    : <span style={{ color: 'var(--primary)' }}>#{ts.ticket}</span>
                   }
                   {ts.ticket_subject && (
-                    <span className="ml-2" style={{ color: 'var(--brand-muted)' }}>— {ts.ticket_subject}</span>
+                    <span className="ml-2" style={{ color: 'var(--text-muted)' }}>— {ts.ticket_subject}</span>
                   )}
                 </p>
               </InfoRow>
             )}
             {ts.ticket_solicitante?.name && (
               <InfoRow icon={Ticket} label="Solicitante">
-                <p className="text-sm font-medium" style={{ color: 'var(--brand-text)' }}>
+                <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
                   {ts.ticket_solicitante.name}
                   {ts.ticket_solicitante.organization && (
-                    <span className="ml-2" style={{ color: 'var(--brand-muted)' }}>— {ts.ticket_solicitante.organization}</span>
+                    <span className="ml-2" style={{ color: 'var(--text-muted)' }}>— {ts.ticket_solicitante.organization}</span>
                   )}
                 </p>
               </InfoRow>
@@ -194,11 +194,11 @@ export function TimesheetViewModal({
             <InfoRow icon={Paperclip} label="Anexo" last>
               {(ts as any).attachment_url
                 ? <AttachmentLink url={(ts as any).attachment_url} />
-                : <span className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Sem anexo</span>
+                : <span className="text-sm" style={{ color: 'var(--text-light)' }}>Sem anexo</span>
               }
             </InfoRow>
             {/* FASE 11.2.FE — Painel composto (lista + upload). Coexiste com attachment_url legado. */}
-            <div className="px-5 py-3" style={{ borderTop: '1px solid var(--brand-border)' }}>
+            <div className="px-5 py-3" style={{ borderTop: '1px solid var(--border)' }}>
               <EntityAttachmentsPanel
                 entityType="TIMESHEET"
                 entityId={ts.id}
@@ -215,27 +215,27 @@ export function TimesheetViewModal({
           {/* Observação */}
           {ts.observation && (
             <div className="rounded-2xl overflow-hidden"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-              <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                <FileText size={14} style={{ color: 'var(--brand-primary)' }} />
-                <span className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--brand-subtle)' }}>Observação</span>
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2 px-5 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+                <FileText size={14} style={{ color: 'var(--primary)' }} />
+                <span className="text-[11px] uppercase tracking-widest font-medium" style={{ color: 'var(--text-light)' }}>Observação</span>
               </div>
               <div
                 className="
                   px-5 py-4 text-sm leading-relaxed
                   [&_img]:max-w-full [&_img]:rounded-lg
                   [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse
-                  [&_th]:border [&_th]:border-[var(--brand-border)] [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold [&_th]:bg-[var(--brand-bg)]
-                  [&_td]:border [&_td]:border-[var(--brand-border)] [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top
+                  [&_th]:border [&_th]:border-[var(--border)] [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold [&_th]:bg-[var(--bg)]
+                  [&_td]:border [&_td]:border-[var(--border)] [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top
                   [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1.5
                   [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1.5
                   [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1
                   [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:mt-2 [&_h4]:mb-1
                   [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5
-                  [&_a]:underline [&_a]:text-[var(--brand-primary)]
-                  [&_hr]:my-3 [&_hr]:border-[var(--brand-border)]
+                  [&_a]:underline [&_a]:text-[var(--primary)]
+                  [&_hr]:my-3 [&_hr]:border-[var(--border)]
                 "
-                style={{ color: 'var(--brand-muted)' }}
+                style={{ color: 'var(--text-muted)' }}
                 dangerouslySetInnerHTML={{ __html: sanitizeHtml(ts.observation) }} />
             </div>
           )}
@@ -243,9 +243,9 @@ export function TimesheetViewModal({
           {/* Revisão */}
           {ts.reviewedBy && (
             <div className="flex items-center gap-2 px-5 py-3.5 rounded-2xl text-sm"
-              style={{ background: 'var(--primary-soft)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
-              <CheckCircle size={14} style={{ color: 'var(--brand-primary)' }} />
-              Revisado por <strong style={{ color: 'var(--brand-muted)' }}>{ts.reviewedBy.name}</strong>
+              style={{ background: 'var(--primary-soft)', border: '1px solid var(--border)', color: 'var(--text-light)' }}>
+              <CheckCircle size={14} style={{ color: 'var(--primary)' }} />
+              Revisado por <strong style={{ color: 'var(--text-muted)' }}>{ts.reviewedBy.name}</strong>
               {ts.reviewed_at && ` em ${formatDate(ts.reviewed_at.slice(0, 10))}`}
             </div>
           )}
@@ -255,13 +255,13 @@ export function TimesheetViewModal({
             {onEdit && (
               <button onClick={onEdit}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--surface-hover)]"
-                style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                 <Pencil size={14} /> Editar
               </button>
             )}
             <button onClick={onClose}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-[var(--surface-hover)]"
-              style={{ color: 'var(--brand-subtle)', border: '1px solid var(--brand-border)' }}>
+              style={{ color: 'var(--text-light)', border: '1px solid var(--border)' }}>
               Fechar
             </button>
           </div>

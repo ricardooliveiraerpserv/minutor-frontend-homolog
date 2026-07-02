@@ -19,7 +19,7 @@ const inputStyle = { background: 'var(--surface)', border: '1px solid var(--bord
 
 function Card({ label, value, cor }: { label: string; value: string; cor?: string }) {
   return (
-    <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+    <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
       <p className="text-2xl font-bold mt-1" style={{ color: cor ?? 'var(--text)' }}>{value}</p>
     </div>

@@ -155,19 +155,19 @@ function TabProducao({ data, loading }: { data: ProducaoRow[]; loading: boolean 
         {sorted.map((row, i) => (
           <Tr key={i}>
             <Td>
-              <div className="font-medium text-xs" style={{ color: 'var(--brand-text)' }}>{row.consultor_nome}</div>
-              <div className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{row.consultor_tipo}</div>
+              <div className="font-medium text-xs" style={{ color: 'var(--text)' }}>{row.consultor_nome}</div>
+              <div className="text-[10px]" style={{ color: 'var(--text-light)' }}>{row.consultor_tipo}</div>
             </Td>
             <Td>
-              <div className="text-xs" style={{ color: 'var(--brand-text)' }}>{row.projeto_nome}</div>
-              <div className="text-[10px] font-mono" style={{ color: 'var(--brand-subtle)' }}>{row.projeto_codigo}</div>
+              <div className="text-xs" style={{ color: 'var(--text)' }}>{row.projeto_nome}</div>
+              <div className="text-[10px] font-mono" style={{ color: 'var(--text-light)' }}>{row.projeto_codigo}</div>
             </Td>
             <Td className="text-xs">{row.cliente_nome}</Td>
             <Td className="text-xs">{row.tipo_contrato}</Td>
             <Td right className="tabular-nums text-xs font-semibold" style={{ color: 'var(--success-border)' }}>{row.horas_aprovadas.toFixed(1)}h</Td>
-            <Td right className="tabular-nums text-xs" style={{ color: row.horas_pendentes > 0 ? 'var(--warning-border)' : 'var(--brand-subtle)' }}>{row.horas_pendentes.toFixed(1)}h</Td>
+            <Td right className="tabular-nums text-xs" style={{ color: row.horas_pendentes > 0 ? 'var(--warning-border)' : 'var(--text-light)' }}>{row.horas_pendentes.toFixed(1)}h</Td>
             <Td right className="tabular-nums text-xs font-semibold" style={{ color: 'var(--success-border)' }}>{formatBRL(row.despesas_aprovadas)}</Td>
-            <Td right className="tabular-nums text-xs" style={{ color: row.despesas_pendentes > 0 ? 'var(--warning-border)' : 'var(--brand-subtle)' }}>{formatBRL(row.despesas_pendentes)}</Td>
+            <Td right className="tabular-nums text-xs" style={{ color: row.despesas_pendentes > 0 ? 'var(--warning-border)' : 'var(--text-light)' }}>{formatBRL(row.despesas_pendentes)}</Td>
           </Tr>
         ))}
       </Tbody>
@@ -180,15 +180,15 @@ function TabCusto({ data, loading }: { data: CustoData | null; loading: boolean 
   if (!data) return <EmptyState icon={DollarSign} title="Sem dados de custo" description="Nenhum apontamento aprovado no período." />
 
   const Section = ({ title, rows, total, color }: { title: string; rows: CustoRow[]; total: number; color: string }) => (
-    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
-      <div className="flex items-center justify-between px-4 py-3" style={{ background: 'var(--brand-bg)' }}>
-        <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--brand-subtle)' }}>
+    <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+      <div className="flex items-center justify-between px-4 py-3" style={{ background: 'var(--bg)' }}>
+        <p className="text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}>
           <UserCheck size={11} />{title}
         </p>
         <span className="text-xs font-bold tabular-nums" style={{ color }}>{formatBRL(total)}</span>
       </div>
       {rows.length === 0 ? (
-        <p className="text-xs text-center py-4" style={{ color: 'var(--brand-subtle)' }}>Nenhum registro</p>
+        <p className="text-xs text-center py-4" style={{ color: 'var(--text-light)' }}>Nenhum registro</p>
       ) : (
         <Table>
           <Thead>
@@ -203,14 +203,14 @@ function TabCusto({ data, loading }: { data: CustoData | null; loading: boolean 
             {rows.map((r, i) => (
               <Tr key={i}>
                 <Td>
-                  <div className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>{r.nome}</div>
+                  <div className="text-xs font-medium" style={{ color: 'var(--text)' }}>{r.nome}</div>
                 </Td>
                 <Td right className="tabular-nums text-xs">{r.horas.toFixed(1)}h</Td>
-                <Td right className="tabular-nums text-xs" style={{ color: 'var(--brand-muted)' }}>
+                <Td right className="tabular-nums text-xs" style={{ color: 'var(--text-muted)' }}>
                   {r.valor_hora > 0 ? formatBRL(r.valor_hora) : '—'}
                   {r.rate_type === 'monthly' && <span className="ml-1 text-[10px] opacity-60">÷160</span>}
                 </Td>
-                <Td right className="tabular-nums text-xs font-bold" style={{ color: 'var(--brand-text)' }}>{formatBRL(r.total)}</Td>
+                <Td right className="tabular-nums text-xs font-bold" style={{ color: 'var(--text)' }}>{formatBRL(r.total)}</Td>
               </Tr>
             ))}
           </Tbody>
@@ -224,7 +224,7 @@ function TabCusto({ data, loading }: { data: CustoData | null; loading: boolean 
       <Section title="Internos" rows={data.internos} total={data.total_custo_interno} color="var(--primary)" />
       <Section title="Parceiros" rows={data.parceiros} total={data.total_custo_parceiros} color="var(--purple-border)" />
       <div className="flex justify-end px-2">
-        <div className="text-xs font-semibold" style={{ color: 'var(--brand-subtle)' }}>
+        <div className="text-xs font-semibold" style={{ color: 'var(--text-light)' }}>
           Total Custo: <span className="text-sm font-bold ml-2 tabular-nums" style={{ color: 'var(--warning-border)' }}>
             {formatBRL(data.total_custo_interno + data.total_custo_parceiros)}
           </span>
@@ -247,15 +247,15 @@ function TabReceita({ data, loading }: { data: ReceitaData | null; loading: bool
   return (
     <div className="space-y-3">
       {data.by_cliente.map(cliente => (
-        <div key={cliente.cliente_id} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+        <div key={cliente.cliente_id} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
           <button
             className="w-full flex items-center justify-between px-4 py-3 transition-colors hover:bg-[var(--surface-hover)]"
-            style={{ background: 'var(--brand-bg)' }}
+            style={{ background: 'var(--bg)' }}
             onClick={() => setExpanded(prev => ({ ...prev, [cliente.cliente_id]: !prev[cliente.cliente_id] }))}>
             <div className="flex items-center gap-2">
-              {expanded[cliente.cliente_id] ? <ChevronDown size={13} style={{ color: 'var(--brand-subtle)' }} /> : <ChevronRight size={13} style={{ color: 'var(--brand-subtle)' }} />}
-              <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>{cliente.cliente_nome}</span>
-              <span className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{cliente.projetos.length} projeto(s)</span>
+              {expanded[cliente.cliente_id] ? <ChevronDown size={13} style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={13} style={{ color: 'var(--text-light)' }} />}
+              <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{cliente.cliente_nome}</span>
+              <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{cliente.projetos.length} projeto(s)</span>
             </div>
             <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--success-border)' }}>{formatBRL(cliente.total_cliente)}</span>
           </button>
@@ -274,12 +274,12 @@ function TabReceita({ data, loading }: { data: ReceitaData | null; loading: bool
                 {cliente.projetos.map((p, i) => (
                   <Tr key={i}>
                     <Td>
-                      <div className="text-xs" style={{ color: 'var(--brand-text)' }}>{p.projeto_nome}</div>
-                      <div className="text-[10px] font-mono" style={{ color: 'var(--brand-subtle)' }}>{p.projeto_codigo}</div>
+                      <div className="text-xs" style={{ color: 'var(--text)' }}>{p.projeto_nome}</div>
+                      <div className="text-[10px] font-mono" style={{ color: 'var(--text-light)' }}>{p.projeto_codigo}</div>
                     </Td>
                     <Td className="text-xs">{tipoLabel[p.tipo_faturamento] ?? p.tipo_faturamento}</Td>
                     <Td right className="tabular-nums text-xs">{p.horas_aprovadas.toFixed(1)}h</Td>
-                    <Td right className="tabular-nums text-xs" style={{ color: 'var(--brand-muted)' }}>{p.valor_base > 0 ? formatBRL(p.valor_base) : '—'}</Td>
+                    <Td right className="tabular-nums text-xs" style={{ color: 'var(--text-muted)' }}>{p.valor_base > 0 ? formatBRL(p.valor_base) : '—'}</Td>
                     <Td right className="tabular-nums text-xs font-bold" style={{ color: 'var(--success-border)' }}>
                       {formatBRL(p.total_receita)}
                       {p.extra_receita != null && p.extra_receita > 0 && (
@@ -294,7 +294,7 @@ function TabReceita({ data, loading }: { data: ReceitaData | null; loading: bool
         </div>
       ))}
       <div className="flex justify-end px-2">
-        <div className="text-xs font-semibold" style={{ color: 'var(--brand-subtle)' }}>
+        <div className="text-xs font-semibold" style={{ color: 'var(--text-light)' }}>
           Total Receita: <span className="text-sm font-bold ml-2 tabular-nums" style={{ color: 'var(--success-border)' }}>
             {formatBRL(data.total_receita)}
           </span>
@@ -305,7 +305,7 @@ function TabReceita({ data, loading }: { data: ReceitaData | null; loading: bool
 }
 
 function TabConsolidado({ data, loading }: { data: Consolidado | null; loading: boolean }) {
-  if (loading) return <div className="flex items-center justify-center py-16"><span className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Calculando...</span></div>
+  if (loading) return <div className="flex items-center justify-center py-16"><span className="text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Calculando...</span></div>
   if (!data) return <EmptyState icon={BarChart2} title="Sem dados" description="Selecione um período com dados." />
 
   const mColor = marginColor(data.margem_percentual)
@@ -321,17 +321,17 @@ function TabConsolidado({ data, loading }: { data: Consolidado | null; loading: 
           { label: 'Receita Total',   value: formatBRL(data.total_receita),         icon: TrendingUp, color: 'var(--success-border)' },
           { label: 'Margem',          value: formatBRL(data.margem),                icon: BarChart2,  color: mColor   },
         ].map(c => (
-          <div key={c.label} className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+          <div key={c.label} className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
             <div className="flex items-center gap-2 mb-2">
               <c.icon size={12} style={{ color: c.color }} />
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{c.label}</p>
             </div>
             <p className="text-lg font-bold tabular-nums" style={{ color: c.color }}>{c.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
+      <div className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
         <div className="flex justify-between items-center mb-2">
           <span className="text-xs font-semibold" style={{ color: mColor }}>Margem sobre receita</span>
           <span className="text-xs font-bold tabular-nums" style={{ color: mColor }}>{data.margem_percentual.toFixed(1)}%</span>
@@ -339,7 +339,7 @@ function TabConsolidado({ data, loading }: { data: Consolidado | null; loading: 
         <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
           <div className="h-full rounded-full transition-all" style={{ width: `${marginPct}%`, background: mColor }} />
         </div>
-        <div className="flex justify-between mt-2 text-[10px]" style={{ color: 'var(--brand-subtle)' }}>
+        <div className="flex justify-between mt-2 text-[10px]" style={{ color: 'var(--text-light)' }}>
           <span>Custo total: {formatBRL(totalCusto)}</span>
           <span>Receita: {formatBRL(data.total_receita)}</span>
         </div>
@@ -349,7 +349,7 @@ function TabConsolidado({ data, loading }: { data: Consolidado | null; loading: 
 }
 
 function TabRelatorio({ data, loading }: { data: Consolidado | null; loading: boolean }) {
-  if (loading) return <div className="flex items-center justify-center py-16"><span className="text-sm animate-pulse" style={{ color: 'var(--brand-subtle)' }}>Calculando...</span></div>
+  if (loading) return <div className="flex items-center justify-center py-16"><span className="text-sm animate-pulse" style={{ color: 'var(--text-light)' }}>Calculando...</span></div>
   if (!data) return <EmptyState icon={BarChart2} title="Sem dados" description="Selecione um período com dados." />
 
   const mColor = marginColor(data.margem_percentual)
@@ -366,15 +366,15 @@ function TabRelatorio({ data, loading }: { data: Consolidado | null; loading: bo
 
   return (
     <div className="max-w-lg mx-auto">
-      <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
-        <div className="px-4 py-3" style={{ background: 'var(--brand-bg)' }}>
-          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Relatório Financeiro do Período</p>
+      <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
+        <div className="px-4 py-3" style={{ background: 'var(--bg)' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Relatório Financeiro do Período</p>
         </div>
         <table className="w-full text-sm">
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)', background: r.bold ? 'var(--surface-sunken)' : 'transparent' }}>
-                <td className="px-4 py-3" style={{ color: r.bold ? 'var(--brand-text)' : 'var(--brand-muted)', fontWeight: r.bold ? 700 : 400 }}>{r.label}</td>
+              <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: r.bold ? 'var(--surface-sunken)' : 'transparent' }}>
+                <td className="px-4 py-3" style={{ color: r.bold ? 'var(--text)' : 'var(--text-muted)', fontWeight: r.bold ? 700 : 400 }}>{r.label}</td>
                 <td className="px-4 py-3 text-right tabular-nums font-bold" style={{ color: r.color }}>
                   {r.pct !== undefined ? `${r.pct.toFixed(1)}%` : formatBRL(r.value!)}
                 </td>
@@ -383,7 +383,7 @@ function TabRelatorio({ data, loading }: { data: Consolidado | null; loading: bo
           </tbody>
         </table>
       </div>
-      <p className="text-[10px] text-center mt-4" style={{ color: 'var(--brand-subtle)' }}>
+      <p className="text-[10px] text-center mt-4" style={{ color: 'var(--text-light)' }}>
         Exportação em breve
       </p>
     </div>
@@ -424,15 +424,15 @@ function ModalValidacao({ yearMonth, onClose, onFechar }: {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
-      <div className="flex flex-col rounded-2xl w-full max-w-md" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-          <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>Validar Fechamento</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+      <div className="flex flex-col rounded-2xl w-full max-w-md" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
+          <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Validar Fechamento</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
         </div>
         <div className="px-6 py-5 space-y-3">
-          <p className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Competência: <span className="font-semibold" style={{ color: 'var(--brand-text)' }}>{fmtYearMonth(yearMonth)}</span></p>
+          <p className="text-xs" style={{ color: 'var(--text-light)' }}>Competência: <span className="font-semibold" style={{ color: 'var(--text)' }}>{fmtYearMonth(yearMonth)}</span></p>
           {loading ? (
-            <p className="text-xs animate-pulse py-4 text-center" style={{ color: 'var(--brand-subtle)' }}>Verificando...</p>
+            <p className="text-xs animate-pulse py-4 text-center" style={{ color: 'var(--text-light)' }}>Verificando...</p>
           ) : !validacao ? null : (
             <div className="space-y-2">
               {validacao.alertas.map((a, i) => (
@@ -448,22 +448,22 @@ function ModalValidacao({ yearMonth, onClose, onFechar }: {
                 </div>
               )}
               {validacao.alertas.length > 0 && (
-                <p className="text-[11px] leading-relaxed pt-1" style={{ color: 'var(--brand-subtle)' }}>
-                  O fechamento bloqueia apenas <span style={{ color: 'var(--brand-text)' }}>novos lançamentos</span> nesta competência. Os itens pendentes acima continuam podendo ser aprovados normalmente após o fechamento.
+                <p className="text-[11px] leading-relaxed pt-1" style={{ color: 'var(--text-light)' }}>
+                  O fechamento bloqueia apenas <span style={{ color: 'var(--text)' }}>novos lançamentos</span> nesta competência. Os itens pendentes acima continuam podendo ser aprovados normalmente após o fechamento.
                 </p>
               )}
             </div>
           )}
         </div>
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
           <button
             onClick={handleFechar}
             disabled={!validacao?.pode_fechar || fechando}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
             style={validacao?.pode_fechar
               ? { background: 'var(--success-border)', color: '#000' }
-              : { background: 'var(--surface-hover)', color: 'var(--brand-muted)', cursor: 'not-allowed' }}>
+              : { background: 'var(--surface-hover)', color: 'var(--text-muted)', cursor: 'not-allowed' }}>
             <Lock size={13} />
             {fechando ? 'Fechando...' : 'Fechar Competência'}
           </button>
@@ -613,12 +613,12 @@ export default function FechamentoPage() {
                     <Lock size={11} /> FECHADO
                   </div>
                   {status?.closed_by_name && (
-                    <span className="text-[11px]" style={{ color: 'var(--brand-subtle)' }}>por {status.closed_by_name}</span>
+                    <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>por {status.closed_by_name}</span>
                   )}
                   {isAdmin && (
                     <button onClick={handleReabrir} disabled={reabrindo}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:bg-[var(--surface-hover)]"
-                      style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+                      style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                       <RefreshCw size={11} className={reabrindo ? 'animate-spin' : ''} />
                       Reabrir
                     </button>
@@ -654,7 +654,7 @@ export default function FechamentoPage() {
         )}
 
         {/* Tab bar */}
-        <div className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
           {TABS.map(t => {
             const active = tab === t.id
             return (

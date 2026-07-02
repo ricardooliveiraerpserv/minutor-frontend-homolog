@@ -871,14 +871,14 @@ export default function FechamentoParceiroPage() {
     <AppLayout title="Fechamento — Parceiros">
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
         {/* Header */}
-        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-4 md:px-6 pt-6 pb-4 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex flex-wrap items-center gap-3">
-            <Handshake size={20} style={{ color: 'var(--brand-primary)' }} />
-            <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>
+            <Handshake size={20} style={{ color: 'var(--primary)' }} />
+            <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
               Fechamento — Parceiros
             </h1>
             {yearMonth && (
-              <span className="text-sm" style={{ color: 'var(--brand-muted)' }}>
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
                 {fmtYearMonth(yearMonth)}
               </span>
             )}
@@ -895,15 +895,15 @@ export default function FechamentoParceiroPage() {
                 onChange={(m, y) => { setMonth(m || null); setYear(y || null) }}
               />
               {tab === 'relatorio' && partnerId && (
-                <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+                <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                   {([['servicos', 'Serviços'], ['despesa', 'Despesas'], ['ambos', 'Ambos']] as const).map(([m, label]) => (
                     <button
                       key={m}
                       onClick={() => setReportMode(m)}
                       className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
                       style={{
-                        background: reportMode === m ? 'var(--brand-primary)' : 'transparent',
-                        color: reportMode === m ? 'var(--primary-fg)' : 'var(--brand-muted)',
+                        background: reportMode === m ? 'var(--primary)' : 'transparent',
+                        color: reportMode === m ? 'var(--primary-fg)' : 'var(--text-muted)',
                       }}
                     >
                       {label}
@@ -920,13 +920,13 @@ export default function FechamentoParceiroPage() {
                 className="text-xs px-3 py-1 rounded-full font-medium"
                 style={{
                   background: isFixed ? 'var(--warning-bg)' : 'var(--primary-soft)',
-                  color: isFixed ? 'var(--warning)' : 'var(--brand-primary)',
+                  color: isFixed ? 'var(--warning)' : 'var(--primary)',
                 }}
               >
                 {isFixed ? 'PRECIFICAÇÃO FIXA' : 'PRECIFICAÇÃO VARIÁVEL'}
               </span>
               {isFixed && status.hourly_rate > 0 && (
-                <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   Taxa única: <b>{formatBRL(status.hourly_rate)}/h</b>
                 </span>
               )}
@@ -936,8 +936,8 @@ export default function FechamentoParceiroPage() {
         </div>
 
         {partnerId && status?.contract_type === 'pj' && (
-          <div className="mx-6 mt-4 p-3 rounded-lg border" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
-            <div className="text-xs font-semibold mb-2" style={{ color: 'var(--brand-text)' }}>Notas Fiscais (PJ)</div>
+          <div className="mx-6 mt-4 p-3 rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+            <div className="text-xs font-semibold mb-2" style={{ color: 'var(--text)' }}>Notas Fiscais (PJ)</div>
             <NotasPjCell
               type="parceiro"
               id={partnerId}
@@ -953,18 +953,18 @@ export default function FechamentoParceiroPage() {
         )}
 
         {partnerId && (
-          <div className="mx-6 mt-4 p-3 rounded-lg border" style={{ borderColor: 'var(--brand-border)', background: 'var(--brand-surface)' }}>
+          <div className="mx-6 mt-4 p-3 rounded-lg border" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
             <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>Ajustes do recebimento</div>
+              <div className="text-xs font-semibold" style={{ color: 'var(--text)' }}>Ajustes do recebimento</div>
               <div className="text-right">
-                <div className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--brand-muted)' }}>Recebimento</div>
-                <div className="text-lg font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>{formatBRL(recebimentoLive)}</div>
+                <div className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Recebimento</div>
+                <div className="text-lg font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{formatBRL(recebimentoLive)}</div>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {/* Desconto + descritivo */}
               <div>
-                <label className="block text-[11px] mb-1" style={{ color: 'var(--brand-muted)' }}>Desconto</label>
+                <label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Desconto</label>
                 <input
                   type="number" step="0.01" min="0" inputMode="decimal"
                   disabled={!canDecideNotas}
@@ -973,7 +973,7 @@ export default function FechamentoParceiroPage() {
                   onBlur={salvarAjuste}
                   placeholder="0,00"
                   className="w-full px-2 py-1.5 rounded text-sm tabular-nums"
-                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 />
                 <input
                   type="text"
@@ -983,12 +983,12 @@ export default function FechamentoParceiroPage() {
                   onBlur={salvarAjuste}
                   placeholder="Descritivo (opcional)"
                   className="w-full mt-1 px-2 py-1 rounded text-xs"
-                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 />
               </div>
               {/* Adiantamento (só valor) */}
               <div>
-                <label className="block text-[11px] mb-1" style={{ color: 'var(--brand-muted)' }}>Adiantamento</label>
+                <label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Adiantamento</label>
                 <input
                   type="number" step="0.01" min="0" inputMode="decimal"
                   disabled={!canDecideNotas}
@@ -997,12 +997,12 @@ export default function FechamentoParceiroPage() {
                   onBlur={salvarAjuste}
                   placeholder="0,00"
                   className="w-full px-2 py-1.5 rounded text-sm tabular-nums"
-                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 />
               </div>
               {/* Adicional + descritivo */}
               <div>
-                <label className="block text-[11px] mb-1" style={{ color: 'var(--brand-muted)' }}>Adicional</label>
+                <label className="block text-[11px] mb-1" style={{ color: 'var(--text-muted)' }}>Adicional</label>
                 <input
                   type="number" step="0.01" min="0" inputMode="decimal"
                   disabled={!canDecideNotas}
@@ -1011,7 +1011,7 @@ export default function FechamentoParceiroPage() {
                   onBlur={salvarAjuste}
                   placeholder="0,00"
                   className="w-full px-2 py-1.5 rounded text-sm tabular-nums"
-                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 />
                 <input
                   type="text"
@@ -1021,7 +1021,7 @@ export default function FechamentoParceiroPage() {
                   onBlur={salvarAjuste}
                   placeholder="Descritivo (opcional)"
                   className="w-full mt-1 px-2 py-1 rounded text-xs"
-                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 />
               </div>
             </div>
@@ -1035,7 +1035,7 @@ export default function FechamentoParceiroPage() {
               if (ajusteAdiantamento > 0)  parts.push(`− adiant ${formatBRL(ajusteAdiantamento)}`)
               if (ajusteAdicional > 0)     parts.push(`+ adic ${formatBRL(ajusteAdicional)}`)
               return (
-                <div className="mt-2 text-[10px] leading-tight" style={{ color: 'var(--brand-muted)' }}>
+                <div className="mt-2 text-[10px] leading-tight" style={{ color: 'var(--text-muted)' }}>
                   Recebimento = {parts.join('  ')}{savingAjuste ? ' · salvando…' : ''}
                 </div>
               )
@@ -1048,15 +1048,15 @@ export default function FechamentoParceiroPage() {
         ) : (
           <>
             {/* Tabs */}
-            <div className="flex gap-1 px-4 md:px-6 border-b overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="flex gap-1 px-4 md:px-6 border-b overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
               {TABS.map(t => (
                 <button
                   key={t.key}
                   onClick={() => setTab(t.key)}
                   className="px-4 py-3 text-sm font-medium transition-colors"
                   style={{
-                    color: tab === t.key ? 'var(--brand-primary)' : 'var(--brand-muted)',
-                    borderBottom: tab === t.key ? '2px solid var(--brand-primary)' : '2px solid transparent',
+                    color: tab === t.key ? 'var(--primary)' : 'var(--text-muted)',
+                    borderBottom: tab === t.key ? '2px solid var(--primary)' : '2px solid transparent',
                   }}
                 >
                   {t.label}
@@ -1075,9 +1075,9 @@ export default function FechamentoParceiroPage() {
                       <button key={v} onClick={() => setConsultorView(v)}
                         className="px-3 py-1.5 rounded text-xs font-medium transition-colors"
                         style={{
-                          background: consultorView === v ? 'var(--brand-primary)' : 'var(--brand-surface)',
-                          color: consultorView === v ? 'var(--primary-fg)' : 'var(--brand-muted)',
-                          border: '1px solid var(--brand-border)',
+                          background: consultorView === v ? 'var(--primary)' : 'var(--surface)',
+                          color: consultorView === v ? 'var(--primary-fg)' : 'var(--text-muted)',
+                          border: '1px solid var(--border)',
                         }}
                       >
                         {v === 'resumo' ? 'Resumo por Consultor' : 'Por Tipo de Contrato'}
@@ -1086,9 +1086,9 @@ export default function FechamentoParceiroPage() {
 
                     {consultorView === 'resumo' && consultores.length > 1 && (
                       <div className="flex items-center gap-2 ml-4">
-                        <Filter size={13} style={{ color: 'var(--brand-muted)' }} />
+                        <Filter size={13} style={{ color: 'var(--text-muted)' }} />
                         <SearchSelect value={filterConsultor} onChange={v => setFilterConsultor(v ? Number(v) : '')} options={consultorOptions} placeholder="Todos" />
-                        {filterConsultor && <button className="text-xs underline" style={{ color: 'var(--brand-muted)' }} onClick={() => setFilterConsultor('')}>Limpar</button>}
+                        {filterConsultor && <button className="text-xs underline" style={{ color: 'var(--text-muted)' }} onClick={() => setFilterConsultor('')}>Limpar</button>}
                       </div>
                     )}
                   </div>
@@ -1108,14 +1108,14 @@ export default function FechamentoParceiroPage() {
                             {filteredConsultores.map(row => (
                               <Tr key={row.user_id}>
                                 <Td>
-                                  <div className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>{row.nome}</div>
+                                  <div className="text-xs font-medium" style={{ color: 'var(--text)' }}>{row.nome}</div>
                                   {row.rate_type === 'monthly' && !isFixed && (
-                                    <div className="text-xs" style={{ color: 'var(--brand-subtle)' }}>Mensalista · ÷160</div>
+                                    <div className="text-xs" style={{ color: 'var(--text-light)' }}>Mensalista · ÷160</div>
                                   )}
                                 </Td>
                                 <Td right className="tabular-nums text-xs">{row.horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</Td>
                                 <Td right className="tabular-nums text-xs">{formatBRL(row.valor_hora)}/h</Td>
-                                <Td right className="tabular-nums text-sm font-semibold" style={{ color: 'var(--brand-primary)' }}>{formatBRL(row.total)}</Td>
+                                <Td right className="tabular-nums text-sm font-semibold" style={{ color: 'var(--primary)' }}>{formatBRL(row.total)}</Td>
                               </Tr>
                             ))}
                           </Tbody>
@@ -1123,8 +1123,8 @@ export default function FechamentoParceiroPage() {
                       )}
                       {filteredConsultores.length > 0 && (
                         <div className="mt-4 flex justify-between items-center">
-                          <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>Total: <b>{filteredConsultores.reduce((s, c) => s + c.horas, 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</b></span>
-                          <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Total: <b>{filteredConsultores.reduce((s, c) => s + c.horas, 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</b></span>
+                          <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                             Total Serviços: {formatBRL(filteredConsultores.reduce((s, c) => s + c.total, 0))}
                           </div>
                         </div>
@@ -1160,13 +1160,13 @@ export default function FechamentoParceiroPage() {
                             return (
                               <div key={code}>
                                 {/* Header do tipo */}
-                                <div className="flex items-center justify-between mb-3 pb-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+                                <div className="flex items-center justify-between mb-3 pb-2 border-b" style={{ borderColor: 'var(--border)' }}>
                                   <div className="flex items-center gap-2">
-                                    <span className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{nome}</span>
-                                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>{code}</span>
+                                    <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>{nome}</span>
+                                    <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{code}</span>
                                   </div>
-                                  <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
-                                    {tipoHoras.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h · <b style={{ color: 'var(--brand-primary)' }}>{formatBRL(tipoTotal)}</b>
+                                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                    {tipoHoras.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h · <b style={{ color: 'var(--primary)' }}>{formatBRL(tipoTotal)}</b>
                                   </span>
                                 </div>
                                 <Table>
@@ -1176,10 +1176,10 @@ export default function FechamentoParceiroPage() {
                                   <Tbody>
                                     {rows.map(r => (
                                       <Tr key={r.user_id}>
-                                        <Td className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>{r.consultor}</Td>
+                                        <Td className="text-xs font-medium" style={{ color: 'var(--text)' }}>{r.consultor}</Td>
                                         <Td right className="tabular-nums text-xs">{r.horas.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</Td>
                                         <Td right className="tabular-nums text-xs">{formatBRL(r.taxa)}/h</Td>
-                                        <Td right className="tabular-nums text-sm font-semibold" style={{ color: 'var(--brand-primary)' }}>{formatBRL(Math.round(r.total * 100) / 100)}</Td>
+                                        <Td right className="tabular-nums text-sm font-semibold" style={{ color: 'var(--primary)' }}>{formatBRL(Math.round(r.total * 100) / 100)}</Td>
                                       </Tr>
                                     ))}
                                   </Tbody>
@@ -1187,11 +1187,11 @@ export default function FechamentoParceiroPage() {
                               </div>
                             )
                           })}
-                          <div className="flex justify-between items-center pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
-                            <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+                          <div className="flex justify-between items-center pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                               Total: <b>{apontamentos.reduce((s, a) => s + a.horas, 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</b>
                             </span>
-                            <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                            <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                               Total Serviços: {formatBRL(totalServicos)}
                             </div>
                           </div>
@@ -1201,7 +1201,7 @@ export default function FechamentoParceiroPage() {
                   )}
 
                   {isFixed && consultores.length > 0 && (
-                    <p className="mt-3 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                    <p className="mt-3 text-xs" style={{ color: 'var(--text-light)' }}>
                       * Taxa fixa do parceiro aplicada a todos os consultores.
                     </p>
                   )}
@@ -1260,7 +1260,7 @@ export default function FechamentoParceiroPage() {
                             <Td
                               right
                               className="tabular-nums text-xs font-medium"
-                              style={{ color: row.is_paid ? 'var(--text-light)' : 'var(--brand-primary)', textDecoration: row.is_paid ? 'line-through' : undefined }}
+                              style={{ color: row.is_paid ? 'var(--text-light)' : 'var(--primary)', textDecoration: row.is_paid ? 'line-through' : undefined }}
                             >
                               {formatBRL(row.valor)}
                             </Td>
@@ -1271,11 +1271,11 @@ export default function FechamentoParceiroPage() {
                   )}
                   {despesas.length > 0 && (
                     <div className="mt-4 flex flex-col items-end gap-1">
-                      <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                      <div className="text-sm font-semibold px-4 py-2 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                         Despesas no fechamento: {formatBRL(totalDespesas)}
                       </div>
                       {totalDespesasAnt > 0 && (
-                        <div className="text-[11px]" style={{ color: 'var(--brand-muted)' }}>
+                        <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                           + {formatBRL(totalDespesasAnt)} já pagas antecipadamente (fora do fechamento)
                         </div>
                       )}
@@ -1289,7 +1289,7 @@ export default function FechamentoParceiroPage() {
                 <div className="p-4 md:p-6">
                   {/* Filtros */}
                   <div className="flex flex-wrap items-center gap-3 mb-4">
-                    <Filter size={14} style={{ color: 'var(--brand-muted)' }} />
+                    <Filter size={14} style={{ color: 'var(--text-muted)' }} />
                     <SearchSelect
                       value={filterApConsultor}
                       onChange={v => setFilterApConsultor(v ? Number(v) : '')}
@@ -1300,7 +1300,7 @@ export default function FechamentoParceiroPage() {
                       value={filterApStatus}
                       onChange={e => setFilterApStatus(e.target.value)}
                       className="text-xs px-3 py-2 rounded border"
-                      style={{ background: 'var(--brand-surface)', color: 'var(--brand-text)', borderColor: 'var(--brand-border)' }}
+                      style={{ background: 'var(--surface)', color: 'var(--text)', borderColor: 'var(--border)' }}
                     >
                       <option value="">Todos os status</option>
                       <option value="approved">Aprovado</option>
@@ -1310,13 +1310,13 @@ export default function FechamentoParceiroPage() {
                     {(filterApConsultor || filterApStatus) && (
                       <button
                         className="text-xs underline"
-                        style={{ color: 'var(--brand-muted)' }}
+                        style={{ color: 'var(--text-muted)' }}
                         onClick={() => { setFilterApConsultor(''); setFilterApStatus('') }}
                       >
                         Limpar filtros
                       </button>
                     )}
-                    <span className="ml-auto text-xs" style={{ color: 'var(--brand-muted)' }}>
+                    <span className="ml-auto text-xs" style={{ color: 'var(--text-muted)' }}>
                       {filteredApontamentos.length} registro{filteredApontamentos.length !== 1 ? 's' : ''}
                     </span>
                   </div>
@@ -1362,12 +1362,12 @@ export default function FechamentoParceiroPage() {
                     </Table>
                   )}
                   {filteredApontamentos.length > 0 && (
-                    <div className="mt-4 flex justify-between items-center text-xs" style={{ color: 'var(--brand-muted)' }}>
+                    <div className="mt-4 flex justify-between items-center text-xs" style={{ color: 'var(--text-muted)' }}>
                       <span>
                         Total filtrado: <b>{filteredApontamentos.reduce((s, a) => s + a.horas, 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</b>
                       </span>
                       <span>
-                        Aprovados: <b style={{ color: 'var(--brand-primary)' }}>
+                        Aprovados: <b style={{ color: 'var(--primary)' }}>
                           {filteredApontamentos.filter(a => a.status === 'approved').reduce((s, a) => s + a.horas, 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h
                         </b>
                         {' · '}
@@ -1383,26 +1383,26 @@ export default function FechamentoParceiroPage() {
               {/* ── Tab Resumo ── */}
               {tab === 'resumo' && (
                 <div className="p-4 md:p-6 max-w-md">
-                  <div className="rounded-lg p-5 space-y-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
-                    <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--brand-text)' }}>
+                  <div className="rounded-lg p-5 space-y-3" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                    <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text)' }}>
                       Resumo — {yearMonth ? fmtYearMonth(yearMonth) : ''}
                     </h3>
-                    <div className="flex justify-between text-sm" style={{ color: 'var(--brand-muted)' }}>
+                    <div className="flex justify-between text-sm" style={{ color: 'var(--text-muted)' }}>
                       <span>Total Horas Trabalhadas</span>
                       <span className="tabular-nums">{totalHoras.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}h</span>
                     </div>
-                    <div className="flex justify-between text-sm" style={{ color: 'var(--brand-muted)' }}>
+                    <div className="flex justify-between text-sm" style={{ color: 'var(--text-muted)' }}>
                       <span>Total Serviços</span>
                       <span className="tabular-nums">{formatBRL(totalServicos)}</span>
                     </div>
-                    <div className="flex justify-between text-sm" style={{ color: 'var(--brand-muted)' }}>
+                    <div className="flex justify-between text-sm" style={{ color: 'var(--text-muted)' }}>
                       <span>Total Despesas</span>
                       <span className="tabular-nums">{formatBRL(totalDespesas)}</span>
                     </div>
-                    <div className="border-t pt-3" style={{ borderColor: 'var(--brand-border)' }}>
+                    <div className="border-t pt-3" style={{ borderColor: 'var(--border)' }}>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>TOTAL A PAGAR</span>
-                        <span className="text-lg font-bold tabular-nums" style={{ color: 'var(--brand-primary)' }}>
+                        <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>TOTAL A PAGAR</span>
+                        <span className="text-lg font-bold tabular-nums" style={{ color: 'var(--primary)' }}>
                           {formatBRL(totalAPagar)}
                         </span>
                       </div>

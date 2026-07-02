@@ -131,7 +131,7 @@ function Skeleton() {
   return (
     <div className="animate-pulse space-y-2">
       {[...Array(6)].map((_, i) => (
-        <div key={i} className="h-14 rounded-xl" style={{ background: 'var(--brand-surface)' }} />
+        <div key={i} className="h-14 rounded-xl" style={{ background: 'var(--surface)' }} />
       ))}
     </div>
   )
@@ -148,15 +148,15 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="flex flex-col rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      <div className="flex flex-col rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Projeto</p>
-            <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{project.name}</p>
-            <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{project.code}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Projeto</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{project.name}</p>
+            <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--text-light)' }}>{project.code}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -166,23 +166,23 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
               {project.status_display ?? STATUS_LABEL[project.status] ?? project.status}
             </span>
             {(project.contract_type_display ?? project.contract_type?.name) && (
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)', border: '1px solid var(--border)' }}>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                 {project.contract_type_display ?? project.contract_type?.name}
               </span>
             )}
           </div>
 
           {/* Horas */}
-          <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-            <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--brand-subtle)' }}>Horas</p>
+          <div className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'var(--text-light)' }}>Horas</p>
             <div className="grid grid-cols-3 gap-4 text-xs mb-3">
-              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Vendidas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{fmt(vendidas)}h</p></div>
-              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Consumidas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{fmt(consumed, 1)}h</p></div>
-              <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (project.general_hours_balance ?? 0) < 0 ? 'var(--danger-border)' : 'var(--brand-text)' }}>{fmt(project.general_hours_balance, 1)}h</p></div>
+              <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Vendidas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--text)' }}>{fmt(vendidas)}h</p></div>
+              <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Consumidas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--text)' }}>{fmt(consumed, 1)}h</p></div>
+              <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (project.general_hours_balance ?? 0) < 0 ? 'var(--danger-border)' : 'var(--text)' }}>{fmt(project.general_hours_balance, 1)}h</p></div>
             </div>
             {vendidas > 0 ? (
               <>
-                <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--brand-border)' }}>
+                <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--border)' }}>
                   <div className="h-1.5 rounded-full" style={{ width: `${Math.min(pct, 100)}%`, background: hs.bar }} />
                 </div>
                 <p className="text-[10px] tabular-nums" style={{ color: hs.text }}>{pct.toFixed(1)}% das horas utilizadas</p>
@@ -191,16 +191,16 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
           </div>
 
           {/* Detalhes */}
-          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--brand-border)' }}>
+          <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
             {[
               { label: 'Cliente',          value: project.customer?.name },
               { label: 'Tipo de Serviço',  value: project.service_type?.name },
               { label: 'Tipo de Contrato', value: project.contract_type_display ?? project.contract_type?.name },
               { label: 'Valor do Projeto', value: project.project_value != null ? formatBRL(project.project_value) : null },
             ].map((row, i, arr) => row.value ? (
-              <div key={row.label} className="flex items-center gap-3 px-4 py-2.5" style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--brand-border)' : undefined }}>
-                <p className="text-xs w-32 shrink-0" style={{ color: 'var(--brand-subtle)' }}>{row.label}</p>
-                <p className="text-xs font-medium" style={{ color: 'var(--brand-text)' }}>{row.value}</p>
+              <div key={row.label} className="flex items-center gap-3 px-4 py-2.5" style={{ borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : undefined }}>
+                <p className="text-xs w-32 shrink-0" style={{ color: 'var(--text-light)' }}>{row.label}</p>
+                <p className="text-xs font-medium" style={{ color: 'var(--text)' }}>{row.value}</p>
               </div>
             ) : null)}
           </div>
@@ -210,11 +210,11 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
 
           {/* Equipe */}
           {((project.coordinators?.length ?? 0) > 0 || (project.consultants?.length ?? 0) > 0) && (
-            <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--brand-border)' }}>
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Equipe</p>
+            <div className="rounded-xl p-4 space-y-3" style={{ border: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Equipe</p>
               {(project.coordinators?.length ?? 0) > 0 && (
                 <div>
-                  <p className="text-[10px] mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Coordenadores</p>
+                  <p className="text-[10px] mb-1.5" style={{ color: 'var(--text-light)' }}>Coordenadores</p>
                   <div className="flex flex-wrap gap-1.5">
                     {project.coordinators!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{u.name}</span>)}
                   </div>
@@ -222,9 +222,9 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
               )}
               {(project.consultants?.length ?? 0) > 0 && (
                 <div>
-                  <p className="text-[10px] mb-1.5" style={{ color: 'var(--brand-subtle)' }}>Consultores</p>
+                  <p className="text-[10px] mb-1.5" style={{ color: 'var(--text-light)' }}>Consultores</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {project.consultants!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--surface-hover)', color: 'var(--brand-muted)' }}>{u.name}</span>)}
+                    {project.consultants!.map(u => <span key={u.id} className="text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>{u.name}</span>)}
                   </div>
                 </div>
               )}
@@ -232,8 +232,8 @@ function ViewProjectModal({ project, onClose }: { project: SustProject; onClose:
           )}
         </div>
 
-        <div className="flex justify-end px-5 py-3 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+        <div className="flex justify-end px-5 py-3 border-t shrink-0" style={{ borderColor: 'var(--border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Fechar</button>
         </div>
       </div>
     </div>
@@ -255,26 +255,26 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
 
   const hs = summary?.hours_summary
   const cc = summary?.cost_calculation
-  const marginColor = cc ? (cc.margin >= 0 ? 'var(--success-border)' : 'var(--danger-border)') : 'var(--brand-text)'
+  const marginColor = cc ? (cc.margin >= 0 ? 'var(--success-border)' : 'var(--danger-border)') : 'var(--text)'
   const hoursUsedPct = hs ? Math.min(hs.hours_percentage, 100) : 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="flex flex-col rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="flex flex-col rounded-2xl w-full max-w-lg max-h-[85vh] overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Custo do Projeto</p>
-            <p className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>{project.name}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Custo do Projeto</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{project.name}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {loading ? (
             <div className="animate-pulse space-y-3">
-              {[...Array(4)].map((_, i) => <div key={i} className="h-14 rounded-xl" style={{ background: 'var(--brand-bg)' }} />)}
+              {[...Array(4)].map((_, i) => <div key={i} className="h-14 rounded-xl" style={{ background: 'var(--bg)' }} />)}
             </div>
           ) : !summary ? (
-            <p className="text-sm text-center py-8" style={{ color: 'var(--brand-subtle)' }}>Dados não disponíveis</p>
+            <p className="text-sm text-center py-8" style={{ color: 'var(--text-light)' }}>Dados não disponíveis</p>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
@@ -284,45 +284,45 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
                   { label: 'Margem',            value: formatBRL(cc!.margin),                               color: marginColor },
                   { label: 'Margem %',          value: `${cc!.margin_percentage.toFixed(1)}%`,             color: marginColor },
                 ].map(c => (
-                  <div key={c.label} className="rounded-xl p-3" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>{c.label}</p>
+                  <div key={c.label} className="rounded-xl p-3" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-light)' }}>{c.label}</p>
                     <p className="text-sm font-bold tabular-nums" style={{ color: c.color }}>{c.value}</p>
                   </div>
                 ))}
               </div>
-              <div className="rounded-xl p-4" style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)' }}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--brand-subtle)' }}>Horas</p>
+              <div className="rounded-xl p-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Horas</p>
                 <div className="grid grid-cols-3 gap-4 text-xs mb-3">
-                  <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Disponíveis</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{(hs!.total_available_hours ?? summary.project_info.total_available_hours ?? 0).toFixed(1)}h</p></div>
-                  <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Apontadas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--brand-text)' }}>{hs!.total_logged_hours.toFixed(1)}h</p></div>
-                  <div><p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (hs!.general_balance ?? hs!.remaining_hours) < 0 ? 'var(--danger-border)' : 'var(--brand-text)' }}>{(hs!.general_balance ?? hs!.remaining_hours).toFixed(1)}h</p></div>
+                  <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Disponíveis</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--text)' }}>{(hs!.total_available_hours ?? summary.project_info.total_available_hours ?? 0).toFixed(1)}h</p></div>
+                  <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Apontadas</p><p className="font-bold tabular-nums mt-0.5" style={{ color: 'var(--text)' }}>{hs!.total_logged_hours.toFixed(1)}h</p></div>
+                  <div><p className="text-[10px]" style={{ color: 'var(--text-light)' }}>Saldo</p><p className="font-bold tabular-nums mt-0.5" style={{ color: (hs!.general_balance ?? hs!.remaining_hours) < 0 ? 'var(--danger-border)' : 'var(--text)' }}>{(hs!.general_balance ?? hs!.remaining_hours).toFixed(1)}h</p></div>
                 </div>
-                <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--brand-border)' }}>
+                <div className="w-full rounded-full h-1.5 mb-1" style={{ background: 'var(--border)' }}>
                   <div className="h-1.5 rounded-full" style={{ width: `${hoursUsedPct}%`, background: hoursUsedPct >= 90 ? 'var(--danger-border)' : hoursUsedPct >= 70 ? 'var(--warning-border)' : 'var(--success-border)' }} />
                 </div>
-                <p className="text-[10px] tabular-nums" style={{ color: 'var(--brand-subtle)' }}>{hoursUsedPct.toFixed(1)}% das horas utilizadas</p>
+                <p className="text-[10px] tabular-nums" style={{ color: 'var(--text-light)' }}>{hoursUsedPct.toFixed(1)}% das horas utilizadas</p>
               </div>
               {summary.consultant_breakdown.length > 0 && (
-                <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
-                  <div className="px-4 py-3" style={{ background: 'var(--brand-surface)' }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Por Consultor</p>
+                <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
+                  <div className="px-4 py-3" style={{ background: 'var(--surface)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Por Consultor</p>
                   </div>
                   <table className="w-full text-xs">
-                    <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-bg)' }}><tr style={{ background: 'var(--brand-bg)', borderBottom: '1px solid var(--brand-border)' }}>
-                      {['Consultor', 'Hs', 'Aprov.', 'Pend.', 'Custo'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{h}</th>)}
+                    <thead className="sticky top-0 z-10" style={{ background: 'var(--bg)' }}><tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                      {['Consultor', 'Hs', 'Aprov.', 'Pend.', 'Custo'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-[10px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{h}</th>)}
                     </tr></thead>
                     <tbody>
                       {summary.consultant_breakdown.map((c, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--brand-border)' }}>
-                          <td className="px-3 py-2 font-medium" style={{ color: 'var(--brand-text)' }}>{c.consultant_name}</td>
-                          <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--brand-text)' }}>{c.total_hours.toFixed(1)}h</td>
+                        <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                          <td className="px-3 py-2 font-medium" style={{ color: 'var(--text)' }}>{c.consultant_name}</td>
+                          <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--text)' }}>{c.total_hours.toFixed(1)}h</td>
                           <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--success-border)' }}>{c.approved_hours.toFixed(1)}h</td>
                           <td className="px-3 py-2 tabular-nums" style={{ color: 'var(--warning-border)' }}>{c.pending_hours.toFixed(1)}h</td>
-                          <td className="px-3 py-2 tabular-nums font-bold" style={{ color: 'var(--brand-text)' }}>{formatBRL(c.cost)}</td>
+                          <td className="px-3 py-2 tabular-nums font-bold" style={{ color: 'var(--text)' }}>{formatBRL(c.cost)}</td>
                         </tr>
                       ))}
-                      <tr style={{ background: 'var(--primary-soft)', borderTop: '1px solid var(--brand-border)' }}>
-                        <td className="px-3 py-2 font-bold text-[11px] uppercase" style={{ color: 'var(--brand-subtle)' }} colSpan={4}>Total</td>
+                      <tr style={{ background: 'var(--primary-soft)', borderTop: '1px solid var(--border)' }}>
+                        <td className="px-3 py-2 font-bold text-[11px] uppercase" style={{ color: 'var(--text-light)' }} colSpan={4}>Total</td>
                         <td className="px-3 py-2 font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{formatBRL(cc!.total_cost)}</td>
                       </tr>
                     </tbody>
@@ -332,8 +332,8 @@ function CostModal({ project, onClose }: { project: SustProject; onClose: () => 
             </>
           )}
         </div>
-        <div className="flex justify-end px-5 py-3 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Fechar</button>
+        <div className="flex justify-end px-5 py-3 border-t shrink-0" style={{ borderColor: 'var(--border)' }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Fechar</button>
         </div>
       </div>
     </div>
@@ -510,16 +510,16 @@ export default function SustentacaoProjetosPage() {
             { label: 'Hs Vendidas',  value: fmt(stats.vendidas),                       sub: 'horas contratadas' },
             { label: 'Saldo Total',  value: fmt(stats.saldo, 1) + ' h',               sub: stats.saldo < 0 ? 'saldo negativo' : 'horas disponíveis' },
           ].map(c => (
-            <div key={c.label} className="rounded-2xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-              <p className="text-xs font-medium mb-1" style={{ color: 'var(--brand-muted)' }}>{c.label}</p>
-              <p className="text-xl font-bold tracking-tight" style={{ color: 'var(--brand-text)' }}>{c.value}</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>{c.sub}</p>
+            <div key={c.label} className="rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>{c.label}</p>
+              <p className="text-xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>{c.value}</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-light)' }}>{c.sub}</p>
             </div>
           ))}
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-1 border-b mb-5 overflow-x-auto" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="flex items-center gap-1 border-b mb-5 overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
           {TABS.map(tab => {
             const count = tab.id === 'all' ? projects.length : (tabCounts[tab.id] ?? 0)
             const active = activeTab === tab.id
@@ -549,14 +549,14 @@ export default function SustentacaoProjetosPage() {
         {/* Filters */}
         <div className="flex items-center gap-3 mb-4 flex-wrap">
           <div className="relative flex-1 min-w-48 max-w-xs">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
             <input
               type="text"
               placeholder="Buscar projeto, código ou cliente..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 h-9 rounded-xl text-xs outline-none"
-              style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
           </div>
           {/* Status filter */}
@@ -598,10 +598,10 @@ export default function SustentacaoProjetosPage() {
         {loading ? (
           <Skeleton />
         ) : (
-          <div className="rounded-2xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
+          <div className="rounded-2xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
             <table className="w-full">
-              <thead className="sticky top-0 z-10" style={{ background: 'var(--brand-surface)' }}>
-                <tr style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
+              <thead className="sticky top-0 z-10" style={{ background: 'var(--surface)' }}>
+                <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
                   {[
                     { label: '',              w: 48 },
                     { label: '',              w: 8 },
@@ -614,14 +614,14 @@ export default function SustentacaoProjetosPage() {
                     { label: '% Uso',         w: 140 },
                     { label: 'Status',        w: undefined },
                   ].map(h => (
-                    <th key={h.label} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)', width: h.w }}>{h.label}</th>
+                    <th key={h.label} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)', width: h.w }}>{h.label}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-12 text-center text-sm" style={{ color: 'var(--brand-subtle)' }}>
+                    <td colSpan={10} className="py-12 text-center text-sm" style={{ color: 'var(--text-light)' }}>
                       Nenhum projeto encontrado
                     </td>
                   </tr>
@@ -636,7 +636,7 @@ export default function SustentacaoProjetosPage() {
 
                   return (
                     <tr key={p.id} className="border-b transition-colors hover:bg-[var(--surface-hover)] cursor-pointer"
-                      style={{ borderColor: 'var(--brand-border)' }}
+                      style={{ borderColor: 'var(--border)' }}
                       onClick={() => setViewProject(p)}>
                       {/* Actions */}
                       <td className="py-2 pl-2 pr-1" style={{ width: 48 }} onClick={e => e.stopPropagation()}>
@@ -673,29 +673,29 @@ export default function SustentacaoProjetosPage() {
 
                       {/* Name */}
                       <td className="py-3 pr-4">
-                        <p className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>{p.name}</p>
-                        <p className="text-xs font-mono" style={{ color: 'var(--brand-subtle)' }}>{p.code}</p>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{p.name}</p>
+                        <p className="text-xs font-mono" style={{ color: 'var(--text-light)' }}>{p.code}</p>
                       </td>
 
                       {/* Customer */}
-                      <td className="py-3 pr-4 text-sm" style={{ color: 'var(--brand-muted)' }}>{p.customer?.name ?? '—'}</td>
+                      <td className="py-3 pr-4 text-sm" style={{ color: 'var(--text-muted)' }}>{p.customer?.name ?? '—'}</td>
 
                       {/* Contract type */}
-                      <td className="py-3 pr-4 text-xs" style={{ color: 'var(--brand-subtle)' }}>
+                      <td className="py-3 pr-4 text-xs" style={{ color: 'var(--text-light)' }}>
                         {p.contract_type_display ?? p.contract_type?.name ?? '—'}
                       </td>
 
                       {/* Hours sold */}
-                      <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmt(pVendidas)}</td>
+                      <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmt(pVendidas)}</td>
 
                       {/* Hours consumed */}
-                      <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--brand-muted)' }}>
+                      <td className="py-3 px-4 text-sm text-center tabular-nums" style={{ color: 'var(--text-muted)' }}>
                         {fmt(consumed, 1)}
                       </td>
 
                       {/* Balance */}
                       <td className="py-3 px-4 text-sm text-center tabular-nums font-semibold"
-                        style={{ color: saldo != null && saldo < 0 ? 'var(--danger-border)' : 'var(--brand-text)' }}>
+                        style={{ color: saldo != null && saldo < 0 ? 'var(--danger-border)' : 'var(--text)' }}>
                         {saldo != null ? fmt(saldo, 1) : '—'}
                       </td>
 
@@ -733,19 +733,19 @@ export default function SustentacaoProjetosPage() {
       {/* Alterar Status */}
       {statusModal.project && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>
-          <div className="rounded-2xl w-full max-w-sm p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div className="rounded-2xl w-full max-w-sm p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold" style={{ color: 'var(--brand-text)' }}>Alterar Status</h3>
-              <button onClick={() => setStatusModal({ project: null, newStatus: '' })} style={{ color: 'var(--brand-subtle)' }}><X size={16} /></button>
+              <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>Alterar Status</h3>
+              <button onClick={() => setStatusModal({ project: null, newStatus: '' })} style={{ color: 'var(--text-light)' }}><X size={16} /></button>
             </div>
-            <p className="text-xs mb-4" style={{ color: 'var(--brand-muted)' }}>
-              Projeto: <strong style={{ color: 'var(--brand-text)' }}>{statusModal.project.name}</strong>
+            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+              Projeto: <strong style={{ color: 'var(--text)' }}>{statusModal.project.name}</strong>
             </p>
             <select
               value={statusModal.newStatus}
               onChange={e => setStatusModal(s => ({ ...s, newStatus: e.target.value }))}
               className="w-full appearance-none px-3 py-2.5 rounded-xl text-sm outline-none mb-5"
-              style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}
             >
               {PROJECT_STATUSES.map(s => (
                 <option key={s.value} value={s.value} style={{ background: 'var(--surface)' }}>{s.label}</option>
@@ -754,10 +754,10 @@ export default function SustentacaoProjetosPage() {
             <div className="flex gap-2 justify-end">
               <button onClick={() => setStatusModal({ project: null, newStatus: '' })}
                 className="px-4 py-2 rounded-xl text-sm font-medium"
-                style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
               <button onClick={handleChangeStatus} disabled={statusSaving || statusModal.newStatus === statusModal.project.status}
                 className="px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-                style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
+                style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
                 {statusSaving ? 'Salvando...' : 'Confirmar'}
               </button>
             </div>
@@ -768,21 +768,21 @@ export default function SustentacaoProjetosPage() {
       {/* Selecionar Equipe */}
       {teamProject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
-          <div className="flex flex-col rounded-2xl w-full max-w-md max-h-[80vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="flex flex-col rounded-2xl w-full max-w-md max-h-[80vh]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Equipe</p>
-                <h2 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{teamProject.name}</h2>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Equipe</p>
+                <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>{teamProject.name}</h2>
               </div>
-              <button onClick={() => setTeamProject(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+              <button onClick={() => setTeamProject(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
-            <div className="px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="px-4 py-3 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
               <div className="relative">
-                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
                 <input value={teamSearch} onChange={e => setTeamSearch(e.target.value)}
                   placeholder="Buscar consultor..."
                   className="w-full pl-8 pr-3 py-2 rounded-lg text-xs outline-none"
-                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }} />
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }} />
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-3">
@@ -791,15 +791,15 @@ export default function SustentacaoProjetosPage() {
                   <input type="checkbox" checked={selectedIds.has(c.id)}
                     onChange={() => setSelectedIds(prev => { const n = new Set(prev); n.has(c.id) ? n.delete(c.id) : n.add(c.id); return n })}
                     className="w-4 h-4 rounded accent-[var(--primary)]" />
-                  <span className="text-sm" style={{ color: 'var(--brand-text)' }}>{c.name}</span>
+                  <span className="text-sm" style={{ color: 'var(--text)' }}>{c.name}</span>
                 </label>
               ))}
             </div>
-            <div className="flex justify-between items-center px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--brand-border)' }}>
-              <span className="text-xs" style={{ color: 'var(--brand-subtle)' }}>{selectedIds.size} consultor(es)</span>
+            <div className="flex justify-between items-center px-6 py-4 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+              <span className="text-xs" style={{ color: 'var(--text-light)' }}>{selectedIds.size} consultor(es)</span>
               <div className="flex gap-2">
-                <button onClick={() => setTeamProject(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
-                <button onClick={saveTeam} disabled={teamSaving} className="px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary)' }}>{teamSaving ? 'Salvando...' : 'Salvar'}</button>
+                <button onClick={() => setTeamProject(null)} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button>
+                <button onClick={saveTeam} disabled={teamSaving} className="px-4 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>{teamSaving ? 'Salvando...' : 'Salvar'}</button>
               </div>
             </div>
           </div>
@@ -809,7 +809,7 @@ export default function SustentacaoProjetosPage() {
       {/* Excluir Projeto */}
       {deleteProject && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70">
-          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--danger-border)' }}>
+          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--danger-border)' }}>
             <div className="px-6 py-5 flex items-center gap-3">
               <Trash2 size={20} className="text-[var(--danger)] shrink-0" />
               <div>
@@ -820,7 +820,7 @@ export default function SustentacaoProjetosPage() {
             <div className="px-6 pb-4">
               <p className="text-sm text-[var(--text)]">Tem certeza? Esta ação não pode ser desfeita.</p>
             </div>
-            <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <button onClick={() => setDeleteProject(null)} disabled={deleting} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">Cancelar</button>
               <button disabled={deleting} onClick={handleDelete}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
@@ -834,13 +834,13 @@ export default function SustentacaoProjetosPage() {
 
       {messagesProject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
-          <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[85vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
-            <div className="flex items-start justify-between gap-3 px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
+          <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[85vh]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-start justify-between gap-3 px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Mensagens</p>
-                <p className="text-sm font-bold truncate" style={{ color: 'var(--brand-text)' }}>{messagesProject.name}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-light)' }}>Mensagens</p>
+                <p className="text-sm font-bold truncate" style={{ color: 'var(--text)' }}>{messagesProject.name}</p>
                 {messagesProject.customer?.name && (
-                  <p className="text-xs truncate" style={{ color: 'var(--brand-muted)' }}>{messagesProject.customer.name}</p>
+                  <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{messagesProject.customer.name}</p>
                 )}
                 <a
                   href={`/contratos/pipeline?project=${messagesProject.id}`}
@@ -859,7 +859,7 @@ export default function SustentacaoProjetosPage() {
                   const [lbl, c] = M[messagesProject.status] ?? [messagesProject.status, '#94a3b8']
                   return <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: `${c}22`, color: c, border: `1px solid ${c}55` }}>{lbl}</span>
                 })()}
-                <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
+                <button onClick={() => setMessagesProject(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
               </div>
             </div>
             <div className="flex-1 overflow-hidden">

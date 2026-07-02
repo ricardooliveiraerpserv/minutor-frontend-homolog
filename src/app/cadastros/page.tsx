@@ -1456,7 +1456,7 @@ function CustomerContactsTab() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; item?: CustomerContact }>({ open: false })
 
   const inputCls  = 'w-full rounded-lg border px-3 py-2 text-xs text-[var(--text)] bg-transparent outline-none transition-colors focus:border-[var(--primary)]'
-  const inputStyle = { borderColor: 'var(--brand-border)' }
+  const inputStyle = { borderColor: 'var(--border)' }
   const labelCls  = 'block text-[10px] font-medium text-[var(--text-muted)] mb-1'
 
   useEffect(() => {
@@ -1547,10 +1547,10 @@ function CustomerContactsTab() {
       )}
 
       {customerId && !loading && contacts.length > 0 && (
-        <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="rounded-xl border overflow-clip" style={{ borderColor: 'var(--border)' }}>
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)' }}>
-              <tr className="border-b" style={{ borderColor: 'var(--brand-border)', background: 'var(--surface-sunken)' }}>
+              <tr className="border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken)' }}>
                 <th className="w-10" />
                 <th className="px-3 py-2.5 text-left font-medium text-[var(--text-muted)]">Nome</th>
                 <th className="px-3 py-2.5 text-left font-medium text-[var(--text-muted)]">Cargo</th>
@@ -1560,7 +1560,7 @@ function CustomerContactsTab() {
             </thead>
             <tbody>
               {contacts.map(c => (
-                <tr key={c.id} className="border-b last:border-0" style={{ borderColor: 'var(--brand-border)' }}>
+                <tr key={c.id} className="border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
                   <td className="px-2 py-2.5 w-10">
                     <RowMenu items={[
                       { label: 'Editar',  icon: <Pencil size={12} />, onClick: () => openEdit(c) },

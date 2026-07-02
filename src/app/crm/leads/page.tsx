@@ -118,22 +118,22 @@ export default function CrmLeadsPage() {
 
       {/* GOVERNANÇA DA CARTEIRA — saúde, órfãos, SLA */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
-        <div className="rounded-xl p-3" style={{ background: 'var(--brand-surface)', border: `1px solid ${pctSaudavel >= 70 ? 'var(--success-border)' : pctSaudavel >= 40 ? 'var(--warning-border)' : 'var(--danger-border)'}` }}>
+        <div className="rounded-xl p-3" style={{ background: 'var(--surface)', border: `1px solid ${pctSaudavel >= 70 ? 'var(--success-border)' : pctSaudavel >= 40 ? 'var(--warning-border)' : 'var(--danger-border)'}` }}>
           <p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Carteira saudável</p>
           <p className="text-lg font-bold" style={{ color: pctSaudavel >= 70 ? 'var(--success-border)' : pctSaudavel >= 40 ? 'var(--warning-border)' : 'var(--danger-border)' }}>{pctSaudavel}%</p>
           <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{saudaveis.length}/{ativos.length} com dono, ação e interação</p>
         </div>
-        <button onClick={() => { setFResp(''); setRankingOpen(true) }} className="rounded-xl p-3 text-left" style={{ background: 'var(--brand-surface)', border: `1px solid ${orfaos.length ? 'var(--danger-border)' : 'var(--border)'}` }}>
+        <button onClick={() => { setFResp(''); setRankingOpen(true) }} className="rounded-xl p-3 text-left" style={{ background: 'var(--surface)', border: `1px solid ${orfaos.length ? 'var(--danger-border)' : 'var(--border)'}` }}>
           <p className="text-[11px] uppercase tracking-wider flex items-center gap-1" style={{ color: 'var(--text-light)' }}><ShieldAlert size={11} /> Leads órfãos</p>
           <p className="text-lg font-bold" style={{ color: orfaos.length ? 'var(--danger-border)' : 'var(--text)' }}>{orfaos.length}</p>
           <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>sem responsável definido</p>
         </button>
-        <div className="rounded-xl p-3" style={{ background: 'var(--brand-surface)', border: `1px solid ${slaEstourado.length ? 'var(--danger-border)' : 'var(--border)'}` }}>
+        <div className="rounded-xl p-3" style={{ background: 'var(--surface)', border: `1px solid ${slaEstourado.length ? 'var(--danger-border)' : 'var(--border)'}` }}>
           <p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>SLA 1º contato</p>
           <p className="text-lg font-bold" style={{ color: slaEstourado.length ? 'var(--danger-border)' : 'var(--text)' }}>{slaEstourado.length}</p>
           <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>estourados ({'>'}24h sem contato)</p>
         </div>
-        <button onClick={() => setRankingOpen(o => !o)} className="rounded-xl p-3 text-left" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+        <button onClick={() => setRankingOpen(o => !o)} className="rounded-xl p-3 text-left" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Sem próxima ação</p>
           <p className="text-lg font-bold" style={{ color: ativos.filter(l => l.sem_proxima_acao).length ? 'var(--warning-border)' : 'var(--text)' }}>{ativos.filter(l => l.sem_proxima_acao).length}</p>
           <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>ver ranking por vendedor →</p>
@@ -142,7 +142,7 @@ export default function CrmLeadsPage() {
 
       {/* Ranking de carteira por vendedor */}
       {rankingOpen && (
-        <div className="rounded-xl mb-3 p-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+        <div className="rounded-xl mb-3 p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Carteira por vendedor</p>
           <table className="w-full text-xs">
             <thead><tr style={{ color: 'var(--text-light)' }}><th className="text-left font-medium pb-1">Vendedor</th><th className="text-right font-medium">Ativos</th><th className="text-right font-medium">Sem ação</th><th className="text-right font-medium">Atrasados</th><th className="text-right font-medium">Frios</th><th className="text-right font-medium">Potencial</th></tr></thead>
@@ -180,7 +180,7 @@ export default function CrmLeadsPage() {
                 <p className="text-[10px] font-bold uppercase mb-1" style={{ color: cor }}>{titulo} ({lista.length})</p>
                 <div className="space-y-1">
                   {lista.slice(0, 6).map(l => (
-                    <button key={l.customer_id} onClick={() => setSel(l)} className="w-full text-left text-[11px] rounded-lg px-2 py-1.5 flex items-center justify-between gap-2" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+                    <button key={l.customer_id} onClick={() => setSel(l)} className="w-full text-left text-[11px] rounded-lg px-2 py-1.5 flex items-center justify-between gap-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                       <span className="truncate" style={{ color: 'var(--text)' }}>{TEMP[l.temperatura ?? 'frio']?.emoji} {l.empresa}<span style={{ color: 'var(--text-light)' }}> · {l.proxima_acao || 'ação'}</span></span>
                       <span className="tabular-nums whitespace-nowrap" style={{ color: cor }}>{fmtDate(l.proxima_acao_at)}</span>
                     </button>
@@ -228,7 +228,7 @@ export default function CrmLeadsPage() {
                   {col.map(l => {
                     const temp = TEMP[l.temperatura ?? 'frio']
                     return (
-                    <button key={l.customer_id} onClick={() => setSel(l)} className="w-full text-left rounded-lg p-2.5 hover:brightness-110 transition" style={{ background: 'var(--brand-surface)', border: l.lost_at ? '1px solid var(--danger-border)' : l.sem_responsavel ? '1px solid var(--danger-border)' : '1px solid var(--border)' }}>
+                    <button key={l.customer_id} onClick={() => setSel(l)} className="w-full text-left rounded-lg p-2.5 hover:brightness-110 transition" style={{ background: 'var(--surface)', border: l.lost_at ? '1px solid var(--danger-border)' : l.sem_responsavel ? '1px solid var(--danger-border)' : '1px solid var(--border)' }}>
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: temp.bg, color: temp.color }}>{temp.emoji} {temp.label}</span>
                         {l.sem_responsavel && !l.lost_at && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5" style={{ background: 'var(--danger-bg)', color: 'var(--danger-border)' }} title="Lead sem responsável"><ShieldAlert size={9} /> órfão</span>}
@@ -300,7 +300,7 @@ function AddLeadModal({ sources, users, onClose, onSaved }: { sources: Source[];
   )
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl p-5 max-h-[92vh] overflow-y-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-lg rounded-2xl p-5 max-h-[92vh] overflow-y-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Novo Lead</h2>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
@@ -407,7 +407,7 @@ function LeadDrawer({ lead, stages, contactTypes, users, onClose, onChanged, onC
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
-      <div className="w-full max-w-md h-full overflow-y-auto p-5" style={{ background: 'var(--brand-surface)', borderLeft: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md h-full overflow-y-auto p-5" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>{lead.empresa}</h2>
           <div className="flex items-center gap-2">
@@ -514,7 +514,7 @@ function HealthModal({ customerId, onClose }: { customerId: number; onClose: () 
   const temp = h ? TEMP[h.temperatura] : null
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold flex items-center gap-1.5" style={{ color: 'var(--text)' }}><Activity size={16} /> Diagnóstico do lead</h2>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
@@ -560,7 +560,7 @@ function ConvertModal({ lead, onClose, onConverted }: { lead: Lead; onClose: () 
   )
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Qualificar para Prospect</h2>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>

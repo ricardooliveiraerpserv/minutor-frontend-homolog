@@ -533,7 +533,7 @@ export function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => 
   const hoursDisplay = `${Math.floor(hours)}:${String(Math.round((hours - Math.floor(hours)) * 60)).padStart(2, '0')}`
   return (
     <div className="fixed inset-0 z-[90] flex items-start justify-center p-4 overflow-y-auto" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl mt-8 rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl mt-8 rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="px-6 py-5 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
@@ -557,7 +557,7 @@ export function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => 
             </div>
           )}
 
-          <div className="rounded-xl divide-y" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl divide-y" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <DetailRow icon={<Calendar size={14} />} label="Data" value={fmtDateBR(ts.date)} />
             <DetailRow icon={<UserIcon size={14} />} label="Colaborador" value={ts.user?.name ?? '—'} />
             <DetailRow icon={<Building2 size={14} />} label="Cliente" value={ts.customer ?? '—'} />
@@ -578,7 +578,7 @@ export function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => 
           </div>
 
           {ts.description && (
-            <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="flex items-center gap-2 mb-2">
                 <FileText size={14} style={{ color: 'var(--primary)' }} />
                 <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)' }}>Observação</span>

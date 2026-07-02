@@ -41,7 +41,7 @@ export default function CrmForecastPage() {
   }
 
   const kpi = (label: string, value: string, sub?: string, color = 'var(--text)') => (
-    <div className="rounded-xl p-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+    <div className="rounded-xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <p className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{label}</p>
       <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color }}>{value}</p>
       {sub && <p className="text-[10px]" style={{ color: 'var(--text-light)' }}>{sub}</p>}
@@ -62,7 +62,7 @@ export default function CrmForecastPage() {
       {loading || !d ? <p className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</p> : (
         <div className="space-y-5">
           {/* META vs PREVISTO — o número que ancora tudo */}
-          <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: `1px solid ${d.meta.valor > 0 ? 'var(--primary)' : 'var(--border)'}` }}>
+          <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: `1px solid ${d.meta.valor > 0 ? 'var(--primary)' : 'var(--border)'}` }}>
             {d.meta.valor <= 0 ? (
               <div className="flex items-center justify-between">
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Sem meta definida para {d.mes}. <b style={{ color: 'var(--text)' }}>O forecast não tem contexto sem meta.</b></p>
@@ -92,7 +92,7 @@ export default function CrmForecastPage() {
           </div>
 
           {/* Forecast detalhado (Nível 2) */}
-          <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <p className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Wallet size={13} /> Forecast detalhado de {d.mes}</p>
             {[['Em negociação', d.forecast.negociacao, 'var(--text-muted)'], ['Previsto ajustado', d.forecast.ponderado, 'var(--primary)'], ['Fechado', d.forecast.fechado, 'var(--success-border)']].map(([label, val, cor]) => {
               const max = Math.max(d.forecast.negociacao, 1)
@@ -107,7 +107,7 @@ export default function CrmForecastPage() {
           </div>
 
           {/* Funil de conversão — onde os negócios morrem */}
-          <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <p className="text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Users size={13} /> Funil de conversão</p>
             <div className="flex items-end gap-1">
               {d.funil.etapas.map((e, i) => {
@@ -127,7 +127,7 @@ export default function CrmForecastPage() {
           </div>
 
           {/* Gargalos reais por etapa — valor preso + mediana de dias */}
-          <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <p className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Clock size={13} /> Gargalos por etapa (valor preso · mediana de dias)</p>
             <table className="w-full text-xs">
               <thead><tr style={{ color: 'var(--text-light)' }}><th className="text-left font-medium pb-1">Etapa</th><th className="text-right font-medium">Abertas</th><th className="text-right font-medium">Valor preso</th><th className="text-right font-medium">Mediana</th></tr></thead>
@@ -147,7 +147,7 @@ export default function CrmForecastPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Por responsável */}
-            <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Users size={13} /> Pipeline por responsável</p>
               <table className="w-full text-xs">
                 <thead><tr style={{ color: 'var(--text-light)' }}><th className="text-left font-medium pb-1">Responsável</th><th className="text-right font-medium">Meta</th><th className="text-right font-medium">Realiz.</th><th className="text-right font-medium">%</th><th className="text-right font-medium">Win</th><th className="text-right font-medium">Ticket</th><th className="text-right font-medium">Ciclo</th></tr></thead>
@@ -171,7 +171,7 @@ export default function CrmForecastPage() {
             </div>
 
             {/* Tempo por etapa */}
-            <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+            <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><Clock size={13} /> Tempo médio por etapa (gargalos)</p>
               <div className="space-y-2">
                 {d.tempo_por_etapa.map(t => (
@@ -185,7 +185,7 @@ export default function CrmForecastPage() {
           </div>
 
           {/* Alertas de gestão */}
-          <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <p className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}><AlertTriangle size={13} /> Alertas de gestão ({d.alertas.length})</p>
             <div className="space-y-1.5">
               {d.alertas.map((a, i) => {
@@ -202,7 +202,7 @@ export default function CrmForecastPage() {
           </div>
 
           {/* Oportunidades em risco */}
-          <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <p className="text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5" style={{ color: 'var(--danger-border)' }}><Target size={13} /> Oportunidades em risco ({d.oportunidades_risco.length})</p>
             <div className="space-y-1.5">
               {d.oportunidades_risco.map(o => (
@@ -219,7 +219,7 @@ export default function CrmForecastPage() {
           </div>
 
           {/* ANÁLISES AVANÇADAS (Nível 3) — recolhida; não compete com a operação */}
-          <div className="rounded-xl" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+          <div className="rounded-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <button onClick={() => setAdvOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3">
               <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Análises avançadas</span>
               <span className="text-xs" style={{ color: 'var(--text-light)' }}>{advOpen ? 'ocultar ▾' : 'mostrar ▸'}</span>
@@ -286,7 +286,7 @@ function MetasModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => 
   }
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl p-5 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md rounded-2xl p-5 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3"><h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>Metas comerciais</h2><button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button></div>
         <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Competência</label>
         <input type="month" value={periodo} onChange={e => setPeriodo(e.target.value)} className="w-full px-3 py-2 rounded-lg text-sm outline-none mb-3" style={inputStyle} />

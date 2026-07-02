@@ -28,7 +28,7 @@ function fmtDate(iso?: string | null): string {
 export function ClientProjectHeader({ project }: { project: ClientProjectSummary }) {
   const pct = project.progress_pct ?? 0
   return (
-    <div style={{ padding: '16px 24px', background: 'var(--brand-bg)', borderBottom: '1px solid var(--border)' }}>
+    <div style={{ padding: '16px 24px', background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--primary)', fontSize: 13, fontWeight: 600 }}>
         <Building2 size={15} /> {project.customer?.name ?? '—'}
       </div>

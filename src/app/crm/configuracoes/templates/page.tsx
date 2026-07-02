@@ -55,7 +55,7 @@ export default function TemplatesConfig() {
         {loading ? <p style={{ color: 'var(--text-muted)' }}>Carregando…</p> : (
           <div className="space-y-2">
             {list.map(t => (
-              <div key={t.tipo} className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+              <div key={t.tipo} className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <FileText size={18} style={{ color: t.salvo ? 'var(--primary)' : 'var(--text-light)' }} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">

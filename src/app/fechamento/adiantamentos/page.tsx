@@ -179,12 +179,12 @@ export default function AdiantamentosPage() {
   return (
     <AppLayout title="Adiantamentos">
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
-        <div className="px-4 md:px-6 pt-6 pb-4 border-b flex items-center justify-between gap-3" style={{ borderColor: 'var(--brand-border)' }}>
+        <div className="px-4 md:px-6 pt-6 pb-4 border-b flex items-center justify-between gap-3" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-3">
-            <Banknote size={20} style={{ color: 'var(--brand-primary)' }} />
+            <Banknote size={20} style={{ color: 'var(--primary)' }} />
             <div>
-              <h1 className="text-lg font-semibold" style={{ color: 'var(--brand-text)' }}>Adiantamentos</h1>
-              <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>
+              <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Adiantamentos</h1>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 Adiantamentos a colaboradores (consultores, diretores, coordenadores) e parceiros, parcelados — descontados no fechamento de cada mês.
               </p>
             </div>
@@ -275,7 +275,7 @@ export default function AdiantamentosPage() {
             <TextInput label="Nº de parcelas" type="number" min="1" max="120"
               value={numParcelas} onChange={e => setNumParcelas(e.target.value)} />
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>
+              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
                 Começa a descontar em
               </label>
               <MonthYearPicker month={compMonth} year={compYear} onChange={(m, y) => { setCompMonth(m || null); setCompYear(y || null) }} />
@@ -283,7 +283,7 @@ export default function AdiantamentosPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Descrição</label>
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Descrição</label>
             <textarea value={descricao} onChange={e => setDescricao(e.target.value)} rows={2}
               placeholder="Motivo / observação do adiantamento" className="ds-input w-full resize-none" />
           </div>

@@ -502,7 +502,7 @@ export function UserManagementTab() {
               onClick={() => { setFilterRole(opt.value); setPage(1) }}
               className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                 filterRole === opt.value
-                  ? 'bg-[var(--brand-primary)] text-[var(--text)]'
+                  ? 'bg-[var(--primary)] text-[var(--text)]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text)]'
               }`}>
               {opt.label}
@@ -938,7 +938,7 @@ export function UserManagementTab() {
             <div className="p-5">
               <div className="flex items-center gap-3 mb-5">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
-                  style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
+                  style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                   {u.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
                 </div>
                 <div>

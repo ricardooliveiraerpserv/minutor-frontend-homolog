@@ -116,7 +116,7 @@ export default function CrmPipelinesPage() {
           {/* Lista de pipelines */}
           <div className="w-64 shrink-0 space-y-2">
             {pipes.map(p => (
-              <button key={p.id} onClick={() => setSelId(p.id)} className="w-full text-left rounded-xl p-3" style={{ background: 'var(--brand-surface)', border: `1px solid ${selId === p.id ? 'var(--primary)' : 'var(--border)'}`, opacity: p.arquivado ? 0.55 : 1 }}>
+              <button key={p.id} onClick={() => setSelId(p.id)} className="w-full text-left rounded-xl p-3" style={{ background: 'var(--surface)', border: `1px solid ${selId === p.id ? 'var(--primary)' : 'var(--border)'}`, opacity: p.arquivado ? 0.55 : 1 }}>
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.cor || 'var(--text-light)' }} />
                   <span className="text-sm font-semibold flex-1" style={{ color: 'var(--text)' }}>{p.name}</span>
@@ -132,7 +132,7 @@ export default function CrmPipelinesPage() {
           {/* Detalhe do pipeline selecionado */}
           {sel && (
             <div className="flex-1 space-y-4">
-              <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+              <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Nome</label><input defaultValue={sel.name} onBlur={e => e.target.value !== sel.name && patchPipe({ name: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
                   <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Descrição</label><input defaultValue={sel.descricao ?? ''} onBlur={e => patchPipe({ descricao: e.target.value })} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
@@ -172,7 +172,7 @@ export default function CrmPipelinesPage() {
               </div>
 
               {/* Etapas com drag-and-drop */}
-              <div className="rounded-xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--border)' }}>
+              <div className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Etapas {sel.bloqueado && <span style={{ color: '#f59e0b' }}>· bloqueado</span>}</h3>
                   <button onClick={addStage} className="text-xs px-2.5 py-1 rounded-lg font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>+ Etapa</button>
@@ -237,7 +237,7 @@ function AuditModal({ pipelineId, pipelineName, onClose }: { pipelineId: number;
   useEffect(() => { api.get<{ data: AuditEvent[] }>(`/crm/pipeline-events?pipeline_id=${pipelineId}`).then(r => setList(r?.data ?? [])).catch(() => {}) }, [pipelineId])
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="w-full max-w-xl rounded-2xl p-5 max-h-[85vh] overflow-y-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-xl rounded-2xl p-5 max-h-[85vh] overflow-y-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-bold flex items-center gap-1.5" style={{ color: 'var(--text)' }}><History size={15} /> Auditoria — {pipelineName}</h2>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>
@@ -288,7 +288,7 @@ function AutomationsModal({ stage, onClose }: { stage: Stage; onClose: () => voi
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl p-5 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }} onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-lg rounded-2xl p-5 max-h-[90vh] overflow-y-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-base font-bold flex items-center gap-1.5" style={{ color: 'var(--text)' }}><Zap size={15} /> Automações — {stage.name}</h2>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }}><X size={18} /></button>

@@ -79,7 +79,7 @@ export default function SaldoInicialTicketsPage() {
   if (!isAdmin && !isCoord) {
     return (
       <AppLayout title="Saldo Inicial de Tickets">
-        <div className="max-w-3xl mx-auto p-6 text-center" style={{ color: 'var(--brand-muted)' }}>
+        <div className="max-w-3xl mx-auto p-6 text-center" style={{ color: 'var(--text-muted)' }}>
           Apenas administradores e coordenadores têm acesso a este cadastro.
         </div>
       </AppLayout>
@@ -94,21 +94,21 @@ export default function SaldoInicialTicketsPage() {
             <Clock size={16} color="var(--primary)" />
           </div>
           <div className="flex-1">
-            <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>Saldo Inicial de Tickets</h1>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--brand-muted)' }}>
+            <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Saldo Inicial de Tickets</h1>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
               Horas históricas anteriores à entrada do ticket no Minutor. Somam apenas na coluna "Hist. de Hs Tikets" e no relatório de Apuração por Ticket — não geram receita/despesa.
             </p>
           </div>
           <button
             onClick={() => setModal({ open: true })}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all"
-            style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
+            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
           >
             <Plus size={12} /> Novo
           </button>
         </header>
 
-        <div className="rounded-2xl p-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+        <div className="rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2 mb-3">
             <Search size={13} className="text-[var(--text-light)]" />
             <input
@@ -118,13 +118,13 @@ export default function SaldoInicialTicketsPage() {
               value={search}
               onChange={e => setSearch(e.target.value.replace(/\D/g, ''))}
               className="flex-1 rounded-lg px-3 py-2 text-xs border outline-none"
-              style={{ background: 'var(--brand-bg)', borderColor: 'var(--brand-border)', color: 'var(--brand-text)' }}
+              style={{ background: 'var(--bg)', borderColor: 'var(--border)', color: 'var(--text)' }}
             />
           </div>
 
-          <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
-            <table className="w-full text-sm" style={{ background: 'var(--brand-surface)' }}>
-              <thead className="text-xs uppercase tracking-wide" style={{ background: 'rgba(255,255,255,0.03)', color: 'var(--brand-subtle)' }}>
+          <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--border)' }}>
+            <table className="w-full text-sm" style={{ background: 'var(--surface)' }}>
+              <thead className="text-xs uppercase tracking-wide" style={{ background: 'rgba(255,255,255,0.03)', color: 'var(--text-light)' }}>
                 <tr>
                   <th className="text-left px-3 py-2.5">Ticket</th>
                   <th className="text-left px-3 py-2.5">Cliente</th>
@@ -137,21 +137,21 @@ export default function SaldoInicialTicketsPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-xs" style={{ color: 'var(--brand-muted)' }}>Carregando…</td></tr>
+                  <tr><td colSpan={7} className="text-center py-8 text-xs" style={{ color: 'var(--text-muted)' }}>Carregando…</td></tr>
                 ) : rows.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-xs" style={{ color: 'var(--brand-muted)' }}>Nenhum saldo inicial cadastrado.</td></tr>
+                  <tr><td colSpan={7} className="text-center py-8 text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum saldo inicial cadastrado.</td></tr>
                 ) : rows.map(r => (
-                  <tr key={r.id} className="border-t" style={{ borderColor: 'var(--brand-border)' }}>
+                  <tr key={r.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
                     <td className="px-3 py-2.5 font-mono text-xs">#{r.ticket}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: 'var(--brand-text)' }}>{r.customer?.name ?? '—'}</td>
-                    <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: 'var(--brand-text)' }} title={r.project?.name ?? undefined}>{r.project?.code} — {r.project?.name}</td>
-                    <td className="px-3 py-2.5 text-right font-mono font-semibold" style={{ color: 'var(--brand-primary)' }}>{minutesToHHMM(r.initial_minutes)}</td>
-                    <td className="px-3 py-2.5 text-xs max-w-[300px] truncate" title={r.description ?? undefined} style={{ color: 'var(--brand-muted)' }}>{r.description ?? '—'}</td>
-                    <td className="px-3 py-2.5 text-xs" style={{ color: 'var(--brand-muted)' }}>{r.creator?.name ?? '—'}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: 'var(--text)' }}>{r.customer?.name ?? '—'}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap" style={{ color: 'var(--text)' }} title={r.project?.name ?? undefined}>{r.project?.code} — {r.project?.name}</td>
+                    <td className="px-3 py-2.5 text-right font-mono font-semibold" style={{ color: 'var(--primary)' }}>{minutesToHHMM(r.initial_minutes)}</td>
+                    <td className="px-3 py-2.5 text-xs max-w-[300px] truncate" title={r.description ?? undefined} style={{ color: 'var(--text-muted)' }}>{r.description ?? '—'}</td>
+                    <td className="px-3 py-2.5 text-xs" style={{ color: 'var(--text-muted)' }}>{r.creator?.name ?? '—'}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1.5 justify-end">
                         <button onClick={() => setModal({ open: true, row: r })} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]" title="Editar">
-                          <Pencil size={12} style={{ color: 'var(--brand-muted)' }} />
+                          <Pencil size={12} style={{ color: 'var(--text-muted)' }} />
                         </button>
                         <button onClick={() => setDeleteConfirm({ open: true, id: r.id })} className="p-1.5 rounded-lg hover:bg-[var(--danger-bg)]" title="Remover">
                           <Trash2 size={12} className="text-[var(--danger)]" />
@@ -245,8 +245,8 @@ function BalanceModal({ row, onClose, onSaved }: {
     } finally { setSaving(false) }
   }
 
-  const lblStyle: React.CSSProperties = { fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--brand-subtle)', marginBottom: '6px', display: 'block' }
-  const inpStyle: React.CSSProperties = { width: '100%', background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', borderRadius: '0.625rem', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', color: 'var(--brand-text)', outline: 'none' }
+  const lblStyle: React.CSSProperties = { fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-light)', marginBottom: '6px', display: 'block' }
+  const inpStyle: React.CSSProperties = { width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '0.625rem', padding: '0.5rem 0.75rem', fontSize: '0.8125rem', color: 'var(--text)', outline: 'none' }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -277,7 +277,7 @@ function BalanceModal({ row, onClose, onSaved }: {
               style={{ ...inpStyle, opacity: isEdit ? 0.6 : 1 }}
             />
             {!isEdit && lookupLoading && (
-              <p className="text-[11px] mt-1" style={{ color: 'var(--brand-muted)' }}>Buscando ticket nos apontamentos…</p>
+              <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>Buscando ticket nos apontamentos…</p>
             )}
             {!isEdit && lookupError && (
               <p className="text-[11px] mt-1 text-[var(--danger)]">{lookupError}</p>
@@ -286,13 +286,13 @@ function BalanceModal({ row, onClose, onSaved }: {
 
           {lookup?.customer && (
             <div className="rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
-              <div className="flex items-center gap-1.5 mb-1" style={{ color: 'var(--brand-primary)' }}>
+              <div className="flex items-center gap-1.5 mb-1" style={{ color: 'var(--primary)' }}>
                 <Check size={11} /> <span className="font-semibold">Ticket encontrado</span>
               </div>
-              <div className="text-[11px]" style={{ color: 'var(--brand-text)' }}>
+              <div className="text-[11px]" style={{ color: 'var(--text)' }}>
                 <strong>Cliente:</strong> {lookup.customer.name}
               </div>
-              <div className="text-[11px]" style={{ color: 'var(--brand-text)' }}>
+              <div className="text-[11px]" style={{ color: 'var(--text)' }}>
                 <strong>Projeto:</strong> {lookup.project?.code} — {lookup.project?.name}
               </div>
             </div>
@@ -330,7 +330,7 @@ function BalanceModal({ row, onClose, onSaved }: {
             onClick={save}
             disabled={!canSave || saving || minutes === null}
             className="px-4 py-2 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50"
-            style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}
+            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
           >
             {saving ? 'Salvando…' : (isEdit ? 'Salvar' : 'Cadastrar')}
           </button>

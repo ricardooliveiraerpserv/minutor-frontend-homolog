@@ -81,16 +81,16 @@ function AttachmentChip({ att, messageId }: { att: Attachment; messageId: number
     <button
       onClick={handleDownload}
       className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-opacity hover:opacity-80 max-w-[220px]"
-      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--brand-border)', color: 'var(--brand-muted)' }}
+      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
     >
       {att.mime_type?.startsWith('image/') ? (
         <Eye size={11} style={{ color: 'var(--warning)' }} />
       ) : (
         <FileText size={11} style={{ color: 'var(--warning)' }} />
       )}
-      <span className="truncate flex-1 text-left" style={{ color: 'var(--brand-text)' }}>{att.original_name}</span>
-      <span className="shrink-0" style={{ color: 'var(--brand-subtle)' }}>{formatBytes(att.file_size)}</span>
-      <Download size={10} className="shrink-0" style={{ color: 'var(--brand-subtle)' }} />
+      <span className="truncate flex-1 text-left" style={{ color: 'var(--text)' }}>{att.original_name}</span>
+      <span className="shrink-0" style={{ color: 'var(--text-light)' }}>{formatBytes(att.file_size)}</span>
+      <Download size={10} className="shrink-0" style={{ color: 'var(--text-light)' }} />
     </button>
   )
 }
@@ -232,13 +232,13 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {loading && (
           <div className="flex items-center justify-center py-12">
-            <span className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Carregando...</span>
+            <span className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando...</span>
           </div>
         )}
         {!loading && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
-            <span className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Nenhuma mensagem ainda.</span>
-            <span className="text-xs" style={{ color: 'var(--brand-muted)' }}>Seja o primeiro a escrever.</span>
+            <span className="text-sm" style={{ color: 'var(--text-light)' }}>Nenhuma mensagem ainda.</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Seja o primeiro a escrever.</span>
           </div>
         )}
         {messages.map(msg => (
@@ -250,19 +250,19 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-2 mb-0.5">
-                <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>{msg.author?.name ?? 'Usuário'}</span>
-                <span className="text-[10px]" style={{ color: 'var(--brand-muted)' }}>{formatTime(msg.created_at)}</span>
+                <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{msg.author?.name ?? 'Usuário'}</span>
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{formatTime(msg.created_at)}</span>
                 {!isCliente && msg.visibility === 'client' && (
                   <span className="text-[9px] px-1 py-0.5 rounded font-semibold" style={{ background: 'rgba(34,197,94,0.1)', color: '#22c55e' }}>visível ao cliente</span>
                 )}
                 {!isCliente && msg.visibility === 'internal' && (
-                  <span className="text-[9px] px-1 py-0.5 rounded font-semibold flex items-center gap-0.5" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--brand-subtle)' }}>
+                  <span className="text-[9px] px-1 py-0.5 rounded font-semibold flex items-center gap-0.5" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-light)' }}>
                     <Lock size={8} /> interno
                   </span>
                 )}
               </div>
               {msg.message && (
-                <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--brand-text)' }}>
+                <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--text)' }}>
                   <MessageText text={msg.message} />
                 </p>
               )}
@@ -279,11 +279,11 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
 
       {/* Mention autocomplete */}
       {filteredMentions.length > 0 && mentionQuery !== null && (
-        <div className="mx-4 mb-1 rounded-lg border overflow-hidden" style={{ background: 'var(--brand-surface)', borderColor: 'var(--brand-border)' }}>
+        <div className="mx-4 mb-1 rounded-lg border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
           {filteredMentions.slice(0, 6).map(u => (
             <button key={u.id} onMouseDown={e => { e.preventDefault(); insertMention(u) }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)] transition-colors"
-              style={{ color: 'var(--brand-text)' }}>
+              style={{ color: 'var(--text)' }}>
               <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0"
                 style={{ background: 'rgba(234,179,8,0.15)', color: 'var(--warning)' }}>
                 {getInitials(u.name)}
@@ -301,8 +301,8 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
             <div key={idx} className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs"
               style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.2)' }}>
               <FileText size={11} style={{ color: 'var(--warning)' }} />
-              <span className="max-w-[120px] truncate" style={{ color: 'var(--brand-text)' }}>{f.name}</span>
-              <button onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))} className="hover:opacity-70 shrink-0" style={{ color: 'var(--brand-subtle)' }}>
+              <span className="max-w-[120px] truncate" style={{ color: 'var(--text)' }}>{f.name}</span>
+              <button onClick={() => setFiles(prev => prev.filter((_, i) => i !== idx))} className="hover:opacity-70 shrink-0" style={{ color: 'var(--text-light)' }}>
                 <X size={11} />
               </button>
             </div>
@@ -312,17 +312,17 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
 
       {/* Input — cliente em modo histórico não vê composer */}
       {readOnly ? (
-        <div className="px-4 py-3 border-t text-center text-[11px]" style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
+        <div className="px-4 py-3 border-t text-center text-[11px]" style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>
           Você está visualizando o histórico de mensagens. O envio foi encerrado.
         </div>
       ) : (
-      <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: 'var(--brand-border)' }}>
+      <div className="px-4 pb-4 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
         {/* Chat de contrato é sempre interno — toggle "Visível ao cliente" removido. */}
         <div className="flex gap-2 items-end">
           <button onClick={() => fileInputRef.current?.click()}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-all shrink-0"
             title="Adicionar anexos"
-            style={{ background: files.length > 0 ? 'rgba(234,179,8,0.08)' : 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: files.length > 0 ? 'var(--warning)' : 'var(--brand-subtle)' }}>
+            style={{ background: files.length > 0 ? 'rgba(234,179,8,0.08)' : 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: files.length > 0 ? 'var(--warning)' : 'var(--text-light)' }}>
             <Paperclip size={15} />
           </button>
           <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileChange} />
@@ -333,17 +333,17 @@ export function ContractMessages({ contractId, userRole, readOnly }: Props) {
             placeholder={isCliente ? 'Escreva uma mensagem...' : 'Escreva uma mensagem... Use @ para mencionar'}
             rows={2}
             className="flex-1 resize-none rounded-lg px-3 py-2 text-sm outline-none transition-colors"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', color: 'var(--text)' }}
           />
           <button onClick={handleSend} disabled={(!input.trim() && files.length === 0) || sending}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-all shrink-0"
             style={(input.trim() || files.length > 0)
               ? { background: 'var(--warning)', color: '#000' }
-              : { background: 'rgba(255,255,255,0.06)', color: 'var(--brand-muted)' }}>
+              : { background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>
             <Send size={15} />
           </button>
         </div>
-        <p className="text-[10px] mt-1.5" style={{ color: 'var(--brand-muted)' }}>
+        <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
           Enter para enviar · Shift+Enter para nova linha · Máx. 10 arquivos (20 MB cada)
         </p>
       </div>

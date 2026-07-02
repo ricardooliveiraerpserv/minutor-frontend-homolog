@@ -300,10 +300,10 @@ export default function EditTimesheetPage() {
         <div className="flex items-center gap-3 mb-6">
           <Link href="/timesheets"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-colors hover:bg-[var(--surface-hover)]"
-            style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+            style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
             <ArrowLeft size={12} /> Voltar
           </Link>
-          <h1 className="text-sm font-semibold" style={{ color: 'var(--brand-text)' }}>Editar Apontamento #{id}</h1>
+          <h1 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Editar Apontamento #{id}</h1>
         </div>
 
         {loading && (
@@ -312,10 +312,10 @@ export default function EditTimesheetPage() {
           </div>
         )}
 
-        {error && <p className="text-sm py-4" style={{ color: 'var(--brand-danger)' }}>{error}</p>}
+        {error && <p className="text-sm py-4" style={{ color: 'var(--danger-border)' }}>{error}</p>}
 
         {!loading && ts && (
-          <div className="rounded-xl p-5 space-y-4" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
+          <div className="rounded-xl p-5 space-y-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
 
             {/* Usuário (admin + coordenador) */}
             {canActAsUser && (
@@ -326,7 +326,7 @@ export default function EditTimesheetPage() {
                     type="button"
                     onClick={() => setForm(f => ({ ...f, user_id: String(user?.id ?? '') }))}
                     className="text-xs font-medium transition-colors"
-                    style={{ color: 'var(--brand-primary)' }}
+                    style={{ color: 'var(--primary)' }}
                   >
                     → Colocar-me como responsável
                   </button>
@@ -384,8 +384,8 @@ export default function EditTimesheetPage() {
                   <button key={label} type="button" onClick={() => setUseTotal(i === 1)}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={active
-                      ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                      : { background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary)' }
+                      ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                      : { background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }
                     }>{label}</button>
                 )
               })}
@@ -498,20 +498,20 @@ export default function EditTimesheetPage() {
             )}
 
             {/* Status (leitura) */}
-            <div className="rounded-xl px-3 py-2.5 text-xs" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--brand-border)', color: 'var(--brand-subtle)' }}>
-              Status atual: <strong style={{ color: 'var(--brand-muted)' }}>{ts.status_display ?? ts.status}</strong>
-              {ts.rejection_reason && <span className="ml-2" style={{ color: 'var(--brand-danger)' }}>— {ts.rejection_reason}</span>}
+            <div className="rounded-xl px-3 py-2.5 text-xs" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', color: 'var(--text-light)' }}>
+              Status atual: <strong style={{ color: 'var(--text-muted)' }}>{ts.status_display ?? ts.status}</strong>
+              {ts.rejection_reason && <span className="ml-2" style={{ color: 'var(--danger-border)' }}>— {ts.rejection_reason}</span>}
             </div>
 
             <div className="flex gap-2 pt-1 justify-end">
               <Link href="/timesheets"
                 className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-medium transition-colors hover:bg-[var(--surface-hover)]"
-                style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+                style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                 Cancelar
               </Link>
               <button onClick={save} disabled={saving || !form.project_id}
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold disabled:opacity-40 transition-all"
-                style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>
+                style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
                 <Save size={12} />
                 {saving ? 'Salvando...' : 'Salvar alterações'}
               </button>

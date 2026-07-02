@@ -60,7 +60,7 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
   return (
     <NavConfigProvider>
     <ModuleProvider>
-    <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--brand-bg)' }}>
+    <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
 
       {/* Pop-ups globais da Central de Notificações (avisos / decisões / enquetes) — exceto cliente. */}
       {user.type !== 'cliente' && <NotificationPopups userId={user.id} />}
@@ -78,7 +78,7 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
               style={{
                 borderColor: isCliente
                   ? 'color-mix(in srgb, var(--primary) 25%, transparent)'
-                  : 'var(--brand-border)',
+                  : 'var(--border)',
                 background: isCliente
                   ? 'linear-gradient(to right, var(--primary-soft), transparent)'
                   : 'var(--surface)',
