@@ -114,6 +114,7 @@ function Inner() {
   const [overGroup, setOverGroup] = useState<string | null>(null) // grupo/módulo alvo (drop "dentro")
   const [permFor, setPermFor] = useState<string | null>(null)   // modal (visão Lista)
   const [permOpen, setPermOpen] = useState<string | null>(null) // accordion inline (visão Árvore) — node id
+  const [locOpen, setLocOpen] = useState<string | null>(null)   // popover "onde mais essa tela aparece"
   const [preview, setPreview] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [view, setView] = useState<'tree' | 'flat'>('tree')
@@ -151,6 +152,22 @@ function Inner() {
     mods.forEach(m => walk(m.items, m.label))
     return map
   }, [mods])
+
+  // Onde cada tela aparece — CAMINHO completo (Módulo › Pasta › …), deduplicado. Usado no indicador
+  // "já existe em outra pasta" por linha. Cópias por perfil com o mesmo caminho colapsam (não poluem).
+  const locationsByScreen = useMemo(() => {
+    const set: Record<string, Set<string>> = {}
+    const walk = (nodes: NavTreeNode[], trail: string[]) => nodes.forEach(n => {
+      if (n.screen) {
+        (set[n.screen] ??= new Set()).add(trail.join(' › '))
+        if (n.children) walk(n.children, [...trail, screenLabel(screens[n.screen], n.screen)])
+      } else if (n.children) walk(n.children, [...trail, n.label ?? ''])
+    })
+    mods.forEach(m => walk(m.items, [m.label]))
+    const out: Record<string, string[]> = {}
+    Object.entries(set).forEach(([k, s]) => { out[k] = [...s] })
+    return out
+  }, [mods, screens])
 
   const orphanRefs = useMemo(() => Object.keys(usageByScreen)
     .filter(k => noPerm(screens[k]))
@@ -385,7 +402,8 @@ function Inner() {
       if (n.screen) {
         const s = screens[n.screen]
         const usage = usageByScreen[n.screen] ?? []
-        const dup = usage.length > 1
+        const locs = locationsByScreen[n.screen] ?? []
+        const inOtherFolders = locs.length > 1   // mesma tela em mais de uma pasta distinta
         const hiddenHere = !!n.hidden   // oculto nesta cópia (independente por perfil)
         return (
           <div key={n.id}>
@@ -402,10 +420,13 @@ function Inner() {
                 <input value={screenLabel(s, n.screen)} onChange={e => patchScreen(n.screen!, { label: e.target.value })}
                   className="flex-1 bg-transparent text-[13px] outline-none min-w-0" style={{ color: 'var(--text)', fontWeight: hasKids ? 600 : 400 }} />
                 {hasKids && <span title="Submenu (pai)" className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>{n.children!.length}</span>}
-                {dup && (
-                  <span title={`Reutilizada em ${usage.length} módulos: ${usage.join(', ')}`} className="inline-flex items-center gap-0.5 text-[10px] px-1 py-0.5 rounded shrink-0" style={{ color: 'var(--text-light)' }}>
-                    <Repeat size={10} /> {usage.length}
-                  </span>
+                {inOtherFolders && (
+                  <button onClick={() => setLocOpen(locOpen === n.id ? null : n.id)}
+                    title={`Esta tela também está em ${locs.length - 1} outra(s) pasta(s) — clique para ver onde`}
+                    className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full shrink-0"
+                    style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)', border: '1px solid var(--warning-border)' }}>
+                    <Repeat size={10} /> {locs.length}× {locOpen === n.id ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                  </button>
                 )}
                 <button onClick={() => setPermOpen(permOpen === n.id ? null : n.id)} title="Acessos por usuário"
                   className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full shrink-0 transition-opacity"
@@ -429,6 +450,20 @@ function Inner() {
                 </div>
               </div>
             </div>
+            {/* popover: onde mais essa tela aparece (pastas distintas) */}
+            {locOpen === n.id && (
+              <div className="mr-1 mb-1.5 rounded-lg overflow-hidden" style={{ marginLeft: (depth + 1) * INDENT, border: '1px solid var(--warning-border)', background: 'var(--warning-bg)' }}>
+                <div className="p-3">
+                  <p className="text-[11px] font-semibold mb-1.5 inline-flex items-center gap-1.5" style={{ color: 'var(--warning-border)' }}><Repeat size={12} /> Esta tela aparece em {locs.length} pastas:</p>
+                  <ul className="space-y-1">
+                    {locs.map((p, i) => (
+                      <li key={i} className="text-[12px] inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}><Folder size={12} style={{ color: 'var(--warning-border)' }} /> {p}</li>
+                    ))}
+                  </ul>
+                  <p className="text-[10px] mt-2" style={{ color: 'var(--text-muted)' }}>É a mesma tela reutilizada — editar o rótulo/permissões afeta todas as ocorrências.</p>
+                </div>
+              </div>
+            )}
             {/* accordion inline de acessos (perfis + usuários esporádicos) */}
             {permOpen === n.id && s && (
               <div className="mr-1 mb-1.5 rounded-lg overflow-hidden" style={{ marginLeft: (depth + 1) * INDENT, border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
