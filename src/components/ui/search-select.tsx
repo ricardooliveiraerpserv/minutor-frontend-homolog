@@ -6,7 +6,7 @@ import { ChevronDown, Search } from 'lucide-react'
 
 export interface SearchSelectOption { id: number | string; name: string }
 
-export function SearchSelect({ label, value, onChange, options, placeholder, wide, fullWidth, disabled }: {
+export function SearchSelect({ label, value, onChange, options, placeholder, wide, fullWidth, disabled, inline }: {
   label?: string
   value: string | number
   onChange: (v: string) => void
@@ -16,6 +16,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
   fullWidth?: boolean
   disabled?: boolean
   subtle?: boolean   // variante visual (Cronograma) — aceita p/ compat
+  inline?: boolean   // lista no fluxo normal (abaixo do campo), sem portal fixo — não corta
 }) {
   const [open,  setOpen]  = useState(false)
   const [query, setQuery] = useState('')
@@ -38,11 +39,12 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
     // Em telas de toque NÃO fechar no scroll: ao focar o input de busca o iOS
     // rola a tela pra acomodar o teclado, o que fecharia o dropdown e impediria
     // de digitar. No desktop mantém o fecha-ao-rolar.
+    // Inline: a lista está no fluxo (rola junto com o container) — não fechar no scroll.
     const isCoarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches
-    if (!isCoarse) window.addEventListener('scroll', onScroll, { passive: true })
+    if (!isCoarse && !inline) window.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       document.removeEventListener('mousedown', h)
-      if (!isCoarse) window.removeEventListener('scroll', onScroll)
+      if (!isCoarse && !inline) window.removeEventListener('scroll', onScroll)
     }
   }, [open])
 
@@ -85,47 +87,70 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
         <ChevronDown size={13} style={{ color: 'var(--brand-subtle)', flexShrink: 0 }} />
       </button>
 
-      {open && pos && typeof document !== 'undefined' && createPortal(
-        <div
-          ref={ref}
-          className="rounded-xl shadow-2xl overflow-hidden"
-          style={{
-            position: 'fixed', top: pos.top, left: pos.left, width: pos.width,
-            zIndex: 9999, background: 'var(--brand-surface)', border: '1px solid var(--brand-border)',
-          }}
-        >
-          <div className="p-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
-            <div className="relative">
-              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Buscar..."
-                className="w-full pl-7 pr-3 py-1.5 rounded-lg text-xs outline-none"
-                style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
-              />
+      {open && (() => {
+        const menu = (
+          <>
+            <div className="p-2 border-b" style={{ borderColor: 'var(--brand-border)' }}>
+              <div className="relative">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand-subtle)' }} />
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Buscar..."
+                  className="w-full pl-7 pr-3 py-1.5 rounded-lg text-xs outline-none"
+                  style={{ background: 'var(--brand-bg)', border: '1px solid var(--brand-border)', color: 'var(--brand-text)' }}
+                />
+              </div>
             </div>
-          </div>
-          <div className="max-h-52 overflow-y-auto">
-            <button type="button" onClick={() => select('')}
-              className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-              style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>
-              {placeholder}
-            </button>
-            {filtered.length === 0
-              ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
-              : filtered.map(o => (
-                <button key={o.id} type="button" onClick={() => select(String(o.id))}
-                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-                  style={{ color: String(o.id) === String(value) ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
-                  {o.name}
-                </button>
-              ))}
-          </div>
-        </div>,
-        document.body
-      )}
+            <div className="max-h-52 overflow-y-auto">
+              <button type="button" onClick={() => select('')}
+                className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
+                style={{ color: !value ? 'var(--brand-primary)' : 'var(--brand-subtle)' }}>
+                {placeholder}
+              </button>
+              {filtered.length === 0
+                ? <p className="px-3 py-2 text-xs" style={{ color: 'var(--brand-subtle)' }}>Nenhum resultado</p>
+                : filtered.map(o => (
+                  <button key={o.id} type="button" onClick={() => select(String(o.id))}
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
+                    style={{ color: String(o.id) === String(value) ? 'var(--brand-primary)' : 'var(--brand-text)' }}>
+                    {o.name}
+                  </button>
+                ))}
+            </div>
+          </>
+        )
+
+        // Inline: lista no fluxo normal, logo abaixo do campo (empurra o conteúdo,
+        // nunca é cortada — o container rola até ela mesmo na última linha).
+        if (inline) {
+          return (
+            <div
+              ref={ref}
+              className="rounded-xl overflow-hidden mt-1"
+              style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)', boxShadow: 'var(--shadow-md, 0 4px 12px rgba(15,23,42,.08))', minWidth: fullWidth ? undefined : (wide ? 240 : 200) }}
+            >
+              {menu}
+            </div>
+          )
+        }
+
+        // Default: painel flutuante (portal fixed).
+        return pos && typeof document !== 'undefined' ? createPortal(
+          <div
+            ref={ref}
+            className="rounded-xl shadow-2xl overflow-hidden"
+            style={{
+              position: 'fixed', top: pos.top, left: pos.left, width: pos.width,
+              zIndex: 9999, background: 'var(--brand-surface)', border: '1px solid var(--brand-border)',
+            }}
+          >
+            {menu}
+          </div>,
+          document.body
+        ) : null
+      })()}
     </div>
   )
 }

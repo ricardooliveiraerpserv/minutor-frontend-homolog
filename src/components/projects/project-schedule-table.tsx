@@ -867,7 +867,7 @@ function StageRows(props: StageRowProps) {
                   ✏️ Editando atividade
                 </div>
               )}
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                 <FieldLabeled label="Título">
                   <input
                     autoFocus
@@ -885,6 +885,7 @@ function StageRows(props: StageRowProps) {
                 </FieldLabeled>
                 <FieldLabeled label="Responsável">
                   <SearchSelect
+                    inline
                     value={activityDraft.responsible_user_id}
                     onChange={v => setActivityDraft(d => ({ ...d, responsible_user_id: v }))}
                     options={responsibleOptions}
