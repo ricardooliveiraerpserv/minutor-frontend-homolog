@@ -22,7 +22,7 @@ export function ConfirmDeleteModal({ open, title, message, confirmLabel, loading
           <div className="w-10 h-10 rounded-full bg-[var(--danger-bg)] flex items-center justify-center shrink-0">
             <Trash2 size={18} className="text-[var(--danger)]" />
           </div>
-          <h3 className="text-base font-semibold text-white">{title ?? 'Confirmar exclusão'}</h3>
+          <h3 className="text-base font-semibold text-[var(--text)]">{title ?? 'Confirmar exclusão'}</h3>
         </div>
         <p className="text-sm text-[var(--text-muted)]">
           {message ?? 'Deseja excluir este item? Esta ação não pode ser desfeita.'}
@@ -33,7 +33,7 @@ export function ConfirmDeleteModal({ open, title, message, confirmLabel, loading
             Cancelar
           </Button>
           <Button onClick={onConfirm} disabled={loading}
-            className="bg-red-600 hover:bg-red-700 text-white">
+            className="bg-[var(--danger-border)] hover:bg-[var(--danger)] text-[var(--primary-fg)]">
             {loading ? 'Aguarde...' : (confirmLabel ?? 'Excluir')}
           </Button>
         </div>

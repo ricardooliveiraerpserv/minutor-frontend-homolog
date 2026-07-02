@@ -230,7 +230,7 @@ function TsStatusBadge({ status, display }: { status: string; display?: string }
     pending:              'bg-[var(--warning-bg)] text-[var(--warning)] border-yellow-500/20',
     approved:             'bg-[var(--success-bg)]  text-[var(--success)]  border-green-500/20',
     rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]    border-red-500/20',
-    adjustment_requested: 'bg-[var(--purple-bg)]   text-[var(--purple)]   border-blue-500/20',
+    adjustment_requested: 'bg-[var(--purple-bg)]   text-[var(--purple)]   border-[var(--purple-border)]/40',
     conflicted:           'bg-[var(--purple-bg)] text-[var(--purple)] border-purple-500/20',
     internal:             'bg-slate-500/15  text-slate-400  border-slate-500/20',
     released:             'bg-[var(--info-bg)]   text-[var(--info)]   border-cyan-500/20',
@@ -276,7 +276,7 @@ function StatusPills({ value, onChange, options }: {
         <button key={opt.value} type="button" onClick={() => onChange(opt.value)}
           className={`px-3 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
             value === opt.value
-              ? 'bg-cyan-400 text-zinc-900 shadow-sm'
+              ? 'bg-[var(--primary)] text-[var(--primary-fg)] shadow-sm'
               : 'text-[var(--text-muted)] hover:text-[var(--text)]'
           }`}>
           {opt.label}
@@ -504,13 +504,13 @@ function ExpApproveModal({
 
           {/* Solicitar ajuste */}
           {mode === 'adjust' && (
-            <div className="rounded-xl border border-blue-700/40 bg-[var(--primary-soft)] px-4 py-3 space-y-2">
+            <div className="rounded-xl border border-[var(--primary)]/40 bg-[var(--primary-soft)] px-4 py-3 space-y-2">
               <p className={`text-xs font-semibold ${adjSubmitted && !adjReason.trim() ? 'text-[var(--danger)]' : 'text-[var(--primary)]'}`}>
                 O que precisa ser ajustado? *
               </p>
               <textarea autoFocus value={adjReason} onChange={e => setAdjReason(e.target.value)}
                 placeholder="Descreva o que o colaborador deve corrigir..." rows={3}
-                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-[var(--text-muted)]" />
+                className="w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-[var(--primary)] resize-none placeholder:text-[var(--text-muted)]" />
               {adjSubmitted && !adjReason.trim() && (
                 <p className="text-[var(--danger)] text-[11px]">Informe o motivo do ajuste</p>
               )}
@@ -526,7 +526,7 @@ function ExpApproveModal({
                   <XCircle size={12} /> Rejeitar
                 </button>
                 <button onClick={() => setMode('adjust')} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-blue-700/50 text-[var(--primary)] hover:bg-[var(--primary-soft)] disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium border border-[var(--primary)]/50 text-[var(--primary)] hover:bg-[var(--primary-soft)] disabled:opacity-50 transition-colors">
                   <RotateCcw size={12} /> Solicitar Ajuste
                 </button>
                 <button onClick={onClose} disabled={approving}
@@ -923,14 +923,14 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
             <button key={id} onClick={() => handleTabChange(id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
                 active
-                  ? 'bg-cyan-400 border-cyan-400 text-zinc-900'
+                  ? 'bg-[var(--primary)] border-[var(--primary)] text-[var(--primary-fg)]'
                   : 'bg-transparent border-cyan-500/40 text-[var(--primary)] hover:border-cyan-400'
               }`}>
               <Icon size={14} />
               {label}
               {count > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold ${
-                  active ? 'bg-black/10 text-zinc-900' : 'bg-[var(--primary-soft)] text-[var(--primary)]'
+                  active ? 'bg-white/20 text-[var(--primary-fg)]' : 'bg-[var(--primary-soft)] text-[var(--primary)]'
                 }`}>{count}</span>
               )}
             </button>
@@ -968,7 +968,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
             <Filter size={13} />
             <span className="font-medium">Filtros</span>
             {hasFilters && (
-              <span className="bg-[var(--primary-soft)] text-[var(--primary)] border border-blue-500/30 rounded-full px-2 py-0.5 text-[10px]">ativos</span>
+              <span className="bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)]/30 rounded-full px-2 py-0.5 text-[10px]">ativos</span>
             )}
           </div>
           <ChevronDown size={13} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
@@ -1073,7 +1073,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
 
       {/* ── Bulk action bar (apontamentos only) ── */}
       {tab === 'timesheets' && selected.length > 0 && (
-        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary-soft)] border border-blue-500/20">
+        <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--primary-soft)] border border-[var(--primary)]/20">
           <span className="text-xs text-[var(--primary)] flex-1">
             {selected.length} apontamento(s) selecionado(s)
             <span className="ml-2 font-semibold text-[var(--primary)]">· {fmtMin(selectedMinutes)}</span>
@@ -1470,7 +1470,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
               onChange={e => setBulkAdjReason(e.target.value)}
               placeholder="Ex: Descrição incompleta, horas incorretas..."
               rows={3}
-              className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-[var(--text-muted)]"
+              className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-[var(--primary)] resize-none placeholder:text-[var(--text-muted)]"
             />
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setBulkAdjOpen(false); setBulkAdjReason('') }}
@@ -1498,7 +1498,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
               onChange={e => setAdjReason(e.target.value)}
               placeholder="Ex: Comprovante ilegível, valor incorreto, descrição incompleta..."
               rows={3}
-              className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-blue-500 resize-none placeholder:text-[var(--text-muted)]"
+              className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-[var(--primary)] resize-none placeholder:text-[var(--text-muted)]"
             />
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setAdjModal({ open: false, id: null, type: 'expense' }); setAdjReason('') }}
