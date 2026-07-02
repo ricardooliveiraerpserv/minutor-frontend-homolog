@@ -152,9 +152,9 @@ function fmtH(h: number): string {
 }
 
 function balanceColor(val: number): string {
-  if (val > 0) return 'text-emerald-400'
-  if (val < 0) return 'text-red-400'
-  return 'text-zinc-400'
+  if (val > 0) return 'text-[var(--success)]'
+  if (val < 0) return 'text-[var(--danger)]'
+  return 'text-[var(--text-muted)]'
 }
 
 // Rótulos do tipo de contrato (dimensão "Tipo de Contrato").
@@ -428,9 +428,9 @@ function RelatorioBtn({ userId, printingUser, onClick }: {
         ? <RefreshCw size={13} className="animate-spin" />
         : <Printer size={13} style={{ opacity: 0.7 }} />}
       <button onClick={() => onClick('servicos')} disabled={loading} title="Relatório de Serviços" className={link}>Serviços</button>
-      <span className="text-zinc-600">·</span>
+      <span className="text-[var(--text-muted)]">·</span>
       <button onClick={() => onClick('despesa')} disabled={loading} title="Relatório de Despesas" className={link}>Despesa</button>
-      <span className="text-zinc-600">·</span>
+      <span className="text-[var(--text-muted)]">·</span>
       <button onClick={() => onClick('ambos')} disabled={loading} title="Relatório completo (serviços + despesas)" className={link}>Ambos</button>
     </span>
   )
@@ -944,7 +944,7 @@ export default function FechamentoConsultorPage() {
             {descBtn('adicional', adicionalDesc)}
           </div>
         </Td>
-        <Td right className="font-semibold text-zinc-100 align-top">
+        <Td right className="font-semibold text-[var(--text)] align-top">
           {formatBRL(recebimento)}
           {(() => {
             const d = num(desconto), a = num(adiantamento), ad = num(adicional)
@@ -995,7 +995,7 @@ export default function FechamentoConsultorPage() {
     const { sorted, thProps } = useTableSort(rows, (c, k) => k === 'total' ? (c.recebimento ?? 0) : (c as unknown as Record<string, unknown>)[k])
     return (
       <div>
-        <p className="text-sm text-zinc-400 mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
+        <p className="text-sm text-[var(--text-muted)] mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
         <Table>
           <Thead>
             <tr>
@@ -1015,7 +1015,7 @@ export default function FechamentoConsultorPage() {
           <Tbody>
             {rows.length === 0 && (
               <Tr>
-                <td colSpan={11} className="py-8 text-center text-zinc-500 text-sm">
+                <td colSpan={11} className="py-8 text-center text-[var(--text-light)] text-sm">
                   Nenhum consultor horista no período
                 </td>
               </Tr>
@@ -1024,19 +1024,19 @@ export default function FechamentoConsultorPage() {
               const hasGuaranteed = c.guaranteed_prorated > 0 && c.horas_a_pagar > c.horas_trabalhadas
               return (
                 <Tr key={c.user_id}>
-                  <Td className="font-medium text-zinc-100">{c.nome}</Td>
-                  <Td right className="font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</Td>
+                  <Td className="font-medium text-[var(--text)]">{c.nome}</Td>
+                  <Td right className="font-mono text-[var(--text)]">{fmtH(c.horas_trabalhadas)}</Td>
                   <Td right>
                     <div className="flex flex-col items-end gap-0.5">
-                      <span className="font-mono text-zinc-300">{fmtH(c.horas_a_pagar)}</span>
+                      <span className="font-mono text-[var(--text)]">{fmtH(c.horas_a_pagar)}</span>
                       {hasGuaranteed && (
-                        <span className="text-[10px] font-normal text-amber-400">
+                        <span className="text-[10px] font-normal text-[var(--warning)]">
                           mín {fmtH(c.guaranteed_prorated)} garantidas
                         </span>
                       )}
                     </div>
                   </Td>
-                  <Td right className="text-zinc-400">
+                  <Td right className="text-[var(--text-muted)]">
                     {c.rate_type === 'monthly'
                       ? <span title={`Mensal: ${formatBRL(c.valor_hora)}`}>{formatBRL(c.effective_rate)}</span>
                       : formatBRL(c.effective_rate)
@@ -1052,9 +1052,9 @@ export default function FechamentoConsultorPage() {
               )
             })}
             {rows.length > 0 && (
-              <Tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
-                <td colSpan={7} className="py-2 px-3 text-right font-semibold text-zinc-300 text-sm">Total (recebimento)</td>
-                <Td right className="font-bold text-violet-400">{formatBRL(rows.reduce((s, c) => s + (c.recebimento ?? 0), 0))}</Td>
+              <Tr className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-hover)]">
+                <td colSpan={7} className="py-2 px-3 text-right font-semibold text-[var(--text)] text-sm">Total (recebimento)</td>
+                <Td right className="font-bold text-[var(--brand-purple)]">{formatBRL(rows.reduce((s, c) => s + (c.recebimento ?? 0), 0))}</Td>
                 <Td />
                 <Td />
                 <Td />
@@ -1073,7 +1073,7 @@ export default function FechamentoConsultorPage() {
     const { sorted, thProps } = useTableSort(rows, (c, k) => k === 'total' ? (c.recebimento ?? 0) : (c as unknown as Record<string, unknown>)[k])
     return (
       <div>
-        <p className="text-sm text-zinc-400 mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
+        <p className="text-sm text-[var(--text-muted)] mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
         <Table>
           <Thead>
             <tr>
@@ -1096,24 +1096,24 @@ export default function FechamentoConsultorPage() {
           <Tbody>
             {rows.length === 0 && (
               <Tr>
-                <td colSpan={14} className="py-8 text-center text-zinc-500 text-sm">
+                <td colSpan={14} className="py-8 text-center text-[var(--text-light)] text-sm">
                   Nenhum consultor banco de horas no período
                 </td>
               </Tr>
             )}
             {sorted.map(c => (
               <Tr key={c.user_id}>
-                <Td className="font-medium text-zinc-100">{c.nome}</Td>
-                <Td right className="font-semibold text-zinc-200">{formatBRL(c.fixed_salary)}</Td>
-                <Td right className="font-mono text-zinc-400">{fmtH(c.expected_hours)}</Td>
-                <Td right className="font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</Td>
+                <Td className="font-medium text-[var(--text)]">{c.nome}</Td>
+                <Td right className="font-semibold text-[var(--text)]">{formatBRL(c.fixed_salary)}</Td>
+                <Td right className="font-mono text-[var(--text-muted)]">{fmtH(c.expected_hours)}</Td>
+                <Td right className="font-mono text-[var(--text)]">{fmtH(c.horas_trabalhadas)}</Td>
                 <Td right className={`font-mono ${balanceColor(c.month_balance)}`}>{fmtH(c.month_balance)}</Td>
                 <Td right className={`font-mono font-semibold ${balanceColor(c.accumulated_balance)}`}>{fmtH(c.accumulated_balance)}</Td>
-                <Td right className={`font-mono font-semibold ${c.horas_extras > 0 ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                <Td right className={`font-mono font-semibold ${c.horas_extras > 0 ? 'text-[var(--success)]' : 'text-[var(--text-light)]'}`}>
                   {c.horas_extras > 0 ? fmtH(c.horas_extras) : '—'}
                 </Td>
                 <AjusteCols c={c} totalExtra={c.total_extra > 0
-                  ? <div className="text-[10px] text-emerald-400 font-normal">+{formatBRL(c.total_extra)} extra</div>
+                  ? <div className="text-[10px] text-[var(--success)] font-normal">+{formatBRL(c.total_extra)} extra</div>
                   : undefined} />
                 <Td><NotasPjCell type="consultor" id={c.user_id} yearMonth={yearMonth} notas={c.notas ?? null} canDecide={canSendEmail} canUpload={canSendEmail || user?.id === c.user_id} expectedValue={c.recebimento ?? null} selfService={false} onChanged={(n) => patchNotas(c.user_id, n)} /></Td>
                   <Td right><EnvioCell c={c} /></Td>
@@ -1123,9 +1123,9 @@ export default function FechamentoConsultorPage() {
               </Tr>
             ))}
             {rows.length > 0 && (
-              <Tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
-                <td colSpan={10} className="py-2 px-3 text-right font-semibold text-zinc-300 text-sm">Total (recebimento)</td>
-                <Td right className="font-bold text-violet-400">{formatBRL(rows.reduce((s, c) => s + (c.recebimento ?? 0), 0))}</Td>
+              <Tr className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-hover)]">
+                <td colSpan={10} className="py-2 px-3 text-right font-semibold text-[var(--text)] text-sm">Total (recebimento)</td>
+                <Td right className="font-bold text-[var(--brand-purple)]">{formatBRL(rows.reduce((s, c) => s + (c.recebimento ?? 0), 0))}</Td>
                 <Td />
                 <Td />
                 <Td />
@@ -1144,7 +1144,7 @@ export default function FechamentoConsultorPage() {
     const { sorted, thProps } = useTableSort(rows)
     return (
       <div>
-        <p className="text-sm text-zinc-400 mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
+        <p className="text-sm text-[var(--text-muted)] mb-3">{rows.length} consultor{rows.length !== 1 ? 'es' : ''}</p>
         <Table>
           <Thead>
             <tr>
@@ -1163,16 +1163,16 @@ export default function FechamentoConsultorPage() {
           <Tbody>
             {rows.length === 0 && (
               <Tr>
-                <td colSpan={10} className="py-8 text-center text-zinc-500 text-sm">
+                <td colSpan={10} className="py-8 text-center text-[var(--text-light)] text-sm">
                   Nenhum consultor fixo no período
                 </td>
               </Tr>
             )}
             {sorted.map(c => (
               <Tr key={c.user_id}>
-                <Td className="font-medium text-zinc-100">{c.nome}</Td>
-                <Td right className="font-mono text-zinc-300">{fmtH(c.horas_trabalhadas)}</Td>
-                <Td right className="font-semibold text-zinc-100">
+                <Td className="font-medium text-[var(--text)]">{c.nome}</Td>
+                <Td right className="font-mono text-[var(--text)]">{fmtH(c.horas_trabalhadas)}</Td>
+                <Td right className="font-semibold text-[var(--text)]">
                   {formatBRL(c.salario_mensal)}
                 </Td>
                 <AjusteCols c={c} />
@@ -1184,9 +1184,9 @@ export default function FechamentoConsultorPage() {
               </Tr>
             ))}
             {rows.length > 0 && (
-              <Tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
-                <td colSpan={6} className="py-2 px-3 text-right font-semibold text-zinc-300 text-sm">Total (recebimento)</td>
-                <Td right className="font-bold text-violet-400">{formatBRL(rows.reduce((s, c) => s + (c.recebimento ?? 0), 0))}</Td>
+              <Tr className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-hover)]">
+                <td colSpan={6} className="py-2 px-3 text-right font-semibold text-[var(--text)] text-sm">Total (recebimento)</td>
+                <Td right className="font-bold text-[var(--brand-purple)]">{formatBRL(rows.reduce((s, c) => s + (c.recebimento ?? 0), 0))}</Td>
                 <Td />
                 <Td />
                 <Td />
@@ -1215,38 +1215,38 @@ export default function FechamentoConsultorPage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-bizify.png" alt="Bizify" className="h-9 w-auto" />
             <div>
-              <h3 className="text-sm font-semibold text-zinc-100">Fechamento Bizify</h3>
-              <p className="text-xs text-zinc-400">Não entra no resultado da ERPSERV</p>
+              <h3 className="text-sm font-semibold text-[var(--text)]">Fechamento Bizify</h3>
+              <p className="text-xs text-[var(--text-muted)]">Não entra no resultado da ERPSERV</p>
             </div>
           </div>
           {t && (
             <div className="text-right">
-              <p className="text-xs text-zinc-400">Total Geral Bizify</p>
-              <p className="text-lg font-bold text-zinc-100">{formatBRL(t.total_geral)}</p>
+              <p className="text-xs text-[var(--text-muted)]">Total Geral Bizify</p>
+              <p className="text-lg font-bold text-[var(--text)]">{formatBRL(t.total_geral)}</p>
             </div>
           )}
         </div>
 
         {h.length > 0 && (
           <section className="mb-6">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-2">Horistas</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-2">Horistas</h4>
             <TabHoristas source={h} />
           </section>
         )}
         {b.length > 0 && (
           <section className="mb-6">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-2">Banco de Horas</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-2">Banco de Horas</h4>
             <TabBancoHoras source={b} />
           </section>
         )}
         {f.length > 0 && (
           <section className="mb-6">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-400 mb-2">Fixo</h4>
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-2">Fixo</h4>
             <TabFixo source={f} />
           </section>
         )}
         {vazio && (
-          <p className="py-8 text-center text-zinc-500 text-sm">Nenhum consultor Bizify no período</p>
+          <p className="py-8 text-center text-[var(--text-light)] text-sm">Nenhum consultor Bizify no período</p>
         )}
       </div>
     )
@@ -1302,10 +1302,10 @@ export default function FechamentoConsultorPage() {
         {/* Tabela por tipo */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-zinc-500 uppercase tracking-wide font-medium">Por tipo de vínculo</p>
+            <p className="text-xs text-[var(--text-light)] uppercase tracking-wide font-medium">Por tipo de vínculo</p>
             <button
               onClick={handlePrintResumo}
-              className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-300 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
             >
               <Printer size={12} /> Imprimir
             </button>
@@ -1322,11 +1322,11 @@ export default function FechamentoConsultorPage() {
               {tipoRows.map(r => (
                 <Tr key={r.label}>
                   <Td>{r.label}</Td>
-                  <Td right className="text-zinc-400">{r.count}</Td>
-                  <Td right className="font-mono text-zinc-200">{formatBRL(r.total)}</Td>
+                  <Td right className="text-[var(--text-muted)]">{r.count}</Td>
+                  <Td right className="font-mono text-[var(--text)]">{formatBRL(r.total)}</Td>
                 </Tr>
               ))}
-              <Tr className="border-t-2 border-[#7C3AED]" baseBackground="rgba(124,58,237,0.06)">
+              <Tr className="border-t-2 border-[var(--brand-purple)]" baseBackground="rgba(124,58,237,0.06)">
                 <Td style={{ color: '#6D28D9', fontWeight: 700 }}>Total Geral</Td>
                 <Td right style={{ color: '#6D28D9', fontWeight: 600 }}>{todos.length}</Td>
                 <Td right className="text-base" style={{ color: '#6D28D9', fontWeight: 700 }}>{formatBRL(t.total_geral)}</Td>
@@ -1338,11 +1338,11 @@ export default function FechamentoConsultorPage() {
         {/* Tabela por tipo de contrato */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-zinc-500 uppercase tracking-wide font-medium">Por tipo de contrato</p>
+            <p className="text-xs text-[var(--text-light)] uppercase tracking-wide font-medium">Por tipo de contrato</p>
             <button
               onClick={downloadAllExcel}
               disabled={downloadingAllExcel}
-              className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-300 transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition-colors disabled:opacity-50"
               title={contractType ? `Exportar ${CONTRACT_LABELS[contractType]} para Excel` : 'Exportar todos para Excel'}
             >
               {downloadingAllExcel ? <RefreshCw size={12} className="animate-spin" /> : <FileSpreadsheet size={12} />}
@@ -1361,11 +1361,11 @@ export default function FechamentoConsultorPage() {
               {contratoBuckets.map(r => (
                 <Tr key={r.key}>
                   <Td>{r.label}</Td>
-                  <Td right className="text-zinc-400">{r.count}</Td>
-                  <Td right className="font-mono text-zinc-200">{formatBRL(r.total)}</Td>
+                  <Td right className="text-[var(--text-muted)]">{r.count}</Td>
+                  <Td right className="font-mono text-[var(--text)]">{formatBRL(r.total)}</Td>
                 </Tr>
               ))}
-              <Tr className="border-t-2 border-[#7C3AED]" baseBackground="rgba(124,58,237,0.06)">
+              <Tr className="border-t-2 border-[var(--brand-purple)]" baseBackground="rgba(124,58,237,0.06)">
                 <Td style={{ color: '#6D28D9', fontWeight: 700 }}>Total Geral</Td>
                 <Td right style={{ color: '#6D28D9', fontWeight: 600 }}>{contratoTotalCount}</Td>
                 <Td right className="text-base" style={{ color: '#6D28D9', fontWeight: 700 }}>{formatBRL(contratoTotalValor)}</Td>
@@ -1377,12 +1377,12 @@ export default function FechamentoConsultorPage() {
         {/* Lista individual de todos os consultores */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs text-zinc-500 uppercase tracking-wide font-medium">
+            <p className="text-xs text-[var(--text-light)] uppercase tracking-wide font-medium">
               Todos os consultores ({todosFiltrados.length})
             </p>
             <button
               onClick={handlePrintTodos}
-              className="inline-flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-[var(--brand-purple)] hover:text-[var(--brand-purple)] transition-colors"
             >
               <Printer size={12} /> Imprimir lista
             </button>
@@ -1398,14 +1398,14 @@ export default function FechamentoConsultorPage() {
             <Tbody>
               {todosFiltrados.map(c => (
                 <Tr key={c.user_id}>
-                  <Td className="font-medium text-zinc-100">{c.nome}</Td>
-                  <Td className="text-zinc-400">{c.email ?? '—'}</Td>
-                  <Td right className="font-semibold text-zinc-100">{formatBRL(c.total)}</Td>
+                  <Td className="font-medium text-[var(--text)]">{c.nome}</Td>
+                  <Td className="text-[var(--text-muted)]">{c.email ?? '—'}</Td>
+                  <Td right className="font-semibold text-[var(--text)]">{formatBRL(c.total)}</Td>
                 </Tr>
               ))}
-              <Tr className="border-t-2 border-zinc-600 bg-zinc-800/20">
-                <td colSpan={2} className="py-2 px-3 text-right font-semibold text-zinc-300 text-sm">Total</td>
-                <Td right className="font-bold text-violet-400">{formatBRL(totalFiltrado)}</Td>
+              <Tr className="border-t-2 border-[var(--border-strong)] bg-[var(--surface-hover)]">
+                <td colSpan={2} className="py-2 px-3 text-right font-semibold text-[var(--text)] text-sm">Total</td>
+                <Td right className="font-bold text-[var(--brand-purple)]">{formatBRL(totalFiltrado)}</Td>
               </Tr>
             </Tbody>
           </Table>
@@ -1430,7 +1430,7 @@ export default function FechamentoConsultorPage() {
                 type="month"
                 value={yearMonth}
                 onChange={e => setYearMonth(e.target.value)}
-                className="bg-zinc-800 border border-zinc-700 text-zinc-100 rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--brand-purple)]"
               />
               <Button size="sm" variant="secondary" onClick={downloadAllExcel} disabled={downloadingAllExcel} icon={FileSpreadsheet} loading={downloadingAllExcel}>
                 {downloadingAllExcel ? 'Baixando…' : 'Exportar Excel'}

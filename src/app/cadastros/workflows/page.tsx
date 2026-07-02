@@ -25,8 +25,8 @@ interface WorkflowItem {
 }
 
 const CHANNELS: { value: Channel; label: string; cls: string }[] = [
-  { value: 'off', label: 'Não envia', cls: 'bg-zinc-700/40 text-zinc-300' },
-  { value: 'to',  label: 'Destinatário', cls: 'bg-emerald-500 text-black' },
+  { value: 'off', label: 'Não envia', cls: 'bg-[var(--surface-hover)] text-[var(--text)]' },
+  { value: 'to',  label: 'Destinatário', cls: 'bg-[var(--success-border)] text-black' },
   { value: 'cc',  label: 'Em cópia', cls: 'bg-sky-500 text-black' },
 ]
 
@@ -161,7 +161,7 @@ export default function WorkflowsPage() {
   }
 
   if (user && user.type !== 'admin') {
-    return <AppLayout title="Workflows de E-mail"><div className="p-6 text-zinc-400">Acesso restrito a administradores.</div></AppLayout>
+    return <AppLayout title="Workflows de E-mail"><div className="p-6 text-[var(--text-muted)]">Acesso restrito a administradores.</div></AppLayout>
   }
 
   const presentDomains = [...new Set(workflows.map(w => w.domain))]
@@ -173,43 +173,43 @@ export default function WorkflowsPage() {
   return (
     <AppLayout title="Workflows de E-mail">
       <div className="p-4 md:p-6 max-w-5xl mx-auto">
-        <div className="flex items-center gap-2 mb-1 text-zinc-200">
-          <WorkflowIcon size={20} className="text-emerald-400" />
+        <div className="flex items-center gap-2 mb-1 text-[var(--text)]">
+          <WorkflowIcon size={20} className="text-[var(--success)]" />
           <h1 className="text-lg font-bold">Central de Workflows</h1>
         </div>
-        <p className="text-sm text-zinc-400 mb-6">
-          Defina, por papel, quem recebe cada e-mail do sistema — como <b className="text-emerald-400">Destinatário</b> ou <b className="text-sky-400">Em cópia</b>. Novos workflows aparecem aqui automaticamente.
+        <p className="text-sm text-[var(--text-muted)] mb-6">
+          Defina, por papel, quem recebe cada e-mail do sistema — como <b className="text-[var(--success)]">Destinatário</b> ou <b className="text-sky-400">Em cópia</b>. Novos workflows aparecem aqui automaticamente.
         </p>
 
         {loading ? (
-          <div className="text-zinc-400">Carregando…</div>
+          <div className="text-[var(--text-muted)]">Carregando…</div>
         ) : orderedDomains.map(domain => {
           const items = workflows.filter(w => w.domain === domain)
           const open = openDomains.has(domain)
           return (
-          <div key={domain} className="mb-3 rounded-xl border border-zinc-700 bg-zinc-900/30 overflow-hidden">
+          <div key={domain} className="mb-3 rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] overflow-hidden">
             <button onClick={() => toggleDomain(domain)}
-              className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-zinc-800/40 transition-colors">
-              <ChevronDown size={16} className={`text-zinc-400 transition-transform ${open ? '' : '-rotate-90'}`} />
-              <span className="font-bold text-zinc-100 text-sm">{DOMAIN_LABELS[domain] ?? domain}</span>
-              <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400">{items.length}</span>
+              className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-[var(--surface-hover)] transition-colors">
+              <ChevronDown size={16} className={`text-[var(--text-muted)] transition-transform ${open ? '' : '-rotate-90'}`} />
+              <span className="font-bold text-[var(--text)] text-sm">{DOMAIN_LABELS[domain] ?? domain}</span>
+              <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-[var(--surface-hover)] text-[var(--text-muted)]">{items.length}</span>
             </button>
             {open && (
             <div className="px-4 pb-4 pt-1 space-y-3">
               {items.map(w => {
                 const wfOpen = openWorkflows.has(w.key)
                 return (
-                <div key={w.key} className="rounded-xl border border-zinc-700 bg-zinc-900/40 p-4">
+                <div key={w.key} className="rounded-xl border border-[var(--border)] bg-[var(--surface-hover)] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <button onClick={() => toggleWorkflow(w.key)} className="flex items-start gap-2 text-left min-w-0">
-                      <ChevronDown size={14} className={`mt-1 shrink-0 text-zinc-500 transition-transform ${wfOpen ? '' : '-rotate-90'}`} />
+                      <ChevronDown size={14} className={`mt-1 shrink-0 text-[var(--text-light)] transition-transform ${wfOpen ? '' : '-rotate-90'}`} />
                       <div className="min-w-0">
-                        <div className="font-semibold text-zinc-100 flex items-center gap-2"><Mail size={14} className="text-zinc-500" />{w.label}</div>
-                        {w.description && <div className="text-xs text-zinc-400 mt-0.5">{w.description}</div>}
+                        <div className="font-semibold text-[var(--text)] flex items-center gap-2"><Mail size={14} className="text-[var(--text-light)]" />{w.label}</div>
+                        {w.description && <div className="text-xs text-[var(--text-muted)] mt-0.5">{w.description}</div>}
                       </div>
                     </button>
                     <button onClick={() => save(w)} disabled={savingKey === w.key}
-                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-black text-xs font-bold disabled:opacity-50">
+                      className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--success-border)] text-black text-xs font-bold disabled:opacity-50">
                       <Save size={13} /> {savingKey === w.key ? 'Salvando…' : 'Salvar'}
                     </button>
                   </div>
@@ -217,44 +217,44 @@ export default function WorkflowsPage() {
                   {wfOpen && (<>
 
                   {/* Modelo de e-mail — título + texto editáveis */}
-                  <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-                    <div className="text-[11px] uppercase tracking-wider text-zinc-500 font-bold mb-2">Modelo de e-mail</div>
-                    <label className="block text-xs text-zinc-400 mb-1">Título (assunto)</label>
+                  <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] p-3">
+                    <div className="text-[11px] uppercase tracking-wider text-[var(--text-light)] font-bold mb-2">Modelo de e-mail</div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Título (assunto)</label>
                     <input value={w.template.subject} onChange={e => setTemplate(w.key, { subject: e.target.value })}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2.5 py-1.5 text-sm text-zinc-100 mb-2" />
-                    <label className="block text-xs text-zinc-400 mb-1">Texto</label>
+                      className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-md px-2.5 py-1.5 text-sm text-[var(--text)] mb-2" />
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">Texto</label>
                     <textarea value={w.template.body} onChange={e => setTemplate(w.key, { body: e.target.value })} rows={3}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-md px-2.5 py-1.5 text-sm text-zinc-100" />
+                      className="w-full bg-[var(--surface-hover)] border border-[var(--border)] rounded-md px-2.5 py-1.5 text-sm text-[var(--text)]" />
                     {Object.keys(w.template.variables).length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        <span className="text-[11px] text-zinc-500">Variáveis:</span>
+                        <span className="text-[11px] text-[var(--text-light)]">Variáveis:</span>
                         {Object.entries(w.template.variables).map(([v, desc]) => (
-                          <span key={v} title={desc} className="text-[11px] px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-emerald-400 font-mono cursor-default">{'{'}{v}{'}'}</span>
+                          <span key={v} title={desc} className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--success)] font-mono cursor-default">{'{'}{v}{'}'}</span>
                         ))}
                       </div>
                     )}
                     {w.recurrence && (
-                      <div className="mt-3 pt-3 border-t border-zinc-800">
-                        <label className="block text-xs text-zinc-400 mb-1">Recorrência — reenviar enquanto não for paga</label>
+                      <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                        <label className="block text-xs text-[var(--text-muted)] mb-1">Recorrência — reenviar enquanto não for paga</label>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-zinc-400">A cada</span>
+                          <span className="text-xs text-[var(--text-muted)]">A cada</span>
                           <input
                             type="number" min={0} max={365}
                             value={w.template.recurrence_days ?? 0}
                             onChange={e => setTemplate(w.key, { recurrence_days: Math.max(0, Math.min(365, Number(e.target.value) || 0)) })}
-                            className="w-20 bg-zinc-800 border border-zinc-700 rounded-md px-2.5 py-1.5 text-sm text-zinc-100 text-center" />
-                          <span className="text-xs text-zinc-400">dia(s). Use <b>0</b> para enviar só o aviso na aprovação (sem repetir).</span>
+                            className="w-20 bg-[var(--surface-hover)] border border-[var(--border)] rounded-md px-2.5 py-1.5 text-sm text-[var(--text)] text-center" />
+                          <span className="text-xs text-[var(--text-muted)]">dia(s). Use <b>0</b> para enviar só o aviso na aprovação (sem repetir).</span>
                         </div>
                       </div>
                     )}
-                    <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center gap-2">
+                    <div className="mt-3 pt-3 border-t border-[var(--border)] flex items-center gap-2">
                       <button onClick={() => openPreview(w)} disabled={previewing === w.key}
-                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-700 text-zinc-100 text-xs font-bold disabled:opacity-50">
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--surface-hover)] text-[var(--text)] text-xs font-bold disabled:opacity-50">
                         <Eye size={13} /> {previewing === w.key ? 'Gerando…' : 'Pré-visualizar'}
                       </button>
                       <input value={testEmail[w.key] || ''} onChange={e => setTestEmail(p => ({ ...p, [w.key]: e.target.value }))}
                         placeholder="e-mail para teste" type="email"
-                        className="flex-1 bg-zinc-800 border border-zinc-700 rounded-md px-2.5 py-1.5 text-sm text-zinc-100" />
+                        className="flex-1 bg-[var(--surface-hover)] border border-[var(--border)] rounded-md px-2.5 py-1.5 text-sm text-[var(--text)]" />
                       <button onClick={() => sendTest(w.key)} disabled={testingKey === w.key}
                         className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500 text-black text-xs font-bold disabled:opacity-50">
                         <Send size={13} /> {testingKey === w.key ? 'Enviando…' : 'Enviar teste'}
@@ -262,18 +262,18 @@ export default function WorkflowsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-3 text-[11px] uppercase tracking-wider text-zinc-500 font-bold">Destinatários</div>
-                  <div className="mt-1 divide-y divide-zinc-800">
+                  <div className="mt-3 text-[11px] uppercase tracking-wider text-[var(--text-light)] font-bold">Destinatários</div>
+                  <div className="mt-1 divide-y divide-[var(--border)]">
                     {w.audiences.map(a => (
                       <div key={a.audience} className="flex items-center justify-between gap-3 py-2">
-                        <span className="text-sm text-zinc-300">
+                        <span className="text-sm text-[var(--text)]">
                           {a.label}
-                          {!a.recommended && <span className="ml-2 text-[10px] uppercase tracking-wide text-zinc-500">incluída</span>}
+                          {!a.recommended && <span className="ml-2 text-[10px] uppercase tracking-wide text-[var(--text-light)]">incluída</span>}
                         </span>
                         <div className="flex gap-1">
                           {CHANNELS.map(c => (
                             <button key={c.value} onClick={() => setChannel(w.key, a.audience, c.value)}
-                              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${a.channel === c.value ? c.cls : 'bg-transparent text-zinc-500 border border-zinc-700'}`}>
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${a.channel === c.value ? c.cls : 'bg-transparent text-[var(--text-light)] border border-[var(--border)]'}`}>
                               {c.label}
                             </button>
                           ))}
@@ -289,30 +289,30 @@ export default function WorkflowsPage() {
                     return (
                       <div className="mt-2">
                         <select value="" onChange={e => { addAudience(w.key, e.target.value); e.target.value = '' }}
-                          className="bg-zinc-800 border border-zinc-700 rounded-md px-2.5 py-1.5 text-xs text-emerald-400 font-semibold">
+                          className="bg-[var(--surface-hover)] border border-[var(--border)] rounded-md px-2.5 py-1.5 text-xs text-[var(--success)] font-semibold">
                           <option value="">+ Incluir categoria de usuário…</option>
-                          {remaining.map(a => <option key={a.audience} value={a.audience} className="text-zinc-100">{a.label}</option>)}
+                          {remaining.map(a => <option key={a.audience} value={a.audience} className="text-[var(--text)]">{a.label}</option>)}
                         </select>
                       </div>
                     )
                   })()}
 
-                  <div className="mt-3 pt-3 border-t border-zinc-800">
-                    <div className="text-[11px] uppercase tracking-wider text-zinc-500 font-bold mb-2">E-mails fixos extras</div>
+                  <div className="mt-3 pt-3 border-t border-[var(--border)]">
+                    <div className="text-[11px] uppercase tracking-wider text-[var(--text-light)] font-bold mb-2">E-mails fixos extras</div>
                     {w.extra_emails.map((e, i) => (
                       <div key={i} className="flex items-center gap-2 mb-2">
                         <input value={e.email} onChange={ev => setExtra(w.key, i, { email: ev.target.value })}
                           placeholder="email@empresa.com" type="email"
-                          className="flex-1 bg-zinc-800 border border-zinc-700 rounded-md px-2.5 py-1.5 text-sm text-zinc-100" />
+                          className="flex-1 bg-[var(--surface-hover)] border border-[var(--border)] rounded-md px-2.5 py-1.5 text-sm text-[var(--text)]" />
                         <select value={e.channel} onChange={ev => setExtra(w.key, i, { channel: ev.target.value as 'to' | 'cc' })}
-                          className="bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1.5 text-sm text-zinc-100">
+                          className="bg-[var(--surface-hover)] border border-[var(--border)] rounded-md px-2 py-1.5 text-sm text-[var(--text)]">
                           <option value="to">Destinatário</option>
                           <option value="cc">Em cópia</option>
                         </select>
-                        <button onClick={() => removeExtra(w.key, i)} className="text-zinc-500 hover:text-red-400 p-1"><Trash2 size={15} /></button>
+                        <button onClick={() => removeExtra(w.key, i)} className="text-[var(--text-light)] hover:text-[var(--danger)] p-1"><Trash2 size={15} /></button>
                       </div>
                     ))}
-                    <button onClick={() => addExtra(w.key)} className="flex items-center gap-1 text-xs text-emerald-400 font-semibold">
+                    <button onClick={() => addExtra(w.key)} className="flex items-center gap-1 text-xs text-[var(--success)] font-semibold">
                       <Plus size={13} /> Adicionar e-mail fixo
                     </button>
                   </div>
@@ -330,10 +330,10 @@ export default function WorkflowsPage() {
 
       {previewHtml !== null && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setPreviewHtml(null)}>
-          <div className="bg-zinc-900 rounded-xl border border-zinc-700 w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800">
-              <span className="text-sm font-bold text-zinc-200">Pré-visualização do e-mail</span>
-              <button onClick={() => setPreviewHtml(null)} className="text-zinc-400 hover:text-zinc-100"><X size={18} /></button>
+          <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)] w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)]">
+              <span className="text-sm font-bold text-[var(--text)]">Pré-visualização do e-mail</span>
+              <button onClick={() => setPreviewHtml(null)} className="text-[var(--text-muted)] hover:text-[var(--text)]"><X size={18} /></button>
             </div>
             <iframe srcDoc={previewHtml} className="w-full flex-1 rounded-b-xl" style={{ minHeight: '70vh', background: '#000' }} title="Pré-visualização do e-mail" />
           </div>
