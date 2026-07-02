@@ -585,7 +585,7 @@ export default function FechamentoDiretoriaPage() {
 
                 {/* INSS pago por UMA coop — a taxa de cada coop é recalculada automaticamente */}
                 {!ro && (
-                  <div className="mt-3 rounded-lg px-3 py-3 flex flex-wrap items-center gap-3" style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid var(--brand-primary)' }}>
+                  <div className="mt-3 rounded-lg px-3 py-3 flex flex-wrap items-center gap-3" style={{ background: 'var(--primary-soft)', border: '1px solid var(--brand-primary)' }}>
                     <span className="text-xs font-semibold" style={{ color: 'var(--brand-text)' }}>INSS pago por:</span>
                     <div className="flex gap-1">
                       {(['erpserv', 'bizify'] as const).map(c => (

@@ -369,7 +369,7 @@ function RequisicoesContent() {
               <p className="text-sm" style={{ color: 'var(--brand-subtle)' }}>Nenhuma requisição encontrada</p>
               <button onClick={() => router.push('/portal-cliente/nova-requisicao')}
                 className="text-xs font-semibold px-4 py-2 rounded-lg"
-                style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }}>
+                style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }}>
                 Criar primeira requisição
               </button>
             </div>

@@ -56,7 +56,7 @@ function Input({ value, onChange, placeholder, disabled }: {
         border: '1px solid var(--brand-border)',
         color: 'var(--brand-text)',
       }}
-      onFocus={e => { e.currentTarget.style.borderColor = 'var(--brand-primary)'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,245,255,0.08)' }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--brand-primary)'; e.currentTarget.style.boxShadow = '0 0 0 2px var(--primary-soft)' }}
       onBlur={e => { e.currentTarget.style.borderColor = 'var(--brand-border)'; e.currentTarget.style.boxShadow = 'none' }}
     />
   )
@@ -77,7 +77,7 @@ function Textarea({ value, onChange, placeholder, rows = 4 }: {
         border: '1px solid var(--brand-border)',
         color: 'var(--brand-text)',
       }}
-      onFocus={e => { e.currentTarget.style.borderColor = 'var(--brand-primary)'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,245,255,0.08)' }}
+      onFocus={e => { e.currentTarget.style.borderColor = 'var(--brand-primary)'; e.currentTarget.style.boxShadow = '0 0 0 2px var(--primary-soft)' }}
       onBlur={e => { e.currentTarget.style.borderColor = 'var(--brand-border)'; e.currentTarget.style.boxShadow = 'none' }}
     />
   )
@@ -277,7 +277,7 @@ function NovaRequisicaoContent() {
 
               {/* Seletor de cliente (apenas para admin/coordenador) */}
               {!isCliente && (
-                <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(0,245,255,0.25)' }}>
+                <div className="rounded-2xl p-6" style={{ background: 'var(--brand-surface)', border: '1px solid var(--primary)' }}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                       style={{ background: 'var(--brand-primary)', color: 'var(--primary-fg)' }}>C</div>
@@ -398,7 +398,7 @@ function NovaRequisicaoContent() {
                       onClick={() => set('tipo_necessidade')(t.value)}
                       className="flex items-center gap-2.5 px-3 py-3 rounded-xl text-sm text-left transition-all"
                       style={{
-                        background: form.tipo_necessidade === t.value ? 'rgba(0,245,255,0.08)' : 'rgba(255,255,255,0.02)',
+                        background: form.tipo_necessidade === t.value ? 'var(--primary-soft)' : 'rgba(255,255,255,0.02)',
                         border: `1px solid ${form.tipo_necessidade === t.value ? 'var(--brand-primary)' : 'var(--brand-border)'}`,
                         color: form.tipo_necessidade === t.value ? 'var(--brand-primary)' : 'var(--brand-muted)',
                       }}

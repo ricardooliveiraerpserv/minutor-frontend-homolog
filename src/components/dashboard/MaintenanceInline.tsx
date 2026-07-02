@@ -536,7 +536,7 @@ export function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => 
       <div onClick={e => e.stopPropagation()} className="w-full max-w-2xl mt-8 rounded-2xl overflow-hidden" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
         <div className="px-6 py-5 flex items-start justify-between gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(0,245,255,0.10)' }}>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
               <Clock size={20} style={{ color: 'var(--primary)' }} />
             </div>
             <div>
@@ -549,7 +549,7 @@ export function TimesheetDetailModal({ ts, onClose }: { ts: any; onClose: () => 
 
         <div className="p-6 space-y-4">
           {period && (
-            <div className="rounded-xl p-4" style={{ background: 'rgba(0,245,255,0.05)', border: '1px solid rgba(0,245,255,0.2)' }}>
+            <div className="rounded-xl p-4" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
               <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Período</p>
               <p className="text-2xl font-bold" style={{ color: 'var(--primary)' }}>
                 {period} <span className="text-base font-normal" style={{ color: 'var(--text-muted)' }}>({hoursDisplay})</span>

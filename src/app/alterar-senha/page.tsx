@@ -125,7 +125,7 @@ export default function AlterarSenhaPage() {
                     onChange={e => setNewPassword(e.target.value)}
                     placeholder="Mínimo 8 caracteres"
                     required
-                    style={{ ...inputBase, paddingRight: 44, caretColor: '#00F5FF' }}
+                    style={{ ...inputBase, paddingRight: 44, caretColor: 'var(--primary)' }}
                     className="login-input"
                   />
                   <button type="button" onClick={() => setShowNew(v => !v)} tabIndex={-1}
@@ -147,7 +147,7 @@ export default function AlterarSenhaPage() {
                     onChange={e => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    style={{ ...inputBase, paddingRight: 44, caretColor: '#00F5FF' }}
+                    style={{ ...inputBase, paddingRight: 44, caretColor: 'var(--primary)' }}
                     className="login-input"
                   />
                   <button type="button" onClick={() => setShowConfirm(v => !v)} tabIndex={-1}

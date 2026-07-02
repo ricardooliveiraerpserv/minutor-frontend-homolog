@@ -90,8 +90,8 @@ export default function SaldoInicialTicketsPage() {
     <AppLayout title="Saldo Inicial de Tickets">
       <div className="max-w-6xl mx-auto px-4 py-6 md:px-6 space-y-4">
         <header className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(0,245,255,0.08)' }}>
-            <Clock size={16} color="#00F5FF" />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--primary-soft)' }}>
+            <Clock size={16} color="var(--primary)" />
           </div>
           <div className="flex-1">
             <h1 className="text-lg font-bold" style={{ color: 'var(--brand-text)' }}>Saldo Inicial de Tickets</h1>
@@ -285,7 +285,7 @@ function BalanceModal({ row, onClose, onSaved }: {
           </div>
 
           {lookup?.customer && (
-            <div className="rounded-lg px-3 py-2 text-xs" style={{ background: 'rgba(0,245,255,0.05)', border: '1px solid rgba(0,245,255,0.2)' }}>
+            <div className="rounded-lg px-3 py-2 text-xs" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
               <div className="flex items-center gap-1.5 mb-1" style={{ color: 'var(--brand-primary)' }}>
                 <Check size={11} /> <span className="font-semibold">Ticket encontrado</span>
               </div>

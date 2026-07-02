@@ -105,7 +105,7 @@ export function DateRangePicker({ from, to, onChange }: {
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${s || e ? 'font-bold' : ir ? '' : td ? 'font-semibold' : ''}`}
                 style={{
-                  background: s || e ? 'var(--brand-primary)' : ir ? 'rgba(0,245,255,0.15)' : undefined,
+                  background: s || e ? 'var(--brand-primary)' : ir ? 'var(--primary-soft)' : undefined,
                   color: s || e ? '#0A0A0B' : ir ? 'var(--brand-primary)' : td ? 'var(--brand-primary)' : 'var(--brand-text)',
                 }}>
                 {day}

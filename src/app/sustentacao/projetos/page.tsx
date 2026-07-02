@@ -71,7 +71,7 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
-  started:        { bg: 'rgba(0,245,255,0.10)',    color: '#00F5FF' },
+  started:        { bg: 'var(--primary-soft)',    color: 'var(--primary)' },
   active:         { bg: 'rgba(34,197,94,0.10)',    color: '#22C55E' },
   paused:         { bg: 'rgba(245,158,11,0.12)',   color: '#F59E0B' },
   cancelled:      { bg: 'rgba(239,68,68,0.12)',    color: '#EF4444' },
@@ -663,7 +663,7 @@ export default function SustentacaoProjetosPage() {
                           >
                             <MessageCircle size={13} />
                             {hasUnread && (
-                              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: 'var(--primary)', boxShadow: '0 0 6px rgba(0,245,255,0.8)' }} />
+                              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ background: 'var(--primary)', boxShadow: '0 0 6px var(--primary)' }} />
                             )}
                           </button>
                         </div>

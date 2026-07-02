@@ -107,9 +107,9 @@ export function MonthYearPicker({ month, year, onChange, placeholder = 'Mês/Ano
                 <button key={m} type="button" onClick={() => select(mNum)}
                   className="py-1.5 rounded-lg text-xs font-medium transition-all"
                   style={{
-                    background: isSelected ? 'var(--brand-primary)' : isToday ? 'rgba(0,245,255,0.10)' : undefined,
+                    background: isSelected ? 'var(--brand-primary)' : isToday ? 'var(--primary-soft)' : undefined,
                     color: isSelected ? '#0A0A0B' : isToday ? 'var(--brand-primary)' : 'var(--brand-text)',
-                    border: isToday && !isSelected ? '1px solid rgba(0,245,255,0.3)' : '1px solid transparent',
+                    border: isToday && !isSelected ? '1px solid var(--primary)' : '1px solid transparent',
                   }}>
                   {m}
                 </button>

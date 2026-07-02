@@ -13,7 +13,7 @@ import {
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const PALETTE = [
-  '#00F5FF', '#8B5CF6', '#10B981', '#F59E0B',
+  'var(--primary)', '#8B5CF6', '#10B981', '#F59E0B',
   '#EF4444', '#3B82F6', '#EC4899', '#14B8A6',
   '#F97316', '#A78BFA',
 ]
@@ -706,7 +706,7 @@ export default function DashboardIndicators({ basePath, params, disabled = false
                     <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
                     <XAxis dataKey="month" tick={AXIS_TICK} />
                     <YAxis yAxisId="left" tick={AXIS_TICK} allowDecimals={false}
-                      label={{ value: 'Tickets', angle: -90, position: 'insideLeft', fill: '#00F5FF', fontSize: 10, dx: 12 }} />
+                      label={{ value: 'Tickets', angle: -90, position: 'insideLeft', fill: 'var(--primary)', fontSize: 10, dx: 12 }} />
                     <YAxis yAxisId="right" orientation="right" tick={AXIS_TICK}
                       tickFormatter={v => `${v}h`}
                       label={{ value: 'Horas', angle: 90, position: 'insideRight', fill: '#8B5CF6', fontSize: 10, dx: -4 }} />
@@ -717,7 +717,7 @@ export default function DashboardIndicators({ basePath, params, disabled = false
                     />
                     <Legend wrapperStyle={{ fontSize: 11, color: '#9CA3AF', paddingTop: 8 }} />
                     <Line yAxisId="left" type="monotone" dataKey="ticket_count" name="Tickets"
-                      stroke="#00F5FF" strokeWidth={2} dot={{ fill: '#00F5FF', r: 3 }}
+                      stroke="var(--primary)" strokeWidth={2} dot={{ fill: 'var(--primary)', r: 3 }}
                       activeDot={{ r: 6, style: { cursor: 'pointer' },
                         onClick: (_: any, payload: any) => {
                           if (payload?.payload?.month) openModal(buildMonthParams(payload.payload.month, params))

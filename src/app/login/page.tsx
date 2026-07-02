@@ -74,7 +74,7 @@ function LoginForm() {
           onChange={e => setEmail(e.target.value.toLowerCase())}
           placeholder="seu@email.com"
           required
-          style={{ ...inputBase, caretColor: '#00F5FF' }}
+          style={{ ...inputBase, caretColor: 'var(--primary)' }}
           className="login-input"
         />
       </div>
@@ -91,7 +91,7 @@ function LoginForm() {
             onChange={e => setPassword(e.target.value)}
             placeholder="••••••••"
             required
-            style={{ ...inputBase, paddingRight: 44, caretColor: '#00F5FF' }}
+            style={{ ...inputBase, paddingRight: 44, caretColor: 'var(--primary)' }}
             className="login-input"
           />
           <button

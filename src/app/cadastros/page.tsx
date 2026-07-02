@@ -1528,7 +1528,7 @@ function CustomerContactsTab() {
         {customerId && (
           <button onClick={openCreate}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
-            style={{ background: 'rgba(0,245,255,0.10)', border: '1px solid rgba(0,245,255,0.25)', color: 'var(--primary)' }}>
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
             <Plus size={13} /> Novo Contato
           </button>
         )}

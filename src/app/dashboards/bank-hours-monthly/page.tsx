@@ -145,7 +145,7 @@ function ProjectsTable({ items, loading, onViewTimesheets }: { items: ProjectIte
                   const contributions = p.total_contributions_hours || p.hour_contribution || 0
                   return (
                     <tr key={p.id} className="transition-colors" style={{ borderBottom: '1px solid var(--brand-border)' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       <td className="px-5 py-3.5">
@@ -348,8 +348,8 @@ export default function BankHoursMonthlyPage() {
 
         {/* Page header */}
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(0,245,255,0.08)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00F5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--primary-soft)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
           </div>
@@ -358,7 +358,7 @@ export default function BankHoursMonthlyPage() {
             <p className="text-sm mt-0.5" style={{ color: 'var(--brand-muted)' }}>Consumo e saldo de horas por mês e projeto</p>
             {summary && (summary.contracted_hours ?? 0) > 0 && (
               <span className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-xs font-medium"
-                style={{ background: 'rgba(0,245,255,0.08)', border: '1px solid rgba(0,245,255,0.2)', color: 'var(--brand-primary)' }}>
+                style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)', color: 'var(--brand-primary)' }}>
                 Contrato mensal · {fmtH(summary.contracted_hours)} contratadas por mês
               </span>
             )}
@@ -457,7 +457,7 @@ export default function BankHoursMonthlyPage() {
                   <tr><td colSpan={4} className="py-12 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>Nenhum projeto encontrado.</td></tr>
                 ) : projects.map(p => (
                   <tr key={p.id} className="transition-colors" style={{ borderBottom: '1px solid var(--brand-border)' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td className="px-5 py-3.5">
@@ -591,7 +591,7 @@ export default function BankHoursMonthlyPage() {
                       <div className="rounded-2xl p-5 flex flex-col gap-3" style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
                         <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Consumo Acumulado</span>
                         <div className="flex items-end gap-1.5">
-                          <span className="text-3xl font-extrabold tracking-tight" style={{ color: '#00F5FF', lineHeight: 1 }}>{fmtH(summary.consumed_hours)}</span>
+                          <span className="text-3xl font-extrabold tracking-tight" style={{ color: 'var(--primary)', lineHeight: 1 }}>{fmtH(summary.consumed_hours)}</span>
                         </div>
                         {(summary.projects_consumed_hours !== undefined || summary.maintenance_consumed_hours !== undefined) && (
                           <div className="flex gap-3 pt-1 border-t" style={{ borderColor: 'var(--brand-border)' }}>
@@ -665,11 +665,11 @@ export default function BankHoursMonthlyPage() {
                                 </tr>
                               ) : summary.contributed_hours_history!.map(item => (
                                 <tr key={item.id} style={{ borderBottom: '1px solid var(--brand-border)' }}
-                                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,245,255,0.03)')}
+                                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--primary-soft)')}
                                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                                 >
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-text)' }}>{item.project?.code} — {item.project?.name}</td>
-                                  <td className="px-5 py-3 font-bold" style={{ color: '#00F5FF' }}>{Number(item.contributed_hours ?? item.difference ?? 0).toFixed(0)}h</td>
+                                  <td className="px-5 py-3 font-bold" style={{ color: 'var(--primary)' }}>{Number(item.contributed_hours ?? item.difference ?? 0).toFixed(0)}h</td>
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{MOTIVO_LABEL[item.motivo ?? 'aporte'] ?? 'Aporte'}</td>
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.hourly_rate ?? null)}</td>
                                   <td className="px-5 py-3" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(item.total_value ?? null)}</td>

@@ -113,7 +113,7 @@ export default function ForgotPasswordPage() {
                     onChange={e => setEmail(e.target.value.toLowerCase())}
                     placeholder="seu@email.com"
                     required
-                    style={{ ...inputBase, caretColor: '#00F5FF' }}
+                    style={{ ...inputBase, caretColor: 'var(--primary)' }}
                     className="login-input"
                   />
                 </div>

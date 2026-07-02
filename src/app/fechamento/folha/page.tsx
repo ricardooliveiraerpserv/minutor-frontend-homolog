@@ -751,7 +751,7 @@ export default function FechamentoFolhaPage() {
                     onClick={() => setCategoria(val)}
                     className="px-2.5 py-1.5 font-medium transition-colors whitespace-nowrap"
                     style={{
-                      background: categoria === val ? 'rgba(0,245,255,0.12)' : 'transparent',
+                      background: categoria === val ? 'var(--primary-soft)' : 'transparent',
                       color: categoria === val ? 'var(--text)' : 'var(--text-muted)',
                     }}
                   >
@@ -766,7 +766,7 @@ export default function FechamentoFolhaPage() {
                 className="px-2.5 py-1.5 text-xs font-medium rounded-lg border whitespace-nowrap transition-colors"
                 style={{
                   borderColor: 'var(--brand-border)',
-                  background: soComProducao ? 'rgba(0,245,255,0.12)' : 'transparent',
+                  background: soComProducao ? 'var(--primary-soft)' : 'transparent',
                   color: soComProducao ? 'var(--text)' : 'var(--text-muted)',
                 }}
               >

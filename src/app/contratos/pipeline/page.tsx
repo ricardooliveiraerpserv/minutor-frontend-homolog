@@ -302,9 +302,9 @@ function ContractKanbanCard({
           onClick={onClick}
           className="rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
-            background: snap.isDragging ? 'rgba(0,245,255,0.06)' : isNew ? 'rgba(0,245,255,0.04)' : 'var(--brand-surface)',
-            border: `1px solid ${snap.isDragging ? 'rgba(0,245,255,0.3)' : isNew ? 'rgba(0,245,255,0.5)' : isTransition ? 'rgba(234,179,8,0.3)' : 'var(--brand-border)'}`,
-            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.45)' : isNew ? '0 0 0 1px rgba(0,245,255,0.2)' : 'none',
+            background: snap.isDragging ? 'var(--primary-soft)' : isNew ? 'var(--primary-soft)' : 'var(--brand-surface)',
+            border: `1px solid ${snap.isDragging ? 'var(--primary)' : isNew ? 'var(--primary)' : isTransition ? 'rgba(234,179,8,0.3)' : 'var(--brand-border)'}`,
+            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.45)' : isNew ? '0 0 0 1px var(--primary-soft)' : 'none',
             ...prov.draggableProps.style,
           }}
         >
@@ -316,7 +316,7 @@ function ContractKanbanCard({
                 </p>
                 {isNew && (
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-                    style={{ background: 'rgba(0,245,255,0.15)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)' }}>
+                    style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
                     NOVO
                   </span>
                 )}
@@ -378,7 +378,7 @@ function ContractKanbanCard({
               </span>
             )}
             {card.contract_type && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                 {card.contract_type}
               </span>
             )}
@@ -658,9 +658,9 @@ function ProjectKanbanCard({
           onClick={onClick}
           className="rounded-xl p-3 cursor-pointer select-none transition-all group"
           style={{
-            background: snap.isDragging ? 'rgba(99,102,241,0.08)' : isNew ? 'rgba(0,245,255,0.04)' : 'var(--brand-surface)',
-            border: `1px solid ${snap.isDragging ? 'rgba(99,102,241,0.4)' : isNew ? 'rgba(0,245,255,0.5)' : 'rgba(99,102,241,0.2)'}`,
-            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.45)' : isNew ? '0 0 0 1px rgba(0,245,255,0.2)' : 'none',
+            background: snap.isDragging ? 'rgba(99,102,241,0.08)' : isNew ? 'var(--primary-soft)' : 'var(--brand-surface)',
+            border: `1px solid ${snap.isDragging ? 'rgba(99,102,241,0.4)' : isNew ? 'var(--primary)' : 'rgba(99,102,241,0.2)'}`,
+            boxShadow: snap.isDragging ? '0 8px 24px rgba(0,0,0,0.45)' : isNew ? '0 0 0 1px var(--primary-soft)' : 'none',
             ...prov.draggableProps.style,
           }}
         >
@@ -672,7 +672,7 @@ function ProjectKanbanCard({
                 </p>
                 {isNew && (
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-                    style={{ background: 'rgba(0,245,255,0.15)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)' }}>
+                    style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
                     NOVO
                   </span>
                 )}
@@ -733,7 +733,7 @@ function ProjectKanbanCard({
           {(card.contract_type || card.service_type) && (
             <div className="flex flex-wrap gap-1 mb-2">
               {card.contract_type && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                   {card.contract_type}
                 </span>
               )}
@@ -1724,7 +1724,7 @@ function ContractDecisionModal({ card, onClose, onNovoProjeto, onFilho }: {
           <button
             onClick={onNovoProjeto}
             className="w-full text-left px-4 py-3 rounded-xl transition-all hover:opacity-90"
-            style={{ background: 'rgba(0,245,255,0.06)', border: '1px solid rgba(0,245,255,0.25)' }}
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}
           >
             <p className="font-semibold text-sm" style={{ color: 'var(--brand-text)' }}>Novo Projeto</p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--brand-subtle)' }}>Cadastrar um novo contrato de projeto para este cliente</p>
@@ -1800,8 +1800,8 @@ function ContractFilhoModal({ card, onClose, onDone }: {
                       onClick={() => setSelectedProjectId(p.id)}
                       className="w-full text-left px-3 py-2 rounded-lg text-sm transition-all"
                       style={{
-                        background: selectedProjectId === p.id ? 'rgba(0,245,255,0.12)' : 'var(--surface-hover)',
-                        border: `1px solid ${selectedProjectId === p.id ? 'rgba(0,245,255,0.4)' : 'var(--brand-border)'}`,
+                        background: selectedProjectId === p.id ? 'var(--primary-soft)' : 'var(--surface-hover)',
+                        border: `1px solid ${selectedProjectId === p.id ? 'var(--primary)' : 'var(--brand-border)'}`,
                         color: 'var(--brand-text)',
                       }}
                     >
@@ -2118,7 +2118,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
 
   const statusColors: Record<string, { background: string; color: string }> = {
     awaiting_start: { background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' },
-    started:        { background: 'rgba(0,245,255,0.10)',   color: '#00F5FF' },
+    started:        { background: 'var(--primary-soft)',   color: 'var(--primary)' },
     paused:         { background: 'rgba(249,115,22,0.12)',  color: '#F97316' },
     cancelled:      { background: 'rgba(239,68,68,0.12)',   color: '#EF4444' },
     finished:       { background: 'rgba(245,158,11,0.12)',  color: '#F59E0B' },
@@ -2220,7 +2220,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                 <button
                   onClick={() => setShowEdit(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                  style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.2)' }}
+                  style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}
                 >
                   <ExternalLink size={11} /> Editar
                 </button>
@@ -2353,7 +2353,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     <div className="space-y-2">
                       {[...breakdown].sort((a,b) => b.total_hours - a.total_hours).slice(0, 5).map((c, i) => {
                         const share = totalBreakdownHours > 0 ? (c.total_hours / totalBreakdownHours) * 100 : 0
-                        const colors = ['#00F5FF','#a78bfa','#22c55e','#f59e0b','#f87171']
+                        const colors = ['var(--primary)','#a78bfa','#22c55e','#f59e0b','#f87171']
                         const col = colors[i % colors.length]
                         return (
                           <div key={i} className="flex items-center gap-3">
@@ -2417,7 +2417,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                         <div>
                           <p className="text-[10px] mb-1.5 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Coordenadores</p>
                           <div className="flex flex-wrap gap-1.5">{p.coordinators!.map(u => (
-                            <span key={u.id} className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF' }}>
+                            <span key={u.id} className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                               {u.name}
                             </span>
                           ))}</div>
@@ -2477,7 +2477,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                         { label: 'Consultores',    value: String(breakdown.length),                                          color: '#a78bfa' },
                         { label: 'Total Horas',    value: fmt(totalBreakdownHours, 1) + 'h',                                 color: 'var(--brand-text)' },
                         { label: 'Aprovadas',      value: fmt(breakdown.reduce((s, c) => s + c.approved_hours, 0), 1) + 'h', color: '#22c55e' },
-                        { label: 'Custo Total',    value: fmtBRL(breakdown.reduce((s, c) => s + c.cost, 0)),                color: '#00F5FF' },
+                        { label: 'Custo Total',    value: fmtBRL(breakdown.reduce((s, c) => s + c.cost, 0)),                color: 'var(--primary)' },
                       ].map(it => (
                         <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
                           <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>{it.label}</p>
@@ -2490,7 +2490,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     <div className="space-y-2">
                       {[...breakdown].sort((a, b) => b.total_hours - a.total_hours).map((c, i) => {
                         const share = totalBreakdownHours > 0 ? (c.total_hours / totalBreakdownHours) * 100 : 0
-                        const colors = ['#00F5FF','#a78bfa','#22c55e','#f59e0b','#f87171','#34d399','#60a5fa']
+                        const colors = ['var(--primary)','#a78bfa','#22c55e','#f59e0b','#f87171','#34d399','#60a5fa']
                         const col = colors[i % colors.length]
                         return (
                           <div key={i} className="rounded-xl p-4" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
@@ -2510,7 +2510,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                               <div><span style={{ color: 'var(--brand-subtle)' }}>Pendentes</span><br/><span style={{ color: c.pending_hours > 0 ? '#f59e0b' : 'var(--brand-subtle)' }}>{fmt(c.pending_hours, 1)}h</span></div>
                               {!isCoordRole && <>
                               <div><span style={{ color: 'var(--brand-subtle)' }}>Taxa/h</span><br/><span style={{ color: 'var(--brand-muted)' }}>{fmtBRL(c.consultant_hourly_rate)}</span></div>
-                              <div><span style={{ color: 'var(--brand-subtle)' }}>Custo</span><br/><span style={{ color: '#00F5FF' }}>{fmtBRL(c.cost)}</span></div>
+                              <div><span style={{ color: 'var(--brand-subtle)' }}>Custo</span><br/><span style={{ color: 'var(--primary)' }}>{fmtBRL(c.cost)}</span></div>
                               </>}
                             </div>
                           </div>
@@ -2540,7 +2540,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                                 <td className="px-3 py-2.5 tabular-nums" style={{ color: c.pending_hours > 0 ? '#f59e0b' : 'var(--brand-subtle)' }}>{fmt(c.pending_hours, 1)}h</td>
                                 <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{Math.round(share)}%</td>
                                 <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(c.consultant_hourly_rate)}</td>
-                                <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: '#00F5FF' }}>{fmtBRL(c.cost)}</td>
+                                <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--primary)' }}>{fmtBRL(c.cost)}</td>
                               </tr>
                             )
                           })}
@@ -2599,7 +2599,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                                   </div>
                                   <div className="text-right shrink-0">
                                     <p className="text-[10px]" style={{ color: 'var(--brand-subtle)' }}>{fmtDate(ts.date)}</p>
-                                    <p className="text-sm font-bold tabular-nums" style={{ color: '#00F5FF' }}>{ts.effort_hours}h</p>
+                                    <p className="text-sm font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{ts.effort_hours}h</p>
                                   </div>
                                 </div>
                                 {ts.observation && (
@@ -2688,8 +2688,8 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
               <div className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {[
-                    { label: 'Valor do Projeto',       value: fmtBRL(p.project_value),                        color: '#00F5FF' },
-                    { label: 'Valor Total (c/aportes)', value: fmtBRL(p.total_project_value ?? p.project_value), color: '#00F5FF' },
+                    { label: 'Valor do Projeto',       value: fmtBRL(p.project_value),                        color: 'var(--primary)' },
+                    { label: 'Valor Total (c/aportes)', value: fmtBRL(p.total_project_value ?? p.project_value), color: 'var(--primary)' },
                     { label: 'Taxa / Hora',             value: fmtBRL(p.hourly_rate),                          color: 'var(--brand-text)' },
                   ].map(it => (
                     <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
@@ -2703,8 +2703,8 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--brand-subtle)' }}>Detalhes Financeiros</p>
                   </div>
                   <div className="divide-y px-4" style={{ borderColor: 'var(--brand-border)' }}>
-                    <Row label="Valor do Projeto" value={<span style={{ color: '#00F5FF' }}>{fmtBRL(p.project_value)}</span>} />
-                    {p.total_project_value != null && <Row label="Valor Total com Aportes" value={<span style={{ color: '#00F5FF' }}>{fmtBRL(p.total_project_value)}</span>} />}
+                    <Row label="Valor do Projeto" value={<span style={{ color: 'var(--primary)' }}>{fmtBRL(p.project_value)}</span>} />
+                    {p.total_project_value != null && <Row label="Valor Total com Aportes" value={<span style={{ color: 'var(--primary)' }}>{fmtBRL(p.total_project_value)}</span>} />}
                     <Row label="Valor da Hora" value={fmtBRL(p.hourly_rate)} />
                     {p.weighted_hourly_rate != null && <Row label="Taxa Média Ponderada" value={fmtBRL(p.weighted_hourly_rate)} />}
                     <Row label="Hora Adicional" value={fmtBRL(p.additional_hourly_rate)} />
@@ -2745,7 +2745,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                     <>
                       <div className="grid grid-cols-2 gap-3">
                         {[
-                          { label: 'Valor do Projeto', value: fmtBRL(pi.project_value ?? 0),         icon: DollarSign, color: '#00F5FF' },
+                          { label: 'Valor do Projeto', value: fmtBRL(pi.project_value ?? 0),         icon: DollarSign, color: 'var(--primary)' },
                           { label: 'Custo Total',       value: fmtBRL(cc.total_cost),                 icon: TrendingUp,  color: '#f59e0b' },
                           { label: 'Margem',            value: fmtBRL(cc.margin),                     icon: BarChart2,   color: marginColor },
                           { label: 'Margem %',          value: `${cc.margin_percentage.toFixed(1)}%`, icon: BarChart2,   color: marginColor },
@@ -2784,9 +2784,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                                   <td className="px-3 py-2.5 tabular-nums font-bold" style={{ color: 'var(--brand-text)' }}>{fmtBRL(c.cost)}</td>
                                 </tr>
                               ))}
-                              <tr style={{ background: 'rgba(0,245,255,0.04)', borderTop: '1px solid var(--brand-border)' }}>
+                              <tr style={{ background: 'var(--primary-soft)', borderTop: '1px solid var(--brand-border)' }}>
                                 <td className="px-3 py-2.5 font-bold text-[11px] uppercase" style={{ color: 'var(--brand-subtle)' }} colSpan={5}>Total</td>
-                                <td className="px-3 py-2.5 font-bold tabular-nums" style={{ color: '#00F5FF' }}>{fmtBRL(cc.total_cost)}</td>
+                                <td className="px-3 py-2.5 font-bold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtBRL(cc.total_cost)}</td>
                               </tr>
                             </tbody>
                           </table>
@@ -2891,7 +2891,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
-      <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[90vh]" style={{ background: 'var(--brand-surface)', border: '1px solid rgba(0,245,255,0.25)' }}>
+      <div className="flex flex-col rounded-2xl w-full max-w-2xl max-h-[90vh]" style={{ background: 'var(--brand-surface)', border: '1px solid var(--primary)' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>{project.code}</p>
@@ -2986,7 +2986,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
 
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium hover:bg-[var(--surface-hover)] transition-colors" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold transition-colors" style={{ background: saving ? 'rgba(0,245,255,0.05)' : 'rgba(0,245,255,0.1)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)', opacity: saving ? 0.6 : 1 }}>
+          <button onClick={handleSave} disabled={saving} className="px-5 py-2 rounded-xl text-sm font-semibold transition-colors" style={{ background: saving ? 'var(--primary-soft)' : 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Salvando...' : 'Salvar Alterações'}
           </button>
         </div>
@@ -3055,7 +3055,7 @@ function ProjectStatusModal({ projectId, projectName, currentStatus, onClose, on
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 border-t" style={{ borderColor: 'var(--brand-border)' }}>
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-medium hover:bg-[var(--surface-hover)]" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
-          <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ background: 'rgba(0,245,255,0.1)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.3)', opacity: saving ? 0.6 : 1 }}>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl text-xs font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Salvando...' : 'Confirmar'}
           </button>
         </div>
@@ -3099,7 +3099,7 @@ function ProjectExpensesModal({ projectId, projectName, onClose }: { projectId: 
                 <div className="grid grid-cols-2 gap-3 p-5">
                   <div className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
                     <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total de Despesas</p>
-                    <p className="text-lg font-bold" style={{ color: '#00F5FF' }}>{fmtBRL(total)}</p>
+                    <p className="text-lg font-bold" style={{ color: 'var(--primary)' }}>{fmtBRL(total)}</p>
                   </div>
                   <div className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}>
                     <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Quantidade</p>
@@ -3119,7 +3119,7 @@ function ProjectExpensesModal({ projectId, projectName, onClose }: { projectId: 
                             <td className="px-3 py-2.5 max-w-[160px] truncate" style={{ color: 'var(--brand-text)' }}>{e.description}</td>
                             <td className="px-3 py-2.5" style={{ color: 'var(--brand-muted)' }}>{e.category?.name ?? '—'}</td>
                             <td className="px-3 py-2.5" style={{ color: 'var(--brand-muted)' }}>{e.user?.name ?? '—'}</td>
-                            <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: '#00F5FF' }}>{fmtBRL(e.amount)}</td>
+                            <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--primary)' }}>{fmtBRL(e.amount)}</td>
                             <td className="px-3 py-2.5"><span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: `${statusColor[e.status] ?? '#94a3b8'}18`, color: statusColor[e.status] ?? '#94a3b8' }}>{e.status_display ?? e.status}</span></td>
                           </tr>
                         ))}
@@ -3199,7 +3199,7 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--brand-border)' }}>
           <div><p className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--brand-subtle)' }}>Aportes de Horas</p><h3 className="text-base font-bold" style={{ color: 'var(--brand-text)' }}>{projectName}</h3></div>
           <div className="flex items-center gap-2">
-            <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(0,245,255,0.08)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.2)' }}><Plus size={11} /> Novo Aporte</button>
+            <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}><Plus size={11} /> Novo Aporte</button>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--brand-muted)' }} /></button>
           </div>
         </div>
@@ -3216,7 +3216,7 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
             </div>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setFormOpen(false)} className="px-3 py-1.5 rounded-lg text-xs" style={{ color: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>Cancelar</button>
-              <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'rgba(0,245,255,0.1)', color: '#00F5FF', border: '1px solid rgba(0,245,255,0.25)', opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvando...' : 'Salvar'}</button>
+              <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)', opacity: saving ? 0.6 : 1 }}>{saving ? 'Salvando...' : 'Salvar'}</button>
             </div>
           </div>
         )}
@@ -3227,7 +3227,7 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
               <>
                 <div className="grid grid-cols-2 gap-3 p-5">
                   <div className="rounded-xl p-3 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}><p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Total Horas</p><p className="text-lg font-bold" style={{ color: '#a78bfa' }}>{totalH.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}h</p></div>
-                  <div className="rounded-xl p-3 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}><p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor Total</p><p className="text-lg font-bold" style={{ color: '#00F5FF' }}>{fmtBRL(totalV)}</p></div>
+                  <div className="rounded-xl p-3 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--brand-border)' }}><p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--brand-subtle)' }}>Valor Total</p><p className="text-lg font-bold" style={{ color: 'var(--primary)' }}>{fmtBRL(totalV)}</p></div>
                 </div>
                 <div className="px-5 pb-5">
                   <div className="rounded-xl overflow-x-auto" style={{ border: '1px solid var(--brand-border)' }}>
@@ -3242,7 +3242,7 @@ function ProjectAportesModal({ projectId, projectName, onClose }: { projectId: n
                             <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: '#a78bfa' }}>{c.contributed_hours.toLocaleString('pt-BR', { minimumFractionDigits: 1 })}h</td>
                             <td className="px-3 py-2.5" style={{ color: 'var(--brand-muted)' }}>{({aporte:'Aporte',excedentes:'Excedentes',absorvidas:'Absorvidas'} as Record<string,string>)[c.motivo ?? 'aporte'] ?? 'Aporte'}</td>
                             <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--brand-muted)' }}>{fmtBRL(c.hourly_rate)}</td>
-                            <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: '#00F5FF' }}>{fmtBRL(c.total_value ?? 0)}</td>
+                            <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--primary)' }}>{fmtBRL(c.total_value ?? 0)}</td>
                             <td className="px-3 py-2.5 max-w-[160px] truncate" style={{ color: 'var(--brand-muted)' }}>{c.description ?? '—'}</td>
                             <td className="px-3 py-2.5">
                               <div className="flex items-center gap-1">
@@ -3354,7 +3354,7 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
                 <button key={id} onClick={() => { setTab(id); setSearch('') }}
                   className="px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap"
                   style={{ color: tab === id ? 'var(--text)' : 'var(--text-muted)', borderBottom: tab === id ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: '-1px' }}>
-                  {label}{count > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'rgba(0,245,255,0.12)', color: '#00F5FF' }}>{count}</span>}
+                  {label}{count > 0 && <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{count}</span>}
                 </button>
               ))}
             </div>
@@ -4751,14 +4751,14 @@ function KanbanContent() {
                     onClick={() => setListTab(tab.id)}
                     className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
                     style={listTab === tab.id
-                      ? { background: 'rgba(0,245,255,0.1)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }
+                      ? { background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }
                       : { color: 'var(--brand-muted)', border: '1px solid transparent' }
                     }
                   >
                     {tab.label}
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
                       style={listTab === tab.id
-                        ? { background: 'rgba(0,245,255,0.15)', color: 'var(--brand-primary)' }
+                        ? { background: 'var(--primary-soft)', color: 'var(--brand-primary)' }
                         : { background: 'var(--surface-hover)', color: 'var(--brand-muted)' }
                       }>
                       {tab.count}
@@ -5033,7 +5033,7 @@ function KanbanContent() {
               {!isConsultor && !isCoord && demandCollapsed && (
                 <button onClick={toggleDemandCollapsed} title="Expandir Demanda + Autorização"
                   className="group shrink-0 w-14 self-stretch rounded-xl flex flex-col items-center justify-between py-4 transition-all hover:w-16"
-                  style={{ border: '2px solid var(--brand-primary)', background: 'rgba(0,245,255,0.10)', color: 'var(--brand-primary)' }}>
+                  style={{ border: '2px solid var(--brand-primary)', background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                   <span className="flex flex-col items-center gap-1">
                     <span className="flex items-center justify-center w-7 h-7 rounded-full" style={{ background: 'var(--brand-primary)', color: '#000' }}>
                       <ChevronRight size={18} strokeWidth={3} />
@@ -5049,7 +5049,7 @@ function KanbanContent() {
               {!isConsultor && !isCoord && !demandCollapsed && (
                 <button onClick={toggleDemandCollapsed} title="Recolher Demanda + Autorização"
                   className="shrink-0 w-9 self-stretch rounded-xl flex flex-col items-center justify-center gap-2 transition-colors hover:opacity-90"
-                  style={{ border: '1px solid var(--brand-primary)', background: 'rgba(0,245,255,0.06)', color: 'var(--brand-primary)' }}>
+                  style={{ border: '1px solid var(--brand-primary)', background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
                   <ChevronLeft size={18} strokeWidth={3} />
                   <span style={{ writingMode: 'vertical-rl' }} className="text-[9px] font-bold uppercase tracking-widest opacity-80">recolher</span>
                 </button>

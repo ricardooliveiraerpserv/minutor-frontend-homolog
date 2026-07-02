@@ -101,7 +101,7 @@ function SearchSelect({
               <button key={o.id} type="button"
                 onClick={() => { onChange(String(o.id)); setOpen(false); setQ('') }}
                 className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-hover)] transition-colors"
-                style={{ color: String(o.id) === value ? '#00F5FF' : 'var(--brand-text)' }}
+                style={{ color: String(o.id) === value ? 'var(--primary)' : 'var(--brand-text)' }}
               >
                 {o.name}
               </button>
@@ -122,8 +122,8 @@ function SummaryCard({ label, value, sub, icon: Icon, accent }: {
   label: string; value: string; sub?: string
   icon: React.ElementType; accent: 'primary' | 'success' | 'warning'
 }) {
-  const color = accent === 'primary' ? '#00F5FF' : accent === 'success' ? '#10B981' : '#F59E0B'
-  const bg = accent === 'primary' ? 'rgba(0,245,255,0.08)' : accent === 'success' ? 'rgba(16,185,129,0.10)' : 'rgba(245,158,11,0.10)'
+  const color = accent === 'primary' ? 'var(--primary)' : accent === 'success' ? '#10B981' : '#F59E0B'
+  const bg = accent === 'primary' ? 'var(--primary-soft)' : accent === 'success' ? 'rgba(16,185,129,0.10)' : 'rgba(245,158,11,0.10)'
   return (
     <div className="rounded-2xl p-5 flex flex-col gap-3"
       style={{ background: 'var(--brand-surface)', border: '1px solid var(--brand-border)' }}>
@@ -332,7 +332,7 @@ export default function PagamentoConsultoresPage() {
                 <button key={val} onClick={() => { setPaidFilter(val); setPage(1) }}
                   className="px-4 py-2 font-medium transition-colors"
                   style={{
-                    background: paidFilter === val ? 'rgba(0,245,255,0.12)' : 'transparent',
+                    background: paidFilter === val ? 'var(--primary-soft)' : 'transparent',
                     color: paidFilter === val ? 'var(--text)' : 'var(--text-muted)',
                   }}>
                   {lbl}

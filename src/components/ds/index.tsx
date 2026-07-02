@@ -1,6 +1,6 @@
 /**
  * Minutor Design System
- * Tokens: --brand-bg / --brand-surface / --brand-border / --brand-primary (#00F5FF)
+ * Tokens: --brand-bg / --brand-surface / --brand-border / --brand-primary (var(--primary))
  *         --brand-text / --brand-muted / --brand-subtle
  *         --brand-success / --brand-warning / --brand-danger / --brand-purple
  */

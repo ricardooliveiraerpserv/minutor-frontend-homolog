@@ -226,7 +226,7 @@ export default function NewTimesheetPage() {
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                   style={active
                     ? { background: 'var(--brand-primary)', color: 'var(--primary-fg)' }
-                    : { background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)', border: '1px solid rgba(0,245,255,0.2)' }
+                    : { background: 'var(--primary-soft)', color: 'var(--brand-primary)', border: '1px solid var(--primary-soft)' }
                   }>{label}</button>
               )
             })}

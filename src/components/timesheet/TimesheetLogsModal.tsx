@@ -41,7 +41,7 @@ export function TimesheetLogsModal({ timesheetId, onClose }: Props) {
         <div className="flex items-center justify-between px-5 py-4 sticky top-0 z-10"
           style={{ background: 'var(--brand-surface)', borderBottom: '1px solid var(--brand-border)' }}>
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-lg" style={{ background: 'rgba(0,245,255,0.08)', color: 'var(--brand-primary)' }}>
+            <span className="p-2 rounded-lg" style={{ background: 'var(--primary-soft)', color: 'var(--brand-primary)' }}>
               <FileText size={14} />
             </span>
             <div>
