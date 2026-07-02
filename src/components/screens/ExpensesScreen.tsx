@@ -286,7 +286,7 @@ function DateRangePicker({ from, to, onChange }: {
                 onMouseLeave={() => setHover(null)}
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${
-                  s || e ? 'bg-cyan-400 text-zinc-900 font-bold'
+                  s || e ? 'bg-[var(--primary)] text-[var(--primary-fg)] font-bold'
                   : ir    ? 'bg-[var(--primary-soft)] text-[var(--primary)]'
                   : td    ? 'text-[var(--primary)] font-semibold hover:bg-[var(--surface-hover)]'
                   :         'text-[var(--text)] hover:bg-[var(--surface-hover)]'

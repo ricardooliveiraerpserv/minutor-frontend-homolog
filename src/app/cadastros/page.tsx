@@ -1455,7 +1455,7 @@ function CustomerContactsTab() {
   const [saving, setSaving]             = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; item?: CustomerContact }>({ open: false })
 
-  const inputCls  = 'w-full rounded-lg border px-3 py-2 text-xs text-[var(--text)] bg-transparent outline-none transition-colors focus:border-cyan-500'
+  const inputCls  = 'w-full rounded-lg border px-3 py-2 text-xs text-[var(--text)] bg-transparent outline-none transition-colors focus:border-[var(--primary)]'
   const inputStyle = { borderColor: 'var(--brand-border)' }
   const labelCls  = 'block text-[10px] font-medium text-[var(--text-muted)] mb-1'
 

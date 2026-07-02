@@ -685,7 +685,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
             if (f) { setPendingFiles(p => [...p, { file: f, type: selectedAttachType }]); e.target.value = '' }
           }} />
         <button onClick={() => fileInputRef.current?.click()}
-          className="w-full py-6 rounded-lg border-2 border-dashed text-xs text-[var(--text-light)] hover:border-cyan-500/40 hover:text-[var(--text)] transition-colors"
+          className="w-full py-6 rounded-lg border-2 border-dashed text-xs text-[var(--text-light)] hover:border-[var(--primary)]/40 hover:text-[var(--text)] transition-colors"
           style={{ borderColor: 'var(--brand-border)' }}>
           Clique para selecionar arquivo ({ATTACHMENT_TYPE_LABEL[selectedAttachType]})
         </button>

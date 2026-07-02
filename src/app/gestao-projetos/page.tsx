@@ -1491,7 +1491,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
                   onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingAttach(p => [...p, { file: f, type: 'proposta' }]); e.target.value = '' } }} />
                 <button type="button" onClick={() => attachFileRef.current?.click()}
-                  className="w-full py-3 rounded-lg border-2 border-dashed text-xs transition-colors hover:border-cyan-500/40"
+                  className="w-full py-3 rounded-lg border-2 border-dashed text-xs transition-colors hover:border-[var(--primary)]/40"
                   style={{ borderColor: 'var(--brand-border)', color: 'var(--brand-subtle)' }}>
                   Clique para adicionar anexo
                 </button>
@@ -3474,7 +3474,7 @@ function GestaoProjetosInner() {
             <div className="flex border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
               {(['consultores', 'grupos'] as const).map(tab => (
                 <button key={tab} onClick={() => setTeamTab(tab)}
-                  className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${teamTab === tab ? 'border-b-2 border-cyan-400 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+                  className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${teamTab === tab ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
                   style={{ marginBottom: -1 }}>
                   {tab === 'consultores' ? 'Consultores' : 'Grupos de Consultores'}
                 </button>
@@ -4155,7 +4155,7 @@ function GestaoProjetosInner() {
             <div className="flex border-b mt-4 shrink-0" style={{ borderColor: 'var(--border)' }}>
               {(['consultores', 'grupos'] as const).map(tab => (
                 <button key={tab} onClick={() => setBulkAllocTab(tab)}
-                  className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${bulkAllocTab === tab ? 'border-b-2 border-cyan-400 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+                  className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${bulkAllocTab === tab ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
                   style={{ marginBottom: -1 }}>
                   {tab === 'consultores' ? `Consultores (${bulkAllocConsIds.size})` : `Grupos (${bulkAllocGrpIds.size})`}
                 </button>
@@ -4237,7 +4237,7 @@ function GestaoProjetosInner() {
               <div className="flex border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
                 {(['consultor', 'grupo'] as const).map(tab => (
                   <button key={tab} onClick={() => { setByResTab(tab); setByResConsId(null); setByResGroupId(null) }}
-                    className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${byResTab === tab ? 'border-b-2 border-cyan-400 text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+                    className={`px-5 py-2.5 text-xs font-semibold capitalize transition-colors ${byResTab === tab ? 'border-b-2 border-[var(--primary)] text-[var(--primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
                     style={{ marginBottom: -1 }}>
                     {tab === 'consultor' ? 'Consultor' : 'Grupo de Consultores'}
                   </button>

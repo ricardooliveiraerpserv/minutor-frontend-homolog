@@ -580,9 +580,9 @@ export default function SustentacaoProjetosPage() {
           {/* Saúde filter */}
           <div className="flex items-center gap-0.5 bg-[var(--surface-hover)] border border-[var(--border)] rounded-full p-1">
             {([
-              { id: '',       label: 'Todos',    active: 'bg-cyan-400 text-zinc-900',  inactive: 'text-[var(--text-muted)] hover:text-[var(--text)]' },
+              { id: '',       label: 'Todos',    active: 'bg-[var(--primary)] text-[var(--primary-fg)]',  inactive: 'text-[var(--text-muted)] hover:text-[var(--text)]' },
               { id: 'green',  label: 'Saudável', active: 'bg-[var(--success-border)] text-white',    inactive: 'text-[var(--success)] hover:text-[var(--success)]' },
-              { id: 'yellow', label: 'Atenção',  active: 'bg-amber-400 text-zinc-900', inactive: 'text-[var(--warning)] hover:text-[var(--warning)]' },
+              { id: 'yellow', label: 'Atenção',  active: 'bg-[var(--warning-border)] text-[var(--primary-fg)]', inactive: 'text-[var(--warning)] hover:text-[var(--warning)]' },
               { id: 'red',    label: 'Crítico',  active: 'bg-[var(--danger-border)] text-white',      inactive: 'text-[var(--danger)] hover:text-[var(--danger)]' },
             ] as const).map(opt => (
               <button key={opt.id} type="button"

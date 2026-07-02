@@ -219,7 +219,7 @@ function OriginLabel({ origin, isInternalAction, isBillableOnly }: {
   isInternalAction?: boolean
   isBillableOnly?: boolean
 }) {
-  if (isInternalAction) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/50 text-slate-400">Ação Interna</span>
+  if (isInternalAction) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--neutral-bg)] text-[var(--text-muted)]">Ação Interna</span>
   if (isBillableOnly)   return <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--warning-bg)] text-[var(--warning)]">Apenas Fatura</span>
   const labels: Record<string, string> = { manual: 'Manual', webhook: 'Webhook', integration: 'Integração', import: 'Importação' }
   return <span className="text-[10px] text-[var(--text-light)]">{labels[origin ?? ''] ?? (origin || '—')}</span>
@@ -232,8 +232,8 @@ function TsStatusBadge({ status, display }: { status: string; display?: string }
     rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]    border-red-500/20',
     adjustment_requested: 'bg-[var(--purple-bg)]   text-[var(--purple)]   border-[var(--purple-border)]/40',
     conflicted:           'bg-[var(--purple-bg)] text-[var(--purple)] border-purple-500/20',
-    internal:             'bg-slate-500/15  text-slate-400  border-slate-500/20',
-    released:             'bg-[var(--info-bg)]   text-[var(--info)]   border-cyan-500/20',
+    internal:             'bg-[var(--neutral-bg)]  text-[var(--text-muted)]  border-[var(--border)]',
+    released:             'bg-[var(--info-bg)]   text-[var(--info)]   border-[var(--info-border)]/40',
   }
   const labels: Record<string, string> = {
     pending: 'Pendente', approved: 'Aprovado', rejected: 'Rejeitado',
@@ -924,7 +924,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
                 active
                   ? 'bg-[var(--primary)] border-[var(--primary)] text-[var(--primary-fg)]'
-                  : 'bg-transparent border-cyan-500/40 text-[var(--primary)] hover:border-cyan-400'
+                  : 'bg-transparent border-[var(--primary)]/40 text-[var(--primary)] hover:border-[var(--primary)]'
               }`}>
               <Icon size={14} />
               {label}
