@@ -184,29 +184,13 @@ export default function RelatorioApontamentosPage() {
   //  • Range, mesmo mês       → "01 a 02 de Maio de 2026"
   //  • Range, meses dif.      → "01 de Maio a 02 de Junho de 2026"
   //  • Range, anos dif.       → "01 de Maio de 2025 a 02 de Junho de 2026"
-  const reportTitle = useMemo(() => {
-    const noun = isFechamento ? 'Fechamento' : 'Apontamentos'
-    const dd = (n: number) => String(n).padStart(2, '0')
-    const fmtRange = (fromISO: string, toISO: string): string => {
-      const [sy, sm, sd] = fromISO.split('-').map(Number)
-      const [ey, em, ed] = toISO.split('-').map(Number)
-      if (!sy || !sm || !sd || !ey || !em || !ed) return ''
-      if (sy === ey && sm === em) return `${dd(sd)} a ${dd(ed)} de ${MONTHS_PT[sm - 1]} de ${sy}`
-      if (sy === ey)              return `${dd(sd)} de ${MONTHS_PT[sm - 1]} a ${dd(ed)} de ${MONTHS_PT[em - 1]} de ${sy}`
-      return `${dd(sd)} de ${MONTHS_PT[sm - 1]} de ${sy} a ${dd(ed)} de ${MONTHS_PT[em - 1]} de ${ey}`
-    }
-
-    let part = ''
-    if (digFrom || digTo) {
-      // Digitação usada: range pela data de digitação (lados vazios herdam a competência).
-      part = fmtRange(digFrom || competenciaStart, digTo || competenciaEnd)
-    } else if (filterMode === 'month' && refMonth && refYear) {
-      part = `${MONTHS_PT[refMonth - 1]} de ${refYear}`
-    } else if (filterMode === 'period') {
-      part = fmtRange(startDate, endDate)
-    }
-    return part ? `Relatório de ${noun} — ${part}` : `Relatório de ${noun}`
-  }, [filterMode, refMonth, refYear, startDate, endDate, digFrom, digTo, competenciaStart, competenciaEnd, isFechamento])
+  // Título limpo (sem range no título). O período é comunicado pelos campos
+  // Competência (mês do serviço) e Digitação (legenda) do cabeçalho — nunca embutido
+  // no título, para não misturar a digitação (que pode cruzar meses) com a competência.
+  const reportTitle = useMemo(
+    () => `Relatório de ${isFechamento ? 'Fechamento' : 'Apontamentos'}`,
+    [isFechamento]
+  )
 
   const customerName = useMemo(
     () => customers.find(c => String(c.id) === String(customerId))?.name ?? '',
