@@ -614,18 +614,19 @@ function MovePicker({ mods, screens, nodeId, onPick, onClose }: { mods: Mod[]; s
   const node = useMemo(() => { for (const m of mods) { const f = findNode(m.items, nodeId); if (f) return f } return null }, [mods, nodeId])
   const moverLabel = node?.screen ? screenLabel(screens[node.screen], node.screen) : (node?.label ?? 'item')
   const excluded = useMemo(() => { const s = new Set<string>(); const c = (n: NavTreeNode) => { s.add(n.id); n.children?.forEach(c) }; if (node) c(node); return s }, [node])
-  // destino = qualquer nó (grupo OU tela). Mover p/ dentro de uma tela = virar filho (submenu).
-  const renderDest = (nodes: NavTreeNode[], moduleId: number, depth: number): React.ReactNode[] => nodes.flatMap(g => {
-    if (excluded.has(g.id)) return []
-    const isScr = !!g.screen
-    const label = isScr ? screenLabel(screens[g.screen!], g.screen!) : (g.label ?? '')
-    return [
-      <button key={g.id} onClick={() => onPick({ type: 'group', moduleId, groupId: g.id })} className="flex items-center gap-1.5 w-full text-left py-1.5 text-[12px] rounded-md hover:bg-[var(--surface-hover)]" style={{ paddingLeft: 12 + depth * 16, paddingRight: 8, color: 'var(--text)' }}>
-        {isScr ? <FileText size={13} style={{ color: 'var(--text-light)' }} /> : <Folder size={13} style={{ color: 'var(--primary)' }} />} {label}{isScr && <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>(como filho)</span>}
-      </button>,
-      ...renderDest(g.children ?? [], moduleId, depth + 1),
-    ]
-  })
+  const [q, setQ] = useState('')
+  const query = q.trim().toLowerCase()
+  // Destino = APENAS PASTAS (grupos). Coleta todas as pastas de todos os módulos (com profundidade).
+  const folders = useMemo(() => {
+    const out: { id: string; moduleId: number; label: string; depth: number }[] = []
+    const walk = (nodes: NavTreeNode[], moduleId: number, depth: number) => nodes.forEach(n => {
+      if (excluded.has(n.id)) return
+      if (!n.screen) { out.push({ id: n.id, moduleId, label: n.label ?? '', depth }); walk(n.children ?? [], moduleId, depth + 1) }
+      else walk(n.children ?? [], moduleId, depth) // desce em telas c/ filhos só p/ achar pastas aninhadas
+    })
+    mods.forEach(m => walk(m.items, m.id, 0))
+    return out
+  }, [mods, excluded])
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
       <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
@@ -633,18 +634,36 @@ function MovePicker({ mods, screens, nodeId, onPick, onClose }: { mods: Mod[]; s
           <div className="text-sm font-bold inline-flex items-center gap-2 min-w-0" style={{ color: 'var(--text)' }}><FolderInput size={15} style={{ color: 'var(--primary)' }} className="shrink-0" /> <span className="truncate">Mover &quot;{moverLabel}&quot; para…</span></div>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }} className="shrink-0"><X size={16} /></button>
         </div>
-        <div className="p-2 max-h-[60vh] overflow-auto">
-          {mods.map(m => (
-            <div key={m.id} className="mb-1">
-              <button onClick={() => onPick({ type: 'module', moduleId: m.id })} className="flex items-center gap-1.5 w-full text-left py-1.5 px-2 text-[13px] font-semibold rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
-                <Network size={13} style={{ color: 'var(--text-muted)' }} /> {m.label} <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}>(raiz)</span>
-              </button>
-              {renderDest(m.items, m.id, 1)}
-            </div>
-          ))}
+        <div className="px-3 pt-3">
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-light)' }} />
+            <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar pasta…" className="ds-input w-full block" style={{ fontSize: 12, height: 32, paddingTop: 0, paddingBottom: 0, paddingLeft: 28, paddingRight: 8 }} />
+          </div>
+        </div>
+        <div className="p-2 max-h-[55vh] overflow-auto">
+          {mods.map(m => {
+            const mFolders = folders.filter(f => f.moduleId === m.id && (!query || f.label.toLowerCase().includes(query)))
+            const rootMatch = !query || m.label.toLowerCase().includes(query)
+            if (!rootMatch && mFolders.length === 0) return null
+            return (
+              <div key={m.id} className="mb-1">
+                <button onClick={() => onPick({ type: 'module', moduleId: m.id })} className="flex items-center gap-1.5 w-full text-left py-1.5 px-2 text-[13px] font-semibold rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
+                  <Network size={13} style={{ color: 'var(--text-muted)' }} /> {m.label} <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}>(raiz)</span>
+                </button>
+                {mFolders.map(f => (
+                  <button key={f.id} onClick={() => onPick({ type: 'group', moduleId: f.moduleId, groupId: f.id })} className="flex items-center gap-1.5 w-full text-left py-1.5 text-[12px] rounded-md hover:bg-[var(--surface-hover)]" style={{ paddingLeft: 12 + (query ? 1 : f.depth + 1) * 16, paddingRight: 8, color: 'var(--text)' }}>
+                    <Folder size={13} style={{ color: 'var(--primary)' }} /> {f.label}
+                  </button>
+                ))}
+              </div>
+            )
+          })}
+          {query && !folders.some(f => f.label.toLowerCase().includes(query)) && !mods.some(m => m.label.toLowerCase().includes(query)) && (
+            <p className="text-[12px] text-center py-4" style={{ color: 'var(--text-light)' }}>Nenhuma pasta encontrada.</p>
+          )}
         </div>
         <div className="px-4 py-2.5 border-t text-[11px]" style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>
-          O item vai para o fim do destino. Telas não duplicam no mesmo nível (reuso em outro módulo é permitido).
+          Só <b>pastas</b> (e a raiz do módulo) como destino. O item vai para o fim do destino.
         </div>
       </div>
     </div>
