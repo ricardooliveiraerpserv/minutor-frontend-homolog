@@ -16,15 +16,13 @@ type CheckboxProps = Omit<CheckboxPrimitive.Root.Props, "className"> & {
   error?: string
 }
 
-function Checkbox({
-  className,
-  label,
-  helper,
-  error,
-  indeterminate,
-  id,
-  ...props
-}: CheckboxProps) {
+const Checkbox = React.forwardRef<
+  React.ComponentRef<typeof CheckboxPrimitive.Root>,
+  CheckboxProps
+>(function Checkbox(
+  { className, label, helper, error, indeterminate, id, ...props },
+  ref
+) {
   const generatedId = React.useId()
   const fieldId = id ?? generatedId
   const helperId = `${fieldId}-helper`
@@ -33,6 +31,7 @@ function Checkbox({
 
   const control = (
     <CheckboxPrimitive.Root
+      ref={ref}
       id={fieldId}
       data-slot="checkbox"
       indeterminate={indeterminate}
@@ -45,6 +44,7 @@ function Checkbox({
         "data-[checked]:border-[var(--primary)] data-[checked]:bg-[var(--primary)]",
         "data-[indeterminate]:border-[var(--primary)] data-[indeterminate]:bg-[var(--primary)]",
         "data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
+        "data-[readonly]:cursor-default",
         "aria-invalid:border-[var(--danger-border)] aria-invalid:hover:border-[var(--danger-border)]",
         className
       )}
@@ -95,7 +95,8 @@ function Checkbox({
       )}
     </div>
   )
-}
+})
+Checkbox.displayName = "Checkbox"
 
 export { Checkbox }
 export type { CheckboxProps }

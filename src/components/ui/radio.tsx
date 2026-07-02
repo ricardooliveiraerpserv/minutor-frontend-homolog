@@ -18,15 +18,13 @@ type RadioGroupProps = Omit<RadioGroupPrimitive.Props, "className"> & {
   orientation?: "vertical" | "horizontal"
 }
 
-function RadioGroup({
-  className,
-  label,
-  helper,
-  error,
-  orientation = "vertical",
-  children,
-  ...props
-}: RadioGroupProps) {
+const RadioGroup = React.forwardRef<
+  React.ComponentRef<typeof RadioGroupPrimitive>,
+  RadioGroupProps
+>(function RadioGroup(
+  { className, label, helper, error, orientation = "vertical", children, ...props },
+  ref
+) {
   const generatedId = React.useId()
   const helperId = `${generatedId}-helper`
   const errorId = `${generatedId}-error`
@@ -40,6 +38,7 @@ function RadioGroup({
         </span>
       )}
       <RadioGroupPrimitive
+        ref={ref}
         data-slot="radio-group"
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
@@ -67,7 +66,8 @@ function RadioGroup({
       )}
     </div>
   )
-}
+})
+RadioGroup.displayName = "RadioGroup"
 
 type RadioProps = Omit<RadioPrimitive.Root.Props, "className"> & {
   className?: string
@@ -75,12 +75,16 @@ type RadioProps = Omit<RadioPrimitive.Root.Props, "className"> & {
   label?: React.ReactNode
 }
 
-function Radio({ className, label, id, ...props }: RadioProps) {
+const Radio = React.forwardRef<
+  React.ComponentRef<typeof RadioPrimitive.Root>,
+  RadioProps
+>(function Radio({ className, label, id, ...props }, ref) {
   const generatedId = React.useId()
   const fieldId = id ?? generatedId
 
   const control = (
     <RadioPrimitive.Root
+      ref={ref}
       id={fieldId}
       data-slot="radio"
       className={cn(
@@ -117,7 +121,8 @@ function Radio({ className, label, id, ...props }: RadioProps) {
       </label>
     </div>
   )
-}
+})
+Radio.displayName = "Radio"
 
 export { Radio, RadioGroup }
 export type { RadioProps, RadioGroupProps }
