@@ -940,7 +940,7 @@ export default function ApprovalsPage() {
               {label}
               {count > 0 && (
                 <span className={`rounded-full px-1.5 py-0.5 text-[10px] leading-none font-bold ${
-                  active ? 'bg-[var(--surface-hover)] text-zinc-900' : 'bg-[var(--primary-soft)] text-[var(--primary)]'
+                  active ? 'bg-black/10 text-zinc-900' : 'bg-[var(--primary-soft)] text-[var(--primary)]'
                 }`}>{count}</span>
               )}
             </button>

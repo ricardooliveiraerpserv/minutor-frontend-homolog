@@ -141,10 +141,10 @@
  */
 :root {
   /* ── NEUTRO ──────────────────────────────────────── */
-  --brand-bg:       #DEE4EE;   /* Surface 0: fundo (cinza claro nítido — cards flutuam) */
-  --brand-panel:    #E8EDF4;   /* Surface 1: painéis (distinto do fundo e do card) */
+  --brand-bg:       #E4E5E8;   /* Surface 0: fundo cinza neutro (cards flutuam) */
+  --brand-panel:    #ECEDEF;   /* Surface 1: painéis (neutro) */
   --brand-surface:  #FFFFFF;   /* Surface 2: cards brancos */
-  --brand-border:   #CDD6E2;   /* borda visível (separa card/linha) */
+  --brand-border:   #D6D8DD;   /* borda neutra visível */
   --brand-text:     #0F172A;
   --brand-muted:    #475569;   /* spec text-secondary */
   --brand-subtle:   #64748B;   /* text terciário — contraste WCAG no claro (Sprint 1) */
@@ -152,7 +152,7 @@
   /* ── PRIMARY (ação — cyan brand premium) ─────────── */
   --brand-primary:        #06B6D4;   /* cyan brand brilhante */
   --brand-primary-strong: #0891B2;   /* hover ~5% mais escuro */
-  --brand-primary-dim:    #E6F6FA;   /* sidebar active / badge soft (spec) */
+  --brand-primary-dim:    #ECEEF2;   /* soft NEUTRO (não-cyan): chips/badge/selecionado */
 
   /* ── Semantic — light (tons de border/accent) ────── */
   --brand-success:  #22C55E;
@@ -185,14 +185,14 @@
   --bg:            var(--brand-bg);          /* Surface 0 */
   --panel:         var(--brand-panel);       /* Surface 1: painéis/containers */
   --surface:       var(--brand-surface);     /* Surface 2: cards */
-  --surface-hover: #E9EEF6;                  /* hover perceptível sobre card branco */
-  --surface-sunken:#E6ECF3;                  /* header de tabela/input — distinto das linhas brancas */
+  --surface-hover: #EEEFF2;                  /* hover neutro perceptível */
+  --surface-sunken:#EAEBEE;                  /* header de tabela/input — neutro */
   --field:         #F1F4F8;                  /* Surface 3: input — identidade própria + borda */
   --text:          var(--brand-text);
   --text-muted:    var(--brand-muted);
   --text-light:    var(--brand-subtle);
   --border:        var(--brand-border);
-  --border-strong: #B4C0CE;   /* divisores fortes, hover de inputs */
+  --border-strong: #BCBFC6;   /* divisores fortes neutros */
   --ring:          rgba(6, 182, 212, 0.30);  /* focus ring (primary @ 30%) */
 
   /* PRIMARY */
@@ -811,9 +811,10 @@ tr.row--pausado:hover {
 }
 .sidebar-item-active,
 .sidebar-item-active:hover {
-  background: var(--primary-soft);
-  color: var(--primary);
-  font-weight: 500;
+  background: var(--surface-hover);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--primary);   /* barra azul de ação, superfície neutra */
 }
 .sidebar-item-active svg {
   color: var(--primary);
