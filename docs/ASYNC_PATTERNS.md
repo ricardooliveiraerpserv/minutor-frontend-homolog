@@ -321,7 +321,8 @@ decisões divergentes no meio da migração):
 Nenhum desses é Categoria A "puro" (fluxos externos/pesados → esperam o servidor). O ganho aqui
 é **feedback + concorrência + erro persistente**, não velocidade otimista.
 
-> ⛔ **Bloqueado:** CRM Propostas só inicia **após a homologação do CRM Pipeline** (ver §16).
+> ✅ **Liberado:** CRM Pipeline **homologado sem problemas** — Propostas pode iniciar seguindo o
+> **módulo de referência** (§16). Todo fluxo abaixo deve espelhar exatamente o padrão do Pipeline.
 
 ---
 
@@ -335,15 +336,18 @@ Nenhum desses é Categoria A "puro" (fluxos externos/pesados → esperam o servi
 |---|---|---|
 | Aprovações | ✅ | ✅ |
 | Cadastros | ✅ | ✅ |
-| **CRM Pipeline** | ✅ | ⏳ **em homologação** (uso real 1–2 dias) |
-| CRM Propostas | ⬜ | ⬜ (bloqueado até homologar o Pipeline) |
+| **CRM Pipeline** ★ | ✅ | ✅ **homologado — MÓDULO DE REFERÊNCIA** |
+| CRM Propostas | ⬜ | ⬜ (liberado — próximo) |
 | CRM Cadastros | ⬜ | ⬜ |
 | Timesheets | ⬜ | ⬜ |
 | Financeiro | ⬜ | ⬜ |
 | Portal Cliente | ⬜ | ⬜ |
 
-**Módulo de referência:** ao homologar o CRM Pipeline **sem problemas relevantes**, ele é
-registrado como o **padrão de referência da Fase 2** — todo módulo futuro segue exatamente esse
-padrão (evita Propostas evoluir de um jeito e Financeiro de outro). Refinamentos achados na
-homologação (spinner demorando, botão que deveria desabilitar, toast duplicado, timing de
-animação) são corrigidos **antes** de congelar.
+### ★ Módulo de referência da Fase 2 — CRM Pipeline (congelado)
+O CRM Pipeline foi **homologado sem problemas** e está **oficialmente congelado como o padrão de
+referência**. Todo módulo futuro (Propostas, Financeiro, Timesheets, Portal) segue **exatamente**
+esse padrão — sem inventar variações:
+- **Categoria A** (mover/reordenar): otimista + rollback (snapshot) + **sync silencioso** + concorrência (`pending`).
+- **Ação única / edição** (Cat. B/C): `useAsyncAction` — `pending` desabilita, `running` mostra spinner, `onError: apiMessage`.
+- **Nunca** remover o refetch (vira silencioso); servidor = fonte da verdade (§12).
+- Divergir do padrão de referência exige justificativa explícita no PR.
