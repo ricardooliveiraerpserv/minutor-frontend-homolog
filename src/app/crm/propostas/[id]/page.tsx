@@ -631,19 +631,13 @@ export default function PropostaEditor() {
   }, [id])
   useEffect(() => { if (!isTemplate && id) void carregarParts() }, [id, isTemplate, carregarParts])
 
-  if (!d) return <AppLayout><div className="p-6" style={{ color: 'var(--text-muted)' }}>Carregando…</div></AppLayout>
-
-  const setInput = (k: string, v: any) => setInputs(p => ({ ...p, [k]: v }))
-  const setCont = (sec: string, k: string, v: any) => setConteudo(p => ({ ...p, [sec]: { ...(p[sec] || {}), [k]: v } }))
-  const calc = preview?.calc || d.calc || {}
-
   // Gate 2.1 — Cat B (espera servidor): useAsyncAction (pending/running + apiMessage), sem loading manual.
   const salvarAction = useAsyncAction(async () => {
     if (isTemplate) {
       await api.put(`/crm/proposal-templates/${tplTipo}`, { conteudo, inputs, modo_faturamento: modoFat }); toast.success('Template salvo'); refreshPreview(); return
     }
     if (codigoDup) { toast.error('Código já usado em outra proposta. Altere antes de salvar.'); return }
-    await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d.codigo, data_emissao: d.data_emissao, data_validade: d.data_validade, tipo: d.tipo, modo_faturamento: modoFat })
+    await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d?.codigo, data_emissao: d?.data_emissao, data_validade: d?.data_validade, tipo: d?.tipo, modo_faturamento: modoFat })
     toast.success('Proposta salva'); refreshPreview()
   }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar')) })
   const salvar = () => salvarAction.run()
@@ -668,7 +662,7 @@ export default function PropostaEditor() {
   // Gate 2.3 — Geração (fluxo longo, Cat B). useAsyncAction + apiMessage; foco em confiança.
   const gerarPdfAction = useAsyncAction(async () => {
     if (codigoDup) { toast.error('Código já usado em outra proposta. Altere antes de gerar.'); return }
-    await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d.codigo, data_emissao: d.data_emissao, data_validade: d.data_validade, tipo: d.tipo, modo_faturamento: modoFat })
+    await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d?.codigo, data_emissao: d?.data_emissao, data_validade: d?.data_validade, tipo: d?.tipo, modo_faturamento: modoFat })
     const r = await api.post<{ data: { document_id: number } }>(`/crm/proposals/${id}/gerar`, {})
     if (r?.data?.document_id) window.open(`/api/v1/documents/${r.data.document_id}/download`, '_blank')
     toast.success('PDF gerado')
@@ -871,6 +865,12 @@ export default function PropostaEditor() {
   const gerando = gerarPdfAction.pending
   const sending = enviarEmailAction.pending
   const linkBusy = gerarLinkAction.pending
+  if (!d) return <AppLayout><div className="p-6" style={{ color: 'var(--text-muted)' }}>Carregando…</div></AppLayout>
+
+  const setInput = (k: string, v: any) => setInputs(p => ({ ...p, [k]: v }))
+  const setCont = (sec: string, k: string, v: any) => setConteudo(p => ({ ...p, [sec]: { ...(p[sec] || {}), [k]: v } }))
+  const calc = preview?.calc || d.calc || {}
+
 
   // ── Revisões do cliente — responder + resolver (carregarRevs declarado acima do early-return) ──
   const responderRev = async (tid: number) => {
