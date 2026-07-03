@@ -95,6 +95,7 @@ export interface Timesheet {
   customer?: Customer
   project_id: number
   project?: Project
+  real_project_id?: number | null
   date: string
   start_time: string
   end_time: string
