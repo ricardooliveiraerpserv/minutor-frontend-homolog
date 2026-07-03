@@ -82,7 +82,8 @@ interface ProjectItem {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function fmtH(h: number | null | undefined) { return (h ?? 0).toFixed(1) + 'h' }
+// pt-BR com até 2 casas (sem forçar zeros) — bate com o total da tela de apontamentos (ex.: 192,25h).
+function fmtH(h: number | null | undefined) { return (h ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'h' }
 
 // ── Card informativo FIXO do saldo devedor da CONCRESERV (customer_id 215). ──
 // Valores CONGELADOS manualmente (consumo até abr/2026, SEM maio):
