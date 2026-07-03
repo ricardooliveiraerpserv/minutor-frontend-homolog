@@ -136,6 +136,16 @@ Caso real: `ApprovalsScreen` — 7 ações, `approving = a.pending || b.pending 
 | **B — avaliar** | só com rollback simples | editar registro, alterar cronograma/horas/prioridade |
 | **C — NUNCA otimista** | espera o servidor | exclusão definitiva, faturamento, fechamento, geração de documentos, integrações, financeiro |
 
+### ⚖️ Regra oficial — quando é Categoria A (otimista)
+Otimista **só** quando as TRÊS condições valem: **reversível** + **impacto local** + **atualização rápida**.
+Exemplos válidos: mover card, reorder, toggle simples.
+
+**Se qualquer uma falhar → é Categoria B (espera o servidor)** — mesmo que `useOptimisticList`
+exista. Exemplos de B: salvar proposta, **gerar contrato**, **enviar assinatura**, **gerar PDF**,
+enviar e-mail. Nunca fazer geração/assinatura/faturamento otimista "porque o hook está lá".
+> Achado do CRM Propostas: **0 mutações Categoria A** — e isso é bom. A fundação admite exceções
+> (polling, geração) sem quebrar. Um módulo inteiro pode ser 100% Categoria B.
+
 ---
 
 ## 7. O que **NÃO** fazer
@@ -343,11 +353,19 @@ Nenhum desses é Categoria A "puro" (fluxos externos/pesados → esperam o servi
 | Financeiro | ⬜ | ⬜ |
 | Portal Cliente | ⬜ | ⬜ |
 
-### ★ Módulo de referência da Fase 2 — CRM Pipeline (congelado)
-O CRM Pipeline foi **homologado sem problemas** e está **oficialmente congelado como o padrão de
-referência**. Todo módulo futuro (Propostas, Financeiro, Timesheets, Portal) segue **exatamente**
-esse padrão — sem inventar variações:
-- **Categoria A** (mover/reordenar): otimista + rollback (snapshot) + **sync silencioso** + concorrência (`pending`).
-- **Ação única / edição** (Cat. B/C): `useAsyncAction` — `pending` desabilita, `running` mostra spinner, `onError: apiMessage`.
-- **Nunca** remover o refetch (vira silencioso); servidor = fonte da verdade (§12).
-- Divergir do padrão de referência exige justificativa explícita no PR.
+### ★ Módulos de referência da Fase 2 (dois padrões cobrem o sistema)
+
+**1. CRM Pipeline — referência para operações OTIMISTAS** (congelado, homologado).
+Kanban / CRUD / edição rápida. Todo fluxo **Categoria A** segue este:
+- otimista + rollback (snapshot) + **sync silencioso** + concorrência (`pending`).
+- Ação única/edição: `useAsyncAction` — `pending` desabilita, `running` spinner, `onError: apiMessage`.
+- Nunca remover o refetch (vira silencioso); servidor = fonte da verdade (§12).
+
+**2. CRM Propostas — referência para operações ASSÍNCRONAS LONGAS** (polling, geração, assinatura).
+Nada otimista — tudo **espera o servidor**. Foco = **confiança** (progresso, feedback, mensagem
+clara, `ErrorState`), não velocidade. Padrão de assinatura (reutilizável): `enviar → pending →
+polling → concluído`. *(congela ao final do Gate 2.3.)*
+
+> Juntos, os dois cobrem praticamente todo cenário do sistema: Kanban · CRUD · polling · geração ·
+> PDF · assinatura · navegação. **Dificilmente aparecerá um 3º padrão** — divergir de um dos dois
+> exige justificativa explícita no PR.
