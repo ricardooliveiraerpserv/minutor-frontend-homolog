@@ -46,6 +46,7 @@ function ExcedentesPage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [basisFilter, setBasisFilter] = useState<'' | 'monthly' | 'fixed' | 'closed'>('')
   const [busy, setBusy] = useState<number | null>(null)
 
   const ym = month && year ? `${year}-${String(month).padStart(2, '0')}` : null
@@ -68,10 +69,10 @@ function ExcedentesPage() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return rows
     return rows.filter(r =>
-      r.customer_name.toLowerCase().includes(q) || (r.code ?? '').toLowerCase().includes(q))
-  }, [rows, search])
+      (!basisFilter || r.basis === basisFilter) &&
+      (!q || r.customer_name.toLowerCase().includes(q) || (r.code ?? '').toLowerCase().includes(q)))
+  }, [rows, search, basisFilter])
 
   const totalCobravel = useMemo(
     () => filtered.filter(r => r.charge && r.status !== 'nao_cobrar').reduce((s, r) => s + r.excess_value, 0),
@@ -197,6 +198,14 @@ function ExcedentesPage() {
               className="pl-8 pr-3 py-2 rounded-lg text-sm w-64"
               style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }} />
           </div>
+          <select value={basisFilter} onChange={e => setBasisFilter(e.target.value as '' | 'monthly' | 'fixed' | 'closed')}
+            className="px-3 py-2 rounded-lg text-sm"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+            <option value="">Todos os tipos</option>
+            <option value="monthly">BH Mensal</option>
+            <option value="fixed">BH Fixo</option>
+            <option value="closed">Fechado</option>
+          </select>
         </div>
 
         {/* Tabela */}
