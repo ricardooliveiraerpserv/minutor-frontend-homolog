@@ -369,3 +369,46 @@ polling → concluído`. *(congela ao final do Gate 2.3.)*
 > Juntos, os dois cobrem praticamente todo cenário do sistema: Kanban · CRUD · polling · geração ·
 > PDF · assinatura · navegação. **Dificilmente aparecerá um 3º padrão** — divergir de um dos dois
 > exige justificativa explícita no PR.
+
+---
+
+## 17. CRM Propostas — Editor × Workflow (organização funcional)
+
+Propostas tem **dois tipos de fluxo** — não misturar responsabilidades:
+
+```
+CRM Propostas
+├── Editor        (operacional / CRUD — segue o Pipeline)
+│   ├── salvar · editar · templates · status · threads · feedback
+│
+└── Workflow      (orquestrador — dispara processos maiores)
+    ├── assinatura (Clicksign) · participantes · polling
+    ├── contrato · pdf · email · cards
+```
+
+- **Editor** = CRUD do dia a dia → `useAsyncAction` + `apiMessage` (baseline do Pipeline).
+- **Workflow** (antiga "gestao") = **orquestração** (inicia um workflow, não é só "ação async").
+  Nome importa: daqui a 6 meses "onde está a geração de contrato?" → **Workflow**, não "gestao".
+
+### ⚖️ Disciplina (evitar exceções por módulo)
+1. **NÃO criar hook específico** (`useProposalWorkflow()` etc.) **sem repetição comprovada.**
+   Migrar primeiro com `useAsyncAction` + `apiMessage` + `ErrorState`; só extrair hook se a
+   duplicação aparecer de fato. Hoje é cedo.
+2. Fazer o módulo **caber na fundação existente** — documentar só as exceções **inevitáveis**
+   (polling e workflows longos).
+3. Não criar novos padrões sem necessidade. Os 2 módulos de referência (§16) já cobrem tudo.
+
+### 🔁 Política ÚNICA de polling (reutilizável em todo o sistema)
+Não espalhar polling ad-hoc. Um único ciclo:
+```
+enviar → pending → polling (2s) → máx 60s → timeout → ErrorState → Retry
+```
+Servidor = fonte da verdade. Enquanto não houver 2º caso de polling, vive inline no fluxo de
+assinatura (Gate 2.2); ao surgir o 2º, extrai-se um `usePolling`/util.
+
+### ⏳ Ciclo ÚNICO de geração (PDF/contrato/cards/email)
+Nenhum `gerarX()` inventa o próprio loading. Todos obedecem:
+```
+clique → pending → executando → concluído → erro → ErrorState
+```
+`useAsyncAction` (`pending`/`running`) + `ErrorState` na falha. Foco = **confiança**, não velocidade.
