@@ -180,3 +180,56 @@ for "não", o módulo **não** está concluído.
 hooks reutilizados · componentes reutilizados · padronizações descobertas · % de cobertura.
 
 > Loading de **lista/página/detalhe** (skeleton) é **Fase 1**, não conta como mutação aqui.
+
+---
+
+## 9. Fluxos que NÃO usam `useCrudActions` (exceções)
+
+`useCrudActions` cobre o CRUD **comum** (create/update/delete de modal). Não force o hook em
+fluxos genuinamente diferentes — o excepcional permanece excepcional. Estes usam
+`useAsyncAction` direto (ou estado próprio quando o per-id/streaming exige):
+
+| Fluxo | Por que fica fora | Padrão a usar |
+|---|---|---|
+| **Upload de arquivo** | progresso, multipart, cancelamento | `useAsyncAction` + estado de progresso |
+| **Importação em lote** | N itens, parcial, relatório | `useAsyncAction` (ex.: Feriados `importing`) |
+| **Toggle por linha** | per-id, não é modal CRUD | `useAsyncAction` + id rastreado (ex.: Executives `toggling`) |
+| **Processo longo / job assíncrono** | polling, timeout, etapas | `useAsyncAction` + polling próprio |
+| **Wizard / multi-step** | estado entre passos | máquina de estado da tela |
+
+Regra: **o hook adapta o fluxo comum; o fluxo excepcional permanece excepcional.** Se aparecer
+a tentação de crescer `useCrudActions` para acomodar uma exceção, **pare** — crie/estenda algo à parte.
+
+---
+
+## 10. Telemetria / pontos de extensão
+
+`useCrudActions` expõe `telemetry` (hoje **no-op**) para ligar capacidades futuras (analytics,
+métricas de duração, breadcrumbs, retry central) **num só lugar** — sem tocar nas telas:
+
+```tsx
+useCrudActions('customers', {
+  onSaved, onDeleted, messages,
+  telemetry: {
+    beforeAction, afterSuccess, afterError, afterFinally,  // { action, endpoint, durationMs, error? }
+  },
+})
+```
+
+Não implementar analytics agora — apenas manter os pontos preparados.
+
+---
+
+## 11. Adoção do padrão por módulo (Sprint 3)
+
+| Módulo | Cobertura |
+|---|---|
+| Aprovações | ✅ 100% |
+| Cadastros | ✅ 100% |
+| CRM / Pipeline | ⬜ 0% |
+| Projetos | ⬜ 0% |
+| Timesheets | ⬜ 0% |
+| Financeiro | ⬜ 0% |
+| Modais restantes | ⬜ 0% |
+
+Atualizar a cada gate de módulo.
