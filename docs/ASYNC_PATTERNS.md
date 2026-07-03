@@ -226,10 +226,37 @@ Não implementar analytics agora — apenas manter os pontos preparados.
 |---|---|
 | Aprovações | ✅ 100% |
 | Cadastros | ✅ 100% |
-| CRM / Pipeline | ⬜ 0% |
-| Projetos | ⬜ 0% |
+| CRM / Pipeline | ✅ 100% |
+| CRM / Propostas | ⬜ 0% |
+| CRM / Cadastros | ⬜ 0% |
 | Timesheets | ⬜ 0% |
 | Financeiro | ⬜ 0% |
-| Modais restantes | ⬜ 0% |
+| Portal Cliente | ⬜ 0% |
 
-Atualizar a cada gate de módulo.
+Atualizar a cada gate de módulo. Medição objetiva da fundação: `npm run fase2:adoption`.
+
+---
+
+## 12. Regra oficial — sequência de TODA mutação
+
+O usuário nunca deve pensar "será que funcionou?". Toda mutação segue esta sequência
+(descoberta e validada no CRM Pipeline — melhor do que simplesmente "remover o refetch"):
+
+```
+Usuário clica
+   ↓
+UI responde IMEDIATAMENTE (otimista)     ← só Categoria A (rápida/reversível)
+   ↓
+API executa
+   ↓
+Sincronização SILENCIOSA (background)    ← servidor continua a fonte da verdade
+   ↓
+Rollback APENAS se houver erro
+```
+
+- **Nunca remover o refetch por completo** — ele vira **silencioso** (sem spinner) após a
+  resposta, para reconciliar campos calculados pelo servidor. Ex.: `loadBoard(true)`.
+- **Concorrência sempre**: `useAsyncAction.pending` bloqueia a re-execução (sem duplo-move/clique).
+- **Categorias B/C** (editar/exclusão/faturamento/…): **sem otimista** (esperam o servidor), mas
+  mantêm feedback (`running`) + concorrência (`pending`).
+- Referência viva: `moveStage`/`confirmLoss`/`onDragEnd` em `crm/pipeline`.
