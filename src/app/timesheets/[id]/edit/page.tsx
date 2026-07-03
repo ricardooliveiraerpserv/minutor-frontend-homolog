@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 
-interface SelectOption { id: number; name: string; service_type_code?: string | null }
+interface SelectOption { id: number; name: string; service_type_code?: string | null; is_investimento_comercial?: boolean; categoria_interna?: string | null }
 
 // ─── SearchSelect ─────────────────────────────────────────────────────────────
 
@@ -124,7 +124,7 @@ export default function EditTimesheetPage() {
   const ts = raw?.data ?? (raw as unknown as Timesheet | null)
 
   const [form, setForm] = useState({
-    user_id: '', customer_id: '', project_id: '',
+    user_id: '', customer_id: '', project_id: '', real_project_id: '',
     date: '', start_time: '', end_time: '', total_hours: '',
     ticket: '', observation: '',
     is_billable_only: false,
@@ -139,6 +139,8 @@ export default function EditTimesheetPage() {
   const [customers,   setCustomers]   = useState<SelectOption[]>([])
   const [consultants, setConsultants] = useState<SelectOption[]>([])
   const [projects,    setProjects]    = useState<SelectOption[]>([])
+  // Candidatos a "Projeto Real": todos os projetos abertos do cliente, sem consultant_only.
+  const [realProjects, setRealProjects] = useState<SelectOption[]>([])
   const [loadingData, setLoadingData] = useState(false)
   const [initialized, setInitialized] = useState(false)
 
@@ -187,6 +189,7 @@ export default function EditTimesheetPage() {
       user_id:              userId,
       customer_id:          customerId,
       project_id:           String(ts.project_id ?? ''),
+      real_project_id:      ts.real_project_id != null ? String(ts.real_project_id) : '',
       date:                 ts.date ?? '',
       start_time:           ts.start_time ?? '',
       end_time:             ts.end_time ?? '',
@@ -202,12 +205,15 @@ export default function EditTimesheetPage() {
 
   // Load projects when customer changes
   useEffect(() => {
-    if (!form.customer_id) { setProjects([]); return }
+    if (!form.customer_id) { setProjects([]); setRealProjects([]); return }
     let cancelled = false
-    const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open', include_investimento_comercial: 'true' })
+    const mapProj = (p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type?.code ?? null, is_investimento_comercial: !!p.is_investimento_comercial, categoria_interna: p.categoria_interna ?? null })
+
+    // Dropdown "Projeto" (apontável): escopo do consultor (consultant_only).
     // Filtra projetos pelos vínculos do dono do apontamento (consultant/coordinator/group)
     // independente do operador ser admin. Garante que IC respeite a alocação do consultor
     // mesmo quando admin edita apontamento de outro usuário.
+    const qs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open', include_investimento_comercial: 'true' })
     if (form.user_id) {
       qs.set('consultant_only', 'true')
       qs.set('user_id', form.user_id)
@@ -215,14 +221,16 @@ export default function EditTimesheetPage() {
       qs.set('consultant_only', 'true')
     }
     api.get<{ items: any[] }>(`/projects?${qs}`)
-      .then(r => {
-        if (!cancelled) setProjects(
-          Array.isArray(r?.items)
-            ? r.items.map((p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type?.code ?? null }))
-            : []
-        )
-      })
+      .then(r => { if (!cancelled) setProjects(Array.isArray(r?.items) ? r.items.map(mapProj) : []) })
       .catch(() => {})
+
+    // Candidatos a "Projeto Real": TODOS os projetos abertos do cliente, SEM consultant_only.
+    // O consultor precisa referenciar o projeto real do investimento mesmo sem estar alocado nele.
+    const realQs = new URLSearchParams({ pageSize: '200', customer_id: form.customer_id, status: 'open', include_investimento_comercial: 'true' })
+    api.get<{ items: any[] }>(`/projects?${realQs}`)
+      .then(r => { if (!cancelled) setRealProjects(Array.isArray(r?.items) ? r.items.map(mapProj) : []) })
+      .catch(() => {})
+
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.customer_id, form.user_id])
@@ -251,8 +259,18 @@ export default function EditTimesheetPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.start_time, form.end_time, form.total_hours, useTotal, timeDriver])
 
+  // ERPSERV (empresa própria): investimentos internos não pedem Projeto Real.
+  const selectedCustomer = customers.find(c => String(c.id) === form.customer_id) as any
+  const isErpservCustomer = String(selectedCustomer?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+
   const save = async () => {
     if (!form.project_id) { toast.error('Selecione um projeto'); return }
+    const selProj = projects.find(p => String(p.id) === form.project_id) as any
+    // Projeto Real só é pedido nos investimentos de Projetos e Suporte dos clientes
+    // (não em Comercial, nem nos investimentos internos da própria ERPSERV).
+    const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
+      && (selProj?.categoria_interna === 'Projeto' || selProj?.categoria_interna === 'Suporte')
+    if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); return }
     if (useTotal) {
       if (!form.total_hours) { toast.error('Informe o total de horas'); return }
     } else {
@@ -263,6 +281,7 @@ export default function EditTimesheetPage() {
     try {
       const body: Record<string, any> = {
         project_id:  Number(form.project_id),
+        real_project_id: isInvestimento && form.real_project_id ? Number(form.real_project_id) : null,
         date:        form.date,
         start_time:  form.start_time || undefined,
         end_time:    form.end_time || undefined,
@@ -360,13 +379,45 @@ export default function EditTimesheetPage() {
               <div className="mt-1">
                 <SearchSelect
                   value={form.project_id}
-                  onChange={v => setForm(f => ({ ...f, project_id: v }))}
+                  onChange={v => setForm(f => ({ ...f, project_id: v, real_project_id: '' }))}
                   options={projects}
                   placeholder={form.customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'}
                   disabled={!form.customer_id}
                 />
               </div>
             </div>
+
+            {/* Projeto Real — só para projetos de INVESTIMENTO (apontamento contabiliza no
+                investimento; o real é referência e define o coordenador que aprova). */}
+            {(() => {
+              const sel = projects.find(p => String(p.id) === form.project_id) as any
+              // Projeto Real só nos investimentos de Projetos e Suporte (clientes); não em
+              // Comercial nem nos investimentos internos da própria ERPSERV.
+              if (!sel?.is_investimento_comercial || isErpservCustomer) return null
+              if (!(sel?.categoria_interna === 'Projeto' || sel?.categoria_interna === 'Suporte')) return null
+              const soSustentacao = sel?.categoria_interna === 'Suporte'
+              const realOpts = realProjects.filter(p => {
+                if ((p as any).is_investimento_comercial || String(p.id) === form.project_id) return false
+                if (soSustentacao && (p as any).service_type_code !== 'sustentacao') return false
+                return true
+              })
+              return (
+                <div>
+                  <Label className="text-xs text-[var(--text-muted)]">Projeto Real *</Label>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>
+                    Projeto verdadeiro da hora. O apontamento continua contabilizado no investimento; o coordenador do projeto real aprova.{soSustentacao ? ' (apenas projetos de Sustentação)' : ''}
+                  </p>
+                  <div className="mt-1">
+                    <SearchSelect
+                      value={form.real_project_id}
+                      onChange={v => setForm(f => ({ ...f, real_project_id: v }))}
+                      options={realOpts}
+                      placeholder="Selecione o projeto real..."
+                    />
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Data */}
             <div>
