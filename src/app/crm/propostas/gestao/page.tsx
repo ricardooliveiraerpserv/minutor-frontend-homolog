@@ -7,7 +7,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { X, Lock, AlertTriangle, Search } from 'lucide-react'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { buildWonPrefill, criarCardsCloud, criarSubprojeto } from '@/app/crm/pipeline/page'
@@ -166,30 +167,26 @@ function Drawer({ card, onClose, onChanged }: { card: Card; onClose: () => void;
   const [lossReasons, setLossReasons] = useState<{ id: number; name: string }[]>([])
   const [perda, setPerda] = useState<{ status: string; loss_reason_id: string; observacao: string }>({ status: 'reprovada', loss_reason_id: '', observacao: '' })
   const [np, setNp] = useState<{ name: string; email: string; roles: string[] }>({ name: '', email: '', roles: [] })
-  const [busy, setBusy] = useState(false)
   const [contract, setContract] = useState<{ prefill: any; prefillContacts: any[]; opportunityId?: number } | null>(null)
   const router = useRouter()
   const id = card.id
 
   // Gerar contrato pelo MESMO modal padrão do Pipeline/Kanban (ContractFormModal), pré-preenchido pela proposta.
-  const gerarContrato = async () => {
-    setBusy(true)
-    try {
-      const det = await api.get<{ data: any }>(`/crm/proposals/${id}`).then(r => r?.data)
-      const oppId = det?.opportunity_id
-      if (oppId) {
-        const opp = await api.get<{ data: any }>(`/crm/opportunities/${oppId}`).then(r => r?.data)
-        const { prefill, prefillContacts } = await buildWonPrefill(opp)
-        // Cloud com ≥2 linhas (único + mensais) gera UM contrato por linha direto no Kanban (sem o modal de 1
-        // contrato); subprojeto idem. Só cai no modal padrão quando é 1 contrato único. (Mesma regra do Pipeline.)
-        if (await criarCardsCloud(oppId, prefill, prefillContacts, aposContrato)) return
-        if (await criarSubprojeto(oppId, prefill, prefillContacts, aposContrato)) return
-        setContract({ prefill, prefillContacts, opportunityId: oppId })
-      } else {
-        setContract({ prefill: { customer_id: card.customer_id ? String(card.customer_id) : '', project_name: card.codigo, valor_projeto: String(card.valor || '') }, prefillContacts: [] })
-      }
-    } catch (e: any) { toast.error(e?.message ?? 'Erro ao preparar contrato') } finally { setBusy(false) }
-  }
+  // Workflow — geração de contrato (Cat B, espera servidor). useAsyncAction (concorrência) + apiMessage.
+  const gerarContratoAction = useAsyncAction(async () => {
+    const det = await api.get<{ data: any }>(`/crm/proposals/${id}`).then(r => r?.data)
+    const oppId = det?.opportunity_id
+    if (oppId) {
+      const opp = await api.get<{ data: any }>(`/crm/opportunities/${oppId}`).then(r => r?.data)
+      const { prefill, prefillContacts } = await buildWonPrefill(opp)
+      if (await criarCardsCloud(oppId, prefill, prefillContacts, aposContrato)) return
+      if (await criarSubprojeto(oppId, prefill, prefillContacts, aposContrato)) return
+      setContract({ prefill, prefillContacts, opportunityId: oppId })
+    } else {
+      setContract({ prefill: { customer_id: card.customer_id ? String(card.customer_id) : '', project_name: card.codigo, valor_projeto: String(card.valor || '') }, prefillContacts: [] })
+    }
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao preparar contrato')) })
+  const gerarContrato = () => gerarContratoAction.run()
   // Após criar o contrato pelo modal, marca a proposta como CONVERTIDA (gerar contrato = liberada).
   const aposContrato = async () => { try { await api.put(`/crm/proposals/${id}`, { status: 'convertida' }) } catch { /* */ } setContract(null); loadLib(); onChanged() }
   // Via CRM, abrir a proposta em MODO EDIÇÃO (editor), não a visão do cliente (portal).
@@ -202,54 +199,59 @@ function Drawer({ card, onClose, onChanged }: { card: Card; onClose: () => void;
   const loadThreads = useCallback(() => { api.get<{ data: any[]; summary?: any }>(`/crm/proposals/${id}/threads`).then(r => { setThreads(r?.data ?? []); setRevSummary((r as any)?.summary ?? null) }).catch(() => {}) }, [id])
   useEffect(() => { loadLib(); loadEng(); loadAna(); loadParts(); loadThreads() }, [loadLib, loadEng, loadAna, loadParts, loadThreads])
   useEffect(() => { api.get<{ data: any[] }>('/crm/loss-reasons').then(r => setLossReasons((r?.data ?? []).filter((x: any) => x.active !== false))).catch(() => {}) }, [])
-  const enviarFeedback = async (resposta: 'sim' | 'parcial' | 'nao') => {
-    setBusy(true)
-    try { await api.post(`/crm/proposals/${id}/diagnostico-feedback`, { resposta, comentario: fbComment }); setFbComment(''); toast.success('Feedback registrado — obrigado!'); loadAna() }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setBusy(false) }
-  }
-  const marcarPerda = async () => {
+  const enviarFeedbackAction = useAsyncAction(async (resposta: 'sim' | 'parcial' | 'nao') => {
+    await api.post(`/crm/proposals/${id}/diagnostico-feedback`, { resposta, comentario: fbComment }); setFbComment(''); toast.success('Feedback registrado — obrigado!'); loadAna()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const enviarFeedback = (resposta: 'sim' | 'parcial' | 'nao') => enviarFeedbackAction.run(resposta)
+  const marcarPerdaAction = useAsyncAction(async () => {
     if (!perda.loss_reason_id) { toast.error('Selecione o motivo da perda'); return }
     if (!window.confirm('Encerrar esta proposta? Esta ação registra a perda com o motivo selecionado.')) return
-    setBusy(true)
-    try { await api.post(`/crm/proposals/${id}/marcar-perda`, perda); toast.success('Proposta encerrada (perda registrada)'); loadLib(); onChanged() }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setBusy(false) }
-  }
-  const responderThread = async (tid: number) => {
+    await api.post(`/crm/proposals/${id}/marcar-perda`, perda); toast.success('Proposta encerrada (perda registrada)'); loadLib(); onChanged()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const marcarPerda = () => marcarPerdaAction.run()
+  const responderThreadAction = useAsyncAction(async (tid: number) => {
     const txt = (reply[tid] ?? '').trim(); if (!txt) return
-    setBusy(true)
-    try { await api.post(`/crm/proposals/${id}/threads/${tid}/mensagens`, { message: txt }); setReply(s => ({ ...s, [tid]: '' })); toast.success('Resposta enviada'); loadThreads() }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setBusy(false) }
-  }
-  const resolverThread = async (tid: number) => {
+    await api.post(`/crm/proposals/${id}/threads/${tid}/mensagens`, { message: txt }); setReply(s => ({ ...s, [tid]: '' })); toast.success('Resposta enviada'); loadThreads()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const responderThread = (tid: number) => responderThreadAction.run(tid)
+  const resolverThreadAction = useAsyncAction(async (tid: number) => {
     if (!window.confirm('Marcar esta revisão como resolvida?')) return
-    setBusy(true)
-    try { await api.post(`/crm/proposals/${id}/threads/${tid}/resolver`, {}); toast.success('Revisão resolvida'); loadThreads(); loadLib(); onChanged() }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setBusy(false) }
-  }
+    await api.post(`/crm/proposals/${id}/threads/${tid}/resolver`, {}); toast.success('Revisão resolvida'); loadThreads(); loadLib(); onChanged()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const resolverThread = (tid: number) => resolverThreadAction.run(tid)
   const toggleRole = (r: string) => setNp(s => ({ ...s, roles: s.roles.includes(r) ? s.roles.filter(x => x !== r) : [...s.roles, r] }))
-  const addPart = async () => {
+  const addPartAction = useAsyncAction(async () => {
     if (!np.name.trim() || !np.email.trim() || !np.roles.length) { toast.error('Nome, e-mail e ao menos um papel'); return }
-    setBusy(true)
-    try { await api.post<{ data: { link: string } }>(`/crm/proposals/${id}/participantes`, np); toast.success('Participante adicionado — convite enviado por e-mail'); setNp({ name: '', email: '', roles: [] }); loadParts() }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setBusy(false) }
-  }
-  const reenviarConvite = async (pp: any) => {
-    setBusy(true)
-    try { const r = await api.post<{ data: { sent: boolean; message: string } }>(`/crm/proposals/${id}/participantes/${pp.id}/reenviar`, {}); (r?.data?.sent ? toast.success : toast.error)(r?.data?.message ?? 'Convite reenviado'); loadParts() }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setBusy(false) }
-  }
-  const desativarPart = async (pp: any) => {
+    await api.post<{ data: { link: string } }>(`/crm/proposals/${id}/participantes`, np); toast.success('Participante adicionado — convite enviado por e-mail'); setNp({ name: '', email: '', roles: [] }); loadParts()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const addPart = () => addPartAction.run()
+  const reenviarConviteAction = useAsyncAction(async (pp: any) => {
+    const r = await api.post<{ data: { sent: boolean; message: string } }>(`/crm/proposals/${id}/participantes/${pp.id}/reenviar`, {}); (r?.data?.sent ? toast.success : toast.error)(r?.data?.message ?? 'Convite reenviado'); loadParts()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const reenviarConvite = (pp: any) => reenviarConviteAction.run(pp)
+  const desativarPartAction = useAsyncAction(async (pp: any) => {
     if (!window.confirm(`Desativar ${pp.name}? Ele(a) deixa de receber e-mails e de acessar o portal (histórico preservado).`)) return
-    setBusy(true)
-    try { await api.delete(`/crm/proposals/${id}/participantes/${pp.id}`); toast.success('Participante desativado'); loadParts() }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setBusy(false) }
-  }
+    await api.delete(`/crm/proposals/${id}/participantes/${pp.id}`); toast.success('Participante desativado'); loadParts()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const desativarPart = (pp: any) => desativarPartAction.run(pp)
   const copiarLink = (pp: any) => { if (pp.link) navigator.clipboard.writeText(pp.link).then(() => toast.success('Link copiado')).catch(() => {}) }
 
-  const act = async (fn: () => Promise<any>, ok: string) => { setBusy(true); try { await fn(); toast.success(ok); loadLib(); onChanged() } catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setBusy(false) } }
-  const solicitarAssinatura = () => act(() => api.post(`/crm/proposals/${id}/solicitar-assinatura`, {}), 'Assinatura solicitada ao cliente')
-  const bloquear = () => { const m = window.prompt('Motivo da retenção:'); if (!m?.trim()) return; act(() => api.post(`/crm/proposals/${id}/bloquear`, { motivo: m.trim() }), 'Retida') }
-  const desbloquear = () => act(() => api.post(`/crm/proposals/${id}/desbloquear`, {}), 'Liberada a retenção')
+  // act(fn, ok) substituído por useAsyncAction individual (mesmo efeito: toast.success + loadLib + onChanged).
+  const solicitarAssinaturaAction = useAsyncAction(async () => {
+    await api.post(`/crm/proposals/${id}/solicitar-assinatura`, {}); toast.success('Assinatura solicitada ao cliente'); loadLib(); onChanged()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const solicitarAssinatura = () => solicitarAssinaturaAction.run()
+  const bloquearAction = useAsyncAction(async (motivo: string) => {
+    await api.post(`/crm/proposals/${id}/bloquear`, { motivo }); toast.success('Retida'); loadLib(); onChanged()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const bloquear = () => { const m = window.prompt('Motivo da retenção:'); if (!m?.trim()) return; bloquearAction.run(m.trim()) }
+  const desbloquearAction = useAsyncAction(async () => {
+    await api.post(`/crm/proposals/${id}/desbloquear`, {}); toast.success('Liberada a retenção'); loadLib(); onChanged()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const desbloquear = () => desbloquearAction.run()
+
+  // busy compartilhado (imediato) — deriva do pending de TODAS as ações do Workflow (cross-disable).
+  const busy = gerarContratoAction.pending || enviarFeedbackAction.pending || marcarPerdaAction.pending || responderThreadAction.pending || resolverThreadAction.pending || addPartAction.pending || reenviarConviteAction.pending || desativarPartAction.pending || solicitarAssinaturaAction.pending || bloquearAction.pending || desbloquearAction.pending
 
   const TABS = [['comercial', 'Comercial'], ['participantes', 'Participantes'], ['revisoes', `Revisões${threads.length ? ` (${threads.length})` : ''}`], ['liberacao', 'Liberação'], ['juridica', 'Jurídica']] as const
   const ROLE_LABEL: Record<string, string> = { viewer: 'Viewer', reviewer: 'Reviewer', approver: 'Approver', signer: 'Signer' }
