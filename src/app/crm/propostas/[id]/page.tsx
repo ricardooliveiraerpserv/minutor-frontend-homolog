@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { ArrowLeft, ArrowRight, FileDown, Save, Image as ImageIcon, ChevronDown, ChevronRight, Plus, Minus, Trash2, ArrowUp, ArrowDown, Type, Mail, Send, X, Activity, Link2, Copy, FileSignature, CheckCircle2, Lock } from 'lucide-react'
 
 type EscopoBlock =
@@ -348,7 +349,6 @@ export default function PropostaEditor() {
   const [inputs, setInputs] = useState<Record<string, any>>({})
   const [conteudo, setConteudo] = useState<Record<string, any>>({})
   const [preview, setPreview] = useState<Preview | null>(null)
-  const [saving, setSaving] = useState(false)
   const [gerando, setGerando] = useState(false)
   const [enviandoAssin, setEnviandoAssin] = useState(false)
   // Participantes da proposta (validação + assinatura por parte)
@@ -643,29 +643,24 @@ export default function PropostaEditor() {
   const setCont = (sec: string, k: string, v: any) => setConteudo(p => ({ ...p, [sec]: { ...(p[sec] || {}), [k]: v } }))
   const calc = preview?.calc || d.calc || {}
 
-  const salvar = async () => {
+  // Gate 2.1 — Cat B (espera servidor): useAsyncAction (pending/running + apiMessage), sem loading manual.
+  const salvarAction = useAsyncAction(async () => {
     if (isTemplate) {
-      setSaving(true)
-      try { await api.put(`/crm/proposal-templates/${tplTipo}`, { conteudo, inputs, modo_faturamento: modoFat }); toast.success('Template salvo'); refreshPreview() }
-      catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar template') } finally { setSaving(false) }
-      return
+      await api.put(`/crm/proposal-templates/${tplTipo}`, { conteudo, inputs, modo_faturamento: modoFat }); toast.success('Template salvo'); refreshPreview(); return
     }
     if (codigoDup) { toast.error('Código já usado em outra proposta. Altere antes de salvar.'); return }
-    setSaving(true)
-    try {
-      await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d.codigo, data_emissao: d.data_emissao, data_validade: d.data_validade, tipo: d.tipo, modo_faturamento: modoFat })
-      toast.success('Proposta salva'); refreshPreview()
-    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar') } finally { setSaving(false) }
-  }
+    await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d.codigo, data_emissao: d.data_emissao, data_validade: d.data_validade, tipo: d.tipo, modo_faturamento: modoFat })
+    toast.success('Proposta salva'); refreshPreview()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar')) })
+  const salvar = () => salvarAction.run()
   // TEMPLATES (1 por tipo, globais). Salva conteudo+inputs do tipo atual; aplicar ao escolher o tipo.
-  const salvarTemplate = async () => {
+  const salvarTemplateAction = useAsyncAction(async () => {
     const lbl = TIPOS.find(t => t.v === tipo)?.label ?? tipo
     if (!window.confirm(`Salvar a configuração atual como TEMPLATE de "${lbl}"? Substitui o template anterior desse tipo (global).`)) return
-    try {
-      await api.put(`/crm/proposal-templates/${tipo}`, { conteudo, inputs, modo_faturamento: modoFat })
-      toast.success(`Template de "${lbl}" salvo.`)
-    } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar template') }
-  }
+    await api.put(`/crm/proposal-templates/${tipo}`, { conteudo, inputs, modo_faturamento: modoFat })
+    toast.success(`Template de "${lbl}" salvo.`)
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar template')) })
+  const salvarTemplate = () => salvarTemplateAction.run()
   const aplicarTemplate = async (nt: string) => {
     const lbl = TIPOS.find(t => t.v === nt)?.label ?? nt
     const tpl = await api.get<{ data: any }>(`/crm/proposal-templates/${nt}`).then(r => r?.data).catch(() => null)
@@ -1054,7 +1049,7 @@ export default function PropostaEditor() {
           {(() => {
             // Proposta em assinatura / assinada / liberada / convertida é READ-ONLY (regra jurídica) — Save travado.
             const travada = !isTemplate && ['aguardando_assinatura', 'assinada', 'liberada', 'convertida'].includes(d.status)
-            return <button onClick={salvar} disabled={saving || travada} title={travada ? 'Proposta assinada/em assinatura não pode ser editada. Cancele a assinatura para gerar nova versão.' : ''} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed" style={{ background: isTemplate ? 'var(--primary)' : 'var(--surface-sunken)', color: isTemplate ? 'var(--primary-fg)' : 'var(--text)' }}>{travada ? <Lock size={14} /> : <Save size={14} />}{saving ? 'Salvando…' : (travada ? 'Bloqueado (assinada)' : (isTemplate ? 'Salvar template' : 'Salvar'))}</button>
+            return <button onClick={salvar} disabled={salvarAction.pending || travada} title={travada ? 'Proposta assinada/em assinatura não pode ser editada. Cancele a assinatura para gerar nova versão.' : ''} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed" style={{ background: isTemplate ? 'var(--primary)' : 'var(--surface-sunken)', color: isTemplate ? 'var(--primary-fg)' : 'var(--text)' }}>{travada ? <Lock size={14} /> : <Save size={14} />}{salvarAction.running ? 'Salvando…' : (travada ? 'Bloqueado (assinada)' : (isTemplate ? 'Salvar template' : 'Salvar'))}</button>
           })()}
           {!isTemplate && <button onClick={gerarPdf} disabled={gerando} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold disabled:opacity-60" style={{ background: 'var(--surface-sunken)', color: 'var(--text)', border: '1px solid var(--border)' }}><FileDown size={14} />{gerando ? 'Gerando…' : 'Gerar PDF'}</button>}
           {!isTemplate && <button onClick={abrirEngajamento} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold" style={{ background: 'var(--surface-sunken)', color: 'var(--text)', border: '1px solid var(--border)' }} title="Engajamento do cliente + link do Portal"><Activity size={14} />Engajamento</button>}
