@@ -63,7 +63,8 @@ function tokens(variant: 'brand' | 'default') {
 }
 
 const fmtMonth = (ym: string) => { const [y, m] = ym.split('-'); return `${m}/${y}` }
-const fmtH = (n: number) => `${Number.isInteger(n) ? n : n.toFixed(1)}h`
+// pt-BR com até 2 casas (sem forçar zeros) — bate com a tela de apontamentos (ex.: 192,25h / 2,5h / 160h).
+const fmtH = (n: number) => `${Number(n ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}h`
 
 export function MonthlyAccrualTable({ startDate, hoursPerMonth = 0, accumulated, endDate, variant = 'default', projectId, canEditConsumption, statement, monthlyIncrements }: MonthlyAccrualTableProps) {
   const t = tokens(variant)
