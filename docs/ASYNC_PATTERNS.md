@@ -300,3 +300,23 @@ removidas · tempo até feedback · **% de adoção da fundação**.
 **Estado (Sprint 2.5):** fundação **consolidada e soft-frozen** — API estabilizada (helper
 `apiMessage`, `useOptimisticList.revalidate`) antes de CRM Propostas. Mudanças de API a partir
 daqui exigem justificativa explícita.
+
+---
+
+## 15. CRM Propostas (Gate 2) — mapa de fluxos PRÉ-DEFINIDO
+
+Módulo mais complexo do sistema. Padrão de cada fluxo decidido **antes** de começar (evita
+decisões divergentes no meio da migração):
+
+| Fluxo | Padrão | Otimista? |
+|---|---|---|
+| Upload de arquivo | `useAsyncAction` + estado de progresso | não |
+| Geração de PDF | `useAsyncAction` (+ `ErrorState` na falha) | não |
+| **Clicksign / assinatura** | `useAsyncAction` + **polling** (aguarda status externo) | não |
+| Geração de contrato | `useAsyncAction` | não |
+| Navegação (abrir editor/aba) | sem hook / sem otimismo | não |
+| Exclusão | `useAsyncAction` + **confirmação** | não |
+| Status de proposta (rápido) | `useAsyncAction` (avaliar otimista Cat. A) | talvez |
+
+Nenhum desses é Categoria A "puro" (fluxos externos/pesados → esperam o servidor). O ganho aqui
+é **feedback + concorrência + erro persistente**, não velocidade otimista.
