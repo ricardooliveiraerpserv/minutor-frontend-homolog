@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Settings,
-  RefreshCw, CheckCircle, XCircle, Users, X, Briefcase,
+  RefreshCw, CheckCircle, XCircle, Users, X, Briefcase, Lock,
 } from 'lucide-react'
 import type { SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
@@ -35,6 +35,19 @@ interface MovideskStatus {
   token_configured: boolean
 }
 
+interface OpenPeriod {
+  id: number
+  project_id: number
+  project_code: string | null
+  project_name: string | null
+  cliente: string | null
+  year_month: string
+  opened_by: string | null
+  created_at: string
+}
+
+const fmtYM = (ym: string) => { const [y, m] = ym.split('-'); return `${m}/${y}` }
+
 function GeneralTab() {
   const [settings, setSettings] = useState<SystemSettings>({})
   const [loading, setLoading] = useState(true)
@@ -43,6 +56,10 @@ function GeneralTab() {
   const [syncing, setSyncing] = useState(false)
   const [syncOutput, setSyncOutput] = useState<string | null>(null)
   const [importingSince, setImportingSince] = useState(false)
+  const [openPeriods, setOpenPeriods] = useState<OpenPeriod[]>([])
+  const [loadingPeriods, setLoadingPeriods] = useState(true)
+  const [closingAll, setClosingAll] = useState(false)
+  const [confirmCloseAll, setConfirmCloseAll] = useState(false)
 
   const loadMovideskStatus = useCallback(async () => {
     try {
@@ -51,13 +68,37 @@ function GeneralTab() {
     } catch { /* silencioso */ }
   }, [])
 
+  const loadOpenPeriods = useCallback(async () => {
+    setLoadingPeriods(true)
+    try {
+      const r = await api.get<{ data: OpenPeriod[] }>('/projects-open-periods')
+      setOpenPeriods(r.data ?? [])
+    } catch { /* silencioso */ }
+    finally { setLoadingPeriods(false) }
+  }, [])
+
   useEffect(() => {
     api.get<{ data: SystemSettings }>('/system-settings')
       .then(s => setSettings(s.data ?? s as unknown as SystemSettings))
       .catch((e) => toast.error('Erro ao carregar configurações: ' + (e instanceof ApiError ? e.message : String(e))))
       .finally(() => setLoading(false))
     loadMovideskStatus()
-  }, [loadMovideskStatus])
+    loadOpenPeriods()
+  }, [loadMovideskStatus, loadOpenPeriods])
+
+  const closeAllPeriods = async () => {
+    setClosingAll(true)
+    try {
+      const r = await api.post<{ message: string; count: number }>('/projects-open-periods/close-all', {})
+      toast.success(r.message ?? 'Períodos fechados')
+      setConfirmCloseAll(false)
+      await loadOpenPeriods()
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao fechar períodos')
+    } finally {
+      setClosingAll(false)
+    }
+  }
 
   const save = async () => {
     setSaving(true)
@@ -144,6 +185,58 @@ function GeneralTab() {
             <p className="text-[11px] text-[var(--text-light)] mt-1">A competência do mês anterior é encerrada automaticamente neste dia útil (pula fins de semana e feriados). Padrão: 2.</p>
           </div>
         </div>
+      </section>
+
+      <section>
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-[var(--border)] gap-3">
+          <h3 className="text-sm font-medium text-[var(--text)]">Períodos de projeto abertos</h3>
+          {!loadingPeriods && openPeriods.length > 0 && (
+            confirmCloseAll ? (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[11px] text-[var(--text-muted)]">Fechar {openPeriods.length}?</span>
+                <Button variant="destructive" size="sm" onClick={closeAllPeriods} disabled={closingAll}>
+                  {closingAll ? 'Fechando…' : 'Sim, fechar todos'}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setConfirmCloseAll(false)} disabled={closingAll}>Cancelar</Button>
+              </div>
+            ) : (
+              <Button variant="destructive" size="sm" className="shrink-0 gap-1.5" onClick={() => setConfirmCloseAll(true)}>
+                <Lock size={13} /> Fechar todos ({openPeriods.length})
+              </Button>
+            )
+          )}
+        </div>
+
+        {loadingPeriods ? (
+          <Skeleton className="h-16 w-full" />
+        ) : openPeriods.length === 0 ? (
+          <p className="text-xs text-[var(--text-light)]">Nenhum período de projeto aberto — tudo encerrado. ✅</p>
+        ) : (
+          <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-[var(--surface-hover)] text-[var(--text-light)]">
+                  <th className="text-left font-medium px-3 py-2">Projeto</th>
+                  <th className="text-left font-medium px-3 py-2">Competência</th>
+                  <th className="text-left font-medium px-3 py-2">Aberto por</th>
+                </tr>
+              </thead>
+              <tbody>
+                {openPeriods.map(p => (
+                  <tr key={p.id} className="border-t border-[var(--border)]">
+                    <td className="px-3 py-2 text-[var(--text)]">
+                      <span className="font-medium">{p.project_code ?? '—'}</span>
+                      {p.cliente && <span className="text-[var(--text-light)]"> · {p.cliente}</span>}
+                    </td>
+                    <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums">{fmtYM(p.year_month)}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)]">{p.opened_by ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="text-[11px] text-[var(--text-light)] mt-2">Projetos com o mês reaberto para lançamento. Fechar trava novos apontamentos nesses meses — o mês atual nunca é fechado.</p>
       </section>
 
       <section>
