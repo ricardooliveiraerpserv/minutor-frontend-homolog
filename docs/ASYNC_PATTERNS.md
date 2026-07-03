@@ -260,3 +260,43 @@ Rollback APENAS se houver erro
 - **Categorias B/C** (editar/exclusão/faturamento/…): **sem otimista** (esperam o servidor), mas
   mantêm feedback (`running`) + concorrência (`pending`).
 - Referência viva: `moveStage`/`confirmLoss`/`onDragEnd` em `crm/pipeline`.
+
+### Duas receitas de otimista
+| Estrutura de dados | Padrão |
+|---|---|
+| **Lista plana** (tabela/grid/cards) | `useOptimisticList(source, keyOf, { revalidate })` — `mutate(optimistic, commit)` já faz snapshot+rollback+sync silencioso |
+| **Aninhada/derivada** (kanban `cols`, árvore) | **inline**: `useAsyncAction` + `setState(prev => { snap = prev; return optimistic(prev) })` + `try { await commit; syncSilencioso() } catch { setState(snap); throw }` (ex.: `optimisticMoveCard` no Pipeline) |
+
+---
+
+## 13. Categoria da mutação → padrão (decisão única, não reabrir por caso)
+
+| Tipo de mutação | Padrão |
+|---|---|
+| CRUD simples (modal) | `useCrudActions` |
+| Botão isolado / ação única | `AsyncButton` ou `useAsyncAction` |
+| Kanban / lista otimista | `useOptimisticList` (plano) ou inline (aninhado) + rollback |
+| Upload de arquivo | `useAsyncAction` + estado de progresso |
+| Geração de PDF | `useAsyncAction` (+ `ErrorState` na falha) |
+| Clicksign / assinatura | `useAsyncAction` + **polling** |
+| Importação em lote | `useAsyncAction` + progresso |
+| Erro de carga/ação crítica | `ErrorState` (persistente) |
+
+Boilerplate de erro → **use `apiMessage`** (de `@/lib/api`): `onError: e => toast.error(apiMessage(e, 'Erro ao salvar'))` em vez de `e instanceof ApiError ? e.message : '...'`.
+
+---
+
+## 14. Metas de adoção (KPI da Fase 2) — `npm run fase2:adoption`
+
+KPIs medíveis: arquivos migrados · mutações migradas · estados manuais eliminados · linhas
+removidas · tempo até feedback · **% de adoção da fundação**.
+
+| Marco | Ação |
+|---|---|
+| **20% de adoção** | 1ª revisão da fundação (esta Sprint 2.5 já antecipou) |
+| **50% de adoção** | **congelar a fundação** (sem mudanças de API sem forte justificativa) |
+| **80%+ de adoção** | considerar a **Fase 2 concluída** |
+
+**Estado (Sprint 2.5):** fundação **consolidada e soft-frozen** — API estabilizada (helper
+`apiMessage`, `useOptimisticList.revalidate`) antes de CRM Propostas. Mudanças de API a partir
+daqui exigem justificativa explícita.

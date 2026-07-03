@@ -15,21 +15,31 @@ import { useEffect, useState } from 'react'
  * `source` deve ser o estado vindo do servidor (memoizado/estável): ao chegar nova lista
  * (refetch), a hook re-sincroniza — o servidor é a fonte de verdade.
  */
-export function useOptimisticList<T>(source: T[], keyOf: (item: T) => string | number) {
+export function useOptimisticList<T>(
+  source: T[],
+  keyOf: (item: T) => string | number,
+  opts: {
+    /** §12 — chamado após o commit ter sucesso: sync SILENCIOSO com o servidor (não remove o
+     *  refetch; reconcilia campos calculados). Ex.: () => load(true). */
+    revalidate?: () => void
+  } = {},
+) {
   const [items, setItems] = useState<T[]>(source)
 
   // Servidor manda: quando a lista de origem muda (refetch/poll), sincroniza.
   useEffect(() => { setItems(source) }, [source])
 
   /**
-   * Aplica a transformação otimista JÁ na UI, executa o commit no servidor e, se falhar,
-   * REVERTE para o snapshot anterior. Relança o erro para quem chamou tratar (toast/ErrorState).
+   * Sequência oficial (§12): otimista JÁ na UI → commit → sync silencioso → rollback só em erro.
+   * Relança o erro para quem chamou tratar (toast/ErrorState).
    */
   async function mutate<R>(optimistic: (prev: T[]) => T[], commit: () => Promise<R>): Promise<R> {
     let snapshot: T[] = []
     setItems(prev => { snapshot = prev; return optimistic(prev) })
     try {
-      return await commit()
+      const r = await commit()
+      opts.revalidate?.()  // sync silencioso — servidor = fonte da verdade
+      return r
     } catch (e) {
       setItems(snapshot)  // rollback
       throw e
