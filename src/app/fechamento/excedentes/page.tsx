@@ -16,7 +16,7 @@ interface Row {
   project_name: string
   customer_id: number
   customer_name: string
-  basis: 'monthly' | 'fixed'
+  basis: 'monthly' | 'fixed' | 'closed'
   contracted_hours: number
   consumed_hours: number
   excess_hours: number
@@ -230,7 +230,7 @@ function ExcedentesPage() {
                         <div className="font-medium">{r.customer_name}</div>
                         <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>{r.code} — {r.project_name}</div>
                       </Td>
-                      <Td><Badge variant={r.basis === 'fixed' ? 'primary' : 'default'}>{r.basis === 'fixed' ? 'BH Fixo' : 'BH Mensal'}</Badge></Td>
+                      <Td><Badge variant={r.basis === 'monthly' ? 'default' : 'primary'}>{r.basis === 'fixed' ? 'BH Fixo' : r.basis === 'closed' ? 'Fechado' : 'BH Mensal'}</Badge></Td>
                       <Td right mono className="tabular-nums" style={{ color: 'var(--text-muted)' }}>{r.contracted_hours}h</Td>
                       <Td right mono className="tabular-nums">{r.consumed_hours}h</Td>
                       <Td right mono className="tabular-nums" style={{ color: 'var(--warning)' }}>{r.excess_hours}h</Td>
