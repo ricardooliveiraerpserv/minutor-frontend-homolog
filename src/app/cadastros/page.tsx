@@ -16,6 +16,7 @@ import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
 import type { CustomerFull, Executive, ConsultantGroup } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
+import { useCrudActions } from '@/hooks/use-crud-actions'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -77,8 +78,6 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
   const [hasNext, setHasNext] = useState(false)
   const [modal, setModal] = useState<{ open: boolean; item?: CrudItem }>({ open: false })
   const [form, setForm] = useState({ name: '', code: '', description: '', active: true })
-  const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   const load = useCallback(async () => {
@@ -99,31 +98,13 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
   const openCreate = () => { setForm({ name: '', code: '', description: '', active: true }); setModal({ open: true }) }
   const openEdit = (item: CrudItem) => { setForm({ name: item.name, code: item.code, description: item.description ?? '', active: item.active }); setModal({ open: true, item }) }
 
-  const save = async () => {
-    setSaving(true)
-    try {
-      if (modal.item) await api.put(`/${endpoint}/${modal.item.id}`, form)
-      else await api.post(`/${endpoint}`, form)
-      toast.success(modal.item ? `${label} atualizado` : `${label} criado`)
-      setModal({ open: false })
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
-    finally { setSaving(false) }
-  }
+  const crud = useCrudActions(endpoint, {
+    onSaved: () => { setModal({ open: false }); load() },
+    onDeleted: load,
+    messages: { created: `${label} criado`, updated: `${label} atualizado`, deleted: `${label} excluído` },
+  })
 
   const remove = (id: number) => setDeleteConfirm({ open: true, id })
-
-  const confirmDelete = async () => {
-    if (!deleteConfirm.id) return
-    setDeleting(deleteConfirm.id)
-    setDeleteConfirm({ open: false })
-    try {
-      await api.delete(`/${endpoint}/${deleteConfirm.id}`)
-      toast.success(`${label} excluído`)
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
-    finally { setDeleting(null) }
-  }
 
   return (
     <div>
@@ -161,7 +142,7 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: deleting === item.id },
+                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id },
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 text-[var(--text)]">{item.name}</td>
@@ -210,8 +191,8 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-              <Button onClick={save} disabled={saving || !form.name || !form.code} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
-                {saving ? 'Salvando...' : 'Salvar'}
+              <Button onClick={() => crud.save(modal.item?.id ?? null, form)} disabled={crud.saving || !form.name || !form.code} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                {crud.savingRunning ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </div>
@@ -222,7 +203,7 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
         open={deleteConfirm.open}
         message={`Deseja excluir este ${label.toLowerCase()}? Esta ação não pode ser desfeita.`}
         onClose={() => setDeleteConfirm({ open: false })}
-        onConfirm={confirmDelete}
+        onConfirm={() => { const id = deleteConfirm.id; setDeleteConfirm({ open: false }); if (id != null) crud.del(id) }}
       />
     </div>
   )
@@ -247,8 +228,6 @@ function CustomersTab() {
     setNovoEmailCli('')
   }
   const removeEmailCli = (e: string) => setForm(f => ({ ...f, emails_administrativos: f.emails_administrativos.filter(x => x !== e) }))
-  const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   useEffect(() => {
@@ -279,36 +258,14 @@ function CustomersTab() {
     setModal({ open: true, item })
   }
 
-  const save = async () => {
-    setSaving(true)
-    try {
-      const payload = {
-        ...form,
-        executive_id: form.executive_id ? Number(form.executive_id) : null,
-        code_prefix: form.code_prefix || null,
-      }
-      if (modal.item) await api.put(`/customers/${modal.item.id}`, payload)
-      else await api.post('/customers', payload)
-      toast.success(modal.item ? 'Cliente atualizado' : 'Cliente criado')
-      setModal({ open: false })
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
-    finally { setSaving(false) }
-  }
+  const crud = useCrudActions('customers', {
+    onSaved: () => { setModal({ open: false }); load() },
+    onDeleted: load,
+    messages: { created: 'Cliente criado', updated: 'Cliente atualizado', deleted: 'Cliente excluído' },
+  })
+  const savePayload = () => ({ ...form, executive_id: form.executive_id ? Number(form.executive_id) : null, code_prefix: form.code_prefix || null })
 
   const remove = (id: number) => setDeleteConfirm({ open: true, id })
-
-  const confirmDelete = async () => {
-    if (!deleteConfirm.id) return
-    setDeleting(deleteConfirm.id)
-    setDeleteConfirm({ open: false })
-    try {
-      await api.delete(`/customers/${deleteConfirm.id}`)
-      toast.success('Cliente excluído')
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
-    finally { setDeleting(null) }
-  }
 
   return (
     <div>
@@ -348,7 +305,7 @@ function CustomersTab() {
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: deleting === item.id },
+                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id },
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 text-[var(--text)]">{item.name}</td>
@@ -433,8 +390,8 @@ function CustomersTab() {
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-              <Button onClick={save} disabled={saving || !form.name} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
-                {saving ? 'Salvando...' : 'Salvar'}
+              <Button onClick={() => crud.save(modal.item?.id ?? null, savePayload())} disabled={crud.saving || !form.name} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                {crud.savingRunning ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </div>
@@ -445,7 +402,7 @@ function CustomersTab() {
         open={deleteConfirm.open}
         message="Deseja excluir este cliente? Esta ação não pode ser desfeita."
         onClose={() => setDeleteConfirm({ open: false })}
-        onConfirm={confirmDelete}
+        onConfirm={() => { const id = deleteConfirm.id; setDeleteConfirm({ open: false }); if (id != null) crud.del(id) }}
       />
     </div>
   )
@@ -582,8 +539,6 @@ function ConsultantGroupsTab() {
   const [availConsultants, setAvailConsultants] = useState<{ id: number; name: string; email: string }[]>([])
   const [loadingConsultants, setLoadingConsultants] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', active: true, consultant_ids: [] as number[] })
-  const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
   const [detailModal, setDetailModal] = useState<ConsultantGroup | null>(null)
 
@@ -624,31 +579,13 @@ function ConsultantGroupsTab() {
     loadConsultants()
   }
 
-  const save = async () => {
-    setSaving(true)
-    try {
-      if (modal.item) await api.put(`/consultant-groups/${modal.item.id}`, form)
-      else await api.post('/consultant-groups', form)
-      toast.success(modal.item ? 'Grupo atualizado' : 'Grupo criado')
-      setModal({ open: false })
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
-    finally { setSaving(false) }
-  }
+  const crud = useCrudActions('consultant-groups', {
+    onSaved: () => { setModal({ open: false }); load() },
+    onDeleted: load,
+    messages: { created: 'Grupo criado', updated: 'Grupo atualizado', deleted: 'Grupo excluído' },
+  })
 
   const remove = (id: number) => setDeleteConfirm({ open: true, id })
-
-  const confirmDelete = async () => {
-    if (!deleteConfirm.id) return
-    setDeleting(deleteConfirm.id)
-    setDeleteConfirm({ open: false })
-    try {
-      await api.delete(`/consultant-groups/${deleteConfirm.id}`)
-      toast.success('Grupo excluído')
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
-    finally { setDeleting(null) }
-  }
 
   const toggleConsultant = (id: number) =>
     setForm(f => ({
@@ -695,7 +632,7 @@ function ConsultantGroupsTab() {
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: deleting === item.id },
+                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id },
                   ]} />
                 </td>
                 <td className="px-3 py-2.5">
@@ -815,8 +752,8 @@ function ConsultantGroupsTab() {
 
             <div className="flex gap-2 mt-5 justify-end">
               <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-              <Button onClick={save} disabled={saving || !form.name} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
-                {saving ? 'Salvando...' : 'Salvar'}
+              <Button onClick={() => crud.save(modal.item?.id ?? null, form)} disabled={crud.saving || !form.name} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                {crud.savingRunning ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </div>
@@ -827,7 +764,7 @@ function ConsultantGroupsTab() {
         open={deleteConfirm.open}
         message="Deseja excluir este grupo? Esta ação não pode ser desfeita."
         onClose={() => setDeleteConfirm({ open: false })}
-        onConfirm={confirmDelete}
+        onConfirm={() => { const id = deleteConfirm.id; setDeleteConfirm({ open: false }); if (id != null) crud.del(id) }}
       />
     </div>
   )
@@ -850,9 +787,7 @@ function HolidaysTab() {
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [modal, setModal] = useState<{ open: boolean; item?: HolidayItem }>({ open: false })
   const [form, setForm] = useState({ date: '', name: '', type: 'national', state: '', active: true })
-  const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState(false)
-  const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   const load = useCallback(async () => {
@@ -876,32 +811,13 @@ function HolidaysTab() {
     setModal({ open: true, item })
   }
 
-  const save = async () => {
-    if (!form.date || !form.name) { toast.error('Preencha data e nome'); return }
-    setSaving(true)
-    try {
-      if (modal.item) await api.put(`/holidays/${modal.item.id}`, form)
-      else await api.post('/holidays', form)
-      toast.success(modal.item ? 'Feriado atualizado' : 'Feriado criado')
-      setModal({ open: false })
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
-    finally { setSaving(false) }
-  }
+  const crud = useCrudActions('holidays', {
+    onSaved: () => { setModal({ open: false }); load() },
+    onDeleted: load,
+    messages: { created: 'Feriado criado', updated: 'Feriado atualizado', deleted: 'Feriado excluído' },
+  })
 
   const remove = (id: number) => setDeleteConfirm({ open: true, id })
-
-  const confirmDelete = async () => {
-    if (!deleteConfirm.id) return
-    setDeleting(deleteConfirm.id)
-    setDeleteConfirm({ open: false })
-    try {
-      await api.delete(`/holidays/${deleteConfirm.id}`)
-      toast.success('Feriado excluído')
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
-    finally { setDeleting(null) }
-  }
 
   const typeLabel = (t: string) => HOLIDAY_TYPES.find(x => x.value === t)?.label ?? t
 
@@ -963,7 +879,7 @@ function HolidaysTab() {
                     // Feriado nacional (importado) não pode ser apagado — só desativado (status).
                     ...(item.type === 'national'
                       ? []
-                      : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: deleting === item.id }]),
+                      : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id }]),
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 font-mono text-[var(--text)]">
@@ -1017,8 +933,8 @@ function HolidaysTab() {
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-              <Button onClick={save} disabled={saving || !form.date || !form.name} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
-                {saving ? 'Salvando...' : 'Salvar'}
+              <Button onClick={() => crud.save(modal.item?.id ?? null, form)} disabled={crud.saving || !form.date || !form.name} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                {crud.savingRunning ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </div>
@@ -1029,7 +945,7 @@ function HolidaysTab() {
         open={deleteConfirm.open}
         message="Deseja excluir este feriado? Esta ação não pode ser desfeita."
         onClose={() => setDeleteConfirm({ open: false })}
-        onConfirm={confirmDelete}
+        onConfirm={() => { const id = deleteConfirm.id; setDeleteConfirm({ open: false }); if (id != null) crud.del(id) }}
       />
     </div>
   )
@@ -1046,7 +962,6 @@ function EmailTemplatesTab() {
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; item?: EmailTpl }>({ open: false })
   const [form, setForm] = useState({ categoria: 'consultor', contract_type: 'cooperado', empresa: 'erpserv', nome: '', subject: '', body: '', pay_day: '', active: true })
-  const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   // Autocomplete de variáveis ao digitar "{".
@@ -1090,23 +1005,12 @@ function EmailTemplatesTab() {
   // Duplica: abre como NOVO modelo (sem item) com o conteúdo copiado, inativo p/ não derrubar o ativo atual.
   const openDuplicate = (it: EmailTpl) => { setVarMenu(null); setForm({ categoria: it.categoria, contract_type: it.contract_type ?? 'cooperado', empresa: it.empresa ?? 'erpserv', nome: (it.nome ? it.nome + ' (cópia)' : 'Cópia'), subject: it.subject, body: it.body, pay_day: it.pay_day != null ? String(it.pay_day) : '', active: false }); setModal({ open: true }) }
 
-  const save = async () => {
-    if (!form.subject.trim() || !form.body.trim()) { toast.error('Preencha assunto e corpo'); return }
-    setSaving(true)
-    try {
-      const payload = { categoria: form.categoria, contract_type: form.categoria === 'cliente' ? null : form.contract_type, empresa: form.categoria === 'consultor' ? form.empresa : 'erpserv', nome: form.nome || null, subject: form.subject, body: form.body, pay_day: form.pay_day.trim() === '' ? null : Number(form.pay_day), active: form.active }
-      if (modal.item) await api.put(`/fechamento-email-templates/${modal.item.id}`, payload)
-      else await api.post('/fechamento-email-templates', payload)
-      toast.success('Modelo salvo'); setModal({ open: false }); load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') } finally { setSaving(false) }
-  }
-
-  const confirmDelete = async () => {
-    if (!deleteConfirm.id) return
-    setDeleteConfirm({ open: false })
-    try { await api.delete(`/fechamento-email-templates/${deleteConfirm.id}`); toast.success('Excluído'); load() }
-    catch { toast.error('Erro ao excluir') }
-  }
+  const crud = useCrudActions('fechamento-email-templates', {
+    onSaved: () => { setModal({ open: false }); load() },
+    onDeleted: load,
+    messages: { created: 'Modelo salvo', updated: 'Modelo salvo', deleted: 'Excluído' },
+  })
+  const savePayload = () => ({ categoria: form.categoria, contract_type: form.categoria === 'cliente' ? null : form.contract_type, empresa: form.categoria === 'consultor' ? form.empresa : 'erpserv', nome: form.nome || null, subject: form.subject, body: form.body, pay_day: form.pay_day.trim() === '' ? null : Number(form.pay_day), active: form.active })
 
   const catLabel = (c: string) => TPL_CATEGORIAS.find(x => x.value === c)?.label ?? c
   const ctLabel  = (c: string | null) => c ? (TPL_CONTRATOS.find(x => x.value === c)?.label ?? c) : '—'
@@ -1254,15 +1158,15 @@ function EmailTemplatesTab() {
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-              <Button onClick={save} disabled={saving || !form.subject.trim() || !form.body.trim()} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
-                {saving ? 'Salvando...' : 'Salvar'}
+              <Button onClick={() => crud.save(modal.item?.id ?? null, savePayload())} disabled={crud.saving || !form.subject.trim() || !form.body.trim()} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                {crud.savingRunning ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </div>
         </ModalOverlay>
       )}
 
-      <ConfirmDeleteModal open={deleteConfirm.open} message="Excluir este modelo de e-mail?" onClose={() => setDeleteConfirm({ open: false })} onConfirm={confirmDelete} />
+      <ConfirmDeleteModal open={deleteConfirm.open} message="Excluir este modelo de e-mail?" onClose={() => setDeleteConfirm({ open: false })} onConfirm={() => { const id = deleteConfirm.id; setDeleteConfirm({ open: false }); if (id != null) crud.del(id) }} />
     </div>
   )
 }
@@ -1280,8 +1184,6 @@ function IsActiveCrudTab({ endpoint, label }: { endpoint: string; label: string 
   const [hasNext, setHasNext]       = useState(false)
   const [modal, setModal]           = useState<{ open: boolean; item?: IsActiveItem }>({ open: false })
   const [form, setForm]             = useState({ name: '', code: '', description: '', is_active: true })
-  const [saving, setSaving]         = useState(false)
-  const [deleting, setDeleting]     = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
 
   const load = useCallback(async () => {
@@ -1305,29 +1207,11 @@ function IsActiveCrudTab({ endpoint, label }: { endpoint: string; label: string 
     setModal({ open: true, item })
   }
 
-  const save = async () => {
-    setSaving(true)
-    try {
-      if (modal.item) await api.put(`/${endpoint}/${modal.item.id}`, form)
-      else await api.post(`/${endpoint}`, form)
-      toast.success(modal.item ? `${label} atualizado` : `${label} criado`)
-      setModal({ open: false })
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
-    finally { setSaving(false) }
-  }
-
-  const confirmDelete = async () => {
-    if (!deleteConfirm.id) return
-    setDeleting(deleteConfirm.id)
-    setDeleteConfirm({ open: false })
-    try {
-      await api.delete(`/${endpoint}/${deleteConfirm.id}`)
-      toast.success(`${label} excluído`)
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
-    finally { setDeleting(null) }
-  }
+  const crud = useCrudActions(endpoint, {
+    onSaved: () => { setModal({ open: false }); load() },
+    onDeleted: load,
+    messages: { created: `${label} criado`, updated: `${label} atualizado`, deleted: `${label} excluído` },
+  })
 
   return (
     <div>
@@ -1365,7 +1249,7 @@ function IsActiveCrudTab({ endpoint, label }: { endpoint: string; label: string 
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
                     { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: deleting === item.id },
+                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: crud.deletingId === item.id },
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 text-[var(--text)]">{item.name}</td>
@@ -1414,8 +1298,8 @@ function IsActiveCrudTab({ endpoint, label }: { endpoint: string; label: string 
             </div>
             <div className="flex gap-2 mt-5 justify-end">
               <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-              <Button onClick={save} disabled={saving || !form.name || !form.code} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
-                {saving ? 'Salvando...' : 'Salvar'}
+              <Button onClick={() => crud.save(modal.item?.id ?? null, form)} disabled={crud.saving || !form.name || !form.code} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                {crud.savingRunning ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
           </div>
@@ -1425,7 +1309,7 @@ function IsActiveCrudTab({ endpoint, label }: { endpoint: string; label: string 
         open={deleteConfirm.open}
         message={`Deseja excluir este ${label.toLowerCase()}? Esta ação não pode ser desfeita.`}
         onClose={() => setDeleteConfirm({ open: false })}
-        onConfirm={confirmDelete}
+        onConfirm={() => { const id = deleteConfirm.id; setDeleteConfirm({ open: false }); if (id != null) crud.del(id) }}
       />
     </div>
   )
@@ -1452,7 +1336,6 @@ function CustomerContactsTab() {
   const [loading, setLoading]           = useState(false)
   const [modal, setModal]               = useState<{ open: boolean; item?: CustomerContact }>({ open: false })
   const [form, setForm]                 = useState({ name: '', cargo: '', email: '', phone: '' })
-  const [saving, setSaving]             = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; item?: CustomerContact }>({ open: false })
 
   const inputCls  = 'w-full rounded-lg border px-3 py-2 text-xs text-[var(--text)] bg-transparent outline-none transition-colors focus:border-[var(--primary)]'
@@ -1484,32 +1367,15 @@ function CustomerContactsTab() {
     setModal({ open: true, item })
   }
 
-  const save = async () => {
+  const crud = useCrudActions('customer-contacts', {
+    onSaved: () => { setModal({ open: false }); load(customerId) },
+    onDeleted: () => load(customerId),
+    messages: { created: 'Contato criado', updated: 'Contato atualizado', deleted: 'Contato excluído' },
+  })
+  const doSave = () => {
     if (!form.name.trim()) { toast.error('Nome obrigatório'); return }
     if (!customerId) { toast.error('Selecione o cliente'); return }
-    setSaving(true)
-    try {
-      if (modal.item) {
-        await api.put(`/customer-contacts/${modal.item.id}`, form)
-        toast.success('Contato atualizado')
-      } else {
-        await api.post('/customer-contacts', { ...form, customer_id: Number(customerId) })
-        toast.success('Contato criado')
-      }
-      setModal({ open: false })
-      load(customerId)
-    } catch (e: any) { toast.error(e?.message ?? 'Erro') }
-    finally { setSaving(false) }
-  }
-
-  const confirmDelete = async () => {
-    if (!deleteConfirm.item) return
-    try {
-      await api.delete(`/customer-contacts/${deleteConfirm.item.id}`)
-      toast.success('Contato excluído')
-      setDeleteConfirm({ open: false })
-      load(customerId)
-    } catch { toast.error('Erro ao excluir') }
+    crud.save(modal.item?.id ?? null, modal.item ? form : { ...form, customer_id: Number(customerId) })
   }
 
   return (
@@ -1611,7 +1477,7 @@ function CustomerContactsTab() {
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <Button variant="outline" size="sm" onClick={() => setModal({ open: false })}>Cancelar</Button>
-              <Button size="sm" onClick={save} disabled={saving}>{saving ? 'Salvando…' : 'Salvar'}</Button>
+              <Button size="sm" onClick={doSave} disabled={crud.saving}>{crud.savingRunning ? 'Salvando…' : 'Salvar'}</Button>
             </div>
           </div>
         </ModalOverlay>
@@ -1621,7 +1487,7 @@ function CustomerContactsTab() {
         open={deleteConfirm.open}
         message="Deseja excluir este contato? Esta ação não pode ser desfeita."
         onClose={() => setDeleteConfirm({ open: false })}
-        onConfirm={confirmDelete}
+        onConfirm={() => { const it = deleteConfirm.item; setDeleteConfirm({ open: false }); if (it) crud.del(it.id) }}
       />
     </div>
   )
