@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { fetchAndOpenLegacyUrl } from '@/lib/attachments'
 import { Expense, PaginatedResponse } from '@/types'
 import { Button as UIButton } from '@/components/ui/button'
@@ -481,8 +482,6 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   const [receipt, setReceipt] = useState<File | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [projects, setProjects] = useState<SelectOption[]>([])
-  const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState<number | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
   const [viewItem,       setViewItem]       = useState<Expense | null>(null)
   const [customers,        setCustomers]        = useState<SelectOption[]>([])
@@ -629,50 +628,48 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   const selectedCustomer = (customers as any[]).find(c => String(c.id) === form.customer_id)
   const isErpservCustomer = String(selectedCustomer?.name ?? '').trim().toUpperCase() === 'ERPSERV'
 
-  const save = async () => {
-    setSaving(true)
-    try {
-      const selProj = (projects as any[]).find(p => String(p.id) === form.project_id)
-      const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
-      if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); setSaving(false); return }
-      const fd = new FormData()
-      fd.append('project_id', form.project_id)
-      if (isInvestimento && form.real_project_id) fd.append('real_project_id', form.real_project_id)
-      fd.append('expense_category_id', form.expense_category_id)
-      fd.append('expense_date', form.expense_date)
-      fd.append('description', form.description)
-      fd.append('amount', form.amount)
-      fd.append('expense_type', form.expense_type)
-      fd.append('payment_method', form.payment_method)
-      if (canActAsUser && form.user_id) fd.append('user_id', form.user_id)
-      if (receipt) fd.append('receipt', receipt)
-      if (modal.item) fd.append('_method', 'PUT')
+  // Sub-1 Despesas CRUD (Cat B — REGRA DO DINHEIRO: nunca otimista). useAsyncAction + apiMessage.
+  // fetch cru mantido: multipart + _method=PUT é o workaround do Laravel p/ upload em edição (useCrudActions não cobre).
+  const saveAction = useAsyncAction(async () => {
+    const selProj = (projects as any[]).find(p => String(p.id) === form.project_id)
+    const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
+    if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); return }
+    const fd = new FormData()
+    fd.append('project_id', form.project_id)
+    if (isInvestimento && form.real_project_id) fd.append('real_project_id', form.real_project_id)
+    fd.append('expense_category_id', form.expense_category_id)
+    fd.append('expense_date', form.expense_date)
+    fd.append('description', form.description)
+    fd.append('amount', form.amount)
+    fd.append('expense_type', form.expense_type)
+    fd.append('payment_method', form.payment_method)
+    if (canActAsUser && form.user_id) fd.append('user_id', form.user_id)
+    if (receipt) fd.append('receipt', receipt)
+    if (modal.item) fd.append('_method', 'PUT')
 
-      const url = modal.item ? `/api/v1/expenses/${modal.item.id}` : '/api/v1/expenses'
-      const res = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' }, credentials: 'same-origin', body: fd })
-      if (!res.ok) { const b = await res.json().catch(() => ({})); throw new ApiError(res.status, b.message ?? 'Erro ao salvar') }
+    const url = modal.item ? `/api/v1/expenses/${modal.item.id}` : '/api/v1/expenses'
+    const res = await fetch(url, { method: 'POST', headers: { Accept: 'application/json' }, credentials: 'same-origin', body: fd })
+    if (!res.ok) { const b = await res.json().catch(() => ({})); throw new ApiError(res.status, b.message ?? 'Erro ao salvar') }
 
-      toast.success(modal.item ? 'Despesa atualizada' : 'Despesa criada')
-      setModal({ open: false })
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
-    finally { setSaving(false) }
-  }
+    toast.success(modal.item ? 'Despesa atualizada' : 'Despesa criada')
+    setModal({ open: false })
+    load()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar')) })
+  const save = () => saveAction.run()
+  const saving = saveAction.pending
 
 
   const remove = (id: number) => setDeleteConfirm({ open: true, id })
 
-  const confirmDelete = async () => {
+  const confirmDeleteAction = useAsyncAction(async () => {
     if (!deleteConfirm.id) return
-    setDeleting(deleteConfirm.id)
+    const id = deleteConfirm.id
     setDeleteConfirm({ open: false })
-    try {
-      await api.delete(`/expenses/${deleteConfirm.id}`)
-      toast.success('Despesa excluída')
-      load()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') }
-    finally { setDeleting(null) }
-  }
+    await api.delete(`/expenses/${id}`)
+    toast.success('Despesa excluída')
+    load()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao excluir')) })
+  const confirmDelete = () => confirmDeleteAction.run()
 
   const canEdit = (exp: Expense) => ['pending', 'rejected', 'adjustment_requested'].includes(exp.status)
 
