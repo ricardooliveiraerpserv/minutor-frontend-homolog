@@ -320,3 +320,30 @@ decisões divergentes no meio da migração):
 
 Nenhum desses é Categoria A "puro" (fluxos externos/pesados → esperam o servidor). O ganho aqui
 é **feedback + concorrência + erro persistente**, não velocidade otimista.
+
+> ⛔ **Bloqueado:** CRM Propostas só inicia **após a homologação do CRM Pipeline** (ver §16).
+
+---
+
+## 16. Status de módulos — migrado × HOMOLOGADO (marco de release)
+
+**Migrado** (dev terminou) ≠ **Homologado** (usuário validou em uso real, 1–2 dias). A
+**homologação** é o marco oficial que libera o próximo módulo crítico — problemas de percepção
+(duplo-clique, rollback inesperado, card inconsistente, timing) só aparecem no uso real.
+
+| Módulo | Migrado | Homologado |
+|---|---|---|
+| Aprovações | ✅ | ✅ |
+| Cadastros | ✅ | ✅ |
+| **CRM Pipeline** | ✅ | ⏳ **em homologação** (uso real 1–2 dias) |
+| CRM Propostas | ⬜ | ⬜ (bloqueado até homologar o Pipeline) |
+| CRM Cadastros | ⬜ | ⬜ |
+| Timesheets | ⬜ | ⬜ |
+| Financeiro | ⬜ | ⬜ |
+| Portal Cliente | ⬜ | ⬜ |
+
+**Módulo de referência:** ao homologar o CRM Pipeline **sem problemas relevantes**, ele é
+registrado como o **padrão de referência da Fase 2** — todo módulo futuro segue exatamente esse
+padrão (evita Propostas evoluir de um jeito e Financeiro de outro). Refinamentos achados na
+homologação (spinner demorando, botão que deveria desabilitar, toast duplicado, timing de
+animação) são corrigidos **antes** de congelar.
