@@ -130,6 +130,22 @@ function GeneralTab() {
       </section>
 
       <section>
+        <h3 className="text-sm font-medium text-[var(--text)] mb-4 pb-2 border-b border-[var(--border)]">Fechamento de Competência</h3>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs text-[var(--text-muted)]">Encerrar competência no Nº dia útil do mês</Label>
+            <Input
+              type="number" min={1} max={20}
+              value={settings.fechamento_auto_dia_util ?? 2}
+              onChange={e => setSettings(s => ({ ...s, fechamento_auto_dia_util: Number(e.target.value) }))}
+              className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 w-40"
+            />
+            <p className="text-[11px] text-[var(--text-light)] mt-1">A competência do mês anterior é encerrada automaticamente neste dia útil (pula fins de semana e feriados). Padrão: 2.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
         <h3 className="text-sm font-medium text-[var(--text)] mb-4 pb-2 border-b border-[var(--border)]">Integração Movidesk</h3>
 
         {/* Status panel */}
