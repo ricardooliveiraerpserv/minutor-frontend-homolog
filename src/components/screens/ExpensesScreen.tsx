@@ -472,7 +472,6 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   const [paidBlockModal,   setPaidBlockModal]   = useState<{ open: boolean; expense?: Expense }>({ open: false })
   const [revertTarget,     setRevertTarget]     = useState<Expense | null>(null)
   const [revertReason,     setRevertReason]     = useState('')
-  const [reverting,        setReverting]        = useState(false)
   const [form, setForm] = useState({
     customer_id: '', project_id: '', real_project_id: '', expense_category_id: '', expense_date: '',
     description: '', amount: '', expense_type: 'reimbursement',
@@ -673,31 +672,23 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
 
   const canEdit = (exp: Expense) => ['pending', 'rejected', 'adjustment_requested'].includes(exp.status)
 
-  async function togglePaid(exp: Expense) {
-    if (!exp.is_paid && exp.status !== 'approved') {
-      setPaidBlockModal({ open: true, expense: exp })
-      return
-    }
-    try {
-      await api.post(`/expenses/${exp.id}/set-paid`, { is_paid: !exp.is_paid })
-      toast.success(exp.is_paid ? 'Marcação removida.' : 'Despesa marcada como paga.')
-      load()
-    } catch (err: any) {
-      const msg = err?.response?.data?.message
-      toast.error(msg ?? 'Erro ao atualizar status de pagamento')
-    }
-  }
+  // Sub-2 Despesas Financeiro (Cat B — REGRA DO DINHEIRO: nunca otimista antes do servidor).
+  const togglePaidAction = useAsyncAction(async (exp: Expense) => {
+    if (!exp.is_paid && exp.status !== 'approved') { setPaidBlockModal({ open: true, expense: exp }); return }
+    await api.post(`/expenses/${exp.id}/set-paid`, { is_paid: !exp.is_paid })
+    toast.success(exp.is_paid ? 'Marcação removida.' : 'Despesa marcada como paga.')
+    load()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao atualizar status de pagamento')) })
+  const togglePaid = (exp: Expense) => togglePaidAction.run(exp)
 
-  async function submitRevert() {
+  // Estorno: markPending SÓ após o servidor confirmar (optimistic-no-refetch — não é otimista antes do POST).
+  // try/catch interno preservado: 422 "aprovada" = já estornada → trata como sucesso na UI.
+  const submitRevertAction = useAsyncAction(async () => {
     if (!revertTarget) return
     const targetId = revertTarget.id
-    // Update OTIMISTA: marca como pending na lista local (o estorno já muda o status no banco).
-    // NÃO refazer load() imediato — o refetch logo após o POST volta stale (eventual consistency),
-    // mostrava "Aprovado" e fazia tentar de novo → "já estornada". Ver feedback de optimistic-no-refetch.
     const markPending = () => setData(prev => prev
       ? { ...prev, items: prev.items.map(e => e.id === targetId ? { ...e, status: 'pending' } : e) }
       : prev)
-    setReverting(true)
     try {
       await api.post(`/expenses/${targetId}/reverse-approval`, {})
       toast.success('Aprovação estornada com sucesso.')
@@ -712,11 +703,12 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
         toast.error(msg || 'Erro ao estornar aprovação.')
       }
     } finally {
-      setReverting(false)
       setRevertTarget(null)
       setRevertReason('')
     }
-  }
+  })
+  const submitRevert = () => submitRevertAction.run()
+  const reverting = submitRevertAction.pending
 
   // ─── Ordenação client-side da página atual (campos aninhados via accessor) ───
   const items = data?.items ?? []
