@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import { formatBRL } from '@/lib/format'
@@ -220,8 +220,8 @@ export default function PagamentoConsultoresPage() {
       await api.post(`/timesheets/${ts.id}/set-paid`, { is_paid: newVal })
       setItems(prev => prev.map(t => t.id === ts.id ? { ...t, is_paid: newVal } : t))
       toast.success(newVal ? 'Apontamento marcado como pago.' : 'Marcação removida.')
-    } catch {
-      toast.error('Erro ao atualizar pagamento.')
+    } catch (e) {
+      toast.error(apiMessage(e, 'Erro ao atualizar pagamento.'))
     } finally {
       setPaying(p => { const s = new Set(p); s.delete(ts.id); return s })
     }

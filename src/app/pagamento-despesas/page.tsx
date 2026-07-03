@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { useRouter } from 'next/navigation'
 import { formatBRL } from '@/lib/format'
@@ -286,8 +286,8 @@ export default function PagamentoDespesasPage() {
       await api.post(`/expenses/${exp.id}/set-paid`, { is_paid: newVal })
       setItems(prev => prev.map(e => e.id === exp.id ? { ...e, is_paid: newVal } : e))
       toast.success(newVal ? 'Despesa marcada como paga.' : 'Marcação removida.')
-    } catch {
-      toast.error('Erro ao atualizar pagamento.')
+    } catch (e) {
+      toast.error(apiMessage(e, 'Erro ao atualizar pagamento.'))
     } finally {
       setPaying(p => { const s = new Set(p); s.delete(exp.id); return s })
     }
@@ -303,8 +303,8 @@ export default function PagamentoDespesasPage() {
         ? { ...e, pagar_no_fechamento: newVal, is_paid: newVal ? false : e.is_paid }
         : e))
       toast.success(newVal ? 'Encaminhada ao fechamento do consultor.' : 'Voltou para A Pagar.')
-    } catch {
-      toast.error('Erro ao atualizar.')
+    } catch (e) {
+      toast.error(apiMessage(e, 'Erro ao atualizar.'))
     } finally {
       setPaying(p => { const s = new Set(p); s.delete(exp.id); return s })
     }
