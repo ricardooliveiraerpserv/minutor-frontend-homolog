@@ -327,41 +327,39 @@ export default function CrmPipelinePage() {
   const pickCustomer = (id: string) => { setNf(f => ({ ...f, customer_id: id, customer_contact_id: '' })); loadContacts(id) }
 
   // Cliente novo: cadastra o lead sem sair da tela e já o seleciona.
-  const createLeadInline = async () => {
+  const createLeadAction = useAsyncAction(async () => {
     if (!novoLead.empresa.trim()) { toast.error('Informe o nome da empresa'); return }
     if (!novoLead.cnpj.trim()) { toast.error('Informe o CNPJ'); return }
-    try {
-      const r = await api.post<{ data: { customer_id: number } }>('/crm/leads', {
-        empresa: novoLead.empresa, cnpj: novoLead.cnpj, contato: novoLead.contato || null, email: novoLead.email || null,
-        telefone: novoLead.telefone || null, lead_source_id: novoLead.lead_source_id ? Number(novoLead.lead_source_id) : null,
-      })
-      const id = r.data.customer_id
-      setCustomers(cs => [...cs, { id, name: novoLead.empresa, crm_status: 'lead' }].sort((a, b) => a.name.localeCompare(b.name)))
-      pickCustomer(String(id))
-      setNf(f => ({ ...f, lead_source_id: novoLead.lead_source_id || f.lead_source_id }))
-      setNovoLead(NL0)
-      toast.success('Lead cadastrado e selecionado')
-    } catch { toast.error('Erro ao cadastrar lead') }
-  }
+    const r = await api.post<{ data: { customer_id: number } }>('/crm/leads', {
+      empresa: novoLead.empresa, cnpj: novoLead.cnpj, contato: novoLead.contato || null, email: novoLead.email || null,
+      telefone: novoLead.telefone || null, lead_source_id: novoLead.lead_source_id ? Number(novoLead.lead_source_id) : null,
+    })
+    const id = r.data.customer_id
+    setCustomers(cs => [...cs, { id, name: novoLead.empresa, crm_status: 'lead' }].sort((a, b) => a.name.localeCompare(b.name)))
+    pickCustomer(String(id))
+    setNf(f => ({ ...f, lead_source_id: novoLead.lead_source_id || f.lead_source_id }))
+    setNovoLead(NL0)
+    toast.success('Lead cadastrado e selecionado')
+  }, { onError: () => toast.error('Erro ao cadastrar lead') })
+  const createLeadInline = () => createLeadAction.run()
 
   // Novo contato da empresa selecionada, sem sair da tela; já seleciona como principal.
-  const createContatoInline = async () => {
+  const createContatoAction = useAsyncAction(async () => {
     if (!nf.customer_id) { toast.error('Selecione a empresa primeiro'); return }
     if (!novoContato.name.trim()) { toast.error('Informe o nome do contato'); return }
-    try {
-      const r = await api.post<{ data?: { id: number }; id?: number }>('/customer-contacts', {
-        customer_id: Number(nf.customer_id), name: novoContato.name,
-        email: novoContato.email || null, phone: novoContato.phone || null, cargo: novoContato.cargo || null,
-      })
-      const novo = (r as any)?.data ?? r
-      if (novo?.id) {
-        setContacts(cs => [...cs, { id: novo.id, name: novoContato.name }])
-        setNf(f => ({ ...f, customer_contact_id: String(novo.id) }))
-      } else { loadContacts(nf.customer_id) }
-      setNovoContato(NC0)
-      toast.success('Contato criado e selecionado')
-    } catch { toast.error('Erro ao criar contato') }
-  }
+    const r = await api.post<{ data?: { id: number }; id?: number }>('/customer-contacts', {
+      customer_id: Number(nf.customer_id), name: novoContato.name,
+      email: novoContato.email || null, phone: novoContato.phone || null, cargo: novoContato.cargo || null,
+    })
+    const novo = (r as any)?.data ?? r
+    if (novo?.id) {
+      setContacts(cs => [...cs, { id: novo.id, name: novoContato.name }])
+      setNf(f => ({ ...f, customer_contact_id: String(novo.id) }))
+    } else { loadContacts(nf.customer_id) }
+    setNovoContato(NC0)
+    toast.success('Contato criado e selecionado')
+  }, { onError: () => toast.error('Erro ao criar contato') })
+  const createContatoInline = () => createContatoAction.run()
 
   // Filtros do funil: por empresa (cliente) e por responsável.
   const [filtroCliente, setFiltroCliente] = useState('')
@@ -858,9 +856,8 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
 
   // Previsibilidade: probabilidade manual (%) + motivo da parada
   const [prob, setProb] = useState('')
-  const [probSaving, setProbSaving] = useState(false)
   useEffect(() => { setProb(o?.probabilidade_manual != null ? String(o.probabilidade_manual) : '') }, [o?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-  const saveProb = async () => {
+  const saveProbAction = useAsyncAction(async () => {
     const novo = prob === '' ? null : Number(prob)
     // Governança: alterar a probabilidade exige justificativa (vira auditoria na timeline).
     let motivo: string | null = null
@@ -869,57 +866,50 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
       if (motivo === null) return
       if (!motivo.trim()) { toast.error('Justificativa obrigatória'); return }
     }
-    setProbSaving(true)
-    try { await api.put(`/crm/opportunities/${id}`, { probabilidade: novo, motivo_alteracao: motivo }); toast.success('Probabilidade salva'); load() }
-    catch (e: any) { toast.error(e?.message || 'Erro ao salvar') } finally { setProbSaving(false) }
-  }
-  const setMotivoParada = async (m: string) => {
+    await api.put(`/crm/opportunities/${id}`, { probabilidade: novo, motivo_alteracao: motivo }); toast.success('Probabilidade salva'); load()
+  }, { onError: (e: any) => toast.error(e?.message || 'Erro ao salvar') })
+  const saveProb = () => saveProbAction.run()
+  const setMotivoParadaAction = useAsyncAction(async (m: string) => {
     let obs: string | null = null
     if (m === 'Outro') { obs = window.prompt('Descreva o motivo (obrigatório):'); if (obs === null) return; if (!obs.trim()) { toast.error('Descreva o motivo'); return } }
-    try { await api.put(`/crm/opportunities/${id}`, { motivo_parada: m || null, detalhes: { motivo_parada_obs: obs } }); toast.success('Motivo registrado'); load() }
-    catch { toast.error('Erro ao salvar') }
-  }
+    await api.put(`/crm/opportunities/${id}`, { motivo_parada: m || null, detalhes: { motivo_parada_obs: obs } }); toast.success('Motivo registrado'); load()
+  }, { onError: () => toast.error('Erro ao salvar') })
+  const setMotivoParada = (m: string) => setMotivoParadaAction.run(m)
   // Qualificação do deal (MEDDIC/BANT) — flags em `detalhes`.
-  const toggleSinal = async (k: string, v: boolean) => {
-    try { await api.put(`/crm/opportunities/${id}`, { detalhes: { [k]: v } }); load() }
-    catch { toast.error('Erro ao salvar') }
-  }
-  const setCategoria = async (c: string) => {
-    try { await api.put(`/crm/opportunities/${id}`, { forecast_categoria: c || null }); toast.success('Categoria de forecast salva'); load() }
-    catch { toast.error('Erro ao salvar') }
-  }
+  const toggleSinalAction = useAsyncAction(async (k: string, v: boolean) => {
+    await api.put(`/crm/opportunities/${id}`, { detalhes: { [k]: v } }); load()
+  }, { onError: () => toast.error('Erro ao salvar') })
+  const toggleSinal = (k: string, v: boolean) => toggleSinalAction.run(k, v)
+  const setCategoriaAction = useAsyncAction(async (c: string) => {
+    await api.put(`/crm/opportunities/${id}`, { forecast_categoria: c || null }); toast.success('Categoria de forecast salva'); load()
+  }, { onError: () => toast.error('Erro ao salvar') })
+  const setCategoria = (c: string) => setCategoriaAction.run(c)
 
   // Descrição da oportunidade (o que o cliente pretende adquirir) — obrigatória antes da proposta
   const [descr, setDescr] = useState('')
-  const [descrSaving, setDescrSaving] = useState(false)
   useEffect(() => { setDescr(o?.descricao ?? '') }, [o?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-  const saveDescr = async () => {
-    setDescrSaving(true)
-    try { await api.put(`/crm/opportunities/${id}`, { descricao: descr }); toast.success('Descrição salva'); load() }
-    catch { toast.error('Erro ao salvar descrição') } finally { setDescrSaving(false) }
-  }
+  const saveDescrAction = useAsyncAction(async () => {
+    await api.put(`/crm/opportunities/${id}`, { descricao: descr }); toast.success('Descrição salva'); load()
+  }, { onError: () => toast.error('Erro ao salvar descrição') })
+  const saveDescr = () => saveDescrAction.run()
 
   // Valor da oportunidade — editável (a alteração é registrada na Timeline pelo backend).
   const [valorEdit, setValorEdit] = useState('')
-  const [valorSaving, setValorSaving] = useState(false)
   useEffect(() => { setValorEdit(o?.valor != null ? String(o.valor) : '') }, [o?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-  const saveValor = async () => {
-    setValorSaving(true)
-    try { await api.put(`/crm/opportunities/${id}`, { valor: valorEdit === '' ? 0 : Number(valorEdit) }); toast.success('Valor atualizado'); load() }
-    catch { toast.error('Erro ao salvar valor') } finally { setValorSaving(false) }
-  }
+  const saveValorAction = useAsyncAction(async () => {
+    await api.put(`/crm/opportunities/${id}`, { valor: valorEdit === '' ? 0 : Number(valorEdit) }); toast.success('Valor atualizado'); load()
+  }, { onError: () => toast.error('Erro ao salvar valor') })
+  const saveValor = () => saveValorAction.run()
 
   // Dados da negociação (enriquecimento do card) — mapa `detalhes` editável manualmente.
   const [det, setDet] = useState<Record<string, string>>({})
-  const [negSaving, setNegSaving] = useState(false)
   useEffect(() => { setDet({ ...((o?.detalhes as Record<string, string>) ?? {}) }) }, [o?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   const setD = (k: string, v: string) => setDet(p => ({ ...p, [k]: v }))
   const negDirty = DET_FIELDS.some(f => (det[f.k] ?? '') !== ((o?.detalhes?.[f.k] as string) ?? ''))
-  const saveNeg = async () => {
-    setNegSaving(true)
-    try { await api.put(`/crm/opportunities/${id}`, { detalhes: det }); toast.success('Dados da negociação salvos'); load() }
-    catch { toast.error('Erro ao salvar') } finally { setNegSaving(false) }
-  }
+  const saveNegAction = useAsyncAction(async () => {
+    await api.put(`/crm/opportunities/${id}`, { detalhes: det }); toast.success('Dados da negociação salvos'); load()
+  }, { onError: () => toast.error('Erro ao salvar') })
+  const saveNeg = () => saveNegAction.run()
   // Seções colapsáveis (Nível 2) — reduzem a carga visual do Resumo.
   const [showDet, setShowDet] = useState(false)
   const [showDeriv, setShowDeriv] = useState(false)
@@ -945,29 +935,29 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
     setWonDrawer({ prefill, prefillContacts })
   }
 
-  const addTask = async () => {
+  const addTaskAction = useAsyncAction(async () => {
     if (!nt.tipo) { toast.error('Selecione o tipo de contato'); return }
-    try {
-      // follow-up registrado = contato JÁ FEITO → entra como concluído
-      const r = await api.post<{ data: { id: number } }>('/crm/tasks', { opportunity_id: id, tipo: nt.tipo, titulo: nt.titulo || null, data: nt.data || new Date().toISOString() })
-      if (r?.data?.id) await api.patch(`/crm/tasks/${r.data.id}/complete`, { done: true })
-      // agenda o próximo contato (tarefa aberta → vira a próxima ação; fica "atrasado" se vencer)
-      if (nt.prox_tipo && nt.prox_data) await api.post('/crm/tasks', { opportunity_id: id, tipo: nt.prox_tipo, data: nt.prox_data })
-      setNt({ tipo: contactTypes[0]?.slug ?? '', titulo: '', data: '', prox_tipo: '', prox_data: '' }); load()
-    } catch { toast.error('Erro ao registrar follow-up') }
-  }
-  const complete = async (taskId: number, done = true) => { try { await api.patch(`/crm/tasks/${taskId}/complete`, { done }); load() } catch { toast.error('Erro') } }
+    // follow-up registrado = contato JÁ FEITO → entra como concluído
+    const r = await api.post<{ data: { id: number } }>('/crm/tasks', { opportunity_id: id, tipo: nt.tipo, titulo: nt.titulo || null, data: nt.data || new Date().toISOString() })
+    if (r?.data?.id) await api.patch(`/crm/tasks/${r.data.id}/complete`, { done: true })
+    // agenda o próximo contato (tarefa aberta → vira a próxima ação; fica "atrasado" se vencer)
+    if (nt.prox_tipo && nt.prox_data) await api.post('/crm/tasks', { opportunity_id: id, tipo: nt.prox_tipo, data: nt.prox_data })
+    setNt({ tipo: contactTypes[0]?.slug ?? '', titulo: '', data: '', prox_tipo: '', prox_data: '' }); load()
+  }, { onError: () => toast.error('Erro ao registrar follow-up') })
+  const addTask = () => addTaskAction.run()
+  const completeAction = useAsyncAction(async (taskId: number, done = true) => {
+    await api.patch(`/crm/tasks/${taskId}/complete`, { done }); load()
+  }, { onError: () => toast.error('Erro') })
+  const complete = (taskId: number, done = true) => completeAction.run(taskId, done)
 
   // Edição inline de follow-up (gera log na Timeline). Converte ISO → input datetime-local.
   const toLocalInput = (s?: string | null) => { if (!s) return ''; const d = new Date(s); const p = (n: number) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}` }
   const [editTask, setEditTask] = useState<{ id: number; tipo: string; data: string; titulo: string } | null>(null)
-  const [editSaving, setEditSaving] = useState(false)
-  const saveTask = async () => {
+  const saveTaskAction = useAsyncAction(async () => {
     if (!editTask) return
-    setEditSaving(true)
-    try { await api.put(`/crm/tasks/${editTask.id}`, { tipo: editTask.tipo, data: editTask.data || null, titulo: editTask.titulo || null }); toast.success('Follow-up atualizado'); setEditTask(null); load() }
-    catch { toast.error('Erro ao salvar follow-up') } finally { setEditSaving(false) }
-  }
+    await api.put(`/crm/tasks/${editTask.id}`, { tipo: editTask.tipo, data: editTask.data || null, titulo: editTask.titulo || null }); toast.success('Follow-up atualizado'); setEditTask(null); load()
+  }, { onError: () => toast.error('Erro ao salvar follow-up') })
+  const saveTask = () => saveTaskAction.run()
 
   const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
   const fmtDt = (s?: string | null) => s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'
@@ -1009,7 +999,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
             <div className="mb-4">
               <h3 className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--text-light)' }}>Descrição da oportunidade</h3>
               <textarea rows={3} value={descr} onChange={e => setDescr(e.target.value)} placeholder="O que o cliente pretende adquirir (ex.: Implantação SmartView, Banco de Horas adicional, Upgrade de Release)…" className="w-full text-xs rounded-lg px-2.5 py-2 outline-none" style={inputStyle} />
-              <button onClick={saveDescr} disabled={descrSaving} className="mt-1.5 px-3 py-1 rounded-lg text-xs font-semibold disabled:opacity-60" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>{descrSaving ? 'Salvando…' : 'Salvar descrição'}</button>
+              <button onClick={saveDescr} disabled={saveDescrAction.pending} className="mt-1.5 px-3 py-1 rounded-lg text-xs font-semibold disabled:opacity-60" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>{saveDescrAction.running ? 'Salvando…' : 'Salvar descrição'}</button>
               {!descr.trim() && <p className="text-[10px] mt-1" style={{ color: 'var(--warning-border)' }}>Obrigatória antes de criar a proposta.</p>}
             </div>
 
@@ -1019,7 +1009,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
                 <div className="flex items-center gap-1.5">
                   <span style={{ color: 'var(--text-light)' }}>R$</span>
                   <input type="number" step="0.01" value={valorEdit} onChange={e => setValorEdit(e.target.value)} className="w-28 px-2 py-1 rounded-lg text-sm outline-none text-right tabular-nums" style={inputStyle} />
-                  {String(o.valor ?? '') !== valorEdit && <button onClick={saveValor} disabled={valorSaving} className="px-2 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{valorSaving ? '…' : 'Salvar'}</button>}
+                  {String(o.valor ?? '') !== valorEdit && <button onClick={saveValor} disabled={saveValorAction.pending} className="px-2 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saveValorAction.running ? '…' : 'Salvar'}</button>}
                 </div>
               </div>
               <div className="flex justify-between"><span>Previsão de fechamento</span><span style={{ color: 'var(--text)' }}>{o.previsao_fechamento ? new Date(o.previsao_fechamento).toLocaleDateString('pt-BR') : '—'}</span></div>
@@ -1035,7 +1025,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
                   <div className="flex items-center gap-1.5">
                     <input type="number" min={0} max={100} value={prob} placeholder={String(o.probabilidade ?? 0)} onChange={e => setProb(e.target.value)} className="w-16 px-2 py-1 rounded-lg text-sm outline-none text-right tabular-nums" style={inputStyle} />
                     <span style={{ color: 'var(--text-light)' }}>%</span>
-                    {String(o.probabilidade_manual ?? '') !== prob && <button onClick={saveProb} disabled={probSaving} className="px-2 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{probSaving ? '…' : 'Salvar'}</button>}
+                    {String(o.probabilidade_manual ?? '') !== prob && <button onClick={saveProb} disabled={saveProbAction.pending} className="px-2 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saveProbAction.running ? '…' : 'Salvar'}</button>}
                   </div>
                 </div>
                 <div className="flex justify-between"><span>Valor ponderado</span><span className="font-semibold tabular-nums" style={{ color: 'var(--primary)' }}>{fmtBRL(o.valor_ponderado ?? 0)}</span></div>
@@ -1096,7 +1086,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
                 <span>Dados da negociação</span><span>{showDet ? '▾' : '▸'}</span>
               </button>
               {showDet && (<>
-                {negDirty && <div className="flex justify-end mt-1.5"><button onClick={saveNeg} disabled={negSaving} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{negSaving ? 'Salvando…' : 'Salvar'}</button></div>}
+                {negDirty && <div className="flex justify-end mt-1.5"><button onClick={saveNeg} disabled={saveNegAction.pending} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saveNegAction.running ? 'Salvando…' : 'Salvar'}</button></div>}
                 <div className="grid grid-cols-2 gap-2 mt-1.5">
                   {DET_FIELDS.map(f => (
                     <label key={f.k} className={`text-[11px] ${f.type === 'textarea' ? 'col-span-2' : ''}`} style={{ color: 'var(--text-muted)' }}>{f.label}
@@ -1183,7 +1173,7 @@ function OppDetail({ id, onClose, initialTab = 'resumo' }: { id: number; onClose
                     <textarea rows={2} value={editTask.titulo} onChange={e => setEditTask(p => p && { ...p, titulo: e.target.value })} placeholder="O que foi tratado / combinado…" className="w-full text-xs rounded-lg px-2.5 py-2 outline-none" style={inputStyle} />
                     <div className="flex gap-1.5 justify-end">
                       <button onClick={() => setEditTask(null)} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>Cancelar</button>
-                      <button onClick={saveTask} disabled={editSaving} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{editSaving ? 'Salvando…' : 'Salvar'}</button>
+                      <button onClick={saveTask} disabled={saveTaskAction.pending} className="px-2.5 py-1 rounded-lg text-[11px] font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{saveTaskAction.running ? 'Salvando…' : 'Salvar'}</button>
                     </div>
                   </div>
                 )
