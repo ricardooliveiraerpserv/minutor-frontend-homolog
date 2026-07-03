@@ -31,6 +31,8 @@ export function OpenPeriodsPanel({ hideWhenEmpty = false, collapsible = false }:
   const [loadingPeriods, setLoadingPeriods] = useState(true)
   const [closingAll, setClosingAll] = useState(false)
   const [confirmCloseAll, setConfirmCloseAll] = useState(false)
+  const [confirmRowId, setConfirmRowId] = useState<number | null>(null)
+  const [closingRowId, setClosingRowId] = useState<number | null>(null)
   const [expanded, setExpanded] = useState(!collapsible)
 
   const loadOpenPeriods = useCallback(async () => {
@@ -55,6 +57,20 @@ export function OpenPeriodsPanel({ hideWhenEmpty = false, collapsible = false }:
       toast.error(e instanceof ApiError ? e.message : 'Erro ao fechar períodos')
     } finally {
       setClosingAll(false)
+    }
+  }
+
+  const closeOne = async (id: number) => {
+    setClosingRowId(id)
+    try {
+      await api.post(`/projects-open-periods/${id}/close`, {})
+      toast.success('Período fechado')
+      setConfirmRowId(null)
+      await loadOpenPeriods()
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao fechar período')
+    } finally {
+      setClosingRowId(null)
     }
   }
 
@@ -88,6 +104,7 @@ export function OpenPeriodsPanel({ hideWhenEmpty = false, collapsible = false }:
             <th className="text-left font-medium px-3 py-2">Projeto</th>
             <th className="text-left font-medium px-3 py-2">Competência</th>
             <th className="text-left font-medium px-3 py-2">Aberto por</th>
+            <th className="px-3 py-2"></th>
           </tr>
         </thead>
         <tbody>
@@ -99,6 +116,20 @@ export function OpenPeriodsPanel({ hideWhenEmpty = false, collapsible = false }:
               </td>
               <td className="px-3 py-2 text-[var(--text-muted)] tabular-nums">{fmtYM(p.year_month)}</td>
               <td className="px-3 py-2 text-[var(--text-muted)]">{p.opened_by ?? '—'}</td>
+              <td className="px-3 py-2 text-right whitespace-nowrap">
+                {confirmRowId === p.id ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Button variant="destructive" size="xs" onClick={() => closeOne(p.id)} disabled={closingRowId === p.id}>
+                      {closingRowId === p.id ? 'Fechando…' : 'Fechar'}
+                    </Button>
+                    <Button variant="ghost" size="xs" onClick={() => setConfirmRowId(null)} disabled={closingRowId === p.id}>Não</Button>
+                  </span>
+                ) : (
+                  <Button variant="ghost" size="xs" className="gap-1" onClick={() => setConfirmRowId(p.id)} title="Fechar este período">
+                    <Lock size={11} /> Fechar
+                  </Button>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
