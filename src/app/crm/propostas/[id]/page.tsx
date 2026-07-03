@@ -350,11 +350,9 @@ export default function PropostaEditor() {
   const [conteudo, setConteudo] = useState<Record<string, any>>({})
   const [preview, setPreview] = useState<Preview | null>(null)
   const [gerando, setGerando] = useState(false)
-  const [enviandoAssin, setEnviandoAssin] = useState(false)
   // Participantes da proposta (validação + assinatura por parte)
   const [parts, setParts] = useState<any[]>([])
   const [caderno, setCaderno] = useState<any[]>([])
-  const [partBusy, setPartBusy] = useState(false)
   const [signPart, setSignPart] = useState<{ part: any; perfil: any } | null>(null) // P-E.2.4 — assinar Contratada (fallback nativo)
   const [clickUrl, setClickUrl] = useState<string | null>(null) // Clicksign embedado no editor (Contratada)
   const [enviadoInfo, setEnviadoInfo] = useState<{ nome: string; email: string } | null>(null) // info: assinatura via e-mail Clicksign
@@ -382,7 +380,6 @@ export default function PropostaEditor() {
   const assinSeeded = useRef(false)
   // ── Solicitar APROVAÇÃO (compositor de e-mail; remetente = usuário logado) ──
   const [aprovOpen, setAprovOpen] = useState(false)
-  const [aprovSending, setAprovSending] = useState(false)
   const [aprovHtml, setAprovHtml] = useState<string | null>(null)
   const [aprovPrevLoading, setAprovPrevLoading] = useState(false)
   const [aprovMsg, setAprovMsg] = useState('')
@@ -692,17 +689,15 @@ export default function PropostaEditor() {
     try { await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d?.codigo, data_emissao: d?.data_emissao, data_validade: d?.data_validade, tipo: d?.tipo, modo_faturamento: modoFat }) } catch { /* prévia ainda funciona */ }
     void fetchAssinPreview('')
   }
-  const confirmarEnviarAssinatura = async () => {
-    setEnviandoAssin(true)
-    try {
-      const r = await api.post<{ data: { stub?: boolean; email_falhas?: string[] } }>(`/crm/proposals/${id}/enviar-assinatura`, { mensagem: assinMsg, assunto: assinSubject, forcar: assinForcar })
-      const falhas = r?.data?.email_falhas ?? []
-      toast.success(r?.data?.stub ? 'Enviado (modo simulação — Clicksign não configurado)' : 'Proposta enviada para assinatura')
-      if (falhas.length) toast.error(`Falha ao enviar e-mail para: ${falhas.join(', ')}`)
-      setD(dd => dd ? { ...dd, status: 'aguardando_assinatura' } : dd)
-      setAssinOpen(false)
-    } catch (e: any) { toast.error(e?.message ?? 'Erro ao enviar para assinatura') } finally { setEnviandoAssin(false) }
-  }
+  const confirmarEnviarAssinaturaAction = useAsyncAction(async () => {
+    const r = await api.post<{ data: { stub?: boolean; email_falhas?: string[] } }>(`/crm/proposals/${id}/enviar-assinatura`, { mensagem: assinMsg, assunto: assinSubject, forcar: assinForcar })
+    const falhas = r?.data?.email_falhas ?? []
+    toast.success(r?.data?.stub ? 'Enviado (modo simulação — Clicksign não configurado)' : 'Proposta enviada para assinatura')
+    if (falhas.length) toast.error(`Falha ao enviar e-mail para: ${falhas.join(', ')}`)
+    setD(dd => dd ? { ...dd, status: 'aguardando_assinatura' } : dd)
+    setAssinOpen(false)
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao enviar para assinatura')) })
+  const confirmarEnviarAssinatura = () => confirmarEnviarAssinaturaAction.run()
   // P-E.2.3 — abre o compositor de e-mail de aprovação (template editável + prévia; remetente = você).
   const solicitarAprovacao = async () => {
     aprovSeeded.current = false
@@ -710,120 +705,112 @@ export default function PropostaEditor() {
     try { await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d?.codigo, data_emissao: d?.data_emissao, data_validade: d?.data_validade, tipo: d?.tipo, modo_faturamento: modoFat }) } catch { /* prévia ainda funciona */ }
     void fetchAprovPreview('')
   }
-  const confirmarSolicitarAprovacao = async () => {
-    setAprovSending(true)
-    try {
-      const r = await api.post<{ data: { status: string; email_falhas?: string[] } }>(`/crm/proposals/${id}/solicitar-aprovacao`, { mensagem: aprovMsg, assunto: aprovSubject })
-      const falhas = r?.data?.email_falhas ?? []
-      toast.success('Aprovação solicitada')
-      if (falhas.length) toast.error(`Falha ao enviar e-mail para: ${falhas.join(', ')}`)
-      setD(dd => dd ? { ...dd, status: r?.data?.status ?? dd.status } : dd)
-      setAprovOpen(false)
-    } catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setAprovSending(false) }
-  }
-  const reenviarAssin = async () => {
+  const confirmarSolicitarAprovacaoAction = useAsyncAction(async () => {
+    const r = await api.post<{ data: { status: string; email_falhas?: string[] } }>(`/crm/proposals/${id}/solicitar-aprovacao`, { mensagem: aprovMsg, assunto: aprovSubject })
+    const falhas = r?.data?.email_falhas ?? []
+    toast.success('Aprovação solicitada')
+    if (falhas.length) toast.error(`Falha ao enviar e-mail para: ${falhas.join(', ')}`)
+    setD(dd => dd ? { ...dd, status: r?.data?.status ?? dd.status } : dd)
+    setAprovOpen(false)
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const confirmarSolicitarAprovacao = () => confirmarSolicitarAprovacaoAction.run()
+  const reenviarAssinAction = useAsyncAction(async () => {
     if (!window.confirm('Reenviar a solicitação de assinatura aos pendentes?')) return
-    try { await api.post(`/crm/proposals/${id}/reenviar-assinatura`, {}); toast.success('Solicitação de assinatura reenviada') }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') }
-  }
+    await api.post(`/crm/proposals/${id}/reenviar-assinatura`, {}); toast.success('Solicitação de assinatura reenviada')
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const reenviarAssin = () => reenviarAssinAction.run()
   const copiarLinkAssin = async () => {
     // Fluxo nativo: copia o LINK DO PORTAL do assinante pendente (onde ele assina no Minutor).
     const pend = parts.find((p: any) => (p.roles ?? []).includes('signer') && !p.signed && p.link)
     if (pend?.link) { try { await navigator.clipboard.writeText(pend.link); toast.success(`Link do portal de ${pend.name} copiado`) } catch { toast.error('Não foi possível copiar') } }
     else toast.error('Nenhum link de assinatura pendente disponível')
   }
-  const cancelarAssin = async () => {
+  const cancelarAssinAction = useAsyncAction(async () => {
     if (!window.confirm('Cancelar a assinatura? A proposta volta para Aprovada e poderá gerar uma nova versão.')) return
-    try { const r = await api.post<{ data: { status: string } }>(`/crm/proposals/${id}/cancelar-assinatura`, {}); toast.success('Assinatura cancelada'); setD(dd => dd ? { ...dd, status: r?.data?.status ?? 'aprovada' } : dd) }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') }
-  }
-  const sincronizarAssin = async () => {
-    try {
-      const r = await api.post<{ data: { status_proposta: string; envelope_status: string; finalizou: boolean } }>(`/crm/proposals/${id}/sincronizar-assinatura`, {})
-      toast.success(r?.data?.finalizou ? 'Assinatura concluída — documento capturado' : `Status no Clicksign: ${r?.data?.envelope_status ?? '—'}`)
-      setD(dd => dd ? { ...dd, status: r?.data?.status_proposta ?? dd.status } : dd)
-    } catch (e: any) { toast.error(e?.message ?? 'Erro ao sincronizar') }
-  }
+    const r = await api.post<{ data: { status: string } }>(`/crm/proposals/${id}/cancelar-assinatura`, {}); toast.success('Assinatura cancelada'); setD(dd => dd ? { ...dd, status: r?.data?.status ?? 'aprovada' } : dd)
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const cancelarAssin = () => cancelarAssinAction.run()
+  // Sync MANUAL do envelope Clicksign (1 clique = 1 checagem; não é polling automático — ver §17).
+  const sincronizarAssinAction = useAsyncAction(async () => {
+    const r = await api.post<{ data: { status_proposta: string; envelope_status: string; finalizou: boolean } }>(`/crm/proposals/${id}/sincronizar-assinatura`, {})
+    toast.success(r?.data?.finalizou ? 'Assinatura concluída — documento capturado' : `Status no Clicksign: ${r?.data?.envelope_status ?? '—'}`)
+    setD(dd => dd ? { ...dd, status: r?.data?.status_proposta ?? dd.status } : dd)
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao sincronizar')) })
+  const sincronizarAssin = () => sincronizarAssinAction.run()
   // funcao = papel principal do grupo; tambem = papel extra (assinante que valida / validador que assina) → papel combinado.
-  const addPart = async (funcao: 'validar' | 'assinar', parte: 'contratante' | 'contratada' | undefined, dados: { name: string; email: string; cargo: string; tambem?: boolean; tambemParte?: 'contratante' | 'contratada' }) => {
+  const addPartAction = useAsyncAction(async (funcao: 'validar' | 'assinar', parte: 'contratante' | 'contratada' | undefined, dados: { name: string; email: string; cargo: string; tambem?: boolean; tambemParte?: 'contratante' | 'contratada' }) => {
     if (!dados.name.trim() || !dados.email.trim()) { toast.error('Informe nome e e-mail.'); return }
     let roles: string[]; let parteFinal: string | null
     if (funcao === 'assinar') { roles = dados.tambem ? ['signer', 'reviewer', 'approver'] : ['signer']; parteFinal = parte ?? null }
     else { roles = dados.tambem ? ['reviewer', 'approver', 'signer'] : ['reviewer', 'approver']; parteFinal = dados.tambem ? (dados.tambemParte ?? 'contratante') : null }
-    setPartBusy(true)
-    try {
-      await api.post(`/crm/proposals/${id}/participantes`, { name: dados.name.trim(), email: dados.email.trim(), cargo: dados.cargo.trim(), roles, parte: parteFinal })
-      toast.success('Participante adicionado — convite enviado'); await carregarParts()
-    } catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setPartBusy(false) }
-  }
+    await api.post(`/crm/proposals/${id}/participantes`, { name: dados.name.trim(), email: dados.email.trim(), cargo: dados.cargo.trim(), roles, parte: parteFinal })
+    toast.success('Participante adicionado — convite enviado'); await carregarParts()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const addPart = (funcao: 'validar' | 'assinar', parte: 'contratante' | 'contratada' | undefined, dados: { name: string; email: string; cargo: string; tambem?: boolean; tambemParte?: 'contratante' | 'contratada' }) => addPartAction.run(funcao, parte, dados)
   // Remoção GRANULAR: tira só os papéis do grupo; se sobrar papel, mantém o participante; senão desativa.
-  const removeRole = async (x: any, grupo: 'validar' | 'assinar') => {
+  const removeRoleAction = useAsyncAction(async (x: any, grupo: 'validar' | 'assinar') => {
     const tirar = grupo === 'validar' ? ['reviewer', 'approver'] : ['signer']
     const restante = (x.roles ?? []).filter((r: string) => !tirar.includes(r))
     if (restante.length === 0 && !window.confirm(`Remover ${x.name} da proposta?`)) return
-    try {
-      if (restante.length === 0) await api.delete(`/crm/proposals/${id}/participantes/${x.id}`)
-      else await api.put(`/crm/proposals/${id}/participantes/${x.id}`, { roles: restante })
-      await carregarParts()
-    } catch (e: any) { toast.error(e?.message ?? 'Erro') }
-  }
+    if (restante.length === 0) await api.delete(`/crm/proposals/${id}/participantes/${x.id}`)
+    else await api.put(`/crm/proposals/${id}/participantes/${x.id}`, { roles: restante })
+    await carregarParts()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const removeRole = (x: any, grupo: 'validar' | 'assinar') => removeRoleAction.run(x, grupo)
   // P-E.2.4 — assinatura da Contratada pelo editor + reuso do perfil salvo por e-mail.
   // Contratada assina via CLICKSIGN EMBEDADO (igual ao cliente) — código digitado dentro do Minutor.
-  const abrirAssinarContratada = async (x: any) => {
-    setPartBusy(true)
-    try {
-      const r = await api.post<{ data: { sign_url?: string; stub?: boolean; ja_assinou?: boolean; por_email?: boolean; email?: string } }>(`/crm/proposals/${id}/participantes/${x.id}/clicksign`, {})
-      if (r?.data?.ja_assinou) { await carregarParts(); return }
-      if (r?.data?.por_email) { setEnviadoInfo({ nome: x.name ?? '', email: r.data.email ?? x.email ?? '' }); await carregarParts(); return }
-      if (r?.data?.stub || !r?.data?.sign_url) {
-        // Clicksign em simulação → assinatura nativa (fallback)
-        let perfil: any = null
-        try { const pr = await api.get<{ data: any }>(`/crm/signature-profile?email=${encodeURIComponent(x.email)}`); perfil = pr?.data ?? null } catch { /* noop */ }
-        setSignPart({ part: x, perfil })
-      } else {
-        setClickUrl(r.data.sign_url) // abre o widget embedado no editor
-      }
-    } catch (e: any) { toast.error(e?.message ?? 'Erro ao iniciar a assinatura') } finally { setPartBusy(false) }
-  }
-  const assinarContratada = async (dados?: { nome?: string; cpf?: string; cargo?: string; imagem?: string }) => {
+  const abrirAssinarContratadaAction = useAsyncAction(async (x: any) => {
+    const r = await api.post<{ data: { sign_url?: string; stub?: boolean; ja_assinou?: boolean; por_email?: boolean; email?: string } }>(`/crm/proposals/${id}/participantes/${x.id}/clicksign`, {})
+    if (r?.data?.ja_assinou) { await carregarParts(); return }
+    if (r?.data?.por_email) { setEnviadoInfo({ nome: x.name ?? '', email: r.data.email ?? x.email ?? '' }); await carregarParts(); return }
+    if (r?.data?.stub || !r?.data?.sign_url) {
+      // Clicksign em simulação → assinatura nativa (fallback)
+      let perfil: any = null
+      try { const pr = await api.get<{ data: any }>(`/crm/signature-profile?email=${encodeURIComponent(x.email)}`); perfil = pr?.data ?? null } catch { /* noop */ }
+      setSignPart({ part: x, perfil })
+    } else {
+      setClickUrl(r.data.sign_url) // abre o widget embedado no editor
+    }
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao iniciar a assinatura')) })
+  const abrirAssinarContratada = (x: any) => abrirAssinarContratadaAction.run(x)
+  const assinarContratadaAction = useAsyncAction(async (dados?: { nome?: string; cpf?: string; cargo?: string; imagem?: string }) => {
     const x = signPart?.part; if (!x) return
-    setPartBusy(true)
-    try {
-      await api.post(`/crm/proposals/${id}/participantes/${x.id}/assinar`, dados ?? {})
-      toast.success('Assinatura registrada'); setSignPart(null); await carregarParts()
-    } catch (e: any) { toast.error(e?.message ?? 'Erro ao assinar') } finally { setPartBusy(false) }
-  }
-  const salvarEdicaoPart = async () => {
+    await api.post(`/crm/proposals/${id}/participantes/${x.id}/assinar`, dados ?? {})
+    toast.success('Assinatura registrada'); setSignPart(null); await carregarParts()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao assinar')) })
+  const assinarContratada = (dados?: { nome?: string; cpf?: string; cargo?: string; imagem?: string }) => assinarContratadaAction.run(dados)
+  const salvarEdicaoPartAction = useAsyncAction(async () => {
     if (!editPart) return
     if (!editPart.name.trim()) { toast.error('Informe o nome.'); return }
-    setPartBusy(true)
-    try {
-      await api.put(`/crm/proposals/${id}/participantes/${editPart.id}`, { name: editPart.name.trim(), cargo: editPart.cargo.trim(), cpf: editPart.cpf.trim() })
-      toast.success('Dados atualizados'); setEditPart(null); await carregarParts()
-    } catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setPartBusy(false) }
-  }
+    await api.put(`/crm/proposals/${id}/participantes/${editPart.id}`, { name: editPart.name.trim(), cargo: editPart.cargo.trim(), cpf: editPart.cpf.trim() })
+    toast.success('Dados atualizados'); setEditPart(null); await carregarParts()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const salvarEdicaoPart = () => salvarEdicaoPartAction.run()
   const verComprovante = async (x: any) => {
     try { const r = await api.get<{ data: any }>(`/crm/proposals/${id}/participantes/${x.id}/comprovante`); setComprovante(r?.data ?? null) }
     catch (e: any) { toast.error(e?.message ?? 'Erro ao carregar o registro') }
   }
-  const incluirDoCaderno = async (s: any) => {
-    setPartBusy(true)
-    try { await api.post(`/crm/proposals/${id}/participantes`, { name: s.name, email: s.email, cargo: s.cargo, roles: s.roles, parte: s.parte }); toast.success(`${s.name} incluído`); await carregarParts() }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setPartBusy(false) }
-  }
-  const excluirDoCaderno = async (sid: number) => {
+  const incluirDoCadernoAction = useAsyncAction(async (s: any) => {
+    await api.post(`/crm/proposals/${id}/participantes`, { name: s.name, email: s.email, cargo: s.cargo, roles: s.roles, parte: s.parte }); toast.success(`${s.name} incluído`); await carregarParts()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const incluirDoCaderno = (s: any) => incluirDoCadernoAction.run(s)
+  const excluirDoCadernoAction = useAsyncAction(async (sid: number) => {
     if (!window.confirm('Remover este participante do caderno do cliente? (não afeta esta proposta)')) return
-    try { await api.delete(`/crm/customer-signers/${sid}`); await carregarParts() } catch (e: any) { toast.error(e?.message ?? 'Erro') }
-  }
-  const importarCaderno = async () => {
-    setPartBusy(true)
-    try { const r = await api.post<{ data: { incluidos: number } }>(`/crm/proposals/${id}/importar-caderno`, {}); toast.success(`${r?.data?.incluidos ?? 0} participante(s) incluído(s)`); await carregarParts() }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') } finally { setPartBusy(false) }
-  }
-  const setModoAssinatura = async (modo: string) => {
-    try { await api.put(`/crm/proposals/${id}/editar`, { assinatura_modo: modo }); setD(dd => dd ? { ...dd, assinatura_modo: modo } : dd); toast.success('Modo de assinatura atualizado') }
-    catch (e: any) { toast.error(e?.message ?? 'Erro') }
-  }
+    await api.delete(`/crm/customer-signers/${sid}`); await carregarParts()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const excluirDoCaderno = (sid: number) => excluirDoCadernoAction.run(sid)
+  const importarCadernoAction = useAsyncAction(async () => {
+    const r = await api.post<{ data: { incluidos: number } }>(`/crm/proposals/${id}/importar-caderno`, {}); toast.success(`${r?.data?.incluidos ?? 0} participante(s) incluído(s)`); await carregarParts()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const importarCaderno = () => importarCadernoAction.run()
+  const setModoAssinaturaAction = useAsyncAction(async (modo: string) => {
+    await api.put(`/crm/proposals/${id}/editar`, { assinatura_modo: modo }); setD(dd => dd ? { ...dd, assinatura_modo: modo } : dd); toast.success('Modo de assinatura atualizado')
+  }, { onError: e => toast.error(apiMessage(e, 'Erro')) })
+  const setModoAssinatura = (modo: string) => setModoAssinaturaAction.run(modo)
+  // Estados de loading DERIVADOS do .pending das ações (cross-disable preservado; JSX intacto).
+  const enviandoAssin = confirmarEnviarAssinaturaAction.pending
+  const aprovSending = confirmarSolicitarAprovacaoAction.pending
+  const partBusy = addPartAction.pending || abrirAssinarContratadaAction.pending || assinarContratadaAction.pending || salvarEdicaoPartAction.pending || incluirDoCadernoAction.pending || importarCadernoAction.pending
   const validadores = parts.filter(p => (p.roles ?? []).some((r: string) => r === 'reviewer' || r === 'approver'))
   const assinantes = (parte: string) => parts.filter(p => (p.roles ?? []).includes('signer') && p.parte === parte)
 
