@@ -143,7 +143,7 @@ function ExcedentesPage() {
         <PageHeader
           icon={Clock}
           title="Horas Excedentes"
-          subtitle="Cobrança de horas consumidas acima das contratadas (Banco de Horas Mensal e Fixo)"
+          subtitle="Cobrança de horas consumidas acima das contratadas (Banco de Horas Mensal, Fixo e Fechado)"
           actions={
             <div className="flex items-center gap-2">
               <MonthYearPicker month={month} year={year} onChange={(m, y) => { setMonth(m || null); setYear(y || null) }} />
@@ -186,7 +186,7 @@ function ExcedentesPage() {
         </div>
 
         <p className="text-[11px] -mt-3 leading-snug" style={{ color: 'var(--text-light)' }}>
-          <strong style={{ color: 'var(--text-muted)' }}>BH Mensal</strong>: excedente do mês (consumo − contratadas do mês). <strong style={{ color: 'var(--text-muted)' }}>BH Fixo</strong>: estado atual (banco esgotado). Valor = horas excedentes × <strong style={{ color: 'var(--text-muted)' }}>Hora Adicional</strong> do contrato — contratos com Hora Adicional zerada aparecem com valor R$ 0,00.
+          <strong style={{ color: 'var(--text-muted)' }}>BH Mensal</strong>: excedente do mês (consumo − contratadas do mês). <strong style={{ color: 'var(--text-muted)' }}>BH Fixo / Fechado</strong>: estado atual (horas contratadas esgotadas). Valor = horas excedentes × <strong style={{ color: 'var(--text-muted)' }}>Hora Adicional</strong> do contrato — contratos com Hora Adicional zerada aparecem com valor R$ 0,00.
         </p>
 
         {/* Busca */}
