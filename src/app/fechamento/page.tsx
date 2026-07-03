@@ -17,6 +17,7 @@ import {
   PageHeader, Table, Thead, Th, Tbody, Tr, Td,
   Badge, Button, SkeletonTable, EmptyState,
 } from '@/components/ds'
+import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -652,6 +653,9 @@ export default function FechamentoPage() {
             </span>
           </div>
         )}
+
+        {/* Períodos de projeto abertos */}
+        <OpenPeriodsPanel />
 
         {/* Tab bar */}
         <div className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: 'var(--border)' }}>
