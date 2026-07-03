@@ -632,15 +632,12 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
 
   // Selection & actions (only timesheets use bulk)
   const [selected,     setSelected]     = useState<number[]>([])
-  const [actioning,    setActioning]    = useState<number | null>(null)
   const [rejectModal,  setRejectModal]  = useState<{ open: boolean; ids: number[] }>({ open: false, ids: [] })
   const [rejectReason, setRejectReason] = useState('')
   const [adjModal,     setAdjModal]     = useState<{ open: boolean; id: number | null; type: 'timesheet' | 'expense' }>({ open: false, id: null, type: 'expense' })
   const [adjReason,    setAdjReason]    = useState('')
   const [bulkAdjOpen,  setBulkAdjOpen]  = useState(false)
   const [bulkAdjReason, setBulkAdjReason] = useState('')
-  const [bulkAdjLoading, setBulkAdjLoading] = useState(false)
-  const [adjLoading,   setAdjLoading]   = useState(false)
 
   // View / approve-expense modals
   const [tsView,         setTsView]        = useState<Timesheet | null>(null)
@@ -778,16 +775,12 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
     finally { setExpApproveLoading(false) }
   }, [])
 
-  // Approve timesheet (direct)
-  const approveTs = async (id: number) => {
-    setActioning(id)
-    try {
-      await api.post(`/timesheets/${id}/approve`, {})
-      toast.success('Apontamento aprovado')
-      loadTs()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao aprovar') }
-    finally { setActioning(null) }
-  }
+  // Approve timesheet (direct) — Fase 2: state machine via useAsyncAction (pending trava reentrada)
+  const approveTsAction = useAsyncAction(async (id: number) => {
+    await api.post(`/timesheets/${id}/approve`, {})
+    toast.success('Apontamento aprovado')
+    loadTs()
+  }, { onError: e => toast.error(e instanceof ApiError ? e.message : 'Erro ao aprovar') })
 
   // Approve expense (via modal with charge_client) — Fase 2: state machine via useAsyncAction
   const approveExpAction = useAsyncAction(async (chargeClient: boolean) => {
@@ -808,20 +801,17 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
   }, { onError: e => toast.error(e instanceof ApiError ? e.message : 'Erro ao solicitar ajuste') })
 
   // Request adjustment (from row button) — works for both timesheets and expenses
-  const handleAdjustment = async () => {
+  const handleAdjustmentAction = useAsyncAction(async () => {
     if (!adjModal.id || !adjReason.trim()) return
-    setAdjLoading(true)
-    try {
-      const endpoint = adjModal.type === 'timesheet'
-        ? `/timesheets/${adjModal.id}/request-adjustment`
-        : `/expenses/${adjModal.id}/request-adjustment`
-      await api.post(endpoint, { reason: adjReason.trim() })
-      toast.success('Ajuste solicitado ao colaborador')
-      setAdjModal({ open: false, id: null, type: 'expense' }); setAdjReason('')
-      if (adjModal.type === 'timesheet') loadTs(); else loadExp()
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao solicitar ajuste') }
-    finally { setAdjLoading(false) }
-  }
+    const endpoint = adjModal.type === 'timesheet'
+      ? `/timesheets/${adjModal.id}/request-adjustment`
+      : `/expenses/${adjModal.id}/request-adjustment`
+    await api.post(endpoint, { reason: adjReason.trim() })
+    toast.success('Ajuste solicitado ao colaborador')
+    setAdjModal({ open: false, id: null, type: 'expense' }); setAdjReason('')
+    if (adjModal.type === 'timesheet') loadTs(); else loadExp()
+  }, { onError: e => toast.error(e instanceof ApiError ? e.message : 'Erro ao solicitar ajuste') })
+  const adjLoading = handleAdjustmentAction.pending
 
   function exportTs() {
     exportTimesheetsToExcel(
@@ -852,20 +842,17 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
   }, { onError: () => toast.error('Erro ao aprovar em lote') })
 
   // Bulk request adjustment
-  const bulkAdjTs = async () => {
+  const bulkAdjTsAction = useAsyncAction(async () => {
     if (!selected.length || !bulkAdjReason.trim()) return
-    setBulkAdjLoading(true)
-    try {
-      await Promise.all(selected.map(id =>
-        api.post(`/timesheets/${id}/request-adjustment`, { reason: bulkAdjReason.trim() })
-      ))
-      toast.success(`Ajuste solicitado para ${selected.length} apontamento(s)`)
-      setBulkAdjOpen(false); setBulkAdjReason('')
-      setSelected([])
-      loadTs()
-    } catch { toast.error('Erro ao solicitar ajuste em lote') }
-    finally { setBulkAdjLoading(false) }
-  }
+    await Promise.all(selected.map(id =>
+      api.post(`/timesheets/${id}/request-adjustment`, { reason: bulkAdjReason.trim() })
+    ))
+    toast.success(`Ajuste solicitado para ${selected.length} apontamento(s)`)
+    setBulkAdjOpen(false); setBulkAdjReason('')
+    setSelected([])
+    loadTs()
+  }, { onError: () => toast.error('Erro ao solicitar ajuste em lote') })
+  const bulkAdjLoading = bulkAdjTsAction.pending
 
   // Reject
   const handleRejectAction = useAsyncAction(async () => {
@@ -1177,7 +1164,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                 <td className="px-2 py-2.5 w-10" onClick={e => e.stopPropagation()}>
                   <RowMenu items={[
                     { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openTsView(ts) },
-                    { label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTs(ts.id), disabled: actioning === ts.id },
+                    { label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTsAction.run(ts.id), disabled: approveTsAction.pending },
                     { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: ts.id, type: 'timesheet' }); setAdjReason('') } },
                     { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }, danger: true },
                   ]} />
@@ -1339,7 +1326,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
               <div onClick={e => e.stopPropagation()} className="shrink-0">
                 <RowMenu items={[
                   { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openTsView(ts) },
-                  { label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTs(ts.id), disabled: actioning === ts.id },
+                  { label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTsAction.run(ts.id), disabled: approveTsAction.pending },
                   { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: ts.id, type: 'timesheet' }); setAdjReason('') } },
                   { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }, danger: true },
                 ]} />
@@ -1462,7 +1449,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setBulkAdjOpen(false); setBulkAdjReason('') }}
                 className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-              <Button onClick={bulkAdjTs} disabled={bulkAdjLoading || !bulkAdjReason.trim()}
+              <Button onClick={() => bulkAdjTsAction.run()} disabled={bulkAdjLoading || !bulkAdjReason.trim()}
                 className="h-8 text-xs bg-amber-600 hover:bg-[var(--warning-border)] text-[var(--primary-fg)]">
                 <RotateCcw size={12} className="mr-1" />
                 {bulkAdjLoading ? 'Enviando...' : 'Solicitar ajuste'}
@@ -1490,7 +1477,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setAdjModal({ open: false, id: null, type: 'expense' }); setAdjReason('') }}
                 className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
-              <Button onClick={handleAdjustment} disabled={adjLoading || !adjReason.trim()}
+              <Button onClick={() => handleAdjustmentAction.run()} disabled={adjLoading || !adjReason.trim()}
                 className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                 <RotateCcw size={12} className="mr-1" />
                 {adjLoading ? 'Enviando...' : 'Solicitar ajuste'}
