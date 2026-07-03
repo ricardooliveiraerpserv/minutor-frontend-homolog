@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { GitBranch, Plus, Trash2, Lock, Unlock, GripVertical, Trophy, XCircle, Flag, Zap, X, Archive, Copy, History } from 'lucide-react'
 
 const AUTO_TIPOS: { k: string; l: string }[] = [
@@ -59,47 +60,60 @@ export default function CrmPipelinesPage() {
 
   const sel = pipes.find(p => p.id === selId) ?? null
 
-  const duplicate = async () => {
+  // Ações únicas — useAsyncAction trava concorrência (sem duplo-clique). Recarrega p/ mostrar o novo.
+  const duplicateAction = useAsyncAction(async () => {
     if (!sel) return
-    try { const r = await api.post<{ data: Pipeline }>(`/crm/pipelines/${sel.id}/duplicate`, {}); await load(r.data.id); toast.success('Pipeline duplicado') }
-    catch { toast.error('Erro ao duplicar') }
-  }
+    const r = await api.post<{ data: Pipeline }>(`/crm/pipelines/${sel.id}/duplicate`, {}); await load(r.data.id); toast.success('Pipeline duplicado')
+  }, { onError: () => toast.error('Erro ao duplicar') })
+  const duplicate = () => duplicateAction.run()
 
-  const createPipe = async () => {
-    const name = window.prompt('Nome do novo pipeline:'); if (!name?.trim()) return
-    try { const r = await api.post<{ data: Pipeline }>('/crm/pipelines', { name }); await load(r.data.id); toast.success('Pipeline criado') }
-    catch { toast.error('Erro ao criar pipeline') }
-  }
-  const patchPipe = async (patch: Partial<Pipeline>) => {
+  const createAction = useAsyncAction(async (name: string) => {
+    const r = await api.post<{ data: Pipeline }>('/crm/pipelines', { name }); await load(r.data.id); toast.success('Pipeline criado')
+  }, { onError: () => toast.error('Erro ao criar pipeline') })
+  const createPipe = () => { const name = window.prompt('Nome do novo pipeline:'); if (!name?.trim()) return; createAction.run(name) }
+
+  // Otimista + rollback (snapshot) + sync silencioso; concorrência via useAsyncAction.
+  const patchPipeAction = useAsyncAction(async (patch: Partial<Pipeline>) => {
     if (!sel) return
-    setPipes(ps => ps.map(p => p.id === sel.id ? { ...p, ...patch } : p)) // otimista
-    try { await api.put(`/crm/pipelines/${sel.id}`, patch) } catch { toast.error('Erro ao salvar'); load(sel.id) }
-  }
-  const addStage = async () => {
+    let snap: Pipeline[] = []
+    setPipes(ps => { snap = ps; return ps.map(p => p.id === sel.id ? { ...p, ...patch } : p) })
+    try { await api.put(`/crm/pipelines/${sel.id}`, patch); load(sel.id) } catch (e) { setPipes(snap); throw e }
+  }, { onError: () => toast.error('Erro ao salvar') })
+  const patchPipe = (patch: Partial<Pipeline>) => patchPipeAction.run(patch)
+
+  const addStageAction = useAsyncAction(async () => {
     if (!sel) return
-    try { await api.post(`/crm/pipelines/${sel.id}/stages`, { name: 'Nova etapa', probabilidade: 0 }); load(sel.id) }
-    catch { toast.error('Erro ao adicionar etapa') }
-  }
-  const patchStage = async (st: Stage, patch: Partial<Stage>) => {
+    await api.post(`/crm/pipelines/${sel.id}/stages`, { name: 'Nova etapa', probabilidade: 0 }); load(sel.id)
+  }, { onError: () => toast.error('Erro ao adicionar etapa') })
+  const addStage = () => addStageAction.run()
+
+  const patchStageAction = useAsyncAction(async (st: Stage, patch: Partial<Stage>) => {
     if (!sel) return
-    setPipes(ps => ps.map(p => p.id === sel.id ? { ...p, stages: p.stages.map(s => s.id === st.id ? { ...s, ...patch } : s) } : p))
-    try { await api.put(`/crm/pipeline-stages/${st.id}`, patch) }
-    catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar etapa'); load(sel.id) }
-  }
-  const delStage = async (st: Stage) => {
+    let snap: Pipeline[] = []
+    setPipes(ps => { snap = ps; return ps.map(p => p.id === sel.id ? { ...p, stages: p.stages.map(s => s.id === st.id ? { ...s, ...patch } : s) } : p) })
+    try { await api.put(`/crm/pipeline-stages/${st.id}`, patch); load(sel.id) } catch (e) { setPipes(snap); throw e }
+  }, { onError: (e: any) => toast.error(e?.message ?? 'Erro ao salvar etapa') })
+  const patchStage = (st: Stage, patch: Partial<Stage>) => patchStageAction.run(st, patch)
+
+  const delStageAction = useAsyncAction(async (st: Stage) => {
     if (!sel) return
-    if (!window.confirm(`Excluir a etapa "${st.name}"?`)) return
-    try { await api.delete(`/crm/pipeline-stages/${st.id}`); toast.success('Etapa excluída'); load(sel.id) }
-    catch (e: any) { toast.error(e?.message ?? 'Erro ao excluir') }
-  }
-  const onDragEnd = async (r: DropResult) => {
+    await api.delete(`/crm/pipeline-stages/${st.id}`); toast.success('Etapa excluída'); load(sel.id)
+  }, { onError: (e: any) => toast.error(e?.message ?? 'Erro ao excluir') })
+  const delStage = (st: Stage) => { if (!sel) return; if (!window.confirm(`Excluir a etapa "${st.name}"?`)) return; delStageAction.run(st) }
+
+  // Categoria A — reorder de colunas (drag): otimista + rollback (snapshot) + sync silencioso + concorrência.
+  const reorderAction = useAsyncAction(async (arr: Stage[]) => {
+    if (!sel) return
+    let snap: Pipeline[] = []
+    setPipes(ps => { snap = ps; return ps.map(p => p.id === sel.id ? { ...p, stages: arr } : p) })
+    try { await api.patch(`/crm/pipelines/${sel.id}/stages/reorder`, { ordem: arr.map(s => s.id) }); load(sel.id) } catch (e) { setPipes(snap); throw e }
+  }, { onError: () => toast.error('Erro ao reordenar') })
+  const onDragEnd = (r: DropResult) => {
     if (!sel || !r.destination || r.destination.index === r.source.index) return
     if (sel.bloqueado) { toast.error('Pipeline bloqueado: ordem não pode ser alterada'); return }
     const arr = Array.from(sel.stages)
     const [moved] = arr.splice(r.source.index, 1); arr.splice(r.destination.index, 0, moved)
-    setPipes(ps => ps.map(p => p.id === sel.id ? { ...p, stages: arr } : p)) // otimista
-    try { await api.patch(`/crm/pipelines/${sel.id}/stages/reorder`, { ordem: arr.map(s => s.id) }) }
-    catch { toast.error('Erro ao reordenar'); load(sel.id) }
+    reorderAction.run(arr)
   }
 
   return (

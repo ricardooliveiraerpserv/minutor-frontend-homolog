@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { Plus, X, Clock, AlertTriangle, Check, UserPlus, FileDown, Trash2, Pencil } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { useAuth } from '@/hooks/use-auth'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 
 interface Stage { id: number; name: string; is_won: boolean; is_lost: boolean }
@@ -262,6 +263,18 @@ export async function criarSubprojeto(oppId: number, prefill: any, prefillContac
   return true
 }
 
+// Move otimista de um card entre colunas do kanban (ajusta count e total do valor da coluna).
+function optimisticMoveCard(cols: Column[], oppId: number, fromStageId: number, toStageId: number): Column[] {
+  if (fromStageId === toStageId) return cols
+  const moved = cols.find(c => c.stage.id === fromStageId)?.opportunities.find(o => o.id === oppId)
+  if (!moved) return cols
+  return cols.map(col => {
+    if (col.stage.id === fromStageId) return { ...col, opportunities: col.opportunities.filter(o => o.id !== oppId), count: Math.max(0, col.count - 1), total_valor: col.total_valor - (moved.valor || 0) }
+    if (col.stage.id === toStageId) return { ...col, opportunities: [...col.opportunities, { ...moved, stage_id: toStageId }], count: col.count + 1, total_valor: col.total_valor + (moved.valor || 0) }
+    return col
+  })
+}
+
 export default function CrmPipelinePage() {
   const { user } = useAuth()
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
@@ -271,7 +284,6 @@ export default function CrmPipelinePage() {
   const [customers, setCustomers] = useState<Customer[]>([])
 
   const [newOpen, setNewOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
   const NF0 = { title: '', descricao: '', pipeline_id: '', customer_id: '', customer_contact_id: '', lead_source_id: '', responsavel_id: '', valor: '', previsao_fechamento: '', proxima_acao: '', proxima_acao_at: '' }
   const [nf, setNf] = useState(NF0)
   const [sources, setSources] = useState<Source[]>([])
@@ -354,48 +366,45 @@ export default function CrmPipelinePage() {
   // Filtros do funil: por empresa (cliente) e por responsável.
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroResp, setFiltroResp] = useState('')
-  const loadBoard = useCallback(() => {
+  // silent=true → sync em background (sem spinner): usado após o update otimista de card,
+  // pra reconciliar campos calculados pelo servidor SEM piscar a tela. Servidor = fonte da verdade.
+  const loadBoard = useCallback((silent = false) => {
     if (!pipeId) return
-    setLoading(true)
+    if (!silent) setLoading(true)
     const qs = new URLSearchParams({ pipeline_id: String(pipeId) })
     if (filtroCliente) qs.set('customer_id', filtroCliente)
     if (filtroResp) qs.set('responsavel_id', filtroResp)
     api.get<{ data: { stages: Column[] } }>(`/crm/opportunities/kanban?${qs.toString()}`)
       .then(r => setCols(r?.data?.stages ?? []))
-      .catch(() => toast.error('Erro ao carregar o funil'))
-      .finally(() => setLoading(false))
+      .catch(() => { if (!silent) toast.error('Erro ao carregar o funil') })
+      .finally(() => { if (!silent) setLoading(false) })
   }, [pipeId, filtroCliente, filtroResp])
   useEffect(() => { loadBoard() }, [loadBoard])
 
-  const createOpp = async () => {
-    if (creating) return // trava duplo-clique → evita oportunidade duplicada
+  // Categoria B — criar oportunidade. useAsyncAction trava o duplo-clique (evita opp duplicada).
+  const createOppAction = useAsyncAction(async () => {
     if (!nf.title.trim() || !nf.customer_id || !nf.pipeline_id || !nf.customer_contact_id || !nf.lead_source_id || !nf.responsavel_id || !nf.proxima_acao.trim() || !nf.proxima_acao_at) {
       toast.error('Preencha título, pipeline, empresa, contato, origem, responsável e a próxima ação'); return
     }
-    setCreating(true)
-    try {
-      const r = await api.post<{ data: { id: number } }>('/crm/opportunities', {
-        title: nf.title, pipeline_id: Number(nf.pipeline_id), customer_id: Number(nf.customer_id),
-        customer_contact_id: Number(nf.customer_contact_id), lead_source_id: Number(nf.lead_source_id),
-        responsavel_id: Number(nf.responsavel_id), valor: nf.valor ? Number(nf.valor) : 0,
-        descricao: nf.descricao || null,
-        previsao_fechamento: nf.previsao_fechamento || null,
-        proxima_acao: nf.proxima_acao, proxima_acao_at: nf.proxima_acao_at,
-      })
-      // Anexa os produtos selecionados à oportunidade recém-criada.
-      const novoId = r?.data?.id
-      if (novoId && nfProdutos.length) {
-        await Promise.all(nfProdutos.map(pid => api.post(`/crm/opportunities/${novoId}/products`, { crm_product_id: pid }).catch(() => {})))
-      }
-      toast.success('Oportunidade criada')
-      try { if (nf.lead_source_id) localStorage.setItem('crm:last_origem', nf.lead_source_id) } catch {} // origem lembrada
-      // Vai para a aba do pipeline escolhido para exibir a nova oportunidade.
-      const destino = pipelines.find(p => p.id === Number(nf.pipeline_id))
-      setNewOpen(false); setNf(NF0); setContacts([])
-      if (destino && destino.id !== pipeId) setPipeId(destino.id); else loadBoard()
-    } catch (e: any) { toast.error(e?.message ?? 'Erro ao criar') }
-    finally { setCreating(false) }
-  }
+    const r = await api.post<{ data: { id: number } }>('/crm/opportunities', {
+      title: nf.title, pipeline_id: Number(nf.pipeline_id), customer_id: Number(nf.customer_id),
+      customer_contact_id: Number(nf.customer_contact_id), lead_source_id: Number(nf.lead_source_id),
+      responsavel_id: Number(nf.responsavel_id), valor: nf.valor ? Number(nf.valor) : 0,
+      descricao: nf.descricao || null,
+      previsao_fechamento: nf.previsao_fechamento || null,
+      proxima_acao: nf.proxima_acao, proxima_acao_at: nf.proxima_acao_at,
+    })
+    const novoId = r?.data?.id
+    if (novoId && nfProdutos.length) {
+      await Promise.all(nfProdutos.map(pid => api.post(`/crm/opportunities/${novoId}/products`, { crm_product_id: pid }).catch(() => {})))
+    }
+    toast.success('Oportunidade criada')
+    try { if (nf.lead_source_id) localStorage.setItem('crm:last_origem', nf.lead_source_id) } catch {}
+    const destino = pipelines.find(p => p.id === Number(nf.pipeline_id))
+    setNewOpen(false); setNf(NF0); setContacts([])
+    if (destino && destino.id !== pipeId) setPipeId(destino.id); else loadBoard()
+  }, { onError: (e: any) => toast.error(e?.message ?? 'Erro ao criar') })
+  const createOpp = () => createOppAction.run()
 
   // Abre o modal com defaults inteligentes (reduz atrito — Fase A/UX).
   const openNewOpp = () => {
@@ -407,18 +416,25 @@ export default function CrmPipelinePage() {
     setContacts([]); setNovoLead(NL0); setNfProdutos([]); setNewOpen(true)
   }
 
-  const moveStage = async (opp: Opp, stageId: number) => {
-    const stage = pipelines.flatMap(p => p.stages).find(s => s.id === stageId)
-    if (stage?.is_lost) { setLossModal({ oppId: opp.id, stageId }); return } // Item 2: motivo obrigatório
+  // Categoria A — move OTIMISTA: o card muda de coluna na hora; PATCH; sync silencioso p/
+  // reconciliar; rollback se falhar. useAsyncAction trava concorrência (sem duplo-move).
+  const moveAction = useAsyncAction(async (opp: Opp, stageId: number, isWon: boolean) => {
+    let snapshot: Column[] = []
+    setCols(prev => { snapshot = prev; return optimisticMoveCard(prev, opp.id, opp.stage_id, stageId) })
     try {
       await api.patch(`/crm/opportunities/${opp.id}/stage`, { stage_id: stageId })
-      await loadBoard()
-      // Ao marcar GANHO, abre o modal COMPLETO de Novo Contrato já pré-preenchido com a proposta.
-      if (stage?.is_won && !opp.contract_id) {
-        openWonContract(opp)
-      }
+      loadBoard(true)  // sync silencioso (background) — NÃO remove o refetch; servidor = verdade
+      if (isWon && !opp.contract_id) openWonContract(opp)  // GANHO → Novo Contrato (fluxo à parte)
+    } catch (e) {
+      setCols(snapshot)  // rollback
+      throw e
     }
-    catch (e: any) { toast.error(e?.message ?? 'Erro ao mover') } // Item 4: mensagem de produto obrigatório
+  }, { onError: (e: any) => toast.error(e?.message ?? 'Erro ao mover') })
+
+  const moveStage = (opp: Opp, stageId: number) => {
+    const stage = pipelines.flatMap(p => p.stages).find(s => s.id === stageId)
+    if (stage?.is_lost) { setLossModal({ oppId: opp.id, stageId }); return } // motivo obrigatório antes
+    moveAction.run(opp, stageId, !!stage?.is_won)
   }
   // GANHO → monta o pré-preenchimento (proposta mais recente + contatos + tipo) e abre o Novo Contrato.
   const openWonContract = async (opp: Opp) => {
@@ -427,11 +443,23 @@ export default function CrmPipelinePage() {
     if (await criarSubprojeto(opp.id, prefill, prefillContacts, loadBoard)) return
     setWonModal({ oppId: opp.id, prefill, prefillContacts })
   }
-  const confirmLoss = async (loss_reason_id: number) => {
+  // Categoria A — mover p/ Perdido (com motivo): também otimista + rollback + sync silencioso.
+  const confirmLossAction = useAsyncAction(async (loss_reason_id: number) => {
     if (!lossModal) return
-    try { await api.patch(`/crm/opportunities/${lossModal.oppId}/stage`, { stage_id: lossModal.stageId, loss_reason_id }); setLossModal(null); loadBoard() }
-    catch (e: any) { toast.error(e?.message ?? 'Erro ao registrar perda') }
-  }
+    const { oppId, stageId } = lossModal
+    let snapshot: Column[] = []
+    setCols(prev => {
+      snapshot = prev
+      const fromStageId = prev.find(c => c.opportunities.some(o => o.id === oppId))?.stage.id ?? 0
+      return optimisticMoveCard(prev, oppId, fromStageId, stageId)
+    })
+    setLossModal(null)
+    try {
+      await api.patch(`/crm/opportunities/${oppId}/stage`, { stage_id: stageId, loss_reason_id })
+      loadBoard(true)  // sync silencioso
+    } catch (e) { setCols(snapshot); throw e }
+  }, { onError: (e: any) => toast.error(e?.message ?? 'Erro ao registrar perda') })
+  const confirmLoss = (loss_reason_id: number) => { confirmLossAction.run(loss_reason_id) }
 
   const pickPipeline = (pid: string) => { setNf(f => ({ ...f, pipeline_id: pid })) }
 
@@ -538,8 +566,8 @@ export default function CrmPipelinePage() {
                       <Plus size={11} /> Adicionar tarefa
                     </button>
                     {!col.stage.is_won && !col.stage.is_lost && (
-                      <select value="" onClick={e => e.stopPropagation()} onChange={e => { if (e.target.value) moveStage(o, Number(e.target.value)) }}
-                        className="w-full mt-2 text-[10px] rounded px-1.5 py-1 outline-none" style={inputStyle}>
+                      <select value="" onClick={e => e.stopPropagation()} disabled={moveAction.pending} onChange={e => { if (e.target.value) moveStage(o, Number(e.target.value)) }}
+                        className="w-full mt-2 text-[10px] rounded px-1.5 py-1 outline-none disabled:opacity-50" style={inputStyle}>
                         <option value="">Mover para…</option>
                         {pipe?.stages.filter(s => s.id !== o.stage_id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
@@ -649,7 +677,7 @@ export default function CrmPipelinePage() {
                 <div><label className="block text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Data da próxima ação *</label><input type="date" value={nf.proxima_acao_at} onChange={e => setNf(f => ({ ...f, proxima_acao_at: e.target.value }))} className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} /></div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 px-5 py-3 shrink-0" style={{ borderTop: '1px solid var(--border)' }}><button onClick={() => setNewOpen(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button><button onClick={createOpp} disabled={creating} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{creating ? 'Criando…' : 'Criar'}</button></div>
+            <div className="flex justify-end gap-2 px-5 py-3 shrink-0" style={{ borderTop: '1px solid var(--border)' }}><button onClick={() => setNewOpen(false)} className="px-3 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Cancelar</button><button onClick={createOpp} disabled={createOppAction.pending} className="px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-60" style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>{createOppAction.running ? 'Criando…' : 'Criar'}</button></div>
           </div>
         </div>
       )}
