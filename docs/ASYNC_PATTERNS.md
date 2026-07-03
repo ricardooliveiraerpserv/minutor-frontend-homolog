@@ -90,6 +90,18 @@ detalhes técnicos recolhidos + copiar erro.
 {loadErr && <ErrorState error={loadErr} message="Não foi possível carregar." onRetry={reload} />}
 ```
 
+> ### ⚖️ REGRA CONGELADA — Toast × ErrorState (feedback de erro)
+> **Operações de MUTAÇÃO usam `toast` como feedback de erro.** `ErrorState` é reservado para
+> **falhas que impedem a continuidade** (carga da tela/dados críticos não veio).
+>
+> | | Erro em… | Feedback |
+> |---|---|---|
+> | **Mutação** (salvar/aprovar/gerar/enviar/assinar/contrato…) | ação iniciada pelo usuário, ele pode **reclicar** | `toast.error(apiMessage(e, …))` + botão volta ao normal |
+> | **Carga** (não carregou proposta/CRM/pipeline/lista/dashboard) | usuário **sem nada pra interagir** | `<ErrorState onRetry>` (persistente) |
+>
+> Vale para TODOS os módulos (Aprovações · Cadastros · Pipeline · Propostas) — **não** misturar
+> (nem `ErrorState` em mutação, nem toast que some em falha de carga).
+
 ### `useOptimisticList` — update otimista genérico (P1)
 Tabela/lista/kanban/grid/card. **Só Categoria A** (ver §6).
 
