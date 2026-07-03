@@ -723,6 +723,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
             { label: 'Clientes',           href: '/fechamento/cliente',   icon: Building2 },
             { label: 'Parceiros',          href: '/fechamento/parceiro',  icon: Handshake },
             { label: 'Consultores',        href: '/fechamento/consultor', icon: Users },
+            { label: 'Horas Excedentes',   href: '/fechamento/excedentes', icon: Clock },
             { label: 'Adiantamentos',      href: '/fechamento/adiantamentos', icon: Banknote },
             { label: 'Diretoria',          href: '/fechamento/diretoria', icon: Briefcase },
             { label: 'Folha Cooperativa',  href: '/fechamento/folha',     icon: FileSpreadsheet },
