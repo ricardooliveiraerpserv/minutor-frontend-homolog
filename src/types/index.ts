@@ -95,6 +95,7 @@ export interface Timesheet {
   customer?: Customer
   project_id: number
   project?: Project
+  real_project_id?: number | null
   date: string
   start_time: string
   end_time: string
@@ -172,6 +173,7 @@ export interface ConsultantGroup {
 
 export interface SystemSettings {
   timesheet_retroactive_limit_days?:          number
+  fechamento_auto_dia_util?:                  number
   movidesk_default_customer_id?:              number
   movidesk_default_project_id?:              number
   movidesk_default_user_id?:                  number
