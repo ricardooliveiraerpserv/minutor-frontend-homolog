@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Search, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 
 interface Project { id: number; name: string; customer_name?: string | null }
 interface Category { id: number; name: string; parent_id?: number | null; parent_name?: string | null }
@@ -52,7 +53,6 @@ export default function MobileDespesa() {
   const [categories, setCategories] = useState<Category[]>([])
   const [search, setSearch] = useState('')
   const [catSearch, setCatSearch] = useState('')
-  const [saving, setSaving] = useState(false)
   const [receipt, setReceipt] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -107,42 +107,38 @@ export default function MobileDespesa() {
     return true
   }
 
-  const handleSave = async () => {
+  // Sub-4 Mobile (Cat B — nunca otimista). useAsyncAction + apiMessage; fetch cru p/ multipart (anexo).
+  const handleSaveAction = useAsyncAction(async () => {
     if (!form.project_id) { toast.error('Selecione um projeto'); return }
     if (!form.amount || Number(form.amount) <= 0) { toast.error('Informe o valor'); return }
     if (!form.expense_category_id) { toast.error('Selecione a categoria'); return }
 
-    setSaving(true)
-    try {
-      const fd = new FormData()
-      fd.append('project_id', form.project_id)
-      fd.append('expense_category_id', form.expense_category_id)
-      fd.append('expense_date', form.expense_date)
-      fd.append('description', form.description || form.category_name)
-      fd.append('amount', form.amount)
-      fd.append('expense_type', form.expense_type)
-      fd.append('payment_method', form.payment_method)
-      fd.append('charge_client', '0')
-      if (receipt) fd.append('receipt', receipt)
+    const fd = new FormData()
+    fd.append('project_id', form.project_id)
+    fd.append('expense_category_id', form.expense_category_id)
+    fd.append('expense_date', form.expense_date)
+    fd.append('description', form.description || form.category_name)
+    fd.append('amount', form.amount)
+    fd.append('expense_type', form.expense_type)
+    fd.append('payment_method', form.payment_method)
+    fd.append('charge_client', '0')
+    if (receipt) fd.append('receipt', receipt)
 
-      const res = await fetch('/api/v1/expenses', {
-        method: 'POST',
-        headers: { Accept: 'application/json' },
-        credentials: 'same-origin',
-        body: fd,
-      })
-      if (!res.ok) {
-        const b = await res.json().catch(() => ({}))
-        throw new ApiError(res.status, b.message ?? 'Erro ao salvar')
-      }
-      toast.success('Despesa registrada!')
-      router.replace('/mobile')
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar')
-    } finally {
-      setSaving(false)
+    const res = await fetch('/api/v1/expenses', {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      credentials: 'same-origin',
+      body: fd,
+    })
+    if (!res.ok) {
+      const b = await res.json().catch(() => ({}))
+      throw new ApiError(res.status, b.message ?? 'Erro ao salvar')
     }
-  }
+    toast.success('Despesa registrada!')
+    router.replace('/mobile')
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar')) })
+  const handleSave = () => handleSaveAction.run()
+  const saving = handleSaveAction.pending
 
   if (loading || !user) return null
 
