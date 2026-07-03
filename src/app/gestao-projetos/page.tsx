@@ -18,6 +18,7 @@ import { ProjectViewModal } from '@/components/projects/project-view-modal'
 import { ProjectDataModal } from '@/components/shared/ProjectDataModal'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { PageHeader } from '@/components/ds'
+import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 import { RowMenu } from '@/components/ui/row-menu'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 
@@ -2909,6 +2910,11 @@ function GestaoProjetosInner() {
           title="Gestão de Contratos"
           subtitle="Visão operacional dos contratos sob sua coordenação"
         />
+
+        {/* Períodos de projeto abertos — discreto (recolhido; some quando não há nenhum) */}
+        <div className="mb-6">
+          <OpenPeriodsPanel collapsible hideWhenEmpty />
+        </div>
 
         {/* ── Cards de Resumo ── */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
