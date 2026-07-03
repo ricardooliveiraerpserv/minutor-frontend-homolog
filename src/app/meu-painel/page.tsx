@@ -1524,8 +1524,13 @@ const EMPTY_EXP = {
  * `notas: null` (consultor não-PJ), o card não aparece. Só upload — o aceite/recusa é do admin.
  */
 function MinhasNotasFiscaisCard({ userId }: { userId: number }) {
+  // O fechamento a faturar é sempre o do MÊS ANTERIOR — a nota é emitida no mês vigente
+  // (prazo dia 15 deste mês) e o valor = recebimento do fechamento do mês passado.
+  // Por isso o card abre no mês anterior; o consultor ainda pode navegar pelo seletor.
   const [ym, setYm] = useState(() => {
     const d = new Date()
+    d.setDate(1)                    // evita overflow ao voltar de meses de 31 dias
+    d.setMonth(d.getMonth() - 1)
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   })
   const [notas, setNotas] = useState<NotasPayload>(null)
