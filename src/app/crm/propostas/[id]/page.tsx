@@ -349,7 +349,6 @@ export default function PropostaEditor() {
   const [inputs, setInputs] = useState<Record<string, any>>({})
   const [conteudo, setConteudo] = useState<Record<string, any>>({})
   const [preview, setPreview] = useState<Preview | null>(null)
-  const [gerando, setGerando] = useState(false)
   // Participantes da proposta (validação + assinatura por parte)
   const [parts, setParts] = useState<any[]>([])
   const [caderno, setCaderno] = useState<any[]>([])
@@ -360,7 +359,6 @@ export default function PropostaEditor() {
   const [comprovante, setComprovante] = useState<any>(null) // P-E.2.4 — registro da assinatura
   // ── Envio por e-mail (remetente = usuário logado via Graph; prévia igual ao fechamento) ──
   const [composeOpen, setComposeOpen] = useState(false)
-  const [sending, setSending] = useState(false)
   const [emailHtml, setEmailHtml] = useState<string | null>(null)
   const [emailPrevLoading, setEmailPrevLoading] = useState(false)
   const [emailMsg, setEmailMsg] = useState('')
@@ -392,7 +390,6 @@ export default function PropostaEditor() {
   const [eng, setEng] = useState<any>(null)
   const [ana, setAna] = useState<any>(null)
   const [engLoading, setEngLoading] = useState(false)
-  const [linkBusy, setLinkBusy] = useState(false)
   // ── Liberação Operacional (Proposal-Centric) ──
   const [libOpen, setLibOpen] = useState(false)
   const [lib, setLib] = useState<any>(null)
@@ -668,16 +665,15 @@ export default function PropostaEditor() {
     if (tpl.conteudo) setConteudo(p => ({ ...tpl.conteudo, logo_attachment_id: p.logo_attachment_id, contrato: { ...(tpl.conteudo.contrato || {}), is_subproject: p.contrato?.is_subproject, parent_project_id: p.contrato?.parent_project_id, sera_faturado: p.contrato?.sera_faturado } }))
     toast.success(`Template de "${lbl}" aplicado.`)
   }
-  const gerarPdf = async () => {
+  // Gate 2.3 — Geração (fluxo longo, Cat B). useAsyncAction + apiMessage; foco em confiança.
+  const gerarPdfAction = useAsyncAction(async () => {
     if (codigoDup) { toast.error('Código já usado em outra proposta. Altere antes de gerar.'); return }
-    setGerando(true)
-    try {
-      await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d.codigo, data_emissao: d.data_emissao, data_validade: d.data_validade, tipo: d.tipo, modo_faturamento: modoFat })
-      const r = await api.post<{ data: { document_id: number } }>(`/crm/proposals/${id}/gerar`, {})
-      if (r?.data?.document_id) window.open(`/api/v1/documents/${r.data.document_id}/download`, '_blank')
-      toast.success('PDF gerado')
-    } catch { toast.error('Erro ao gerar PDF') } finally { setGerando(false) }
-  }
+    await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d.codigo, data_emissao: d.data_emissao, data_validade: d.data_validade, tipo: d.tipo, modo_faturamento: modoFat })
+    const r = await api.post<{ data: { document_id: number } }>(`/crm/proposals/${id}/gerar`, {})
+    if (r?.data?.document_id) window.open(`/api/v1/documents/${r.data.document_id}/download`, '_blank')
+    toast.success('PDF gerado')
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao gerar PDF')) })
+  const gerarPdf = () => gerarPdfAction.run()
 
   // P-E.2.x — abre o compositor de e-mail de assinatura (template editável + prévia; remetente = você).
   const enviarAssinatura = async () => {
@@ -833,18 +829,15 @@ export default function PropostaEditor() {
     if (!emails.includes(e)) setEmails([...emails, e])
     setEmailInput('')
   }
-  const enviarEmail = async () => {
+  const enviarEmailAction = useAsyncAction(async () => {
     if (!emails.length) { toast.error('Informe ao menos um destinatário'); return }
-    setSending(true)
-    try {
-      const r = await api.post<{ success: boolean; message: string }>(`/crm/proposals/${id}/enviar-email`, {
-        emails, mensagem: emailMsg, assunto: emailSubject,
-      })
-      toast.success(r?.message ?? 'Proposta enviada')
-      setComposeOpen(false)
-    } catch (e: any) { toast.error(e?.message ?? 'Falha ao enviar o e-mail') }
-    finally { setSending(false) }
-  }
+    const r = await api.post<{ success: boolean; message: string }>(`/crm/proposals/${id}/enviar-email`, {
+      emails, mensagem: emailMsg, assunto: emailSubject,
+    })
+    toast.success(r?.message ?? 'Proposta enviada')
+    setComposeOpen(false)
+  }, { onError: e => toast.error(apiMessage(e, 'Falha ao enviar o e-mail')) })
+  const enviarEmail = () => enviarEmailAction.run()
 
   // ── Engajamento / Portal ──
   const carregarEng = async () => {
@@ -861,21 +854,23 @@ export default function PropostaEditor() {
     } catch { toast.error('Erro ao carregar engajamento') } finally { setEngLoading(false) }
   }
   const copiar = async (url: string) => { try { await navigator.clipboard.writeText(url); toast.success('Link copiado') } catch { toast.error('Não foi possível copiar') } }
-  const gerarLink = async () => {
+  const gerarLinkAction = useAsyncAction(async () => {
     if (codigoDup) { toast.error('Código duplicado — ajuste antes de gerar o link.'); return }
-    setLinkBusy(true)
-    try {
-      await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d?.codigo, data_emissao: d?.data_emissao, data_validade: d?.data_validade, tipo: d?.tipo, modo_faturamento: modoFat })
-      const r = await api.post<{ data: { url: string } }>(`/crm/proposals/${id}/share`, {})
-      if (r?.data?.url) await copiar(r.data.url)
-      await carregarEng()
-    } catch (e: any) { toast.error(e?.message ?? 'Erro ao gerar o link') } finally { setLinkBusy(false) }
-  }
-  const revogarLink = async (sid: number) => {
+    await api.put(`/crm/proposals/${id}/editar`, { inputs, conteudo, codigo: d?.codigo, data_emissao: d?.data_emissao, data_validade: d?.data_validade, tipo: d?.tipo, modo_faturamento: modoFat })
+    const r = await api.post<{ data: { url: string } }>(`/crm/proposals/${id}/share`, {})
+    if (r?.data?.url) await copiar(r.data.url)
+    await carregarEng()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao gerar o link')) })
+  const gerarLink = () => gerarLinkAction.run()
+  const revogarLinkAction = useAsyncAction(async (sid: number) => {
     if (!window.confirm('Revogar este link? O cliente não conseguirá mais acessar a proposta por ele.')) return
-    try { await api.post(`/crm/proposals/${id}/shares/${sid}/revoke`, {}); toast.success('Link revogado'); await carregarEng() }
-    catch { toast.error('Erro ao revogar') }
-  }
+    await api.post(`/crm/proposals/${id}/shares/${sid}/revoke`, {}); toast.success('Link revogado'); await carregarEng()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao revogar')) })
+  const revogarLink = (sid: number) => revogarLinkAction.run(sid)
+  // Estados de loading da geração DERIVADOS (JSX intacto).
+  const gerando = gerarPdfAction.pending
+  const sending = enviarEmailAction.pending
+  const linkBusy = gerarLinkAction.pending
 
   // ── Revisões do cliente — responder + resolver (carregarRevs declarado acima do early-return) ──
   const responderRev = async (tid: number) => {
