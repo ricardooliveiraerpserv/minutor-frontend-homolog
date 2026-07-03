@@ -90,13 +90,14 @@ const EXTRA_PERMISSION_OPTIONS: { value: string; label: string; group: string }[
 // Permissões base de cada tipo — o que já está incluído por padrão no perfil
 const BASE_PERMISSIONS_BY_TYPE: Record<string, string[]> = {
   admin:          ['*'],
+  administrativo: ['hours.view_all','hours.update_all','hours.delete_all','timesheets.approve','timesheets.view_project_full','expenses.view_all','expenses.approve','users.view_all','users.create','users.update','users.reset_password','contracts.manage','customers.manage','partners.manage','reports.view','reports.export','settings.view'],
   coordenador:    ['projects.view','hours.view_all','hours.update_all','hours.delete_all','timesheets.approve','timesheets.view_project_full','expenses.view_all','expenses.approve','reports.view','reports.export','financial.view_project_cost'],
   consultor:      [],
   cliente:        ['reports.view'],
   parceiro_admin: ['timesheets.approve','timesheets.view_project_full','users.create','users.update','users.reset_password','reports.view'],
 }
 
-type ProfileType    = 'cliente' | 'consultor' | 'coordenador' | 'parceiro_adm' | 'administrator'
+type ProfileType    = 'cliente' | 'consultor' | 'coordenador' | 'parceiro_adm' | 'administrativo' | 'administrator'
 type ConsultantType = 'horista' | 'banco_de_horas' | 'fixo'
 
 const PROFILE_OPTIONS: { value: ProfileType; label: string }[] = [
@@ -104,6 +105,7 @@ const PROFILE_OPTIONS: { value: ProfileType; label: string }[] = [
   { value: 'consultor',     label: 'Consultor' },
   { value: 'coordenador',   label: 'Coordenador' },
   { value: 'parceiro_adm',  label: 'Parceiro' },
+  { value: 'administrativo', label: 'Administrativo' },
   { value: 'administrator', label: 'Administrador' },
 ]
 
