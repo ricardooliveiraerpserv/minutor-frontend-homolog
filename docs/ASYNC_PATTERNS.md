@@ -1,0 +1,182 @@
+# Padrões de Ação Assíncrona — Fase 2 (Confiança)
+
+> **Padrão OFICIAL do projeto.** Toda ação assíncrona (salvar, aprovar, rejeitar, excluir,
+> gerar, enviar, mover, toggle, upload…) segue este documento. Descoberto e validado na
+> migração do módulo **Aprovações**. Não introduzir loading manual novo.
+
+---
+
+## 1. O ciclo de vida único (Regra 4)
+
+```
+idle → running → success | error
+```
+
+Sem exceções. É o que `useAsyncAction` entrega. Estados:
+
+| Estado | Significado | Pode renderizar? |
+|---|---|---|
+| `idle` | parado | — |
+| `pending` | **concorrência** — do clique até o fim (imediato) | **NUNCA renderiza UI** — só `disabled` |
+| `running` | executando **e** já passou do `spinnerDelay` (~120ms) | **spinner** |
+| `success` | concluído com sucesso | **✓** |
+| `error` | falhou | **erro persistente** (`ErrorState`) |
+
+### ⚠️ Regra de renderização (obrigatória)
+
+> **`pending` NUNCA renderiza UI.** Ele controla **apenas concorrência** (`disabled` / cross-disable).
+> Quem muda layout/spinner/ícone/texto é **`running` / `success` / `error`** — nunca `pending`.
+
+Motivo: `pending` é imediato (evita duplo-clique já no 1º ms). Se ele também renderizasse,
+uma ação de 30ms causaria flash. A separação `pending` (concorrência) × `running` (visual)
+é o que elimina o flicker (Regra 5).
+
+```tsx
+// ✅ certo
+<button disabled={action.pending}>{action.running ? <Spinner/> : 'Salvar'}</button>
+// ❌ errado — pending renderizando (pisca em ações rápidas)
+<button disabled={action.pending}>{action.pending ? 'Salvando…' : 'Salvar'}</button>
+```
+
+---
+
+## 2. `pending` vs `running`
+
+| | `pending` | `running` |
+|---|---|---|
+| Quando vira `true` | **imediato** (no clique) | após `spinnerDelay` (~120ms) |
+| Para que serve | `disabled`, cross-disable, guarda de concorrência | spinner / feedback visual |
+| Renderiza UI? | **não** | sim |
+
+Anti-flicker (Regra 5) já vem no hook: `spinnerDelay` (só mostra `running` se passar de
+~120ms) + `minVisible` (uma vez visível, o spinner dura no mínimo ~320ms).
+
+---
+
+## 3. Quando usar cada peça
+
+### `useAsyncAction` (hook) — o núcleo
+Para **qualquer** mutação, não depende de botão (Regra 2): drag&drop, atalhos de teclado,
+toggle, upload, menu de contexto, ações automáticas — **e** para **shared-busy** (ver §5).
+
+```tsx
+const save = useAsyncAction(async () => {
+  await api.post('/x', body)
+  toast.success('Salvo')
+  reload()
+}, { onError: e => toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') })
+
+// save.run() · save.pending · save.running · save.status · save.error · save.reset()
+```
+
+### `AsyncButton` — casca visual (Regra 3: só ciclo de vida, zero regra de negócio)
+Para **botão standalone** que dispara **uma** ação. Estados idle/running/success/error prontos.
+
+```tsx
+<AsyncButton onClick={async () => { await api.delete(`/x/${id}`) }}>Excluir</AsyncButton>
+```
+
+- **`unstyled`** → migrar botão **custom existente** preservando 100% o visual (v1.0 congelada):
+  renderiza `<button>` cru com a `className` atual + a máquina de estado.
+  ```tsx
+  <AsyncButton unstyled className="[classes exatas do botão antigo]" onClick={salvar}>Salvar</AsyncButton>
+  ```
+- Botão **novo** → use o `Button` oficial via `AsyncButton` sem `unstyled` (variant/size do DS).
+
+### `ErrorState` / `InlineError` — erro persistente (P2)
+Erro crítico **não some** como toast. Mensagem amigável + Tentar novamente (com loading) +
+detalhes técnicos recolhidos + copiar erro.
+```tsx
+{loadErr && <ErrorState error={loadErr} message="Não foi possível carregar." onRetry={reload} />}
+```
+
+### `useOptimisticList` — update otimista genérico (P1)
+Tabela/lista/kanban/grid/card. **Só Categoria A** (ver §6).
+
+---
+
+## 4. Quando usar `AsyncButton` vs `useAsyncAction`
+
+| Situação | Use |
+|---|---|
+| Botão isolado, 1 ação | **`AsyncButton`** |
+| Botão custom existente (preservar visual) | **`AsyncButton unstyled`** |
+| Drag&drop / atalho / toggle / upload / menu | **`useAsyncAction`** |
+| Grupo de ações que compartilham "ocupado" (modal) | **`useAsyncAction`** + busy derivado (§5) |
+
+---
+
+## 5. Shared busy (grupo de ações mutuamente exclusivas)
+
+Quando um modal/painel tem **várias ações** que devem desabilitar **todas** enquanto uma roda
+(ex.: Aprovar / Rejeitar / Solicitar Ajuste), **não** use um `AsyncButton` por botão — cada um
+teria seu próprio estado e não haveria cross-disable. Use **um `useAsyncAction` por ação** e
+**derive** o busy do `.pending`:
+
+```tsx
+const approve = useAsyncAction(doApprove, { onError: t1 })
+const reject  = useAsyncAction(doReject,  { onError: t2 })
+const adjust  = useAsyncAction(doAdjust,  { onError: t3 })
+
+// cross-disable imediato (pending, NÃO running):
+const busy = approve.pending || reject.pending || adjust.pending
+
+<button disabled={busy} onClick={() => approve.run()}>…</button>
+```
+
+Caso real: `ApprovalsScreen` — 7 ações, `approving = a.pending || b.pending || …`.
+
+---
+
+## 6. Optimistic UI — categorias (P1)
+
+| Categoria | Regra | Exemplos |
+|---|---|---|
+| **A — sempre otimista** | aplica já, rollback em falha | aprovar, mover card, arquivar, marcar como lido, favoritar, mudar status |
+| **B — avaliar** | só com rollback simples | editar registro, alterar cronograma/horas/prioridade |
+| **C — NUNCA otimista** | espera o servidor | exclusão definitiva, faturamento, fechamento, geração de documentos, integrações, financeiro |
+
+---
+
+## 7. O que **NÃO** fazer
+
+```tsx
+// ❌ loading manual novo
+const [saving, setSaving] = useState(false)
+const save = async () => { setSaving(true); try { … } finally { setSaving(false) } }
+
+// ❌ spinner/texto via pending (pisca)
+{action.pending ? 'Salvando…' : 'Salvar'}
+
+// ❌ AsyncButton por botão num grupo shared-busy (perde cross-disable)
+
+// ❌ AsyncButton (estilizado) por cima de botão custom → muda o visual v1.0. Use `unstyled`.
+
+// ❌ otimista em Categoria C (exclusão/faturamento/fechamento) → inconsistência FE×BE
+
+// ❌ engolir o erro no try/catch e nunca deixar o hook ver → status nunca vira 'error'
+//    (deixe o api.* lançar e trate no onError)
+```
+
+---
+
+## 8. ✅ Checklist obrigatório de módulo (gate)
+
+Todo módulo migrado responde no **relatório único** de encerramento. Se **qualquer** resposta
+for "não", o módulo **não** está concluído.
+
+- [ ] Todas as mutações do módulo migradas? (100%)
+- [ ] Nenhum `setLoading`/`set*Loading` de **mutação** restante?
+- [ ] Nenhum `finally { setLoading(false) }` de mutação restante?
+- [ ] Nenhum botão sujeito a duplo-clique? (todo dispatch passa por `pending`/`inFlight`)
+- [ ] Nenhum spinner **manual** (não vindo de `running`)?
+- [ ] `pending` não renderiza UI (só `disabled`)?
+- [ ] Todo toast de erro tem feedback adequado (persistente onde crítico)?
+- [ ] Rollback em erro onde há otimista? (Categoria A)
+- [ ] Build (tsc) OK — sem novos erros vs baseline?
+- [ ] Guard (`ds:guard`) OK — sem novos erros?
+
+**No relatório único do módulo, incluir também:** ações migradas · estados manuais eliminados ·
+hooks reutilizados · componentes reutilizados · padronizações descobertas · % de cobertura.
+
+> Loading de **lista/página/detalhe** (skeleton) é **Fase 1**, não conta como mutação aqui.
