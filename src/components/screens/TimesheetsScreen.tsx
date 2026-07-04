@@ -26,6 +26,7 @@ import { TimesheetHoverTooltip, useTimesheetHover } from '@/components/ui/timesh
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { ApiError } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import {
   PageHeader, Table, Thead, Th, Tbody, Tr, Td,
   Badge, Button, Select, TextInput, Pagination,
@@ -551,20 +552,18 @@ interface RowMenuItem { label: string; icon: React.ReactNode; onClick: () => voi
 function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, onReverseApproval, onReverseRelease, onReverseRejection, onShowLogs, onShowConflict, canEdit = true, canDelete = true, reasonEdit, reasonDelete }: {
   id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseApproval?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void; onShowLogs?: () => void; onShowConflict?: () => void; canEdit?: boolean; canDelete?: boolean; reasonEdit?: string | null; reasonDelete?: string | null
 }) {
-  const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
 
-  const confirmDelete = async () => {
+  // Sub-1 soft-delete (Cat B — nunca otimista). useAsyncAction por instância (anti-duplo-clique por linha).
+  // Sequência intacta: fecha modal → API → toast → onDeleted. Soft-delete no backend, migração só de UI.
+  const confirmDeleteAction = useAsyncAction(async () => {
     setDeleteConfirm(false)
-    setDeleting(true)
-    try {
-      await api.delete(`/timesheets/${id}`)
-      toast.success('Apontamento excluído')
-      onDeleted()
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir')
-    } finally { setDeleting(false) }
-  }
+    await api.delete(`/timesheets/${id}`)
+    toast.success('Apontamento excluído')
+    onDeleted()
+  }, { onError: e => toast.error(e instanceof ApiError ? e.message : 'Erro ao excluir') })
+  const confirmDelete = () => confirmDeleteAction.run()
+  const deleting = confirmDeleteAction.pending
 
   const items: RowMenuItem[] = viewOnly
     ? [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: onView }]

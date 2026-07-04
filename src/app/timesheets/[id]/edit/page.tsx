@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useState, useEffect, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { toast } from 'sonner'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -133,7 +134,6 @@ export default function EditTimesheetPage() {
   })
   const [useTotal,   setUseTotal]   = useState(false)
   const [timeDriver, setTimeDriver] = useState<'end' | 'total'>('end')
-  const [saving,     setSaving]     = useState(false)
   const [conflictData, setConflictData] = useState<{ date: string; start_time?: string; end_time?: string; customer_name?: string; project_name?: string } | null>(null)
 
   const [customers,   setCustomers]   = useState<SelectOption[]>([])
@@ -263,7 +263,9 @@ export default function EditTimesheetPage() {
   const selectedCustomer = customers.find(c => String(c.id) === form.customer_id) as any
   const isErpservCustomer = String(selectedCustomer?.name ?? '').trim().toUpperCase() === 'ERPSERV'
 
-  const save = async () => {
+  // Sub-1 Apontamento CRUD (Cat B — nunca otimista). useAsyncAction; catch de conflito preservado.
+  // Sequência intacta: API → toast → navegar (router.push).
+  const saveAction = useAsyncAction(async () => {
     if (!form.project_id) { toast.error('Selecione um projeto'); return }
     const selProj = projects.find(p => String(p.id) === form.project_id) as any
     // Projeto Real só é pedido nos investimentos de Projetos e Suporte dos clientes
@@ -277,7 +279,6 @@ export default function EditTimesheetPage() {
       if (!form.start_time) { toast.error('Informe o horário de início'); return }
       if (!form.end_time)   { toast.error('Informe o horário de fim'); return }
     }
-    setSaving(true)
     try {
       const body: Record<string, any> = {
         project_id:  Number(form.project_id),
@@ -310,8 +311,10 @@ export default function EditTimesheetPage() {
       } else {
         toast.error(err instanceof ApiError ? err.message : 'Erro ao salvar')
       }
-    } finally { setSaving(false) }
-  }
+    }
+  })
+  const save = () => saveAction.run()
+  const saving = saveAction.pending
 
   return (
     <AppLayout title="Editar Apontamento">

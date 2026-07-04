@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
 import { api, ApiError } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -54,7 +55,6 @@ export default function NewTimesheetPage() {
     observation: '',
     is_billable_only: false,
   })
-  const [saving, setSaving] = useState(false)
   const [conflictData, setConflictData] = useState<{ date: string; start_time?: string; end_time?: string; customer_name?: string; project_name?: string } | null>(null)
   const [users,     setUsers]     = useState<SelectOption[]>([])
   const [customers, setCustomers] = useState<SelectOption[]>([])
@@ -128,8 +128,9 @@ export default function NewTimesheetPage() {
   const set = useCallback(<K extends keyof typeof form>(k: K, v: string) =>
     setForm(f => ({ ...f, [k]: v })), [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Sub-1 Apontamento CRUD (Cat B — nunca otimista). useAsyncAction; catch de conflito preservado
+  // (TIMESHEET_CONFLICT → modal). Sequência intacta: API → toast → navegar. preventDefault no wrapper (síncrono).
+  const handleSubmitAction = useAsyncAction(async () => {
     if (!form.project_id) { toast.error('Selecione um projeto'); return }
     if (useTotal) {
       if (!form.total_hours) { toast.error('Informe o total de horas'); return }
@@ -137,7 +138,6 @@ export default function NewTimesheetPage() {
       if (!form.start_time) { toast.error('Informe o horário de início'); return }
       if (!form.end_time)   { toast.error('Informe o horário de fim'); return }
     }
-    setSaving(true)
     try {
       const body: Record<string, any> = {
         project_id:  Number(form.project_id),
@@ -161,10 +161,10 @@ export default function NewTimesheetPage() {
       } else {
         toast.error(err instanceof ApiError ? err.message : 'Erro ao salvar')
       }
-    } finally {
-      setSaving(false)
     }
-  }
+  })
+  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); handleSubmitAction.run() }
+  const saving = handleSubmitAction.pending
 
   return (
     <AppLayout
