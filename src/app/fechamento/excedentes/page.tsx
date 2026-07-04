@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
 import { Clock, RefreshCw, Search, DollarSign, AlertTriangle, CheckCircle, Ban, FileText, Send } from 'lucide-react'
@@ -82,13 +83,16 @@ function ExcedentesPage() {
   const patch = (projectId: number, upd: Partial<Row>) =>
     setRows(rs => rs.map(r => r.project_id === projectId ? { ...r, ...upd } : r))
 
+  // Sub-8 Excedentes · flag de cobrança + status por-linha — busy Cat 3 (per-linha) + optimistic LEGADO
+  // num campo financeiro (charge/status). DÍVIDA TÉCNICA (mesma classe do toggleInvoiced): preservado
+  // intencionalmente (só apiMessage no erro); NÃO converter p/ Cat B nem tirar o otimista nesta fase.
   const toggleFlag = async (r: Row) => {
     const next = !r.charge
     setBusy(r.project_id); patch(r.project_id, { charge: next })
     try {
       await api.patch(`/fechamento-excedente/${r.project_id}/flag`, { charge_excess_hours: next })
-    } catch {
-      patch(r.project_id, { charge: r.charge }); toast.error('Erro ao alterar o flag de cobrança')
+    } catch (e) {
+      patch(r.project_id, { charge: r.charge }); toast.error(apiMessage(e, 'Erro ao alterar o flag de cobrança'))
     } finally { setBusy(null) }
   }
 
@@ -98,8 +102,8 @@ function ExcedentesPage() {
     try {
       await api.post(`/fechamento-excedente/${r.project_id}/${ym}`, { status })
       toast.success(status === 'cobrado' ? 'Marcado como cobrado' : status === 'nao_cobrar' ? 'Marcado como não cobrar' : 'Reaberto')
-    } catch {
-      patch(r.project_id, { status: r.status }); toast.error('Erro ao salvar o status')
+    } catch (e) {
+      patch(r.project_id, { status: r.status }); toast.error(apiMessage(e, 'Erro ao salvar o status'))
     } finally { setBusy(null) }
   }
 
@@ -109,7 +113,6 @@ function ExcedentesPage() {
   const [reportLoading, setReportLoading] = useState(false)
   const [emails, setEmails] = useState('')
   const [message, setMessage] = useState('')
-  const [sending, setSending] = useState(false)
 
   const openReport = async (r: Row) => {
     setReportFor({ customerId: r.customer_id, name: r.customer_name, envio_em: r.envio_em })
@@ -122,21 +125,19 @@ function ExcedentesPage() {
     } finally { setReportLoading(false) }
   }
 
-  const sendEmail = async () => {
+  // Sub-8 · envio do relatório de excedentes — Cat B. useAsyncAction; sequência (email → setReportFor(null) → load) intacta.
+  const sendEmailAction = useAsyncAction(async () => {
     if (!reportFor || !ym) return
     const list = emails.split(/[,;\s]+/).map(s => s.trim()).filter(Boolean)
     if (list.length === 0) { toast.error('Informe ao menos um e-mail'); return }
-    setSending(true)
-    try {
-      const res = await api.post<{ success: boolean; message: string }>(
-        `/fechamento-excedente/${reportFor.customerId}/${ym}/email`, { emails: list, mensagem: message || undefined })
-      toast.success(res.message ?? 'Enviado')
-      setReportFor(null)
-      load()
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Falha ao enviar o e-mail')
-    } finally { setSending(false) }
-  }
+    const res = await api.post<{ success: boolean; message: string }>(
+      `/fechamento-excedente/${reportFor.customerId}/${ym}/email`, { emails: list, mensagem: message || undefined })
+    toast.success(res.message ?? 'Enviado')
+    setReportFor(null)
+    load()
+  }, { onError: e => toast.error(apiMessage(e, 'Falha ao enviar o e-mail')) })
+  const sendEmail = () => sendEmailAction.run()
+  const sending = sendEmailAction.pending
 
   return (
     <AppLayout title="Fechamento — Horas Excedentes">
