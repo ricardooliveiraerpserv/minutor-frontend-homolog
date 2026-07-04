@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Check, Search, AlertTriangle, X, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { SectionLoader, InlineLoader } from '@/components/ui/loading'
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -93,7 +94,6 @@ export default function MobileApontamento() {
   const router = useRouter()
 
   const [step, setStep]   = useState(0)
-  const [saving, setSaving] = useState(false)
   const [conflictData, setConflictData] = useState<{
     date: string; start_time?: string; end_time?: string
     customer_name?: string; project_name?: string
@@ -248,35 +248,33 @@ export default function MobileApontamento() {
     return !!form.total_hours
   }
 
-  const handleSave = async () => {
-    if (saving) return
-    setSaving(true)
-    try {
-      const body: Record<string, any> = {
-        project_id:  Number(form.project_id),
-        date:        form.date,
-        observation: form.observation || null,
-        ticket:      form.ticket || null,
-      }
-      if (form.tipo === 'horario') {
-        body.start_time = form.start_time
-        body.end_time   = form.end_time
-      } else {
-        body.total_hours = form.total_hours
-      }
-      await api.post('/timesheets', body)
-      toast.success('Apontamento lançado!')
-      router.replace('/mobile')
-    } catch (e) {
+  // Sub-5 Mobile (Cat B — nunca otimista). useAsyncAction: mesma sequência/payload/endpoint;
+  // a trava de reentrada do hook substitui o `if (saving) return`. TIMESHEET_CONFLICT preservado.
+  const saveAction = useAsyncAction(async () => {
+    const body: Record<string, any> = {
+      project_id:  Number(form.project_id),
+      date:        form.date,
+      observation: form.observation || null,
+      ticket:      form.ticket || null,
+    }
+    if (form.tipo === 'horario') {
+      body.start_time = form.start_time
+      body.end_time   = form.end_time
+    } else {
+      body.total_hours = form.total_hours
+    }
+    await api.post('/timesheets', body)
+    toast.success('Apontamento lançado!')
+    router.replace('/mobile')
+  }, {
+    onError: e => {
       if (e instanceof ApiError && e.data?.code === 'TIMESHEET_CONFLICT' && e.data?.conflicting_timesheet) {
         setConflictData(e.data.conflicting_timesheet as any)
       } else {
-        toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar')
+        toast.error(apiMessage(e, 'Erro ao salvar'))
       }
-    } finally {
-      setSaving(false)
-    }
-  }
+    },
+  })
 
   // ── Loading state ────────────────────────────────────────────────────────────
   if (loading || !user) return (
@@ -615,16 +613,16 @@ export default function MobileApontamento() {
         )}
 
         {step === 2 && (
-          <button onClick={handleSave} disabled={saving}
+          <button onClick={() => saveAction.run()} disabled={saveAction.pending}
             style={{
               width: '100%', padding: '16px', borderRadius: 14, fontSize: 16, fontWeight: 700,
-              cursor: saving ? 'not-allowed' : 'pointer', border: 'none',
-              background: saving ? 'var(--surface-hover)' : 'var(--primary)',
-              color: saving ? 'var(--text-light)' : 'var(--primary-fg)',
+              cursor: saveAction.pending ? 'not-allowed' : 'pointer', border: 'none',
+              background: saveAction.pending ? 'var(--surface-hover)' : 'var(--primary)',
+              color: saveAction.pending ? 'var(--text-light)' : 'var(--primary-fg)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               transition: 'all 0.15s', ...tap,
             }}>
-            {saving ? 'Salvando…' : <><Check size={18} /> Confirmar e salvar</>}
+            {saveAction.pending ? 'Salvando…' : <><Check size={18} /> Confirmar e salvar</>}
           </button>
         )}
       </div>
