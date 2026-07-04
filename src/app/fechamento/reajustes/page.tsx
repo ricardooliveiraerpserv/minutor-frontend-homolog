@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
 import {
@@ -74,7 +75,6 @@ export default function DashboardReajustesPage() {
   const [reajusteTarget, setReajusteTarget] = useState<ReajusteTarget | null>(null)
   const [histRow, setHistRow] = useState<Row | null>(null)
   const [hist, setHist] = useState<HistRow[] | null>(null)
-  const [importing, setImporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [editRow, setEditRow] = useState<Row | null>(null)
 
@@ -119,23 +119,22 @@ export default function DashboardReajustesPage() {
     }
   }
 
-  const onPickFile = async (ev: React.ChangeEvent<HTMLInputElement>) => {
+  // Sub-7 Reajustes · importar planilha — Upload sem progresso = Cat B (FormData, 1 request). useAsyncAction.
+  // ev tratado no wrapper síncrono (extrai file + reseta value antes do async — evento pooled).
+  const onPickFileAction = useAsyncAction(async (file: File) => {
+    const res = await api.post<{ matched: number; unmatched_count: number }>('/contracts/recorrentes/import', (() => {
+      const fd = new FormData(); fd.append('file', file); return fd
+    })())
+    toast.success(`${res.matched} contrato(s) amarrado(s)${res.unmatched_count ? ` · ${res.unmatched_count} sem correspondência` : ''}`)
+    load()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao importar a planilha')) })
+  const onPickFile = (ev: React.ChangeEvent<HTMLInputElement>) => {
     const file = ev.target.files?.[0]
     if (ev.target) ev.target.value = ''
     if (!file) return
-    setImporting(true)
-    try {
-      const res = await api.post<{ matched: number; unmatched_count: number }>('/contracts/recorrentes/import', (() => {
-        const fd = new FormData(); fd.append('file', file); return fd
-      })())
-      toast.success(`${res.matched} contrato(s) amarrado(s)${res.unmatched_count ? ` · ${res.unmatched_count} sem correspondência` : ''}`)
-      load()
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao importar a planilha')
-    } finally {
-      setImporting(false)
-    }
+    onPickFileAction.run(file)
   }
+  const importing = onPickFileAction.pending
 
   const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
   const selectCls = 'rounded-lg px-3 py-2 text-sm'
@@ -409,31 +408,26 @@ function EditCadastroModal({ row, onClose, onSaved }: { row: Row; onClose: () =>
   const [taxa, setTaxa] = useState(row.taxa_reajuste ?? '')
   const [pct, setPct] = useState(row.pct_reajuste != null ? String(row.pct_reajuste) : '')
   const [ultimoReajuste, setUltimoReajuste] = useState(row.data_ultimo_reajuste ?? '')
-  const [saving, setSaving] = useState(false)
 
   const st = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
   const inp = 'w-full rounded-md px-2.5 py-2 text-sm'
   const lbl = 'text-xs font-medium'
 
-  const save = async () => {
-    setSaving(true)
-    try {
-      await api.patch(`/contracts/${row.id}/recorrente`, {
-        data_assinatura: assinatura || null,
-        data_vencimento: vencimento || null,
-        data_ultimo_reajuste: ultimoReajuste || null,
-        valor_inicial: valorInicial !== '' ? Number(valorInicial) : null,
-        taxa_reajuste: taxa || null,
-        pct_reajuste: pct !== '' ? Number(pct) : null,
-      })
-      toast.success('Cadastro atualizado')
-      onSaved()
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Erro ao salvar')
-    } finally {
-      setSaving(false)
-    }
-  }
+  // Sub-7 Reajustes · salvar recorrência de contrato — Cat B. useAsyncAction; payload/onSaved intactos.
+  const saveAction = useAsyncAction(async () => {
+    await api.patch(`/contracts/${row.id}/recorrente`, {
+      data_assinatura: assinatura || null,
+      data_vencimento: vencimento || null,
+      data_ultimo_reajuste: ultimoReajuste || null,
+      valor_inicial: valorInicial !== '' ? Number(valorInicial) : null,
+      taxa_reajuste: taxa || null,
+      pct_reajuste: pct !== '' ? Number(pct) : null,
+    })
+    toast.success('Cadastro atualizado')
+    onSaved()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar')) })
+  const save = () => saveAction.run()
+  const saving = saveAction.pending
 
   return (
     <Modal open onClose={() => { if (!saving) onClose() }} size="md">
