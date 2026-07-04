@@ -5,7 +5,8 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { useTableSort } from '@/hooks/use-table-sort'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { formatBRL } from '@/lib/format'
 import { RefreshCw, Printer, FileText, Users, Search, X, Mail, FileSpreadsheet, Send, Check } from 'lucide-react'
 import { toast } from 'sonner'
@@ -460,7 +461,6 @@ export default function FechamentoConsultorPage() {
   const [reportHtml, setReportHtml] = useState<string | null>(null)
   // Consultor alvo do relatório aberto (só pra relatório INDIVIDUAL — habilita o "Enviar e-mail").
   const [reportTarget, setReportTarget] = useState<{ userId: number; name: string; mode: ReportMode } | null>(null)
-  const [sendingEmail, setSendingEmail] = useState(false)
   const [downloadingExcel, setDownloadingExcel] = useState(false)
   // Dialog de composição/preview do e-mail (abre ao clicar "Enviar e-mail").
   const [composeOpen, setComposeOpen] = useState(false)
@@ -543,8 +543,8 @@ export default function FechamentoConsultorPage() {
       await api.post(`/fechamento-consultor/${userId}/${yearMonth}/limpar-envio`, {})
       patchEnvio(userId, null, null)
       toast.success('Status de envio limpo.')
-    } catch (err: unknown) {
-      toast.error(`Erro ao limpar: ${err instanceof Error ? err.message : 'falha na API'}`)
+    } catch (e) {
+      toast.error(apiMessage(e, 'Erro ao limpar'))
     } finally {
       setLimpandoEnvio(null)
     }
@@ -565,9 +565,9 @@ export default function FechamentoConsultorPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function sendReportEmail() {
+  // Fechamento Sub-3 · enviar ao consultor — Cat B. useAsyncAction; ordem intacta (email → patchEnvio status → closeCompose).
+  const sendReportEmailAction = useAsyncAction(async () => {
     if (!reportTarget) return
-    setSendingEmail(true)
     try {
       // O detalhamento (PDF + XLSX) é gerado no backend; não enviamos mais o HTML.
       // `mensagem` é a versão editada (por envio) que o admin compôs no dialog.
@@ -580,10 +580,10 @@ export default function FechamentoConsultorPage() {
       closeCompose()
     } catch (err: unknown) {
       toast.error(`Erro ao enviar o fechamento: ${err instanceof Error ? err.message : 'falha na API'}`)
-    } finally {
-      setSendingEmail(false)
     }
-  }
+  })
+  const sendReportEmail = () => sendReportEmailAction.run()
+  const sendingEmail = sendReportEmailAction.pending
 
   // Busca o HTML renderizado do e-mail. Sem `mensagem` → backend devolve o html
   // padrão + `mensagem_padrao` (usado pra semear o textarea no primeiro fetch).
