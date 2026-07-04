@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
 import { Banknote, Plus, Pencil, Trash2, Save, X } from 'lucide-react'
@@ -76,7 +77,6 @@ export default function AdiantamentosPage() {
   const [compYear, setCompYear] = useState<number | null>(null)
   const [descricao, setDescricao] = useState('')
   const [parcelas, setParcelas] = useState<Parcela[]>([])
-  const [saving, setSaving] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -135,7 +135,9 @@ export default function AdiantamentosPage() {
   const setParcelaComp = (idx: number, m: number, y: number) =>
     setParcelas(prev => prev.map((p, i) => i === idx ? { ...p, year_month: toYM(m, y) } : p))
 
-  const salvar = async () => {
+  // Sub-6 Cadastros · Adiantamentos (CRUD) — Cat B. useAsyncAction por operação (excluir tem confirm custom
+  // + remoção local, não refetch → não força useCrudActions). Payload/modal/sequência intactos.
+  const salvarAction = useAsyncAction(async () => {
     if (!beneficiarioId) { toast.error('Selecione o beneficiário'); return }
     const total = parseFloat(valorTotal.replace(',', '.')) || 0
     if (total <= 0) { toast.error('Informe o valor total'); return }
@@ -151,30 +153,22 @@ export default function AdiantamentosPage() {
       descricao: descricao.trim() || null,
       parcelas: parcelas.map(p => ({ year_month: p.year_month, valor: p.valor })),
     }
-    setSaving(true)
-    try {
-      if (editingId) await api.put(`/adiantamentos/${editingId}`, payload)
-      else await api.post('/adiantamentos', payload)
-      toast.success(editingId ? 'Adiantamento atualizado' : 'Adiantamento criado')
-      setModalOpen(false)
-      load()
-    } catch {
-      toast.error('Erro ao salvar o adiantamento')
-    } finally {
-      setSaving(false)
-    }
-  }
+    if (editingId) await api.put(`/adiantamentos/${editingId}`, payload)
+    else await api.post('/adiantamentos', payload)
+    toast.success(editingId ? 'Adiantamento atualizado' : 'Adiantamento criado')
+    setModalOpen(false)
+    load()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar o adiantamento')) })
+  const salvar = () => salvarAction.run()
+  const saving = salvarAction.pending
 
-  const excluir = async (a: Adiantamento) => {
+  const excluirAction = useAsyncAction(async (a: Adiantamento) => {
     if (!confirm(`Excluir o adiantamento de ${a.beneficiario_nome} (${formatBRL(a.valor_total)})?`)) return
-    try {
-      await api.delete(`/adiantamentos/${a.id}`)
-      toast.success('Adiantamento excluído')
-      setLista(prev => prev.filter(x => x.id !== a.id))
-    } catch {
-      toast.error('Erro ao excluir')
-    }
-  }
+    await api.delete(`/adiantamentos/${a.id}`)
+    toast.success('Adiantamento excluído')
+    setLista(prev => prev.filter(x => x.id !== a.id))
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao excluir')) })
+  const excluir = (a: Adiantamento) => excluirAction.run(a)
 
   return (
     <AppLayout title="Adiantamentos">
