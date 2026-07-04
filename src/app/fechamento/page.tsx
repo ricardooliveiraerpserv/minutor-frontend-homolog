@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { formatBRL } from '@/lib/format'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { useAuth } from '@/hooks/use-auth'
@@ -400,7 +401,6 @@ function ModalValidacao({ yearMonth, onClose, onFechar }: {
 }) {
   const [validacao, setValidacao] = useState<Validacao | null>(null)
   const [loading, setLoading] = useState(true)
-  const [fechando, setFechando] = useState(false)
 
   useEffect(() => {
     api.get<any>(`/fechamento/${yearMonth}/validar`)
@@ -409,19 +409,16 @@ function ModalValidacao({ yearMonth, onClose, onFechar }: {
       .finally(() => setLoading(false))
   }, [yearMonth])
 
-  const handleFechar = async () => {
+  // Fechamento Sub-1 · Competência (fechar) — Cat B, IMPACTO FINANCEIRO ALTO, nunca otimista.
+  // Sequência/validação intactas: pode_fechar → API → toast → onFechar. useAsyncAction + apiMessage.
+  const handleFecharAction = useAsyncAction(async () => {
     if (!validacao?.pode_fechar) return
-    setFechando(true)
-    try {
-      await api.post(`/fechamento/${yearMonth}/fechar`, {})
-      toast.success(`Competência ${fmtYearMonth(yearMonth)} fechada com sucesso!`)
-      onFechar()
-    } catch {
-      toast.error('Erro ao fechar competência')
-    } finally {
-      setFechando(false)
-    }
-  }
+    await api.post(`/fechamento/${yearMonth}/fechar`, {})
+    toast.success(`Competência ${fmtYearMonth(yearMonth)} fechada com sucesso!`)
+    onFechar()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao fechar competência')) })
+  const handleFechar = () => handleFecharAction.run()
+  const fechando = handleFecharAction.pending
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}>
@@ -516,7 +513,6 @@ export default function FechamentoPage() {
   const [loadingConsolidado, setLoadingConsolidado] = useState(false)
 
   const [showValidacao, setShowValidacao] = useState(false)
-  const [reabrindo,     setReabrindo]     = useState(false)
 
   // Carrega status do fechamento ao mudar o mês
   const loadStatus = useCallback(() => {
@@ -574,20 +570,16 @@ export default function FechamentoPage() {
     loadTab(t)
   }
 
-  const handleReabrir = async () => {
+  // Sub-1 · Competência (reabrir) — Cat B, IMPACTO FINANCEIRO ALTO. confirm + ordem dos efeitos (loadStatus→loadTab) intactos.
+  const handleReabrirAction = useAsyncAction(async () => {
     if (!confirm(`Reabrir a competência ${fmtYearMonth(yearMonth)}? Os dados de snapshot serão apagados.`)) return
-    setReabrindo(true)
-    try {
-      await api.post(`/fechamento/${yearMonth}/reabrir`, {})
-      toast.success('Competência reaberta.')
-      loadStatus()
-      loadTab(tab)
-    } catch {
-      toast.error('Erro ao reabrir competência')
-    } finally {
-      setReabrindo(false)
-    }
-  }
+    await api.post(`/fechamento/${yearMonth}/reabrir`, {})
+    toast.success('Competência reaberta.')
+    loadStatus()
+    loadTab(tab)
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao reabrir competência')) })
+  const handleReabrir = () => handleReabrirAction.run()
+  const reabrindo = handleReabrirAction.pending
 
   const isClosed = status?.status === 'closed'
 
