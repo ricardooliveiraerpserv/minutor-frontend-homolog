@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { formatBRL } from '@/lib/format'
 import { previewText } from '@/lib/sanitize'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
@@ -206,8 +207,6 @@ export default function FechamentoParceiroPage() {
 
   // Dialog de composição/preview do e-mail.
   const [composeOpen, setComposeOpen] = useState(false)
-  const [sendingEmail, setSendingEmail] = useState(false)
-  const [limpandoEnvio, setLimpandoEnvio] = useState(false)
   const [emailPreviewHtml, setEmailPreviewHtml] = useState<string | null>(null)
   const [emailMensagem, setEmailMensagem] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -743,12 +742,12 @@ export default function FechamentoParceiroPage() {
     }
   }
 
-  async function sendReportEmail() {
+  // Sub-4 · Enviar ao parceiro — Cat B. useAsyncAction; ordem intacta (email → patchEnvio status → closeCompose).
+  const sendReportEmailAction = useAsyncAction(async () => {
     if (!partnerId || !yearMonth) return
     // Destinatários = cadastrados (split por vírgula) + avulsos, trim + dedupe.
     const cadastrados = cadastradoInput.split(',').map(e => e.trim()).filter(Boolean)
     const emails = Array.from(new Set([...cadastrados, ...avulsoEmails]))
-    setSendingEmail(true)
     try {
       const res = await api.post<{ success: boolean; message: string }>(
         `/fechamento-parceiro/${partnerId}/${yearMonth}/enviar-email`,
@@ -759,10 +758,10 @@ export default function FechamentoParceiroPage() {
       closeCompose()
     } catch (err: unknown) {
       toast.error(`Erro ao enviar o fechamento: ${err instanceof Error ? err.message : 'falha na API'}`)
-    } finally {
-      setSendingEmail(false)
     }
-  }
+  })
+  const sendReportEmail = () => sendReportEmailAction.run()
+  const sendingEmail = sendReportEmailAction.pending
 
   // Atualiza o status de envio do parceiro (otimista, sem refetch) — em `status` e na lista.
   function patchEnvio(id: number | null, envio_em: string | null, envio_por: string | null) {
@@ -778,19 +777,15 @@ export default function FechamentoParceiroPage() {
     setParceiros(prev => prev.map(p => (p.partner_id === id ? { ...p, notas } : p)))
   }
 
-  async function limparEnvio() {
+  // Sub-4 · Limpar envio — Cat B. useAsyncAction; patchEnvio(null) preservado.
+  const limparEnvioAction = useAsyncAction(async () => {
     if (!partnerId || !yearMonth) return
-    setLimpandoEnvio(true)
-    try {
-      await api.post(`/fechamento-parceiro/${partnerId}/${yearMonth}/limpar-envio`, {})
-      patchEnvio(partnerId, null, null)
-      toast.success('Status de envio limpo.')
-    } catch (err: unknown) {
-      toast.error(`Erro ao limpar: ${err instanceof Error ? err.message : 'falha na API'}`)
-    } finally {
-      setLimpandoEnvio(false)
-    }
-  }
+    await api.post(`/fechamento-parceiro/${partnerId}/${yearMonth}/limpar-envio`, {})
+    patchEnvio(partnerId, null, null)
+    toast.success('Status de envio limpo.')
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao limpar')) })
+  const limparEnvio = () => limparEnvioAction.run()
+  const limpandoEnvio = limparEnvioAction.pending
 
   // Salva (upsert) os ajustes do recebimento do parceiro no mês. Otimista: atualiza
   // status + parceiros com o ajuste salvo + recebimento recalculado pela API.
