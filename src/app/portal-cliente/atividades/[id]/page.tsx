@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { toast } from 'sonner'
 import { ArrowLeft, Send, Paperclip, ShieldCheck, ShieldQuestion, Check, X } from 'lucide-react'
 
@@ -59,7 +60,6 @@ export default function ClientActivityDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [sending, setSending] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -80,45 +80,36 @@ export default function ClientActivityDetailPage() {
 
   useEffect(() => { if (id) load() }, [id])
 
-  const [deciding, setDeciding] = useState(false)
   const [decisionNote, setDecisionNote] = useState('')
-  async function decide(action: 'approve' | 'reject') {
+  // Portal Sub-2 · Atividades (decisão) — Cat B, nunca otimista. useAsyncAction + apiMessage; sequência intacta.
+  const decideAction = useAsyncAction(async (action: 'approve' | 'reject') => {
     const note = decisionNote.trim() || null
-    setDeciding(true)
-    try {
-      const updated = await api.post<ClientActivity>(`/client/activities/${id}/${action}`, note != null ? { note } : {})
-      setActivity(updated)
-      setDecisionNote('')
-      toast.success(action === 'approve' ? 'Atividade aprovada' : 'Ajustes solicitados')
-      load()
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Erro ao registrar')
-    } finally {
-      setDeciding(false)
-    }
-  }
+    const updated = await api.post<ClientActivity>(`/client/activities/${id}/${action}`, note != null ? { note } : {})
+    setActivity(updated)
+    setDecisionNote('')
+    toast.success(action === 'approve' ? 'Atividade aprovada' : 'Ajustes solicitados')
+    load()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao registrar')) })
+  const decide = (action: 'approve' | 'reject') => decideAction.run(action)
+  const deciding = decideAction.pending
 
-  async function handleSend() {
+  // Comentário com anexo — Upload sem progresso = Categoria B (FormData simples, 1 request). Sequência intacta.
+  const handleSendAction = useAsyncAction(async () => {
     if (!text.trim() && !file) {
       toast.error('Escreva um comentário ou anexe um arquivo.')
       return
     }
-    setSending(true)
-    try {
-      const form = new FormData()
-      if (text.trim()) form.append('text', text.trim())
-      if (file) form.append('attachment', file)
-      await api.post(`/client/activities/${id}/comments`, form)
-      setText('')
-      setFile(null)
-      toast.success('Comentário enviado')
-      load()
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar')
-    } finally {
-      setSending(false)
-    }
-  }
+    const form = new FormData()
+    if (text.trim()) form.append('text', text.trim())
+    if (file) form.append('attachment', file)
+    await api.post(`/client/activities/${id}/comments`, form)
+    setText('')
+    setFile(null)
+    toast.success('Comentário enviado')
+    load()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao enviar')) })
+  const handleSend = () => handleSendAction.run()
+  const sending = handleSendAction.pending
 
   return (
     <AppLayout>
