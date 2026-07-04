@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { formatBRL } from '@/lib/format'
 import { RefreshCw, FileSpreadsheet, Save, FileText, Users, Plus, UserPlus, Rows3, Trash2, EyeOff, RotateCcw, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
@@ -192,7 +193,6 @@ export default function FechamentoFolhaPage() {
   // Estado de edição keyed por row_key (sócios têm user_id null).
   const [edits, setEdits] = useState<Record<string, EditState>>({})
   const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
   // Estado "salvo": snapshot dos edits no último load/save (detecta alterações pendentes)
   // + info do último Salvar (legenda "✓ Salvo — R$ X · HH:MM").
   const [savedSnapshot, setSavedSnapshot] = useState('')
@@ -226,7 +226,6 @@ export default function FechamentoFolhaPage() {
   // página. Em caso de sucesso, recarrega a grade (load) — o novo cooperado
   // aparece na folha do mês corrente.
   const [novoUserOpen, setNovoUserOpen] = useState(false)
-  const [creatingUser, setCreatingUser] = useState(false)
   const newUserDefaults = {
     name: '',
     full_name: '',
@@ -390,14 +389,14 @@ export default function FechamentoFolhaPage() {
   // editáveis no form): type=consultor, contract_type=cooperado, enabled=true.
   // O backend gera senha + envia o e-mail de boas-vindas (não enviamos senha).
   // Sucesso → toast, fecha o modal, reseta o form e recarrega a folha (load).
-  async function createNewUser() {
+  // Sub-5 Folha · criar usuário (cooperado) — Cat B. useAsyncAction; payload/sequência/load intactos.
+  const createNewUserAction = useAsyncAction(async () => {
     const name = newUser.name.trim()
     const email = newUser.email.trim()
     if (!name || !email) {
       toast.error('Preencha Nome e E-mail.')
       return
     }
-    setCreatingUser(true)
     try {
       const payload: Record<string, unknown> = {
         // Valores fixos: este cadastro é da folha cooperativa.
@@ -422,11 +421,11 @@ export default function FechamentoFolhaPage() {
       setNewUser(newUserDefaults)
       await load()
     } catch (err: unknown) {
-      toast.error(`Erro ao cadastrar usuário: ${err instanceof Error ? err.message : 'falha na API'}`)
-    } finally {
-      setCreatingUser(false)
+      toast.error(apiMessage(err, 'Erro ao cadastrar usuário'))
     }
-  }
+  })
+  const createNewUser = () => createNewUserAction.run()
+  const creatingUser = createNewUserAction.pending
 
   // ─── Incluir → Nova linha editável ──────────────────────────────────────────
   // Cria uma linha manual que se comporta como sócio (is_socio, todas as colunas
@@ -503,8 +502,8 @@ export default function FechamentoFolhaPage() {
         return next
       })
       toast.success('Linha removida')
-    } catch (err: unknown) {
-      toast.error(`Erro ao remover: ${err instanceof Error ? err.message : 'falha na API'}`)
+    } catch (e) {
+      toast.error(apiMessage(e, 'Erro ao remover'))
     } finally {
       setRemovingKey(null)
     }
@@ -523,8 +522,8 @@ export default function FechamentoFolhaPage() {
       await api.post(`/fechamento-folha/${yearMonth}/cancel`, body)
       setRows(prev => prev.map(x => x.row_key === r.row_key ? { ...x, cancelado } : x))
       toast.success(cancelado ? 'Linha cancelada' : 'Linha reativada')
-    } catch (err: unknown) {
-      toast.error(`Erro ao ${cancelado ? 'cancelar' : 'reativar'}: ${err instanceof Error ? err.message : 'falha na API'}`)
+    } catch (e) {
+      toast.error(apiMessage(e, `Erro ao ${cancelado ? 'cancelar' : 'reativar'}`))
     } finally {
       setTogglingKey(null)
     }
@@ -546,9 +545,9 @@ export default function FechamentoFolhaPage() {
 
   // ─── Salvar ───────────────────────────────────────────────────────────────
   // POST de todas as linhas, mapeando os nomes da grade para o contrato da API.
-  async function save() {
+  // Sub-5 Folha · fechamento manual (salvar) — Cat B. useAsyncAction; entries + otimista pós-sucesso intactos.
+  const saveAction = useAsyncAction(async () => {
     if (rows.length === 0) return
-    setSaving(true)
     try {
       // O contrato da API muda conforme o tipo da linha: o backend faz switch em
       // socio_key vs user_id. Linhas normais mandam o subset atual; sócios mandam
@@ -647,11 +646,11 @@ export default function FechamentoFolhaPage() {
         total: totals.liq,
       })
     } catch (err: unknown) {
-      toast.error(`Erro ao salvar: ${err instanceof Error ? err.message : 'falha na API'}`)
-    } finally {
-      setSaving(false)
+      toast.error(apiMessage(err, 'Erro ao salvar'))
     }
-  }
+  })
+  const save = () => saveAction.run()
+  const saving = saveAction.pending
 
   // ─── Gerar planilha (.xls) ──────────────────────────────────────────────────
   // Mesmo mecanismo de download dos excel do fechamento/consultor: fetch direto no

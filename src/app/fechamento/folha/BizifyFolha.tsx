@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { formatBRL } from '@/lib/format'
 import { RefreshCw, Save, Upload, Plus, Trash2, EyeOff, RotateCcw, Users, FileSpreadsheet } from 'lucide-react'
 import { toast } from 'sonner'
@@ -77,8 +78,6 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
   const [rows, setRows] = useState<BizRow[]>([])
   const [edits, setEdits] = useState<Record<string, BizEdit>>({})
   const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [importing, setImporting] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [tab, setTab] = useState<'ativos' | 'canceladas'>('ativos')
   const [togglingKey, setTogglingKey] = useState<string | null>(null)
@@ -163,8 +162,8 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
       await api.delete(`/fechamento-folha/${yearMonth}/manual/${encodeURIComponent(r.socio_key)}?empresa=bizify`)
       setRows(prev => prev.filter(x => x.row_key !== r.row_key))
       toast.success('Linha removida.')
-    } catch (err: unknown) {
-      toast.error(`Erro ao remover: ${err instanceof Error ? err.message : 'falha na API'}`)
+    } catch (e) {
+      toast.error(apiMessage(e, 'Erro ao remover'))
     } finally {
       setRemovingKey(null)
     }
@@ -176,15 +175,15 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
     try {
       await api.post(`/fechamento-folha/${yearMonth}/cancel`, { empresa: 'bizify', socio_key: r.socio_key, cancelado })
       setRows(prev => prev.map(x => x.row_key === r.row_key ? { ...x, cancelado } : x))
-    } catch (err: unknown) {
-      toast.error(`Erro ao ${cancelado ? 'ocultar' : 'reativar'}: ${err instanceof Error ? err.message : 'falha na API'}`)
+    } catch (e) {
+      toast.error(apiMessage(e, `Erro ao ${cancelado ? 'ocultar' : 'reativar'}`))
     } finally {
       setTogglingKey(null)
     }
   }
 
-  async function save() {
-    setSaving(true)
+  // Sub-5 Folha Bizify · salvar — Cat B. useAsyncAction; entries/skip/load intactos.
+  const saveAction = useAsyncAction(async () => {
     try {
       const entries: Array<Record<string, unknown>> = []
       let skipped = 0
@@ -213,11 +212,11 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
       toast.success('Folha Bizify salva.')
       await load()
     } catch (err: unknown) {
-      toast.error(`Erro ao salvar: ${err instanceof Error ? err.message : 'falha na API'}`)
-    } finally {
-      setSaving(false)
+      toast.error(apiMessage(err, 'Erro ao salvar'))
     }
-  }
+  })
+  const save = () => saveAction.run()
+  const saving = saveAction.pending
 
   async function exportXls() {
     if (!yearMonth) return
@@ -247,23 +246,21 @@ export function BizifyFolha({ yearMonth, setYearMonth }: { yearMonth: string; se
     }
   }
 
-  async function onPickFile(ev: React.ChangeEvent<HTMLInputElement>) {
+  // Sub-5 Folha Bizify · importar — Upload sem progresso = Cat B. useAsyncAction; ev tratado no wrapper síncrono.
+  const onPickFileAction = useAsyncAction(async (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await api.post<{ imported: number }>(`/fechamento-folha/${yearMonth}/import-bizify`, fd)
+    toast.success(`${res.imported} lançamento(s) importado(s) (mesclado por matrícula).`)
+    await load()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao importar')) })
+  const onPickFile = (ev: React.ChangeEvent<HTMLInputElement>) => {
     const file = ev.target.files?.[0]
     if (ev.target) ev.target.value = '' // permite re-selecionar o mesmo arquivo
     if (!file) return
-    setImporting(true)
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      const res = await api.post<{ imported: number }>(`/fechamento-folha/${yearMonth}/import-bizify`, fd)
-      toast.success(`${res.imported} lançamento(s) importado(s) (mesclado por matrícula).`)
-      await load()
-    } catch (err: unknown) {
-      toast.error(`Erro ao importar: ${err instanceof Error ? err.message : 'falha na API'}`)
-    } finally {
-      setImporting(false)
-    }
+    onPickFileAction.run(file)
   }
+  const importing = onPickFileAction.pending
 
   return (
     <div className="space-y-6">
