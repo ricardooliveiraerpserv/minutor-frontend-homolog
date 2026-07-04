@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 import { Table, Thead, Th, Tbody, Tr, Td, Button, Badge, EmptyState, SkeletonTable } from '@/components/ds'
 import { AlertTriangle, Check, CalendarClock, X } from 'lucide-react'
@@ -50,8 +50,8 @@ export default function AtrasosIntegracaoPage() {
       toast.success(action === 'change_date' ? 'Atraso aprovado com a nova data' : 'Atraso aprovado — entrou no período')
       setDateModal(null)
       setRows(rs => rs.filter(r => r.id !== id)) // update otimista
-    } catch {
-      toast.error('Erro ao aprovar o atraso')
+    } catch (e) {
+      toast.error(apiMessage(e, 'Erro ao aprovar o atraso'))
     } finally {
       setBusyId(null)
     }
