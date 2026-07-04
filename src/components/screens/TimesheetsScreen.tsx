@@ -5,7 +5,7 @@ import { Timesheet, PaginatedResponse } from '@/types'
 import { useState, useMemo, useCallback, useRef, useEffect, Suspense, Fragment } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
 import { toast } from 'sonner'
 import {
   Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
@@ -996,7 +996,6 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const [reprocessResult, setReprocessResult] = useState<string | null>(null)
   const [reverseRejectionModal, setReverseRejectionModal] = useState<{ open: boolean; tsId?: number }>({ open: false })
   const [reverseRejectionReason, setReverseRejectionReason] = useState('')
-  const [reverseRejecting, setReverseRejecting] = useState(false)
   const [logsModalTsId, setLogsModalTsId] = useState<number | null>(null)
   const [expandedRow, setExpandedRow] = useState<number | null>(null) // accordion de acesso por linha
   // Hover preview do apontamento (tooltip fixo no canto superior direito)
@@ -1237,37 +1236,30 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
     finally { setExporting(false) }
   }
 
-  const handleRelease = async (id: number) => {
-    try {
-      await api.post(`/timesheets/${id}/release`, {})
-      toast.success('Ação interna liberada!')
-      refetch()
-    } catch {
-      toast.error('Erro ao liberar ação interna')
-    }
-  }
+  // Sub-2 Lifecycle (Cat B — nunca otimista; muda status do apontamento). useAsyncAction + apiMessage.
+  // Sequência intacta: API → toast → refetch. Anti-duplo-clique (crítico em status).
+  const handleReleaseAction = useAsyncAction(async (id: number) => {
+    await api.post(`/timesheets/${id}/release`, {})
+    toast.success('Ação interna liberada!')
+    refetch()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao liberar ação interna')) })
+  const handleRelease = (id: number) => handleReleaseAction.run(id)
 
-  const handleReverseRelease = async (id: number) => {
-    try {
-      await api.post(`/timesheets/${id}/reverse-release`, {})
-      toast.success('Liberação estornada!')
-      refetch()
-    } catch {
-      toast.error('Erro ao estornar liberação')
-    }
-  }
+  const handleReverseReleaseAction = useAsyncAction(async (id: number) => {
+    await api.post(`/timesheets/${id}/reverse-release`, {})
+    toast.success('Liberação estornada!')
+    refetch()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao estornar liberação')) })
+  const handleReverseRelease = (id: number) => handleReverseReleaseAction.run(id)
 
-  const handleReverseApproval = async (id: number) => {
+  const handleReverseApprovalAction = useAsyncAction(async (id: number) => {
     // Estorno de aprovação NÃO pede mais motivo (removido a pedido).
     if (!window.confirm('Estornar a aprovação deste apontamento?')) return
-    try {
-      await api.post(`/timesheets/${id}/reverse-approval`, {})
-      toast.success('Aprovação estornada!')
-      refetch()
-    } catch {
-      toast.error('Erro ao estornar aprovação')
-    }
-  }
+    await api.post(`/timesheets/${id}/reverse-approval`, {})
+    toast.success('Aprovação estornada!')
+    refetch()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao estornar aprovação')) })
+  const handleReverseApproval = (id: number) => handleReverseApprovalAction.run(id)
 
   // Estorno de aprovação EM MASSA: estorna todos os selecionados que estão APROVADOS (sem motivo).
   const handleBulkReverseApproval = async () => {
@@ -1284,19 +1276,16 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
     refetch()
   }
 
-  const confirmReverseRejection = async () => {
+  const confirmReverseRejectionAction = useAsyncAction(async () => {
     if (!reverseRejectionModal.tsId || !reverseRejectionReason.trim()) return
-    setReverseRejecting(true)
-    try {
-      await api.post(`/timesheets/${reverseRejectionModal.tsId}/reverse-rejection`, { reason: reverseRejectionReason.trim() })
-      toast.success('Rejeição estornada — apontamento voltou para Pendente')
-      setReverseRejectionModal({ open: false })
-      setReverseRejectionReason('')
-      refetch()
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Erro ao estornar rejeição')
-    } finally { setReverseRejecting(false) }
-  }
+    await api.post(`/timesheets/${reverseRejectionModal.tsId}/reverse-rejection`, { reason: reverseRejectionReason.trim() })
+    toast.success('Rejeição estornada — apontamento voltou para Pendente')
+    setReverseRejectionModal({ open: false })
+    setReverseRejectionReason('')
+    refetch()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao estornar rejeição')) })
+  const confirmReverseRejection = () => confirmReverseRejectionAction.run()
+  const reverseRejecting = confirmReverseRejectionAction.pending
 
   const selectedMinutes = useMemo(
     () => (data?.items ?? []).filter(ts => selectedIds.has(ts.id)).reduce((sum, ts) => sum + ts.effort_minutes, 0),
