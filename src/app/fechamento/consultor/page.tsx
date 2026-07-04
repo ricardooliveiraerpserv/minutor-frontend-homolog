@@ -339,7 +339,11 @@ function buildReport(
     </div>
   `
 
-  const totalHoras = apontamentos.reduce((s, r) => s + r.horas, 0)
+  // Total de horas do cabeçalho vem do backend (round(Σ minutos/60)) — MESMA base do
+  // consultor.total. Somar r.horas (cada linha já arredondada a 2 casas) acumulava erro
+  // de arredondamento e o total exibido não batia com Total Serviços = horas × taxa
+  // (ex.: 116,01 × 80 ≠ 9.281,60, que na verdade é 116,02 × 80).
+  const totalHoras = consultor.horas_trabalhadas
 
   const isServ = mode !== 'despesa'
   const isDesp = mode !== 'servicos'
