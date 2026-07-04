@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { formatBRL } from '@/lib/format'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { SearchSelect } from '@/components/ui/search-select'
@@ -259,12 +260,9 @@ export default function FechamentoClientePage() {
   // relatório/PDF/e-mail. Persistido por (cliente, competência).
   const [descontoValor, setDescontoValor] = useState('')
   const [descontoDesc, setDescontoDesc]   = useState('')
-  const [savingDesconto, setSavingDesconto] = useState(false)
 
   // Dialog de composição/preview do e-mail.
   const [composeOpen, setComposeOpen] = useState(false)
-  const [sendingEmail, setSendingEmail] = useState(false)
-  const [limpandoEnvio, setLimpandoEnvio] = useState(false)
   const [emailPreviewHtml, setEmailPreviewHtml] = useState<string | null>(null)
   const [emailMensagem, setEmailMensagem] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -346,13 +344,16 @@ export default function FechamentoClientePage() {
     setGlobalData(prev => prev ? { ...prev, tipos: prev.tipos.map(t => ({ ...t,
       clientes: t.clientes.map(c => ({ ...c, projetos: c.projetos.map(p => p.projeto_id === projetoId ? { ...p, invoiced: val } : p) })) })) } : prev)
 
+  // DÍVIDA TÉCNICA (legado, preservado): update OTIMISTA num fluxo de faturamento. Contraria a regra
+  // "financeiro nunca otimista" (definida depois). Preservado intencionalmente (opção A) — só infra:
+  // erro padronizado via apiMessage. NÃO converter para Cat B nesta fase (seria mudança de produto/UX).
   const toggleInvoiced = async (projetoId: number, current: boolean) => {
     const next = !current
     setProjetoInvoiced(projetoId, next) // otimista
     try {
       await api.post('/on-demand/invoiced', { project_id: projetoId, year_month: toYM, invoiced: next })
-    } catch {
-      toast.error('Erro ao atualizar faturamento')
+    } catch (e) {
+      toast.error(apiMessage(e, 'Erro ao atualizar faturamento'))
       setProjetoInvoiced(projetoId, current) // reverte
     }
   }
@@ -643,7 +644,8 @@ export default function FechamentoClientePage() {
     }
   }
 
-  async function sendReportEmail() {
+  // Sub-2 · Enviar fechamento ao cliente — Cat B. useAsyncAction; ordem dos efeitos intacta (email → patchEnvio status → closeCompose).
+  const sendReportEmailAction = useAsyncAction(async () => {
     if (!customerId || !toYM) return
     if (anexosExcedido) {
       toast.error(`Anexos excedem o limite de ${(MAX_ANEXOS_BYTES / 1048576).toFixed(0)} MB. Remova ou reduza os arquivos.`)
@@ -675,7 +677,6 @@ export default function FechamentoClientePage() {
       setCadastradoEmails(cadastradoFinal)
       setCadastradoDraft('')
     }
-    setSendingEmail(true)
     try {
       // multipart (FormData) para levar os anexos extras junto do PDF + Excel.
       const fd = new FormData()
@@ -710,10 +711,10 @@ export default function FechamentoClientePage() {
       closeCompose()
     } catch (err: unknown) {
       toast.error(`Erro ao enviar o fechamento: ${err instanceof Error ? err.message : 'falha na API'}`)
-    } finally {
-      setSendingEmail(false)
     }
-  }
+  })
+  const sendReportEmail = () => sendReportEmailAction.run()
+  const sendingEmail = sendReportEmailAction.pending
 
   // Atualiza o status de envio do cliente (otimista, sem refetch) — em `status` e na lista.
   function patchEnvio(id: number | null, envio_em: string | null, envio_por: string | null) {
@@ -722,19 +723,15 @@ export default function FechamentoClientePage() {
     setClientes(prev => prev.map(c => (c.customer_id === id ? { ...c, envio_em, envio_por } : c)))
   }
 
-  async function limparEnvio() {
+  // Sub-2 · Limpar envio — Cat B. useAsyncAction; patchEnvio(null) preservado.
+  const limparEnvioAction = useAsyncAction(async () => {
     if (!customerId || !toYM) return
-    setLimpandoEnvio(true)
-    try {
-      await api.post(`/fechamento-cliente/${customerId}/${toYM}/limpar-envio`, {})
-      patchEnvio(customerId, null, null)
-      toast.success('Status de envio limpo.')
-    } catch (err: unknown) {
-      toast.error(`Erro ao limpar: ${err instanceof Error ? err.message : 'falha na API'}`)
-    } finally {
-      setLimpandoEnvio(false)
-    }
-  }
+    await api.post(`/fechamento-cliente/${customerId}/${toYM}/limpar-envio`, {})
+    patchEnvio(customerId, null, null)
+    toast.success('Status de envio limpo.')
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao limpar')) })
+  const limparEnvio = () => limparEnvioAction.run()
+  const limpandoEnvio = limparEnvioAction.pending
 
   // ── Toggle expansão de cliente na visão global ──
   const toggleClient = (id: number) => setExpandedClients(prev => {
@@ -848,27 +845,23 @@ export default function FechamentoClientePage() {
 
   // Salva o desconto (valor + descritivo) do cliente/competência e recarrega o
   // relatório pra refletir o abatimento. Update otimista no status local.
-  const salvarDesconto = async () => {
+  // Sub-2 · Aplicar desconto — Cat B. useAsyncAction; cálculo do valor + atualização de status + setReportReload intactos.
+  const salvarDescontoAction = useAsyncAction(async () => {
     if (!customerId) return
     const valor = parseFloat(descontoValor.replace(',', '.')) || 0
     if (valor < 0) { toast.error('Desconto não pode ser negativo'); return }
     const descricao = descontoDesc.trim() || null
-    setSavingDesconto(true)
-    try {
-      await api.post(`/fechamento-cliente/${customerId}/${toYM}/desconto`, {
-        desconto: valor,
-        desconto_descricao: descricao,
-      })
-      setStatus(prev => (prev && prev.customer_id === customerId
-        ? { ...prev, desconto: valor, desconto_descricao: descricao } : prev))
-      setReportReload(n => n + 1)
-      toast.success('Desconto salvo')
-    } catch {
-      toast.error('Erro ao salvar o desconto')
-    } finally {
-      setSavingDesconto(false)
-    }
-  }
+    await api.post(`/fechamento-cliente/${customerId}/${toYM}/desconto`, {
+      desconto: valor,
+      desconto_descricao: descricao,
+    })
+    setStatus(prev => (prev && prev.customer_id === customerId
+      ? { ...prev, desconto: valor, desconto_descricao: descricao } : prev))
+    setReportReload(n => n + 1)
+    toast.success('Desconto salvo')
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar o desconto')) })
+  const salvarDesconto = () => salvarDescontoAction.run()
+  const savingDesconto = salvarDescontoAction.pending
 
   // ── Detalhe (tela tradicional): preview do relatório + ações (imprimir/email/excel) ──
   const renderDetail = (mode: 'servicos' | 'despesa') => {
