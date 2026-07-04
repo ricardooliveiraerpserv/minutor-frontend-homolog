@@ -3,7 +3,8 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Plus, Search, X, ChevronRight, Clock, AlertTriangle, CheckCircle, XCircle, Inbox } from 'lucide-react'
@@ -76,21 +77,19 @@ function DetailModal({ req, isAdmin, onClose, onReview }: {
 }) {
   const [reviewStatus, setReviewStatus] = useState(req.status)
   const [notes, setNotes]               = useState(req.notas_revisao ?? '')
-  const [saving, setSaving]             = useState(false)
 
   const urgConf   = URGENCIA_CONFIG[req.nivel_urgencia] ?? { label: req.nivel_urgencia, color: '#94a3b8' }
   const statusConf = STATUS_CONFIG[req.status] ?? { label: req.status, color: '#94a3b8', icon: Clock }
   const StatusIcon = statusConf.icon
 
-  const handleReview = async () => {
-    setSaving(true)
-    try {
-      await onReview(reviewStatus, notes)
-      onClose()
-    } finally {
-      setSaving(false)
-    }
-  }
+  // Portal Sub-1 · Requisições (review admin) — Cat B. useAsyncAction; onClose só no sucesso.
+  // onError adota apiMessage (padrão da fundação: mutação tinha feedback de erro ausente).
+  const reviewAction = useAsyncAction(async () => {
+    await onReview(reviewStatus, notes)
+    onClose()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar a revisão')) })
+  const handleReview = () => reviewAction.run()
+  const saving = reviewAction.pending
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>

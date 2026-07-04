@@ -3,7 +3,8 @@
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { CheckCircle, ChevronLeft, AlertCircle, Send, X, UserCheck, Mail } from 'lucide-react'
@@ -133,7 +134,6 @@ function NovaRequisicaoContent() {
   const isCliente = user?.type === 'cliente'
 
   const [submitted,   setSubmitted]   = useState(false)
-  const [saving,      setSaving]      = useState(false)
   const [customers,   setCustomers]   = useState<Customer[]>([])
   const [customerId,  setCustomerId]  = useState<string>('')
 
@@ -226,24 +226,21 @@ function NovaRequisicaoContent() {
     form.cenario_desejado.trim() &&
     (isCliente || !!customerId)
 
-  const handleSubmit = async () => {
+  // Portal Sub-1 · Requisições (create) — Cat B, nunca otimista. useAsyncAction + apiMessage.
+  // Sequência intacta: API → setSubmitted (tela de sucesso). payload/endpoint preservados.
+  const handleSubmitAction = useAsyncAction(async () => {
     if (!isValid) {
       toast.error('Preencha todos os campos obrigatórios antes de enviar.')
       return
     }
-    setSaving(true)
-    try {
-      const payload: any = { ...form }
-      if (!isCliente && customerId) payload.customer_id = Number(customerId)
-      if (ccEmails.length) payload.cc_emails = ccEmails.map(e => e.email)
-      await api.post('/contract-requests', payload)
-      setSubmitted(true)
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Erro ao enviar requisição')
-    } finally {
-      setSaving(false)
-    }
-  }
+    const payload: any = { ...form }
+    if (!isCliente && customerId) payload.customer_id = Number(customerId)
+    if (ccEmails.length) payload.cc_emails = ccEmails.map(e => e.email)
+    await api.post('/contract-requests', payload)
+    setSubmitted(true)
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao enviar requisição')) })
+  const handleSubmit = () => handleSubmitAction.run()
+  const saving = handleSubmitAction.pending
 
   const resetForm = () => {
     setForm({ area_requisitante: '', project_name: '', product_owner: '', modulo_tecnologia: '', tipo_necessidade: '', tipo_necessidade_outro: '', nivel_urgencia: '', descricao: '', cenario_atual: '', cenario_desejado: '' })
