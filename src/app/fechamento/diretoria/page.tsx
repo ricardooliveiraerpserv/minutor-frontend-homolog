@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api } from '@/lib/api'
+import { api, apiMessage } from '@/lib/api'
+import { useAsyncAction } from '@/hooks/use-async-action'
 import { formatBRL } from '@/lib/format'
 import { toast } from 'sonner'
 import { Users, Plus, Trash2, Save, X, Lock, Check, RotateCcw, Settings, Search, Download, Mail, Send, Calculator } from 'lucide-react'
@@ -115,7 +116,6 @@ export default function FechamentoDiretoriaPage() {
   const setAdtoLineCoop = (i: number, coop: Coop) => setAdiantamentos(prev => prev.map((a, idx) => idx === i ? { ...a, coop } : a))
   const [folha, setFolha] = useState<FolhaResumo | null>(null)
   const [loading, setLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
   // Envio por e-mail
   const [envioEm, setEnvioEm] = useState<string | null>(null)
   const [envioPor, setEnvioPor] = useState<string | null>(null)
@@ -123,14 +123,12 @@ export default function FechamentoDiretoriaPage() {
   const [emailOpen, setEmailOpen] = useState(false)
   const [emailTo, setEmailTo] = useState('')
   const [emailMsg, setEmailMsg] = useState('')
-  const [sendingEmail, setSendingEmail] = useState(false)
   const [emailPreviewHtml, setEmailPreviewHtml] = useState<string | null>(null)
   const [reportPreview, setReportPreview] = useState<string | null>(null)
   // Gerenciar diretores
   const [gerirOpen, setGerirOpen] = useState(false)
   const [usuarios, setUsuarios] = useState<{ id: number; nome: string; is_diretor: boolean }[]>([])
   const [buscaUser, setBuscaUser] = useState('')
-  const [savingDir, setSavingDir] = useState(false)
 
   const yearMonth = `${year}-${String(month).padStart(2, '0')}`
   const prevDate = new Date(year, month - 2, 1)
@@ -287,7 +285,7 @@ export default function FechamentoDiretoriaPage() {
       if (p.cooperativa) setCooperativa(p.cooperativa)
       setTaxaInss(p.taxa_inss != null ? String(p.taxa_inss) : '')
       toast.success('Importado do mês anterior')
-    } catch { toast.error('Erro ao importar') }
+    } catch (e) { toast.error(apiMessage(e, 'Erro ao importar')) }
   }
 
   const payload = () => ({
@@ -301,30 +299,29 @@ export default function FechamentoDiretoriaPage() {
     lancamentos: lancs.map(l => ({ descricao: l.descricao.trim() || null, valor: numOrNull(l.valor), coop: l.coop })),
   })
 
-  const salvar = async () => {
+  // Sub-6B Diretoria (workflow financeiro) — Cat B, nunca otimista. useAsyncAction + apiMessage.
+  // Ordem dos efeitos intacta (API → setStatus → toast → loadDiretores → loadReportPreview).
+  const salvarAction = useAsyncAction(async () => {
     if (!userId) return
-    setSaving(true)
-    try {
-      const r = await api.post<{ status: Status }>(`/fechamento-diretoria/${userId}/${yearMonth}`, payload())
-      setStatus(r.status ?? 'aberto'); toast.success('Fechamento salvo'); loadDiretores(); loadReportPreview()
-    } catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
-  }
-  const finalizar = async () => {
+    const r = await api.post<{ status: Status }>(`/fechamento-diretoria/${userId}/${yearMonth}`, payload())
+    setStatus(r.status ?? 'aberto'); toast.success('Fechamento salvo'); loadDiretores(); loadReportPreview()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar')) })
+  const salvar = () => salvarAction.run()
+  // finalizar: 2 POSTs em sequência (salva → finaliza) — ordem preservada.
+  const finalizarAction = useAsyncAction(async () => {
     if (!userId) return
-    setSaving(true)
-    try {
-      await api.post(`/fechamento-diretoria/${userId}/${yearMonth}`, payload())
-      const r = await api.post<{ status: Status }>(`/fechamento-diretoria/${userId}/${yearMonth}/finalizar`, {})
-      setStatus(r.status ?? 'finalizado'); toast.success(`Fechamento de ${diretorNome} finalizado`); loadDiretores(); loadReportPreview()
-    } catch { toast.error('Erro ao finalizar') } finally { setSaving(false) }
-  }
-  const reabrir = async () => {
+    await api.post(`/fechamento-diretoria/${userId}/${yearMonth}`, payload())
+    const r = await api.post<{ status: Status }>(`/fechamento-diretoria/${userId}/${yearMonth}/finalizar`, {})
+    setStatus(r.status ?? 'finalizado'); toast.success(`Fechamento de ${diretorNome} finalizado`); loadDiretores(); loadReportPreview()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao finalizar')) })
+  const finalizar = () => finalizarAction.run()
+  const saving = salvarAction.pending || finalizarAction.pending
+  const reabrirAction = useAsyncAction(async () => {
     if (!userId) return
-    try {
-      const r = await api.post<{ status: Status }>(`/fechamento-diretoria/${userId}/${yearMonth}/reabrir`, {})
-      setStatus(r.status ?? 'aberto'); toast.success('Reaberto'); loadDiretores()
-    } catch { toast.error('Erro ao reabrir') }
-  }
+    const r = await api.post<{ status: Status }>(`/fechamento-diretoria/${userId}/${yearMonth}/reabrir`, {})
+    setStatus(r.status ?? 'aberto'); toast.success('Reaberto'); loadDiretores()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao reabrir')) })
+  const reabrir = () => reabrirAction.run()
   const openEmail = async () => {
     if (!userId) return
     // Salva (silencioso) antes de abrir — o corpo e o PDF anexo são montados do banco.
@@ -343,17 +340,16 @@ export default function FechamentoDiretoriaPage() {
     }, 300)
     return () => clearTimeout(t)
   }, [emailOpen, emailMsg, userId, yearMonth])
-  const enviarEmail = async () => {
+  const enviarEmailAction = useAsyncAction(async () => {
     if (!userId) return
     const emails = emailTo.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean)
     if (!emails.length) { toast.error('Informe ao menos um e-mail'); return }
-    setSendingEmail(true)
-    try {
-      const r = await api.post<{ envio_em: string | null; envio_por: string | null }>(`/fechamento-diretoria/${userId}/${yearMonth}/enviar-email`, { emails, mensagem: emailMsg.trim() || null })
-      setEnvioEm(r.envio_em ?? null); setEnvioPor(r.envio_por ?? null)
-      toast.success('Fechamento enviado por e-mail'); setEmailOpen(false)
-    } catch { toast.error('Erro ao enviar e-mail') } finally { setSendingEmail(false) }
-  }
+    const r = await api.post<{ envio_em: string | null; envio_por: string | null }>(`/fechamento-diretoria/${userId}/${yearMonth}/enviar-email`, { emails, mensagem: emailMsg.trim() || null })
+    setEnvioEm(r.envio_em ?? null); setEnvioPor(r.envio_por ?? null)
+    toast.success('Fechamento enviado por e-mail'); setEmailOpen(false)
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao enviar e-mail')) })
+  const enviarEmail = () => enviarEmailAction.run()
+  const sendingEmail = enviarEmailAction.pending
 
   const lancarFolha = () => {
     if (!folha?.liquido) return
@@ -370,13 +366,12 @@ export default function FechamentoDiretoriaPage() {
     setGerirOpen(true)
   }
   const toggleUser = (id: number) => setUsuarios(prev => prev.map(u => u.id === id ? { ...u, is_diretor: !u.is_diretor } : u))
-  const salvarDiretores = async () => {
-    setSavingDir(true)
-    try {
-      await api.post('/fechamento-diretoria/diretores', { user_ids: usuarios.filter(u => u.is_diretor).map(u => u.id) })
-      toast.success('Diretores atualizados'); setGerirOpen(false); loadDiretores()
-    } catch { toast.error('Erro ao salvar diretores') } finally { setSavingDir(false) }
-  }
+  const salvarDiretoresAction = useAsyncAction(async () => {
+    await api.post('/fechamento-diretoria/diretores', { user_ids: usuarios.filter(u => u.is_diretor).map(u => u.id) })
+    toast.success('Diretores atualizados'); setGerirOpen(false); loadDiretores()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar diretores')) })
+  const salvarDiretores = () => salvarDiretoresAction.run()
+  const savingDir = salvarDiretoresAction.pending
 
   const lancados = diretores.filter(d => d.status !== 'sem_registro')
   const inputStyle = 'ds-input w-full text-sm'
