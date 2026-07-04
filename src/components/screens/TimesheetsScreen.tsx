@@ -344,30 +344,26 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
   const isBulk = ids.length > 1
   const [clientPct,     setClientPct]     = useState(initialClientPct != null ? String(initialClientPct) : '')
   const [consultantPct, setConsultantPct] = useState(initialConsultantPct != null ? String(initialConsultantPct) : '')
-  const [saving, setSaving] = useState(false)
-
-  const save = async () => {
-    setSaving(true)
-    try {
-      if (isBulk) {
-        const body: Record<string, any> = { ids }
-        if (clientPct !== '')     body.client_extra_pct     = clientPct ? parseFloat(clientPct) : null
-        if (consultantPct !== '') body.consultant_extra_pct = consultantPct ? parseFloat(consultantPct) : null
-        await api.put('/timesheets/bulk-extra-pct', body)
-        toast.success(`% extras aplicados em ${ids.length} apontamentos`)
-      } else {
-        await api.put(`/timesheets/${ids[0]}`, {
-          client_extra_pct:     clientPct !== '' ? (clientPct ? parseFloat(clientPct) : null) : null,
-          consultant_extra_pct: consultantPct !== '' ? (consultantPct ? parseFloat(consultantPct) : null) : null,
-        })
-        toast.success('% extras atualizados')
-      }
-      onSaved()
-      onClose()
-    } catch {
-      toast.error('Erro ao salvar % extras')
-    } finally { setSaving(false) }
-  }
+  // Sub-3 Lote · Administrativo (extra %) — Cat B, nunca otimista. useAsyncAction; payload/msgs/sequência intactos.
+  const saveAction = useAsyncAction(async () => {
+    if (isBulk) {
+      const body: Record<string, any> = { ids }
+      if (clientPct !== '')     body.client_extra_pct     = clientPct ? parseFloat(clientPct) : null
+      if (consultantPct !== '') body.consultant_extra_pct = consultantPct ? parseFloat(consultantPct) : null
+      await api.put('/timesheets/bulk-extra-pct', body)
+      toast.success(`% extras aplicados em ${ids.length} apontamentos`)
+    } else {
+      await api.put(`/timesheets/${ids[0]}`, {
+        client_extra_pct:     clientPct !== '' ? (clientPct ? parseFloat(clientPct) : null) : null,
+        consultant_extra_pct: consultantPct !== '' ? (consultantPct ? parseFloat(consultantPct) : null) : null,
+      })
+      toast.success('% extras atualizados')
+    }
+    onSaved()
+    onClose()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao salvar % extras')) })
+  const save = () => saveAction.run()
+  const saving = saveAction.pending
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -454,7 +450,6 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUse
   const [projectId, setProjectId]   = useState('')
   const [projects, setProjects]     = useState<SelectOption[]>([])
   const [loadingProjects, setLoadingProjects] = useState(false)
-  const [saving, setSaving] = useState(false)
 
   // Projetos do cliente escolhido (mesmo endpoint minimal usado nos filtros).
   useEffect(() => {
@@ -471,23 +466,21 @@ function BulkProjectCustomerModal({ ids, customers, approvedCount, consultantUse
       .finally(() => setLoadingProjects(false))
   }, [customerId, consultantUserId])
 
-  const save = async () => {
+  // Sub-3 Lote · Estrutural (troca cliente/projeto, INCLUI aprovados) — Cat B. useAsyncAction; semântica intacta.
+  const saveAction = useAsyncAction(async () => {
     if (!customerId) { toast.error('Selecione o cliente'); return }
     if (!projectId)  { toast.error('Selecione o projeto'); return }
-    setSaving(true)
-    try {
-      await api.put('/timesheets/bulk-update-project-customer', {
-        ids,
-        customer_id: Number(customerId),
-        project_id:  Number(projectId),
-      })
-      toast.success(`Cliente/projeto atualizado em ${ids.length} apontamento${ids.length > 1 ? 's' : ''}`)
-      onSaved()
-      onClose()
-    } catch {
-      toast.error('Erro ao atualizar cliente/projeto')
-    } finally { setSaving(false) }
-  }
+    await api.put('/timesheets/bulk-update-project-customer', {
+      ids,
+      customer_id: Number(customerId),
+      project_id:  Number(projectId),
+    })
+    toast.success(`Cliente/projeto atualizado em ${ids.length} apontamento${ids.length > 1 ? 's' : ''}`)
+    onSaved()
+    onClose()
+  }, { onError: e => toast.error(apiMessage(e, 'Erro ao atualizar cliente/projeto')) })
+  const save = () => saveAction.run()
+  const saving = saveAction.pending
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -991,7 +984,6 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [extraPctModalData, setExtraPctModalData] = useState<{ ids: number[]; ts?: Timesheet } | null>(null)
   const [bulkPcOpen, setBulkPcOpen] = useState(false)
-  const [bulkReversing, setBulkReversing] = useState(false)
   const [reprocessing, setReprocessing] = useState(false)
   const [reprocessResult, setReprocessResult] = useState<string | null>(null)
   const [reverseRejectionModal, setReverseRejectionModal] = useState<{ open: boolean; tsId?: number }>({ open: false })
@@ -1262,19 +1254,22 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const handleReverseApproval = (id: number) => handleReverseApprovalAction.run(id)
 
   // Estorno de aprovação EM MASSA: estorna todos os selecionados que estão APROVADOS (sem motivo).
-  const handleBulkReverseApproval = async () => {
+  // Sub-3 Lote · Status (reverse-approval em massa) — Cat B, NUNCA otimista. useAsyncAction (pending → bulkReversing).
+  // Semântica intacta: mesmo critério de inclusão (approved), Promise.allSettled, contagem ok/erro,
+  // limpeza de selectedIds e refetch preservados. Zero mudança de regra de status.
+  const bulkReverseApprovalAction = useAsyncAction(async () => {
     const ids = (data?.items ?? []).filter(ts => selectedIds.has(ts.id) && ts.status === 'approved').map(ts => ts.id)
     if (ids.length === 0) { toast.error('Nenhum apontamento aprovado selecionado.'); return }
     if (!window.confirm(`Estornar a aprovação de ${ids.length} apontamento${ids.length > 1 ? 's' : ''}?`)) return
-    setBulkReversing(true)
     const results = await Promise.allSettled(ids.map(id => api.post(`/timesheets/${id}/reverse-approval`, {})))
-    setBulkReversing(false)
     const ok = results.filter(r => r.status === 'fulfilled').length
     if (ok) toast.success(`${ok} aprovação${ok > 1 ? 'ões' : ''} estornada${ok > 1 ? 's' : ''}!`)
     if (ok < ids.length) toast.error(`${ids.length - ok} não puderam ser estornadas.`)
     setSelectedIds(new Set())
     refetch()
-  }
+  })
+  const handleBulkReverseApproval = () => bulkReverseApprovalAction.run()
+  const bulkReversing = bulkReverseApprovalAction.pending
 
   const confirmReverseRejectionAction = useAsyncAction(async () => {
     if (!reverseRejectionModal.tsId || !reverseRejectionReason.trim()) return
