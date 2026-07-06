@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { toast } from 'sonner'
 import type { Timesheet, Expense } from '@/types'
+import type { PortalDate } from '@/lib/portal-date'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -566,9 +567,10 @@ export interface ApprovalsScreenProps {
   embedded?: boolean
   /** No escopo investimento, transforma o filtro de Projeto em filtro de Lead. */
   leadOptions?: { id: number; name: string }[]
+  extDate?: PortalDate
 }
 
-export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScreenProps = {}) {
+export function ApprovalsScreen({ scope, embedded, leadOptions, extDate }: ApprovalsScreenProps = {}) {
   const { user } = useAuth()
   const isCoordenador = user?.type === 'coordenador'
   // Chip "Meus projetos / Todos" pra coordenador (idem Apontamentos / Despesas).
@@ -607,6 +609,23 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
   const setProjectId    = (v: string)                    => setFilter('projectId', v)
   const setCustomerId   = (v: string)                    => setFilter('customerId', v)
   const setCategoriaServico = (v: '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento') => setFilter('categoriaServico', v)
+
+  // Portal (embedded): usa o filtro de data DE CIMA do portal e esconde o interno (um filtro só).
+  useEffect(() => {
+    if (!extDate) return
+    setFilterMode(extDate.mode)
+    if (extDate.mode === 'month') {
+      if (extDate.month && extDate.year) {
+        const mm = String(extDate.month).padStart(2, '0')
+        const last = new Date(extDate.year, extDate.month, 0).getDate()
+        setRefMonth(extDate.month); setRefYear(extDate.year)
+        setDateFrom(`${extDate.year}-${mm}-01`); setDateTo(`${extDate.year}-${mm}-${String(last).padStart(2, '0')}`)
+      } else { setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('') }
+    } else {
+      setRefMonth(null); setRefYear(null); setDateFrom(extDate.from ?? ''); setDateTo(extDate.to ?? '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extDate?.mode, extDate?.month, extDate?.year, extDate?.from, extDate?.to])
 
   const tsStatus  = 'pending'
   const expStatus = 'pending'
@@ -978,6 +997,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
           <div className="border-t border-[var(--border)] px-4 py-3 space-y-3">
             {/* Linha 1: período + chips de categoria */}
             <div className="flex items-end gap-2 flex-wrap">
+              {!extDate && (<>
               <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs self-end mb-0.5">
                 {(['month', 'period'] as const).map((mode) => (
                   <button key={mode} onClick={() => setFilterMode(mode)}
@@ -1008,6 +1028,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                   onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null) }}
                 />
               )}
+              </>)}
               {scope !== 'investimento' && ([
                 { id: 'sustentacao',  label: 'Sustentação', color: 'var(--warning-border)',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
                 { id: 'projeto',      label: 'Projeto',     color: 'var(--primary)',            bg: 'var(--primary-soft)',   border: 'var(--primary)' },

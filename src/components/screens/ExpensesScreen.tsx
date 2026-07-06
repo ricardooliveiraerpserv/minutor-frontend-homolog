@@ -26,6 +26,7 @@ import { MultiSelect } from '@/components/ui/multi-select'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { useTableSort } from '@/hooks/use-table-sort'
+import type { PortalDate } from '@/lib/portal-date'
 import * as XLSX from 'xlsx'
 
 // FASE 11.2.FE — Helper centralizado em src/lib/attachments.ts.
@@ -414,9 +415,10 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
 export interface ExpensesScreenProps {
   scope?: 'sustentacao'
   embedded?: boolean
+  extDate?: PortalDate
 }
 
-export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
+export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps = {}) {
   const { user } = useAuth()
   const isCoordenador    = user?.type === 'coordenador'
   const isAdmin          = user?.type === 'admin'
@@ -464,6 +466,23 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   const setExecutiveIds   = (v: string[])                   => setFilter('executiveIds', v)
   const setContractTypeId = (v: string)                     => setFilter('contractTypeId', v)
   const setCategoriaServico = (v: '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento') => setFilter('categoriaServico', v)
+
+  // Portal (embedded): usa o filtro de data DE CIMA do portal e esconde o interno (um filtro só).
+  useEffect(() => {
+    if (!extDate) return
+    setFilterMode(extDate.mode)
+    if (extDate.mode === 'month') {
+      if (extDate.month && extDate.year) {
+        const mm = String(extDate.month).padStart(2, '0')
+        const last = new Date(extDate.year, extDate.month, 0).getDate()
+        setRefMonth(extDate.month); setRefYear(extDate.year)
+        setDateFrom(`${extDate.year}-${mm}-01`); setDateTo(`${extDate.year}-${mm}-${String(last).padStart(2, '0')}`)
+      } else { setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('') }
+    } else {
+      setRefMonth(null); setRefYear(null); setDateFrom(extDate.from ?? ''); setDateTo(extDate.to ?? '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extDate?.mode, extDate?.month, extDate?.year, extDate?.from, extDate?.to])
 
   const [data, setData] = useState<PaginatedResponse<Expense> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -852,6 +871,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
+            {!extDate && (<>
             <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
               {(['month', 'period'] as const).map((mode) => (
                 <button key={mode} onClick={() => setFilterMode(mode)}
@@ -882,6 +902,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null); setPage(1) }}
               />
             )}
+            </>)}
             {!isCliente && ([
               { id: 'sustentacao',  label: 'Sustentação', color: 'var(--warning-border)',            bg: 'var(--warning-bg)',  border: 'var(--warning-border)' },
               { id: 'projeto',      label: 'Projeto',     color: 'var(--primary)',            bg: 'var(--primary-soft)',   border: 'var(--primary)' },

@@ -31,6 +31,7 @@ import {
   EmptyState, SkeletonTable,
 } from '@/components/ds'
 import { ReasonTooltip } from '@/components/ui/reason-tooltip'
+import type { PortalDate } from '@/lib/portal-date'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -790,7 +791,7 @@ function toHHMM(mins: number): string {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: { scope?: 'sustentacao' | 'investimento'; embedded?: boolean; triagemPadrao?: boolean; leadOptions?: { id: number; name: string }[] } = {}) {
+function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, extDate }: { scope?: 'sustentacao' | 'investimento'; embedded?: boolean; triagemPadrao?: boolean; leadOptions?: { id: number; name: string }[]; extDate?: PortalDate } = {}) {
   // Filtro de dimensão pra modo Triagem: '' = todos (OR), ou 'user'|'customer'|'project'
   const [triagemField, setTriagemField] = useState<string>('')
   const { user } = useAuth()
@@ -866,6 +867,24 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const setTicket         = (v: string)              => setFilter('ticket', v)
   const setRequester      = (v: string)              => setFilter('requester', v)
   const setTicketService  = (v: string)              => setFilter('ticketService', v)
+
+  // Portal (embedded): usa o filtro de data DE CIMA do portal e esconde o interno (um filtro só).
+  useEffect(() => {
+    if (!extDate) return
+    setFilterMode(extDate.mode)
+    if (extDate.mode === 'month') {
+      if (extDate.month && extDate.year) {
+        const mm = String(extDate.month).padStart(2, '0')
+        const last = new Date(extDate.year, extDate.month, 0).getDate()
+        setRefMonth(extDate.month); setRefYear(extDate.year)
+        setStartDate(`${extDate.year}-${mm}-01`); setEndDate(`${extDate.year}-${mm}-${String(last).padStart(2, '0')}`)
+      } else { setRefMonth(null); setRefYear(null); setStartDate(''); setEndDate('') }
+    } else {
+      setRefMonth(null); setRefYear(null); setStartDate(extDate.from ?? ''); setEndDate(extDate.to ?? '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extDate?.mode, extDate?.month, extDate?.year, extDate?.from, extDate?.to])
+
   const [exporting, setExporting]     = useState(false)
   const [customers, setCustomers]       = useState<SelectOption[]>([])
   const [projectsList, setProjectsList] = useState<SelectOption[]>([])
@@ -1349,6 +1368,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           {/* Linha 2: datas + categorias + limpar — escondida em modo Triagem */}
           {!triagemPadrao && (
           <div className="flex items-center gap-2 flex-wrap">
+            {!extDate && (<>
             <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
               {(['month', 'period'] as const).map((mode) => (
                 <button key={mode} onClick={() => setFilterMode(mode)}
@@ -1380,6 +1400,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 onChange={(f, t) => { setStartDate(f); setEndDate(t); setRefMonth(null); setRefYear(null); resetPage() }}
               />
             )}
+            </>)}
             {!isCliente && scope !== 'investimento' && ([
               { id: 'sustentacao',  label: 'Sustentação', color: 'var(--warning-border)',            bg: 'var(--warning-bg)',  border: 'var(--warning-border)' },
               { id: 'projeto',      label: 'Projeto',     color: 'var(--primary)',            bg: 'var(--primary-soft)',   border: 'var(--primary)' },
@@ -2050,12 +2071,13 @@ export interface TimesheetsScreenProps {
   triagemPadrao?: boolean
   /** No escopo investimento, transforma o filtro de Projeto em filtro de Lead. */
   leadOptions?: { id: number; name: string }[]
+  extDate?: PortalDate
 }
 
 export function TimesheetsScreen(props: TimesheetsScreenProps = {}) {
   return (
     <Suspense>
-      <TimesheetsPageContent scope={props.scope} embedded={props.embedded} triagemPadrao={props.triagemPadrao} leadOptions={props.leadOptions} />
+      <TimesheetsPageContent scope={props.scope} embedded={props.embedded} triagemPadrao={props.triagemPadrao} leadOptions={props.leadOptions} extDate={props.extDate} />
     </Suspense>
   )
 }
