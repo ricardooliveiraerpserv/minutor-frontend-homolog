@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, LogOut, User, MessageCircle, X, Menu, Check, CheckCheck, ArrowRight, ExternalLink } from 'lucide-react'
+import { Bell, LogOut, User, MessageCircle, X, Menu, Check, CheckCheck, ExternalLink } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { ProjectViewModal } from '@/components/projects/project-view-modal'
 import {
@@ -345,10 +345,9 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                   </thead>
                   <tbody>
                     {shown.map(n => {
-                      const href = hrefForNotif(n)
                       const codigo = [n.project_code, n.customer_name].filter(Boolean).join(' · ')
                       return (
-                        <tr key={n.id} className="border-t hover:bg-[var(--surface-hover)]" style={{ borderColor: 'var(--border)' }}>
+                        <tr key={n.id} onClick={() => openMessage(n)} className="border-t hover:bg-[var(--surface-hover)] cursor-pointer" style={{ borderColor: 'var(--border)' }}>
                           <td className="px-3 py-2 align-top">
                             <div className="flex items-start gap-1.5 min-w-0">
                               <span className="mt-1 shrink-0 w-2 h-2 rounded-full" style={{ background: n.is_unread ? 'var(--primary)' : 'transparent' }} title={n.is_unread ? 'Não lida' : 'Lida'} />
@@ -362,13 +361,8 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                           <td className="px-3 py-2 align-top">
                             <div className="flex items-center justify-end gap-1">
                               {n.is_unread && (
-                                <button onClick={() => markNotifRead(n)} title="Marcar como lida" className="p-1 rounded hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}>
+                                <button onClick={(e) => { e.stopPropagation(); markNotifRead(n) }} title="Marcar como lida" className="p-1 rounded hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}>
                                   <Check size={14} />
-                                </button>
-                              )}
-                              {href && (
-                                <button onClick={() => openMessage(n)} title="Abrir mensagem" className="p-1 rounded hover:bg-[var(--surface-hover)]" style={{ color: 'var(--primary)' }}>
-                                  <ArrowRight size={14} />
                                 </button>
                               )}
                             </div>
