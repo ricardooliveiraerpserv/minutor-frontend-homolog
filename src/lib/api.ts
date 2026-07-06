@@ -29,13 +29,19 @@ async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  // Auth: o cookie httpOnly minutor_token é enviado pelo browser; o middleware
-  // Next.js (src/middleware.ts) injeta o header Authorization server-side.
+  // Auth POR ABA: se houver token no sessionStorage (isolado por aba), envia como Authorization —
+  // o middleware respeita e NÃO sobrescreve com o cookie. Sem token no sessionStorage, cai no
+  // fallback do cookie httpOnly (middleware injeta). Assim cada aba pode ter um login diferente.
+  const sessionToken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
   const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData
   const headers: HeadersInit = {
     // FormData: browser monta Content-Type com boundary correto; não setar manualmente.
     ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     Accept: 'application/json',
+    ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+    // Tela de ORIGEM (pathname+query) → o backend usa p/ o guard de ações por-tela do Configurador
+    // (AccessControl::allowsRequest). Resolve telas servidas pelo mesmo controller (ex.: contratos kanban/pipeline).
+    ...(typeof window !== 'undefined' ? { 'X-Screen-Path': window.location.pathname + window.location.search } : {}),
     ...options.headers,
   }
 
@@ -60,7 +66,8 @@ async function request<T>(
     const alreadyOnLoginPage = inBrowser && window.location.pathname.startsWith('/login')
 
     if (!isLoginEndpoint && inBrowser && !alreadyOnLoginPage) {
-      // Limpa cookie via rota interna e manda pra tela de login
+      // Limpa o token DESTA aba (sessionStorage) + o cookie via rota interna, e vai pro login.
+      try { window.sessionStorage.removeItem('minutor_token') } catch { /* noop */ }
       try {
         await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
       } catch { /* segue mesmo se falhar */ }
