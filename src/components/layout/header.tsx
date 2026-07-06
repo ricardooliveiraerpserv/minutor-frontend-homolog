@@ -2,6 +2,7 @@
 
 import { Bell, LogOut, User, MessageCircle, X, Menu, Check, CheckCheck, ArrowRight, ExternalLink } from 'lucide-react'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
+import { ProjectViewModal } from '@/components/projects/project-view-modal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,6 +50,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
   const [allLoading, setAllLoading] = useState(false)
   const [allTab, setAllTab] = useState<'all' | 'unread'>('all')  // aba do modal: Todas / Não lidas
   const [msgProjectId, setMsgProjectId] = useState<number | null>(null)  // chat aberto em overlay (sem sair da tela)
+  const [cardProjectId, setCardProjectId] = useState<number | null>(null)  // card do projeto em overlay (acima do chat)
 
   const notifEndpoint = user?.type === 'cliente' ? '/contract-messages/notifications' : '/messages/notifications'
 
@@ -394,9 +396,9 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                 <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Mensagens</span>
               </div>
               <div className="flex items-center gap-3">
-                <a href={`/contratos/pipeline?project=${msgProjectId}`} target="_blank" rel="noreferrer" className="text-xs font-semibold flex items-center gap-1 hover:underline" style={{ color: 'var(--primary)' }}>
+                <button onClick={() => setCardProjectId(msgProjectId)} className="text-xs font-semibold flex items-center gap-1 hover:underline" style={{ color: 'var(--primary)' }}>
                   <ExternalLink size={13} /> Ver card
-                </a>
+                </button>
                 <button onClick={() => setMsgProjectId(null)} className="p-1 rounded hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
               </div>
             </div>
@@ -404,6 +406,14 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
               <ProjectMessages projectId={msgProjectId} userRole={user?.type ?? undefined} />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Card do projeto em overlay — z-100 (acima do chat z-90). Ao fechar volta pro chat.
+          O ProjectViewModal é z-60; o container z-100 cria stacking context p/ ficar por cima. */}
+      {cardProjectId != null && (
+        <div className="fixed inset-0 z-[100]">
+          <ProjectViewModal projectId={cardProjectId} onClose={() => setCardProjectId(null)} userRole={user?.type ?? undefined} initialTab="overview" />
         </div>
       )}
     </header>
