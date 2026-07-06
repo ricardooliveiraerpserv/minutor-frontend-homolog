@@ -57,11 +57,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new ApiError(res.status, data.message ?? 'Erro ao autenticar', data)
     }
     const user: User = data.user
+    // Sessão POR ABA: guarda o token no sessionStorage (isolado por aba). Assim logar nesta aba
+    // NÃO afeta o login das outras abas — cada uma usa seu próprio token via api.ts.
+    if (data.token && typeof window !== 'undefined') {
+      try { window.sessionStorage.setItem('minutor_token', data.token) } catch { /* noop */ }
+    }
     setUser(user)
     return { user, requiresPasswordChange: data.requires_password_change === true }
   }
 
   const logout = async () => {
+    // Limpa o token DESTA aba (sessionStorage) — não mexe nas outras abas. E limpa o cookie
+    // compartilhado (fallback) via rota interna.
+    try { window.sessionStorage.removeItem('minutor_token') } catch { /* noop */ }
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
     } catch (e) {

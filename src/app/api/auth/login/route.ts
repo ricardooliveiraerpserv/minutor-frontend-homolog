@@ -29,9 +29,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Resposta inválida do servidor de autenticação' }, { status: 500 })
   }
 
-  // Remove o token do payload devolvido ao client — fica só no cookie httpOnly
+  // Sessão POR ABA: devolve o token pro client guardar no sessionStorage (isolado por aba),
+  // permitindo logins independentes em abas diferentes. O cookie httpOnly continua setado como
+  // fallback (aba nova sem sessionStorage segue logada). Trade-off aceito: token legível por JS.
   const { token: _t, access_token: _at, ...safeData } = data
-  const res = NextResponse.json(safeData, { status: 200 })
+  const res = NextResponse.json({ ...safeData, token }, { status: 200 })
   res.cookies.set({
     name: TOKEN_COOKIE,
     value: token,
