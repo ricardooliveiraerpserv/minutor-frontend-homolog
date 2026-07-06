@@ -59,8 +59,9 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
     : n.project_id ? `/gestao-projetos?messages=${n.project_id}`
     : undefined
 
-  // Abre a mensagem em OVERLAY, sem trocar de tela. Projeto → chat aqui mesmo; contrato → nova aba.
+  // Abre a mensagem em OVERLAY, sem trocar de tela, e marca como LIDA (abrir = ler).
   const openMessage = (n: Notification) => {
+    if (n.is_unread) markNotifRead(n)
     if (n.project_id) { setMsgProjectId(n.project_id); return }
     if (n.contract_id) window.open(`/contratos/pipeline?chat_contract_id=${n.contract_id}`, '_blank')
   }
@@ -86,16 +87,18 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
       .finally(() => setAllLoading(false))
   }
 
-  // Marcar lido: o mark-read é por projeto/contrato (marca todas as mensagens dele) → update
-  // otimista de todas as linhas do mesmo projeto/contrato + refetch do contador do sino.
+  // Marcar lido: mark-read é por projeto/contrato (marca todas as mensagens dele). Update OTIMISTA
+  // e SEM refetch — o refetch reverteria a leitura recém-feita por eventual consistency (read replica).
   const markNotifRead = (n: Notification) => {
     const url = n.contract_id ? `/contracts/${n.contract_id}/messages/mark-read`
       : n.project_id ? `/projects/${n.project_id}/messages/mark-read` : null
     if (!url) return
     const same = (x: Notification) => n.contract_id ? x.contract_id === n.contract_id : x.project_id === n.project_id
+    const freed = allItems.filter(x => same(x) && x.is_unread).length || 1
     setAllItems(items => items.map(x => same(x) ? { ...x, is_unread: false } : x))
     setNotifications(items => items.map(x => same(x) ? { ...x, is_unread: false } : x))
-    api.post(url, {}).then(() => fetchNotifications()).catch(() => {})
+    setUnread(u => Math.max(0, u - freed))
+    api.post(url, {}).catch(() => {})
   }
 
   const markAllRead = () => {
