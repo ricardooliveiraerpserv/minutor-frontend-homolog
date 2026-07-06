@@ -2657,7 +2657,9 @@ function GestaoProjetosInner() {
     if (found) {
       setMessagesProject(found)
       clear()
-    } else if (projects.length > 0) {
+    } else {
+      // Busca por id SEMPRE (mesmo com projects vazio/carregando ou fora do filtro) —
+      // antes exigia projects.length>0 e o deep-link do sino "não abria nada".
       api.get<ProjectWithTeam>(`/projects/${messagesParam}`)
         .then(p => { if (p?.id) setMessagesProject(p) })
         .catch(() => {})
