@@ -800,7 +800,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
   const canActAsUser   = isAdmin || isCoordenador
   // Chip "Meus projetos / Todos" pra coordenador.
   // Quando 'meus': injeta coordinator_id[]=user.id no fetch (filtro server-side).
-  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>('meus')
+  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>(scope === 'sustentacao' ? 'todos' : 'meus')
   const isCliente      = user?.type === 'cliente'
   const searchParams = useSearchParams()
   const spProjectId  = searchParams.get('project_id') ?? ''

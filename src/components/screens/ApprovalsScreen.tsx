@@ -575,7 +575,7 @@ export function ApprovalsScreen({ scope, embedded, leadOptions, extDate }: Appro
   const isCoordenador = user?.type === 'coordenador'
   // Chip "Meus projetos / Todos" pra coordenador (idem Apontamentos / Despesas).
   // Default 'meus' = fila familiar do coord; 'todos' libera a fila inteira do time.
-  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>('meus')
+  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>(scope === 'sustentacao' ? 'todos' : 'meus')
   const hover = useTimesheetHover()
 
   const { filters: flt, set: setFilter, clear: clearPersistedFilters } = usePersistedFilters(

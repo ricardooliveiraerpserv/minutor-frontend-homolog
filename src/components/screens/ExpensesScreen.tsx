@@ -427,7 +427,7 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
   const isCliente        = user?.type === 'cliente'
   const canPay           = isAdmin || isAdministrativo
   // Chip "Meus projetos / Todos" pra coordenador (idem Apontamentos / Demandas).
-  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>('meus')
+  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>(scope === 'sustentacao' ? 'todos' : 'meus')
 
   const { filters: flt, set: setFilter, clear: clearPersistedFilters } = usePersistedFilters(
     'expenses',
