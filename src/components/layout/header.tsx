@@ -1,6 +1,7 @@
 'use client'
 
-import { Bell, LogOut, User, MessageCircle, X, Menu, Check, CheckCheck, ArrowRight } from 'lucide-react'
+import { Bell, LogOut, User, MessageCircle, X, Menu, Check, CheckCheck, ArrowRight, ExternalLink } from 'lucide-react'
+import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +48,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
   const [allItems, setAllItems] = useState<Notification[]>([])
   const [allLoading, setAllLoading] = useState(false)
   const [allTab, setAllTab] = useState<'all' | 'unread'>('all')  // aba do modal: Todas / Não lidas
+  const [msgProjectId, setMsgProjectId] = useState<number | null>(null)  // chat aberto em overlay (sem sair da tela)
 
   const notifEndpoint = user?.type === 'cliente' ? '/contract-messages/notifications' : '/messages/notifications'
 
@@ -54,6 +56,12 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
     n.contract_id ? `/contratos/pipeline?chat_contract_id=${n.contract_id}`
     : n.project_id ? `/gestao-projetos?messages=${n.project_id}`
     : undefined
+
+  // Abre a mensagem em OVERLAY, sem trocar de tela. Projeto → chat aqui mesmo; contrato → nova aba.
+  const openMessage = (n: Notification) => {
+    if (n.project_id) { setMsgProjectId(n.project_id); return }
+    if (n.contract_id) window.open(`/contratos/pipeline?chat_contract_id=${n.contract_id}`, '_blank')
+  }
 
   const fetchNotifications = () => {
     if (!user) return
@@ -214,7 +222,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                       return (
                         <div
                           key={n.id}
-                          onClick={() => { setBellOpen(false); if (href) router.push(href) }}
+                          onClick={() => { setBellOpen(false); openMessage(n) }}
                           className="flex gap-2 px-4 py-3 hover:bg-[var(--surface-hover)] transition-colors border-b cursor-pointer"
                           style={{ borderColor: 'var(--border)' }}
                         >
@@ -357,7 +365,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                                 </button>
                               )}
                               {href && (
-                                <button onClick={() => { setAllOpen(false); router.push(href) }} title="Acessar" className="p-1 rounded hover:bg-[var(--surface-hover)]" style={{ color: 'var(--primary)' }}>
+                                <button onClick={() => openMessage(n)} title="Abrir mensagem" className="p-1 rounded hover:bg-[var(--surface-hover)]" style={{ color: 'var(--primary)' }}>
                                   <ArrowRight size={14} />
                                 </button>
                               )}
@@ -374,6 +382,30 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
         </div>
         )
       })()}
+
+      {/* Chat da mensagem — overlay global (NÃO troca de tela). Fica ACIMA do modal "Todas" (z-80),
+          então ao fechar volta pro "Ver todos" se veio de lá, ou pra tela atual se veio do sino. */}
+      {msgProjectId != null && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setMsgProjectId(null)}>
+          <div className="w-full max-w-2xl h-[85vh] rounded-2xl flex flex-col overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2">
+                <MessageCircle size={16} style={{ color: 'var(--primary)' }} />
+                <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Mensagens</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <a href={`/contratos/pipeline?project=${msgProjectId}`} target="_blank" rel="noreferrer" className="text-xs font-semibold flex items-center gap-1 hover:underline" style={{ color: 'var(--primary)' }}>
+                  <ExternalLink size={13} /> Ver card
+                </a>
+                <button onClick={() => setMsgProjectId(null)} className="p-1 rounded hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ProjectMessages projectId={msgProjectId} userRole={user?.type ?? undefined} />
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   )
 }
