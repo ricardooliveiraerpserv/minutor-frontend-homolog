@@ -1,11 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
-import { Megaphone, ChevronDown, Clock, Send, ClipboardList, X } from 'lucide-react'
+import { Megaphone, ChevronDown, Clock, ClipboardList, X } from 'lucide-react'
 import { sanitizeRich } from '@/lib/sanitize-html'
 
 interface Comunicado {
@@ -27,7 +26,6 @@ const byUrgencyThenDate = (a: Comunicado, b: Comunicado) =>
 /** Publicações. scope='mine' (recebidas) | 'feed' (mural: tudo que posso ler) | 'all' (todas criadas, admin). */
 export function PublicacoesView({ scope = 'mine' }: { scope?: 'mine' | 'feed' | 'all' } = {}) {
   const { user } = useAuth()
-  const router = useRouter()
   const { resolvedTheme } = useTheme()
   const [rows, setRows] = useState<Comunicado[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,11 +78,6 @@ export function PublicacoesView({ scope = 'mine' }: { scope?: 'mine' | 'feed' | 
 
   return (
     <div className="space-y-4 max-w-3xl">
-      {isAdmin && (
-        <div className="flex justify-end">
-          <button onClick={() => router.push('/central-comunicacao')} className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg ds-btn-primary"><Send size={14} /> Nova publicação / Gerenciar</button>
-        </div>
-      )}
       {loading ? (
         <div className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando…</div>
       ) : rows.length === 0 ? (
