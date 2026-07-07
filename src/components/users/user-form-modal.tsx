@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { X, ChevronDown, Search, Mail } from 'lucide-react'
+import { X, ChevronDown, Search, Mail, PenLine } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { SignatureEditor, type SignatureData } from '@/components/users/signature-editor'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 // Subset do usuário usado pelo prefill em edição (GET /users/{id}).
@@ -36,6 +37,8 @@ interface UserData {
   full_name?: string | null
   cpf?: string | null
   matricula?: string | null
+  birth_date?: string | null
+  signature?: SignatureData | null
   payroll_status?: string | null
 }
 
@@ -325,6 +328,9 @@ const EMPTY_FORM = {
   full_name: '',
   cpf: '',
   matricula: '',
+  birth_date: '',
+  // Assinatura padrão (estruturada)
+  signature: {} as SignatureData,
   payroll_status: PAYROLL_STATUS_DEFAULT,
 }
 
@@ -438,6 +444,8 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           full_name:                  item.full_name ?? '',
           cpf:                        item.cpf ?? '',
           matricula:                  item.matricula ?? '',
+          birth_date:                 (item.birth_date ?? '').slice(0, 10),
+          signature:                  (item.signature as SignatureData | undefined) ?? {},
           payroll_status:             item.payroll_status ?? PAYROLL_STATUS_DEFAULT,
         })
       })
@@ -498,7 +506,10 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         payload.full_name      = form.full_name || null
         payload.cpf            = form.cpf || null
         payload.matricula      = form.matricula || null
+        payload.birth_date     = form.birth_date || null
         payload.payroll_status = form.payroll_status || PAYROLL_STATUS_DEFAULT
+        // Assinatura padrão (estruturada) — perfis internos (não-cliente).
+        payload.signature = form.signature ?? {}
       }
       if (!isEdit && form.password) payload.password = form.password
       // App Password (envio de fechamentos via O365 do próprio usuário): write-only.
@@ -935,6 +946,12 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                       placeholder="Ex: 26434"
                       className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                   </div>
+                  <div className="w-40">
+                    <Label className="text-xs text-[var(--text-muted)]">Data de nascimento</Label>
+                    <Input type="date" value={form.birth_date} onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))}
+                      title="Usada na campanha de aniversário"
+                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+                  </div>
                 </div>
                 <FieldSelect
                   label="Status"
@@ -970,6 +987,16 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 onChange={() => setForm(f => ({ ...f, is_diretor_projetos: !f.is_diretor_projetos }))}
                 label="Diretor de Projetos (recebe os e-mails das fases do contrato)"
               />
+            )}
+
+            {/* ── Assinatura padrão (perfis internos) ── */}
+            {!form.profiles.includes('cliente') && (
+              <div className="rounded-xl p-3 space-y-2" style={{ border: '1px solid var(--border)' }}>
+                <div className="text-[12px] font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+                  <PenLine size={14} /> Assinatura
+                </div>
+                <SignatureEditor value={form.signature} onChange={s => setForm(f => ({ ...f, signature: { ...f.signature, ...s } }))} name={form.name} email={form.email} />
+              </div>
             )}
 
             {/* ── Ativo ── */}
