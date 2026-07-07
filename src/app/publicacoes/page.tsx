@@ -1,12 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
-import { useAuth } from '@/hooks/use-auth'
-import { Megaphone, ChevronDown, Clock, Send } from 'lucide-react'
+import { Megaphone, ChevronDown, Clock } from 'lucide-react'
 import { sanitizeRich } from '@/lib/sanitize-html'
 
 interface Comunicado {
@@ -18,13 +16,10 @@ const TIPO_L: Record<string, string> = { aviso: 'Aviso', formal: 'Comunicação 
 
 /** Publicações — comunicação institucional recebida; gestão/envio fica na Central (admin). */
 export default function PublicacoesPage() {
-  const { user } = useAuth()
-  const router = useRouter()
   const { resolvedTheme } = useTheme()
   const [rows, setRows] = useState<Comunicado[]>([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState<number | null>(null)
-  const isAdmin = user?.type === 'admin'
 
   useEffect(() => {
     if (!resolvedTheme) return
@@ -44,9 +39,6 @@ export default function PublicacoesPage() {
           <Megaphone size={22} style={{ color: 'var(--primary)' }} />
           <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Publicações</h1>
           <span className="text-xs" style={{ color: 'var(--text-light)' }}>· Comunicação institucional da ERPSERV</span>
-          {isAdmin && (
-            <button onClick={() => router.push('/central-comunicacao')} className="ml-auto text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg ds-btn-primary"><Send size={14} /> Nova publicação / Gerenciar</button>
-          )}
         </div>
 
         {loading ? (

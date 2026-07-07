@@ -128,7 +128,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
             actions: ['✅ Confirmo presença', '❌ Não poderei ir'],
           })}><CalendarCheck size={15} /> Confirmar presença</button>
           <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing({ type: 'poll', priority: 'medium', target_roles: [], version: 1 })}><BarChart3 size={15} /> Nova enquete</button>
-          <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing({ type: 'info', priority: 'medium', target_roles: [], version: 1 })}><Plus size={15} /> Nova notificação</button>
+          <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing({ type: 'info', priority: 'medium', target_roles: [], version: 1 })}><Plus size={15} /> Novo Aviso</button>
         </div>
       </div>
       <div className="space-y-1.5">
