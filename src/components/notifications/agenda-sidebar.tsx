@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import { CalendarDays, X, Clock, MapPin, Link2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { CalendarDays, X, Clock, MapPin, Link2, Settings } from 'lucide-react'
+import { useAuth } from '@/hooks/use-auth'
 import { CalendarMini, DOT, type CalEvento, type CalEventoConvidado } from './calendar-mini'
+
+interface VisConfig { visibility: Record<string, string[]>; types: Record<string, string>; profiles: Record<string, string> }
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
@@ -23,6 +27,25 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
   const [events, setEvents] = useState<CalEvento[]>([])
   const [showAll, setShowAll] = useState(false)
   const [modalDate, setModalDate] = useState<string | null>(null)   // dia clicado no calendário → pop-up de detalhes
+  const { user } = useAuth()
+  const isAdmin = user?.type === 'admin'
+  const [cfgOpen, setCfgOpen] = useState(false)
+  const [cfg, setCfg] = useState<VisConfig | null>(null)
+  const [savingCfg, setSavingCfg] = useState(false)
+
+  const openCfg = () => { setCfgOpen(true); api.get<{ data: VisConfig }>('/calendar/visibility').then(r => setCfg(r.data ?? null)).catch(() => toast.error('Erro ao carregar config')) }
+  const toggleCfg = (tipo: string, perfil: string) => setCfg(c => {
+    if (!c) return c
+    const cur = c.visibility[tipo] ?? []
+    return { ...c, visibility: { ...c.visibility, [tipo]: cur.includes(perfil) ? cur.filter(p => p !== perfil) : [...cur, perfil] } }
+  })
+  const saveCfg = async () => {
+    if (!cfg) return
+    setSavingCfg(true)
+    try { await api.put('/calendar/visibility', { visibility: cfg.visibility }); toast.success('Visibilidade salva ✓'); setCfgOpen(false); load(year, month) }
+    catch { toast.error('Erro ao salvar') }
+    finally { setSavingCfg(false) }
+  }
 
   const load = useCallback((y: number, m: number) => {
     api.get<{ data: { eventos: CalEvento[]; mes: string } }>(`/calendar/events?month=${y}-${pad(m)}`)
@@ -48,6 +71,7 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
       <div className="flex items-center gap-2">
         <CalendarDays size={15} style={{ color: 'var(--primary)' }} />
         <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Agenda</span>
+        {isAdmin && <button onClick={openCfg} className="ml-auto p-1 rounded-md" title="Configurar o que cada perfil vê na agenda" style={{ color: 'var(--text-muted)' }}><Settings size={14} /></button>}
       </div>
 
       <CalendarMini
@@ -141,6 +165,53 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
           </div>
         )
       })()}
+
+      {/* Config admin: quem vê o quê na agenda */}
+      {cfgOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setCfgOpen(false)}>
+          <div className="ds-card w-full max-w-lg max-h-[85vh] overflow-y-auto p-4 space-y-3" onClick={ev => ev.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Visibilidade da agenda por perfil</span>
+              <button onClick={() => setCfgOpen(false)} aria-label="Fechar" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
+            </div>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Marque quais eventos cada perfil pode ver no calendário. O <b>Administrador vê todos</b>.</p>
+            {!cfg ? (
+              <p className="text-[12px]" style={{ color: 'var(--text-muted)' }}>Carregando…</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr>
+                      <th className="text-left py-1.5 pr-2" style={{ color: 'var(--text-muted)' }}>Evento</th>
+                      {Object.entries(cfg.profiles).map(([pk, pl]) => (
+                        <th key={pk} className="px-1.5 py-1.5 font-medium text-center" style={{ color: 'var(--text-muted)' }}>{pl}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(cfg.types).map(([tk, tl]) => (
+                      <tr key={tk} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                        <td className="py-2 pr-2 flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
+                          <span>{DOT[tk as CalEvento['tipo']]?.icon ?? '•'}</span> {tl}
+                        </td>
+                        {Object.keys(cfg.profiles).map(pk => (
+                          <td key={pk} className="text-center py-2">
+                            <input type="checkbox" checked={(cfg.visibility[tk] ?? []).includes(pk)} onChange={() => toggleCfg(tk, pk)} style={{ accentColor: 'var(--primary)', width: 15, height: 15, cursor: 'pointer' }} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setCfgOpen(false)} className="ds-btn-secondary text-[12px] px-3 py-1.5">Cancelar</button>
+              <button onClick={saveCfg} disabled={savingCfg || !cfg} className="ds-btn-primary text-[12px] px-3 py-1.5">{savingCfg ? 'Salvando…' : 'Salvar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
