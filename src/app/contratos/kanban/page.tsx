@@ -1418,11 +1418,23 @@ function KanbanContent() {
   const isSustCoordenador = user?.type === 'coordenador' && (user as any).coordinator_type === 'sustentacao'
 
   // Column list: fixed → coordinators → sustentação group → bizify → project status
-  // Coordenador de sustentação vê apenas "Pronto para Iniciar" + colunas de sustentação
+  // Kanban EXCLUSIVO do coordenador de sustentação: coluna "Meus Projetos" (dele, laranja)
+  // + filas de sustentação (BH Fixo/Mensal/On Demand/Cloud) + status (Encerrado/Pausado/
+  // Cancelado). Mesmos endpoints do board de contratos → movimentação reflete em Demandas
+  // e Projetos (e vice-versa). Colunas de status escopadas aos projetos dele (ver
+  // projectsInStatusCol). Não tem colunas de intake (Novo/Pronto) nem Bizify/Aporte/Aditivo.
   const columns: Column[] = isSustCoordenador
     ? [
-        FIXED_COLUMNS.find(c => c.id === 'pronto')!,
+        {
+          id:            `coordinator:${user!.id}`,
+          label:         `Meus Projetos - ${user!.name}`,
+          type:          'coordinator' as const,
+          coordinatorId: user!.id,
+          emoji:         '👤',
+          color:         SUST_COLOR,
+        },
         ...SUSTENTACAO_COLS,
+        ...STATUS_PROJECT_COLUMNS,
       ]
     : [
         ...FIXED_COLUMNS,
@@ -1505,26 +1517,35 @@ function KanbanContent() {
       .sort((a, b) => (a.kanban_order ?? 0) - (b.kanban_order ?? 0))
   }
 
+  // Coordenador efetivo de um projeto: override (kanban_coordinator_override_id) tem
+  // precedência sobre a relação M2M (coordinator_ids).
+  const projectHasCoord = (p: ProjectCard, coordId: number): boolean => {
+    const effective = p.kanban_coordinator_override_id != null
+      ? [p.kanban_coordinator_override_id]
+      : (p.coordinator_ids ?? [])
+    return effective.includes(coordId)
+  }
+
   // Active project cards per coordinator column.
   // Override (kanban_coordinator_override_id) tem precedência: se setado, o card
   // vai SÓ pra coluna do override, ignorando coordinator_ids da relação M2M.
   const activeProjectsInCoordCol = (coordId: number): ProjectCard[] =>
     projectCards.filter(p => {
       if (!isActiveProject(p)) return false
-      const effective = p.kanban_coordinator_override_id != null
-        ? [p.kanban_coordinator_override_id]
-        : (p.coordinator_ids ?? [])
-      if (!effective.includes(coordId)) return false
+      if (!projectHasCoord(p, coordId)) return false
       return matchFilter(p.customer_name, p.project_name)
         && matchExecutivoKanban(p.executivo_conta_name)
         && matchProjectKanban(p.project_name)
     })
 
-  // Project cards in status columns
+  // Project cards in status columns.
+  // No kanban EXCLUSIVO do coordenador de sustentação, escopa aos projetos DELE (mesma
+  // regra da coluna "Meus Projetos"); no board completo (admin) mostra todos.
   const projectsInStatusCol = (colId: string): ProjectCard[] => {
     const targetStatus = COL_TO_PROJECT_STATUS[colId]
     return projectCards
       .filter(p => p.status === targetStatus)
+      .filter(p => !isSustCoordenador || (user != null && projectHasCoord(p, user.id)))
       .filter(p => matchFilter(p.customer_name, p.project_name))
       .filter(p => matchExecutivoKanban(p.executivo_conta_name))
       .filter(p => matchProjectKanban(p.project_name))
