@@ -22,8 +22,9 @@ interface ProjectResponse {
 }
 
 const BACK_MAP: Record<string, { href: string; label: string }> = {
-  pipeline:  { href: '/contratos/pipeline', label: 'Demandas e Projetos' },
-  gestao:    { href: '/gestao-projetos',    label: 'Gestão de Projetos' },
+  pipeline:       { href: '/contratos/pipeline', label: 'Demandas e Projetos' },
+  gestao:         { href: '/gestao-projetos',    label: 'Gestão de Projetos' },
+  'meus-projetos': { href: '/meus-projetos',     label: 'Meus Projetos' },
 }
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {

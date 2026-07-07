@@ -776,6 +776,9 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       const baseNav: NavEntry[] = [
         { type: 'item', label: 'Meu Dia', href: '/inicio', icon: Home },
         { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
+        // Acesso do consultor aos projetos onde está alocado — abre o cronograma
+        // para apontar horas na atividade (escopo: executar/apontar).
+        { type: 'item', label: 'Projetos', href: '/meus-projetos', icon: FolderOpen },
         ...(IS_DEV1 ? [{ type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox }] : []),
       ]
 
