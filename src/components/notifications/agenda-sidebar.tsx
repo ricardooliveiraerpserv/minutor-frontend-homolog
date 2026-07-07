@@ -80,7 +80,7 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
                 style={e.is_today ? { background: 'var(--primary-soft)' } : undefined}>
                 <span className="tabular-nums shrink-0" style={{ color: 'var(--text-light)', width: 36 }}>{ddmm(e.data)}</span>
                 <span className="shrink-0">{DOT[e.tipo].icon}</span>
-                <span className="flex-1 truncate" style={{ color: 'var(--text)' }}>{e.titulo}</span>
+                <span className="flex-1 truncate" style={{ color: 'var(--text)' }}>{e.titulo}{e.hora ? <span style={{ color: 'var(--text-light)' }}> · {e.hora}{e.hora_fim ? `–${e.hora_fim}` : ''}</span> : ''}</span>
               </div>
             ))}
             {hidden > 0 && (

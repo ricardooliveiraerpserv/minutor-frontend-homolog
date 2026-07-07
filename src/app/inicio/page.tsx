@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus } from 'lucide-react'
+import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus, Clock, MapPin, Link2 } from 'lucide-react'
 import { DOT, type CalEvento } from '@/components/notifications/calendar-mini'
 import { useAuth } from '@/hooks/use-auth'
 import { TasksCard } from '@/components/notifications/tasks-card'
@@ -264,11 +264,27 @@ export default function MeuDiaPage() {
                     </div>
                     {todayEvents.map((e, i) => {
                       const d = DOT[e.tipo]
+                      const conv = e.convidados ?? []
+                      const ac = conv.filter(c => c.resposta === 'accepted').length
+                      const de = conv.filter(c => c.resposta === 'declined').length
+                      const te = conv.filter(c => c.resposta === 'tentativelyAccepted').length
+                      const pe = conv.length - ac - de - te
+                      const respostas = [ac && `${ac} aceitaram`, te && `${te} talvez`, de && `${de} recusaram`, pe && `${pe} sem resposta`].filter(Boolean).join(' · ')
                       return (
-                        <div key={i} className="ds-card p-2.5 flex items-center gap-2.5" style={{ borderLeft: `3px solid ${d?.color ?? 'var(--primary)'}` }}>
-                          <span className="shrink-0 text-[15px]">{d?.icon ?? '📅'}</span>
-                          <span className="flex-1 min-w-0 truncate text-[13px] font-medium" style={{ color: 'var(--text)' }}>{e.titulo}</span>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-sunken)', color: d?.color ?? 'var(--text-muted)' }}>{d?.label ?? e.tipo}</span>
+                        <div key={i} className="ds-card p-2.5" style={{ borderLeft: `3px solid ${d?.color ?? 'var(--primary)'}` }}>
+                          <div className="flex items-center gap-2.5">
+                            <span className="shrink-0 text-[15px]">{d?.icon ?? '📅'}</span>
+                            <span className="flex-1 min-w-0 truncate text-[13px] font-medium" style={{ color: 'var(--text)' }}>{e.titulo}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-sunken)', color: d?.color ?? 'var(--text-muted)' }}>{d?.label ?? e.tipo}</span>
+                          </div>
+                          {e.tipo === 'outlook' && (e.hora || e.local || e.link || conv.length > 0) && (
+                            <div className="mt-1.5 ml-[26px] space-y-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                              {e.hora && <div className="flex items-center gap-1.5"><Clock size={11} className="shrink-0" /> <span>{e.hora}{e.hora_fim ? ` – ${e.hora_fim}` : ''}{e.organizador ? ` · por ${e.organizador}` : ''}</span></div>}
+                              {e.local && <div className="flex items-start gap-1.5"><MapPin size={11} className="mt-[2px] shrink-0" /> <span>{e.local}</span></div>}
+                              {e.link && <a href={e.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium" style={{ color: 'var(--primary)' }}><Link2 size={11} className="shrink-0" /> Ingressar / abrir convite</a>}
+                              {respostas && <div className="flex items-start gap-1.5"><Users size={11} className="mt-[2px] shrink-0" /> <span>{respostas}</span></div>}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
