@@ -2005,6 +2005,8 @@ function KanbanContent() {
               <List size={13} /> Lista
             </button>
 
+            {/* Coordenador de sustentação não cria contrato. */}
+            {!isSustCoordenador && (
             <button onClick={() => { setEditingContractData(null); setShowNewContract(true) }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors"
               style={{ background: 'var(--primary)', color: 'var(--primary-fg)', border: '1px solid var(--primary)' }}
@@ -2012,6 +2014,7 @@ function KanbanContent() {
               onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary)' }}>
               <Plus size={13} /> Novo Contrato
             </button>
+            )}
           </div>
         </div>
 
