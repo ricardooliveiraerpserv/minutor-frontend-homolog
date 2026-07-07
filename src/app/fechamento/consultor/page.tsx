@@ -533,6 +533,16 @@ export default function FechamentoConsultorPage() {
         horistas: patch(prev.horistas),
         banco_horas: patch(prev.banco_horas),
         fixos: patch(prev.fixos),
+        // Bizify usa os MESMOS componentes de aba; sem patch aqui o valor salvo se perde
+        // na remontagem (a linha volta a ler c.adicional=0) → campo "apaga" ao digitar.
+        ...(prev.bizify ? {
+          bizify: {
+            ...prev.bizify,
+            horistas: patch(prev.bizify.horistas),
+            banco_horas: patch(prev.bizify.banco_horas),
+            fixos: patch(prev.bizify.fixos),
+          },
+        } : {}),
       }
     })
   }, [])
