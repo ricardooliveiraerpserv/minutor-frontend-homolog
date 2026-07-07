@@ -170,7 +170,7 @@ export function NotificationPopups({ userId }: { userId: number }) {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(2px)' }}>
-      <div className="w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl animate-[popIn_.18s_ease-out]"
+      <div className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl animate-[popIn_.18s_ease-out]"
         style={{ background: 'var(--surface)', border: `1px solid ${h.fg}` }}>
         {/* Cabeçalho chamativo */}
         <div className="px-5 py-3 flex items-center gap-2" style={{ background: h.bg }}>
@@ -203,7 +203,7 @@ export function NotificationPopups({ userId }: { userId: number }) {
               </div>
             </>
           ) : (
-            <div ref={bodyRef} onScroll={onBodyScroll} className="text-sm max-h-60 overflow-auto" style={{ color: 'var(--text-muted)' }}>
+            <div ref={bodyRef} onScroll={onBodyScroll} className="text-sm max-h-[55vh] overflow-auto" style={{ color: 'var(--text-muted)' }}>
               {isHtmlBody(current.message)
                 ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(current.message) }} />
                 : <p className="whitespace-pre-wrap">{current.message}</p>}
