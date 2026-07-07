@@ -2012,7 +2012,7 @@ function KanbanContent() {
               <List size={13} /> Lista
             </button>
 
-            {!dCreate && (
+            {!dCreate && !isSustCoordenador && (
               <button onClick={() => { setEditingContractData(null); setShowNewContract(true) }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors"
                 style={{ background: 'var(--primary)', color: 'var(--primary-fg)', border: '1px solid var(--primary)' }}
