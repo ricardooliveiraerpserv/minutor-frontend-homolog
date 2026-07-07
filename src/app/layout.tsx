@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter, Geist } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
+import { ImpersonationBanner } from '@/components/impersonation-banner'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 // Geist Sans — usada em headings (h1/h2/h3) e KPIs via --font-display.
@@ -75,6 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div style={ENV_BANNER_TEXT ? { paddingTop: 24 } : undefined}>
           <Providers>{children}</Providers>
         </div>
+        <ImpersonationBanner />
       </body>
     </html>
   )
