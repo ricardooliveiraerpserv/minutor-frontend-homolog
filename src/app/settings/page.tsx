@@ -8,23 +8,22 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 import {
   Settings,
-  RefreshCw, CheckCircle, XCircle, Users, Shield, X, Briefcase,
+  RefreshCw, CheckCircle, XCircle, Users, X, Briefcase,
 } from 'lucide-react'
 import type { SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
-import { PermissionGroupsTab } from './PermissionGroupsTab'
 import { CargosTab } from './CargosTab'
+import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
 
+// "Grupos de Permissões" e "Cadastro de Perfil" foram substituídos pelo Configurador de Menus.
 const TABS = [
-  { id: 'general', label: 'Geral',               icon: Settings },
-  { id: 'users',   label: 'Usuários',             icon: Users },
-  { id: 'groups',  label: 'Grupos de Permissões', icon: Shield },
-  { id: 'cargos',  label: 'Cargos por Perfil',    icon: Briefcase },
+  { id: 'general', label: 'Geral',            icon: Settings },
+  { id: 'users',   label: 'Usuários',          icon: Users },
+  { id: 'cargos',  label: 'Cargos por Perfil', icon: Briefcase },
 ]
 
 // ─── TAB: GENERAL SETTINGS ───────────────────────────────────────────────────
@@ -125,7 +124,7 @@ function GeneralTab() {
               type="number" min={0} max={365}
               value={settings.timesheet_retroactive_limit_days ?? ''}
               onChange={e => setSettings(s => ({ ...s, timesheet_retroactive_limit_days: Number(e.target.value) }))}
-              className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 w-40"
+              className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 w-40"
             />
             <p className="text-[11px] text-[var(--text-light)] mt-1">0 = sem limite. Máximo 365 dias.</p>
           </div>
@@ -228,7 +227,7 @@ function GeneralTab() {
                 type="date"
                 value={settings.movidesk_import_start_date ?? ''}
                 onChange={e => setSettings(s => ({ ...s, movidesk_import_start_date: e.target.value || null }))}
-                className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 w-44 text-xs"
+                className="bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 w-44 text-xs"
               />
               {settings.movidesk_import_start_date && (
                 <button
@@ -259,7 +258,7 @@ function GeneralTab() {
                       onClick={() => setSettings(s => ({ ...s, [key]: v }))}
                       className={`px-3 py-1 rounded-md text-xs font-medium border transition-colors ${
                         (settings[key] ?? 30) === v
-                          ? 'bg-[var(--primary)] border-[var(--primary)] text-[var(--primary-fg)]'
+                          ? 'bg-[var(--primary)] border-blue-500 text-white'
                           : 'bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
                       }`}
                     >
@@ -273,7 +272,7 @@ function GeneralTab() {
         </div>
       </section>
 
-      <Button onClick={save} disabled={saving} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-9 text-xs">
+      <Button onClick={save} disabled={saving} className="bg-[var(--primary)] hover:bg-[var(--primary)] text-white h-9 text-xs">
         {saving ? 'Salvando...' : 'Salvar configurações'}
       </Button>
     </div>
@@ -285,63 +284,25 @@ function GeneralTab() {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
-  const active = TABS.find(t => t.id === activeTab)!
+  // abre a aba pela URL (?tab=cargos) — permite linkar as abas como filhos no menu
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab')
+    if (tab && TABS.some(t => t.id === tab)) setActiveTab(tab)
+  }, [])
+  const active = TABS.find(t => t.id === activeTab) ?? TABS[0]
 
   return (
-    <AppLayout title="Configurações">
-      <div className="flex gap-6">
-        {/* Sidebar */}
-        <nav className="w-48 shrink-0 hidden md:block">
-          <ul className="space-y-0.5">
-            {TABS.map(tab => {
-              const Icon = tab.icon
-              return (
-                <li key={tab.id}>
-                  <button
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-xs transition-colors text-left ${
-                      activeTab === tab.id
-                        ? 'bg-[var(--surface-hover)] text-[var(--text)]'
-                        : 'text-[var(--text-light)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]'
-                    }`}
-                  >
-                    <Icon size={13} />
-                    {tab.label}
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        </nav>
+    <AppLayout title={active.label}>
+      {/* Sem abas internas — a navegação fica no menu lateral (Configurações > filhos). */}
+      <div className="min-w-0">
+        <h2 className="text-sm font-semibold text-white mb-5 flex items-center gap-2">
+          <active.icon size={14} className="text-[var(--text-muted)]" />
+          {active.label}
+        </h2>
 
-        {/* Mobile tabs */}
-        <div className="flex gap-1 mb-4 md:hidden flex-wrap">
-          {TABS.map(tab => {
-            const Icon = tab.icon
-            return (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors ${
-                  activeTab === tab.id ? 'bg-[var(--surface-hover)] text-[var(--text)]' : 'text-[var(--text-light)] hover:bg-[var(--surface-hover)]'
-                }`}>
-                <Icon size={12} />
-                {tab.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold text-[var(--text)] mb-5 flex items-center gap-2">
-            <active.icon size={14} className="text-[var(--text-muted)]" />
-            {active.label}
-          </h2>
-
-          {activeTab === 'general' && <GeneralTab />}
-          {activeTab === 'users'   && <UserManagementTab />}
-          {activeTab === 'groups'  && <PermissionGroupsTab />}
-          {activeTab === 'cargos'  && <CargosTab />}
-        </div>
+        {activeTab === 'general' && <GeneralTab />}
+        {activeTab === 'users'   && <UserManagementTab />}
+        {activeTab === 'cargos'  && <CargosTab />}
       </div>
     </AppLayout>
   )

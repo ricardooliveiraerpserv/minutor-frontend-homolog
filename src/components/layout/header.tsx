@@ -18,6 +18,7 @@ import { useState, useEffect, useRef } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 import { MentionsBell } from './mentions-bell'
 import { NotificationBell } from './notification-bell'
+import { AppsMenu } from './apps-menu'
 
 interface HeaderProps {
   title?: string
@@ -146,7 +147,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
     .toUpperCase() ?? 'U'
 
   return (
-    <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b shrink-0" style={{ background: 'var(--panel)', borderColor: 'var(--border)' }}>
+    <header className="flex items-center justify-between h-14 px-4 md:px-6 border-b shrink-0" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       <div className="flex items-center gap-2 min-w-0">
         {onMenuClick && (
           <button
@@ -167,6 +168,9 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
 
         {actions}
 
+        {/* Launcher de módulos (Administrativo / Serviços) */}
+        {user && user.type !== 'cliente' && <AppsMenu />}
+
         {/* Theme toggle — sun/moon */}
         <ThemeToggle />
 
@@ -178,15 +182,15 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
         {/* Sino do Meu Dia — notificações informativas + enquetes (sem execução) */}
         {user && user.type !== 'cliente' && <NotificationBell />}
 
-        {/* Bell notification — visible for all logged-in users; content scoped server-side */}
-        {user && (
+        {/* Ícone de mensagens (chat de projeto/contrato) REMOVIDO — não é usado. */}
+        {false && user && (
           <div ref={bellRef} className="relative">
             <button
               onClick={() => { setBellOpen(v => !v); fetchNotifications() }}
               className="relative p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
               style={{ color: bellOpen ? 'var(--primary)' : '#71717A' }}
             >
-              <Bell size={16} />
+              <MessageCircle size={16} />
               {unread > 0 && (
                 <span
                   className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center pointer-events-none"
@@ -222,7 +226,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                 <div className="max-h-80 overflow-y-auto">
                   {notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-1">
-                      <Bell size={20} style={{ color: 'var(--text-muted)' }} />
+                      <MessageCircle size={20} style={{ color: 'var(--text-muted)' }} />
                       <p className="text-xs" style={{ color: 'var(--text-light)' }}>Sem mensagens</p>
                     </div>
                   ) : (

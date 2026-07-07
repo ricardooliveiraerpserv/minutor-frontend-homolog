@@ -3,6 +3,7 @@ export interface User {
   name: string
   email: string
   profile_photo_url?: string | null
+  modules?: string[] | null   // navegação modular: módulos liberados pro usuário
   type?: string | null
   coordinator_type?: 'projetos' | 'sustentacao' | null
   customer_id?: number | null

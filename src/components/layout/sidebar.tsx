@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ChevronDown,
   Headphones,
+  Megaphone,
   BarChart2,
   CalendarClock,
   Zap,
@@ -45,13 +46,29 @@ import {
   Inbox,
   Mail,
   Banknote,
+  ListFilter,
+  CalendarX,
+  XCircle,
+  GitBranch,
+  HeartPulse,
+  Wallet,
+  Calculator,
+  ListTodo,
+  Radar,
+  SlidersHorizontal,
+  Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, secureUrl } from '@/lib/api'
 import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LucideIcon } from 'lucide-react'
+import { icons as lucideIcons } from 'lucide-react'
+import { CATALOG_LABEL } from '@/lib/nav-catalog'
+import type { NavTreeNode, NavModuleConfig } from '@/contexts/nav-config-context'
 import type { User } from '@/types'
+import { type ModuleId } from '@/lib/modules'
+import { useModules } from '@/contexts/module-context'
 
 import { MinutorIcon } from '@/components/branding/MinutorIcon'
 
@@ -64,6 +81,12 @@ type NavItem = {
   icon: LucideIcon
   matchPaths?: string[]
   exactMatch?: boolean
+  badge?: 'tasks' | 'notifications' | 'critical' | 'comunicados'   // indicador de ação na navegação
+  module?: ModuleId
+  catalogKey?: string   // key do catálogo (Configurador)
+  // Visível em qualquer módulo (ignora o filtro de módulo) — p/ itens de sistema
+  // que precisam ser alcançáveis independentemente do módulo do perfil.
+  alwaysVisible?: boolean
 }
 type NavLink = { label: string; href: string; icon: LucideIcon; exactMatch?: boolean }
 type NavSubGroup = {
@@ -77,14 +100,109 @@ type NavGroup = {
   label: string
   icon: LucideIcon
   items: (NavLink | NavSubGroup)[]
+  module?: ModuleId
+  catalogKey?: string   // key do catálogo (Configurador) — define em qual módulo o grupo aparece
 }
 type NavEntry = NavItem | NavGroup
 
+// ── Módulos de navegação: cada ROTA pertence a Serviços ou Administrativo.
+// Itens sem rota mapeada (home: Início, Meu Painel…) são SEMPRE visíveis (qualquer módulo).
+// Filtra os menus de TODOS os perfis (exceto cliente) sem mexer em permissões.
+const ROUTE_MODULE: [string, ModuleId][] = [
+  // 🛠 Serviços
+  ['/contratos/pipeline', 'servicos'],
+  ['/investimento-comercial', 'servicos'],
+  ['/sustentacao', 'servicos'],
+  ['/timesheets', 'servicos'],
+  ['/expenses', 'servicos'],
+  ['/approvals', 'servicos'],
+  ['/auditoria', 'servicos'],
+  ['/relatorios/apontamentos', 'servicos'],
+  // 📊 Administrativo
+  ['/contratos/kanban', 'administrativo'],
+  ['/gestao-projetos', 'administrativo'],
+  ['/fechamento', 'administrativo'],
+  ['/pagamento-despesas', 'administrativo'],
+  ['/relatorios/pagamentos', 'administrativo'],
+  ['/relatorios/rentabilidade', 'administrativo'],
+  ['/relatorios/contratos-sem-vencimento', 'administrativo'],
+  ['/clientes', 'administrativo'],
+  ['/partners', 'administrativo'],
+  ['/cadastros', 'administrativo'],
+  ['/configuracoes', 'administrativo'],
+  ['/users', 'administrativo'],
+  // /settings NÃO mapeado de propósito: "Configurações" é pessoal — sempre visível
+  // (no NAV admin ela vive no grupo "Sistema" do Administrativo via module explícito;
+  // perfis restritos como consultor mantêm o item sem perder acesso).
+  ['/portal-cliente', 'administrativo'],
+  ['/dashboards', 'administrativo'],
+  ['/partner-dashboard', 'administrativo'],
+  // 🤝 CRM
+  ['/crm', 'crm'],
+  // 🎫 Help Desk
+  ['/help-desk', 'help_desk'],
+].sort((a, b) => b[0].length - a[0].length) as [string, ModuleId][]
+
+function moduleForHref(href: string): ModuleId | null {
+  const base = href.split('?')[0]
+  for (const [prefix, mod] of ROUTE_MODULE) {
+    if (base === prefix || base.startsWith(prefix + '/')) return mod
+  }
+  return null
+}
+
+// Filtra a navegação pelo módulo selecionado — POR ITEM (href), aplicando ATIVO + PERMISSÃO.
+// itemConfig[href] = { módulo, ativo, perfis, usuários } (Configurador). Regras:
+//  - inativo → some;  - precisa: perfil do user OU user específico (sem nenhum = some);  - só no módulo dele.
+//  - tela NÃO configurada → fallback ROUTE_MODULE (sem restrição de permissão; não some por engano).
+function filterNavByModule(
+  nav: NavEntry[], mod: ModuleId,
+  itemConfig: Record<string, { modules: string[]; active: boolean; profiles: string[]; users: number[] }>,
+  userType: string, userId: number,
+): NavEntry[] {
+  const keepLink = (href: string) => {
+    const conf = itemConfig[href]
+    if (conf) {
+      if (!conf.active) return false
+      const permitted = conf.profiles.includes(userType) || conf.users.includes(userId)
+      // tela pode aparecer em VÁRIOS módulos (reuso) — mostra se o módulo atual for um deles
+      return permitted && conf.modules.includes(mod)
+    }
+    const m = moduleForHref(href)
+    return m === null || m === mod
+  }
+  const out: NavEntry[] = []
+  for (const entry of nav) {
+    if (entry.type === 'item') {
+      if (entry.alwaysVisible) { out.push(entry); continue }
+      if (keepLink(entry.href)) out.push(entry)
+      continue
+    }
+    // grupo: mantém só os itens (e subgrupos) cuja rota pertence ao módulo
+    const items = entry.items
+      .map(it => ('href' in it)
+        ? it
+        : { ...it, items: it.items.filter(s => keepLink(s.href)) })
+      .filter(it => ('href' in it) ? keepLink(it.href) : it.items.length > 0)
+    if (items.length > 0) out.push({ ...entry, items })
+  }
+  return out
+}
+
 // Meus Cards e Capacidade ainda em desenvolvimento — só DEV1
-const IS_DEV1 = process.env.NEXT_PUBLIC_APP_ENV === 'dev'
+const IS_DEV1 = false  // experimentais desligados (localhost tem APP_ENV=dev só p/ faixa)
+// "Ver como" (impersonation): ferramenta SÓ da Replica (APP_ENV=local). Fora dela nem aparece.
+const IS_REPLICA = process.env.NEXT_PUBLIC_APP_ENV === 'local'
+
+// Itens "home" — Meu Dia agrupa as abas (Notificações/Tarefas/Publicações/Config) internamente.
+// Badge "critical" aparece quando há tarefa atrasada (gatilho de ação sempre visível).
+const HOME_ITEMS: NavEntry[] = [
+  { type: 'item', label: 'Meu Dia',       href: '/inicio',       icon: Home,            badge: 'critical' },
+  { type: 'item', label: 'Meu Painel',    href: '/meu-painel',   icon: LayoutDashboard },
+]
 
 const NAV_COORDINATOR: NavEntry[] = [
-  { type: 'item' as const, label: 'Meu Dia', href: '/inicio', icon: Home },
+  ...HOME_ITEMS,
   ...(IS_DEV1 ? [
     { type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox },
     { type: 'item' as const, label: 'Capacidade', href: '/capacidade', icon: Users },
@@ -104,53 +222,119 @@ const NAV_COORDINATOR: NavEntry[] = [
 ]
 
 
+// NAV admin/default reorganizado em 2 módulos (Serviços / Administrativo).
+// Itens "home" (Meu Painel/Início) ficam sem `module` → sempre visíveis.
+// Os mesmos hrefs/ícones de antes — só mudou o agrupamento/rótulo (navegação).
 const NAV: NavEntry[] = [
-  { type: 'item', label: 'Meu Painel',            href: '/meu-painel',      icon: LayoutDashboard },
-  { type: 'item', label: 'Início',                href: '/dashboard',       icon: Home },
+  // ── Home (sempre visível, fora dos módulos) ──
+  ...HOME_ITEMS,
   ...(IS_DEV1 ? [
     { type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox },
     { type: 'item' as const, label: 'Capacidade', href: '/capacidade', icon: Users },
   ] : []),
+
+  // ── ⚙️ CONFIGURADOR (associado via catálogo; aparece no módulo Configurador) ──
+  { type: 'item', label: 'Configurador de Menus', href: '/configurador', icon: SlidersHorizontal, catalogKey: 'configurador' },
+
+  // 👁 "Ver como" agora é item do CONFIGURADOR (módulo Administrativo › Sistema, só Replica) —
+  // gerenciável pela árvore. Não é mais hardcoded aqui.
+
+  // ── 🛠 SERVIÇOS ──
   {
-    type: 'group',
-    label: 'Projetos e Contratos',
-    icon: FolderOpen,
+    type: 'group', module: 'servicos', catalogKey: 'projetos', label: 'Projetos', icon: FolderOpen,
     items: [
-      { label: 'Gestão de Contratos',       href: '/gestao-projetos',          icon: Layers },
-      { label: 'Kanban Contratos',         href: '/contratos/kanban',         icon: LayoutGrid },
-      { label: 'Demandas e Projetos',      href: '/contratos/pipeline',       icon: Layers },
-      { label: 'Investimento Interno',      href: '/investimento-comercial',   icon: TrendingUp },
+      { label: 'Demandas e Projetos',  href: '/contratos/pipeline',     icon: Layers },
+      { label: 'Investimento Interno', href: '/investimento-comercial', icon: TrendingUp },
     ],
   },
   {
-    type: 'group',
-    label: 'Sustentação',
-    icon: Headphones,
+    type: 'group', module: 'servicos', catalogKey: 'sustentacao', label: 'Sustentação', icon: Headphones,
     items: [
       { label: 'Portal', href: '/sustentacao', icon: Headphones, exactMatch: true },
     ],
   },
   {
-    type: 'group',
-    label: 'Apontamentos & Despesas',
-    icon: Clock,
+    type: 'group', module: 'servicos', catalogKey: 'operacao', label: 'Operação', icon: Clock,
     items: [
-      { label: 'Apontamentos', href: '/timesheets', icon: Clock },
-      { label: 'Despesas',     href: '/expenses',   icon: Receipt },
-      { label: 'Aprovações',   href: '/approvals',  icon: CheckSquare },
-      { label: 'Atrasos (integração)', href: '/timesheets/atrasos', icon: CalendarClock },
-      { label: 'Auditoria',    href: '/auditoria/apontamentos', icon: FileText },
+      { label: 'Apontamentos',              href: '/timesheets',              icon: Clock },
+      { label: 'Despesas',                  href: '/expenses',                icon: Receipt },
+      { label: 'Relatório de Apontamentos', href: '/relatorios/apontamentos', icon: FileText },
+      { label: 'Aprovações',                href: '/approvals',               icon: CheckSquare },
+      { label: 'Atrasos (integração)',      href: '/timesheets/atrasos',      icon: CalendarClock },
+      { label: 'Auditoria',                 href: '/auditoria/apontamentos',  icon: FileText },
+    ],
+  },
+
+  // ── 📊 ADMINISTRATIVO ──
+  {
+    type: 'group', module: 'administrativo', catalogKey: 'gestao_contratual', label: 'Gestão Contratual', icon: Layers,
+    items: [
+      { label: 'Gestão de Contratos', href: '/gestao-projetos',  icon: Layers },
+      { label: 'Kanban Contratos',    href: '/contratos/kanban', icon: LayoutGrid },
     ],
   },
   {
-    type: 'group',
-    label: 'Visão Externa',
-    icon: BarChart2,
+    type: 'group', module: 'administrativo', catalogKey: 'financeiro', label: 'Financeiro', icon: DollarSign,
     items: [
       {
-        kind: 'subgroup',
-        label: 'Cliente',
-        icon: Building2,
+        kind: 'subgroup', label: 'Fechamento', icon: DollarSign,
+        items: [
+          { label: 'Geral',               href: '/fechamento',              icon: BarChart2,  exactMatch: true },
+          { label: 'Clientes',            href: '/fechamento/cliente',      icon: Building2  },
+          { label: 'Parceiros',           href: '/fechamento/parceiro',     icon: Handshake  },
+          { label: 'Consultores',         href: '/fechamento/consultor',    icon: UserCheck  },
+          { label: 'Adiantamentos',       href: '/fechamento/adiantamentos', icon: Banknote },
+          { label: 'Diretoria',           href: '/fechamento/diretoria',    icon: Briefcase },
+          { label: 'Folha Cooperativa',   href: '/fechamento/folha',        icon: FileSpreadsheet },
+          { label: 'Contratos',           href: '/fechamento/contratos',    icon: FileText   },
+          { label: 'Reajuste de Contrato', href: '/fechamento/reajustes',   icon: TrendingUp },
+          { label: 'Horas Excedentes',    href: '/fechamento/excedentes',   icon: Clock },
+          { label: 'Pagamento Despesas',  href: '/pagamento-despesas',      icon: DollarSign },
+        ],
+      },
+    ],
+  },
+  {
+    type: 'group', module: 'administrativo', catalogKey: 'relatorios', label: 'Relatórios', icon: FileText,
+    items: [
+      { label: 'Pagamentos',    href: '/relatorios/pagamentos',    icon: DollarSign },
+      { label: 'Rent. Consultor × Projeto', href: '/relatorios/rentabilidade/consultor', icon: Users },
+      { label: 'Rent. por Projeto',         href: '/relatorios/rentabilidade/projeto',   icon: FolderOpen },
+      { label: 'Rent. Clientes',            href: '/relatorios/rentabilidade',           icon: TrendingUp, exactMatch: true },
+      { label: 'Contratos s/ Vencimento', href: '/relatorios/contratos-sem-vencimento', icon: CalendarX },
+    ],
+  },
+  {
+    type: 'group', module: 'administrativo', catalogKey: 'cadastros', label: 'Cadastros', icon: Database,
+    items: [
+      { label: 'Clientes',              href: '/clientes',                         icon: Users },
+      { label: 'Executivos',            href: '/cadastros?tab=executives',        icon: Star },
+      { label: 'Parceiros',             href: '/partners',                        icon: Handshake },
+      { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',   icon: CreditCard },
+      { label: 'Feriados',              href: '/cadastros?tab=holidays',          icon: CalendarDays },
+      { label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',         icon: FileType },
+      { label: 'Tipos de Serviço',      href: '/cadastros?tab=services',          icon: Wrench },
+      { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',     icon: Receipt },
+      { label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag },
+      { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
+      { label: 'Contatos de Clientes', href: '/cadastros?tab=customer_contacts',  icon: Contact },
+      { label: 'Saldo Inicial de Tickets', href: '/cadastros/saldo-inicial-tickets', icon: Ticket },
+      { label: 'Integração Movidesk',   href: '/configuracoes/movidesk',          icon: Webhook },
+    ],
+  },
+  {
+    type: 'group', module: 'administrativo', catalogKey: 'comunicacao', label: 'Comunicação', icon: Mail,
+    items: [
+      { label: 'Central de Comunicação', href: '/central-comunicacao',          icon: Mail },
+      { label: 'Modelos de E-mail',   href: '/cadastros?tab=email_templates', icon: Mail },
+      { label: 'Workflows de E-mail', href: '/cadastros/workflows',           icon: Mail },
+    ],
+  },
+  {
+    type: 'group', module: 'administrativo', catalogKey: 'visao_externa', label: 'Visão Externa', icon: BarChart2,
+    items: [
+      {
+        kind: 'subgroup', label: 'Cliente', icon: Building2,
         items: [
           { label: 'Home do Cliente',        href: '/portal-cliente',                icon: Building2 },
           { label: 'Banco de Horas Fixo',    href: '/dashboards/bank-hours-fixed',   icon: BarChart2 },
@@ -160,87 +344,76 @@ const NAV: NavEntry[] = [
         ],
       },
       {
-        kind: 'subgroup',
-        label: 'Consultor',
-        icon: UserCheck,
-        items: [
-          { label: 'Meu Painel',     href: '/meu-painel',  icon: UserCheck },
-        ],
+        kind: 'subgroup', label: 'Consultor', icon: UserCheck,
+        items: [ { label: 'Meu Painel', href: '/meu-painel', icon: UserCheck } ],
       },
       {
-        kind: 'subgroup',
-        label: 'Parceiro',
-        icon: Handshake,
-        items: [
-          { label: 'Painel do Parceiro',  href: '/partner-dashboard',   icon: Handshake },
-          // 'Fechamento Parceiro' removido: era duplicata de Fechamento → Parceiros
-          // (mesma rota /fechamento/parceiro), causava 2 itens acesos ao mesmo tempo.
-        ],
+        kind: 'subgroup', label: 'Parceiro', icon: Handshake,
+        items: [ { label: 'Painel do Parceiro', href: '/partner-dashboard', icon: Handshake } ],
       },
     ],
   },
   {
-    type: 'group',
-    label: 'Fechamento',
-    icon: DollarSign,
+    type: 'group', module: 'administrativo', catalogKey: 'sistema', label: 'Sistema', icon: Settings,
     items: [
-      { label: 'Geral',               href: '/fechamento',              icon: BarChart2,  exactMatch: true },
-      { label: 'Clientes',            href: '/fechamento/cliente',      icon: Building2  },
-      { label: 'Parceiros',           href: '/fechamento/parceiro',     icon: Handshake  },
-      { label: 'Consultores',         href: '/fechamento/consultor',    icon: UserCheck  },
-      { label: 'Adiantamentos',       href: '/fechamento/adiantamentos', icon: Banknote },
-      { label: 'Diretoria',           href: '/fechamento/diretoria',    icon: Briefcase },
-      { label: 'Folha Cooperativa',   href: '/fechamento/folha',        icon: FileSpreadsheet },
-      { label: 'Contratos',           href: '/fechamento/contratos',    icon: FileText   },
-      { label: 'Reajuste de Contrato', href: '/fechamento/reajustes',   icon: TrendingUp },
-      { label: 'Horas Excedentes',    href: '/fechamento/excedentes',   icon: Clock },
-      { label: 'Pagamento Despesas',  href: '/pagamento-despesas',      icon: DollarSign },
+      {
+        kind: 'subgroup', label: 'Configurações', icon: Settings,
+        items: [
+          { label: 'Geral',            href: '/settings',            icon: Settings },
+          { label: 'Usuários',         href: '/users',               icon: Users },
+          { label: 'Cargos por Perfil', href: '/settings?tab=cargos', icon: Briefcase },
+        ],
+      },
+    ],
+  },
+
+  // ── 🤝 CRM (Fase 1; cresce a cada sub-fase) ──
+  {
+    type: 'group', module: 'crm', label: 'Comercial', icon: Handshake,
+    items: [
+      { label: 'Pipeline',     href: '/crm/pipeline',     icon: LayoutGrid },
+      { label: 'Gestão de Propostas', href: '/crm/propostas/gestao', icon: ListFilter },
+      { label: 'Oportunidades', href: '/crm/oportunidades', icon: ListFilter },
+      { label: 'Leads',        href: '/crm/leads',        icon: UserPlus },
+      { label: 'Saúde da Conta', href: '/crm/saude',      icon: HeartPulse },
+      { label: 'Minha Carteira', href: '/crm/minha-carteira', icon: Wallet },
+      { label: 'Forecast',     href: '/crm/forecast',     icon: TrendingUp },
+      { label: 'Dashboards',   href: '/crm/dashboards',   icon: BarChart2 },
+      { label: 'Tarefas',      href: '/crm/tarefas',      icon: ListTodo },
+      { label: 'Simulador',    href: '/crm/simulador',    icon: Calculator },
     ],
   },
   {
-    type: 'group',
-    label: 'Relatórios',
-    icon: FileText,
+    type: 'group', module: 'crm', label: 'Cadastros CRM', icon: Database,
     items: [
-      { label: 'Apontamentos',  href: '/relatorios/apontamentos',  icon: Clock },
-      { label: 'Pagamentos',    href: '/relatorios/pagamentos',    icon: DollarSign },
-      { label: 'Rent. Consultor × Projeto', href: '/relatorios/rentabilidade/consultor', icon: Users },
-      { label: 'Rent. por Projeto',         href: '/relatorios/rentabilidade/projeto',   icon: FolderOpen },
-      { label: 'Rent. Clientes',            href: '/relatorios/rentabilidade',           icon: TrendingUp, exactMatch: true },
+      { label: 'Empresas',            href: '/crm/empresas', icon: Building2 },
+      { label: 'Contatos',            href: '/crm/contatos', icon: Contact },
     ],
   },
-  // 🧪 Features experimentais — só em DEV1 (escondidas em homolog/prod)
-  ...(process.env.NEXT_PUBLIC_APP_ENV === 'dev' ? [
+  {
+    type: 'group', module: 'crm', label: 'Configurações CRM', icon: Settings,
+    items: [
+      { label: 'Pipelines',           href: '/crm/pipelines', icon: GitBranch },
+      { label: 'Produtos e Serviços', href: '/crm/produtos', icon: Tag },
+      { label: 'Origens',             href: '/crm/origens',  icon: Tag },
+      { label: 'Motivos de Perda',    href: '/crm/motivos-perda', icon: XCircle },
+      { label: 'Tipos de Contato',    href: '/crm/tipos-contato', icon: Tag },
+      { label: 'Responsáveis',        href: '/crm/responsaveis', icon: UserCheck },
+      { label: 'Dados da Contratada', href: '/crm/configuracoes/contratada', icon: Building2 },
+      { label: 'Templates de Proposta', href: '/crm/configuracoes/templates', icon: FileText },
+    ],
+  },
+
+  // 🎫 Help Desk removido do menu (feature não finalizada — não expor na Replica).
+
+  // 🧪 Features experimentais — só em DEV1 (sempre visíveis; env-gated)
+  ...(IS_DEV1 ? [
     { type: 'item' as const, label: 'Matriz de Conhecimento', href: '/matriz-conhecimento', icon: Star },
     { type: 'item' as const, label: 'Cobertura de Skills',    href: '/projetos/cobertura-skills', icon: UserCheck },
     { type: 'item' as const, label: 'Candidatos',             href: '/candidatos',                icon: Briefcase },
     { type: 'item' as const, label: 'Busca Avançada',         href: '/busca',                     icon: Search },
     { type: 'item' as const, label: 'Novo Candidato',         href: '/candidato/cadastro',        icon: UserPlus },
   ] : []),
-  {
-    type: 'group',
-    label: 'Cadastros',
-    icon: Database,
-    items: [
-      { label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag },
-      { label: 'Clientes',              href: '/clientes',                         icon: Users },
-      { label: 'Contatos de Clientes', href: '/cadastros?tab=customer_contacts',  icon: Contact },
-      { label: 'Executivos',            href: '/cadastros?tab=executives',        icon: Star },
-      { label: 'Feriados',              href: '/cadastros?tab=holidays',          icon: CalendarDays },
-      { label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',   icon: CreditCard },
-      { label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',            icon: UserCheck },
-      { label: 'Integração Movidesk',   href: '/configuracoes/movidesk',          icon: Webhook },
-      { label: 'Modelos de E-mail',     href: '/cadastros?tab=email_templates',   icon: Mail },
-      { label: 'Parceiros',             href: '/partners',                        icon: Handshake },
-      { label: 'Saldo Inicial de Tickets', href: '/cadastros/saldo-inicial-tickets', icon: Ticket },
-      { label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',         icon: FileType },
-      { label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',     icon: Receipt },
-      { label: 'Tipos de Serviço',      href: '/cadastros?tab=services',          icon: Wrench },
-      { label: 'Workflows de E-mail',   href: '/cadastros/workflows',             icon: Mail },
-    ],
-  },
-  { type: 'item', label: 'Usuários',      href: '/users',    icon: Users },
-  { type: 'item', label: 'Configurações', href: '/settings', icon: Settings },
 ]
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -256,6 +429,93 @@ function itemClass(active: boolean): string {
 // Normaliza p/ busca: minúsculo + sem acento (casa "fechamento" digitando "fechament")
 const normalizeForSearch = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+
+// ─── Menu dirigido pela ÁRVORE do Configurador (nav_modules) ──────────────────
+// A estrutura visual do menu de cada módulo vem da configuração (Configurador),
+// não mais de uma árvore fixa. Ícone da tela: reaproveita o do NAV hardcoded
+// (HREF_ICON); ícone de pasta: nome lucide salvo no nó.
+
+const iconByName = (name?: string): LucideIcon =>
+  (name && (lucideIcons as Record<string, LucideIcon>)[name]) || FileText
+
+// href (sem query) → ícone, varrendo o NAV hardcoded p/ preservar os ícones das telas.
+const HREF_ICON: Record<string, LucideIcon> = {}
+// Registra a href COMPLETA (com query) e também a base (sem query, 1º vence).
+// Sem a chave completa, telas /cadastros?tab=* colapsavam todas no ícone do 1º
+// item /cadastros (Executivos = Star) — todas apareciam com estrela.
+const putIcon = (href: string, icon: LucideIcon) => {
+  if (!HREF_ICON[href]) HREF_ICON[href] = icon
+  const base = href.split('?')[0]
+  if (!HREF_ICON[base]) HREF_ICON[base] = icon
+}
+;(function collect(entries: NavEntry[]) {
+  for (const e of entries) {
+    if (e.type === 'item') putIcon(e.href, e.icon)
+    else for (const it of e.items) {
+      if ('href' in it) putIcon(it.href, it.icon)
+      else for (const s of it.items) putIcon(s.href, s.icon)
+    }
+  }
+})(NAV)
+
+type ItemConfMap = Record<string, { modules: string[]; active: boolean; profiles: string[]; users: number[]; label?: string }>
+
+// Perfis EFETIVOS do usuário: coordenador é separado por coordinator_type
+// (coordenador_projetos | coordenador_sustentacao); mantém 'coordenador' p/ compat.
+function effectiveProfiles(u?: { type?: string | null; coordinator_type?: string | null; consultant_type?: string | null; is_executive?: boolean | null } | null): string[] {
+  const type = u?.type
+  if (type === 'coordenador') return ['coordenador', `coordenador_${u?.coordinator_type ?? 'projetos'}`]
+  // Espelha User::effectiveProfiles do backend: consultor por vínculo, parceiro por is_executive.
+  if (type === 'consultor' && u?.consultant_type) return ['consultor', `consultor_${u.consultant_type}`]
+  if (type === 'parceiro_admin') return ['parceiro_admin', u?.is_executive ? 'parceiro_gestor' : 'parceiro_simples']
+  return type ? [type] : []
+}
+
+// Converte a árvore de um módulo (nav_modules.items) em NavEntry[] (grupos/subgrupos/itens),
+// já filtrando por ativo + permissão (perfil OU usuário).
+function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], itemConfig: ItemConfMap, effProfiles: string[], userId: number): NavEntry[] {
+  const mod = navModules.find(m => m.key === moduleKey)
+  if (!mod) return []
+  // Módulo é do PRÓPRIO perfil (menus independentes): a presença na árvore já é a visibilidade.
+  // Escondemos: telas globalmente desativadas, nós ocultos (hidden), ou override por usuário no nó.
+  void effProfiles
+  // Visibilidade do NÓ p/ ESTE usuário: allow (users) sobrepõe hidden; deny (deny_users) esconde.
+  const nodeVis = (n: NavTreeNode) => {
+    if (n.users && n.users.includes(userId)) return true
+    if (n.deny_users && n.deny_users.includes(userId)) return false
+    return !n.hidden
+  }
+  const keep = (href: string) => itemConfig[href]?.active !== false
+  const lbl = (href: string) => itemConfig[href]?.label || CATALOG_LABEL[href] || href
+  const ico = (href: string) => HREF_ICON[href] || HREF_ICON[href.split('?')[0]] || FileText
+  // Ícone da folha: prioriza o ícone salvo no nó (Configurador), depois o estático
+  // por href (HREF_ICON, sem query), por fim FileText. Sem isso, telas com querystring
+  // (ex.: /cadastros?tab=*) colapsavam todas no mesmo ícone do href base.
+  const leafIco = (n: NavTreeNode): LucideIcon =>
+    (n.icon ? (lucideIcons as Record<string, LucideIcon>)[n.icon] : undefined) || ico(n.screen!)
+  const link = (n: NavTreeNode): NavLink => ({ label: lbl(n.screen!), href: n.screen!, icon: leafIco(n) })
+
+  const out: NavEntry[] = []
+  for (const n of mod.items ?? []) {
+    if (!nodeVis(n)) continue
+    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: lbl(n.screen), href: n.screen, icon: leafIco(n) }) }
+    else {
+      const items: (NavLink | NavSubGroup)[] = []
+      for (const c of n.children ?? []) {
+        if (!nodeVis(c)) continue
+        if (c.screen) { if (keep(c.screen)) items.push(link(c)) }
+        else {
+          const subs: NavLink[] = []
+          const collectSub = (ns: NavTreeNode[]) => ns.forEach(g => { if (!nodeVis(g)) return; if (g.screen) { if (keep(g.screen)) subs.push(link(g)) } else collectSub(g.children ?? []) })
+          collectSub(c.children ?? [])
+          if (subs.length) items.push({ kind: 'subgroup', label: c.label ?? '', icon: iconByName(c.icon), items: subs })
+        }
+      }
+      if (items.length) out.push({ type: 'group', label: n.label ?? '', icon: iconByName(n.icon), items })
+    }
+  }
+  return out
+}
 
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
@@ -295,6 +555,19 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const isParceiroAdmin    = user?.type === 'parceiro_admin'
   const isParceiroGestor   = isParceiroAdmin && !!user?.is_executive
   const isAdministrativo   = user?.type === 'administrativo'
+
+  // Badges de ação na navegação (tarefas atrasadas/pendentes + notificações não lidas) — sempre visíveis.
+  const [badges, setBadges] = useState({ overdue_tasks: 0, pending_tasks: 0, unread_notifications: 0, unread_communications: 0, critical: false })
+  useEffect(() => {
+    if (isCliente) return
+    const fetchBadges = () => api.get<{ data: typeof badges }>('/me/badges').then(r => { if (r.data) setBadges(r.data) }).catch(() => {})
+    fetchBadges()
+    const t = setInterval(fetchBadges, 30000)
+    const onFocus = () => fetchBadges()
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(t); window.removeEventListener('focus', onFocus) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCliente])
   // permissions = lista resolvida pelo backend (base + extra + grupos); fallback para extra_permissions
   // Estabilizada com useMemo pra não causar re-render do visibleNav em cada ciclo
   const ep: string[] = useMemo(
@@ -335,125 +608,11 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   }, [isCliente, user?.customer_id])
 
   const visibleNav = useMemo(() => {
-    if (isCoordenador) {
-      const has = (p: string) => ep.includes(p)
-      const nav: NavEntry[] = [...NAV_COORDINATOR]
-
-      // Permissão via grupo libera "Gestão de Projetos" pra coordenadores que NÃO
-      // sejam do tipo "projetos" (esses entram via Demandas e Projetos abaixo).
-      if (user?.coordinator_type !== 'projetos' && (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update'))) {
-        nav.splice(1, 0, { type: 'item', label: 'Gestão de Contratos', href: '/gestao-projetos', icon: Layers })
-      }
-
-      // Meu Painel — primeiro item para TODOS os coordenadores
-      nav.unshift({ type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard })
-
-      // Investimento Interno — disponível para TODOS os coordenadores (apontamentos,
-      // aprovação e gestão dos investimentos internos / leads da ERPSERV).
-      nav.push({ type: 'item', label: 'Investimento Interno', href: '/investimento-comercial', icon: TrendingUp })
-
-      // Demandas e Projetos — posição 2 para coordenador de projetos
-      // ("Gestão de Projetos" foi removida — governança ficou no painel/Demandas)
-      if (user?.coordinator_type === 'projetos') {
-        nav.splice(1, 0, { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline', icon: LayoutGrid })
-      }
-
-      // Portal de Sustentação — somente para coordenadores do tipo "sustentacao"
-      if (user?.coordinator_type === 'sustentacao') {
-        nav.splice(1, 0, {
-          type: 'group',
-          label: 'Sustentação',
-          icon: Headphones,
-          items: [
-            { label: 'Portal', href: '/sustentacao', icon: Headphones, exactMatch: true },
-          ],
-        })
-      }
-
-
-      // Projetos e Usuários — opcionais via extra_permissions
-      const hasProjectsAction = ['projects.create','projects.update','projects.delete','projects.view_financial'].some(p => ep.includes(p))
-      const hasAnyUserPerm = ['users.view_all','users.create','users.update','users.reset_password'].some(p => ep.includes(p))
-
-      // Cadastros — monta apenas os subitens concedidos.
-      // Pra clientes: além de 'customers.manage' (pacote completo), permissões
-      // granulares (create/update/delete) também liberam o menu — concedidas
-      // via PermissionGroup ou extra_permissions.
-      // Clientes: qualquer permissão de customers libera o item (view sozinho basta).
-      // Contatos de Clientes: mais restritivo — exige nível de edição/gerência.
-      const hasCustomersView = ['customers.view', 'customers.create', 'customers.update', 'customers.delete', 'customers.manage'].some(p => ep.includes(p))
-      const hasCustomersEdit = ['customers.create', 'customers.update', 'customers.delete', 'customers.manage'].some(p => ep.includes(p))
-      // Coordenador de projetos: nunca vê cadastro de Clientes/Contatos de Clientes
-      // (governança de clientes fica fora do escopo dele).
-      const isCoordProjetos = user?.coordinator_type === 'projetos'
-      const cadastrosItems: { label: string; href: string; icon: typeof Users }[] = []
-      if (has('contracts.manage'))          cadastrosItems.push({ label: 'Tipos de Contrato',     href: '/cadastros?tab=contracts',          icon: FileType })
-      if (has('services.manage'))           cadastrosItems.push({ label: 'Tipos de Serviço',      href: '/cadastros?tab=services',           icon: Wrench })
-      if (!isCoordProjetos && hasCustomersView) cadastrosItems.push({ label: 'Clientes',              href: '/clientes',                         icon: Users })
-      if (!isCoordProjetos && hasCustomersEdit) cadastrosItems.push({ label: 'Contatos de Clientes',  href: '/cadastros?tab=customer_contacts',   icon: Contact })
-      if (has('executives.manage'))         cadastrosItems.push({ label: 'Executivos',            href: '/cadastros?tab=executives',         icon: Star })
-      if (has('groups.manage'))             cadastrosItems.push({ label: 'Grupos de Consultor',   href: '/cadastros?tab=groups',             icon: UserCheck })
-      if (has('holidays.manage'))           cadastrosItems.push({ label: 'Feriados',              href: '/cadastros?tab=holidays',           icon: CalendarDays })
-      if (has('expense_categories.manage')) cadastrosItems.push({ label: 'Categorias de Despesa', href: '/cadastros?tab=expense_categories', icon: Tag })
-      if (has('expense_types.manage'))      cadastrosItems.push({ label: 'Tipos de Despesa',      href: '/cadastros?tab=expense_types',      icon: Receipt })
-      if (has('payment_methods.manage'))    cadastrosItems.push({ label: 'Formas de Pagamento',   href: '/cadastros?tab=payment_methods',    icon: CreditCard })
-      if (has('partners.manage'))   cadastrosItems.push({ label: 'Parceiros',           href: '/partners',                 icon: Handshake })
-      // Coordenador de projetos: vê "Usuários" sob Cadastros com função restrita a
-      // reset de senhas (a tela /users gateia as ações pra esse perfil).
-      if (isCoordProjetos)                  cadastrosItems.push({ label: 'Usuários',              href: '/users',                            icon: Users })
-      // 'Projetos' foi removido — inclusão agora é feita via Kanban (pipeline)
-      if (cadastrosItems.length > 0) nav.push({ type: 'group', label: 'Cadastros', icon: Database, items: cadastrosItems.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')) })
-
-      // Usuários — após Cadastros (perfis com permissão dedicada; coord_projetos já entra via Cadastros acima)
-      if (!isCoordProjetos && hasAnyUserPerm) nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users })
-
-      // Configurações
-      if (has('settings.view')) nav.push({ type: 'item', label: 'Configurações', href: '/settings', icon: Settings })
-
-      return nav
-    }
-    if (isAdministrativo) {
-      const nav: NavEntry[] = [
-        { type: 'item', label: 'Início', href: '/dashboard', icon: Home },
-        {
-          type: 'group',
-          label: 'Apontamentos & Despesas',
-          icon: Clock,
-          items: [
-            { label: 'Apontamentos', href: '/timesheets', icon: Clock },
-            { label: 'Despesas',     href: '/expenses',   icon: Receipt },
-          ],
-        },
-        { type: 'item', label: 'Kanban Contratos', href: '/contratos/kanban', icon: LayoutGrid, matchPaths: ['/contratos'] },
-        {
-          type: 'group', label: 'Fechamento', icon: DollarSign,
-          items: [
-            { label: 'Geral',              href: '/fechamento',           icon: BarChart2 },
-            { label: 'Clientes',           href: '/fechamento/cliente',   icon: Building2 },
-            { label: 'Parceiros',          href: '/fechamento/parceiro',  icon: Handshake },
-            { label: 'Consultores',        href: '/fechamento/consultor', icon: Users },
-            { label: 'Horas Excedentes',   href: '/fechamento/excedentes', icon: Clock },
-            { label: 'Adiantamentos',      href: '/fechamento/adiantamentos', icon: Banknote },
-            { label: 'Diretoria',          href: '/fechamento/diretoria', icon: Briefcase },
-            { label: 'Folha Cooperativa',  href: '/fechamento/folha',     icon: FileSpreadsheet },
-            { label: 'Contratos',          href: '/fechamento/contratos', icon: FileText  },
-            { label: 'Reajuste de Contrato', href: '/fechamento/reajustes', icon: TrendingUp },
-            { label: 'Pagamento Despesas', href: '/pagamento-despesas',   icon: DollarSign },
-          ],
-        },
-        {
-          type: 'group', label: 'Cadastros', icon: Database,
-          items: [
-            { label: 'Clientes',     href: '/clientes',    icon: Building2 },
-          ],
-        },
-        { type: 'item', label: 'Usuários',     href: '/users',    icon: Users },
-      ]
-      // Gestão de Projetos — libera via permissão de grupo (mesmo padrão de outros perfis)
-      if (ep.includes('gestao_projetos.view') || ep.includes('gestao_projetos.update')) {
-        nav.splice(3, 0, { type: 'item', label: 'Gestão de Contratos', href: '/gestao-projetos', icon: Layers })
-      }
-      return nav
+    // Coordenador e Administrativo agora vêm do CONFIGURADOR (moduleNav monta a árvore dos
+    // módulos servicos__coordenador_* / administrativo__administrativo). visibleNav vazio p/
+    // não vazar item no home extraction — o menu real é o config.
+    if (isCoordenador || isAdministrativo) {
+      return [] as NavEntry[]
     }
     if (isCliente) {
       // Filtra dashboards pelos tipos de contrato que o cliente realmente possui
@@ -467,6 +626,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         .filter(([code]) => clienteContractCodes.has(code))
         .map(([, item]) => item)
       const nav: NavEntry[] = [
+        { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone, badge: 'comunicados' },
         { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2 },
         { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid },
       ]
@@ -479,39 +639,48 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       }
       return nav
     }
-    if (isConsultor) {
-      const baseNav: NavEntry[] = [
-        { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
-        ...(IS_DEV1 ? [{ type: 'item' as const, label: 'Meus Cards', href: '/meus-cards', icon: Inbox }] : []),
-      ]
-
-      // Consultor NUNCA vê Gestão de Projetos nem Usuários, mesmo com extra_permissions.
-      // Essas rotinas pertencem a coordenação/administração — escopo do consultor é executar
-      // atividade, apontar horas, validar apontamentos quando autorizado.
-
-      if (ep.includes('timesheets.approve') || ep.includes('hours.view_all'))
-        baseNav.push({ type: 'item', label: 'Apontamentos', href: '/timesheets', icon: Clock })
-      if (ep.includes('approvals.view') || ep.includes('approvals.manage'))
-        baseNav.push({ type: 'item', label: 'Aprovações', href: '/approvals', icon: CheckSquare })
-      if (ep.includes('settings.view'))
-        baseNav.push({ type: 'item', label: 'Configurações', href: '/settings', icon: Settings })
-
-      return baseNav
-    }
-    if (isParceiroAdmin) {
-      if (isParceiroGestor) {
-        return [
-          { type: 'item', label: 'Painel do Parceiro', href: '/partner-dashboard', icon: Handshake },
-        ] as NavEntry[]
-      }
-      // Parceiro simples: apenas Meu Painel — apontamentos e despesas já são abas
-      // internas do próprio dashboard (Total Geral / Apontamentos / Despesas / Indicadores).
-      return [
-        { type: 'item', label: 'Meu Painel', href: '/meu-painel', icon: LayoutDashboard },
-      ] as NavEntry[]
+    // Consultor e Parceiro agora vêm 100% do CONFIGURADOR (moduleNav monta da árvore do
+    // módulo do subtipo: consultor_horista/banco_de_horas/fixo, parceiro_gestor/simples).
+    // visibleNav vazio p/ não vazar item no home extraction — o menu real é o config.
+    if (isConsultor || isParceiroAdmin) {
+      return [] as NavEntry[]
     }
     return NAV
   }, [isCoordenador, isConsultor, isCliente, isParceiroAdmin, isParceiroGestor, isAdministrativo, clienteContractCodes, ep])
+
+  // ── Módulos de navegação (Serviços / Administrativo) — estado compartilhado (header + sidebar).
+  // Cliente não tem módulos → vê o portal inteiro como hoje (sem filtro).
+  const { allowedModules, selectedModule, modules: navModules, itemConfig } = useModules()
+  // Nav já filtrada pelo módulo (mantém o gating de perfil/permissão do visibleNav).
+  // GARANTIA: o filtro de módulo só faz sentido quando há MAIS DE UM módulo para
+  // alternar. Em perfil de módulo único (ex.: coordenador só de Serviços), filtrar
+  // apenas ESCONDERIA itens que as permissões já concederam — então NÃO filtramos:
+  // tudo que o perfil/grupo permite aparece. Com 2+ módulos, o filtro organiza as abas.
+  // Menu do módulo selecionado vem da ÁRVORE do Configurador (estrutura real). Com módulo único
+  // ou cliente, mantém o NAV hardcoded (fallback seguro). Itens "home" (Meu Dia/Meu Painel) são
+  // prefixados, sem duplicar telas que já estão na árvore.
+  const moduleNav = useMemo(() => {
+    // Perfis de módulo único (consultor/parceiro/coordenador/administrativo) DEVEM montar do
+    // config (Configurador), não do visibleNav hardcoded — escapam do fallback de módulo único.
+    const configDrivenSingle = isConsultor || isParceiroAdmin || isCoordenador || isAdministrativo
+    if (isCliente || !selectedModule || (allowedModules.length <= 1 && !configDrivenSingle)) return visibleNav
+    const eff = effectiveProfiles(user)
+    const built = buildModuleNav(selectedModule, navModules, itemConfig, eff, user?.id ?? 0)
+    if (built.length === 0) return visibleNav
+    const builtHrefs = new Set<string>()
+    built.forEach(e => { if (e.type === 'item') builtHrefs.add(e.href); else e.items.forEach(it => ('href' in it) ? builtHrefs.add(it.href) : it.items.forEach(s => builtHrefs.add(s.href))) })
+    // home (Meu Dia/Meu Painel…): itens do topo do NAV, sem duplicar a árvore e respeitando o módulo
+    const keepHome = (e: NavItem) => {
+      if (e.alwaysVisible) return true
+      const c = itemConfig[e.href]
+      if (c) { if (!c.active) return false; return (eff.some(p => c.profiles.includes(p)) || c.users.includes(user?.id ?? 0)) && c.modules.includes(selectedModule) }
+      const m = moduleForHref(e.href)
+      return m === null || m === selectedModule
+    }
+    const home: NavEntry[] = []
+    for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
+    return [...home, ...built]
+  }, [visibleNav, selectedModule, allowedModules, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,
   // sem fechar os já abertos manualmente.
@@ -521,7 +690,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       const base = href.split('?')[0]
       return pathname === base || pathname.startsWith(base + '/')
     }
-    for (const entry of visibleNav) {
+    for (const entry of moduleNav) {
       if (entry.type !== 'group') continue
       for (const i of entry.items) {
         if ('href' in i) {
@@ -541,7 +710,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       const merged = new Set([...prev, ...auto])
       return merged.size === prev.length ? prev : Array.from(merged)
     })
-  }, [pathname, visibleNav])
+  }, [pathname, moduleNav])
 
   // First two letters of name for avatar
   const initials = user?.name
@@ -572,15 +741,15 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   )
 
   // ── Busca no menu ──
-  // Filtra por label (sem acento/caixa). Grupo que casa no próprio nome é mantido
-  // inteiro; senão, mantém só os filhos que casam. Subgrupo idem.
+  // Filtra (sobre a nav já filtrada por módulo) por label, sem acento/caixa. Grupo
+  // que casa no próprio nome é mantido inteiro; senão, mantém só os filhos que casam.
   const q = normalizeForSearch(query.trim())
   const isSearching = q.length > 0
   const filteredNav = useMemo(() => {
-    if (!q) return visibleNav
+    if (!q) return moduleNav
     const match = (label: string) => normalizeForSearch(label).includes(q)
     const out: NavEntry[] = []
-    for (const entry of visibleNav) {
+    for (const entry of moduleNav) {
       if (entry.type === 'item') {
         if (match(entry.label)) out.push(entry)
         continue
@@ -595,10 +764,10 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       if (items.length) out.push({ ...entry, items })
     }
     return out
-  }, [visibleNav, q])
+  }, [moduleNav, q])
 
   // No colapsado não há input visível — mantém a lista completa (só ícones).
-  const navToRender = collapsed ? visibleNav : filteredNav
+  const navToRender = collapsed ? moduleNav : filteredNav
 
   return (
     <>
@@ -623,7 +792,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         'md:static md:h-screen md:shrink-0 md:translate-x-0 md:transition-all',
         collapsedRaw ? 'md:w-[60px]' : 'md:w-[248px]',
       )}
-      style={{ background: 'var(--panel)', borderColor: 'var(--border)' }}
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       {/* Fechar (só mobile) */}
       <button
@@ -634,21 +803,39 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       >
         <ChevronLeft size={16} />
       </button>
-      {/* ── Logo ── */}
+      {/* ── Logo + módulo atual ── */}
       <div
-        className="flex items-center gap-8 h-18 px-5 border-b shrink-0"
+        className="flex flex-col justify-center h-18 px-5 border-b shrink-0"
         style={{ borderColor: 'var(--border)' }}
       >
-        <MinutorIcon size={34} />
-        {!collapsed && (
-          <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>
-            Minutor
-          </span>
-        )}
+        {(() => {
+          const mod = navModules.find(m => m.key === selectedModule)
+          // Minimizado: logo do Minutor + inicial do módulo. Expandido: logo + "Minutor",
+          // e o nome do módulo ABAIXO (alinhado sob "Minutor"), sem deslocar o nome Minutor.
+          if (collapsed) {
+            return (
+              <div className="flex flex-col items-center gap-1 mx-auto">
+                <MinutorIcon size={30} />
+                {mod && <span className="text-[10px] font-bold leading-none" title={mod.label} style={{ color: 'var(--primary)' }}>{mod.label.slice(0, 3)}</span>}
+              </div>
+            )
+          }
+          return (
+            <>
+              <div className="flex items-center gap-3">
+                <MinutorIcon size={34} />
+                <span className="font-bold text-[20px] tracking-tight" style={{ color: 'var(--text)' }}>Minutor</span>
+              </div>
+              {mod && <span className="text-[15px] font-semibold truncate mt-0.5 pl-[46px]" style={{ color: 'var(--primary)' }}>{mod.label}</span>}
+            </>
+          )
+        })()}
       </div>
 
-      {/* ── User name (consultor / parceiro) ── */}
-      {(isConsultor || isParceiroAdmin) && user && (
+      {/* Troca de módulo agora é só pelo launcher ⊞ no header (AppsMenu). */}
+
+      {/* ── Card do usuário (foto + nome + cargo) — todos os perfis internos (a foto "aparece no menu") ── */}
+      {user && user.type !== 'cliente' && (
         <div
           className="flex items-center gap-2.5 px-3.5 py-3 border-b shrink-0"
           style={{ borderColor: 'var(--border)' }}
@@ -664,7 +851,12 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
               <div className="min-w-0">
                 <p className="text-xs font-semibold truncate leading-tight" style={{ color: 'var(--text)' }}>{user.name}</p>
                 <p className="text-[10px] truncate mt-0.5" style={{ color: 'var(--text-light)' }}>
-                  {isParceiroGestor ? 'Parceiro Gestor' : isParceiroAdmin ? 'Parceiro' : 'Consultor'}
+                  {user.type === 'admin' ? 'Administrador'
+                    : user.type === 'coordenador' ? 'Coordenador'
+                    : user.type === 'administrativo' ? 'Administrativo'
+                    : isParceiroGestor ? 'Parceiro Gestor'
+                    : isParceiroAdmin ? 'Parceiro'
+                    : 'Consultor'}
                 </p>
               </div>
             </>
@@ -715,14 +907,33 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
           if (entry.type === 'item') {
             const active = isActive(entry.href, entry.matchPaths)
             const Icon   = entry.icon
+            // Badge de ação: vermelho (tarefas atrasadas/pendentes), amarelo (notificações não lidas).
+            const badgeCount = entry.badge === 'tasks' ? (badges.overdue_tasks || badges.pending_tasks)
+              : entry.badge === 'notifications' ? badges.unread_notifications
+              : entry.badge === 'comunicados' ? badges.unread_communications : 0
+            const badgeColor = entry.badge === 'tasks' ? 'var(--danger-border)'
+              : entry.badge === 'comunicados' ? 'var(--primary)' : 'var(--warning-border)'
+            const isCriticalDay = entry.badge === 'critical' && badges.critical
             const item = (
               <Link
                 key={entry.href}
                 href={entry.href}
                 className={cn(base, itemClass(active))}
+                style={isCriticalDay && !active ? { boxShadow: 'inset 3px 0 0 var(--danger-border)' } : undefined}
               >
-                <Icon size={17} className="shrink-0" />
+                <span className="relative shrink-0">
+                  <Icon size={17} className="shrink-0" />
+                  {(collapsed && (badgeCount > 0 || isCriticalDay)) && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full" style={{ background: badgeCount > 0 ? badgeColor : 'var(--danger-border)' }} />
+                  )}
+                </span>
                 {!collapsed && <span className="font-medium">{entry.label}</span>}
+                {!collapsed && badgeCount > 0 && (
+                  <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none" style={{ background: badgeColor, color: '#fff', minWidth: 18, textAlign: 'center' }}>{badgeCount > 99 ? '99+' : badgeCount}</span>
+                )}
+                {!collapsed && isCriticalDay && badgeCount === 0 && (
+                  <span className="ml-auto w-2 h-2 rounded-full" style={{ background: 'var(--danger-border)' }} title="Tarefas críticas" />
+                )}
               </Link>
             )
             if (collapsed) {
