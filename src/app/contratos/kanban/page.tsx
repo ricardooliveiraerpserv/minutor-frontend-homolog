@@ -276,6 +276,9 @@ const FIXED_COLUMNS: Column[] = [
 ]
 
 const SUST_COLOR   = '#f97316'
+// Coluna "Meus Projetos" do board exclusivo do coordenador de sustentação — cor própria
+// (azul), distinta do laranja das filas de sustentação.
+const MEUS_PROJETOS_COLOR = '#3b82f6'
 const BIZIFY_COLOR = '#a78bfa'
 
 const SUSTENTACAO_COLS: Column[] = [
@@ -1438,7 +1441,7 @@ function KanbanContent() {
           type:          'coordinator' as const,
           coordinatorId: user!.id,
           emoji:         '👤',
-          color:         SUST_COLOR,
+          color:         MEUS_PROJETOS_COLOR,
         },
         ...SUSTENTACAO_COLS,
         ...STATUS_PROJECT_COLUMNS,
@@ -2157,7 +2160,7 @@ function KanbanContent() {
                               </p>
                             </>
                           )}
-                          {isCoord && col.color && (
+                          {isCoord && col.color === SUST_COLOR && (
                             <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm inline-block mt-1"
                               style={{ background: `${col.color}15`, color: col.color, letterSpacing: '0.1em' }}>
                               SUSTENTAÇÃO
