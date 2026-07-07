@@ -17,6 +17,7 @@ import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table
 import { ProjectDataModal } from '@/components/shared/ProjectDataModal'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 import { ProjectViewModal, ProjectInlineEditModal } from '@/components/projects/project-view-modal'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -81,7 +82,7 @@ interface ProjectCard {
   service_type?: string
 }
 
-interface Coordinator { id: number; name: string }
+interface Coordinator { id: number; name: string; coordinator_type?: string | null }
 
 interface ProjectFull {
   id: number; name: string; code: string; status: string; status_display?: string
@@ -681,6 +682,10 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { user: viewerUser } = useAuth()
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/contratos/kanban', 'view')
+  const dEdit = isDenied('/contratos/kanban', 'edit')
 
   useEffect(() => {
     if (!menuOpen) return
@@ -745,7 +750,7 @@ function ContractKanbanCard({ card, index, onClick, onAction, onMove, availableC
                   {menuOpen && (
                     <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden"
                       style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--brand-card-shadow-md)' }}>
-                      {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador')).map(item => {
+                      {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !(item.action === 'view' && dView) && !(item.action === 'edit' && dEdit)).map(item => {
                         const Icon = item.icon
                         const isDanger = (item as any).danger
                         return (
@@ -892,6 +897,10 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
   onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; canWrite?: boolean
 }) {
   const { user: viewerUser } = useAuth()
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/contratos/kanban', 'view')
+  const dEdit = isDenied('/contratos/kanban', 'edit')
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -968,7 +977,7 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
                 {menuOpen && (
                   <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden"
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--brand-card-shadow-md)' }}>
-                    {PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador')).map(item => {
+                    {PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !(item.action === 'view' && dView) && !(item.action === 'edit' && dEdit)).map(item => {
                       const Icon = item.icon
                       const isDanger = (item as any).danger
                       return (
@@ -1057,6 +1066,8 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
   const badge = statusBadge(card)
   const [tab, setTab]   = useState<'details' | 'chat' | 'log' | 'extrato'>(initialTab ?? 'details')
   const canEditExtrato = userRole === 'admin' || userRole === 'coordenador'
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
   const [full, setFull] = useState<any>(null)
   const [logs, setLogs] = useState<any[]>([])
   const [logsLoaded, setLogsLoaded] = useState(false)
@@ -1329,11 +1340,13 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--border)' }}>
               <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)' }}>Fechar</button>
-              <button onClick={() => { onClose(); onEditContract?.(card.id) }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border)', color: 'var(--text)' }}>
-                <Pencil size={13} /> Editar Contrato
-              </button>
+              {!isDenied('/contratos/kanban', 'edit') && (
+                <button onClick={() => { onClose(); onEditContract?.(card.id) }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
+                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                  <Pencil size={13} /> Editar Contrato
+                </button>
+              )}
               <button onClick={() => { window.location.href = '/contratos' }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
                 style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
@@ -1352,6 +1365,10 @@ function CardDetailModal({ card, onClose, onEditContract, initialTab, userRole }
 function KanbanContent() {
   const router = useRouter()
   const { user } = useAuth()
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dCreate = isDenied('/contratos/kanban', 'create')
+  const dCancel = isDenied('/contratos/kanban', 'cancel')
 
   type SustGroups = Record<string, (ContractCard | ProjectCard)[]>
 
@@ -1422,6 +1439,9 @@ function KanbanContent() {
           type:          'coordinator' as const,
           coordinatorId: c.id,
           emoji:         '👤',
+          // Coordenador de sustentação que coordena projetos pontuais: coluna laranja
+          // (mesma cor da legenda Sustentação) pra diferenciar dos coord. de projeto.
+          color:         c.coordinator_type === 'sustentacao' ? SUST_COLOR : undefined,
         })),
         ...SUSTENTACAO_COLS,
         BIZIFY_COL,
@@ -1751,7 +1771,7 @@ function KanbanContent() {
     }
 
     const CANCEL_PAUSE = [
-      { id: 'contract_cancelado', label: '🚫 Cancelar' },
+      ...(dCancel ? [] : [{ id: 'contract_cancelado', label: '🚫 Cancelar' }]),
       { id: 'contract_pausado',   label: '⏸ Pausar' },
     ]
 
@@ -1936,13 +1956,15 @@ function KanbanContent() {
               <List size={13} /> Lista
             </button>
 
-            <button onClick={() => { setEditingContractData(null); setShowNewContract(true) }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors"
-              style={{ background: 'var(--primary)', color: 'var(--primary-fg)', border: '1px solid var(--primary)' }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-hover)'; e.currentTarget.style.borderColor = 'var(--primary-hover)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary)' }}>
-              <Plus size={13} /> Novo Contrato
-            </button>
+            {!dCreate && (
+              <button onClick={() => { setEditingContractData(null); setShowNewContract(true) }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors"
+                style={{ background: 'var(--primary)', color: 'var(--primary-fg)', border: '1px solid var(--primary)' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--primary-hover)'; e.currentTarget.style.borderColor = 'var(--primary-hover)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary)' }}>
+                <Plus size={13} /> Novo Contrato
+              </button>
+            )}
           </div>
         </div>
 
@@ -2050,7 +2072,7 @@ function KanbanContent() {
                     : isBizify  ? `${BIZIFY_COLOR}35`
                     : isAporteCol ? `${APORTE_COLOR}45`
                     : col.id === 'aditivos' ? `${ADITIVO_COLOR}45`
-                    : isCoord   ? 'var(--primary-soft)'
+                    : isCoord   ? (col.color ? `${col.color}45` : 'var(--primary-soft)')
                     : isPronto  ? `${PRONTO_COLOR}40`
                     : 'var(--border)'
 
@@ -2059,7 +2081,7 @@ function KanbanContent() {
                     : isBizify  ? BIZIFY_COLOR
                     : isAporteCol ? APORTE_COLOR
                     : col.id === 'aditivos' ? ADITIVO_COLOR
-                    : isCoord   ? 'var(--primary)'
+                    : isCoord   ? (col.color ?? 'var(--primary)')
                     : isPronto  ? PRONTO_COLOR
                     : 'var(--text)'
 
@@ -2113,6 +2135,12 @@ function KanbanContent() {
                                 Arraste entre colunas ou para coordenador
                               </p>
                             </>
+                          )}
+                          {isCoord && col.color && (
+                            <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm inline-block mt-1"
+                              style={{ background: `${col.color}15`, color: col.color, letterSpacing: '0.1em' }}>
+                              SUSTENTAÇÃO
+                            </span>
                           )}
                           {isBizify && (
                             <>
