@@ -3,9 +3,10 @@ import { cookies } from 'next/headers'
 
 const TOKEN_COOKIE = 'minutor_token'
 
-export async function POST() {
+export async function POST(req: Request) {
   const cookieStore = await cookies()
-  const token = cookieStore.get(TOKEN_COOKIE)?.value
+  // Per-aba: revoga o token DESTA aba (Authorization vindo do sessionStorage) se presente; senão o cookie.
+  const token = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || cookieStore.get(TOKEN_COOKIE)?.value
   const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:8000'
 
   // Tenta revogar o token no backend; se falhar, ainda limpa o cookie local.
