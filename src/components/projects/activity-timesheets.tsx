@@ -57,6 +57,7 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
   const [items, setItems] = useState<TS[]>([])
   const [allocUsers, setAllocUsers] = useState<AllocUser[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm())
@@ -67,7 +68,12 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
     try {
       const r = await api.get<{ items: TS[] }>(`/timesheets?stage_delivery_id=${deliveryId}&pageSize=100&order=-date`)
       setItems(r.items ?? [])
-    } catch { /* */ }
+      setLoadError(null)
+    } catch (e) {
+      // NÃO engolir em silêncio: um erro aqui fazia a lista mostrar "Nenhum apontamento"
+      // (falso) mesmo quando o apontamento foi criado — mascarava a causa real.
+      setLoadError(e instanceof ApiError ? e.message : 'Falha ao carregar os apontamentos.')
+    }
     finally { setLoading(false) }
   }, [deliveryId])
   useEffect(() => { load() }, [load])
@@ -291,6 +297,12 @@ export function ActivityTimesheets({ projectId, stageId, deliveryId, responsible
       )}
 
       {loading ? <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Carregando…</p>
+        : loadError ? (
+          <div style={{ fontSize: 12, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span>{loadError}</span>
+            <button onClick={() => load()} className="ds-btn-ghost" style={{ fontSize: 12, padding: '3px 8px' }}>Tentar de novo</button>
+          </div>
+        )
         : items.length === 0 ? <p style={{ fontSize: 12, color: 'var(--text-light)' }}>Nenhum apontamento nesta atividade.</p>
           : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
