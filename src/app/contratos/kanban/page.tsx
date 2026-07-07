@@ -1759,6 +1759,9 @@ function KanbanContent() {
   }
 
   const getAvailableContractCols = (card: ContractCard, fromCol: string): { id: string; label: string }[] => {
+    // Coordenador de sustentação: só move cards da coluna "Meus Projetos" (que são
+    // projetos, não contratos) — logo, nenhum contrato/fila é movível por ele.
+    if (isSustCoordenador) return []
     // Aditivo só transita entre "Novo Contrato" e "Aditivos".
     if (card.is_aditivo) {
       return fromCol === 'aditivos'
@@ -1851,6 +1854,16 @@ function KanbanContent() {
 
   const getAvailableProjectCols = (card: ProjectCard, fromCol: string, currentCoordId?: number): { id: string; label: string }[] => {
     if (isConsultor || isCliente) return []
+
+    // Coordenador de sustentação: só move cards que estão na coluna "Meus Projetos" (a dele),
+    // e só para Cancelado / Pausado / Encerrado. Cards em filas de sustentação ou já em status
+    // terminal não são movíveis por ele.
+    if (isSustCoordenador) {
+      if (fromCol !== `coordinator:${user?.id}`) return []
+      return STATUS_PROJECT_COLUMNS
+        .filter(c => COL_TO_PROJECT_STATUS[c.id] !== card.status)
+        .map(c => ({ id: c.id, label: c.label }))
+    }
 
     // Detecção de sustentação pelo tipo do projeto
     const ctLower = card.contract_type?.toLowerCase() ?? ''
