@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus, Clock, MapPin, Link2 } from 'lucide-react'
+import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus, Clock, MapPin, Link2, DollarSign } from 'lucide-react'
+import { TimesheetFormModal } from '@/components/ui/timesheet-form-modal'
+import { ExpenseQuickModal } from '@/components/ui/expense-quick-modal'
 import { DOT, type CalEvento } from '@/components/notifications/calendar-mini'
 import { useAuth } from '@/hooks/use-auth'
 import { TasksCard } from '@/components/notifications/tasks-card'
@@ -70,6 +72,8 @@ export default function MeuDiaPage() {
   const canTeam = ['admin', 'coordenador', 'administrativo'].includes(user?.type ?? '')
   const canActions = ['consultor', 'coordenador', 'admin', 'administrativo', 'parceiro_admin'].includes(user?.type ?? '')
   const tasksRef = useRef<HTMLDivElement>(null)
+  const [tsOpen, setTsOpen] = useState(false)     // modal apontar horas (mesmo da Operação)
+  const [expOpen, setExpOpen] = useState(false)   // modal apontar despesa
   const agendaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (user?.type === 'cliente') router.replace('/dashboard') }, [user?.type, router])
@@ -162,6 +166,12 @@ export default function MeuDiaPage() {
                 {foco && <span className="text-[11px] inline-flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Target size={11} /> Foco: {foco.label} ({foco.urgent > 0 ? `${foco.urgent} urgente${foco.urgent > 1 ? 's' : ''}` : `${foco.count} tarefa${foco.count > 1 ? 's' : ''}`})</span>}
               </div>
             </div>
+            {canActions && (
+              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                <button onClick={() => setTsOpen(true)} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Clock size={14} /> Apontar horas</button>
+                <button onClick={() => setExpOpen(true)} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><DollarSign size={14} /> Apontar despesa</button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -401,6 +411,9 @@ export default function MeuDiaPage() {
           </div>
         )}
       </div>
+
+      <TimesheetFormModal open={tsOpen} onClose={() => setTsOpen(false)} onSaved={() => { setTsOpen(false); load() }} currentUser={user} />
+      <ExpenseQuickModal open={expOpen} onClose={() => setExpOpen(false)} onSaved={() => { setExpOpen(false); load() }} currentUser={user} />
     </AppLayout>
   )
 }
