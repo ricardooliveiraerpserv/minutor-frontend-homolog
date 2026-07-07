@@ -123,9 +123,9 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
         const evs = events.filter(e => e.data === modalDate)
         return (
           <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setModalDate(null)}>
-            <div className="ds-card w-full max-w-md max-h-[85vh] overflow-y-auto p-4 space-y-3" onClick={ev => ev.stopPropagation()}>
+            <div className="ds-card w-full max-w-3xl max-h-[88vh] overflow-y-auto p-6 space-y-4" onClick={ev => ev.stopPropagation()}>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Eventos de {ddmm(modalDate)}</span>
+                <span className="text-base font-semibold" style={{ color: 'var(--text)' }}>Eventos de {ddmm(modalDate)}</span>
                 <button onClick={() => setModalDate(null)} aria-label="Fechar" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
               </div>
               {evs.map((e, i) => {
@@ -169,9 +169,9 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
       {/* Config admin: quem vê o quê na agenda */}
       {cfgOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setCfgOpen(false)}>
-          <div className="ds-card w-full max-w-2xl max-h-[85vh] overflow-y-auto p-4 space-y-3" onClick={ev => ev.stopPropagation()}>
+          <div className="ds-card w-full max-w-4xl max-h-[88vh] overflow-y-auto p-6 space-y-4" onClick={ev => ev.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Visibilidade da agenda por perfil</span>
+              <span className="text-base font-semibold" style={{ color: 'var(--text)' }}>Visibilidade da agenda por perfil</span>
               <button onClick={() => setCfgOpen(false)} aria-label="Fechar" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
             </div>
             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Marque quais eventos cada perfil pode ver no calendário. O <b>Administrador vê todos</b>.</p>
