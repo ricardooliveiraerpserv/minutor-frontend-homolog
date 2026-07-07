@@ -122,7 +122,7 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
                     <div className="space-y-1 text-[12px]" style={{ color: 'var(--text-muted)' }}>
                       {e.hora && <div className="flex items-center gap-1.5"><Clock size={12} className="shrink-0" /> <span>{e.hora}{e.hora_fim ? ` – ${e.hora_fim}` : ''}{e.organizador ? ` · por ${e.organizador}` : ''}</span></div>}
                       {e.local && <div className="flex items-start gap-1.5"><MapPin size={12} className="mt-[2px] shrink-0" /> <span>{e.local}</span></div>}
-                      {e.link && <a href={e.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium" style={{ color: 'var(--primary)' }}><Link2 size={12} className="shrink-0" /> Ingressar / abrir convite</a>}
+                      {e.link && <a href={e.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium" style={{ color: 'var(--primary)' }}><Link2 size={12} className="shrink-0" /> {e.link.includes('teams.microsoft.com') ? 'Ingressar no Teams' : 'Abrir convite'}</a>}
                     </div>
                     {grupos.length > 0 && (
                       <div className="space-y-1 pt-0.5">
