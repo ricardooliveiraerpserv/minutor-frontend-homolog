@@ -61,6 +61,7 @@ interface ProjectCard {
   status: string
   sold_hours?: number
   consumed_hours?: number | null
+  client_follows_timesheets?: boolean | null   // cliente só vê horas se true (BH Fixo nasce false)
   general_hours_balance?: number | null
   expected_end_date?: string | null
   coordinator_ids?: number[]
@@ -758,6 +759,9 @@ function ProjectKanbanCard({
             </div>
           )}
           {(() => {
+            // Visão do CLIENTE: se o projeto não tem o acompanhamento de horas ligado
+            // (client_follows_timesheets = false), NÃO mostrar horas/progresso no card.
+            if (isCliente && card.client_follows_timesheets === false) return null
             // NESTA TELA (Demandas e Projetos): a lente de coordenação vale pra TODOS os
             // perfis internos — inclusive admin — quando há banco de coordenação. Mostra
             // só as horas disponibilizadas pra coordenação (não o operacional). Exceção:
