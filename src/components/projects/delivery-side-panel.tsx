@@ -6,10 +6,12 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import type { StageDelivery, DeliveryStatus, DeliveryPriority } from '@/lib/types/project-stage'
 import { DeliveryTimeline } from './delivery-timeline'
+import { ActivityTimesheets } from './activity-timesheets'
 import { SearchSelect } from '@/components/ui/search-select'
 
 interface Props {
   delivery: StageDelivery
+  projectId: number
   onClose: () => void
   onUpdated: (d: StageDelivery) => void
   onDeleted: (id: number) => void
@@ -29,7 +31,7 @@ const PRIORITY_OPTIONS: { value: DeliveryPriority; label: string }[] = [
   { value: 'high', label: 'Alta' },
 ]
 
-export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: Props) {
+export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onDeleted }: Props) {
   const [title, setTitle] = useState(delivery.title)
   const [description, setDescription] = useState(delivery.description ?? '')
   const [hours, setHours] = useState(String(delivery.hours_planned ?? ''))
@@ -245,6 +247,27 @@ export function DeliverySidePanel({ delivery, onClose, onUpdated, onDeleted }: P
             >
               Excluir
             </button>
+          </div>
+
+          {/* Apontamentos da própria atividade: consultor aponta aqui, coord/admin
+              aprova aqui, e o resumo/barra de progresso de horas (previstas vs
+              apontadas) vive nesta seção. */}
+          <div style={{ marginTop: 28 }}>
+            <div style={{
+              fontSize: 11, color: 'var(--text-muted)',
+              textTransform: 'uppercase', letterSpacing: '.04em',
+              marginBottom: 8,
+            }}>
+              Horas apontadas
+            </div>
+            <ActivityTimesheets
+              projectId={projectId}
+              stageId={delivery.stage_id}
+              deliveryId={delivery.id}
+              responsible={delivery.responsible ?? null}
+              previstas={Number(hours) || 0}
+              onChanged={() => setTimelineKey(k => k + 1)}
+            />
           </div>
 
           <div style={{ marginTop: 28 }}>
