@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, CheckCircle2, ShieldAlert, Pencil, Megaphone } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ShieldAlert, Pencil, Megaphone, ChevronsDown } from 'lucide-react'
 import { PollCard, type Poll } from '@/components/notifications/poll-card'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 
@@ -31,6 +31,12 @@ export function NotificationCenter() {
   const [items, setItems] = useState<Notif[]>([])
   const [actions, setActions] = useState<ActionItem[]>([])
   const [ackTarget, setAckTarget] = useState<Notif | null>(null)
+  const ackBodyRef = useRef<HTMLDivElement>(null)
+  const [ackCanOk, setAckCanOk] = useState(true)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => { const el = ackBodyRef.current; setAckCanOk(!el || el.scrollHeight <= el.clientHeight + 4) })
+    return () => cancelAnimationFrame(id)
+  }, [ackTarget?.id])
   const router = useRouter()
 
   const load = useCallback(() => {
@@ -106,12 +112,15 @@ export function NotificationCenter() {
             </div>
             <div className="p-5 space-y-3">
               <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{ackTarget.title}</h2>
-              {isHtmlBody(ackTarget.message)
-                ? <div className="text-sm hd-rich" style={{ color: 'var(--text-muted)' }} dangerouslySetInnerHTML={{ __html: sanitizeRich(ackTarget.message) }} />
-                : <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-muted)' }}>{ackTarget.message}</p>}
+              <div ref={ackBodyRef} onScroll={e => { const el = e.currentTarget; if (el.scrollTop + el.clientHeight >= el.scrollHeight - 6) setAckCanOk(true) }} className="text-sm max-h-60 overflow-auto" style={{ color: 'var(--text-muted)' }}>
+                {isHtmlBody(ackTarget.message)
+                  ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(ackTarget.message) }} />
+                  : <p className="whitespace-pre-wrap">{ackTarget.message}</p>}
+              </div>
             </div>
-            <div className="px-5 py-3 flex justify-end" style={{ borderTop: '1px solid var(--border)' }}>
-              <button onClick={() => confirmAck(ackTarget)} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg"><CheckCircle2 size={15} /> Confirmar leitura</button>
+            <div className="px-5 py-3 flex items-center justify-end gap-2" style={{ borderTop: '1px solid var(--border)' }}>
+              {!ackCanOk && <span className="text-[11px] mr-auto inline-flex items-center gap-1" style={{ color: 'var(--text-light)' }}><ChevronsDown size={12} /> Role até o fim para confirmar</span>}
+              <button onClick={() => confirmAck(ackTarget)} disabled={!ackCanOk} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-5 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"><CheckCircle2 size={15} /> Confirmar leitura</button>
             </div>
           </div>
         </div>

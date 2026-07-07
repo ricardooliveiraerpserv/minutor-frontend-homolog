@@ -7,7 +7,7 @@ import { Plus, Trash2, X, Play, BarChart3, Pencil, Users } from 'lucide-react'
 import { MultiSelect, type MSOpt } from '@/components/notifications/multi-select'
 
 interface RItem { id?: number; titulo: string; tipo: string; priority: string; recorrencia: string; recurrence_weekdays: number[]; hora_padrao: string | null }
-interface Routine { id: number; nome: string; descricao: string | null; active: boolean; owner_name: string; users: MSOpt[]; items: RItem[] }
+interface Routine { id: number; nome: string; descricao: string | null; active: boolean; start_date: string | null; end_date: string | null; owner_name: string; users: MSOpt[]; items: RItem[] }
 
 const TYPE_L: Record<string, string> = { pessoal: 'Pessoal', cliente: 'Cliente', 'follow-up': 'Follow-up', interno: 'Interno' }
 const PRIO_L: Record<string, string> = { baixa: 'Baixa', media: 'Média', alta: 'Alta' }
@@ -73,8 +73,10 @@ function RoutineModal({ routine, onClose, onSaved }: { routine: Routine | null; 
   const [nome, setNome] = useState(routine?.nome ?? '')
   const [descricao, setDescricao] = useState(routine?.descricao ?? '')
   const [active, setActive] = useState(routine?.active ?? true)
+  const [startDate, setStartDate] = useState(routine?.start_date ?? new Date().toLocaleDateString('en-CA'))
+  const [endDate, setEndDate] = useState(routine?.end_date ?? '')
   const [team, setTeam] = useState<MSOpt[]>(routine?.users ?? [])
-  const [items, setItems] = useState<RItem[]>(routine?.items ?? [{ titulo: '', tipo: 'interno', priority: 'media', recorrencia: 'daily', recurrence_weekdays: [], hora_padrao: null }])
+  const [items, setItems] = useState<RItem[]>(routine?.items ?? [{ titulo: '', tipo: 'interno', priority: 'media', recorrencia: 'daily', recurrence_weekdays: [1, 2, 3, 4, 5], hora_padrao: null }])
   const [saving, setSaving] = useState(false)
 
   const searchUsers = useCallback(async (q: string): Promise<MSOpt[]> => {
@@ -83,21 +85,23 @@ function RoutineModal({ routine, onClose, onSaved }: { routine: Routine | null; 
   }, [])
 
   const setItem = (i: number, patch: Partial<RItem>) => setItems(arr => arr.map((it, idx) => idx === i ? { ...it, ...patch } : it))
-  const addItem = () => setItems(arr => [...arr, { titulo: '', tipo: 'interno', priority: 'media', recorrencia: 'daily', recurrence_weekdays: [], hora_padrao: null }])
+  const addItem = () => setItems(arr => [...arr, { titulo: '', tipo: 'interno', priority: 'media', recorrencia: 'daily', recurrence_weekdays: [1, 2, 3, 4, 5], hora_padrao: null }])
   const removeItem = (i: number) => setItems(arr => arr.length <= 1 ? arr : arr.filter((_, idx) => idx !== i))
   const toggleDay = (i: number, d: number) => setItem(i, { recurrence_weekdays: (items[i].recurrence_weekdays.includes(d) ? items[i].recurrence_weekdays.filter(x => x !== d) : [...items[i].recurrence_weekdays, d]).sort((a, b) => a - b) })
 
   const save = async () => {
     if (!nome.trim()) return toast.error('Informe o nome da rotina.')
     const cleanItems = items.filter(it => it.titulo.trim() !== '')
+    if (!startDate) return toast.error('Informe a data de início da rotina.')
     if (!team.length) return toast.error('Selecione ao menos um usuário na equipe.')
     if (!cleanItems.length) return toast.error('Adicione ao menos uma tarefa.')
     for (const it of cleanItems) if (it.recorrencia === 'weekly' && !it.recurrence_weekdays.length) return toast.error(`Selecione os dias da tarefa semanal "${it.titulo}".`)
     setSaving(true)
     const body = {
       nome: nome.trim(), descricao: descricao.trim() || null, active,
+      start_date: startDate || null, end_date: endDate || null,
       user_ids: team.map(u => u.id),
-      items: cleanItems.map(it => ({ titulo: it.titulo.trim(), tipo: it.tipo, priority: it.priority, recorrencia: it.recorrencia, recurrence_weekdays: it.recorrencia === 'monthly' ? [] : it.recurrence_weekdays, hora_padrao: it.hora_padrao || null })),
+      items: cleanItems.map(it => ({ titulo: it.titulo.trim(), tipo: it.tipo, priority: it.priority, recorrencia: it.recorrencia, recurrence_weekdays: it.recorrencia === 'monthly' && !it.recurrence_weekdays.length ? [1] : it.recurrence_weekdays, hora_padrao: it.hora_padrao || null })),
     }
     try {
       if (routine) await api.put(`/task-groups/${routine.id}`, body); else await api.post('/task-groups', body)
@@ -132,22 +136,53 @@ function RoutineModal({ routine, onClose, onSaved }: { routine: Routine | null; 
                   <div className="grid grid-cols-4 gap-1.5">
                     <select className={fieldCls} style={inputStyle} value={it.tipo} onChange={e => setItem(i, { tipo: e.target.value })}>{Object.entries(TYPE_L).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
                     <select className={fieldCls} style={inputStyle} value={it.priority} onChange={e => setItem(i, { priority: e.target.value })}>{Object.entries(PRIO_L).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-                    <select className={fieldCls} style={inputStyle} value={it.recorrencia} onChange={e => setItem(i, { recorrencia: e.target.value })}>{Object.entries(RECUR_L).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+                    <select className={fieldCls} style={inputStyle} value={it.recorrencia} onChange={e => { const r = e.target.value; setItem(i, { recorrencia: r, recurrence_weekdays: r === 'daily' ? [1, 2, 3, 4, 5] : r === 'monthly' ? [1] : [] }) }}>{Object.entries(RECUR_L).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
                     <input type="time" className={fieldCls} style={inputStyle} value={it.hora_padrao ?? ''} onChange={e => setItem(i, { hora_padrao: e.target.value || null })} />
                   </div>
-                  {(it.recorrencia === 'weekly' || it.recorrencia === 'daily') && (
+                  {/* DIÁRIA: padrão = dias úteis; marcar p/ considerar todos os dias (sem escolher dias da semana) */}
+                  {it.recorrencia === 'daily' && (
+                    <label className="text-[10px] inline-flex items-center gap-1.5 cursor-pointer" style={{ color: 'var(--text-muted)' }}>
+                      <input type="checkbox" checked={it.recurrence_weekdays.length === 0} onChange={e => setItem(i, { recurrence_weekdays: e.target.checked ? [] : [1, 2, 3, 4, 5] })} />
+                      Considerar todos os dias <span className="text-[9px]" style={{ color: 'var(--text-light)' }}>(inclui sáb/dom; desmarcado = seg–sex)</span>
+                    </label>
+                  )}
+                  {/* SEMANAL: escolhe os dias da semana */}
+                  {it.recorrencia === 'weekly' && (
                     <div className="flex flex-wrap gap-1">
                       {WEEKDAYS.map((d, di) => { const on = it.recurrence_weekdays.includes(di); return (
                         <button key={di} type="button" onClick={() => toggleDay(i, di)} className="text-[10px] px-1.5 py-0.5 rounded" style={{ border: `1px solid ${on ? 'var(--primary)' : 'var(--border)'}`, background: on ? 'var(--primary-soft)' : 'transparent', color: on ? 'var(--primary)' : 'var(--text-muted)' }}>{d}</button>
                       ) })}
-                      <span className="text-[9px] self-center" style={{ color: 'var(--text-light)' }}>{it.recorrencia === 'daily' ? '(vazio = todo dia)' : '(obrigatório)'}</span>
+                      <span className="text-[9px] self-center" style={{ color: 'var(--text-light)' }}>(obrigatório)</span>
                     </div>
+                  )}
+                  {/* MENSAL: escolhe o dia do mês */}
+                  {it.recorrencia === 'monthly' && (
+                    <label className="text-[10px] inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                      Dia do mês
+                      <select className="text-[11px] rounded px-1.5 py-0.5" style={inputStyle} value={it.recurrence_weekdays[0] ?? 1} onChange={e => setItem(i, { recurrence_weekdays: [Number(e.target.value)] })}>
+                        {Array.from({ length: 31 }, (_, d) => d + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                      <span className="text-[9px]" style={{ color: 'var(--text-light)' }}>(29–31 caem no último dia em meses curtos)</span>
+                    </label>
                   )}
                 </div>
               ))}
             </div>
             <button onClick={addItem} className="text-xs mt-1.5 inline-flex items-center gap-1" style={{ color: 'var(--primary)' }}><Plus size={12} /> Adicionar tarefa</button>
           </div>
+
+          {/* Vigência (opcional): a rotina só gera tarefas dentro dessa janela */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-semibold block mb-0.5" style={{ color: 'var(--text-light)' }}>Início <span style={{ color: 'var(--danger-border)' }}>*</span></label>
+              <input type="date" required className={fieldCls} style={inputStyle} value={startDate} onChange={e => setStartDate(e.target.value)} />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold block mb-0.5" style={{ color: 'var(--text-light)' }}>Término <span className="text-[10px]">(opcional)</span></label>
+              <input type="date" className={fieldCls} style={inputStyle} value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)} />
+            </div>
+          </div>
+          <p className="text-[10px] -mt-1" style={{ color: 'var(--text-light)' }}>Sem datas = gera sempre. A rotina só gera tarefas entre Início e Término.</p>
 
           <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
             <input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} /> Rotina ativa (gera tarefas automaticamente)

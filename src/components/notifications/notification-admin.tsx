@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, BellRing } from 'lucide-react'
-import { ActionRemindersPanel } from '@/components/notifications/action-reminders-panel'
+import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList } from 'lucide-react'
 import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
@@ -57,11 +56,23 @@ const expiryIso = (dateStr: string): string => {
 }
 const isPastDate = (dateStr: string): boolean => !!dateStr && dateStr < todayLocal()
 
-export function NotificationAdmin({ onChanged }: { onChanged?: () => void }) {
+export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }: { onChanged?: () => void; initialAction?: string | null; onActionConsumed?: () => void }) {
   const [showComm, setShowComm] = useState(false)
   const [rows, setRows] = useState<Notif[]>([])
   const [editing, setEditing] = useState<Draft | null>(null)
   const [results, setResults] = useState<Notif | null>(null)
+
+  // Abre o fluxo solicitado por uma ação rápida vinda de fora (Recebidas/Mural).
+  const didInit = useRef(false)
+  useEffect(() => {
+    if (didInit.current || !initialAction) return
+    didInit.current = true
+    if (initialAction === 'comm') setShowComm(true)
+    else if (initialAction === 'presence') setEditing({ type: 'aviso', priority: 'medium', target_roles: [], version: 1, title: 'Confirmação de presença', actions: ['✅ Confirmo presença', '❌ Não poderei ir'] })
+    else if (initialAction === 'poll') setEditing({ type: 'poll', priority: 'medium', target_roles: [], version: 1 })
+    else if (initialAction === 'new') setEditing({ type: 'aviso', priority: 'medium', target_roles: [], version: 1 })
+    onActionConsumed?.()
+  }, [initialAction, onActionConsumed])
   const [logTarget, setLogTarget] = useState<Notif | null>(null)
   const [tplPreview, setTplPreview] = useState<{ html: string; recipients: number } | null>(null)
 
@@ -151,11 +162,7 @@ export function NotificationAdmin({ onChanged }: { onChanged?: () => void }) {
           ))}
         </div>
       )}
-      {/* ── AÇÕES — lembretes recorrentes de pendências (prévia + destinatários, sem duplicar a lista acima) ── */}
-      <div className="space-y-2 pt-3 border-t" style={{ borderColor: 'var(--border)' }}>
-        <div className="text-xs font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}><BellRing size={13} /> Ações — lembretes recorrentes</div>
-        <ActionRemindersPanel />
-      </div>
+      {/* Lembretes recorrentes das AÇÕES ficam só na aba "Ações" (acoes-view), não aqui. */}
 
       {results?.poll && <PollResults notif={results} onClose={() => setResults(null)} />}
       {logTarget && <NotifLog notif={logTarget} onClose={() => setLogTarget(null)} />}
@@ -185,7 +192,7 @@ export function NotificationAdmin({ onChanged }: { onChanged?: () => void }) {
               <button onClick={() => setShowComm(false)} style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
             </div>
             <div className="p-4">
-              <Compose allowedTypes={['aviso', 'formal']} onSent={() => setShowComm(false)} />
+              <Compose allowedTypes={['aviso']} onSent={() => setShowComm(false)} />
             </div>
           </div>
         </div>
@@ -246,7 +253,7 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const editingExisting = !!draft.id
   const [title, setTitle] = useState(draft.title ?? '')
   const msgRef = useRef<RichEditorHandle>(null)
-  const [type, setType] = useState(draft.type ?? 'info')
+  const [type, setType] = useState(draft.type ?? 'aviso')
   const [priority, setPriority] = useState(draft.priority ?? 'medium')
   const [roles, setRoles] = useState<string[]>(draft.target_roles ?? [])
   const [contractTypes, setContractTypes] = useState<string[]>(draft.target_contract_types ?? [])
@@ -256,7 +263,8 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
   const [ctaUrl, setCtaUrl] = useState(draft.cta_url ?? '')
   const [version, setVersion] = useState(draft.version ?? 1)
   // "Expira em" é OBRIGATÓRIO; default = hoje. Se for hoje, expira às 23:59. Não aceita data passada.
-  const [expires, setExpires] = useState(toLocalDate(draft.expires_at) || todayLocal())
+  // Sempre em branco em publicação nova (força o cadastro); ao editar, mantém a data atual.
+  const [expires, setExpires] = useState(toLocalDate(draft.expires_at))
   const [visible, setVisible] = useState<boolean>(draft.visible ?? true)
   const [recurrence, setRecurrence] = useState<string>(draft.recurrence ?? 'none')
   const [recurrenceValue, setRecurrenceValue] = useState<number>(draft.recurrence_value ?? 1)
@@ -346,7 +354,7 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
       visible,
       recurrence,
       recurrence_value: recurrence === 'none' ? null : (Number(recurrenceValue) || 1),
-      requires_ack: type === 'require_ack',
+      requires_ack: type === 'require_ack' || type === 'aviso',   // todo Aviso exige aceite (log de leitura)
       cta_label: type === 'action' ? (ctaLabel.trim() || null) : null,
       cta_url: type === 'action' ? (ctaUrl.trim() || null) : null,
       actions: type === 'poll' ? [] : actions.map(a => a.trim()).filter(Boolean),
@@ -398,7 +406,14 @@ function Form({ draft, onBack, onSaved }: { draft: Draft; onBack: () => void; on
       <div className="grid grid-cols-3 gap-3">
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Tipo</label>
           <select className={`${fieldCls} w-full`} style={inputStyle} value={type} onChange={e => setType(e.target.value)} disabled={editingExisting}>
-            <option value="info">Informativo</option><option value="aviso">Aviso</option><option value="formal">Comunicação formal</option><option value="action">Ação (com botão)</option><option value="require_ack">Obrigatória (exige aceite)</option><option value="poll">Enquete</option>
+            {/* Informativo/Comunicação formal/Obrigatória aposentados; Enquete tem botão próprio
+                ("Nova enquete"). Esses só aparecem ao abrir/editar um item já desse tipo. */}
+            {type === 'info' && <option value="info">Informativo</option>}
+            <option value="aviso">Aviso</option>
+            {type === 'formal' && <option value="formal">Comunicação formal</option>}
+            <option value="action">Ação (com botão)</option>
+            {type === 'require_ack' && <option value="require_ack">Obrigatória (exige aceite)</option>}
+            {type === 'poll' && <option value="poll">Enquete</option>}
           </select>
         </div>
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Prioridade</label>
