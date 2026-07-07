@@ -1423,22 +1423,39 @@ function KanbanContent() {
 
   const isSustCoordenador = user?.type === 'coordenador' && (user as any).coordinator_type === 'sustentacao'
 
+  // Board do coordenador de sustentação também mostra a coluna do Ricardo Oliveira (ao
+  // lado da dele). Achado por NOME na lista de coordenadores (o BE já manda) — evita
+  // hardcodar id, que difere entre ambientes. Tolera o typo "OIiveira" do cadastro.
+  const ricardoCoord = coordinators.find(c => {
+    const n = (c.name ?? '').toLowerCase()
+    return n.includes('ricardo') && (n.includes('oliveira') || n.includes('oiiveira'))
+  })
+  // Ids dos coordenadores que têm coluna no board do sust (p/ escopar as colunas de status).
+  const sustBoardCoordIds = [user?.id, ricardoCoord?.id].filter((v): v is number => v != null)
+
   // Column list: fixed → coordinators → sustentação group → bizify → project status
-  // Kanban EXCLUSIVO do coordenador de sustentação: coluna "Meus Projetos" (dele, laranja)
-  // + filas de sustentação (BH Fixo/Mensal/On Demand/Cloud) + status (Encerrado/Pausado/
-  // Cancelado). Mesmos endpoints do board de contratos → movimentação reflete em Demandas
-  // e Projetos (e vice-versa). Colunas de status escopadas aos projetos dele (ver
-  // projectsInStatusCol). Não tem colunas de intake (Novo/Pronto) nem Bizify/Aporte/Aditivo.
+  // Kanban EXCLUSIVO do coordenador de sustentação: coluna "Projetos <nome>" (dele, azul)
+  // + coluna do Ricardo Oliveira + filas de sustentação (BH Fixo/Mensal/On Demand/Cloud)
+  // + status (Encerrado/Pausado/Cancelado). Mesmos endpoints do board de contratos →
+  // movimentação reflete em Demandas e Projetos (e vice-versa). Colunas de status escopadas
+  // aos projetos desses coordenadores (ver projectsInStatusCol). Sem intake/Bizify/Aporte.
   const columns: Column[] = isSustCoordenador
     ? [
         {
           id:            `coordinator:${user!.id}`,
-          label:         `Meus Projetos - ${user!.name}`,
+          label:         `Projetos ${user!.name.split(' ')[0]}`,
           type:          'coordinator' as const,
           coordinatorId: user!.id,
           emoji:         '👤',
           color:         MEUS_PROJETOS_COLOR,
         },
+        ...(ricardoCoord ? [{
+          id:            `coordinator:${ricardoCoord.id}`,
+          label:         'Projetos Ricardo Oliveira',
+          type:          'coordinator' as const,
+          coordinatorId: ricardoCoord.id,
+          emoji:         '👤',
+        }] : []),
         ...SUSTENTACAO_COLS,
         ...STATUS_PROJECT_COLUMNS,
       ]
@@ -1545,13 +1562,13 @@ function KanbanContent() {
     })
 
   // Project cards in status columns.
-  // No kanban EXCLUSIVO do coordenador de sustentação, escopa aos projetos DELE (mesma
-  // regra da coluna "Meus Projetos"); no board completo (admin) mostra todos.
+  // No kanban EXCLUSIVO do coordenador de sustentação, escopa aos projetos dos coordenadores
+  // do board (Anderson + Ricardo); no board completo (admin) mostra todos.
   const projectsInStatusCol = (colId: string): ProjectCard[] => {
     const targetStatus = COL_TO_PROJECT_STATUS[colId]
     return projectCards
       .filter(p => p.status === targetStatus)
-      .filter(p => !isSustCoordenador || (user != null && projectHasCoord(p, user.id)))
+      .filter(p => !isSustCoordenador || sustBoardCoordIds.some(id => projectHasCoord(p, id)))
       .filter(p => matchFilter(p.customer_name, p.project_name))
       .filter(p => matchExecutivoKanban(p.executivo_conta_name))
       .filter(p => matchProjectKanban(p.project_name))
@@ -1858,11 +1875,12 @@ function KanbanContent() {
   const getAvailableProjectCols = (card: ProjectCard, fromCol: string, currentCoordId?: number): { id: string; label: string }[] => {
     if (isConsultor || isCliente) return []
 
-    // Coordenador de sustentação: só move cards que estão na coluna "Meus Projetos" (a dele),
-    // e só para Cancelado / Pausado / Encerrado. Cards em filas de sustentação ou já em status
-    // terminal não são movíveis por ele.
+    // Coordenador de sustentação: só move cards que estão nas colunas de coordenador do
+    // board dele (Anderson OU Ricardo), e só para Cancelado / Pausado / Encerrado. Cards em
+    // filas de sustentação ou já em status terminal não são movíveis.
     if (isSustCoordenador) {
-      if (fromCol !== `coordinator:${user?.id}`) return []
+      const boardCoordCols = sustBoardCoordIds.map(id => `coordinator:${id}`)
+      if (!boardCoordCols.includes(fromCol)) return []
       return STATUS_PROJECT_COLUMNS
         .filter(c => COL_TO_PROJECT_STATUS[c.id] !== card.status)
         .map(c => ({ id: c.id, label: c.label }))
