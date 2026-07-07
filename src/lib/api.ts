@@ -66,10 +66,11 @@ async function request<T>(
     const alreadyOnLoginPage = inBrowser && window.location.pathname.startsWith('/login')
 
     if (!isLoginEndpoint && inBrowser && !alreadyOnLoginPage) {
-      // Limpa o token DESTA aba (sessionStorage) + o cookie via rota interna, e vai pro login.
+      // Limpa o token DESTA aba e revoga só ele (Authorization) — não mexe no cookie de outra aba.
+      const stoken = window.sessionStorage.getItem('minutor_token')
       try { window.sessionStorage.removeItem('minutor_token') } catch { /* noop */ }
       try {
-        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin', headers: stoken ? { Authorization: `Bearer ${stoken}` } : {} })
       } catch { /* segue mesmo se falhar */ }
       window.location.href = '/login'
     }
