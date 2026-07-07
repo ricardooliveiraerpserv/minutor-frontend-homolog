@@ -1491,6 +1491,7 @@ function isSustentacao(serviceTypeName?: string): boolean {
 }
 
 const EMPTY_TS = {
+  user_id:     '',   // admin/coord podem apontar por outro usuário; vazio = eu mesmo
   customer_id: '',
   project_id:  '',
   real_project_id: '',
@@ -1571,6 +1572,8 @@ function MinhasNotasFiscaisCard({ userId }: { userId: number }) {
 export default function MeuPainelPage() {
   const { user } = useAuth()
   const isCoordenador = user?.type === 'coordenador'
+  const isAdmin = user?.type === 'admin'
+  const canActAsUser = isAdmin || isCoordenador   // podem apontar por outro consultor
   const hover = useTimesheetHover()
 
   // Period
@@ -1668,12 +1671,22 @@ export default function MeuPainelPage() {
   const [expRealProjects, setExpRealProjects] = useState<any[]>([])
   const [categories,     setCategories]     = useState<CategoryOption[]>([])
   const [paymentMethods, setPaymentMethods] = useState<{ value: string; label: string }[]>([])
+  // Admin/coord apontando por outro: lista de usuários + projetos DO usuário selecionado.
+  const [tsUsers,        setTsUsers]        = useState<{ id: number; name: string }[]>([])
+  const [tsUserProjects, setTsUserProjects] = useState<ProjectOption[]>([])
 
   // Load support data once
   useEffect(() => {
     api.get<any>('/my-projects?pageSize=200&status=open').then(r =>
       setProjects(Array.isArray(r?.items) ? r.items : [])
     ).catch(() => {})
+
+    if (canActAsUser) {
+      api.get<any>('/users?pageSize=300&exclude_type=cliente').then(r => {
+        const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+        setTsUsers(list.map((u: any) => ({ id: u.id, name: u.name })))
+      }).catch(() => {})
+    }
 
     api.get<any>('/expense-categories?per_page=50').then(r => {
       const list: CategoryOption[] = Array.isArray(r?.data)  ? r.data
@@ -1888,6 +1901,7 @@ export default function MeuPainelPage() {
       : item.effort_hours ? String(Math.round(parseFloat(String(item.effort_hours).replace(',', '.')) * 10) / 10) : ''
     setTsModeTotal(!item.start_time && !!item.effort_hours)
     setTsForm({
+      user_id:     '',
       customer_id: proj?.customer ? String(proj.customer.id) : '',
       project_id:  String(item.project_id),
       real_project_id: String((item as any).real_project_id ?? ''),
@@ -1911,8 +1925,8 @@ export default function MeuPainelPage() {
     if (!tsForm.observation || tsForm.observation.trim().length < 20) {
       toast.error('Descrição obrigatória com no mínimo 20 caracteres'); return
     }
-    const selectedProject = projects.find(p => p.id === Number(tsForm.project_id)) as any
-    const scTs = consultantCustomers.find(c => String(c.id) === tsForm.customer_id)
+    const selectedProject = tsFormProjects.find(p => p.id === Number(tsForm.project_id)) as any
+    const scTs = tsFormCustomers.find(c => String(c.id) === tsForm.customer_id)
     const isErpTs = String(scTs?.name ?? '').toUpperCase().includes('ERPSERV')
     const tsIsInvestimento = !!selectedProject?.is_investimento_comercial && !isErpTs
       && (selectedProject?.categoria_interna === 'Projeto' || selectedProject?.categoria_interna === 'Suporte')
@@ -1931,6 +1945,8 @@ export default function MeuPainelPage() {
         observation: tsForm.observation || undefined,
         ticket:      tsForm.ticket      || undefined,
       }
+      // Admin/coord apontando por outro consultor → manda o user_id (senão o BE usa o logado).
+      if (tsActingAsOther) payload.user_id = Number(tsForm.user_id)
       if (hasTotal && !hasStart) {
         payload.total_hours = hoursToHHMM(totalVal)
       } else {
@@ -2321,10 +2337,26 @@ export default function MeuPainelPage() {
   }, [projects, expForm.customer_id])
 
   // Projetos filtrados pelo cliente selecionado no form de apontamento
+  // Admin/coord apontando por OUTRO usuário → carrega os projetos DELE (escopo do consultor).
+  const tsActingAsOther = canActAsUser && !!tsForm.user_id && tsForm.user_id !== String(user?.id)
+  useEffect(() => {
+    if (!tsActingAsOther) { setTsUserProjects([]); return }
+    api.get<any>(`/projects?pageSize=200&status=open&consultant_only=true&user_id=${tsForm.user_id}`)
+      .then(r => setTsUserProjects(Array.isArray(r?.items) ? r.items : []))
+      .catch(() => setTsUserProjects([]))
+  }, [tsActingAsOther, tsForm.user_id])
+
+  // Projetos/clientes do form de APONTAMENTO: os do usuário selecionado (se apontando por outro) ou os meus.
+  const tsFormProjects = tsActingAsOther ? tsUserProjects : projects
+  const tsFormCustomers = useMemo(() => {
+    const seen = new Set<number>(); const list: { id: number; name: string }[] = []
+    tsFormProjects.forEach(p => { if (p.customer && !seen.has(p.customer.id)) { seen.add(p.customer.id); list.push(p.customer) } })
+    return list.sort((a, b) => a.name.localeCompare(b.name))
+  }, [tsFormProjects])
   const tsProjectOptions = useMemo(() => {
-    if (!tsForm.customer_id) return projects
-    return projects.filter(p => p.customer && String(p.customer.id) === tsForm.customer_id)
-  }, [projects, tsForm.customer_id])
+    if (!tsForm.customer_id) return tsFormProjects
+    return tsFormProjects.filter(p => p.customer && String(p.customer.id) === tsForm.customer_id)
+  }, [tsFormProjects, tsForm.customer_id])
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -3852,9 +3884,18 @@ export default function MeuPainelPage() {
               {tsModal.item ? 'Editar Apontamento' : 'Novo Apontamento'}
             </h3>
 
+            {/* Usuário — admin/coord podem apontar por outro consultor (vazio = eu mesmo). */}
+            {canActAsUser && (
+              <SearchSelectField label="Usuário" value={tsForm.user_id}
+                onChange={v => setTsForm(f => ({ ...f, user_id: v, customer_id: '', project_id: '' }))}
+                options={tsUsers}
+                placeholder="Você mesmo — ou selecione outro consultor…"
+              />
+            )}
+
             <SearchSelectField label="Cliente" value={tsForm.customer_id}
               onChange={v => setTsForm(f => ({ ...f, customer_id: v, project_id: '' }))}
-              options={consultantCustomers}
+              options={tsFormCustomers}
               placeholder="Selecione o cliente..."
             />
 
@@ -3866,8 +3907,8 @@ export default function MeuPainelPage() {
             />
 
             {(() => {
-              const sp = projects.find(p => p.id === Number(tsForm.project_id)) as any
-              const sc = consultantCustomers.find(c => String(c.id) === tsForm.customer_id)
+              const sp = tsFormProjects.find(p => p.id === Number(tsForm.project_id)) as any
+              const sc = tsFormCustomers.find(c => String(c.id) === tsForm.customer_id)
               const isErp = String(sc?.name ?? '').toUpperCase().includes('ERPSERV')
               if (!sp?.is_investimento_comercial || isErp) return null
               if (!(sp?.categoria_interna === 'Projeto' || sp?.categoria_interna === 'Suporte')) return null
@@ -3889,7 +3930,7 @@ export default function MeuPainelPage() {
             })()}
 
             {(() => {
-              const selProj = projects.find(p => p.id === Number(tsForm.project_id))
+              const selProj = tsFormProjects.find(p => p.id === Number(tsForm.project_id))
               const stName = selProj?.service_type?.name
               if (!stName) return null
               const colorMap: Record<string, string> = {
