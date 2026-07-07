@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
 
@@ -70,19 +70,38 @@ const Ctx = createContext<NavConfigCtx>({ modules: [], screens: [], screenAction
 
 export const useNavConfig = () => useContext(Ctx)
 
+// Cache por-usuário (sessionStorage). A AppLayout é usada POR PÁGINA e re-monta a cada navegação;
+// sem cache, o provider reinicia vazio e a sidebar pisca o NAV legado enquanto refaz o /nav-config.
+// Com cache, o re-mount já inicia com o último nav-config → sem flash; o fetch atualiza em background.
+const NAV_CACHE_KEY = (uid?: number | null) => `nav_config_v1_${uid ?? 'none'}`
+type NavCache = { modules: NavModuleConfig[]; screens: NavScreen[]; screenActions: Record<string, ScreenActionDef[]>; permissions: string[]; deniedPermissions: Record<string, string[]> }
+function readNavCache(uid?: number | null): NavCache | null {
+  if (typeof window === 'undefined' || !uid) return null
+  try { const raw = sessionStorage.getItem(NAV_CACHE_KEY(uid)); return raw ? JSON.parse(raw) : null } catch { return null }
+}
+function writeNavCache(uid: number | null | undefined, c: NavCache) {
+  if (typeof window === 'undefined' || !uid) return
+  try { sessionStorage.setItem(NAV_CACHE_KEY(uid), JSON.stringify(c)) } catch { /* noop */ }
+}
+
 export function NavConfigProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
-  const [modules, setModules] = useState<NavModuleConfig[]>([])
-  const [screens, setScreens] = useState<NavScreen[]>([])
-  const [screenActions, setScreenActions] = useState<Record<string, ScreenActionDef[]>>({})
-  const [permissions, setPermissions] = useState<string[]>([])
-  const [deniedPermissions, setDeniedPermissions] = useState<Record<string, string[]>>({})
-  const [loading, setLoading] = useState(true)
+  const cached0 = useMemo(() => readNavCache(user?.id), [user?.id])
+  const [modules, setModules] = useState<NavModuleConfig[]>(cached0?.modules ?? [])
+  const [screens, setScreens] = useState<NavScreen[]>(cached0?.screens ?? [])
+  const [screenActions, setScreenActions] = useState<Record<string, ScreenActionDef[]>>(cached0?.screenActions ?? {})
+  const [permissions, setPermissions] = useState<string[]>(cached0?.permissions ?? [])
+  const [deniedPermissions, setDeniedPermissions] = useState<Record<string, string[]>>(cached0?.deniedPermissions ?? {})
+  const [loading, setLoading] = useState(!cached0)
 
   const reload = useCallback(() => {
     if (!user || user.type === 'cliente') { setModules([]); setScreens([]); setScreenActions({}); setPermissions([]); setDeniedPermissions({}); setLoading(false); return }
     api.get<{ data: NavModuleConfig[]; screens: NavScreen[]; screen_actions: Record<string, ScreenActionDef[]>; permissions?: string[]; denied_permissions?: Record<string, string[]> }>('/nav-config')
-      .then(r => { setModules(r.data ?? []); setScreens(r.screens ?? []); setScreenActions(r.screen_actions ?? {}); setPermissions([...new Set(r.permissions ?? [])]); setDeniedPermissions(r.denied_permissions ?? {}) })
+      .then(r => {
+        const c: NavCache = { modules: r.data ?? [], screens: r.screens ?? [], screenActions: r.screen_actions ?? {}, permissions: [...new Set(r.permissions ?? [])], deniedPermissions: r.denied_permissions ?? {} }
+        setModules(c.modules); setScreens(c.screens); setScreenActions(c.screenActions); setPermissions(c.permissions); setDeniedPermissions(c.deniedPermissions)
+        writeNavCache(user?.id, c)
+      })
       .catch(() => { setModules([]); setScreens([]); setScreenActions({}); setPermissions([]); setDeniedPermissions({}) })
       .finally(() => setLoading(false))
   }, [user])
