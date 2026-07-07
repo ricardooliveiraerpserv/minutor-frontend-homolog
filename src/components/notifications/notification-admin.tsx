@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList } from 'lucide-react'
+import { Plus, Trash2, Save, Pencil, Send, Eye, X, BarChart3, Users, Bookmark, RefreshCw, Repeat, Megaphone, CalendarCheck, ClipboardList, Mail, Bell } from 'lucide-react'
 import { Compose } from '@/app/central-comunicacao/page'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { EmailFrame } from '@/components/help-desk/email-frame'
@@ -74,6 +74,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
     onActionConsumed?.()
   }, [initialAction, onActionConsumed])
   const [logTarget, setLogTarget] = useState<Notif | null>(null)
+  const [resendMenu, setResendMenu] = useState<number | null>(null)   // qual notif tem o menu de reenvio aberto
   const [tplPreview, setTplPreview] = useState<{ html: string; recipients: number } | null>(null)
 
   // Prévia do e-mail de um modelo (sem precisar abri-lo).
@@ -96,9 +97,11 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
   useEffect(() => { load() }, [load])
 
   const del = async (n: Notif) => { if (!confirm(`Excluir "${n.title}"?`)) return; try { await api.delete(`/notifications/${n.id}`); load(); onChanged?.() } catch { toast.error('Erro') } }
-  const resend = async (n: Notif) => {
-    if (!confirm(`Reenviar "${n.title}" agora? Reabre para todos e dispara o e-mail novamente.`)) return
-    try { await api.post(`/notifications/${n.id}/resend`, {}); toast.success('Aviso reenviado'); load(); onChanged?.() }
+  const resend = async (n: Notif, channel: 'email' | 'popup') => {
+    setResendMenu(null)
+    const desc = channel === 'popup' ? 'Reabre o pop-up para todos, SEM reenviar e-mail.' : 'Reabre para todos E dispara o e-mail novamente.'
+    if (!confirm(`Reenviar "${n.title}" agora?\n\n${desc}`)) return
+    try { await api.post(`/notifications/${n.id}/resend`, { channel }); toast.success(channel === 'popup' ? 'Pop-up reenviado (sem e-mail)' : 'Reenviado (e-mail + pop-up)'); load(); onChanged?.() }
     catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao reenviar') }
   }
   // Usar um modelo → abre o form prefilled como NOVA notificação (sem id, sem flag de modelo).
@@ -141,7 +144,19 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
             {!!n.actions?.length && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>· {n.actions.length} botão(ões)</span>}
             {n.type === 'poll' && <button className="ml-2" title="Resultados" onClick={() => setResults(n)}><BarChart3 size={15} style={{ color: 'var(--primary)' }} /></button>}
             <button className={n.type === 'poll' ? '' : 'ml-2'} title="Log: quem viu e o que respondeu" onClick={() => setLogTarget(n)}><ClipboardList size={15} style={{ color: 'var(--primary)' }} /></button>
-            <button title="Reenviar agora" onClick={() => resend(n)}><RefreshCw size={14} style={{ color: 'var(--primary)' }} /></button>
+            <div className="relative">
+              <button title="Reenviar agora" onClick={() => setResendMenu(resendMenu === n.id ? null : n.id)}><RefreshCw size={14} style={{ color: 'var(--primary)' }} /></button>
+              {resendMenu === n.id && (
+                <>
+                  <div className="fixed inset-0 z-[60]" onClick={() => setResendMenu(null)} />
+                  <div className="absolute right-0 top-full mt-1 z-[61] rounded-lg p-1 shadow-xl min-w-[190px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                    <div className="text-[10px] px-2.5 pt-1 pb-0.5 uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Reenviar como</div>
+                    <button className="w-full text-left text-[12px] px-2.5 py-2 rounded-md flex items-center gap-2 ds-row-hover" style={{ color: 'var(--text)' }} onClick={() => resend(n, 'email')}><Mail size={13} style={{ color: 'var(--primary)' }} /> E-mail + pop-up</button>
+                    <button className="w-full text-left text-[12px] px-2.5 py-2 rounded-md flex items-center gap-2 ds-row-hover" style={{ color: 'var(--text)' }} onClick={() => resend(n, 'popup')}><Bell size={13} style={{ color: 'var(--primary)' }} /> Somente pop-up</button>
+                  </div>
+                </>
+              )}
+            </div>
             <button title="Editar" onClick={() => setEditing(n)}><Pencil size={14} style={{ color: 'var(--primary)' }} /></button>
             <button title="Excluir" onClick={() => del(n)}><Trash2 size={15} style={{ color: 'var(--danger-border)' }} /></button>
           </div>
