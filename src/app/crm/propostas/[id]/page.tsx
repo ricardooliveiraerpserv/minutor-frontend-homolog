@@ -2091,6 +2091,50 @@ export default function PropostaEditor() {
             <div className="overflow-y-auto p-4 space-y-4">
               {engLoading ? <p style={{ color: 'var(--text-muted)' }}>Carregando…</p> : !ana ? <p style={{ color: 'var(--text-muted)' }}>Sem dados.</p> : (
                 <>
+                  {/* Mapa de calor — tempo REAL de leitura por página do deck (crm_proposal_page_views) */}
+                  {(() => {
+                    const pgs: { pagina: number; segundos: number; views: number }[] = eng?.paginas ?? []
+                    const total = eng?.total_paginas ?? (pgs.length ? Math.max(...pgs.map(p => p.pagina)) : 0)
+                    const n = Math.max(total, pgs.length)
+                    if (!n) return null
+                    const bySeg = new Map(pgs.map(p => [p.pagina, p]))
+                    const maxSeg = Math.max(1, ...pgs.map(p => p.segundos))
+                    const fmt = (s: number) => s >= 60 ? `${Math.floor(s / 60)}m${s % 60 ? ' ' + (s % 60) + 's' : ''}` : `${s}s`
+                    const cells = Array.from({ length: n }, (_, i) => bySeg.get(i + 1) ?? { pagina: i + 1, segundos: 0, views: 0 })
+                    const totalSeg = cells.reduce((s, c) => s + c.segundos, 0)
+                    return (
+                      <div className="rounded-xl p-4" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-[11px] font-bold uppercase" style={{ color: 'var(--text-muted)' }}>Mapa de calor — tempo por página</div>
+                          {totalSeg > 0 && <div className="text-[10px]" style={{ color: 'var(--text-light)' }}>total {fmt(totalSeg)}</div>}
+                        </div>
+                        {totalSeg === 0 ? (
+                          <div className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhuma leitura de página registrada ainda.</div>
+                        ) : (
+                          <>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(54px, 1fr))', gap: 6 }}>
+                              {cells.map(c => {
+                                const ratio = c.segundos / maxSeg
+                                const strong = ratio > 0.55
+                                return (
+                                  <div key={c.pagina} title={`Página ${c.pagina} · ${fmt(c.segundos)} · ${c.views} visita(s)`}
+                                    style={{ borderRadius: 8, padding: '8px 4px', textAlign: 'center', border: '1px solid var(--border)', background: `color-mix(in srgb, var(--primary) ${Math.round(ratio * 100)}%, var(--surface))` }}>
+                                    <div style={{ fontSize: 11, fontWeight: 700, color: strong ? 'var(--primary-fg)' : 'var(--text-muted)' }}>{c.pagina}</div>
+                                    <div style={{ fontSize: 11, fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: strong ? 'var(--primary-fg)' : 'var(--text)' }}>{c.segundos ? fmt(c.segundos) : '—'}</div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                            <div className="flex items-center gap-2 mt-2 text-[10px]" style={{ color: 'var(--text-light)' }}>
+                              <span>menos tempo</span>
+                              <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'linear-gradient(90deg, var(--surface), var(--primary))' }} />
+                              <span>mais tempo</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )
+                  })()}
                   {/* BLOCO 1 — DIAGNÓSTICO EXECUTIVO (uma conclusão) */}
                   {ana.situacao && (() => {
                     const s = ana.situacao
