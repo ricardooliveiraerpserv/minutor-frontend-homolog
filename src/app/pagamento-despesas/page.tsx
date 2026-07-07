@@ -1,10 +1,10 @@
 'use client'
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useState, useCallback, useMemo, Suspense } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { formatBRL } from '@/lib/format'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { ExpenseViewModal } from '@/components/ui/expense-view-modal'
@@ -166,7 +166,7 @@ function SummaryCard({ label, value, sub, icon: Icon, accent }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function PagamentoDespesasPage() {
+function PagamentoDespesasInner() {
   const { user } = useAuth()
   const router = useRouter()
 
@@ -180,13 +180,18 @@ export default function PagamentoDespesasPage() {
 
   // ── Filter state ──
   const now = new Date()
-  const [refMonth,  setRefMonth]  = useState<number | null>(now.getMonth() + 1)
-  const [refYear,   setRefYear]   = useState<number | null>(now.getFullYear())
+  // Vindo da ação "Despesas para pagar" (?all=1): abre SEM filtro de período — traz todas as pendentes.
+  const searchParams = useSearchParams()
+  const showAll = searchParams.get('all') === '1'
+  const [refMonth,  setRefMonth]  = useState<number | null>(showAll ? null : now.getMonth() + 1)
+  const [refYear,   setRefYear]   = useState<number | null>(showAll ? null : now.getFullYear())
   const [dateFrom,  setDateFrom]  = useState(() => {
+    if (showAll) return ''
     const m = String(now.getMonth() + 1).padStart(2, '0')
     return `${now.getFullYear()}-${m}-01`
   })
   const [dateTo, setDateTo] = useState(() => {
+    if (showAll) return ''
     const m = now.getMonth() + 1
     const last = new Date(now.getFullYear(), m, 0).getDate()
     return `${now.getFullYear()}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}`
@@ -700,4 +705,8 @@ export default function PagamentoDespesasPage() {
 
     </AppLayout>
   )
+}
+
+export default function PagamentoDespesasPage() {
+  return <Suspense fallback={null}><PagamentoDespesasInner /></Suspense>
 }
