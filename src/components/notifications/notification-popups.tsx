@@ -40,6 +40,13 @@ function headerFor(type: string, priority: string) {
   return { bg: p.bg, fg: p.fg, label, icon: type === 'poll' ? BarChart3 : p.icon }
 }
 
+// "Ver como" (impersonação, por aba): NÃO exibir pop-ups — senão o admin confirmaria a leitura
+// no lugar do usuário impersonado. O usuário real deve ler pelo próprio acesso.
+function isImpersonating(): boolean {
+  if (typeof window === 'undefined') return false
+  try { return !!window.sessionStorage.getItem('minutor_impersonating') } catch { return false }
+}
+
 function loadPopped(uid: number): Set<string> {
   try { return new Set(JSON.parse(localStorage.getItem(LS_KEY(uid)) || '[]')) } catch { return new Set() }
 }
@@ -64,6 +71,7 @@ export function NotificationPopups({ userId }: { userId: number }) {
   useEffect(() => { popped.current = loadPopped(userId) }, [userId])
 
   const fetchNew = useCallback(async () => {
+    if (isImpersonating()) { setQueue([]); return }   // Ver como: sem pop-up (não ler pelo usuário)
     try {
       const r = await api.get<{ data: { notifications: Notif[] } }>('/notifications')
       const list = r.data?.notifications ?? []
