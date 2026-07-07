@@ -591,6 +591,23 @@ export default function ApprovalsPage() {
   const setCustomerId   = (v: string)                    => setFilter('customerId', v)
   const setCategoriaServico = (v: '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento') => setFilter('categoriaServico', v)
 
+  // Vindo do card "Apontamentos para aprovar" do Meu Dia (/approvals?tab=timesheets&coordinator_id=ID):
+  // aplica o escopo do coordenador da URL. DEPENDE de user?.id porque o usePersistedFilters re-hidrata
+  // o filtro salvo quando o user carrega; aplicando o param DEPOIS, o coordinator_id da URL vence.
+  const urlParamsApplied = useRef(false)
+  useEffect(() => {
+    if (urlParamsApplied.current) return
+    const sp = new URLSearchParams(window.location.search)
+    const cid = sp.get('coordinator_id')
+    const t   = sp.get('tab')
+    if (!cid && !t) { urlParamsApplied.current = true; return }
+    if (user?.id == null) return   // espera o user (e a re-hidratação) carregar
+    if (cid) setFilter('coordinatorId', cid)
+    if (t === 'expenses' || t === 'timesheets') setFilter('tab', t)
+    urlParamsApplied.current = true
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
   const tsStatus  = 'pending'
   const expStatus = 'pending'
   const [showFilters,   setShowFilters]   = useState(true)
