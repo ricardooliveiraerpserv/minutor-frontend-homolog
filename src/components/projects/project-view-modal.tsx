@@ -229,17 +229,29 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
   if ((p?.general_hours_balance ?? 0) < 0) alerts.push({ msg: 'Saldo de horas negativo — projeto em déficit', color: '#ef4444' })
 
   const isCoordRole = viewerUser?.type === 'coordenador'
+  // Coordenador de sustentação: NÃO vê valores (só valor/hora), anexos, aportes financeiros
+  // nem extrato. Restrição adicional sobre o coordenador de projetos.
+  const isSustCoord = isCoordRole && (viewerUser as any)?.coordinator_type === 'sustentacao'
   const tabs = [
     { id: 'overview'    as const, label: 'Visão Geral' },
     { id: 'consultants' as const, label: `Consultores${breakdown.length > 0 ? ` (${breakdown.length})` : ''}` },
     { id: 'timesheets'  as const, label: 'Apontamentos' },
-    { id: 'aportes'     as const, label: `Aportes${aportesList.length > 0 ? ` (${aportesList.length})` : ''}` },
-    { id: 'extrato'     as const, label: 'Extrato' },
+    // Aportes financeiros e Extrato: ocultos p/ coordenador de sustentação.
+    ...(isSustCoord ? [] : [
+      { id: 'aportes'     as const, label: `Aportes${aportesList.length > 0 ? ` (${aportesList.length})` : ''}` },
+      { id: 'extrato'     as const, label: 'Extrato' },
+    ]),
     ...(isCoordRole ? [] : [
       { id: 'financial'   as const, label: 'Financeiro' },
       { id: 'cost'        as const, label: 'Custo' },
     ]),
   ]
+  // Se a aba atual não está disponível p/ este perfil (ex.: sust coordenador abrindo em
+  // Aportes/Extrato), volta p/ Visão Geral.
+  useEffect(() => {
+    if (!tabs.some(t => t.id === tab)) setTab('overview')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, isSustCoord, isCoordRole])
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }}>
@@ -443,7 +455,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         <Row label="Saving ERPSERV"       value={(p as any).sold_hours != null && (p as any).consultant_hours != null && (p as any).coordinator_hours != null ? `${Math.round((Number((p as any).sold_hours) - Number((p as any).consultant_hours) - (Number((p as any).coordinator_hours) / 100) * Number((p as any).sold_hours)) * 100) / 100}h` : '—'} />
                         <Row label="Horas Apontáveis"     value={(p as any).coordination_hours != null && Number((p as any).coordination_hours) > 0 ? `${Number((p as any).coordination_hours).toFixed(1)}h` : '—'} />
                         <Row label="Cobra Despesa"        value={(p as any).cobra_despesa_cliente ? 'Sim' : 'Não'} />
-                        <Row label="Limite de Despesa"    value={(p as any).limite_despesa != null ? fmtBRL(Number((p as any).limite_despesa)) : '—'} />
+                        {!isSustCoord && <Row label="Limite de Despesa"    value={(p as any).limite_despesa != null ? fmtBRL(Number((p as any).limite_despesa)) : '—'} />}
                         <Row label="Arquiteto"            value={(p as any).architect?.name ?? '—'} />
                         <Row label="Executivo de Conta"   value={(p as any).executivo_conta?.name ?? '—'} />
                         <Row label="Vendedor"             value={(p as any).vendedor?.name ?? '—'} />
@@ -542,7 +554,8 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                         { label: 'Consultores', value: String(breakdown.length), color: 'var(--brand-purple)' },
                         { label: 'Total Horas', value: fmt(totalBreakdownHours, 1) + 'h', color: 'var(--text)' },
                         { label: 'Aprovadas',   value: fmt(breakdown.reduce((s, c) => s + c.approved_hours, 0), 1) + 'h', color: 'var(--success-border)' },
-                        { label: 'Custo Total', value: fmtBRL(breakdown.reduce((s, c) => s + c.cost, 0)), color: 'var(--primary)' },
+                        // Custo Total (valor): oculto p/ coordenador de sustentação.
+                        ...(isSustCoord ? [] : [{ label: 'Custo Total', value: fmtBRL(breakdown.reduce((s, c) => s + c.cost, 0)), color: 'var(--primary)' }]),
                       ].map(it => (
                         <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                           <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{it.label}</p>
@@ -564,13 +577,16 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                             <div className="w-full h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--surface-hover)' }}>
                               <div className="h-full rounded-full" style={{ width: `${share}%`, background: col }} />
                             </div>
-                            <div className={`grid gap-2 text-[10px] ${isCoordRole ? 'grid-cols-2' : 'grid-cols-4'}`}>
+                            <div className={`grid gap-2 text-[10px] ${!isCoordRole ? 'grid-cols-4' : isSustCoord ? 'grid-cols-3' : 'grid-cols-2'}`}>
                               <div><span style={{ color: 'var(--text-light)' }}>Aprovadas</span><br /><span style={{ color: 'var(--success-border)' }}>{fmt(c.approved_hours, 1)}h</span></div>
                               <div><span style={{ color: 'var(--text-light)' }}>Pendentes</span><br /><span style={{ color: c.pending_hours > 0 ? 'var(--warning-border)' : 'var(--text-light)' }}>{fmt(c.pending_hours, 1)}h</span></div>
-                              {!isCoordRole && <>
+                              {/* Taxa/h (valor/hora) permitida ao coord. de sustentação; Custo só p/ admin. */}
+                              {(!isCoordRole || isSustCoord) && (
                               <div><span style={{ color: 'var(--text-light)' }}>Taxa/h</span><br /><span style={{ color: 'var(--text-muted)' }}>{fmtBRL(c.consultant_hourly_rate)}</span></div>
+                              )}
+                              {!isCoordRole && (
                               <div><span style={{ color: 'var(--text-light)' }}>Custo</span><br /><span style={{ color: 'var(--primary)' }}>{fmtBRL(c.cost)}</span></div>
-                              </>}
+                              )}
                             </div>
                           </div>
                         )
@@ -626,7 +642,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
               </div>
             )}
 
-            {tab === 'aportes' && (
+            {tab === 'aportes' && !isSustCoord && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs uppercase tracking-wider font-semibold" style={{ color: 'var(--text-light)' }}>
@@ -692,7 +708,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
               </div>
             )}
 
-            {tab === 'extrato' && (
+            {tab === 'extrato' && !isSustCoord && (
               <div className="space-y-4">
                 {(viewerUser?.type === 'admin' || viewerUser?.type === 'coordenador') && (() => {
                   const visivel = (p as any)?.extrato_visivel_cliente ?? true
