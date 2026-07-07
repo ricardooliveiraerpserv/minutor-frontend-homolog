@@ -2,33 +2,121 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect } from 'react'
-import { api, ApiError } from '@/lib/api'
+import { api, ApiError, secureUrl } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { User, Lock, RefreshCw, Eye, EyeOff, Copy, Check } from 'lucide-react'
+import { User, Lock, RefreshCw, Eye, EyeOff, Copy, Check, PenLine, Camera, Trash2 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/loading'
+import { SignatureEditor, type SignatureData } from '@/components/users/signature-editor'
 
 // ─── Password mode ────────────────────────────────────────────────────────────
 
 type PasswordMode = 'none' | 'auto' | 'manual'
 
+// Redimensiona/comprime a foto no navegador (avatar não precisa ser grande) → sempre cabe no limite.
+async function compressImage(file: File, maxDim = 512, quality = 0.85): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
+    const w = Math.round(bitmap.width * scale)
+    const h = Math.round(bitmap.height * scale)
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+    ctx.drawImage(bitmap, 0, 0, w, h)
+    const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/jpeg', quality))
+    if (!blob) return file
+    return new File([blob], (file.name.replace(/\.[^.]+$/, '') || 'foto') + '.jpg', { type: 'image/jpeg' })
+  } catch {
+    return file
+  }
+}
+
 export default function ProfilePage() {
-  const { user, loading: authLoading } = useAuth()
+  const { user, loading: authLoading, refreshUser } = useAuth()
 
   // Info fields
   const [name,       setName]       = useState('')
   const [email,      setEmail]      = useState('')
   const [savingInfo, setSavingInfo] = useState(false)
 
+  // Assinatura + foto de perfil
+  const [signature,  setSignature]  = useState<SignatureData>({})
+  const [savingSig,  setSavingSig]  = useState(false)
+  const [photoUrl,   setPhotoUrl]   = useState<string | null>(null)
+  const [photoBusy,  setPhotoBusy]  = useState(false)
+  const userType = user?.type
+
   useEffect(() => {
     if (user) {
       setName(user.name ?? '')
       setEmail(user.email ?? '')
+      setPhotoUrl(user.profile_photo_url ?? null)
     }
   }, [user])
+
+  // Carrega a assinatura salva. O cargo vem do vínculo Cargo × Perfil (admin) — não é editável aqui.
+  useEffect(() => {
+    api.get<{ signature?: SignatureData | null; default_cargo?: string; profile_photo_url?: string | null }>('/users/profile')
+      .then(p => {
+        const sig = (p.signature as SignatureData | null) ?? {}
+        setSignature({ ...sig, role: p.default_cargo || sig.role || 'Consultor', show_photo: sig.show_photo ?? !!p.profile_photo_url })
+        if (p.profile_photo_url !== undefined) setPhotoUrl(p.profile_photo_url ?? null)
+      })
+      .catch(() => setSignature(s => ({ ...s, role: s.role || 'Consultor' })))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
+
+  const saveSignature = async () => {
+    setSavingSig(true)
+    try {
+      // A foto da assinatura é a foto de perfil do sistema (não duplica) → envia sem photo.
+      const { photo: _omit, ...rest } = signature
+      void _omit
+      await api.put('/users/profile', { signature: rest })
+      toast.success('Assinatura salva')
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar assinatura')
+    } finally {
+      setSavingSig(false)
+    }
+  }
+
+  // ── Foto de perfil (avatar do sistema) — disponível para TODOS os perfis ──
+  const uploadPhoto = async (file: File) => {
+    setPhotoBusy(true)
+    try {
+      const compressed = await compressImage(file)
+      const fd = new FormData()
+      fd.append('photo', compressed)
+      const r = await api.post<{ photo_url?: string | null }>('/users/profile/photo', fd)
+      if (r.photo_url) setPhotoUrl(r.photo_url)
+      await refreshUser()
+      toast.success('Foto de perfil atualizada')
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar a foto')
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+
+  const removePhoto = async () => {
+    setPhotoBusy(true)
+    try {
+      await api.delete('/users/profile/photo')
+      setPhotoUrl(null)
+      await refreshUser()
+      toast.success('Foto removida')
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Erro ao remover a foto')
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
 
   // Password section
   const [passwordMode,     setPasswordMode]     = useState<PasswordMode>('none')
@@ -143,6 +231,31 @@ export default function ProfilePage() {
             </div>
           ) : (
             <>
+              {/* ── Foto de perfil (avatar do sistema) — todos os perfis, inclusive cliente ── */}
+              <div className="flex items-center gap-4">
+                <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-[var(--surface-hover)] border border-[var(--border)]">
+                  {photoUrl
+                    ? <img src={secureUrl(photoUrl)} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-lg font-bold text-[var(--text-muted)]">{(name || '?').trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</span>}
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-[var(--text-light)]">Aparece em todo o sistema (menu, topo). JPG/PNG até 2MB.</p>
+                  <div className="flex items-center gap-2">
+                    <label className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] text-xs font-medium cursor-pointer text-[var(--text)] hover:border-[var(--border-strong)] ${photoBusy ? 'opacity-60 pointer-events-none' : ''}`}>
+                      <Camera size={13} /> {photoUrl ? 'Trocar foto' : 'Enviar foto'}
+                      <input type="file" accept="image/*" className="hidden" disabled={photoBusy}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = '' }} />
+                    </label>
+                    {photoUrl && (
+                      <button type="button" onClick={removePhoto} disabled={photoBusy}
+                        className="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] text-xs text-[var(--text-muted)] hover:text-[var(--danger)] hover:border-[var(--danger-border)] disabled:opacity-60">
+                        <Trash2 size={13} /> Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <Label className="text-xs text-[var(--text-muted)]">Nome</Label>
                 <Input value={name} onChange={e => setName(e.target.value)}
@@ -163,6 +276,27 @@ export default function ProfilePage() {
             </>
           )}
         </section>
+
+        {/* ── Assinatura de e-mail ── */}
+        {userType !== 'cliente' && (
+          <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--purple-bg)]">
+                <PenLine size={14} className="text-[var(--purple)]" />
+              </div>
+              <h2 className="text-sm font-semibold text-[var(--text)]">Assinatura de e-mail</h2>
+            </div>
+
+            <SignatureEditor value={signature} onChange={setSignature} name={name} email={email} lockRole hidePhoto />
+
+            <div className="flex justify-end">
+              <Button onClick={saveSignature} disabled={savingSig}
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                {savingSig ? 'Salvando...' : 'Salvar assinatura'}
+              </Button>
+            </div>
+          </section>
+        )}
 
         {/* ── Senha ── */}
         <section className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 space-y-4">

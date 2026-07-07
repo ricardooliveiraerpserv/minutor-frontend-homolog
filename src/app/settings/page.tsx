@@ -11,11 +11,12 @@ import { toast } from 'sonner'
 import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 import {
   Settings,
-  RefreshCw, CheckCircle, XCircle, Users, Shield, X,
+  RefreshCw, CheckCircle, XCircle, Users, Shield, X, Briefcase,
 } from 'lucide-react'
 import type { SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
 import { PermissionGroupsTab } from './PermissionGroupsTab'
+import { CargosTab } from './CargosTab'
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ const TABS = [
   { id: 'general', label: 'Geral',               icon: Settings },
   { id: 'users',   label: 'Usuários',             icon: Users },
   { id: 'groups',  label: 'Grupos de Permissões', icon: Shield },
+  { id: 'cargos',  label: 'Cargos por Perfil',    icon: Briefcase },
 ]
 
 // ─── TAB: GENERAL SETTINGS ───────────────────────────────────────────────────
@@ -338,6 +340,7 @@ export default function SettingsPage() {
           {activeTab === 'general' && <GeneralTab />}
           {activeTab === 'users'   && <UserManagementTab />}
           {activeTab === 'groups'  && <PermissionGroupsTab />}
+          {activeTab === 'cargos'  && <CargosTab />}
         </div>
       </div>
     </AppLayout>
