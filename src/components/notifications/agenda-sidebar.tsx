@@ -169,7 +169,7 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
       {/* Config admin: quem vê o quê na agenda */}
       {cfgOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setCfgOpen(false)}>
-          <div className="ds-card w-full max-w-lg max-h-[85vh] overflow-y-auto p-4 space-y-3" onClick={ev => ev.stopPropagation()}>
+          <div className="ds-card w-full max-w-2xl max-h-[85vh] overflow-y-auto p-4 space-y-3" onClick={ev => ev.stopPropagation()}>
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Visibilidade da agenda por perfil</span>
               <button onClick={() => setCfgOpen(false)} aria-label="Fechar" style={{ color: 'var(--text-muted)' }}><X size={16} /></button>
