@@ -66,6 +66,7 @@ function InternalCronogramaPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user } = useAuth()
+  const isConsultor = user?.type === 'consultor'
   const canEdit = user?.type !== 'consultor' && user?.type !== 'cliente'
   const [executive, toggleExecutive] = useExecutiveMode()
   const [highlightUserId, setHighlightUserId] = useState<number | null>(null)
@@ -237,15 +238,17 @@ function InternalCronogramaPage() {
 
   return (
     <div>
-      {/* Fase 10: header executivo + alertas (acima dos KPIs simples) */}
-      {executiveSummary && (
+      {/* Fase 10: header executivo + alertas (acima dos KPIs simples).
+          Consultor NÃO vê o resumo/alertas do projeto (total, equipe, risco) —
+          só o board com as atividades dele. */}
+      {!isConsultor && executiveSummary && (
         <CronogramaExecutiveHeader
           executive={executiveSummary}
           teamLoad={teamLoad}
           alerts={alerts}
         />
       )}
-      {alerts.length > 0 && <CronogramaAlertsList alerts={alerts} />}
+      {!isConsultor && alerts.length > 0 && <CronogramaAlertsList alerts={alerts} />}
 
       {/* Strip de KPIs operacionais */}
       <div style={{

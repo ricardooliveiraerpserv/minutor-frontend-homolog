@@ -217,6 +217,7 @@ function PrazoKPI({
 
 export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   const { user } = useAuth()
+  const isConsultor = user?.type === 'consultor'
   const canEditPrazo = user?.type !== 'consultor' && user?.type !== 'cliente'
 
   // Visão ÚNICA da página (todos os perfis, inclusive admin): horas APONTÁVEIS —
@@ -284,9 +285,14 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         gap: 12,
         marginTop: 14,
       }}>
-        <KPI label="Apontáveis" value={formatHours(appointable)} />
-        <KPI label="Consumidas" value={formatHours(consumed)} sub={`${Math.round(pct)}%`} />
-        <KPI label="Saldo" value={formatHours(balance)} />
+        {/* Consultor NÃO vê o total de horas do projeto — só suas atividades (no board). */}
+        {!isConsultor && (
+          <>
+            <KPI label="Apontáveis" value={formatHours(appointable)} />
+            <KPI label="Consumidas" value={formatHours(consumed)} sub={`${Math.round(pct)}%`} />
+            <KPI label="Saldo" value={formatHours(balance)} />
+          </>
+        )}
         <PrazoKPI
           projectId={project.id}
           expectedEndDate={project.expected_end_date}
@@ -295,7 +301,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         />
       </div>
 
-      {appointable > 0 && (
+      {!isConsultor && appointable > 0 && (
         <div style={{ marginTop: 12 }}>
           <div style={{
             height: 4,
@@ -314,7 +320,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         </div>
       )}
 
-      {delayRisk?.has_risk && delayRisk.latest_stage_end && (
+      {!isConsultor && delayRisk?.has_risk && delayRisk.latest_stage_end && (
         <div style={{
           marginTop: 12,
           padding: '6px 10px',
