@@ -9,8 +9,6 @@ import { HealthDots } from './health-dots'
 import { StageKanbanBoard } from './stage-kanban-board'
 import { StageActivityTimeline } from './stage-activity-timeline'
 import { useStageDeliveries } from '@/hooks/use-stage-deliveries'
-import { useUserCapacityIndex } from '@/hooks/use-user-capacity'
-import { ResponsibleChip } from './responsible-chip'
 import type { ProjectStage, StageDerivedStatus } from '@/lib/types/project-stage'
 
 const DERIVED_STATUS_LABEL: Record<StageDerivedStatus, string> = {
@@ -52,7 +50,6 @@ export function StageOperationalBlock({
 }: Props) {
   const [expanded, setExpanded] = useState(true)
   const [activityKey, setActivityKey] = useState(0)
-  const { byUserId } = useUserCapacityIndex()
 
   // Mobile: colapsa por default. Roda 1x no mount; usuário pode toggle manualmente.
   useEffect(() => {
@@ -225,13 +222,6 @@ export function StageOperationalBlock({
               <span>
                 <strong style={{ color: 'var(--text)' }}>{doneDeliveries}/{totalDeliveries}</strong> atividades · {pctDeliveries}%
               </span>
-            )}
-            {stage.responsible && (
-              <ResponsibleChip
-                user={stage.responsible}
-                capacity={byUserId[stage.responsible.id]}
-                size="sm"
-              />
             )}
           </div>
 

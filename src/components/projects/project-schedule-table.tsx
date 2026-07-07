@@ -47,38 +47,6 @@ function CronogramaDate({ value, canEdit, onSave, placeholder = 'Definir' }: {
   )
 }
 
-/** Responsável editável inline: mostra o chip; ao clicar (com permissão) vira um SearchSelect. */
-function InlineResponsible({ value, user, capacity, options, canEdit, onSave }: {
-  value: string
-  user: React.ComponentProps<typeof ResponsibleChip>['user']
-  capacity: React.ComponentProps<typeof ResponsibleChip>['capacity']
-  options: { id: number; name: string }[]
-  canEdit: boolean
-  onSave: (v: string) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  if (canEdit && editing) {
-    return (
-      <SearchSelect
-        value={value}
-        onChange={v => { onSave(v); setEditing(false) }}
-        options={options}
-        placeholder="Sem responsável"
-        inline
-        wide
-      />
-    )
-  }
-  const chip = <ResponsibleChip user={user} capacity={capacity} size="sm" />
-  if (!canEdit) return chip
-  return (
-    <button onClick={() => setEditing(true)} title="Clique para definir/alterar o responsável"
-      style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', display: 'inline-flex', alignItems: 'center' }}>
-      {chip}
-    </button>
-  )
-}
-
 interface Props {
   projectId: number
   stages: ScheduleStage[]
@@ -121,7 +89,6 @@ function NonBusinessMark({ n }: { n: number }) {
 
 interface NewStageDraft {
   name: string
-  responsible_user_id: string
   stage_start_at: string
   expected_end_date: string
   hours_planned: string
@@ -154,9 +121,8 @@ export interface NewActivityDraft {
   dueTouched: boolean
 }
 
-const emptyStageDraft = (defaultResp: number | null): NewStageDraft => ({
+const emptyStageDraft = (): NewStageDraft => ({
   name: '',
-  responsible_user_id: defaultResp ? String(defaultResp) : '',
   stage_start_at: '',
   expected_end_date: '',
   hours_planned: '',
@@ -299,7 +265,7 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
     starts.sort(); ends.sort()
     return { hours, start: starts[0] ?? null, end: ends[ends.length - 1] ?? null }
   }
-  const [stageDraft, setStageDraft] = useState<NewStageDraft>(emptyStageDraft(defaultCoordId))
+  const [stageDraft, setStageDraft] = useState<NewStageDraft>(emptyStageDraft())
   const [creatingActivityIn, setCreatingActivityIn] = useState<number | null>(null)
   // Edição de atividade existente: reusa o MESMO form da criação (com envolver cliente etc.).
   const [editingActivityId, setEditingActivityId] = useState<number | null>(null)
@@ -312,13 +278,13 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
   }
 
   function openCreateStage() {
-    setStageDraft(emptyStageDraft(defaultCoordId))
+    setStageDraft(emptyStageDraft())
     setSubParentId(null)
     setCreatingStage(true)
   }
 
   function openCreateSubStage(parentId: number) {
-    setStageDraft(emptyStageDraft(defaultCoordId))
+    setStageDraft(emptyStageDraft())
     setSubParentId(parentId)
     setCreatingStage(true)
   }
@@ -337,7 +303,6 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
     try {
       const body: Record<string, unknown> = { name }
       if (subParentId) body.parent_stage_id = subParentId
-      if (stageDraft.responsible_user_id) body.responsible_user_id = Number(stageDraft.responsible_user_id)
       if (stageDraft.stage_start_at)      body.stage_start_at = stageDraft.stage_start_at
       if (stageDraft.expected_end_date)   body.expected_end_date = stageDraft.expected_end_date
       if (stageDraft.hours_planned)       body.hours_planned = Number(stageDraft.hours_planned)
@@ -345,7 +310,7 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
       const wasSub = subParentId != null
       setCreatingStage(false)
       setSubParentId(null)
-      setStageDraft(emptyStageDraft(defaultCoordId))
+      setStageDraft(emptyStageDraft())
       onChanged()
       toast.success(wasSub ? 'Sub-etapa criada' : 'Etapa criada')
     } catch (e) {
@@ -514,7 +479,7 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
       editingActivityId={editingActivityId}
       activityDraft={activityDraft}
       setActivityDraft={setActivityDraft}
-      onStartCreateActivity={() => openCreateActivity(stage.id, stage.responsible_user_id)}
+      onStartCreateActivity={() => openCreateActivity(stage.id, null)}
       onStartEditActivity={(d) => openEditActivity(d, stage.id)}
       onCancelCreateActivity={cancelActivityForm}
       onConfirmCreateActivity={() => editingActivityId ? updateActivity(editingActivityId) : createActivity(stage.id)}
@@ -547,14 +512,6 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
               placeholder={depth > 0 ? 'Ex: Preparação Base teste…' : 'Ex: Fiscal, Compras…'}
               maxLength={100}
               style={{ width: 200, fontSize: 13, padding: '4px 8px' }}
-            />
-          </FieldLabeled>
-          <FieldLabeled label="Responsável">
-            <SearchSelect
-              value={stageDraft.responsible_user_id}
-              onChange={v => setStageDraft(d => ({ ...d, responsible_user_id: v }))}
-              options={responsibleList}
-              placeholder="—"
             />
           </FieldLabeled>
           <FieldLabeled label="Início">
@@ -752,7 +709,6 @@ interface StageRowProps {
 function StageRows(props: StageRowProps) {
   const { projectId, stage, coordinators, responsibleOptions, clientOptions, collapsed, onToggle, canEdit, onChanged, creatingActivity, editingActivityId, activityDraft, setActivityDraft, onStartCreateActivity, onStartEditActivity, onCancelCreateActivity, onConfirmCreateActivity, idsWithDependents, previewRecalc, onOpenRecalcModal, calendar, codes, depth = 0, rollup = null } = props
   const cronoCal = useContext(CronoCalCtx)
-  const { byUserId: capacityByUserId } = useUserCapacityIndex()
 
   const allDeliveries = stage.deliveries ?? []
 
@@ -824,16 +780,7 @@ function StageRows(props: StageRowProps) {
             )}
           </div>
         </td>
-        <td style={cell()}>
-          <InlineResponsible
-            value={stage.responsible_user_id ? String(stage.responsible_user_id) : ''}
-            user={stage.responsible}
-            capacity={stage.responsible ? capacityByUserId[stage.responsible.id] : undefined}
-            options={responsibleOptions}
-            canEdit={canEdit}
-            onSave={v => patchStage('responsible_user_id', v ? Number(v) : null)}
-          />
-        </td>
+        <td style={cell()} />
         <td style={cell()}>
           <CronogramaDate value={stage.stage_start_at ?? null} canEdit={canEdit} onSave={v => { if (dateAfter(v, stage.expected_end_date)) { toast.error('Início não pode ser depois do fim'); return } patchStage('stage_start_at', v) }} placeholder="Definir início" />
         </td>

@@ -140,11 +140,6 @@ function StageMacroCard({ stage, projectId, executive, code }: { stage: ProjectS
             {code && <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>{code}.</span>}
             {stage.name}
           </div>
-          {stage.responsible?.name && (
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-              {stage.responsible.name}
-            </div>
-          )}
           {stage.derived_status === 'bloqueada' && stage.blocked_reason && (
             <div
               title={stage.blocked_reason}
