@@ -46,7 +46,7 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[var(--bg)]">
+      <div className="flex items-center justify-center bg-[var(--bg)]" style={{ height: 'calc(100vh - var(--env-banner-h, 0px))' }}>
         <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
@@ -60,7 +60,7 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
   return (
     <NavConfigProvider>
     <ModuleProvider>
-    <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
+    <div className="flex flex-col overflow-hidden" style={{ background: 'var(--bg)', height: 'calc(100vh - var(--env-banner-h, 0px))' }}>
 
       {/* Pop-ups globais da Central de Notificações (avisos / decisões / enquetes) — exceto cliente. */}
       {user.type !== 'cliente' && <NotificationPopups userId={user.id} />}

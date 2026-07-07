@@ -49,7 +49,7 @@ const ENV_BANNER_TEXT =
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={`${inter.variable} ${geist.variable} h-full antialiased`} suppressHydrationWarning>
-      <body className="h-full">
+      <body className="h-full" style={{ '--env-banner-h': ENV_BANNER_TEXT ? '24px' : '0px' } as React.CSSProperties}>
         {ENV_BANNER_TEXT && (
           <div
             style={{
@@ -64,7 +64,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               fontSize: 12,
               letterSpacing: '0.15em',
               textAlign: 'center',
+              height: 'var(--env-banner-h)',
+              lineHeight: '16px',
               padding: '4px 8px',
+              boxSizing: 'border-box',
               fontFamily: 'var(--font-inter), sans-serif',
               textShadow: '0 1px 0 rgba(255,255,255,0.4)',
               pointerEvents: 'none',
@@ -73,7 +76,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {ENV_BANNER_TEXT}
           </div>
         )}
-        <div style={ENV_BANNER_TEXT ? { paddingTop: 24 } : undefined}>
+        <div style={{ paddingTop: 'var(--env-banner-h, 0px)' }}>
           <Providers>{children}</Providers>
         </div>
       </body>

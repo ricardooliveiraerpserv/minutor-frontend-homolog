@@ -110,13 +110,13 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
       <div
         onClick={onClose}
         style={{
-          position: 'fixed', inset: 0,
+          position: 'fixed', top: 'var(--env-banner-h, 0px)', left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.35)', zIndex: 40,
         }}
       />
       <aside
         style={{
-          position: 'fixed', top: 0, right: 0, bottom: 0,
+          position: 'fixed', top: 'var(--env-banner-h, 0px)', right: 0, bottom: 0,
           width: 'min(480px, 100vw)',
           background: 'var(--bg)',
           borderLeft: '1px solid var(--border)',
