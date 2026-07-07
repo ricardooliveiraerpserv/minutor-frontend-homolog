@@ -87,9 +87,9 @@ export function NotificationCenter() {
   // "Notificações de hoje" = infos do dia + TODOS os avisos que exigiam aceite e já foram aceitos
   // (independente da data — pra não SUMIR ao aceitar). Não duplica com "Para resolver" (que só tem pendentes).
   const infosHoje = items.filter(n =>
-    (n.type === 'info' || n.type === 'aviso' || n.type === 'formal')
+    (n.type === 'info' || n.type === 'aviso' || n.type === 'formal' || n.type === 'require_ack')
     && (!n.requires_ack || n.acked)                     // fora os pendentes de aceite (esses em "Para resolver")
-    && (isHoje(n) || (n.requires_ack && n.acked)))      // do dia OU aviso já aceito (não some)
+    && (isHoje(n) || (n.requires_ack && n.acked)))      // do dia OU leitura obrigatória já aceita (não some)
   const enquetesHoje = items.filter(n => n.type === 'poll' && n.poll && isHoje(n))
 
   return (
