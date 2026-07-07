@@ -6,6 +6,7 @@ import { Sidebar } from './sidebar'
 import { Header } from './header'
 import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
+import { NotificationPopups } from '@/components/notifications/notification-popups'
 import { Building2, User } from 'lucide-react'
 
 // Banner de ambiente: cores distintas para evitar confundir DEV ↔ HOMOLOG ↔ PROD.
@@ -79,6 +80,9 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
           </span>
         </div>
       )}
+
+      {/* Pop-ups globais da Central de Notificações (avisos / decisões / enquetes) — exceto cliente. */}
+      {user.type !== 'cliente' && <NotificationPopups userId={user.id} />}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar user={user} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />

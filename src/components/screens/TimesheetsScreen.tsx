@@ -810,6 +810,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
   const spTicket     = searchParams.get('ticket') ?? ''
   const spRequester  = searchParams.get('requester') ?? ''
   const spTicketSvc  = searchParams.get('ticket_service') ?? ''
+  const spStatus     = searchParams.get('status') ?? ''   // links "Ver apontamentos" filtrados (rejeitado/ajuste)
 
   const { filters, set: setFilter, clear: clearPersistedFilters } = usePersistedFilters(
     'timesheets',
@@ -818,7 +819,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
       projectId:        spProjectId,
       projectIds:       [] as string[],
       page:             1,
-      status:           '',
+      status:           spStatus,
       origins:          [] as string[],
       serviceTypeIds:   [] as string[],
       contractTypeIds:  [] as string[],
