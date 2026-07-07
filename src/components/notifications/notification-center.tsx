@@ -83,7 +83,8 @@ export function NotificationCenter() {
   // A lista completa de informativos continua no sino da topbar; aqui é só o do dia, com voto na enquete.
   const hoje = new Date().toDateString()
   const isHoje = (n: Notif) => !!n.created_at && new Date(n.created_at).toDateString() === hoje
-  const infosHoje = items.filter(n => (n.type === 'info' || n.type === 'aviso' || n.type === 'formal') && isHoje(n))
+  // Não duplicar: os que exigem aceite já aparecem em "Para resolver" (importantes) — fora daqui.
+  const infosHoje = items.filter(n => (n.type === 'info' || n.type === 'aviso' || n.type === 'formal') && isHoje(n) && !n.requires_ack && n.type !== 'require_ack')
   const enquetesHoje = items.filter(n => n.type === 'poll' && n.poll && isHoje(n))
 
   return (
