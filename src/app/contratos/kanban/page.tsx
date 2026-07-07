@@ -1882,9 +1882,10 @@ function KanbanContent() {
     // Coordenador de sustentação: só move cards que estão nas colunas de coordenador do
     // board dele (Anderson OU Ricardo), e só para Cancelado / Pausado / Encerrado. Cards em
     // filas de sustentação ou já em status terminal não são movíveis.
+    // Detecta pela coluna de origem (currentCoordId = col.coordinatorId da coluna que renderiza
+    // o card) — NÃO por fromCol, que aqui vem derivado do status do projeto.
     if (isSustCoordenador) {
-      const boardCoordCols = sustBoardCoordIds.map(id => `coordinator:${id}`)
-      if (!boardCoordCols.includes(fromCol)) return []
+      if (currentCoordId == null || !sustBoardCoordIds.includes(currentCoordId)) return []
       return STATUS_PROJECT_COLUMNS
         .filter(c => COL_TO_PROJECT_STATUS[c.id] !== card.status)
         .map(c => ({ id: c.id, label: c.label }))
