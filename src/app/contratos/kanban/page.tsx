@@ -81,7 +81,7 @@ interface ProjectCard {
   service_type?: string
 }
 
-interface Coordinator { id: number; name: string }
+interface Coordinator { id: number; name: string; coordinator_type?: string | null }
 
 interface ProjectFull {
   id: number; name: string; code: string; status: string; status_display?: string
@@ -1435,6 +1435,9 @@ function KanbanContent() {
           type:          'coordinator' as const,
           coordinatorId: c.id,
           emoji:         '👤',
+          // Coordenador de sustentação que coordena projetos pontuais: coluna laranja
+          // (mesma cor da legenda Sustentação) pra diferenciar dos coord. de projeto.
+          color:         c.coordinator_type === 'sustentacao' ? SUST_COLOR : undefined,
         })),
         ...SUSTENTACAO_COLS,
         BIZIFY_COL,
@@ -2063,7 +2066,7 @@ function KanbanContent() {
                     : isBizify  ? `${BIZIFY_COLOR}35`
                     : isAporteCol ? `${APORTE_COLOR}45`
                     : col.id === 'aditivos' ? `${ADITIVO_COLOR}45`
-                    : isCoord   ? 'var(--primary-soft)'
+                    : isCoord   ? (col.color ? `${col.color}45` : 'var(--primary-soft)')
                     : isPronto  ? `${PRONTO_COLOR}40`
                     : 'var(--border)'
 
@@ -2072,7 +2075,7 @@ function KanbanContent() {
                     : isBizify  ? BIZIFY_COLOR
                     : isAporteCol ? APORTE_COLOR
                     : col.id === 'aditivos' ? ADITIVO_COLOR
-                    : isCoord   ? 'var(--primary)'
+                    : isCoord   ? (col.color ?? 'var(--primary)')
                     : isPronto  ? PRONTO_COLOR
                     : 'var(--text)'
 
@@ -2126,6 +2129,12 @@ function KanbanContent() {
                                 Arraste entre colunas ou para coordenador
                               </p>
                             </>
+                          )}
+                          {isCoord && col.color && (
+                            <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-sm inline-block mt-1"
+                              style={{ background: `${col.color}15`, color: col.color, letterSpacing: '0.1em' }}>
+                              SUSTENTAÇÃO
+                            </span>
                           )}
                           {isBizify && (
                             <>
