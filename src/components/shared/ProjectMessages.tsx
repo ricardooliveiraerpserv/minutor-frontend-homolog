@@ -5,7 +5,6 @@ import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
 import type { ProjectMessage } from '@/types'
 import { Send, Paperclip, X, Download, FileText, Eye, EyeOff, Lock, Users, Pencil, Check } from 'lucide-react'
-import { Skeleton } from '@/components/ui/loading'
 import { toast } from 'sonner'
 
 // Janela (horas) para editar a própria última interação — espelha ProjectMessage::EDIT_WINDOW_HOURS no backend.
@@ -66,27 +65,6 @@ function getInitials(name: string) {
 
 function isImage(mime?: string) {
   return mime?.startsWith('image/') ?? false
-}
-
-/** Skeleton contextual do feed: bolhas (avatar + cabeçalho + linhas) enquanto carrega. */
-function MessagesSkeleton() {
-  return (
-    <div className="space-y-3" aria-hidden>
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="flex gap-2.5 items-start px-3 py-2">
-          <Skeleton className="w-7 h-7 rounded-full shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-2.5 w-12" />
-            </div>
-            <Skeleton className="h-3 w-[82%]" />
-            {i % 2 === 0 && <Skeleton className="h-3 w-[56%]" />}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
 }
 
 function AttachmentChip({ att, messageId }: { att: Attachment; messageId: number }) {
@@ -273,14 +251,14 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
       // Chat de projeto é sempre interno — backend ignora e força 'internal'.
       files.forEach(f => fd.append('files[]', f))
 
-      // Upload DIRETO no backend: o proxy do Vercel (app.minutor.com.br) limita o body em ~4.5MB,
-      // então anexos maiores nem chegavam. CORS do backend já libera app.minutor.com.br + Authorization.
-      const uploadBase = (typeof window !== 'undefined' && window.location.hostname === 'app.minutor.com.br')
-        ? 'https://api.minutor.com.br/api/v1' : '/api/v1'
+      // Upload DIRETO no backend só quando há TOKEN de aba (auth cross-origin via Bearer): o proxy do
+      // Vercel limita o body em ~4.5MB. Sem token (sessão por cookie), mantém o relativo — o cookie de
+      // sessão é do domínio app.minutor.com.br e NÃO vai numa chamada direta ao api.minutor.com.br.
       const token = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
-      const res = await fetch(`${uploadBase}/projects/${projectId}/messages`, {
+      const direct = !!token && typeof window !== 'undefined' && window.location.hostname === 'app.minutor.com.br'
+      const res = await fetch(`${direct ? 'https://api.minutor.com.br/api/v1' : '/api/v1'}/projects/${projectId}/messages`, {
         method: 'POST',
-        credentials: 'include',
+        credentials: direct ? 'omit' : 'same-origin',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
       })
@@ -347,7 +325,11 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
     <div className="flex flex-col h-full min-h-[400px]">
       {/* Feed */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-        {loading && messages.length === 0 && <MessagesSkeleton />}
+        {loading && (
+          <div className="flex items-center justify-center py-12">
+            <span className="text-sm" style={{ color: 'var(--text-light)' }}>Carregando...</span>
+          </div>
+        )}
         {!loading && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 gap-2">
             <span className="text-sm" style={{ color: 'var(--text-light)' }}>Nenhuma mensagem ainda.</span>
