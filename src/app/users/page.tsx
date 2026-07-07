@@ -160,16 +160,20 @@ export default function UsersPage() {
   // Coordenador de projetos acessa esta tela apenas para RESETAR SENHA.
   // Nada de Visualizar/Editar/Criar/Excluir/Reenviar boas-vindas — só reset.
   const isCoordProjetos = authUser?.type === 'coordenador' && authUser?.coordinator_type === 'projetos'
-  const canCreate    = !isCoordProjetos && (isAdmin || ep.includes('users.create'))
-  // canView: precisa ser true pra coord_projetos enxergar a lista de usuários
+  // Modo SÓ-RESET: coord de projetos e grupos não-admin sem users.* completo acessam a tela
+  // apenas para RESETAR SENHA — nada de Visualizar/Editar/Criar/Excluir/Reenviar boas-vindas.
+  const resetOnlyByGroup = !isAdmin && !isCoordProjetos
+  const resetOnly = isCoordProjetos || resetOnlyByGroup
+  const canCreate    = !resetOnly && (isAdmin || ep.includes('users.create'))
+  // canView: precisa ser true pra o modo só-reset enxergar a lista de usuários
   // (sem isso o backend filtra só o próprio user). A ação "Visualizar" do menu
   // de linha é gateada à parte abaixo.
-  const canView      = isCoordProjetos || isAdmin || ep.includes('users.view_all')
-  const canViewDetail = !isCoordProjetos && canView
-  const canEdit      = !isCoordProjetos && (isAdmin || ep.includes('users.update'))
-  const canDelete    = !isCoordProjetos && isAdmin
-  const canResetPwd  = isCoordProjetos || isAdmin || ep.includes('users.reset_password')
-  const canResendWelcome = !isCoordProjetos && (isAdmin || ep.includes('users.reset_password'))
+  const canView      = resetOnly || isAdmin || ep.includes('users.view_all')
+  const canViewDetail = !resetOnly && canView
+  const canEdit      = !resetOnly && (isAdmin || ep.includes('users.update'))
+  const canDelete    = !resetOnly && isAdmin
+  const canResetPwd  = resetOnly || isAdmin || ep.includes('users.reset_password')
+  const canResendWelcome = !resetOnly && (isAdmin || ep.includes('users.reset_password'))
 
   const [users,     setUsers]     = useState<UserItem[]>([])
   const [customers, setCustomers] = useState<CustomerOption[]>([])
