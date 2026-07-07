@@ -82,8 +82,8 @@ export function ActionRemindersPanel() {
           {/* a cada X horas/dias */}
           <div className="inline-flex items-center gap-1.5 text-[13px]" style={{ color: r.enabled ? 'var(--text)' : 'var(--text-light)' }}>
             <Clock size={13} /> a cada
-            <input type="number" min={1} max={744} value={r.interval} disabled={!r.enabled}
-              onChange={e => patch(r.key, { interval: parseInt(e.target.value || '1', 10) })}
+            <input type="number" min={1} max={744} value={r.interval || ''} disabled={!r.enabled}
+              onChange={e => patch(r.key, { interval: parseInt(e.target.value, 10) || 0 })}
               className="ds-input w-14 text-center px-1 py-1 text-[13px]" />
             <select value={r.unit} disabled={!r.enabled} onChange={e => patch(r.key, { unit: e.target.value as Rule['unit'] })}
               className="ds-input px-2 py-1 text-[13px]">
