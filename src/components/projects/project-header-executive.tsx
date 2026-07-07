@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { useApiQuery } from '@/hooks/use-query'
 import { useDelayRisk } from '@/hooks/use-delay-risk'
+import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 
 interface Project {
   id: number
@@ -16,6 +17,7 @@ interface Project {
   status_display?: string
   customer?: { id: number; name: string } | null
   sold_hours?: number | string | null
+  coordination_hours?: number | string | null
   consumed_hours?: number | string | null
   general_hours_balance?: number | string | null
   expected_end_date?: string | null
@@ -217,10 +219,13 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   const { user } = useAuth()
   const canEditPrazo = user?.type !== 'consultor' && user?.type !== 'cliente'
 
-  const sold = n(project.sold_hours)
+  // Visão ÚNICA da página (todos os perfis, inclusive admin): horas APONTÁVEIS —
+  // o pool liberado à gestão (coordination_hours ou, na ausência, sold_hours).
+  // Nunca expõe a base comercial "Vendidas" aqui.
+  const appointable = cronogramaPoolHours(project)
   const consumed = n(project.consumed_hours)
-  const balance = n(project.general_hours_balance)
-  const pct = sold > 0 ? Math.min(100, (consumed / sold) * 100) : 0
+  const balance = appointable - consumed
+  const pct = appointable > 0 ? Math.min(100, (consumed / appointable) * 100) : 0
 
   const healthColor =
     pct >= 90 ? 'var(--danger)' :
@@ -279,7 +284,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         gap: 12,
         marginTop: 14,
       }}>
-        <KPI label="Vendidas" value={formatHours(sold)} />
+        <KPI label="Apontáveis" value={formatHours(appointable)} />
         <KPI label="Consumidas" value={formatHours(consumed)} sub={`${Math.round(pct)}%`} />
         <KPI label="Saldo" value={formatHours(balance)} />
         <PrazoKPI
@@ -290,7 +295,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         />
       </div>
 
-      {sold > 0 && (
+      {appointable > 0 && (
         <div style={{ marginTop: 12 }}>
           <div style={{
             height: 4,
