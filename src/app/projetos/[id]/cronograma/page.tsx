@@ -505,12 +505,14 @@ function SegmentedControl({
   return (
     <div style={{
       display: 'inline-flex',
-      border: '1px solid var(--border)',
-      borderRadius: 8,
+      border: '1px solid var(--primary)',
+      borderRadius: 12,
       overflow: 'hidden',
       background: 'var(--surface)',
+      padding: 4,
+      gap: 4,
     }}>
-      {opts.map((opt, i) => {
+      {opts.map((opt) => {
         const active = current === opt.value
         const n = counts[opt.value] ?? 0
         return (
@@ -521,13 +523,13 @@ function SegmentedControl({
             onClick={() => onChange(opt.value)}
             className={active ? 'ds-tab-active' : 'ds-tab-inactive'}
             style={{
-              padding: '6px 14px',
-              fontSize: 13,
-              fontWeight: active ? 600 : 500,
-              background: active ? 'var(--primary-soft)' : 'transparent',
-              color: active ? 'var(--primary)' : 'var(--text-muted)',
+              padding: '11px 24px',
+              fontSize: 15,
+              fontWeight: active ? 700 : 600,
+              background: active ? 'var(--primary)' : 'transparent',
+              color: active ? 'var(--primary-fg)' : 'var(--text)',
               border: 'none',
-              borderLeft: i > 0 ? '1px solid var(--border)' : 'none',
+              borderRadius: 9,
               cursor: 'pointer',
               transition: 'background .15s ease, color .15s ease',
               display: 'inline-flex', alignItems: 'center', gap: 6,
