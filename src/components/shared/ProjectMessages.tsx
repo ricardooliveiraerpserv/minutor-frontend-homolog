@@ -273,9 +273,15 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
       // Chat de projeto é sempre interno — backend ignora e força 'internal'.
       files.forEach(f => fd.append('files[]', f))
 
-      const res = await fetch(`/api/v1/projects/${projectId}/messages`, {
+      // Upload DIRETO no backend: o proxy do Vercel (app.minutor.com.br) limita o body em ~4.5MB,
+      // então anexos maiores nem chegavam. CORS do backend já libera app.minutor.com.br + Authorization.
+      const uploadBase = (typeof window !== 'undefined' && window.location.hostname === 'app.minutor.com.br')
+        ? 'https://api.minutor.com.br/api/v1' : '/api/v1'
+      const token = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
+      const res = await fetch(`${uploadBase}/projects/${projectId}/messages`, {
         method: 'POST',
-        credentials: 'same-origin',
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
       })
 
