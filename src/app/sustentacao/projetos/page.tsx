@@ -17,6 +17,7 @@ import { CustomerContactsSection } from '@/components/ui/customer-contacts-secti
 import { PageHeader } from '@/components/ds'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { formatBRL } from '@/lib/format'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -358,6 +359,11 @@ export default function SustentacaoProjetosPage() {
 
   const isAdmin = user?.type === 'admin'
 
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/sustentacao', 'view')
+  const dEdit = isDenied('/sustentacao', 'edit')
+
   // Modals
   const [viewProject, setViewProject]         = useState<SustProject | null>(null)
   const [costProject, setCostProject]         = useState<SustProject | null>(null)
@@ -645,8 +651,8 @@ export default function SustentacaoProjetosPage() {
                       <td className="py-2 pl-2 pr-1" style={{ width: 48 }} onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-1">
                           <RowMenu items={[
-                            { label: 'Visualizar',      icon: <Eye size={12} />,        onClick: () => setViewProject(p) },
-                            ...(isAdmin ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => router.push(`/gestao-projetos?edit=${p.id}`) }] : []),
+                            ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewProject(p) }]),
+                            ...(isAdmin && !dEdit ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => router.push(`/gestao-projetos?edit=${p.id}`) }] : []),
                             { label: 'Alterar Status',  icon: <Layers size={12} />,     onClick: () => setStatusModal({ project: p, newStatus: p.status }) },
                             { label: 'Custo',           icon: <DollarSign size={12} />, onClick: () => setCostProject(p) },
                             { label: 'Apontamentos',    icon: <Clock size={12} />,      onClick: () => router.push(`/timesheets?project_id=${p.id}`) },

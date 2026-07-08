@@ -6,6 +6,7 @@ import { useState, useMemo, useCallback, useRef, useEffect, Suspense } from 'rea
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { toast } from 'sonner'
 import {
   Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
@@ -553,6 +554,11 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
 }) {
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/timesheets', 'view')
+  const dEdit = isDenied('/timesheets', 'edit')
+  const dDelete = isDenied('/timesheets', 'delete')
 
   const confirmDelete = async () => {
     setDeleteConfirm(false)
@@ -567,10 +573,10 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
   }
 
   const items: RowMenuItem[] = viewOnly
-    ? [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: onView }]
+    ? (dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: onView }])
     : [
-        { label: 'Visualizar', icon: <Eye size={12} />, onClick: onView },
-        { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } },
+        ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: onView }]),
+        ...(dEdit ? [] : [{ label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` } }]),
         ...(onShowConflict ? [{ label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: onShowConflict }] : []),
         ...(onShowLogs ? [{ label: 'Ver histórico', icon: <FileText size={12} />, onClick: onShowLogs }] : []),
         ...(onRelease ? [{ label: 'Liberar', icon: <CheckCircle size={12} />, onClick: onRelease }] : []),
@@ -578,7 +584,7 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
         ...(onReverseRelease ? [{ label: 'Estornar liberação', icon: <X size={12} />, onClick: onReverseRelease }] : []),
         ...(onReverseRejection ? [{ label: 'Estornar rejeição', icon: <RotateCcw size={12} />, onClick: onReverseRejection }] : []),
         ...(onExtraPct ? [{ label: '% Extras', icon: <TrendingUp size={12} />, onClick: onExtraPct }] : []),
-        { label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true },
+        ...(dDelete ? [] : [{ label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true }]),
       ]
 
   return (

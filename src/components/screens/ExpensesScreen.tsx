@@ -24,6 +24,7 @@ import { ExpenseHoverTooltip, useExpenseHover } from '@/components/ui/timesheet-
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { useAuth } from '@/hooks/use-auth'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { useTableSort } from '@/hooks/use-table-sort'
 import type { PortalDate } from '@/lib/portal-date'
@@ -426,6 +427,13 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
   const canActAsUser     = isAdmin || isCoordenador || isAdministrativo
   const isCliente        = user?.type === 'cliente'
   const canPay           = isAdmin || isAdministrativo
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView   = isDenied('/expenses', 'view')
+  const dEdit   = isDenied('/expenses', 'edit')
+  const dDelete = isDenied('/expenses', 'delete')
+  const dPay    = isDenied('/expenses', 'pay')
+  const dReopen = isDenied('/expenses', 'reopen')
   // Chip "Meus projetos / Todos" pra coordenador (idem Apontamentos / Demandas).
   const [coordScope, setCoordScope] = useState<'meus' | 'todos'>(scope === 'sustentacao' ? 'todos' : 'meus')
 
@@ -1036,18 +1044,18 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
                     <Td className="w-10">
                       <div onClick={e => e.stopPropagation()}>
                       <RowMenu items={[
-                        { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) },
+                        ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) }]),
                         ...(canEdit(exp) ? [
-                          { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) },
-                          { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true },
+                          ...(dEdit ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) }]),
+                          ...(dDelete ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true }]),
                         ] : []),
                         ...(exp.receipt_url ? [
                           { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
                         ] : []),
-                        ...(canPay && (exp.status === 'approved' || exp.is_paid) ? [
+                        ...(!dPay && canPay && (exp.status === 'approved' || exp.is_paid) ? [
                           { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
                         ] : []),
-                        ...(canPay && exp.status === 'approved' && !exp.is_paid ? [
+                        ...(!dReopen && canPay && exp.status === 'approved' && !exp.is_paid ? [
                           { label: 'Estornar Aprovação', icon: <Undo2 size={12} />, onClick: () => setRevertTarget(exp), danger: true },
                         ] : []),
                       ]} />
@@ -1133,18 +1141,18 @@ export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps
                     {!isCliente && (
                       <div onClick={e => e.stopPropagation()}>
                         <RowMenu items={[
-                          { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) },
+                          ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) }]),
                           ...(canEdit(exp) ? [
-                            { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) },
-                            { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true },
+                            ...(dEdit ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) }]),
+                            ...(dDelete ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true }]),
                           ] : []),
                           ...(exp.receipt_url ? [
                             { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
                           ] : []),
-                          ...(canPay && (exp.status === 'approved' || exp.is_paid) ? [
+                          ...(!dPay && canPay && (exp.status === 'approved' || exp.is_paid) ? [
                             { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
                           ] : []),
-                          ...(canPay && exp.status === 'approved' && !exp.is_paid ? [
+                          ...(!dReopen && canPay && exp.status === 'approved' && !exp.is_paid ? [
                             { label: 'Estornar Aprovação', icon: <Undo2 size={12} />, onClick: () => setRevertTarget(exp), danger: true },
                           ] : []),
                         ]} />
