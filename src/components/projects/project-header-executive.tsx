@@ -100,10 +100,13 @@ function PrazoKPI({
   const [saving, setSaving] = useState(false)
 
   const hasDate = Boolean(expectedEndDate)
-  const isOverdue = hasDate && new Date(expectedEndDate as string) < new Date(new Date().toDateString())
+  // Data YYYY-MM-DD via `new Date()` é parseada como UTC → deslocava 1 dia no
+  // Brasil (UTC-3), exibindo a véspera. Parse como meia-noite LOCAL.
+  const endLocal = hasDate ? new Date((expectedEndDate as string).slice(0, 10) + 'T00:00:00') : null
+  const isOverdue = !!endLocal && endLocal < new Date(new Date().toDateString())
 
-  const displayDate = hasDate
-    ? new Date(expectedEndDate as string).toLocaleDateString('pt-BR')
+  const displayDate = endLocal
+    ? endLocal.toLocaleDateString('pt-BR')
     : '—'
 
   async function save() {
@@ -197,7 +200,7 @@ function PrazoKPI({
       {hasDate && !editing && (
         <div style={{ fontSize: 11, color: isOverdue ? 'var(--danger)' : 'var(--text-muted)', marginTop: 2 }}>
           {(() => {
-            const d = new Date(expectedEndDate as string)
+            const d = new Date(endLocal as Date)
             d.setHours(0, 0, 0, 0)
             const today = new Date()
             today.setHours(0, 0, 0, 0)
