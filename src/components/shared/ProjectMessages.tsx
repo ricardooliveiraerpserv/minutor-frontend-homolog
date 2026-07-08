@@ -144,14 +144,15 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
   }, [projectId])
 
   useEffect(() => {
-    if (!showAddPart || partQuery.trim().length < 2) { setPartHits([]); return }
+    if (!showAddPart) { setPartHits([]); return }
     const t = setTimeout(() => {
-      api.get<any>(`/users?pageSize=20&search=${encodeURIComponent(partQuery.trim())}`)
-        .then(r => setPartHits(((r.items ?? r.data ?? []) as any[]).map(u => ({ id: u.id, name: u.name, email: u.email }))))
+      // Só usuários com LIBERAÇÃO de visualização do pipeline podem ser convidados.
+      api.get<any>(`/projects/${projectId}/messages/eligible-participants?search=${encodeURIComponent(partQuery.trim())}`)
+        .then(r => setPartHits(((r.data ?? []) as any[]).map(u => ({ id: u.id, name: u.name, email: u.email }))))
         .catch(() => {})
-    }, 300)
+    }, 250)
     return () => clearTimeout(t)
-  }, [partQuery, showAddPart])
+  }, [partQuery, showAddPart, projectId])
 
   const addParticipant = async (u: { id: number; name: string }) => {
     try {
@@ -392,7 +393,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
                         {u.name}{u.email && <span className="text-[10px] ml-1" style={{ color: 'var(--text-light)' }}>{u.email}</span>}
                       </button>
                     ))}
-                    {partQuery.trim().length >= 2 && partHits.length === 0 && <p className="text-[11px] px-2 py-1" style={{ color: 'var(--text-light)' }}>Nenhum usuário.</p>}
+                    {partHits.length === 0 && <p className="text-[11px] px-2 py-1" style={{ color: 'var(--text-light)' }}>Nenhum usuário liberado. Libere antes em “Liberação de Visualização”.</p>}
                   </div>
                 </div>
               )}
