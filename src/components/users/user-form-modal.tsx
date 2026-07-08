@@ -995,7 +995,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 <div className="text-[12px] font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
                   <PenLine size={14} /> Assinatura
                 </div>
-                <SignatureEditor value={form.signature} onChange={s => setForm(f => ({ ...f, signature: { ...f.signature, ...s } }))} name={form.name} email={form.email} />
+                <SignatureEditor value={form.signature} onChange={s => setForm(f => ({ ...f, signature: { ...f.signature, ...s } }))} name={form.name} email={form.email} userId={userId ?? 0} />
               </div>
             )}
 
