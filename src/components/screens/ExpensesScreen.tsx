@@ -24,8 +24,10 @@ import { ExpenseHoverTooltip, useExpenseHover } from '@/components/ui/timesheet-
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { useAuth } from '@/hooks/use-auth'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { useTableSort } from '@/hooks/use-table-sort'
+import type { PortalDate } from '@/lib/portal-date'
 import * as XLSX from 'xlsx'
 
 // FASE 11.2.FE — Helper centralizado em src/lib/attachments.ts.
@@ -414,9 +416,10 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
 export interface ExpensesScreenProps {
   scope?: 'sustentacao'
   embedded?: boolean
+  extDate?: PortalDate
 }
 
-export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
+export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps = {}) {
   const { user } = useAuth()
   const isCoordenador    = user?.type === 'coordenador'
   const isAdmin          = user?.type === 'admin'
@@ -424,8 +427,15 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   const canActAsUser     = isAdmin || isCoordenador || isAdministrativo
   const isCliente        = user?.type === 'cliente'
   const canPay           = isAdmin || isAdministrativo
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView   = isDenied('/expenses', 'view')
+  const dEdit   = isDenied('/expenses', 'edit')
+  const dDelete = isDenied('/expenses', 'delete')
+  const dPay    = isDenied('/expenses', 'pay')
+  const dReopen = isDenied('/expenses', 'reopen')
   // Chip "Meus projetos / Todos" pra coordenador (idem Apontamentos / Demandas).
-  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>('meus')
+  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>(scope === 'sustentacao' ? 'todos' : 'meus')
 
   const { filters: flt, set: setFilter, clear: clearPersistedFilters } = usePersistedFilters(
     'expenses',
@@ -464,6 +474,23 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   const setExecutiveIds   = (v: string[])                   => setFilter('executiveIds', v)
   const setContractTypeId = (v: string)                     => setFilter('contractTypeId', v)
   const setCategoriaServico = (v: '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento') => setFilter('categoriaServico', v)
+
+  // Portal (embedded): usa o filtro de data DE CIMA do portal e esconde o interno (um filtro só).
+  useEffect(() => {
+    if (!extDate) return
+    setFilterMode(extDate.mode)
+    if (extDate.mode === 'month') {
+      if (extDate.month && extDate.year) {
+        const mm = String(extDate.month).padStart(2, '0')
+        const last = new Date(extDate.year, extDate.month, 0).getDate()
+        setRefMonth(extDate.month); setRefYear(extDate.year)
+        setDateFrom(`${extDate.year}-${mm}-01`); setDateTo(`${extDate.year}-${mm}-${String(last).padStart(2, '0')}`)
+      } else { setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('') }
+    } else {
+      setRefMonth(null); setRefYear(null); setDateFrom(extDate.from ?? ''); setDateTo(extDate.to ?? '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extDate?.mode, extDate?.month, extDate?.year, extDate?.from, extDate?.to])
 
   const [data, setData] = useState<PaginatedResponse<Expense> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -831,6 +858,8 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
+            {!extDate && (
+            <>
             <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
               {(['month', 'period'] as const).map((mode) => (
                 <button key={mode} onClick={() => setFilterMode(mode)}
@@ -860,6 +889,8 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 from={dateFrom} to={dateTo}
                 onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null); setPage(1) }}
               />
+            )}
+            </>
             )}
             {!isCliente && ([
               { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
@@ -994,18 +1025,18 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                     <Td className="w-10">
                       <div onClick={e => e.stopPropagation()}>
                       <RowMenu items={[
-                        { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) },
+                        ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) }]),
                         ...(canEdit(exp) ? [
-                          { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) },
-                          { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true },
+                          ...(dEdit ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) }]),
+                          ...(dDelete ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true }]),
                         ] : []),
                         ...(exp.receipt_url ? [
                           { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
                         ] : []),
-                        ...(canPay && (exp.status === 'approved' || exp.is_paid) ? [
+                        ...(!dPay && canPay && (exp.status === 'approved' || exp.is_paid) ? [
                           { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
                         ] : []),
-                        ...(canPay && exp.status === 'approved' && !exp.is_paid ? [
+                        ...(!dReopen && canPay && exp.status === 'approved' && !exp.is_paid ? [
                           { label: 'Estornar Aprovação', icon: <Undo2 size={12} />, onClick: () => setRevertTarget(exp), danger: true },
                         ] : []),
                       ]} />
@@ -1091,18 +1122,18 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                     {!isCliente && (
                       <div onClick={e => e.stopPropagation()}>
                         <RowMenu items={[
-                          { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) },
+                          ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) }]),
                           ...(canEdit(exp) ? [
-                            { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) },
-                            { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true },
+                            ...(dEdit ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) }]),
+                            ...(dDelete ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true }]),
                           ] : []),
                           ...(exp.receipt_url ? [
                             { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
                           ] : []),
-                          ...(canPay && (exp.status === 'approved' || exp.is_paid) ? [
+                          ...(!dPay && canPay && (exp.status === 'approved' || exp.is_paid) ? [
                             { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
                           ] : []),
-                          ...(canPay && exp.status === 'approved' && !exp.is_paid ? [
+                          ...(!dReopen && canPay && exp.status === 'approved' && !exp.is_paid ? [
                             { label: 'Estornar Aprovação', icon: <Undo2 size={12} />, onClick: () => setRevertTarget(exp), danger: true },
                           ] : []),
                         ]} />

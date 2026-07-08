@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { NAV_CATALOG, CATALOG_LABEL } from '@/lib/nav-catalog'
+import { actionOptionsForScreen, SCREEN_ACTIONS_CATALOG, baseScreenKey } from '@/lib/permissions-catalog'
 import { useNavConfig, type NavModuleConfig, type NavTreeNode, type NavScreen, type ScreenAbility, type ScreenActionDef } from '@/contexts/nav-config-context'
 import {
   SlidersHorizontal, Plus, Trash2, ChevronUp, ChevronDown, Save, GripVertical, Eye, EyeOff, Users, X, Search, Check,
@@ -28,12 +29,14 @@ const PROFILES: { key: string; label: string }[] = [
   { key: 'administrativo', label: 'Administrativo' },
   { key: 'coordenador_projetos', label: 'Coord. Projeto' },
   { key: 'coordenador_sustentacao', label: 'Coord. Sustentação' },
-  { key: 'consultor', label: 'Consultor' },
-  { key: 'parceiro_admin', label: 'Parceiro' },
+  { key: 'consultor_horista', label: 'Horista' },
+  { key: 'consultor_banco_de_horas', label: 'Banco de Horas' },
+  { key: 'consultor_fixo', label: 'Fixo' },
+  { key: 'parceiro_gestor', label: 'Parceiro Admin' },
+  { key: 'parceiro_simples', label: 'Parceiro Simples' },
   { key: 'cliente', label: 'Cliente' },
 ]
-const PREVIEW_PROFILES = ['admin', 'administrativo', 'coordenador_projetos', 'coordenador_sustentacao', 'consultor', 'parceiro_admin', 'cliente']
-const ALL_INTERNAL = ['admin', 'administrativo', 'coordenador_projetos', 'coordenador_sustentacao', 'consultor', 'parceiro_admin']
+const ALL_INTERNAL = ['admin', 'administrativo', 'coordenador_projetos', 'coordenador_sustentacao', 'consultor_horista', 'consultor_banco_de_horas', 'consultor_fixo', 'parceiro_gestor', 'parceiro_simples']
 const INDENT = 18 // px por nível
 
 // Ações por rotina agora vêm do CATÁLOGO CENTRAL (screen_actions) via nav-config — sem hardcode aqui.
@@ -45,15 +48,21 @@ const SCOPE_TABS: { key: string; label: string; icon: LucideIcon; profile: strin
   { key: 'administrativo',          label: 'Administrativo',  icon: Briefcase,   profile: 'administrativo' },
   { key: 'coordenador_projetos',    label: 'Coord. Projetos', icon: Layers,      profile: 'coordenador_projetos' },
   { key: 'coordenador_sustentacao', label: 'Coord. Sustent.', icon: Headphones,  profile: 'coordenador_sustentacao' },
-  { key: 'consultor',               label: 'Consultor',       icon: Users,       profile: 'consultor' },
-  { key: 'parceiro',                label: 'Parceiro',        icon: Handshake,   profile: 'parceiro_admin' },
+  { key: 'consultor_horista',       label: 'Horista',         icon: Users,       profile: 'consultor_horista' },
+  { key: 'consultor_banco_de_horas',label: 'Banco de Horas',  icon: Users,       profile: 'consultor_banco_de_horas' },
+  { key: 'consultor_fixo',          label: 'Fixo',            icon: Users,       profile: 'consultor_fixo' },
+  { key: 'parceiro_gestor',         label: 'Parceiro Admin',  icon: Handshake,   profile: 'parceiro_gestor' },
+  { key: 'parceiro_simples',        label: 'Parceiro Simples',icon: Handshake,   profile: 'parceiro_simples' },
   { key: 'cliente',                 label: 'Cliente',         icon: Building2,   profile: 'cliente' },
 ]
-const PROFILE_MOD_KEYS = ['cliente', 'consultor', 'parceiro']
+const PROFILE_MOD_KEYS = ['cliente', 'consultor_horista', 'consultor_banco_de_horas', 'consultor_fixo', 'parceiro_gestor', 'parceiro_simples']
 
 let _seq = 0
 const newId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `nd_${Date.now()}_${_seq++}`)
 const screenLabel = (s: NavScreen | undefined, key: string) => s?.label || CATALOG_LABEL[key] || key
+// Valor p/ INPUT de edição: usa ?? (não ||) para PRESERVAR string vazia enquanto o usuário
+// apaga — senão apagar a última letra faz o nome do catálogo "voltar" no campo.
+const editLabel = (s: NavScreen | undefined, key: string) => s?.label ?? CATALOG_LABEL[key] ?? key
 const noPerm = (s: NavScreen | undefined) => !s || (s.profiles.length === 0 && s.users.length === 0)
 
 // ── helpers de árvore (puros) ──
@@ -115,7 +124,6 @@ function Inner() {
   const [permFor, setPermFor] = useState<string | null>(null)   // modal (visão Lista)
   const [permOpen, setPermOpen] = useState<string | null>(null) // accordion inline (visão Árvore) — node id
   const [locOpen, setLocOpen] = useState<string | null>(null)   // popover "onde mais essa tela aparece"
-  const [preview, setPreview] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [view, setView] = useState<'tree' | 'flat'>('tree')
   const [scope, setScope] = useState<string>('admin') // aba: um perfil por vez
@@ -124,6 +132,8 @@ function Inner() {
   const [cascade, setCascade] = useState<{ screenKey: string; moduleId: number; nodeId: string; label: string } | null>(null)  // Admin: ocultar em outros perfis?
   const [denyOpen, setDenyOpen] = useState<string | null>(null)  // painel "visibilidade por usuário" (nó da árvore)
   const [moving, setMoving] = useState<string | null>(null) // nó no fluxo "Mover para…"
+  const [placeOrphan, setPlaceOrphan] = useState<{ key: string; label: string } | null>(null) // tela órfã no fluxo "onde colocar?"
+  const [removedScreens, setRemovedScreens] = useState<{ key: string; label: string; moduleId: number }[]>([]) // telas excluídas → lista de restaurar
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())     // nós marcados (checkbox sempre visível)
   const [bulkMove, setBulkMove] = useState<'move' | 'copy' | null>(null)     // picker de destino em lote
 
@@ -176,8 +186,32 @@ function Inner() {
   const patchTreeNode = (moduleId: number, nodeId: string, fn: (n: NavTreeNode) => NavTreeNode) => {
     setMods(prev => prev.map(m => m.id === moduleId ? { ...m, items: mapNode(m.items, nodeId, fn) } : m)); touch()
   }
+  // Captura as telas de uma subárvore excluída → alimenta a lista "Telas removidas" (restaurar).
+  const captureRemoved = (node: NavTreeNode, moduleId: number): { key: string; label: string; moduleId: number }[] => {
+    const found: { key: string; label: string; moduleId: number }[] = []
+    const walk = (n: NavTreeNode) => { if (n.screen) found.push({ key: n.screen, label: screenLabel(screens[n.screen], n.screen), moduleId }); n.children?.forEach(walk) }
+    walk(node)
+    if (found.length) setRemovedScreens(prev => [...found.filter(f => !prev.some(p => p.key === f.key && p.moduleId === f.moduleId)), ...prev])
+    return found
+  }
+
   const removeTreeNode = (moduleId: number, nodeId: string) => {
+    const mod = mods.find(m => m.id === moduleId)
+    if (mod) {
+      const removed = removeNode(mod.items, nodeId)[1]
+      if (removed) {
+        const found = captureRemoved(removed, moduleId)
+        // Undo imediato no toast (além do painel "Telas removidas").
+        if (found.length === 1) toast('Tela removida', { action: { label: 'Restaurar', onClick: () => restoreScreen(found[0]) } })
+        else if (found.length > 1) toast(`${found.length} telas removidas`, { description: 'Restaure no painel "Telas removidas".' })
+      }
+    }
     setMods(prev => prev.map(m => m.id === moduleId ? { ...m, items: removeNode(m.items, nodeId)[0] } : m)); touch()
+  }
+  // Restaura uma tela excluída → readiciona no root do módulo de origem e tira da lista.
+  const restoreScreen = (r: { key: string; moduleId: number }) => {
+    addScreen(r.moduleId, null, r.key)
+    setRemovedScreens(prev => prev.filter(x => !(x.key === r.key && x.moduleId === r.moduleId)))
   }
   const moveMod = (id: number, dir: -1 | 1) => {
     setMods(prev => { const i = prev.findIndex(m => m.id === id), j = i + dir; if (i < 0 || j < 0 || j >= prev.length) return prev; const n = [...prev];[n[i], n[j]] = [n[j], n[i]]; return n.map((m, idx) => ({ ...m, sort_order: idx + 1 })) }); touch()
@@ -194,6 +228,17 @@ function Inner() {
   const setScreenHiddenEverywhere = (screenKey: string, hidden: boolean) => {
     const walk = (nodes: NavTreeNode[]): NavTreeNode[] => nodes.map(n => { const nn = n.screen === screenKey ? { ...n, hidden } : n; return nn.children ? { ...nn, children: walk(nn.children) } : nn })
     setMods(prev => prev.map(m => ({ ...m, items: walk(m.items) }))); touch()
+  }
+
+  // Libera a tela "sem permissão" para o perfil da aba atual (cria o registro se faltar).
+  // É o fix de 1 clique do aviso de telas órfãs.
+  const grantScreenToProfile = (key: string) => {
+    setScreens(prev => {
+      const s = prev[key] ?? { key, label: CATALOG_LABEL[key] ?? key, route: key, active: true, profiles: [], users: [] }
+      if (s.profiles.includes(profile)) return prev
+      return { ...prev, [key]: { ...s, profiles: [...s.profiles, profile] } }
+    })
+    touch()
   }
 
   const addScreen = (moduleId: number, parentGroupId: string | null, key: string) => {
@@ -241,7 +286,23 @@ function Inner() {
     if (target.type === 'before') { if (!insertBeforeId(tm.items, target.nodeId, movedNode)) tm.items.push(movedNode) }
     else if (target.type === 'group') { if (!appendToGroup(tm.items, target.groupId, movedNode)) tm.items.push(movedNode) }
     else tm.items.push(movedNode)
+    grantProfileToScreens(movedNode, (tm.profiles ?? [])[0])
     setMods(stripped); touch(); clearDrag()
+  }
+
+  // Ao mover/colar para OUTRO PERFIL, garante ACESSO: adiciona o perfil do módulo destino às
+  // telas movidas (senão a tela aparece no menu do perfil mas o AccessControl bloqueia).
+  const grantProfileToScreens = (node: NavTreeNode, profileKey?: string) => {
+    if (!profileKey) return
+    const keys: string[] = []
+    const collect = (ns: NavTreeNode[]) => ns.forEach(n => { if (n.screen) keys.push(n.screen); if (n.children) collect(n.children) })
+    collect([node])
+    if (!keys.length) return
+    setScreens(prev => {
+      const next = { ...prev }
+      keys.forEach(k => { const sc = next[k]; if (sc && !sc.profiles.includes(profileKey)) next[k] = { ...sc, profiles: [...sc.profiles, profileKey] } })
+      return next
+    })
   }
 
   // COPIA um módulo existente para o perfil da aba (cópia independente: ids de nó novos, árvore própria).
@@ -266,15 +327,68 @@ function Inner() {
   // aplica mover/copiar em lote no destino escolhido
   const bulkApply = (target: Target) => {
     const mode = bulkMove; const ids = topLevelSelected()
+    const targetProfile = (mods.find(m => m.id === target.moduleId)?.profiles ?? [])[0]
+    const collected: NavTreeNode[] = []
+    ids.forEach(id => { for (const m of mods) { const f = findNode(m.items, id); if (f) { collected.push(f); break } } })
     setMods(prev => {
-      let next = prev; const collected: NavTreeNode[] = []
-      ids.forEach(id => { for (const m of next) { const f = findNode(m.items, id); if (f) { collected.push(f); break } } })
+      let next = prev
       if (mode === 'move') ids.forEach(id => { next = next.map(m => ({ ...m, items: removeNode(m.items, id)[0] })) })
       const toAdd = mode === 'copy' ? collected.map(n => cloneNodes([n])[0]) : collected
       if (target.type === 'group') next = next.map(m => m.id === target.moduleId ? { ...m, items: mapNode(m.items, target.groupId, g => ({ ...g, children: [...(g.children ?? []), ...toAdd] })) } : m)
       else if (target.type === 'module') next = next.map(m => m.id === target.moduleId ? { ...m, items: [...m.items, ...toAdd] } : m)
       return next
     })
+    // Mover para outro perfil: garante acesso às telas no perfil destino.
+    collected.forEach(n => grantProfileToScreens(n, targetProfile))
+    touch(); setBulkMove(null); clearSelection()
+  }
+
+  // COPIAR para VÁRIOS locais de uma vez (multi-seleção de destinos).
+  const bulkApplyMulti = (targets: Target[]) => {
+    if (targets.length === 0) return
+    const ids = topLevelSelected()
+    const collected: NavTreeNode[] = []
+    ids.forEach(id => { for (const m of mods) { const f = findNode(m.items, id); if (f) { collected.push(f); break } } })
+    setMods(prev => {
+      let next = prev
+      for (const t of targets) {
+        const toAdd = collected.map(n => cloneNodes([n])[0])   // clones NOVOS por destino (ids únicos)
+        if (t.type === 'group') next = next.map(m => m.id === t.moduleId ? { ...m, items: mapNode(m.items, t.groupId, g => ({ ...g, children: [...(g.children ?? []), ...toAdd] })) } : m)
+        else if (t.type === 'module') next = next.map(m => m.id === t.moduleId ? { ...m, items: [...m.items, ...toAdd] } : m)
+      }
+      return next
+    })
+    // Garante acesso das telas em cada perfil de destino.
+    targets.forEach(t => { const tp = (mods.find(m => m.id === t.moduleId)?.profiles ?? [])[0]; collected.forEach(n => grantProfileToScreens(n, tp)) })
+    touch()
+    toast.success(`Copiado para ${targets.length} ${targets.length === 1 ? 'local' : 'locais'}`)
+    setBulkMove(null); clearSelection()
+  }
+  // Exclusão em massa — remove do menu os nós selecionados (as telas continuam
+  // existindo no catálogo e podem ser readicionadas). Mesma semântica do delete unitário.
+  const bulkDelete = () => {
+    const ids = topLevelSelected()
+    if (ids.length === 0) return
+    // Protege telas ESPECÍFICAS do perfil (não estão no Admin e só há 1 ocorrência aqui) — só ocultáveis.
+    const protectedIds = new Set<string>()
+    if (scope !== 'admin') {
+      ids.forEach(id => {
+        let node: NavTreeNode | null = null
+        for (const m of mods) { const f = findNode(m.items, id); if (f) { node = f; break } }
+        if (node?.screen && !adminScreenKeys.has(node.screen) && (locationsByScreen[node.screen]?.length ?? 0) <= 1) protectedIds.add(id)
+      })
+    }
+    const removable = ids.filter(id => !protectedIds.has(id))
+    const skipped = ids.length - removable.length
+    if (removable.length === 0) { toast.error('Itens específicos deste perfil não podem ser removidos — só ocultados (👁).'); return }
+    const note = skipped > 0 ? `\n\n${skipped} item(ns) específico(s) do perfil serão mantidos (não podem ser removidos).` : ''
+    if (!confirm(`Remover ${removable.length} ${removable.length === 1 ? 'item' : 'itens'} do menu? As telas continuam existindo e podem ser readicionadas depois.${note}`)) return
+    removable.forEach(id => { for (const m of mods) { const f = findNode(m.items, id); if (f) { captureRemoved(f, m.id); break } } })
+    setMods(prev => prev.map(m => {
+      let items = m.items
+      removable.forEach(id => { items = removeNode(items, id)[0] })
+      return { ...m, items }
+    }))
     touch(); setBulkMove(null); clearSelection()
   }
   // contexto do "mover" de UM item (exclui a própria subárvore como destino)
@@ -330,8 +444,38 @@ function Inner() {
     : { type: profile, coord: '' }, [profile])
   // Menus independentes: cada aba mostra os módulos do SEU perfil (module.profiles inclui o perfil da aba).
   const scopedMods = useMemo(() => mods.filter(m => (m.profiles ?? []).includes(profile)), [mods, profile])
+
+  // Visibilidade da tela POR PERFIL (não global). "Ocultar/reativar" no perfil = hidden nos nós
+  // deste perfil — NÃO mexe em screen.active (que é global e afetaria os outros perfis).
+  const screenHiddenInProfile = (key: string): boolean => {
+    let any = false, allHidden = true
+    const walk = (nodes: NavTreeNode[]) => nodes.forEach(n => { if (n.screen === key) { any = true; if (!n.hidden) allHidden = false } if (n.children) walk(n.children) })
+    scopedMods.forEach(m => walk(m.items))
+    return any && allHidden
+  }
+  const setScreenHiddenInProfile = (key: string, hidden: boolean) => {
+    const mapH = (nodes: NavTreeNode[]): NavTreeNode[] => nodes.map(n => n.screen === key ? { ...n, hidden: hidden ? true : undefined } : (n.children ? { ...n, children: mapH(n.children) } : n))
+    setMods(prev => prev.map(m => (m.profiles ?? []).includes(profile) ? { ...m, items: mapH(m.items) } : m))
+    touch()
+  }
+  // Lista: off = inativa GLOBAL (legado) OU oculta NESTE perfil. Toggle reativa a global, senão alterna por-perfil.
+  const flatOff = (key: string): boolean => screens[key]?.active === false || screenHiddenInProfile(key)
+  const flatToggle = (key: string) => {
+    if (screens[key]?.active === false) { patchScreen(key, { active: true }); return }
+    setScreenHiddenInProfile(key, !screenHiddenInProfile(key))
+  }
+
   // Candidatos a copiar: qualquer módulo existente que não seja deste perfil (serve de modelo).
   const attachCandidates = useMemo(() => mods.filter(m => !(m.profiles ?? []).includes(profile)), [mods, profile])
+  // Telas que existem no menu do ADMIN (módulos com 'admin' em profiles). Regra de exclusão:
+  // numa aba NÃO-admin, tela que está no Admin PODE ser removida (é compartilhada, continua no
+  // Admin); tela ESPECÍFICA do perfil (não está no Admin) NÃO pode (senão some do perfil).
+  const adminScreenKeys = useMemo(() => {
+    const set = new Set<string>()
+    const walk = (nodes: NavTreeNode[]) => nodes.forEach(n => { if (n.screen) set.add(n.screen); if (n.children) walk(n.children) })
+    mods.filter(m => (m.profiles ?? []).includes('admin')).forEach(m => walk(m.items))
+    return set
+  }, [mods])
   const scopedUsage = useMemo(() => {
     const map: Record<string, string[]> = {}
     const walk = (nodes: NavTreeNode[], modLabel: string) => nodes.forEach(n => {
@@ -434,7 +578,7 @@ function Inner() {
                 <button onClick={() => setPermOpen(permOpen === n.id ? null : n.id)} className="shrink-0" title="Acessos por usuário">
                   <FileText size={13} style={{ color: permOpen === n.id ? 'var(--primary)' : hasKids ? 'var(--primary)' : 'var(--text-light)' }} />
                 </button>
-                <input value={screenLabel(s, n.screen)} onChange={e => patchScreen(n.screen!, { label: e.target.value })}
+                <input value={editLabel(s, n.screen)} onChange={e => patchScreen(n.screen!, { label: e.target.value })}
                   className="flex-1 bg-transparent text-[13px] outline-none min-w-0" style={{ color: 'var(--text)', fontWeight: hasKids ? 600 : 400 }} />
                 {hasKids && <span title="Submenu (pai)" className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>{n.children!.length}</span>}
                 {inOtherFolders && (
@@ -464,13 +608,20 @@ function Inner() {
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0">
                   <span title="Adicionar tela-filha (submenu)"><AddScreen usedKeys={usedKeys} onAdd={k => addScreen(moduleId, n.id, k)} compact childMode /></span>
                   <button onClick={() => setMoving(n.id)} title="Mover para…"><FolderInput size={13} style={{ color: 'var(--text-muted)' }} /></button>
-                  {inOtherFolders ? (
-                    <button onClick={() => { if (confirm(`Excluir "${screenLabel(s, n.screen!)}" desta pasta?\n\nEla continua neste perfil em ${locs.length - 1} outra(s) pasta(s):\n${locs.map(l => l.path).join('\n')}`)) removeTreeNode(moduleId, n.id) }}
-                      title={`Excluir desta pasta (há outra cópia neste perfil)`}><Trash2 size={13} style={{ color: 'var(--danger-border)' }} /></button>
-                  ) : (
-                    <button disabled title="Única ocorrência neste perfil — não pode excluir (senão some do perfil). Use o 👁 para apenas OCULTAR."
-                      style={{ opacity: 0.3, cursor: 'not-allowed' }}><Trash2 size={13} style={{ color: 'var(--text-light)' }} /></button>
-                  )}
+                  {(() => {
+                    // Existe no Admin? (aba não-admin) → pode excluir mesmo sendo única aqui.
+                    const inAdmin = scope !== 'admin' && !!n.screen && adminScreenKeys.has(n.screen)
+                    const canDelete = inOtherFolders || inAdmin
+                    if (!canDelete) {
+                      return <button disabled title="Tela específica deste perfil — não pode excluir (senão some do perfil). Use o 👁 para apenas OCULTAR."
+                        style={{ opacity: 0.3, cursor: 'not-allowed' }}><Trash2 size={13} style={{ color: 'var(--text-light)' }} /></button>
+                    }
+                    const msg = inOtherFolders
+                      ? `Excluir "${screenLabel(s, n.screen!)}" desta pasta?\n\nEla continua neste perfil em ${locs.length - 1} outra(s) pasta(s):\n${locs.map(l => l.path).join('\n')}`
+                      : `Excluir "${screenLabel(s, n.screen!)}" deste perfil?\n\nEla existe no Admin — continua disponível lá e pode ser readicionada.`
+                    return <button onClick={() => { if (confirm(msg)) removeTreeNode(moduleId, n.id) }}
+                      title={inOtherFolders ? 'Excluir desta pasta (há outra cópia neste perfil)' : 'Excluir deste perfil (existe no Admin)'}><Trash2 size={13} style={{ color: 'var(--danger-border)' }} /></button>
+                  })()}
                 </div>
               </div>
             </div>
@@ -501,14 +652,13 @@ function Inner() {
             {/* accordion inline de acessos (perfis + usuários esporádicos) */}
             {permOpen === n.id && s && (
               <div className="mr-1 mb-1.5 rounded-lg overflow-hidden" style={{ marginLeft: (depth + 1) * INDENT, border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
-                <div className="p-3"><ScreenPermBody screen={s} usage={usageByScreen[n.screen] ?? []} onChange={p => patchScreen(n.screen!, p)} filter={profileFilter} profileLabel={tab.label} /></div>
+                <div className="p-3"><ScreenPermBody screen={s} usage={usageByScreen[n.screen] ?? []} onChange={p => patchScreen(n.screen!, p)} filter={profileFilter} profileLabel={tab.label} profile={profile} /></div>
               </div>
             )}
             {denyOpen === n.id && (
               <div className="mr-1 mb-1.5 rounded-lg overflow-hidden" style={{ marginLeft: (depth + 1) * INDENT, border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
                 <div className="p-3">
-                  <p className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Visibilidade desta tela por <b>usuário</b> — ✓ libera, ✕ esconde só p/ ele (usuários de <b>{tab.label}</b>).</p>
-                  <ActionUsers ab={{ profiles: [], users: n.users ?? [], deny_users: n.deny_users ?? [] }} onChange={patch => setNodeUsers(moduleId, n.id, patch)} filter={profileFilter} />
+                  <NodeVisPanel node={n} isFolder={false} onHidden={h => setNodeHidden(moduleId, n.id, h)} onUsers={patch => setNodeUsers(moduleId, n.id, patch)} filter={profileFilter} />
                 </div>
               </div>
             )}
@@ -556,8 +706,7 @@ function Inner() {
           {denyOpen === n.id && (
             <div className="mr-1 mb-1.5 rounded-lg overflow-hidden" style={{ marginLeft: (depth + 1) * INDENT, border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
               <div className="p-3">
-                <p className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>Visibilidade desta <b>pasta</b> por usuário — ✕ esconde a pasta <b>e todos os filhos</b> só p/ ele (usuários de <b>{tab.label}</b>).</p>
-                <ActionUsers ab={{ profiles: [], users: n.users ?? [], deny_users: n.deny_users ?? [] }} onChange={patch => setNodeUsers(moduleId, n.id, patch)} filter={profileFilter} />
+                <NodeVisPanel node={n} isFolder={true} onHidden={h => setNodeHidden(moduleId, n.id, h)} onUsers={patch => setNodeUsers(moduleId, n.id, patch)} filter={profileFilter} />
               </div>
             </div>
           )}
@@ -595,15 +744,7 @@ function Inner() {
           : <><b>{tab.label}</b>: módulos deste perfil. Adicione módulos e <b>inclua telas</b> (podem ser reusadas de outras abas). No selo <span style={{ color: 'var(--success-border)' }}>✓/✗</span> você libera/retira a tela para o perfil; ajustes por usuário no editor de acessos (ícone da tela).</>}
       </p>
 
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap text-[13px]">
-          <span className="inline-flex items-center gap-1.5 font-medium" style={{ color: 'var(--text-muted)' }}><MonitorPlay size={15} /> Visualizar como:</span>
-          {PREVIEW_PROFILES.map(p => (
-            <button key={p} onClick={() => setPreview(p)} className="px-2.5 py-1 rounded-lg text-xs" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-              {PROFILES.find(x => x.key === p)?.label ?? p}
-            </button>
-          ))}
-        </div>
+      <div className="flex items-center justify-end gap-2 flex-wrap">
         {/* toggle árvore / lista */}
         <div className="inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
           <button onClick={() => setView('tree')} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5" style={view === 'tree' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}><Network size={13} /> Árvore</button>
@@ -611,15 +752,49 @@ function Inner() {
         </div>
       </div>
 
+      {(() => {
+        const removedHere = removedScreens.filter(r => scopedMods.some(m => m.id === r.moduleId))
+        if (removedHere.length === 0) return null
+        return (
+          <div className="flex flex-col gap-2 rounded-xl px-3 py-2.5 text-[13px] sticky top-2 z-20 shadow-lg" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--primary)' }}>
+            <div className="flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+              <Trash2 size={15} /> <b>Telas removidas</b> — clique para <b>restaurar</b> no menu de {tab.label}:
+            </div>
+            <div className="flex flex-wrap gap-1.5 pl-6">
+              {removedHere.map(r => (
+                <button key={`${r.moduleId}:${r.key}`} onClick={() => restoreScreen(r)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold hover:bg-[var(--surface-hover)]"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--primary)', color: 'var(--primary)' }}
+                  title={`Restaurar "${r.label}"`}>
+                  <Repeat size={11} /> {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       {orphanRefs.length > 0 && (
-        <div className="flex items-start gap-2 rounded-xl px-3 py-2.5 text-[13px]" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', color: 'var(--warning-border)' }}>
-          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-          <span><b>{orphanRefs.length} tela{orphanRefs.length > 1 ? 's' : ''} sem permissão</b> — não aparecer{orphanRefs.length > 1 ? 'ão' : 'á'} no menu. Defina perfis/usuários (chip <Users size={11} className="inline" />) ou remova as referências.</span>
+        <div className="flex flex-col gap-2 rounded-xl px-3 py-2.5 text-[13px]" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)', color: 'var(--warning-border)' }}>
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <span><b>{orphanRefs.length} tela{orphanRefs.length > 1 ? 's' : ''} sem permissão</b> — não aparecer{orphanRefs.length > 1 ? 'ão' : 'á'} no menu. <b>Clique</b> em cada uma e <b>escolha onde colocar</b> no menu de {tab.label}:</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5 pl-6">
+            {orphanRefs.map(o => (
+              <button key={o.key} onClick={() => setPlaceOrphan(o)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold hover:bg-[var(--surface-hover)]"
+                style={{ background: 'var(--surface)', border: '1px solid var(--warning-border)', color: 'var(--warning-border)' }}
+                title={`Escolher onde colocar "${o.label || o.key}" no menu de ${tab.label}`}>
+                <FolderInput size={11} /> {o.label || o.key}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
       {view === 'flat'
-        ? <FlatView usage={scopedUsage} screens={screens} onPerm={setPermFor} onToggle={k => patchScreen(k, { active: !(screens[k]?.active !== false) })} onLabel={(k, v) => patchScreen(k, { label: v })} />
+        ? <FlatView usage={scopedUsage} screens={screens} onPerm={setPermFor} onToggle={flatToggle} hiddenOf={flatOff} onLabel={(k, v) => patchScreen(k, { label: v })} />
         : (
           <div className="space-y-3">
             {scopedMods.map((m, mi) => {
@@ -672,7 +847,7 @@ function Inner() {
 
       {permFor && screens[permFor] && (
         <PermModal screen={screens[permFor]} usage={usageByScreen[permFor] ?? []}
-          onChange={p => patchScreen(permFor, p)} onClose={() => setPermFor(null)} filter={profileFilter} profileLabel={tab.label} />
+          onChange={p => patchScreen(permFor, p)} onClose={() => setPermFor(null)} filter={profileFilter} profileLabel={tab.label} profile={profile} />
       )}
       {addModOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={() => setAddModOpen(false)}>
@@ -719,24 +894,30 @@ function Inner() {
           </div>
         </div>
       )}
-      {preview && <PreviewModal mods={mods} screens={screens} profile={preview} onClose={() => setPreview(null)} />}
-      {moving && (() => { const ctx = moveContext(moving); return <MovePicker mods={mods} excludeIds={ctx.excludeIds} title={ctx.title} onPick={t => { moveNode(moving, t); setMoving(null) }} onClose={() => setMoving(null)} /> })()}
+      {moving && (() => { const ctx = moveContext(moving); return <MovePicker mods={mods} currentProfile={profile} excludeIds={ctx.excludeIds} title={ctx.title} onPick={t => { moveNode(moving, t); setMoving(null) }} onClose={() => setMoving(null)} /> })()}
+      {placeOrphan && (
+        <MovePicker mods={mods} currentProfile={profile} excludeIds={new Set()}
+          title={`Colocar "${placeOrphan.label}" no menu de ${tab.label} — escolha o módulo/pasta`}
+          onPick={t => { addScreen(t.moduleId, t.type === 'group' ? t.groupId : null, placeOrphan.key); grantScreenToProfile(placeOrphan.key); setPlaceOrphan(null) }}
+          onClose={() => setPlaceOrphan(null)} />
+      )}
       {selectedIds.size > 0 && (
         <div className="fixed left-1/2 -translate-x-1/2 z-[75] flex flex-col items-center gap-2" style={{ bottom: 20, width: 'min(560px, 92vw)' }}>
           {/* destino INLINE (não modal): escolhe a pasta ali mesmo */}
           {bulkMove && (
             <div className="w-full rounded-2xl overflow-hidden shadow-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
-                <span className="text-[12px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}>{bulkMove === 'copy' ? <Repeat size={13} /> : <FolderInput size={13} />} {bulkMove === 'copy' ? 'Copiar' : 'Mover'} {selectedIds.size} {selectedIds.size === 1 ? 'item' : 'itens'} para…</span>
+                <span className="text-[12px] font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}>{bulkMove === 'copy' ? <Repeat size={13} /> : <FolderInput size={13} />} {bulkMove === 'copy' ? `Copiar ${selectedIds.size} ${selectedIds.size === 1 ? 'item' : 'itens'} para… (marque vários)` : `Mover ${selectedIds.size} ${selectedIds.size === 1 ? 'item' : 'itens'} para…`}</span>
                 <button onClick={() => setBulkMove(null)} style={{ color: 'var(--text-muted)' }}><X size={15} /></button>
               </div>
-              <FolderPickerBody mods={mods} excludeIds={selectedExcludeIds()} onPick={bulkApply} />
+              <FolderPickerBody mods={mods} currentProfile={profile} excludeIds={selectedExcludeIds()} onPick={bulkApply} multi={bulkMove === 'copy'} onConfirm={bulkApplyMulti} />
             </div>
           )}
           <div className="flex items-center gap-2 px-3 py-2 rounded-full shadow-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <span className="text-[12px] font-semibold px-1" style={{ color: 'var(--text)' }}>{selectedIds.size} selecionado{selectedIds.size === 1 ? '' : 's'}</span>
             <button onClick={() => setBulkMove(bulkMove === 'move' ? null : 'move')} className="text-[12px] px-3 py-1.5 rounded-lg inline-flex items-center gap-1" style={bulkMove === 'move' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { border: '1px solid var(--border)', color: 'var(--text)' }}><FolderInput size={13} /> Mover para…</button>
             <button onClick={() => setBulkMove(bulkMove === 'copy' ? null : 'copy')} className="text-[12px] px-3 py-1.5 rounded-lg inline-flex items-center gap-1" style={bulkMove === 'copy' ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { border: '1px solid var(--border)', color: 'var(--text)' }}><Repeat size={13} /> Copiar para…</button>
+            <button onClick={bulkDelete} className="text-[12px] px-3 py-1.5 rounded-lg inline-flex items-center gap-1" style={{ border: '1px solid var(--danger-border)', color: 'var(--danger-border)' }}><Trash2 size={13} /> Excluir</button>
             <button onClick={() => { setSelectedIds(new Set()); setBulkMove(null) }} className="text-[12px] px-2 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>Limpar</button>
           </div>
         </div>
@@ -745,10 +926,16 @@ function Inner() {
   )
 }
 
-/** Corpo do seletor de PASTA (busca + lista) — reusado no modal (1 item) e inline (lote). */
-function FolderPickerBody({ mods, excludeIds, onPick }: { mods: Mod[]; excludeIds: Set<string>; onPick: (t: Target) => void }) {
+/** Corpo do seletor de PASTA. `multi` = escolher VÁRIOS destinos (copiar) e confirmar de uma vez. */
+function FolderPickerBody({ mods, excludeIds, onPick, currentProfile, multi, onConfirm }: { mods: Mod[]; excludeIds: Set<string>; onPick: (t: Target) => void; currentProfile?: string; multi?: boolean; onConfirm?: (targets: Target[]) => void }) {
   const [q, setQ] = useState('')
+  const [selected, setSelected] = useState<Target[]>([])
   const query = q.trim().toLowerCase()
+  const tkey = (t: Target) => t.type === 'group' ? `g:${t.moduleId}:${t.groupId}` : `m:${t.moduleId}`
+  const isSel = (t: Target) => selected.some(s => tkey(s) === tkey(t))
+  const handle = (t: Target) => multi
+    ? setSelected(prev => prev.some(s => tkey(s) === tkey(t)) ? prev.filter(s => tkey(s) !== tkey(t)) : [...prev, t])
+    : onPick(t)
   const folders = useMemo(() => {
     const out: { id: string; moduleId: number; label: string; depth: number }[] = []
     const walk = (nodes: NavTreeNode[], moduleId: number, depth: number) => nodes.forEach(n => {
@@ -768,33 +955,72 @@ function FolderPickerBody({ mods, excludeIds, onPick }: { mods: Mod[]; excludeId
         </div>
       </div>
       <div className="p-2 max-h-[45vh] overflow-auto">
-        {mods.map(m => {
-          const mFolders = folders.filter(f => f.moduleId === m.id && (!query || f.label.toLowerCase().includes(query)))
-          const rootMatch = !query || m.label.toLowerCase().includes(query)
-          if (!rootMatch && mFolders.length === 0) return null
-          return (
-            <div key={m.id} className="mb-1">
-              <button onClick={() => onPick({ type: 'module', moduleId: m.id })} className="flex items-center gap-1.5 w-full text-left py-1.5 px-2 text-[13px] font-semibold rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)' }}>
-                <Network size={13} style={{ color: 'var(--text-muted)' }} /> {m.label} <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}>(raiz)</span>
-              </button>
-              {mFolders.map(f => (
-                <button key={f.id} onClick={() => onPick({ type: 'group', moduleId: f.moduleId, groupId: f.id })} className="flex items-center gap-1.5 w-full text-left py-1.5 text-[12px] rounded-md hover:bg-[var(--surface-hover)]" style={{ paddingLeft: 12 + (query ? 1 : f.depth + 1) * 16, paddingRight: 8, color: 'var(--text)' }}>
-                  <Folder size={13} style={{ color: 'var(--primary)' }} /> {f.label}
+        {(() => {
+          const renderMod = (m: Mod) => {
+            const mFolders = folders.filter(f => f.moduleId === m.id && (!query || f.label.toLowerCase().includes(query)))
+            const rootMatch = !query || m.label.toLowerCase().includes(query)
+            if (!rootMatch && mFolders.length === 0) return null
+            const modT: Target = { type: 'module', moduleId: m.id }
+            return (
+              <div key={m.id} className="mb-1">
+                <button onClick={() => handle(modT)} className="flex items-center gap-1.5 w-full text-left py-1.5 px-2 text-[13px] font-semibold rounded-md hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text)', background: multi && isSel(modT) ? 'var(--primary-soft)' : undefined }}>
+                  {multi && <Check size={12} style={{ color: 'var(--primary)', opacity: isSel(modT) ? 1 : 0.2 }} />}
+                  <Network size={13} style={{ color: 'var(--text-muted)' }} /> {m.label} <span className="text-[10px] font-normal" style={{ color: 'var(--text-light)' }}>(raiz)</span>
                 </button>
-              ))}
-            </div>
-          )
-        })}
+                {mFolders.map(f => {
+                  const fT: Target = { type: 'group', moduleId: f.moduleId, groupId: f.id }
+                  return (
+                    <button key={f.id} onClick={() => handle(fT)} className="flex items-center gap-1.5 w-full text-left py-1.5 text-[12px] rounded-md hover:bg-[var(--surface-hover)]" style={{ paddingLeft: 12 + (query ? 1 : f.depth + 1) * 16, paddingRight: 8, color: 'var(--text)', background: multi && isSel(fT) ? 'var(--primary-soft)' : undefined }}>
+                      {multi && <Check size={11} style={{ color: 'var(--primary)', opacity: isSel(fT) ? 1 : 0.2 }} />}
+                      <Folder size={13} style={{ color: 'var(--primary)' }} /> {f.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )
+          }
+          // Agrupa os módulos por PERFIL — perfil atual primeiro, depois os OUTROS PERFIS rotulados.
+          const byProfile = new Map<string, Mod[]>()
+          mods.forEach(m => { const pk = (m.profiles ?? [])[0] ?? '—'; const arr = byProfile.get(pk); if (arr) arr.push(m); else byProfile.set(pk, [m]) })
+          const order = Array.from(byProfile.keys()).sort((a, b) => {
+            if (a === currentProfile) return -1
+            if (b === currentProfile) return 1
+            const ia = PROFILES.findIndex(p => p.key === a), ib = PROFILES.findIndex(p => p.key === b)
+            return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+          })
+          return order.map(pk => {
+            const rendered = byProfile.get(pk)!.map(renderMod).filter(Boolean)
+            if (rendered.length === 0) return null
+            const label = PROFILES.find(p => p.key === pk)?.label ?? pk
+            const isCurrent = pk === currentProfile
+            return (
+              <div key={pk} className="mb-2">
+                <div className="px-2 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: isCurrent ? 'var(--primary)' : 'var(--text-light)' }}>
+                  {isCurrent ? `Este perfil · ${label}` : label}
+                </div>
+                {rendered}
+              </div>
+            )
+          })
+        })()}
         {query && !folders.some(f => f.label.toLowerCase().includes(query)) && !mods.some(m => m.label.toLowerCase().includes(query)) && (
           <p className="text-[12px] text-center py-4" style={{ color: 'var(--text-light)' }}>Nenhuma pasta encontrada.</p>
         )}
       </div>
+      {multi && (
+        <div className="px-3 py-2.5 border-t flex items-center justify-between gap-2" style={{ borderColor: 'var(--border)' }}>
+          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{selected.length} destino{selected.length === 1 ? '' : 's'} marcado{selected.length === 1 ? '' : 's'}</span>
+          <button disabled={selected.length === 0} onClick={() => onConfirm?.(selected)} className="ds-btn-primary text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1" style={selected.length === 0 ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}>
+            <Repeat size={13} /> Copiar para {selected.length || ''} {selected.length === 1 ? 'local' : 'locais'}
+          </button>
+        </div>
+      )}
     </>
   )
 }
 
 /** "Mover para…" de UM item (modal). Escolhe um destino (raiz de módulo ou pasta). */
-function MovePicker({ mods, excludeIds, title, onPick, onClose }: { mods: Mod[]; excludeIds: Set<string>; title: string; onPick: (t: Target) => void; onClose: () => void }) {
+function MovePicker({ mods, excludeIds, title, onPick, onClose, currentProfile }: { mods: Mod[]; excludeIds: Set<string>; title: string; onPick: (t: Target) => void; onClose: () => void; currentProfile?: string }) {
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
       <div className="w-full max-w-sm rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
@@ -802,7 +1028,7 @@ function MovePicker({ mods, excludeIds, title, onPick, onClose }: { mods: Mod[];
           <div className="text-sm font-bold inline-flex items-center gap-2 min-w-0" style={{ color: 'var(--text)' }}><FolderInput size={15} style={{ color: 'var(--primary)' }} className="shrink-0" /> <span className="truncate">{title}</span></div>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }} className="shrink-0"><X size={16} /></button>
         </div>
-        <FolderPickerBody mods={mods} excludeIds={excludeIds} onPick={onPick} />
+        <FolderPickerBody mods={mods} currentProfile={currentProfile} excludeIds={excludeIds} onPick={onPick} />
         <div className="px-4 py-2.5 border-t text-[11px]" style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>
           Só <b>pastas</b> (e a raiz do módulo) como destino. O item vai para o fim do destino.
         </div>
@@ -812,23 +1038,23 @@ function MovePicker({ mods, excludeIds, title, onPick, onClose }: { mods: Mod[];
 }
 
 /** Visão LISTA (flat) — todas as telas referenciadas, sem hierarquia; foco em escanear permissões. */
-function FlatView({ usage, screens, onPerm, onToggle, onLabel }: { usage: Record<string, string[]>; screens: Record<string, NavScreen>; onPerm: (k: string) => void; onToggle: (k: string) => void; onLabel: (k: string, v: string) => void }) {
+function FlatView({ usage, screens, onPerm, onToggle, onLabel, hiddenOf }: { usage: Record<string, string[]>; screens: Record<string, NavScreen>; onPerm: (k: string) => void; onToggle: (k: string) => void; onLabel: (k: string, v: string) => void; hiddenOf: (k: string) => boolean }) {
   const keys = Object.keys(usage).sort((a, b) => screenLabel(screens[a], a).localeCompare(screenLabel(screens[b], b)))
   return (
     <div className="ds-card p-0 overflow-hidden">
       {keys.length === 0 && <p className="text-[12px] text-center py-6" style={{ color: 'var(--text-light)' }}>Nenhuma tela na estrutura.</p>}
       {keys.map((k, i) => {
-        const s = screens[k]; const off = s?.active === false; const mods = usage[k] ?? []
+        const s = screens[k]; const off = hiddenOf(k); const mods = usage[k] ?? []
         return (
           <div key={k} className="flex items-center gap-2 px-3 group" style={{ height: 38, borderTop: i ? '1px solid var(--border)' : 'none', opacity: off ? 0.55 : 1 }}>
             <FileText size={13} className="shrink-0" style={{ color: 'var(--text-light)' }} />
-            <input value={screenLabel(s, k)} onChange={e => onLabel(k, e.target.value)} className="bg-transparent text-[13px] outline-none min-w-0" style={{ color: 'var(--text)', width: 220 }} />
+            <input value={editLabel(s, k)} onChange={e => onLabel(k, e.target.value)} className="bg-transparent text-[13px] outline-none min-w-0" style={{ color: 'var(--text)', width: 220 }} />
             <div className="flex-1 flex items-center gap-1 flex-wrap min-w-0">
               {mods.map(mod => <span key={mod} className="text-[10px] px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{mod}</span>)}
               {mods.length > 1 && <span className="inline-flex items-center gap-0.5 text-[10px]" style={{ color: 'var(--text-light)' }}><Repeat size={10} /></span>}
             </div>
             <button onClick={() => onPerm(k)} className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full shrink-0" style={noPerm(s) ? { background: 'var(--warning-bg)', color: 'var(--warning-border)' } : { background: 'var(--primary-soft)', color: 'var(--primary)' }}><Users size={11} /> {s?.profiles.length ?? 0}{s?.users.length ? `+${s.users.length}` : ''}</button>
-            <button onClick={() => onToggle(k)} title={off ? 'Inativo' : 'Ativo'} className="shrink-0">{off ? <EyeOff size={14} style={{ color: 'var(--text-light)' }} /> : <Eye size={14} style={{ color: 'var(--success-border)' }} />}</button>
+            <button onClick={() => onToggle(k)} title={off ? 'Oculto neste perfil — clique para reativar' : 'Visível — clique para ocultar (só neste perfil)'} className="shrink-0">{off ? <EyeOff size={14} style={{ color: 'var(--text-light)' }} /> : <Eye size={14} style={{ color: 'var(--success-border)' }} />}</button>
           </div>
         )
       })}
@@ -949,7 +1175,7 @@ function PreviewModal({ mods, screens, profile, onClose }: { mods: Mod[]; screen
 
 /** Permissões da TELA (compartilhadas por todas as ocorrências na árvore). */
 /** Corpo do editor de permissões da tela (perfis + permissões por ação com override por usuário). */
-function ScreenPermBody({ screen, usage, onChange, filter, profileLabel }: { screen: NavScreen; usage: string[]; onChange: (p: Partial<NavScreen>) => void; filter: { type: string; coord: string }; profileLabel: string }) {
+function ScreenPermBody({ screen, usage, onChange, filter, profileLabel, profile }: { screen: NavScreen; usage: string[]; onChange: (p: Partial<NavScreen>) => void; filter: { type: string; coord: string }; profileLabel: string; profile: string }) {
   return (
     <div className="space-y-3">
       {usage.length > 1 && (
@@ -960,30 +1186,50 @@ function ScreenPermBody({ screen, usage, onChange, filter, profileLabel }: { scr
       <p className="text-[11px] px-1" style={{ color: 'var(--text-muted)' }}>
         A visibilidade no menu vem da <b>árvore deste perfil</b>. Aqui só ajustes por <b>usuário</b> de <b>{profileLabel}</b> (liberar ou bloquear ações).
       </p>
-      <ScreenActionsEditor screen={screen} onChange={onChange} filter={filter} />
+      <ScreenActionsEditor screen={screen} onChange={onChange} filter={filter} profile={profile} profileLabel={profileLabel} />
     </div>
   )
 }
 
 /** Ações da tela: catálogo editável (admin adiciona/remove) + override por USUÁRIO. */
-function ScreenActionsEditor({ screen, onChange, filter }: { screen: NavScreen; onChange: (p: Partial<NavScreen>) => void; filter: { type: string; coord: string } }) {
+function ScreenActionsEditor({ screen, onChange, filter, profile, profileLabel }: { screen: NavScreen; onChange: (p: Partial<NavScreen>) => void; filter: { type: string; coord: string }; profile: string; profileLabel: string }) {
   const { screenActions, setScreenActionsFor } = useNavConfig()
   const [openAction, setOpenAction] = useState<string | null>(null)
-  const [newAction, setNewAction] = useState('')
+  const [pickOpen, setPickOpen] = useState(false)
+  const [pickQ, setPickQ] = useState('')
   const [busy, setBusy] = useState(false)
   const actions = screenActions[screen.key] ?? []
-  const get = (a: string): ScreenAbility => screen.abilities?.[a] ?? { profiles: [], users: [], deny_users: [] }
+  const get = (a: string): ScreenAbility => screen.abilities?.[a] ?? { profiles: [], users: [], deny_users: [], deny_profiles: [] }
   const setA = (a: string, patch: Partial<ScreenAbility>) =>
     onChange({ abilities: { ...(screen.abilities ?? {}), [a]: { ...get(a), ...patch } } })
+  // Olho: desabilita/reabilita a AÇÃO só neste perfil (abilities.deny_profiles). onChange → "Salvar tudo".
+  const toggleActionProfile = (a: string, ab: ScreenAbility, disable: boolean) => {
+    const dp = new Set(ab.deny_profiles ?? [])
+    if (disable) dp.add(profile); else dp.delete(profile)
+    setA(a, { deny_profiles: [...dp] })
+  }
 
-  const addAction = async () => {
-    const label = newAction.trim(); if (!label || busy) return
+  // AÇÕES REAIS da tela (igual prod) — ou permissões scopadas se a tela não tiver catálogo.
+  // Sempre dá pra criar AÇÃO PERSONALIZADA (texto livre) pro que não estiver listado.
+  const options = actionOptionsForScreen(screen.key, screen.label ?? undefined)
+  const hasCatalog = !!SCREEN_ACTIONS_CATALOG[baseScreenKey(screen.key)]
+  const takenKeys = new Set(actions.map(a => a.action_key))
+  const takenLabels = new Set(actions.map(a => a.label.toLowerCase()))
+  const available = options.filter(o => (!o.key || !takenKeys.has(o.key)) && !takenLabels.has(o.label.toLowerCase()))
+  const q = pickQ.trim().toLowerCase()
+  const filtered = available.filter(o => !q || o.label.toLowerCase().includes(q) || o.note.toLowerCase().includes(q))
+  // criar ação personalizada quando o texto não bate com nenhuma opção nem com ação já existente
+  const canCreateCustom = q.length >= 2 && !options.some(o => o.label.toLowerCase() === q) && !takenLabels.has(q)
+
+  const addAction = async (label: string, actionKey: string) => {
+    if (!label.trim() || busy) return
     setBusy(true)
-    try { const r = await api.post<{ data: ScreenActionDef[] }>('/nav-screen-actions', { screen_key: screen.key, label }); setScreenActionsFor(screen.key, r.data ?? []); setNewAction(''); toast.success('Ação adicionada') }
+    try { const r = await api.post<{ data: ScreenActionDef[] }>('/nav-screen-actions', { screen_key: screen.key, label: label.trim(), action_key: actionKey || undefined }); setScreenActionsFor(screen.key, r.data ?? []); setPickOpen(false); setPickQ(''); toast.success('Ação adicionada') }
     catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') } finally { setBusy(false) }
   }
-  const removeAction = async (ak: string) => {
-    if (!confirm('Remover esta ação do catálogo desta tela?')) return
+  // 🗑 = excluir do CATÁLOGO (global — afeta TODOS os perfis). Avisa explicitamente.
+  const removeAction = async (ak: string, label: string) => {
+    if (!confirm(`Excluir "${label}" do catálogo desta tela?\n\n⚠️ É GLOBAL — some de TODOS os perfis. Para tirar só de ${profileLabel}, use o botão Habilitada/Desabilitada (não exclua).`)) return
     try { const r = await api.delete<{ data: ScreenActionDef[] }>(`/nav-screen-actions?screen_key=${encodeURIComponent(screen.key)}&action_key=${encodeURIComponent(ak)}`); setScreenActionsFor(screen.key, r.data ?? []) }
     catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') }
   }
@@ -998,10 +1244,17 @@ function ScreenActionsEditor({ screen, onChange, filter }: { screen: NavScreen; 
           const ab = get(a)
           const open = openAction === a
           const ov = ab.users.length + ab.deny_users.length
+          // Olho: ação desabilitada p/ ESTE perfil? (abilities.deny_profiles). Universal — vale p/ toda ação.
+          const denied = (ab.deny_profiles ?? []).includes(profile)
           return (
-            <div key={a} className="rounded-lg p-2" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+            <div key={a} className="rounded-lg p-2" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)', opacity: denied ? 0.55 : 1 }}>
               <div className="flex items-center gap-2">
-                <span className="text-[12px] font-semibold flex-1 min-w-0 truncate" style={{ color: 'var(--text)' }} title={def.description ?? undefined}>{def.label}</span>
+                <span className="text-[12px] font-semibold flex-1 min-w-0 truncate" style={{ color: 'var(--text)', textDecoration: denied ? 'line-through' : undefined }} title={def.description ?? undefined}>{def.label}</span>
+                {/* 👁 Ocultar/mostrar a ação SÓ neste perfil — em TODA linha, sempre clicável. */}
+                <button onClick={() => toggleActionProfile(a, ab, !denied)}
+                  title={denied ? `Oculta em ${profileLabel} — clique p/ mostrar` : `Visível — clique p/ ocultar em ${profileLabel}`} className="shrink-0">
+                  {denied ? <EyeOff size={14} style={{ color: 'var(--danger-border)' }} /> : <Eye size={14} style={{ color: 'var(--success-border)' }} />}
+                </button>
                 <button onClick={() => setOpenAction(open ? null : a)} title="Override por usuário"
                   className="text-[11px] inline-flex items-center gap-1.5 shrink-0"
                   style={{ color: open ? 'var(--primary)' : ov > 0 ? 'var(--text)' : 'var(--text-light)' }}>
@@ -1012,24 +1265,78 @@ function ScreenActionsEditor({ screen, onChange, filter }: { screen: NavScreen; 
                   </span>}
                   {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
                 </button>
-                <button onClick={() => removeAction(a)} title="Remover ação do catálogo" className="shrink-0"><Trash2 size={12} style={{ color: 'var(--text-light)' }} /></button>
+                <button onClick={() => removeAction(a, def.label)} title="Excluir do catálogo (TODOS os perfis)" className="shrink-0"><Trash2 size={12} style={{ color: 'var(--text-light)' }} /></button>
               </div>
               {open && <ActionUsers ab={ab} onChange={patch => setA(a, patch)} filter={filter} />}
             </div>
           )
         })}
       </div>
-      {/* adicionar ação ao catálogo desta tela */}
-      <div className="flex gap-2 mt-2">
-        <input value={newAction} onChange={e => setNewAction(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addAction() }} placeholder="Nova ação (ex.: Resetar senha)" className="ds-input flex-1 text-[12px] px-2 py-1.5" />
-        <button onClick={addAction} disabled={!newAction.trim() || busy} className="ds-btn-secondary text-[12px] px-3 py-1.5 rounded-lg disabled:opacity-40 inline-flex items-center gap-1"><Plus size={13} /> Ação</button>
+      {/* adicionar AÇÃO da tela (lista inline: ações reais + criar personalizada) */}
+      <div className="mt-2">
+        <button onClick={() => setPickOpen(o => !o)} disabled={busy} className="ds-input w-full text-left text-[12px] px-2 py-1.5 flex items-center justify-between disabled:opacity-40">
+          <span className="inline-flex items-center gap-1.5" style={{ color: 'var(--primary)' }}><Plus size={13} /> Adicionar ação…</span>
+          <ChevronDown size={13} style={{ color: 'var(--text-muted)', transform: pickOpen ? 'rotate(180deg)' : undefined }} />
+        </button>
+        {pickOpen && (
+          <div className="mt-1 rounded-lg overflow-hidden" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--primary)' }}>
+            <div className="p-2 border-b" style={{ borderColor: 'var(--border)' }}>
+              <input autoFocus value={pickQ} onChange={e => setPickQ(e.target.value)} placeholder="Buscar ou digitar nova ação…" className="ds-input w-full text-[12px] px-2 py-1.5" />
+            </div>
+            <div className="max-h-[300px] overflow-auto p-1">
+              {filtered.length > 0 && (
+                <div className="px-2 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>{hasCatalog ? 'Ações desta tela' : 'Permissões relacionadas'}</div>
+              )}
+              {filtered.map(o => (
+                <button key={o.label} onClick={() => addAction(o.label, o.key)} className="w-full text-left px-2 py-1.5 rounded-md text-[12px] hover:bg-[var(--surface-hover)] flex items-center justify-between gap-2" style={{ color: 'var(--text)' }}>
+                  <span className="truncate">{o.label}</span>
+                  <span className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>{o.key ? o.note : 'ação da tela'}</span>
+                </button>
+              ))}
+              {/* criar AÇÃO PERSONALIZADA (texto livre) — p/ ações que não estão na lista (ex.: reenviar boas-vindas) */}
+              {canCreateCustom && (
+                <button onClick={() => addAction(pickQ.trim(), '')} className="w-full text-left px-2 py-1.5 mt-1 rounded-md text-[12px] hover:bg-[var(--surface-hover)] inline-flex items-center gap-1.5" style={{ color: 'var(--primary)', borderTop: filtered.length ? '1px solid var(--border)' : undefined }}>
+                  <Plus size={12} /> Criar ação: <b>&quot;{pickQ.trim()}&quot;</b>
+                </button>
+              )}
+              {filtered.length === 0 && !canCreateCustom && (
+                <p className="text-[11px] text-center py-3" style={{ color: 'var(--text-light)' }}>{available.length === 0 ? 'Todas as ações desta tela já foram adicionadas.' : 'Digite para criar uma ação personalizada.'}</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
-      <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>Cadastre <b>todas</b> as ações da tela. Por usuário: ✓ libera, ✕ bloqueia. A busca traz só usuários do perfil desta aba.</p>
+      <p className="text-[10px] mt-2" style={{ color: 'var(--text-light)' }}>As <b>ações reais da tela</b> (ex.: Reenviar boas-vindas) — escolha da lista ou <b>crie uma personalizada</b>. Por usuário: ✓ libera, ✕ bloqueia.</p>
     </div>
   )
 }
 
 /** Override por usuário (lista auditável): cada usuário ✔ permitido (verde) ou ✖ bloqueado (vermelho). */
+/**
+ * Painel de visibilidade do NÓ por usuário, com MODO explícito:
+ *  - "Todos do perfil"  → nó visível a todos (hidden=false); use ✕ p/ esconder de alguém.
+ *  - "Somente estes"    → nó OCULTO por padrão (hidden=true); SÓ os ✓ permitidos veem (whitelist).
+ * Resolve o caso "quero a tela só p/ 1-2 usuários" sem ter que bloquear todo mundo.
+ */
+function NodeVisPanel({ node, isFolder, onHidden, onUsers, filter }: { node: NavTreeNode; isFolder: boolean; onHidden: (h: boolean) => void; onUsers: (p: Partial<ScreenAbility>) => void; filter: { type: string; coord: string } }) {
+  const only = !!node.hidden
+  const thing = isFolder ? 'pasta' : 'tela'
+  return (
+    <>
+      <div className="inline-flex rounded-lg overflow-hidden mb-2" style={{ border: '1px solid var(--border)' }}>
+        <button onClick={() => onHidden(false)} className="px-2.5 py-1 text-[11px] font-medium transition-colors" style={!only ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}>Todos do perfil</button>
+        <button onClick={() => onHidden(true)} className="px-2.5 py-1 text-[11px] font-medium transition-colors" style={only ? { background: 'var(--primary)', color: 'var(--primary-fg)' } : { color: 'var(--text-muted)' }}>Somente estes usuários</button>
+      </div>
+      <p className="text-[11px] mb-1.5" style={{ color: 'var(--text-muted)' }}>
+        {only
+          ? <>Esta {thing} fica <b>oculta</b> para o perfil — <b>só</b> os usuários <b>permitidos (✓)</b> abaixo{isFolder ? ' (e os filhos)' : ''} a veem. Adicione quem pode ver.</>
+          : <>Visível a <b>todos do perfil</b> — use <b>✕</b> para esconder de usuários específicos.</>}
+      </p>
+      <ActionUsers ab={{ profiles: [], users: node.users ?? [], deny_users: node.deny_users ?? [] }} onChange={onUsers} filter={filter} />
+    </>
+  )
+}
+
 function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p: Partial<ScreenAbility>) => void; filter: { type: string; coord: string } }) {
   const [q, setQ] = useState('')
   const [hits, setHits] = useState<{ id: number; name: string; email: string }[]>([])
@@ -1093,7 +1400,7 @@ function ActionUsers({ ab, onChange, filter }: { ab: ScreenAbility; onChange: (p
   )
 }
 
-function PermModal({ screen, usage, onChange, onClose, filter, profileLabel }: { screen: NavScreen; usage: string[]; onChange: (p: Partial<NavScreen>) => void; onClose: () => void; filter: { type: string; coord: string }; profileLabel: string }) {
+function PermModal({ screen, usage, onChange, onClose, filter, profileLabel, profile }: { screen: NavScreen; usage: string[]; onChange: (p: Partial<NavScreen>) => void; onClose: () => void; filter: { type: string; coord: string }; profileLabel: string; profile: string }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }} onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
@@ -1101,7 +1408,7 @@ function PermModal({ screen, usage, onChange, onClose, filter, profileLabel }: {
           <div className="text-sm font-bold inline-flex items-center gap-2 min-w-0" style={{ color: 'var(--text)' }}><Users size={15} style={{ color: 'var(--primary)' }} className="shrink-0" /> <span className="truncate">Permissões · {screen.label || screen.key}</span></div>
           <button onClick={onClose} style={{ color: 'var(--text-muted)' }} className="shrink-0"><X size={16} /></button>
         </div>
-        <div className="p-4"><ScreenPermBody screen={screen} usage={usage} onChange={onChange} filter={filter} profileLabel={profileLabel} /></div>
+        <div className="p-4"><ScreenPermBody screen={screen} usage={usage} onChange={onChange} filter={filter} profileLabel={profileLabel} profile={profile} /></div>
         <div className="px-4 py-3 flex justify-end border-t" style={{ borderColor: 'var(--border)' }}>
           <button onClick={onClose} className="ds-btn-primary text-sm px-4 py-1.5 rounded-lg">Pronto</button>
         </div>

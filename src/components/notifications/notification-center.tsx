@@ -69,7 +69,8 @@ export function NotificationCenter() {
   }
 
   // SÓ AÇÃO (executável): leitura obrigatória, botões de decisão, ações com CTA + pendências de aprovação.
-  const importantes = items.filter(n => n.type === 'require_ack' || n.requires_ack)
+  // "Para resolver" = só os que exigem aceite e AINDA NÃO foram aceitos. Uma vez aceito, sai daqui.
+  const importantes = items.filter(n => (n.type === 'require_ack' || n.requires_ack) && !n.acked)
   // Sem duplicar: o card agregado (homeActions, com a QUANTIDADE) manda. Notificações individuais que
   // levam à MESMA tela (rejeição/ajuste de apontamento, pendências de despesa) não repetem aqui — fica
   // só o card com a contagem (elas continuam aparecendo como pop-up). Cobre o card atual + telas conhecidas.
@@ -83,7 +84,12 @@ export function NotificationCenter() {
   // A lista completa de informativos continua no sino da topbar; aqui é só o do dia, com voto na enquete.
   const hoje = new Date().toDateString()
   const isHoje = (n: Notif) => !!n.created_at && new Date(n.created_at).toDateString() === hoje
-  const infosHoje = items.filter(n => (n.type === 'info' || n.type === 'aviso' || n.type === 'formal') && isHoje(n))
+  // "Notificações de hoje" = infos do dia + TODOS os avisos que exigiam aceite e já foram aceitos
+  // (independente da data — pra não SUMIR ao aceitar). Não duplica com "Para resolver" (que só tem pendentes).
+  const infosHoje = items.filter(n =>
+    (n.type === 'info' || n.type === 'aviso' || n.type === 'formal' || n.type === 'require_ack')
+    && (!n.requires_ack || n.acked)                     // fora os pendentes de aceite (esses em "Para resolver")
+    && (isHoje(n) || (n.requires_ack && n.acked)))      // do dia OU leitura obrigatória já aceita (não some)
   const enquetesHoje = items.filter(n => n.type === 'poll' && n.poll && isHoje(n))
 
   return (

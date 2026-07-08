@@ -45,25 +45,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadUser])
 
   const login = async (email: string, password: string) => {
-    // Rota interna do Next: chama backend, recebe token e seta cookie httpOnly.
+    // Sessão POR ABA: device_name ÚNICO por aba. O BE revoga tokens do mesmo device_name no login;
+    // com nome único por aba, logar numa aba NÃO derruba o token das outras (antes todos usavam
+    // 'api-token' e um login apagava o token do outro → "ambas deslogam").
+    let device = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_device') : null
+    if (!device && typeof window !== 'undefined') {
+      device = 'tab-' + Math.random().toString(36).slice(2) + Date.now().toString(36)
+      try { window.sessionStorage.setItem('minutor_device', device) } catch { /* noop */ }
+    }
+    // Rota interna do Next: chama backend, recebe token (guardado no sessionStorage) e seta cookie fallback.
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
+      body: JSON.stringify({ email: email.toLowerCase().trim(), password, device_name: device ?? undefined }),
     })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
       throw new ApiError(res.status, data.message ?? 'Erro ao autenticar', data)
     }
     const user: User = data.user
+    // Sessão POR ABA: guarda o token no sessionStorage (isolado por aba). Assim logar nesta aba
+    // NÃO afeta o login das outras abas — cada uma usa seu próprio token via api.ts.
+    if (data.token && typeof window !== 'undefined') {
+      try { window.sessionStorage.setItem('minutor_token', data.token) } catch { /* noop */ }
+    }
     setUser(user)
     return { user, requiresPasswordChange: data.requires_password_change === true }
   }
 
   const logout = async () => {
+    // Sessão POR ABA: revoga no BE o token DESTA aba (via Authorization), não o cookie compartilhado
+    // — assim deslogar aqui NÃO derruba as outras abas.
+    const stoken = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
+    try { window.sessionStorage.removeItem('minutor_token') } catch { /* noop */ }
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: stoken ? { Authorization: `Bearer ${stoken}` } : {},
+      })
     } catch (e) {
       console.error('[auth] Falha ao limpar sessão:', e)
     }

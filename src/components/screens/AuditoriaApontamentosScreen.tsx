@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { PageHeader } from '@/components/ds'
 import { FileText } from 'lucide-react'
 import { useApiQuery } from '@/hooks/use-query'
 import { SearchSelect } from '@/components/ui/search-select'
 import { TimesheetLogsList, type TimesheetLog } from '@/components/timesheet/TimesheetLogsList'
+import type { PortalDate } from '@/lib/portal-date'
 
 interface Paginated<T> {
   data: T[]
@@ -37,9 +38,10 @@ const asList = (r: unknown): any[] =>
 export interface AuditoriaApontamentosScreenProps {
   scope?: 'sustentacao'
   embedded?: boolean
+  extDate?: PortalDate
 }
 
-export function AuditoriaApontamentosScreen({ scope, embedded }: AuditoriaApontamentosScreenProps = {}) {
+export function AuditoriaApontamentosScreen({ scope, embedded, extDate }: AuditoriaApontamentosScreenProps = {}) {
   const [filters, setFilters] = useState({
     source:        '',
     action:        '',
@@ -52,6 +54,24 @@ export function AuditoriaApontamentosScreen({ scope, embedded }: AuditoriaAponta
     service_end:   '',
     page:          1,
   })
+
+  // Portal (embedded): usa o filtro de data DE CIMA do portal e esconde o interno (um filtro só).
+  // Mapeia pro intervalo de Serviço (data do apontamento), análogo ao startDate/endDate da tela de Apontamentos.
+  useEffect(() => {
+    if (!extDate) return
+    if (extDate.mode === 'month') {
+      if (extDate.month && extDate.year) {
+        const mm = String(extDate.month).padStart(2, '0')
+        const last = new Date(extDate.year, extDate.month, 0).getDate()
+        setFilters(f => ({ ...f, service_start: `${extDate.year}-${mm}-01`, service_end: `${extDate.year}-${mm}-${String(last).padStart(2, '0')}`, page: 1 }))
+      } else {
+        setFilters(f => ({ ...f, service_start: '', service_end: '', page: 1 }))
+      }
+    } else {
+      setFilters(f => ({ ...f, service_start: extDate.from ?? '', service_end: extDate.to ?? '', page: 1 }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extDate?.mode, extDate?.month, extDate?.year, extDate?.from, extDate?.to])
 
   // ── Listas de cliente, projeto e consultor (com busca) ──
   const { data: customersRaw } = useApiQuery<unknown>('/customers?pageSize=500', [])
@@ -162,14 +182,18 @@ export function AuditoriaApontamentosScreen({ scope, embedded }: AuditoriaAponta
           <input type="date" className="rounded-lg px-2 py-1.5 text-xs" style={inputStyle}
             value={filters.incl_end} onChange={e => update('incl_end', e.target.value)} />
         ))}
-        {filterField('Serviço — de', (
-          <input type="date" className="rounded-lg px-2 py-1.5 text-xs" style={inputStyle}
-            value={filters.service_start} onChange={e => update('service_start', e.target.value)} />
-        ))}
-        {filterField('Serviço — até', (
-          <input type="date" className="rounded-lg px-2 py-1.5 text-xs" style={inputStyle}
-            value={filters.service_end} onChange={e => update('service_end', e.target.value)} />
-        ))}
+        {!extDate && (
+          <>
+            {filterField('Serviço — de', (
+              <input type="date" className="rounded-lg px-2 py-1.5 text-xs" style={inputStyle}
+                value={filters.service_start} onChange={e => update('service_start', e.target.value)} />
+            ))}
+            {filterField('Serviço — até', (
+              <input type="date" className="rounded-lg px-2 py-1.5 text-xs" style={inputStyle}
+                value={filters.service_end} onChange={e => update('service_end', e.target.value)} />
+            ))}
+          </>
+        )}
       </div>
 
       {error && (

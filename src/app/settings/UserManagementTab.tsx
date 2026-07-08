@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
+import { EXTRA_PERMISSION_OPTIONS } from '@/lib/permissions-catalog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -41,62 +42,18 @@ interface CustomerOption { id: number; name: string }
 interface PartnerOption  { id: number; name: string; pricing_type?: 'fixed' | 'variable'; hourly_rate?: string | null }
 
 // Permissões que podem ser concedidas como extras
-const EXTRA_PERMISSION_OPTIONS: { value: string; label: string; group: string }[] = [
-  // Dashboards
-  { value: 'dashboards.bank_hours_fixed.view',   label: 'Dashboard BH Fixo',              group: 'Dashboards' },
-  { value: 'dashboards.bank_hours_monthly.view', label: 'Dashboard BH Mensal',            group: 'Dashboards' },
-  { value: 'dashboards.on_demand.view',          label: 'Dashboard On Demand',            group: 'Dashboards' },
-  // Banco de Horas
-  { value: 'hora_banco.view',                    label: 'Acessar Banco de Horas',         group: 'Banco de Horas' },
-  // Horas
-  { value: 'hours.view_all',                     label: 'Ver horas de todos',             group: 'Horas' },
-  { value: 'hours.update_all',                   label: 'Editar horas de todos',          group: 'Horas' },
-  { value: 'hours.delete_all',                   label: 'Excluir horas de todos',         group: 'Horas' },
-  // Timesheets
-  { value: 'timesheets.approve',                 label: 'Aprovar timesheets',             group: 'Timesheets' },
-  { value: 'timesheets.view_project_full',       label: 'Ver timesheets do projeto',      group: 'Timesheets' },
-  // Despesas
-  { value: 'expenses.view_all',                  label: 'Ver despesas de todos',          group: 'Despesas' },
-  { value: 'expenses.approve',                   label: 'Aprovar despesas',               group: 'Despesas' },
-  // Usuários
-  { value: 'users.view_all',                     label: 'Ver todos os usuários',          group: 'Usuários' },
-  { value: 'users.create',                       label: 'Criar usuários',                 group: 'Usuários' },
-  { value: 'users.update',                       label: 'Editar usuários',                group: 'Usuários' },
-  { value: 'users.reset_password',               label: 'Resetar senhas',                 group: 'Usuários' },
-  // Projetos (projects.view é base do coordenador — não aparece como extra)
-  { value: 'projects.create',                    label: 'Incluir projetos',               group: 'Projetos' },
-  { value: 'projects.update',                    label: 'Editar projetos',                group: 'Projetos' },
-  { value: 'projects.view_financial',            label: 'Ver financeiro do projeto',      group: 'Projetos' },
-  // Gestão de Projetos
-  { value: 'gestao_projetos.view',               label: 'Acessar Gestão de Projetos',     group: 'Gestão de Projetos' },
-  { value: 'gestao_projetos.update',             label: 'Editar projetos na Gestão',      group: 'Gestão de Projetos' },
-  // Cadastros
-  { value: 'customers.manage',                   label: 'Gerenciar Clientes',             group: 'Cadastros' },
-  { value: 'contracts.manage',                   label: 'Gerenciar Tipos de Contrato',    group: 'Cadastros' },
-  { value: 'services.manage',                    label: 'Gerenciar Tipos de Serviço',     group: 'Cadastros' },
-  { value: 'executives.manage',                  label: 'Gerenciar Executivos',           group: 'Cadastros' },
-  { value: 'groups.manage',                      label: 'Gerenciar Grupos de Consultor',  group: 'Cadastros' },
-  { value: 'holidays.manage',                    label: 'Gerenciar Feriados',             group: 'Cadastros' },
-  { value: 'partners.manage',                    label: 'Gerenciar Parceiros',            group: 'Cadastros' },
-  // Relatórios
-  { value: 'reports.view',                       label: 'Ver relatórios',                 group: 'Relatórios' },
-  { value: 'reports.export',                     label: 'Exportar relatórios',            group: 'Relatórios' },
-  // Financeiro
-  { value: 'financial.view_project_cost',        label: 'Ver custo do projeto',           group: 'Financeiro' },
-  // Sistema
-  { value: 'settings.view',                      label: 'Acessar Configurações',          group: 'Sistema' },
-]
 
 // Permissões base de cada tipo — o que já está incluído por padrão no perfil
 const BASE_PERMISSIONS_BY_TYPE: Record<string, string[]> = {
   admin:          ['*'],
+  administrativo: ['hours.view_all','hours.update_all','hours.delete_all','timesheets.approve','timesheets.view_project_full','expenses.view_all','expenses.approve','users.view_all','users.create','users.update','users.reset_password','contracts.manage','customers.manage','partners.manage','reports.view','reports.export','settings.view'],
   coordenador:    ['projects.view','hours.view_all','hours.update_all','hours.delete_all','timesheets.approve','timesheets.view_project_full','expenses.view_all','expenses.approve','reports.view','reports.export','financial.view_project_cost'],
   consultor:      [],
   cliente:        ['reports.view'],
   parceiro_admin: ['timesheets.approve','timesheets.view_project_full','users.create','users.update','users.reset_password','reports.view'],
 }
 
-type ProfileType    = 'cliente' | 'consultor' | 'coordenador' | 'parceiro_adm' | 'administrator'
+type ProfileType    = 'cliente' | 'consultor' | 'coordenador' | 'parceiro_adm' | 'administrativo' | 'administrator'
 type ConsultantType = 'horista' | 'banco_de_horas' | 'fixo'
 
 const PROFILE_OPTIONS: { value: ProfileType; label: string }[] = [
@@ -104,6 +61,7 @@ const PROFILE_OPTIONS: { value: ProfileType; label: string }[] = [
   { value: 'consultor',     label: 'Consultor' },
   { value: 'coordenador',   label: 'Coordenador' },
   { value: 'parceiro_adm',  label: 'Parceiro' },
+  { value: 'administrativo', label: 'Administrativo' },
   { value: 'administrator', label: 'Administrador' },
 ]
 

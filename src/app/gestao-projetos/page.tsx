@@ -20,6 +20,7 @@ import { MultiSelect } from '@/components/ui/multi-select'
 import { PageHeader } from '@/components/ds'
 import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 import { RowMenu } from '@/components/ui/row-menu'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -425,6 +426,10 @@ interface ProjectRowProps {
 }
 
 function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, canDetach, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect, onConsultantManualToggle, showUnbilled, executiveName }: ProjectRowProps) {
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/gestao-projetos', 'view')
+  const dEdit = isDenied('/gestao-projetos', 'edit')
   const ctName = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (project as any).tipo_faturamento === 'on_demand'
   const isBhMensal = ctName.includes('mensal')
@@ -528,8 +533,8 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
         <td className="py-2 pl-2 pr-1" style={{ width: 60 }} onClick={e => e.stopPropagation()}>
           <div className="flex items-center gap-1">
             <RowMenu items={[
-              { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => onMenuAction('view', project) },
-              ...(canEdit ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => onEdit?.(project) }] : []),
+              ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => onMenuAction('view', project) }]),
+              ...(!dEdit && canEdit ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => onEdit?.(project) }] : []),
               ...(canChangeStatus ? [{ label: 'Alterar Status', icon: <Layers size={12} />, onClick: () => onChangeStatus?.(project) }] : []),
               { label: 'Custo',             icon: <DollarSign  size={12} />, onClick: () => onMenuAction('costs',      project) },
               { label: 'Apont. & Despesas', icon: <Clock       size={12} />, onClick: () => onMenuAction('timesheets', project) },
@@ -2660,7 +2665,7 @@ function GestaoProjetosInner() {
     if (found) {
       setMessagesProject(found)
       clear()
-    } else if (projects.length > 0) {
+    } else {
       api.get<ProjectWithTeam>(`/projects/${messagesParam}`)
         .then(p => { if (p?.id) setMessagesProject(p) })
         .catch(() => {})

@@ -1,6 +1,8 @@
 'use client'
 
-import { Bell, LogOut, User, MessageCircle, X, Menu } from 'lucide-react'
+import { Bell, LogOut, User, MessageCircle, X, Menu, Check, CheckCheck, ExternalLink } from 'lucide-react'
+import { ProjectMessages } from '@/components/shared/ProjectMessages'
+import { ProjectViewModal } from '@/components/projects/project-view-modal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +50,9 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
   const [allOpen, setAllOpen] = useState(false)
   const [allItems, setAllItems] = useState<Notification[]>([])
   const [allLoading, setAllLoading] = useState(false)
+  const [allTab, setAllTab] = useState<'all' | 'unread'>('all')  // aba do modal: Todas / Não lidas
+  const [msgProjectId, setMsgProjectId] = useState<number | null>(null)  // chat aberto em overlay (sem sair da tela)
+  const [cardProjectId, setCardProjectId] = useState<number | null>(null)  // card do projeto em overlay (acima do chat)
 
   const notifEndpoint = user?.type === 'cliente' ? '/contract-messages/notifications' : '/messages/notifications'
 
@@ -55,6 +60,13 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
     n.contract_id ? `/contratos/pipeline?chat_contract_id=${n.contract_id}`
     : n.project_id ? `/gestao-projetos?messages=${n.project_id}`
     : undefined
+
+  // Abre a mensagem em OVERLAY, sem trocar de tela, e marca como LIDA (abrir = ler).
+  const openMessage = (n: Notification) => {
+    if (n.is_unread) markNotifRead(n)
+    if (n.project_id) { setMsgProjectId(n.project_id); return }
+    if (n.contract_id) window.open(`/contratos/pipeline?chat_contract_id=${n.contract_id}`, '_blank')
+  }
 
   const fetchNotifications = () => {
     if (!user) return
@@ -75,6 +87,32 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
       .then(r => setAllItems(Array.isArray(r?.items) ? r.items : Array.isArray(r) ? r : []))
       .catch(() => setAllItems([]))
       .finally(() => setAllLoading(false))
+  }
+
+  // Marcar lido: mark-read é por projeto/contrato (marca todas as mensagens dele). Update OTIMISTA
+  // e SEM refetch — o refetch reverteria a leitura recém-feita por eventual consistency (read replica).
+  const markNotifRead = (n: Notification) => {
+    const url = n.contract_id ? `/contracts/${n.contract_id}/messages/mark-read`
+      : n.project_id ? `/projects/${n.project_id}/messages/mark-read` : null
+    if (!url) return
+    const same = (x: Notification) => n.contract_id ? x.contract_id === n.contract_id : x.project_id === n.project_id
+    const freed = allItems.filter(x => same(x) && x.is_unread).length || 1
+    setAllItems(items => items.map(x => same(x) ? { ...x, is_unread: false } : x))
+    setNotifications(items => items.map(x => same(x) ? { ...x, is_unread: false } : x))
+    setUnread(u => Math.max(0, u - freed))
+    api.post(url, {}).catch(() => {})
+  }
+
+  const markAllRead = () => {
+    const urls = new Set<string>()
+    allItems.filter(x => x.is_unread).forEach(n => {
+      const url = n.contract_id ? `/contracts/${n.contract_id}/messages/mark-read`
+        : n.project_id ? `/projects/${n.project_id}/messages/mark-read` : null
+      if (url && !urls.has(url)) { urls.add(url); api.post(url, {}).catch(() => {}) }
+    })
+    setAllItems(items => items.map(x => ({ ...x, is_unread: false })))
+    setNotifications(items => items.map(x => ({ ...x, is_unread: false })))
+    setUnread(0)
   }
 
   useEffect(() => {
@@ -172,7 +210,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                 <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
                   <div className="flex items-center gap-2">
                     <MessageCircle size={14} style={{ color: 'var(--primary)' }} />
-                    <span className="text-xs font-bold" style={{ color: '#FAFAFA' }}>Mensagens não lidas</span>
+                    <span className="text-xs font-bold" style={{ color: 'var(--text)' }}>Mensagens não lidas</span>
                     {unread > 0 && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
                         {unread}
@@ -197,7 +235,7 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                       return (
                         <div
                           key={n.id}
-                          onClick={() => { setBellOpen(false); if (href) router.push(href) }}
+                          onClick={() => { setBellOpen(false); openMessage(n) }}
                           className="flex gap-2 px-4 py-3 hover:bg-[var(--surface-hover)] transition-colors border-b cursor-pointer"
                           style={{ borderColor: 'var(--border)' }}
                         >
@@ -212,8 +250,8 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
                                 {new Date(n.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
-                            <p className="text-[10px] font-semibold truncate" style={{ color: '#71717A' }}>{n.author_name} · {n.project_name}</p>
-                            <p className="text-xs truncate" style={{ color: n.is_unread ? '#FAFAFA' : '#A1A1AA' }}>{n.preview}</p>
+                            <p className="text-[10px] font-semibold truncate" style={{ color: 'var(--text-muted)' }}>{n.author_name} · {n.project_name}</p>
+                            <p className="text-xs truncate" style={{ color: n.is_unread ? 'var(--text)' : 'var(--text-muted)' }}>{n.preview}</p>
                           </div>
                         </div>
                       )
@@ -264,47 +302,82 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
       </div>
 
       {/* Modal "Ver todas as mensagens" — tabela do histórico, na própria tela (não navega). */}
-      {allOpen && (
+      {allOpen && (() => {
+        const unreadCount = allItems.filter(x => x.is_unread).length
+        const shown = allTab === 'unread' ? allItems.filter(x => x.is_unread) : allItems
+        return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setAllOpen(false)}>
           <div className="w-full max-w-4xl max-h-[85vh] rounded-2xl flex flex-col overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3.5 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-center gap-2">
                 <MessageCircle size={16} style={{ color: 'var(--primary)' }} />
                 <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Todas as mensagens</span>
-                {unread > 0 && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{unread} não lida(s)</span>}
               </div>
               <button onClick={() => setAllOpen(false)} className="p-1 rounded hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
-            <div className="flex-1 overflow-auto">
+            {/* Abas Todas / Não lidas + marcar todas como lidas */}
+            <div className="flex items-center justify-between px-5 py-2 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex rounded-lg border overflow-hidden text-xs" style={{ borderColor: 'var(--border)' }}>
+                {([['all', 'Todas'], ['unread', `Não lidas${unreadCount ? ` (${unreadCount})` : ''}`]] as const).map(([id, label]) => (
+                  <button key={id} onClick={() => setAllTab(id)} className="px-3 py-1 font-medium transition-colors"
+                    style={{ background: allTab === id ? 'var(--primary)' : 'transparent', color: allTab === id ? 'var(--primary-fg)' : 'var(--text-muted)' }}>{label}</button>
+                ))}
+              </div>
+              {unreadCount > 0 && (
+                <button onClick={markAllRead} className="text-xs font-semibold flex items-center gap-1 hover:opacity-80" style={{ color: 'var(--primary)' }}>
+                  <CheckCheck size={13} /> Marcar todas como lidas
+                </button>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto overflow-x-hidden">
               {allLoading ? (
                 <p className="text-xs text-center py-8" style={{ color: 'var(--text-light)' }}>Carregando…</p>
-              ) : allItems.length === 0 ? (
-                <p className="text-xs text-center py-8" style={{ color: 'var(--text-light)' }}>Sem mensagens.</p>
+              ) : shown.length === 0 ? (
+                <p className="text-xs text-center py-8" style={{ color: 'var(--text-light)' }}>{allTab === 'unread' ? 'Nenhuma mensagem não lida. 🎉' : 'Sem mensagens.'}</p>
               ) : (
-                <table className="w-full text-xs">
+                <table className="w-full text-xs table-fixed">
+                  <colgroup>
+                    <col style={{ width: '23%' }} />
+                    <col style={{ width: '19%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '26%' }} />
+                    <col style={{ width: '9%' }} />
+                    <col style={{ width: '10%' }} />
+                  </colgroup>
                   <thead className="sticky top-0 z-10" style={{ background: 'var(--surface)' }}>
                     <tr style={{ color: 'var(--text-muted)' }}>
-                      <th className="px-3 py-2 w-6"></th>
-                      <th className="text-left font-semibold px-3 py-2 whitespace-nowrap">Código · Cliente</th>
+                      <th className="text-left font-semibold px-3 py-2">Código · Cliente</th>
                       <th className="text-left font-semibold px-3 py-2">Projeto</th>
                       <th className="text-left font-semibold px-3 py-2">Autor</th>
                       <th className="text-left font-semibold px-3 py-2">Mensagem</th>
-                      <th className="text-left font-semibold px-3 py-2 whitespace-nowrap">Data</th>
-                      <th className="px-3 py-2"></th>
+                      <th className="text-left font-semibold px-3 py-2">Data</th>
+                      <th className="text-right font-semibold px-3 py-2">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {allItems.map(n => {
-                      const href = hrefForNotif(n)
+                    {shown.map(n => {
+                      const codigo = [n.project_code, n.customer_name].filter(Boolean).join(' · ')
                       return (
-                        <tr key={n.id} className="border-t hover:bg-[var(--surface-hover)]" style={{ borderColor: 'var(--border)' }}>
-                          <td className="px-3 py-2 align-top"><span className="inline-block w-2 h-2 rounded-full" style={{ background: n.is_unread ? 'var(--primary)' : 'transparent' }} title={n.is_unread ? 'Não lida' : 'Lida'} /></td>
-                          <td className="px-3 py-2 font-mono whitespace-nowrap align-top" style={{ color: 'var(--primary)' }}>{[n.project_code, n.customer_name].filter(Boolean).join(' · ')}</td>
-                          <td className="px-3 py-2 align-top" style={{ color: 'var(--text-muted)' }}>{n.project_name}</td>
-                          <td className="px-3 py-2 align-top whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{n.author_name}</td>
-                          <td className="px-3 py-2 align-top max-w-xs truncate" style={{ color: n.is_unread ? 'var(--text)' : 'var(--text-muted)' }} title={n.preview}>{n.preview}</td>
-                          <td className="px-3 py-2 align-top whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>{new Date(n.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</td>
-                          <td className="px-3 py-2 align-top">{href && <button onClick={() => { setAllOpen(false); router.push(href) }} className="font-semibold whitespace-nowrap" style={{ color: 'var(--primary)' }}>Acessar →</button>}</td>
+                        <tr key={n.id} onClick={() => openMessage(n)} className="border-t hover:bg-[var(--surface-hover)] cursor-pointer" style={{ borderColor: 'var(--border)' }}>
+                          <td className="px-3 py-2 align-top">
+                            <div className="flex items-start gap-1.5 min-w-0">
+                              <span className="mt-1 shrink-0 w-2 h-2 rounded-full" style={{ background: n.is_unread ? 'var(--primary)' : 'transparent' }} title={n.is_unread ? 'Não lida' : 'Lida'} />
+                              <span className="font-mono truncate" style={{ color: 'var(--primary)' }} title={codigo}>{codigo}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 align-top truncate" style={{ color: 'var(--text-muted)' }} title={n.project_name}>{n.project_name}</td>
+                          <td className="px-3 py-2 align-top truncate" style={{ color: 'var(--text-muted)' }} title={n.author_name}>{n.author_name}</td>
+                          <td className="px-3 py-2 align-top truncate" style={{ color: n.is_unread ? 'var(--text)' : 'var(--text-muted)' }} title={n.preview}>{n.preview}</td>
+                          <td className="px-3 py-2 align-top truncate" style={{ color: 'var(--text-muted)' }}>{new Date(n.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</td>
+                          <td className="px-3 py-2 align-top">
+                            <div className="flex items-center justify-end gap-1">
+                              {n.is_unread && (
+                                <button onClick={(e) => { e.stopPropagation(); markNotifRead(n) }} title="Marcar como lida" className="p-1 rounded hover:bg-[var(--surface-hover)]" style={{ color: 'var(--text-muted)' }}>
+                                  <Check size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       )
                     })}
@@ -313,6 +386,39 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
               )}
             </div>
           </div>
+        </div>
+        )
+      })()}
+
+      {/* Chat da mensagem — overlay global (NÃO troca de tela). Fica ACIMA do modal "Todas" (z-80),
+          então ao fechar volta pro "Ver todos" se veio de lá, ou pra tela atual se veio do sino. */}
+      {msgProjectId != null && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={() => setMsgProjectId(null)}>
+          <div className="w-full max-w-2xl h-[85vh] rounded-2xl flex flex-col overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-2">
+                <MessageCircle size={16} style={{ color: 'var(--primary)' }} />
+                <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>Mensagens</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setCardProjectId(msgProjectId)} className="text-xs font-semibold flex items-center gap-1 hover:underline" style={{ color: 'var(--primary)' }}>
+                  <ExternalLink size={13} /> Ver card
+                </button>
+                <button onClick={() => setMsgProjectId(null)} className="p-1 rounded hover:bg-[var(--surface-hover)]"><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ProjectMessages projectId={msgProjectId} userRole={user?.type ?? undefined} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Card do projeto em overlay — z-100 (acima do chat z-90). Ao fechar volta pro chat.
+          O ProjectViewModal é z-60; o container z-100 cria stacking context p/ ficar por cima. */}
+      {cardProjectId != null && (
+        <div className="fixed inset-0 z-[100]">
+          <ProjectViewModal projectId={cardProjectId} onClose={() => setCardProjectId(null)} userRole={user?.type ?? undefined} initialTab="overview" />
         </div>
       )}
     </header>

@@ -8,6 +8,7 @@ import { ModuleProvider } from '@/contexts/module-context'
 import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
 import { NotificationPopups } from '@/components/notifications/notification-popups'
+import { ClientCommunicationPopup } from '@/components/notifications/client-communication-popup'
 import { NavConfigProvider } from '@/contexts/nav-config-context'
 import { Building2, User } from 'lucide-react'
 
@@ -64,6 +65,8 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
 
       {/* Pop-ups globais da Central de Notificações (avisos / decisões / enquetes) — exceto cliente. */}
       {user.type !== 'cliente' && <NotificationPopups userId={user.id} />}
+      {/* Cliente: pop-up de comunicações novas (não lidas) — aparece em qualquer tela, exceto Comunicados. */}
+      {user.type === 'cliente' && <ClientCommunicationPopup />}
 
       <ModuleProvider>
       <div className="flex flex-1 min-h-0 overflow-hidden">

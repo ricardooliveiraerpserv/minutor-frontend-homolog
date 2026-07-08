@@ -3,7 +3,14 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-export interface CalEvento { tipo: 'birthday' | 'contract_expiration' | 'reajuste' | 'outlook' | 'task' | 'holiday'; data: string; titulo: string; is_today: boolean }
+export interface CalEventoConvidado { nome: string; email?: string; resposta: string } // resposta: accepted|declined|tentativelyAccepted|notResponded|none
+export interface CalEvento {
+  tipo: 'birthday' | 'contract_expiration' | 'reajuste' | 'outlook' | 'task' | 'holiday'
+  data: string; titulo: string; is_today: boolean
+  hora?: string | null; hora_fim?: string | null      // Outlook: início / fim
+  local?: string; link?: string; organizador?: string // Outlook: local, link (Teams/web), quem convidou
+  convidados?: CalEventoConvidado[]                    // Outlook: quem aceitou/recusou
+}
 
 export const DOT: Record<CalEvento['tipo'], { color: string; icon: string; label: string }> = {
   birthday:            { color: '#a855f7', icon: '🎂', label: 'Aniversário' },   // roxo

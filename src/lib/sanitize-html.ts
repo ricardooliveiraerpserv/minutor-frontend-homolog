@@ -34,5 +34,7 @@ export function sanitizeEmail(html: string): string {
 
 // Heurística simples: o corpo é HTML (interação rica) ou texto puro (interação legada)?
 export function isHtmlBody(s: string): boolean {
+  // Tags OU entidades HTML (ex.: &nbsp; vindo do editor rich sem tags) — senão a entidade aparece literal.
   return /<(img|br|p|div|span|b|strong|i|em|u|a|ul|ol|li)\b[^>]*>/i.test(s)
+    || /&(nbsp|amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);/i.test(s)
 }

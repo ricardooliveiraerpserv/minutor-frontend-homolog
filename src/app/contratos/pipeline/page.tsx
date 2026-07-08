@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { toast } from 'sonner'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { List, Plus, ExternalLink, AlertCircle, AlertTriangle, Clock, ChevronRight, ChevronLeft, Rocket, Layers, FolderKanban, MessageSquare, Send, Paperclip, X, Download, MoreVertical, Eye, Pencil, DollarSign, TrendingUp, Users, BarChart2, UserCheck, Check, Trash2, Search, Hourglass } from 'lucide-react'
@@ -61,6 +62,7 @@ interface ProjectCard {
   status: string
   sold_hours?: number
   consumed_hours?: number | null
+  client_follows_timesheets?: boolean | null   // cliente só vê horas se true (BH Fixo nasce false)
   general_hours_balance?: number | null
   expected_end_date?: string | null
   coordinator_ids?: number[]
@@ -126,6 +128,10 @@ interface RequestCard {
   created_at: string
 }
 
+// Liberação de visualização do pipeline (por usuário). Cada parte: visível + escopo de cliente.
+interface PipelineViewPart { visible: boolean; scope: 'all' | 'specific'; customer_ids: number[] }
+interface PipelineView { demand: PipelineViewPart; project: PipelineViewPart; source?: string }
+
 interface KanbanResponse {
   demand_cards: ContractCard[]
   transition_cards: ContractCard[]
@@ -133,6 +139,7 @@ interface KanbanResponse {
   request_cards: RequestCard[]
   coordinators: Coordinator[]
   user_role: string
+  pipeline_view?: PipelineView
 }
 
 interface Column {
@@ -279,6 +286,10 @@ function ContractKanbanCard({
 }: { card: ContractCard; index: number; canDrag: boolean; onClick: () => void; onAction?: (action: string) => void
     onMove?: (toCol: string) => void; availableColumns?: { id: string; label: string }[]; isNew?: boolean; canWrite?: boolean }) {
   const { user: viewerUser } = useAuth()
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/contratos/pipeline', 'view')
+  const dEdit = isDenied('/contratos/pipeline', 'edit')
   const isIncomplete = !card.is_complete
   const isTransition = card.kanban_status === 'inicio_autorizado'
   const [menuOpen, setMenuOpen] = useState(false)
@@ -353,7 +364,7 @@ function ContractKanbanCard({
                   {menuOpen && (
                     <div className="absolute right-0 top-6 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
                       style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                      {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador')).map(item => {
+                      {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !(item.action === 'view' && dView) && !(item.action === 'edit' && dEdit)).map(item => {
                         const Icon = item.icon
                         return (
                           <button key={item.action}
@@ -451,6 +462,9 @@ function ContractKanbanCard({
 // ─── Request Card ─────────────────────────────────────────────────────────────
 
 function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView?: (e: React.MouseEvent) => void; onChat?: (e: React.MouseEvent) => void }) {
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/contratos/pipeline', 'view')
   const urgColor = URGENCIA_COLOR[card.nivel_urgencia] ?? '#64748b'
   const tipoLabel = card.tipo_necessidade === 'outro' && card.tipo_necessidade_outro
     ? card.tipo_necessidade_outro
@@ -493,7 +507,7 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
           {URGENCIA_LABEL[card.nivel_urgencia] ?? card.nivel_urgencia}
         </span>
         <div className="flex items-center gap-2">
-          {isReqInicio && onView && (
+          {isReqInicio && onView && !dView && (
             <button
               onClick={onView}
               className="text-[10px] font-medium px-2 py-0.5 rounded-md transition-colors hover:opacity-80"
@@ -521,6 +535,10 @@ function RequestKanbanCard({ card, onView, onChat }: { card: RequestCard; onView
 
 function ListActionMenu({ card, onAction, canWrite }: { card: ContractCard; onAction: (action: string) => void; canWrite?: boolean }) {
   const { user: viewerUser } = useAuth()
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/contratos/pipeline', 'view')
+  const dEdit = isDenied('/contratos/pipeline', 'edit')
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -539,7 +557,7 @@ function ListActionMenu({ card, onAction, canWrite }: { card: ContractCard; onAc
       {open && (
         <div className="absolute right-0 top-7 z-[100] w-44 rounded-xl overflow-hidden shadow-2xl"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador')).map(item => {
+          {CONTRACT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !(item.action === 'view' && dView) && !(item.action === 'edit' && dEdit)).map(item => {
             const Icon = item.icon
             return (
               <button key={item.action}
@@ -559,6 +577,10 @@ function ListActionMenu({ card, onAction, canWrite }: { card: ContractCard; onAc
 
 function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: string) => void; canWrite?: boolean }) {
   const { user: viewerUser } = useAuth()
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/contratos/pipeline', 'view')
+  const dEdit = isDenied('/contratos/pipeline', 'edit')
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -577,7 +599,7 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
       {open && (
         <div className="absolute right-0 top-7 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador')).map(item => {
+          {PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !(item.action === 'view' && dView) && !(item.action === 'edit' && dEdit)).map(item => {
             const Icon = item.icon
             const isDanger = (item as any).danger
             return (
@@ -633,6 +655,10 @@ function ProjectKanbanCard({
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { user: viewerUser } = useAuth()
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/contratos/pipeline', 'view')
+  const dEdit = isDenied('/contratos/pipeline', 'edit')
 
   useEffect(() => {
     if (!menuOpen) return
@@ -699,7 +725,7 @@ function ProjectKanbanCard({
                 {menuOpen && (
                   <div className="absolute right-0 top-6 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                    {PROJECT_MENU_ITEMS.filter(item => (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador')).map(item => {
+                    {PROJECT_MENU_ITEMS.filter(item => (!isCliente || item.clientVisible) && (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !(item.action === 'view' && dView) && !(item.action === 'edit' && dEdit)).map(item => {
                       const Icon = item.icon
                       return (
                         <button
@@ -758,6 +784,9 @@ function ProjectKanbanCard({
             </div>
           )}
           {(() => {
+            // Visão do CLIENTE: se o projeto não tem o acompanhamento de horas ligado
+            // (client_follows_timesheets = false), NÃO mostrar horas/progresso no card.
+            if (isCliente && card.client_follows_timesheets === false) return null
             // NESTA TELA (Demandas e Projetos): a lente de coordenação vale pra TODOS os
             // perfis internos — inclusive admin — quando há banco de coordenação. Mostra
             // só as horas disponibilizadas pra coordenação (não o operacional). Exceção:
@@ -925,6 +954,8 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
   initialTab?: 'details' | 'chat' | 'log'
   userRole?: string
 }) {
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
   const [tab, setTab]             = useState<'details' | 'chat' | 'log'>(initialTab ?? 'details')
   const [logs, setLogs]           = useState<KanbanLogEntry[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
@@ -1018,7 +1049,7 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
               <Rocket size={13} /> Gerar Projeto
             </button>
           )}
-          {onEdit && (
+          {onEdit && !isDenied('/contratos/pipeline', 'edit') && (
             <button onClick={() => { onClose(); onEdit() }} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
               style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border)', color: 'var(--text)' }}>
               <Pencil size={13} /> Editar Contrato
@@ -2152,6 +2183,10 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   )
 
   const { user: viewerUser } = useAuth()
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/contratos/pipeline', 'view')
+  const dEdit = isDenied('/contratos/pipeline', 'edit')
   const isClienteViewer = viewerUser?.type === 'cliente'
   const consumed = p?.consumed_hours ?? 0
   const totalAvail = p?.total_available_hours ?? ((p?.sold_hours ?? 0) + (p?.hour_contribution ?? 0))
@@ -2230,7 +2265,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
               </div>
             )}
             <div className="flex items-center gap-2 shrink-0 ml-4">
-              {userRole === 'admin' && p && (
+              {userRole === 'admin' && p && !dEdit && (
                 <button
                   onClick={() => setShowEdit(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
@@ -4015,6 +4050,9 @@ function KanbanContent() {
   const searchParams = useSearchParams()
   const { user } = useAuth()
   const canWrite = user?.type === 'admin' || user?.type === 'administrativo'
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dCreate = isDenied('/contratos/pipeline', 'create')
 
   const [demandCards,     setDemandCards]     = useState<ContractCard[]>([])
   const [transitionCards, setTransitionCards] = useState<ContractCard[]>([])
@@ -4023,6 +4061,7 @@ function KanbanContent() {
   const [requestCards,    setRequestCards]    = useState<RequestCard[]>([])
   const [coordinators,    setCoordinators]    = useState<Coordinator[]>([])
   const [userRole,        setUserRole]        = useState<string>('admin')
+  const [pipelineView,    setPipelineView]    = useState<PipelineView | null>(null)
   const [loading,         setLoading]         = useState(true)
   const [selectedRequest,      setSelectedRequest]      = useState<RequestCard | null>(null)
   // Tab inicial do RequestDetailModal — usado quando vem de deep link #chat
@@ -4190,6 +4229,7 @@ function KanbanContent() {
       setRequestCards(r.request_cards ?? [])
       setCoordinators(r.coordinators ?? [])
       setUserRole(r.user_role ?? 'admin')
+      setPipelineView(r.pipeline_view ?? null)
     } catch {
       toast.error('Erro ao carregar kanban')
     } finally {
@@ -4222,11 +4262,23 @@ function KanbanContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterCustomers])
 
-  // Compute visible columns based on role
-  const visibleDemandCols = (isConsultor || isCoord) ? [] : DEMAND_COLS
+  // Visibilidade das partes vem da Liberação de Visualização (pipeline_view). Sem config, o
+  // backend devolve o padrão do perfil (admin vê as duas; coordenador/consultor só Projetos).
+  // Cliente mantém a lógica própria (colunas clientVisible).
+  const demandVisible  = (!isCliente && pipelineView) ? pipelineView.demand.visible : !(isConsultor || isCoord)
+  const projectVisible = (!isCliente && pipelineView) ? pipelineView.project.visible : true
 
-  const showTransition = !isConsultor && !isCoord
-  const visibleProjectCols = PROJECT_COLS
+  // Escopo de cliente por parte: quando 'specific', mantém só os cards dos clientes liberados.
+  const passesClientScope = (customerId: number | null | undefined, part: 'demand' | 'project'): boolean => {
+    if (isCliente) return true
+    const p = pipelineView?.[part]
+    if (!p || p.scope !== 'specific') return true
+    return customerId != null && p.customer_ids.includes(customerId)
+  }
+
+  const visibleDemandCols = demandVisible ? DEMAND_COLS : []
+  const showTransition = demandVisible
+  const visibleProjectCols = projectVisible ? PROJECT_COLS : []
 
   // Recolher o grupo Demanda + Autorização (Backlog → Início Autorizado) numa faixa fina.
   const [demandCollapsed, setDemandCollapsed] = useState<boolean>(() => {
@@ -4335,6 +4387,7 @@ function KanbanContent() {
       : []
     return base
       .filter(c => c.categoria !== 'sustentacao')
+      .filter(c => passesClientScope(c.customer_id, 'demand'))
       .filter(c => matchFilter(c.customer_name, c.project_name))
       .filter(c => matchExecutivo(c.executivo_conta_name))
       .sort((a, b) => a.kanban_order - b.kanban_order)
@@ -4352,6 +4405,7 @@ function KanbanContent() {
       .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
       .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
       .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
+      .filter(p => passesClientScope(p.customer_id, 'project'))
       .filter(p => matchFilter(p.customer_name, p.project_name))
       .filter(p => matchExecutivo(p.executivo_conta_name))
       .sort((a, b) => {
@@ -4548,7 +4602,7 @@ function KanbanContent() {
   }
 
   const totalColumns = visibleDemandCols.length + (showTransition ? 1 : 0) + visibleProjectCols.length
-  const demandCount = (!isConsultor && !isCoord)
+  const demandCount = demandVisible
     ? visibleDemandCols.reduce((n, col) =>
         n + (REQ_ONLY_COLS.has(col.id) ? 0 : contractsInCol(col.id).length)
           + requestCards.filter(r => (r.kanban_column ?? 'backlog') === col.id).length, 0)
@@ -4600,7 +4654,7 @@ function KanbanContent() {
               </div>
             )}
             {/* Nova Requisição — não-coord/não-consultor (admin/administrativo/cliente) */}
-            {!isConsultor && !isCoord && (
+            {!isConsultor && !isCoord && !dCreate && (
               <button onClick={() => router.push('/portal-cliente/nova-requisicao')}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors"
                 style={{ background: 'var(--primary)', border: '1px solid var(--primary)', color: 'var(--primary-fg)' }}
@@ -5072,7 +5126,7 @@ function KanbanContent() {
             <div className="flex gap-3 p-4 h-full items-stretch" style={{ minWidth: `${boardMinWidth}px` }}>
 
               {/* ── Demanda + Autorização recolhida (faixa em evidência) ── */}
-              {!isConsultor && !isCoord && demandCollapsed && (
+              {demandVisible && demandCollapsed && (
                 <button onClick={toggleDemandCollapsed} title="Expandir Demanda + Autorização"
                   className="group shrink-0 w-14 self-stretch rounded-xl flex flex-col items-center justify-between py-4 transition-all hover:w-16"
                   style={{ border: '2px solid var(--primary)', background: 'var(--primary-soft)', color: 'var(--primary)' }}>
@@ -5088,7 +5142,7 @@ function KanbanContent() {
               )}
 
               {/* ── Handle de recolher (quando expandido) ── */}
-              {!isConsultor && !isCoord && !demandCollapsed && (
+              {demandVisible && !demandCollapsed && (
                 <button onClick={toggleDemandCollapsed} title="Recolher Demanda + Autorização"
                   className="shrink-0 w-9 self-stretch rounded-xl flex flex-col items-center justify-center gap-2 transition-colors hover:opacity-90"
                   style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)', color: 'var(--primary)' }}>
@@ -5108,7 +5162,7 @@ function KanbanContent() {
                     if ((r.kanban_column ?? 'backlog') !== col.id) return false
                     if (r.req_decision === 'novo_projeto' && r.linked_contract_id && authorizedContractIds.has(r.linked_contract_id)) return false
                     if (r.linked_contract_id && sustContractIds.has(r.linked_contract_id)) return false
-                    return matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
+                    return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
                   })}
                   canDrag={colCanDrag(col.id)}
                   canDrop={colCanDrop(col.id)}
@@ -5149,7 +5203,7 @@ function KanbanContent() {
                         const projId = contractToProjectId.get(r.linked_contract_id)
                         if (projId && visibleProjectIds.has(projId)) return false
                       }
-                      return matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
+                      return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
                     })}
                     canDrag={colCanDrag('inicio_autorizado')}
                     canDrop={colCanDrop('inicio_autorizado')}

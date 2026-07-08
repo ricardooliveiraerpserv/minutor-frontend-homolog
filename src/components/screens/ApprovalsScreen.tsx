@@ -23,8 +23,10 @@ import { previewText } from '@/lib/sanitize'
 import { exportTimesheetsToExcel } from '@/lib/exportTimesheets'
 import { useAuth } from '@/hooks/use-auth'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { toast } from 'sonner'
 import type { Timesheet, Expense } from '@/types'
+import type { PortalDate } from '@/lib/portal-date'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -566,14 +568,20 @@ export interface ApprovalsScreenProps {
   embedded?: boolean
   /** No escopo investimento, transforma o filtro de Projeto em filtro de Lead. */
   leadOptions?: { id: number; name: string }[]
+  extDate?: PortalDate
 }
 
-export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScreenProps = {}) {
+export function ApprovalsScreen({ scope, embedded, leadOptions, extDate }: ApprovalsScreenProps = {}) {
   const { user } = useAuth()
   const isCoordenador = user?.type === 'coordenador'
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView    = isDenied('/approvals', 'view')
+  const dApprove = isDenied('/approvals', 'approve')
+  const dReject  = isDenied('/approvals', 'reject')
   // Chip "Meus projetos / Todos" pra coordenador (idem Apontamentos / Despesas).
   // Default 'meus' = fila familiar do coord; 'todos' libera a fila inteira do time.
-  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>('meus')
+  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>(scope === 'sustentacao' ? 'todos' : 'meus')
   const hover = useTimesheetHover()
 
   const { filters: flt, set: setFilter, clear: clearPersistedFilters } = usePersistedFilters(
@@ -607,6 +615,23 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
   const setProjectId    = (v: string)                    => setFilter('projectId', v)
   const setCustomerId   = (v: string)                    => setFilter('customerId', v)
   const setCategoriaServico = (v: '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento') => setFilter('categoriaServico', v)
+
+  // Portal (embedded): usa o filtro de data DE CIMA do portal e esconde o interno (um filtro só).
+  useEffect(() => {
+    if (!extDate) return
+    setFilterMode(extDate.mode)
+    if (extDate.mode === 'month') {
+      if (extDate.month && extDate.year) {
+        const mm = String(extDate.month).padStart(2, '0')
+        const last = new Date(extDate.year, extDate.month, 0).getDate()
+        setRefMonth(extDate.month); setRefYear(extDate.year)
+        setDateFrom(`${extDate.year}-${mm}-01`); setDateTo(`${extDate.year}-${mm}-${String(last).padStart(2, '0')}`)
+      } else { setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('') }
+    } else {
+      setRefMonth(null); setRefYear(null); setDateFrom(extDate.from ?? ''); setDateTo(extDate.to ?? '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extDate?.mode, extDate?.month, extDate?.year, extDate?.from, extDate?.to])
 
   const tsStatus  = 'pending'
   const expStatus = 'pending'
@@ -978,35 +1003,39 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
           <div className="border-t border-[var(--border)] px-4 py-3 space-y-3">
             {/* Linha 1: período + chips de categoria */}
             <div className="flex items-end gap-2 flex-wrap">
-              <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs self-end mb-0.5">
-                {(['month', 'period'] as const).map((mode) => (
-                  <button key={mode} onClick={() => setFilterMode(mode)}
-                    className="px-3 py-1.5 font-medium transition-colors"
-                    style={{ background: filterMode === mode ? 'var(--primary)' : 'transparent', color: filterMode === mode ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
-                    {mode === 'month' ? 'Mês/Ano' : 'Período'}
-                  </button>
-                ))}
-              </div>
-              {filterMode === 'month' ? (
-                <MonthYearPicker
-                  month={refMonth}
-                  year={refYear}
-                  onChange={(m, y) => {
-                    if (m === 0) { setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('') }
-                    else {
-                      const mm = String(m).padStart(2, '0')
-                      const last = new Date(y, m, 0).getDate()
-                      setRefMonth(m); setRefYear(y)
-                      setDateFrom(`${y}-${mm}-01`); setDateTo(`${y}-${mm}-${String(last).padStart(2, '0')}`)
-                    }
-                  }}
-                />
-              ) : (
-                <DateRangePicker
-                  from={dateFrom}
-                  to={dateTo}
-                  onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null) }}
-                />
+              {!extDate && (
+                <>
+                  <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs self-end mb-0.5">
+                    {(['month', 'period'] as const).map((mode) => (
+                      <button key={mode} onClick={() => setFilterMode(mode)}
+                        className="px-3 py-1.5 font-medium transition-colors"
+                        style={{ background: filterMode === mode ? 'var(--primary)' : 'transparent', color: filterMode === mode ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
+                        {mode === 'month' ? 'Mês/Ano' : 'Período'}
+                      </button>
+                    ))}
+                  </div>
+                  {filterMode === 'month' ? (
+                    <MonthYearPicker
+                      month={refMonth}
+                      year={refYear}
+                      onChange={(m, y) => {
+                        if (m === 0) { setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('') }
+                        else {
+                          const mm = String(m).padStart(2, '0')
+                          const last = new Date(y, m, 0).getDate()
+                          setRefMonth(m); setRefYear(y)
+                          setDateFrom(`${y}-${mm}-01`); setDateTo(`${y}-${mm}-${String(last).padStart(2, '0')}`)
+                        }
+                      }}
+                    />
+                  ) : (
+                    <DateRangePicker
+                      from={dateFrom}
+                      to={dateTo}
+                      onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null) }}
+                    />
+                  )}
+                </>
               )}
               {scope !== 'investimento' && ([
                 { id: 'sustentacao',  label: 'Sustentação', color: 'var(--warning-border)',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
@@ -1189,10 +1218,10 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                 }`}>
                 <td className="px-2 py-2.5 w-10" onClick={e => e.stopPropagation()}>
                   <RowMenu items={[
-                    { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openTsView(ts) },
-                    { label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTs(ts.id), disabled: actioning === ts.id },
+                    ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openTsView(ts) }]),
+                    ...(dApprove ? [] : [{ label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTs(ts.id), disabled: actioning === ts.id }]),
                     { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: ts.id, type: 'timesheet' }); setAdjReason('') } },
-                    { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }, danger: true },
+                    ...(dReject ? [] : [{ label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }, danger: true }]),
                   ]} />
                 </td>
                 <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
@@ -1263,13 +1292,13 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                 className="border-b border-[var(--border)]/60 hover:bg-[var(--surface-hover)] transition-colors cursor-pointer">
                 <td className="px-2 py-2.5 w-10" onClick={e => e.stopPropagation()}>
                   <RowMenu items={[
-                    { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openExpApprove(exp) },
+                    ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openExpApprove(exp) }]),
                     // Quem lançou a despesa não pode aprová-la (nem admin)
-                    ...((exp.user?.id ?? (exp as any).user_id) === user?.id ? [] : [
+                    ...(dApprove || (exp.user?.id ?? (exp as any).user_id) === user?.id ? [] : [
                       { label: 'Aprovar', icon: <Check size={12} />, onClick: () => openExpApprove(exp) },
                     ]),
                     { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: exp.id, type: 'expense' }); setAdjReason('') } },
-                    { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [exp.id] }); setRejectReason('') }, danger: true },
+                    ...(dReject ? [] : [{ label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [exp.id] }); setRejectReason('') }, danger: true }]),
                     ...(exp.receipt_url ? [
                       { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceiptUrl(exp.receipt_url!) },
                     ] : []),
@@ -1351,10 +1380,10 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
               <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>{ts.user?.name ?? '—'}</span>
               <div onClick={e => e.stopPropagation()} className="shrink-0">
                 <RowMenu items={[
-                  { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openTsView(ts) },
-                  { label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTs(ts.id), disabled: actioning === ts.id },
+                  ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openTsView(ts) }]),
+                  ...(dApprove ? [] : [{ label: 'Aprovar', icon: <Check size={12} />, onClick: () => approveTs(ts.id), disabled: actioning === ts.id }]),
                   { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: ts.id, type: 'timesheet' }); setAdjReason('') } },
-                  { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }, danger: true },
+                  ...(dReject ? [] : [{ label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [ts.id] }); setRejectReason('') }, danger: true }]),
                 ]} />
               </div>
             </div>
@@ -1381,10 +1410,10 @@ export function ApprovalsScreen({ scope, embedded, leadOptions }: ApprovalsScree
                 <span className="font-medium text-sm truncate flex-1 min-w-0" style={{ color: 'var(--text)' }}>{exp.user?.name ?? '—'}</span>
                 <div onClick={e => e.stopPropagation()} className="shrink-0">
                   <RowMenu items={[
-                    { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openExpApprove(exp) },
-                    ...(isOwn ? [] : [{ label: 'Aprovar', icon: <Check size={12} />, onClick: () => openExpApprove(exp) }]),
+                    ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => openExpApprove(exp) }]),
+                    ...(dApprove || isOwn ? [] : [{ label: 'Aprovar', icon: <Check size={12} />, onClick: () => openExpApprove(exp) }]),
                     { label: 'Solicitar Ajuste', icon: <RotateCcw size={12} />, onClick: () => { setAdjModal({ open: true, id: exp.id, type: 'expense' }); setAdjReason('') } },
-                    { label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [exp.id] }); setRejectReason('') }, danger: true },
+                    ...(dReject ? [] : [{ label: 'Rejeitar', icon: <XCircle size={12} />, onClick: () => { setRejectModal({ open: true, ids: [exp.id] }); setRejectReason('') }, danger: true }]),
                     ...(exp.receipt_url ? [{ label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceiptUrl(exp.receipt_url!) }] : []),
                   ]} />
                 </div>
