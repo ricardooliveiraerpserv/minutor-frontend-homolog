@@ -9,7 +9,8 @@ import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
 import { NotificationPopups } from '@/components/notifications/notification-popups'
 import { NavConfigProvider } from '@/contexts/nav-config-context'
-import { Building2, User } from 'lucide-react'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
+import { Building2, User, Lock } from 'lucide-react'
 
 // Banner de ambiente: cores distintas para evitar confundir DEV ↔ HOMOLOG ↔ PROD.
 // Faixa de ambiente é única, no layout raiz (src/app/layout.tsx). Aqui não duplica.
@@ -22,8 +23,12 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, title, actions }: AppLayoutProps) {
   const { user, loading } = useAuth()
+  const { isDenied } = useDeniedActions()
   const router = useRouter()
   const pathname = usePathname()
+  // Guard CENTRAL de 'view': se o admin bloqueou a visualização desta tela p/ este usuário
+  // (Configurador → Ações), a tela inteira fica travada — vale p/ TODAS as telas de uma vez.
+  const viewBlocked = isDenied(pathname, 'view')
   const [companyName, setCompanyName] = useState<string | null>(null)
   // Drawer de navegação no mobile (sidebar off-canvas).
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -115,7 +120,17 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
           )}
 
           <main className="flex-1 overflow-y-auto p-4 md:p-8">
-            {children}
+            {viewBlocked ? (
+              <div className="flex flex-col items-center justify-center text-center py-24">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
+                  <Lock size={26} />
+                </div>
+                <p className="text-base font-semibold" style={{ color: 'var(--text)' }}>Acesso não liberado</p>
+                <p className="text-sm mt-1 max-w-md" style={{ color: 'var(--text-light)' }}>
+                  Você não tem permissão para visualizar esta tela. Fale com um administrador.
+                </p>
+              </div>
+            ) : children}
           </main>
         </div>
       </div>
