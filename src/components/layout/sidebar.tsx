@@ -356,6 +356,7 @@ const NAV: NavEntry[] = [
           { label: 'Geral',            href: '/settings',            icon: Settings },
           { label: 'Usuários',         href: '/users',               icon: Users },
           { label: 'Cargos por Perfil', href: '/settings?tab=cargos', icon: Briefcase },
+          { label: 'Liberação de Visualização', href: '/liberacao-pipeline', icon: SlidersHorizontal },
         ],
       },
     ],
