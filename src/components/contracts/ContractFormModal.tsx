@@ -204,11 +204,14 @@ interface ContractFormModalProps {
   editContract?: Contract | null
   onClose: () => void
   onSaved: () => void
+  // Esconde a VISUALIZAÇÃO/download dos anexos já enviados do contrato (mantém o upload).
+  // Usado no pipeline (Demandas e Projetos): o único anexo visualizável é o do Diário do Projeto.
+  hideAttachmentView?: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ContractFormModal({ open, editContract, onClose, onSaved }: ContractFormModalProps) {
+export function ContractFormModal({ open, editContract, onClose, onSaved, hideAttachmentView = false }: ContractFormModalProps) {
   // Master data
   const [customers, setCustomers]         = useState<SelectOption[]>([])
   const [users, setUsers]                 = useState<SelectOption[]>([])
@@ -617,7 +620,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
 
   const attachmentSection = (
     <div className="space-y-4">
-      {internalEdit && internalEdit.attachments.length > 0 && (
+      {!hideAttachmentView && internalEdit && internalEdit.attachments.length > 0 && (
         <div>
           <p className="text-xs text-[var(--text-muted)] mb-2">Arquivos já enviados</p>
           <div className="space-y-2">
@@ -1011,7 +1014,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved }: Cont
               {/* Aprovação do Cliente / Proposta Assinada — mesmo campo da criação */}
               <div>
                 <label className={labelCls}>Aprovação do Cliente / Proposta Assinada</label>
-                {internalEdit && internalEdit.attachments.length > 0 && (
+                {!hideAttachmentView && internalEdit && internalEdit.attachments.length > 0 && (
                   <div className="space-y-1 mb-2">
                     {internalEdit.attachments.map(att => (
                       <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>

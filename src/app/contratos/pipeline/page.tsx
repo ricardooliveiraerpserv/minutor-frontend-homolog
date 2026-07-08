@@ -5225,6 +5225,7 @@ function KanbanContent() {
           editContract={editContractData}
           onClose={() => { setShowEditContract(false); setEditContractData(null) }}
           onSaved={() => { setShowEditContract(false); setEditContractData(null) }}
+          hideAttachmentView
         />
       )}
       {selectedProject && (
