@@ -127,6 +127,10 @@ interface RequestCard {
   created_at: string
 }
 
+// Liberação de visualização do pipeline (por usuário). Cada parte: visível + escopo de cliente.
+interface PipelineViewPart { visible: boolean; scope: 'all' | 'specific'; customer_ids: number[] }
+interface PipelineView { demand: PipelineViewPart; project: PipelineViewPart; source?: string }
+
 interface KanbanResponse {
   demand_cards: ContractCard[]
   transition_cards: ContractCard[]
@@ -134,6 +138,7 @@ interface KanbanResponse {
   request_cards: RequestCard[]
   coordinators: Coordinator[]
   user_role: string
+  pipeline_view?: PipelineView
 }
 
 interface Column {
@@ -3999,6 +4004,7 @@ function KanbanContent() {
   const [requestCards,    setRequestCards]    = useState<RequestCard[]>([])
   const [coordinators,    setCoordinators]    = useState<Coordinator[]>([])
   const [userRole,        setUserRole]        = useState<string>('admin')
+  const [pipelineView,    setPipelineView]    = useState<PipelineView | null>(null)
   const [loading,         setLoading]         = useState(true)
   const [selectedRequest,      setSelectedRequest]      = useState<RequestCard | null>(null)
   // Tab inicial do RequestDetailModal — usado quando vem de deep link #chat
@@ -4166,6 +4172,7 @@ function KanbanContent() {
       setRequestCards(r.request_cards ?? [])
       setCoordinators(r.coordinators ?? [])
       setUserRole(r.user_role ?? 'admin')
+      setPipelineView(r.pipeline_view ?? null)
     } catch {
       toast.error('Erro ao carregar kanban')
     } finally {
@@ -4198,11 +4205,23 @@ function KanbanContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterCustomers])
 
-  // Compute visible columns based on role
-  const visibleDemandCols = (isConsultor || isCoord) ? [] : DEMAND_COLS
+  // Visibilidade das partes vem da Liberação de Visualização (pipeline_view). Sem config, o
+  // backend devolve o padrão do perfil (admin vê as duas; coordenador/consultor só Projetos).
+  // Cliente mantém a lógica própria (colunas clientVisible).
+  const demandVisible  = (!isCliente && pipelineView) ? pipelineView.demand.visible : !(isConsultor || isCoord)
+  const projectVisible = (!isCliente && pipelineView) ? pipelineView.project.visible : true
 
-  const showTransition = !isConsultor && !isCoord
-  const visibleProjectCols = PROJECT_COLS
+  // Escopo de cliente por parte: quando 'specific', mantém só os cards dos clientes liberados.
+  const passesClientScope = (customerId: number | null | undefined, part: 'demand' | 'project'): boolean => {
+    if (isCliente) return true
+    const p = pipelineView?.[part]
+    if (!p || p.scope !== 'specific') return true
+    return customerId != null && p.customer_ids.includes(customerId)
+  }
+
+  const visibleDemandCols = demandVisible ? DEMAND_COLS : []
+  const showTransition = demandVisible
+  const visibleProjectCols = projectVisible ? PROJECT_COLS : []
 
   // Recolher o grupo Demanda + Autorização (Backlog → Início Autorizado) numa faixa fina.
   const [demandCollapsed, setDemandCollapsed] = useState<boolean>(() => {
@@ -4311,6 +4330,7 @@ function KanbanContent() {
       : []
     return base
       .filter(c => c.categoria !== 'sustentacao')
+      .filter(c => passesClientScope(c.customer_id, 'demand'))
       .filter(c => matchFilter(c.customer_name, c.project_name))
       .filter(c => matchExecutivo(c.executivo_conta_name))
       .sort((a, b) => a.kanban_order - b.kanban_order)
@@ -4328,6 +4348,7 @@ function KanbanContent() {
       .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
       .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
       .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
+      .filter(p => passesClientScope(p.customer_id, 'project'))
       .filter(p => matchFilter(p.customer_name, p.project_name))
       .filter(p => matchExecutivo(p.executivo_conta_name))
       .sort((a, b) => {
@@ -4523,7 +4544,7 @@ function KanbanContent() {
   }
 
   const totalColumns = visibleDemandCols.length + (showTransition ? 1 : 0) + visibleProjectCols.length
-  const demandCount = (!isConsultor && !isCoord)
+  const demandCount = demandVisible
     ? visibleDemandCols.reduce((n, col) =>
         n + (REQ_ONLY_COLS.has(col.id) ? 0 : contractsInCol(col.id).length)
           + requestCards.filter(r => (r.kanban_column ?? 'backlog') === col.id).length, 0)
@@ -5047,7 +5068,7 @@ function KanbanContent() {
             <div className="flex gap-3 p-4 h-full items-stretch" style={{ minWidth: `${boardMinWidth}px` }}>
 
               {/* ── Demanda + Autorização recolhida (faixa em evidência) ── */}
-              {!isConsultor && !isCoord && demandCollapsed && (
+              {demandVisible && demandCollapsed && (
                 <button onClick={toggleDemandCollapsed} title="Expandir Demanda + Autorização"
                   className="group shrink-0 w-14 self-stretch rounded-xl flex flex-col items-center justify-between py-4 transition-all hover:w-16"
                   style={{ border: '2px solid var(--primary)', background: 'var(--primary-soft)', color: 'var(--primary)' }}>
@@ -5063,7 +5084,7 @@ function KanbanContent() {
               )}
 
               {/* ── Handle de recolher (quando expandido) ── */}
-              {!isConsultor && !isCoord && !demandCollapsed && (
+              {demandVisible && !demandCollapsed && (
                 <button onClick={toggleDemandCollapsed} title="Recolher Demanda + Autorização"
                   className="shrink-0 w-9 self-stretch rounded-xl flex flex-col items-center justify-center gap-2 transition-colors hover:opacity-90"
                   style={{ border: '1px solid var(--primary)', background: 'var(--primary-soft)', color: 'var(--primary)' }}>
@@ -5083,7 +5104,7 @@ function KanbanContent() {
                     if ((r.kanban_column ?? 'backlog') !== col.id) return false
                     if (r.req_decision === 'novo_projeto' && r.linked_contract_id && authorizedContractIds.has(r.linked_contract_id)) return false
                     if (r.linked_contract_id && sustContractIds.has(r.linked_contract_id)) return false
-                    return matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
+                    return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
                   })}
                   canDrag={colCanDrag(col.id)}
                   canDrop={colCanDrop(col.id)}
@@ -5124,7 +5145,7 @@ function KanbanContent() {
                         const projId = contractToProjectId.get(r.linked_contract_id)
                         if (projId && visibleProjectIds.has(projId)) return false
                       }
-                      return matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
+                      return passesClientScope(r.customer_id, 'demand') && matchFilter(r.customer_name ?? '', r.project_name ?? '', r.descricao ?? '')
                     })}
                     canDrag={colCanDrag('inicio_autorizado')}
                     canDrop={colCanDrop('inicio_autorizado')}

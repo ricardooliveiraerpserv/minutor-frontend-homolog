@@ -82,6 +82,7 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/settings?tab=cargos', label: 'Cargos por Perfil', group: 'Sistema' },
   { key: '/settings?tab=perfis', label: 'Cadastro de Perfil', group: 'Sistema' },
   { key: '/ver-como',          label: 'Ver como',         group: 'Sistema' },
+  { key: '/liberacao-pipeline', label: 'Liberação de Visualização', group: 'Sistema' },
 ]
 
 export const CATALOG_LABEL: Record<string, string> = Object.fromEntries(NAV_CATALOG.map(c => [c.key, c.label]))
