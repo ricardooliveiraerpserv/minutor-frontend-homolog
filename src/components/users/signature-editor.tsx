@@ -13,6 +13,7 @@ import { Monitor, Mail, X } from 'lucide-react'
 
 export interface SignatureData {
   role?: string; mobile?: string; photo?: string; show_photo?: boolean
+  custom_cargo?: boolean // true = usa o cargo próprio (role); false = usa o padrão do perfil
 }
 
 // Máscara de celular: (00)00000.0000

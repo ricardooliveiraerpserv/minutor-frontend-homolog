@@ -47,6 +47,7 @@ export default function ProfilePage() {
 
   // Assinatura + foto de perfil
   const [signature,  setSignature]  = useState<SignatureData>({})
+  const [defaultCargo, setDefaultCargo] = useState('Consultor') // padrão do perfil (cadastro Cargos por Perfil)
   const [savingSig,  setSavingSig]  = useState(false)
   const [photoUrl,   setPhotoUrl]   = useState<string | null>(null)
   const [photoBusy,  setPhotoBusy]  = useState(false)
@@ -65,7 +66,11 @@ export default function ProfilePage() {
     api.get<{ signature?: SignatureData | null; default_cargo?: string; profile_photo_url?: string | null }>('/users/profile')
       .then(p => {
         const sig = (p.signature as SignatureData | null) ?? {}
-        setSignature({ ...sig, role: p.default_cargo || sig.role || 'Consultor', show_photo: sig.show_photo ?? !!p.profile_photo_url })
+        const dc = p.default_cargo || 'Consultor'
+        setDefaultCargo(dc)
+        const custom = !!sig.custom_cargo
+        // custom_cargo: usa o cargo próprio; senão mostra o padrão do perfil.
+        setSignature({ ...sig, custom_cargo: custom, role: custom ? (sig.role || '') : dc, show_photo: sig.show_photo ?? !!p.profile_photo_url })
         if (p.profile_photo_url !== undefined) setPhotoUrl(p.profile_photo_url ?? null)
       })
       .catch(() => setSignature(s => ({ ...s, role: s.role || 'Consultor' })))
@@ -288,7 +293,20 @@ export default function ProfilePage() {
               <h2 className="text-sm font-semibold text-[var(--text)]">Assinatura de e-mail</h2>
             </div>
 
-            <SignatureEditor value={signature} onChange={setSignature} name={name} email={email} lockRole hidePhoto />
+            {/* Cargo: por padrão vem do perfil (cadastro). Marcar "Personalizar" ignora o padrão e libera edição. */}
+            <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="accent-[var(--primary)] w-4 h-4"
+                checked={!!signature.custom_cargo}
+                onChange={e => setSignature(s => e.target.checked
+                  ? { ...s, custom_cargo: true }
+                  : { ...s, custom_cargo: false, role: defaultCargo })}
+              />
+              <span className="text-xs text-[var(--text)]">Personalizar cargo <span className="text-[var(--text-light)]">(ignora o padrão do perfil; desmarque para voltar a “{defaultCargo}”)</span></span>
+            </label>
+
+            <SignatureEditor value={signature} onChange={setSignature} name={name} email={email} lockRole={!signature.custom_cargo} hidePhoto />
 
             <div className="flex justify-end">
               <Button onClick={saveSignature} disabled={savingSig}
