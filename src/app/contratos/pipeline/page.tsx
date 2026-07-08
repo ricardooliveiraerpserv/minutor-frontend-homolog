@@ -621,7 +621,7 @@ const PROJECT_MENU_ITEMS = [
   { action: 'edit',       label: 'Editar',            icon: Pencil,        clientVisible: false, adminOnly: true },
   // 'Chat' removido (2026-05-28): após virar projeto, chat sai do escopo. Chat só na Requisição (fase Demanda).
   { action: 'status',     label: 'Alterar Status',    icon: Layers,        clientVisible: false },
-  { action: 'cost',       label: 'Custo',             icon: DollarSign,    clientVisible: false, coordHidden: true },
+  // 'Custo' removido: esta tela não exibe valor financeiro (só horas).
   { action: 'timesheets', label: 'Apont. & Despesas', icon: Clock,         clientVisible: false },
   // 'Aportes' removido do menu de linha (2026-05-28): aporte se cria via "É aporte?" no Novo Contrato.
   { action: 'team',       label: 'Selecionar Equipe', icon: Users,         clientVisible: false },
@@ -2081,7 +2081,8 @@ interface TimesheetEntry {
 function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projectId: number; onClose: () => void; userRole?: string; initialTab?: string }) {
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'chat'>((initialTab as any) ?? 'overview')
+  // Abas financeiras removidas desta tela: se abrir numa delas (initialTab), cai em Visão Geral.
+  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'chat'>((['aportes', 'financial', 'cost'].includes(String(initialTab)) ? 'overview' : (initialTab as any)) ?? 'overview')
   const [breakdown, setBreakdown] = useState<ConsultantBreakdown[]>([])
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
@@ -2206,11 +2207,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
     { id: 'overview'    as const, label: 'Visão Geral' },
     { id: 'consultants' as const, label: `Consultores${breakdown.length > 0 ? ` (${breakdown.length})` : ''}` },
     { id: 'timesheets'  as const, label: 'Apontamentos' },
-    { id: 'aportes'     as const, label: `Aportes${aportesList.length > 0 ? ` (${aportesList.length})` : ''}` },
-    ...(isCoordRole ? [] : [
-      { id: 'financial'   as const, label: 'Financeiro' },
-      { id: 'cost'        as const, label: 'Custo' },
-    ]),
+    // Aportes / Financeiro / Custo removidos: esta tela não exibe valor financeiro (só horas).
     // Chat (coordenador + executivos; cliente não participa nem vê) — espelha o ProjectDetailModal
     ...(isClienteViewer ? [] : [
       { id: 'chat'        as const, label: 'Diário do Projeto' },
@@ -2504,7 +2501,6 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                         { label: 'Consultores',    value: String(breakdown.length),                                          color: '#a78bfa' },
                         { label: 'Total Horas',    value: fmt(totalBreakdownHours, 1) + 'h',                                 color: 'var(--text)' },
                         { label: 'Aprovadas',      value: fmt(breakdown.reduce((s, c) => s + c.approved_hours, 0), 1) + 'h', color: '#22c55e' },
-                        { label: 'Custo Total',    value: fmtBRL(breakdown.reduce((s, c) => s + c.cost, 0)),                color: 'var(--primary)' },
                       ].map(it => (
                         <div key={it.label} className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
                           <p className="text-[10px] mb-2 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{it.label}</p>
@@ -2532,13 +2528,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                             <div className="w-full h-2.5 rounded-full overflow-hidden mb-2" style={{ background: 'var(--surface-sunken)' }}>
                               <div className="h-full rounded-full" style={{ width: `${share}%`, background: col }} />
                             </div>
-                            <div className={`grid gap-2 text-[10px] ${isCoordRole ? 'grid-cols-2' : 'grid-cols-4'}`}>
+                            <div className="grid gap-2 text-[10px] grid-cols-2">
                               <div><span style={{ color: 'var(--text-light)' }}>Aprovadas</span><br/><span style={{ color: '#22c55e' }}>{fmt(c.approved_hours, 1)}h</span></div>
                               <div><span style={{ color: 'var(--text-light)' }}>Pendentes</span><br/><span style={{ color: c.pending_hours > 0 ? '#f59e0b' : 'var(--text-light)' }}>{fmt(c.pending_hours, 1)}h</span></div>
-                              {!isCoordRole && <>
-                              <div><span style={{ color: 'var(--text-light)' }}>Taxa/h</span><br/><span style={{ color: 'var(--text-muted)' }}>{fmtBRL(c.consultant_hourly_rate)}</span></div>
-                              <div><span style={{ color: 'var(--text-light)' }}>Custo</span><br/><span style={{ color: 'var(--primary)' }}>{fmtBRL(c.cost)}</span></div>
-                              </>}
                             </div>
                           </div>
                         )
@@ -2550,7 +2542,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                       <table className="w-full text-xs">
                         <thead className="sticky top-0 z-10" style={{ background: 'rgba(0,0,0,0.25)' }}>
                           <tr style={{ background: 'rgba(0,0,0,0.25)', borderBottom: '1px solid var(--border)' }}>
-                            {['#','Consultor','Total','Aprov.','Pend.','% do Total','Taxa/h','Custo'].map(h => (
+                            {['#','Consultor','Total','Aprov.','Pend.','% do Total'].map(h => (
                               <th key={h} className="px-3 py-2.5 text-left font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>{h}</th>
                             ))}
                           </tr>
@@ -2566,8 +2558,6 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                                 <td className="px-3 py-2.5 tabular-nums" style={{ color: '#22c55e' }}>{fmt(c.approved_hours, 1)}h</td>
                                 <td className="px-3 py-2.5 tabular-nums" style={{ color: c.pending_hours > 0 ? '#f59e0b' : 'var(--text-light)' }}>{fmt(c.pending_hours, 1)}h</td>
                                 <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--text-muted)' }}>{Math.round(share)}%</td>
-                                <td className="px-3 py-2.5 tabular-nums" style={{ color: 'var(--text-muted)' }}>{fmtBRL(c.consultant_hourly_rate)}</td>
-                                <td className="px-3 py-2.5 tabular-nums font-semibold" style={{ color: 'var(--primary)' }}>{fmtBRL(c.cost)}</td>
                               </tr>
                             )
                           })}
