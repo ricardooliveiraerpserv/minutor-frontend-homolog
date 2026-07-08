@@ -60,6 +60,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, secureUrl } from '@/lib/api'
+import { AuthedImg } from '@/components/ui/authed-img'
 import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LucideIcon } from 'lucide-react'
@@ -847,7 +848,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                 className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold shrink-0"
                 style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
               >
-                {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : initials}
+                {avatarUrl ? <AuthedImg src={avatarUrl} alt="" className="w-full h-full object-cover" fallback={initials} /> : initials}
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold truncate leading-tight" style={{ color: 'var(--text)' }}>{user.name}</p>
@@ -867,7 +868,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
               className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold mx-auto"
               style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
             >
-              {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : initials}
+              {avatarUrl ? <AuthedImg src={avatarUrl} alt="" className="w-full h-full object-cover" fallback={initials} /> : initials}
             </div>
           )}
         </div>

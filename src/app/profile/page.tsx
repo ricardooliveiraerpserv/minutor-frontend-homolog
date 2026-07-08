@@ -2,7 +2,8 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect } from 'react'
-import { api, ApiError, secureUrl } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
+import { AuthedImg } from '@/components/ui/authed-img'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -235,7 +236,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-4">
                 <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-[var(--surface-hover)] border border-[var(--border)]">
                   {photoUrl
-                    ? <img src={secureUrl(photoUrl)} alt="" className="w-full h-full object-cover" />
+                    ? <AuthedImg src={photoUrl} alt="" className="w-full h-full object-cover" />
                     : <span className="text-lg font-bold text-[var(--text-muted)]">{(name || '?').trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</span>}
                 </div>
                 <div className="space-y-1.5">
