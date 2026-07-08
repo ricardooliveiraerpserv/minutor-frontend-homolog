@@ -2030,6 +2030,7 @@ function KanbanLogTab({ logs, loading }: { logs: KanbanLogEntry[]; loading: bool
 
 interface ProjectFull {
   id: number; name: string; code: string; status: string; status_display?: string
+  diary_access?: boolean
   customer?: { id: number; name: string }
   description?: string | null; start_date?: string | null; expected_end_date?: string | null
   project_value?: number | null; hourly_rate?: number | null
@@ -2208,8 +2209,9 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
     { id: 'consultants' as const, label: `Consultores${breakdown.length > 0 ? ` (${breakdown.length})` : ''}` },
     { id: 'timesheets'  as const, label: 'Apontamentos' },
     // Aportes / Financeiro / Custo removidos: esta tela não exibe valor financeiro (só horas).
-    // Chat (coordenador + executivos; cliente não participa nem vê) — espelha o ProjectDetailModal
-    ...(isClienteViewer ? [] : [
+    // Diário do Projeto: só aparece se o usuário tem acesso (é coord/consultor do projeto ou
+    // participante convidado) — senão a aba some (em vez de dar "Erro ao carregar mensagens").
+    ...(isClienteViewer || !p?.diary_access ? [] : [
       { id: 'chat'        as const, label: 'Diário do Projeto' },
     ]),
   ]
@@ -2815,7 +2817,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
               </div>
             )}
 
-            {tab === 'chat' && !isClienteViewer && (
+            {tab === 'chat' && !isClienteViewer && p?.diary_access && (
               <div className="-m-6 h-[60vh] min-h-[360px]">
                 <ProjectMessages projectId={projectId} userRole={userRole} />
               </div>
