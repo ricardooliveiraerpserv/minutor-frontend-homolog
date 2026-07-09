@@ -45,7 +45,7 @@ interface TicketDetail {
 }
 interface JustificationOpt { id: number; status_id: number; name: string }
 interface CommentAtt { id: number; original_name?: string; file_name?: string; human_size?: string; category?: string }
-interface Comment { id: number; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean; worked_date?: string | null; start_time?: string | null; end_time?: string | null; effort_minutes?: number | null; timesheet_id?: number | null }
+interface Comment { id: number; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean; worked_date?: string | null; start_time?: string | null; end_time?: string | null; effort_minutes?: number | null; timesheet_id?: number | null; no_charge?: boolean }
 
 // Data local (evita UTC empurrar p/ o dia seguinte à noite no Brasil).
 function localTodayStr(): string {
@@ -104,7 +104,7 @@ export default function HelpDeskTicketDetailPage() {
   const [editCommentId, setEditCommentId] = useState<number | null>(null)
   const commentEditorRef = useRef<RichEditorHandle>(null)
   // Tempo trabalhado na EDIÇÃO da interação (mesmos campos do composer).
-  const [editTime, setEditTime] = useState({ worked_date: '', start_time: '', end_time: '', total_hours: '' })
+  const [editTime, setEditTime] = useState({ worked_date: '', start_time: '', end_time: '', total_hours: '', no_charge: false })
   const openEditComment = (c: Comment) => {
     setEditCommentId(c.id)
     setEditTime({
@@ -113,6 +113,7 @@ export default function HelpDeskTicketDetailPage() {
       end_time: c.end_time ?? '',
       // Se tinha intervalo, deixa vazio p/ o total DERIVAR (auto-soma); se era manual, pré-preenche.
       total_hours: (c.start_time && c.end_time) ? '' : minutesToHHMM(c.effort_minutes),
+      no_charge: !!c.no_charge,
     })
   }
   const [editDesc, setEditDesc] = useState(false)
@@ -130,6 +131,7 @@ export default function HelpDeskTicketDetailPage() {
         worked_date: editTime.worked_date || null,
         start_time: editTime.start_time || null,
         end_time: editTime.end_time || null,
+        no_charge: editTime.no_charge,
       }
       // Com início/fim, o BE deriva o total; sem eles, manda o total manual.
       if (!derived && editTime.total_hours) payload.total_hours = editTime.total_hours
@@ -419,24 +421,36 @@ export default function HelpDeskTicketDetailPage() {
                               <CheckCircle2 size={11} /> apontamento gerado
                             </span>
                           )}
+                          {c.no_charge && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+                              sem cobrança
+                            </span>
+                          )}
                         </div>
                       )}
                       {editCommentId === c.id ? (
                         <div className="space-y-2">
                           <RichEditor ref={commentEditorRef} initialHtml={c.body} minHeight={80} />
-                          {/* Tempo trabalhado — total soma automaticamente ao informar início e fim */}
-                          <div className="flex items-center gap-2 flex-wrap text-xs rounded-lg px-2.5 py-2" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
-                            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Clock size={13} /> Tempo</span>
-                            <input type="date" value={editTime.worked_date} max={localTodayStr()} onChange={e => setEditTime(t => ({ ...t, worked_date: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
-                            <span style={{ color: 'var(--text-light)' }}>·</span>
-                            <input type="time" value={editTime.start_time} onChange={e => setEditTime(t => ({ ...t, start_time: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
-                            <span style={{ color: 'var(--text-light)' }}>→</span>
-                            <input type="time" value={editTime.end_time} onChange={e => setEditTime(t => ({ ...t, end_time: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
-                            <span style={{ color: 'var(--text-muted)' }}>Total</span>
-                            {(() => {
-                              const d = deriveTotalHHMM(editTime.start_time, editTime.end_time)
-                              return <input type="text" value={d || editTime.total_hours} readOnly={!!d} onChange={e => setEditTime(t => ({ ...t, total_hours: e.target.value }))} placeholder="0:00" className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }} />
-                            })()}
+                          {/* Tempo trabalhado — total soma automaticamente ao informar início e fim.
+                              "Não gera cobrança" registra o tempo mas não movimenta horas. */}
+                          <div className="rounded-lg px-2.5 py-2 space-y-2 text-xs" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+                            <label className="flex items-center gap-1.5 cursor-pointer w-fit" style={{ color: 'var(--text-muted)' }}>
+                              <input type="checkbox" checked={editTime.no_charge} onChange={e => setEditTime(t => ({ ...t, no_charge: e.target.checked }))} style={{ accentColor: 'var(--primary)' }} />
+                              Não gera cobrança <span style={{ color: 'var(--text-light)' }}>(registra o tempo, mas não movimenta horas)</span>
+                            </label>
+                            <div className="flex items-center gap-2 flex-wrap" style={{ opacity: editTime.no_charge ? 0.55 : 1 }}>
+                              <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Clock size={13} /> Tempo</span>
+                              <input type="date" value={editTime.worked_date} max={localTodayStr()} onChange={e => setEditTime(t => ({ ...t, worked_date: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
+                              <span style={{ color: 'var(--text-light)' }}>·</span>
+                              <input type="time" step={300} value={editTime.start_time} onChange={e => setEditTime(t => ({ ...t, start_time: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+                              <span style={{ color: 'var(--text-light)' }}>→</span>
+                              <input type="time" step={300} value={editTime.end_time} onChange={e => setEditTime(t => ({ ...t, end_time: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+                              <span style={{ color: 'var(--text-muted)' }}>Total</span>
+                              {(() => {
+                                const d = deriveTotalHHMM(editTime.start_time, editTime.end_time)
+                                return <input type="text" value={d || editTime.total_hours} readOnly={!!d} onChange={e => setEditTime(t => ({ ...t, total_hours: e.target.value }))} placeholder="0:00" className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }} />
+                              })()}
+                            </div>
                           </div>
                           <div className="flex gap-2">
                             <button onClick={() => saveEditComment(c.id)} className="ds-btn-primary text-xs px-3 py-1 rounded-lg">Salvar</button>
