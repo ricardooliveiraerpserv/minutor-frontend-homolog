@@ -899,11 +899,13 @@ function CrudTable<T>({ rows, cols, render }: { rows: T[]; cols: string[]; rende
 }
 
 // ── Construtor de Formulários ────────────────────────────────────────────────
-type FieldType = 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
+// 'title' = bloco de cabeçalho (título grande centralizado). `required` é reaproveitado como
+// flag "carregar logo" (mostra o logo acima do título).
+type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
 interface FField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null }
 interface HForm { id: number; name: string; status_id: number | null; title?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FField[]; status?: { id: number; label: string } | null }
 const FIELD_TYPES: { v: FieldType; label: string }[] = [
-  { v: 'section', label: 'Seção (título)' }, { v: 'richtext', label: 'Texto rico (com print)' }, { v: 'text', label: 'Texto' },
+  { v: 'title', label: 'Título + logo' }, { v: 'section', label: 'Seção (bloco)' }, { v: 'richtext', label: 'Texto rico (com print)' }, { v: 'text', label: 'Texto' },
   { v: 'checkbox', label: 'Checkbox' }, { v: 'date', label: 'Data' }, { v: 'time', label: 'Hora' },
 ]
 const newKey = () => 'f' + (globalThis.crypto?.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 8))
@@ -940,7 +942,7 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
 
   const upd = (i: number, patch: Partial<FField>) => setFields(fs => fs.map((f, j) => j === i ? { ...f, ...patch } : f))
   const move = (i: number, dir: -1 | 1) => setFields(fs => { const j = i + dir; if (j < 0 || j >= fs.length) return fs; const c = [...fs]; [c[i], c[j]] = [c[j], c[i]]; return c })
-  const addField = () => setFields(fs => [...fs, { key: newKey(), ftype: 'text', label: 'Novo campo', required: false }])
+  const addBlock = (ftype: FieldType, label: string, required = false) => setFields(fs => [...fs, { key: newKey(), ftype, label, required }])
   const del = async () => { if (!confirm(`Excluir "${form.name}"?`)) return; try { await api.delete(`/help-desk/forms/${form.id}`); onSaved() } catch { toast.error('Erro') } }
   const save = async () => {
     setSaving(true)
@@ -987,14 +989,19 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
                 <select value={f.ftype} onChange={e => upd(i, { ftype: e.target.value as FieldType })} className={fieldCls} style={{ ...inputStyle, width: 150 }}>
                   {FIELD_TYPES.map(t => <option key={t.v} value={t.v}>{t.label}</option>)}
                 </select>
-                <input className={`${fieldCls} flex-1 min-w-[140px]`} style={inputStyle} value={f.label} onChange={e => upd(i, { label: e.target.value })} placeholder="Rótulo" />
-                {f.ftype !== 'section' && f.ftype !== 'checkbox' && <input className={`${fieldCls} flex-1 min-w-[160px]`} style={inputStyle} value={f.hint ?? ''} onChange={e => upd(i, { hint: e.target.value })} placeholder="Legenda / exemplo" />}
-                {f.ftype !== 'section' && <label className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={!!f.required} onChange={e => upd(i, { required: e.target.checked })} style={{ accentColor: 'var(--primary)' }} /> obrig.</label>}
+                <input className={`${fieldCls} flex-1 min-w-[140px]`} style={inputStyle} value={f.label} onChange={e => upd(i, { label: e.target.value })} placeholder={f.ftype === 'title' ? 'Texto do título' : 'Rótulo'} />
+                {f.ftype !== 'section' && f.ftype !== 'title' && f.ftype !== 'checkbox' && <input className={`${fieldCls} flex-1 min-w-[160px]`} style={inputStyle} value={f.hint ?? ''} onChange={e => upd(i, { hint: e.target.value })} placeholder="Legenda / exemplo" />}
+                {f.ftype === 'title' && <label className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={!!f.required} onChange={e => upd(i, { required: e.target.checked })} style={{ accentColor: 'var(--primary)' }} /> carregar logo</label>}
+                {f.ftype !== 'section' && f.ftype !== 'title' && <label className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={!!f.required} onChange={e => upd(i, { required: e.target.checked })} style={{ accentColor: 'var(--primary)' }} /> obrig.</label>}
                 {(f.ftype === 'text' || f.ftype === 'richtext') && <input type="number" min="0" className={fieldCls} style={{ ...inputStyle, width: 70 }} value={f.min_chars ?? ''} onChange={e => upd(i, { min_chars: e.target.value ? Number(e.target.value) : null })} placeholder="mín." title="Mínimo de caracteres (sem espaço)" />}
                 <button onClick={() => setFields(fs => fs.filter((_, j) => j !== i))} title="Remover"><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
               </div>
             ))}
-            <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={addField}><Plus size={13} /> Campo</button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={() => addBlock('title', 'Detalhamento da Solução', true)}><Plus size={13} /> Título + logo</button>
+              <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={() => addBlock('section', 'Novo bloco')}><Plus size={13} /> Bloco (seção)</button>
+              <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={() => addBlock('text', 'Novo campo')}><Plus size={13} /> Campo</button>
+            </div>
           </div>
 
           <div className="flex items-center justify-between pt-1">
