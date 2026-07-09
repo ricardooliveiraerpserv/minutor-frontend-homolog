@@ -77,9 +77,12 @@ export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', onClo
       <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
         <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>🛠️ Detalhamento da Solução</div>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Obrigatório ao resolver. Você pode colar prints de tela em cada campo.</p>
-        <Field label="🔍 Diagnóstico (Causa)"><RichEditor ref={dRef} initialHtml={initial?.diagnostico ?? ''} minHeight={80} /></Field>
-        <Field label="🚀 Ação Realizada (O Ajuste)"><RichEditor ref={aRef} initialHtml={initial?.acao ?? ''} minHeight={80} /></Field>
-        <Field label="✅ Validação (Teste Efetuado)"><RichEditor ref={vRef} initialHtml={initial?.validacao ?? ''} minHeight={80} /></Field>
+        <Field label="🔍 Diagnóstico (Causa)" hint="O que estava causando o problema? Ex.: “A regra fiscal estava desatualizada e gerava imposto errado na NF-e.”">
+          <RichEditor ref={dRef} initialHtml={initial?.diagnostico ?? ''} minHeight={80} /></Field>
+        <Field label="🚀 Ação Realizada (O Ajuste)" hint="O que você fez para corrigir? Ex.: “Atualizei a alíquota de ICMS e reprocessei as notas do período.”">
+          <RichEditor ref={aRef} initialHtml={initial?.acao ?? ''} minHeight={80} /></Field>
+        <Field label="✅ Validação (Teste Efetuado)" hint="Como confirmou que resolveu? Ex.: “Emiti uma NF-e de teste, o imposto saiu correto e o cliente validou.”">
+          <RichEditor ref={vRef} initialHtml={initial?.validacao ?? ''} minHeight={80} /></Field>
         <div className="flex justify-end gap-2 pt-1">
           <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
           <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={submit} disabled={saving}>{saving ? 'Salvando…' : submitLabel}</button>
@@ -89,6 +92,12 @@ export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', onClo
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div><label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-muted)' }}>{label}</label>{children}</div>
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="text-[15px] font-bold block" style={{ color: 'var(--text)' }}>{label}</label>
+      {hint && <p className="text-[11px] mb-1.5 leading-snug" style={{ color: 'var(--text-light)' }}>{hint}</p>}
+      {children}
+    </div>
+  )
 }
