@@ -18,6 +18,16 @@ export interface FormInstance { form_id: number; title?: string | null; subtitle
 
 const nonSpaceLen = (html: string) => { const el = document.createElement('div'); el.innerHTML = html; return (el.textContent || '').replace(/\s+/g, '').length }
 const isBlank = (v: string | boolean) => typeof v === 'boolean' ? !v : nonSpaceLen(String(v)) === 0
+// Campo "com conteúdo" p/ o render final: checkbox marcado, ou texto/rich/data/hora não-vazio.
+const fieldHasContent = (f: FormValueField) => f.ftype !== 'title' && f.ftype !== 'section' && (f.ftype === 'checkbox' ? !!f.value : !isBlank(f.value))
+// Uma seção só é trazida se houver algum campo com conteúdo até a próxima seção/título.
+const sectionHasContent = (fields: FormValueField[], from: number) => {
+  for (let j = from + 1; j < fields.length; j++) {
+    if (fields[j].ftype === 'section' || fields[j].ftype === 'title') break
+    if (fieldHasContent(fields[j])) return true
+  }
+  return false
+}
 
 /** Monta o HTML (body/e-mail) a partir da instância preenchida. */
 export function composeFormBody(inst: FormInstance): string {
@@ -26,21 +36,23 @@ export function composeFormBody(inst: FormInstance): string {
   if (inst.title) html += `<div style="text-align:center;font-size:18px;font-weight:bold;color:#5b21b6;margin:0 0 4px 0;">${inst.title}</div>`
   if (inst.subtitle) html += `<div style="text-align:center;font-size:14px;font-weight:bold;color:#5b21b6;margin:0 0 8px 0;">${inst.subtitle}</div>`
   if (inst.intro) html += `<p style="text-align:center;color:#374151;margin:0 0 14px 0;">${inst.intro}</p>`
-  for (const f of inst.fields) {
+  inst.fields.forEach((f, i) => {
     if (f.ftype === 'title') {
       // `value` (boolean) = flag "carregar logo" do bloco de título.
       if (f.value) html += '<div style="text-align:center;margin:10px 0 8px 0;"><img src="/logo.png" alt="ERPSERV" style="height:44px;" /></div>'
       html += `<div style="text-align:center;font-size:18px;font-weight:bold;color:#5b21b6;margin:0 0 12px 0;">${f.label}</div>`
     }
     else if (f.ftype === 'section') {
-      // `value` (boolean) = flag "carregar logo" da seção.
+      // Só traz a seção se houver algum campo preenchido até a próxima seção/título.
+      if (!sectionHasContent(inst.fields, i)) return
       if (f.value) html += '<div style="text-align:center;margin:14px 0 8px 0;"><img src="/logo.png" alt="ERPSERV" style="height:44px;" /></div>'
       html += `<p style="font-weight:bold;font-size:15px;margin:16px 0 6px 0;border-top:1px solid #e5e7eb;padding-top:10px;">${f.label}</p>`
     }
-    else if (f.ftype === 'richtext') html += `<div style="margin:0 0 12px 0;"><p style="font-weight:bold;margin:0 0 3px 0;">${f.label}</p><div style="padding-left:6px;">${(f.value as string) || ''}</div></div>`
-    else if (f.ftype === 'checkbox') html += `<div style="margin:0 0 4px 0;">${f.value ? '☑' : '☐'} ${f.label}</div>`
-    else html += `<div style="margin:0 0 6px 0;"><strong>${f.label}:</strong> ${(f.value as string) || '—'}</div>`
-  }
+    // Campos vazios (e checkbox desmarcado) não são trazidos.
+    else if (f.ftype === 'richtext') { if (!isBlank(f.value)) html += `<div style="margin:0 0 12px 0;"><p style="font-weight:bold;margin:0 0 3px 0;">${f.label}</p><div style="padding-left:6px;">${f.value as string}</div></div>` }
+    else if (f.ftype === 'checkbox') { if (f.value) html += `<div style="margin:0 0 4px 0;">☑ ${f.label}</div>` }
+    else { if (!isBlank(f.value)) html += `<div style="margin:0 0 6px 0;"><strong>${f.label}:</strong> ${f.value as string}</div>` }
+  })
   return html
 }
 
@@ -188,18 +200,23 @@ export function DynamicFormView({ instance }: { instance: FormInstance }) {
             <div style={{ fontSize: 18, fontWeight: 700, color: '#5b21b6' }}>{f.label}</div>
           </div>
         )
-        if (f.ftype === 'section') return (
-          <div key={i} style={{ borderTop: '1px solid #e5e7eb', paddingTop: 10, margin: '16px 0 6px' }}>
-            {f.value && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <div style={{ textAlign: 'center', marginBottom: 6 }}><img src="/logo.png" alt="ERPSERV" style={{ height: 44, display: 'inline-block' }} /></div>
-            )}
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{f.label}</div>
-          </div>
-        )
-        if (f.ftype === 'richtext') return <div key={i} style={{ marginBottom: 12 }}><div style={{ fontWeight: 700, marginBottom: 3 }}>{f.label}</div><div className="hd-rich" style={{ paddingLeft: 6 }} dangerouslySetInnerHTML={{ __html: sanitizeRich(String(f.value || '')) }} /></div>
-        if (f.ftype === 'checkbox') return <div key={i} style={{ marginBottom: 4 }}>{f.value ? '☑' : '☐'} {f.label}</div>
-        return <div key={i} style={{ marginBottom: 6 }}><strong>{f.label}:</strong> {String(f.value) || '—'}</div>
+        if (f.ftype === 'section') {
+          // Seção sem nenhum campo preenchido até a próxima seção/título não é trazida.
+          if (!sectionHasContent(instance.fields, i)) return null
+          return (
+            <div key={i} style={{ borderTop: '1px solid #e5e7eb', paddingTop: 10, margin: '16px 0 6px' }}>
+              {f.value && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <div style={{ textAlign: 'center', marginBottom: 6 }}><img src="/logo.png" alt="ERPSERV" style={{ height: 44, display: 'inline-block' }} /></div>
+              )}
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{f.label}</div>
+            </div>
+          )
+        }
+        // Campos vazios (e checkbox desmarcado) não são trazidos.
+        if (f.ftype === 'richtext') return isBlank(f.value) ? null : <div key={i} style={{ marginBottom: 12 }}><div style={{ fontWeight: 700, marginBottom: 3 }}>{f.label}</div><div className="hd-rich" style={{ paddingLeft: 6 }} dangerouslySetInnerHTML={{ __html: sanitizeRich(String(f.value || '')) }} /></div>
+        if (f.ftype === 'checkbox') return f.value ? <div key={i} style={{ marginBottom: 4 }}>☑ {f.label}</div> : null
+        return isBlank(f.value) ? null : <div key={i} style={{ marginBottom: 6 }}><strong>{f.label}:</strong> {String(f.value)}</div>
       })}
     </div>
   )
