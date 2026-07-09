@@ -22,8 +22,10 @@ interface Category { id: number; name: string; color: string | null; active: boo
 interface Status { id: number; key: string; label: string; color: string | null; sort_order: number; is_default: boolean; is_open: boolean; is_resolved: boolean; is_terminal: boolean; sla_paused: boolean; active: boolean }
 interface Team { id: number; name: string; color: string | null; active: boolean; lead?: Ref | null; members?: Ref[] }
 interface Tag { id: number; name: string; color: string | null }
-interface SlaTarget { id?: number; priority: string; first_response_minutes: number | null; resolution_minutes: number | null }
-interface SlaPolicy { id: number; name: string; is_default: boolean; active: boolean; targets: SlaTarget[] }
+interface SlaPause { status_key: string }
+interface SlaTarget { id?: number; priority: string; name?: string | null; enabled?: boolean; first_response_minutes: number | null; resolution_minutes: number | null; first_response_channels?: string[] | null; pause_on_approval?: boolean; max_agent_actions?: number | null; pauses?: SlaPause[] }
+interface SlaHoliday { id?: number; date: string; name?: string | null }
+interface SlaPolicy { id: number; name: string; description?: string | null; customer_id?: number | null; is_default: boolean; active: boolean; timezone?: string | null; use_national_holidays?: boolean; business_hours?: Record<string, [string, string][]> | null; targets: SlaTarget[]; holidays?: SlaHoliday[] }
 
 const TABS = [
   { id: 'categorias', label: 'Categorias' },
@@ -430,48 +432,227 @@ function TeamMembersEditor({ team, agents, onSaved }: { team: Team; agents: Ref[
   )
 }
 
+const WEEKDAYS: { iso: number; label: string }[] = [
+  { iso: 1, label: 'Seg' }, { iso: 2, label: 'Ter' }, { iso: 3, label: 'Qua' },
+  { iso: 4, label: 'Qui' }, { iso: 5, label: 'Sex' }, { iso: 6, label: 'Sáb' }, { iso: 7, label: 'Dom' },
+]
+
+/** Chip que alterna a presença de um valor num array (multiseleção compacta). */
+function Chip({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick}
+      className="text-[11px] px-2 py-0.5 rounded-full"
+      style={{ border: '1px solid var(--border)', background: active ? 'var(--primary-soft)' : 'transparent', color: active ? 'var(--primary)' : 'var(--text-muted)', fontWeight: active ? 600 : 400 }}>
+      {label}
+    </button>
+  )
+}
+
 function SlaTab() {
   const [rows, setRows] = useState<SlaPolicy[]>([])
+  const [statuses, setStatuses] = useState<{ key: string; label: string }[]>([])
+  const [channels, setChannels] = useState<string[]>([])
+  const [customers, setCustomers] = useState<{ id: number; name: string }[]>([])
+  const [creating, setCreating] = useState(false)
+  const [nName, setNName] = useState(''); const [nCust, setNCust] = useState(''); const [nDef, setNDef] = useState(false)
   const load = useCallback(() => { api.get<{ data: SlaPolicy[] }>('/help-desk/sla-policies?all=1').then(r => setRows(r?.data ?? [])).catch(() => {}) }, [])
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    api.get<{ statuses?: { key: string; label: string }[]; channels?: string[] }>('/help-desk/meta')
+      .then(r => { setStatuses(r?.statuses ?? []); setChannels(r?.channels ?? []) }).catch(() => {})
+    api.get<{ data: { id: number; name: string }[] }>('/customers?pageSize=500').then(r => setCustomers(r?.data ?? [])).catch(() => {})
+  }, [load])
+  const create = async () => {
+    if (!nName.trim()) return toast.error('Informe o nome.')
+    try {
+      await api.post('/help-desk/sla-policies', { name: nName.trim(), customer_id: nCust ? Number(nCust) : null, is_default: nDef })
+      setNName(''); setNCust(''); setNDef(false); setCreating(false); load(); toast.success('Política criada')
+    } catch { toast.error('Erro ao criar') }
+  }
   return (
     <div className="space-y-4">
-      {rows.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma política. (a política “SLA Padrão” é semeada no banco.)</p>}
-      {rows.map(p => <PolicyCard key={p.id} policy={p} onSaved={load} />)}
+      <div className="ds-card p-3">
+        {!creating ? (
+          <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setCreating(true)}><Plus size={15} /> Nova política</button>
+        ) : (
+          <div className="flex items-end gap-2 flex-wrap">
+            <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Nome</label><input className={`${fieldCls} w-52`} style={inputStyle} value={nName} onChange={e => setNName(e.target.value)} placeholder="Ex.: Cosan" /></div>
+            <div className="w-56"><label className={lbl} style={{ color: 'var(--text-light)' }}>Cliente (escopo)</label><SearchSelect value={nCust} onChange={setNCust} options={[{ id: '', name: '— sem escopo (só se padrão) —' }, ...customers]} placeholder="Cliente…" fullWidth /></div>
+            <label className="flex items-center gap-1.5 text-xs pb-2" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={nDef} onChange={e => setNDef(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> contrato padrão</label>
+            <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={create}>Criar</button>
+            <button className="text-sm px-2 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }} onClick={() => setCreating(false)}>Cancelar</button>
+          </div>
+        )}
+      </div>
+      {rows.map(p => <PolicyCard key={p.id} policy={p} statuses={statuses} channels={channels} onSaved={load} />)}
     </div>
   )
 }
 
-function PolicyCard({ policy, onSaved }: { policy: SlaPolicy; onSaved: () => void }) {
-  const byPrio = (pr: string) => policy.targets.find(t => t.priority === pr) ?? { priority: pr, first_response_minutes: null, resolution_minutes: null }
-  const [draft, setDraft] = useState<Record<string, { fr: string; res: string }>>(() =>
-    Object.fromEntries(PRIORITIES.map(pr => { const t = byPrio(pr); return [pr, { fr: t.first_response_minutes?.toString() ?? '', res: t.resolution_minutes?.toString() ?? '' }] })))
+function PolicyCard({ policy, statuses, channels, onSaved }: { policy: SlaPolicy; statuses: { key: string; label: string }[]; channels: string[]; onSaved: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [name, setName] = useState(policy.name)
+  const [active, setActive] = useState(policy.active)
+  const [isDefault, setIsDefault] = useState(policy.is_default)
+  const [tz, setTz] = useState(policy.timezone ?? 'America/Sao_Paulo')
+  const [useNat, setUseNat] = useState(policy.use_national_holidays ?? true)
+  const [days, setDays] = useState<Record<number, { on: boolean; ms: string; me: string; ts: string; te: string }>>({})
+  const [tgt, setTgt] = useState<Record<string, { enabled: boolean; fr: string; res: string; channels: string[]; pauses: string[]; maxA: string }>>({})
+  const [holidays, setHolidays] = useState<SlaHoliday[]>([])
+  const [hDate, setHDate] = useState(''); const [hName, setHName] = useState('')
+
+  const loadDetail = useCallback(async () => {
+    try {
+      const r = await api.get<{ data: SlaPolicy }>(`/help-desk/sla-policies/${policy.id}`); const d = r.data
+      setName(d.name); setActive(d.active); setIsDefault(d.is_default); setTz(d.timezone ?? 'America/Sao_Paulo'); setUseNat(d.use_national_holidays ?? true)
+      const bh = d.business_hours || {}
+      const dd: Record<number, { on: boolean; ms: string; me: string; ts: string; te: string }> = {}
+      for (let iso = 1; iso <= 7; iso++) {
+        const w = bh[String(iso)] || []; const m = w[0] || []; const t = w[1] || []
+        dd[iso] = { on: w.length > 0, ms: m[0] || '09:00', me: m[1] || '12:00', ts: t[0] || '13:00', te: t[1] || '18:00' }
+      }
+      setDays(dd)
+      const tt: Record<string, { enabled: boolean; fr: string; res: string; channels: string[]; pauses: string[]; maxA: string }> = {}
+      for (const pr of PRIORITIES) {
+        const g = d.targets.find(x => x.priority === pr)
+        tt[pr] = {
+          enabled: g ? g.enabled !== false : true,
+          fr: g && g.first_response_minutes != null ? String(g.first_response_minutes / 60) : '',
+          res: g && g.resolution_minutes != null ? String(g.resolution_minutes / 60) : '',
+          channels: g?.first_response_channels ?? [],
+          pauses: (g?.pauses ?? []).map(p => p.status_key),
+          maxA: g?.max_agent_actions != null ? String(g.max_agent_actions) : '',
+        }
+      }
+      setTgt(tt); setHolidays(d.holidays ?? []); setLoaded(true)
+    } catch { toast.error('Erro ao carregar política') }
+  }, [policy.id])
+  useEffect(() => { if (open && !loaded) loadDetail() }, [open, loaded, loadDetail])
+
+  const toggleIn = (arr: string[], v: string) => arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]
+  const setT = (pr: string, patch: Partial<{ enabled: boolean; fr: string; res: string; channels: string[]; pauses: string[]; maxA: string }>) => setTgt(s => ({ ...s, [pr]: { ...s[pr], ...patch } }))
+
   const save = async () => {
     setSaving(true)
     try {
-      const targets = PRIORITIES.map(pr => ({ priority: pr, first_response_minutes: draft[pr].fr ? Number(draft[pr].fr) : null, resolution_minutes: draft[pr].res ? Number(draft[pr].res) : null }))
-      await api.put(`/help-desk/sla-policies/${policy.id}`, { targets }); toast.success('SLA salvo'); onSaved()
+      const business_hours: Record<string, [string, string][]> = {}
+      for (let iso = 1; iso <= 7; iso++) { const dv = days[iso]; business_hours[String(iso)] = dv?.on ? [[dv.ms, dv.me], [dv.ts, dv.te]] : [] }
+      const targets = PRIORITIES.map(pr => { const t = tgt[pr]; return {
+        priority: pr, enabled: t.enabled,
+        first_response_minutes: t.fr ? Math.round(Number(t.fr) * 60) : null,
+        resolution_minutes: t.res ? Math.round(Number(t.res) * 60) : null,
+        first_response_channels: t.channels.length ? t.channels : null,
+        max_agent_actions: t.maxA ? Number(t.maxA) : null,
+        pauses: t.pauses,
+      } })
+      await api.put(`/help-desk/sla-policies/${policy.id}`, {
+        name, active, is_default: isDefault, timezone: tz, use_national_holidays: useNat,
+        business_hours, targets, holidays: holidays.map(h => ({ date: h.date, name: h.name ?? null })),
+      })
+      toast.success('Política salva'); onSaved(); setLoaded(false); loadDetail()
     } catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
   }
+  const del = async () => { if (!confirm(`Excluir "${policy.name}"?`)) return; try { await api.delete(`/help-desk/sla-policies/${policy.id}`); onSaved() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') } }
+  const addHoliday = () => { if (!hDate) return; if (holidays.some(h => h.date === hDate)) return; setHolidays(hs => [...hs, { date: hDate, name: hName || null }].sort((a, b) => a.date.localeCompare(b.date))); setHDate(''); setHName('') }
+
   return (
-    <div className="ds-card p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="font-semibold" style={{ color: 'var(--text)' }}>{policy.name} {policy.is_default && <span className="text-[10px] ml-1 px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>padrão</span>}</div>
-        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={save} disabled={saving}><Save size={14} /> Salvar</button>
-      </div>
-      <table className="w-full text-sm">
-        <thead><tr style={{ color: 'var(--text-muted)' }} className="text-left text-[11px] uppercase"><th className="py-1">Prioridade</th><th className="py-1">1ª resposta (min)</th><th className="py-1">Resolução (min)</th></tr></thead>
-        <tbody>
-          {PRIORITIES.map(pr => (
-            <tr key={pr} className="border-t" style={{ borderColor: 'var(--border)' }}>
-              <td className="py-1.5" style={{ color: 'var(--text)' }}>{PRIO_LABEL[pr]}</td>
-              <td className="py-1.5"><input type="number" className={`${fieldCls} w-28`} style={inputStyle} value={draft[pr].fr} onChange={e => setDraft(d => ({ ...d, [pr]: { ...d[pr], fr: e.target.value } }))} /></td>
-              <td className="py-1.5"><input type="number" className={`${fieldCls} w-28`} style={inputStyle} value={draft[pr].res} onChange={e => setDraft(d => ({ ...d, [pr]: { ...d[pr], res: e.target.value } }))} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="ds-card p-0 overflow-hidden">
+      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3">
+        <span className="font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text)' }}>
+          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />} {policy.name}
+          {policy.is_default && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>padrão</span>}
+          {!policy.active && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>inativa</span>}
+        </span>
+        <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{policy.targets?.length ?? 0} regras</span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-4 border-t" style={{ borderColor: 'var(--border)' }}>
+          {!loaded ? <p className="text-sm py-3" style={{ color: 'var(--text-muted)' }}>Carregando…</p> : (
+          <>
+            {/* Geral */}
+            <div className="flex items-end gap-3 flex-wrap pt-3">
+              <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Nome</label><input className={`${fieldCls} w-52`} style={inputStyle} value={name} onChange={e => setName(e.target.value)} /></div>
+              <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Fuso</label><input className={`${fieldCls} w-44`} style={inputStyle} value={tz} onChange={e => setTz(e.target.value)} /></div>
+              <label className="flex items-center gap-1.5 text-xs pb-2" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> ativa</label>
+              <label className="flex items-center gap-1.5 text-xs pb-2" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> contrato padrão</label>
+              <label className="flex items-center gap-1.5 text-xs pb-2" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={useNat} onChange={e => setUseNat(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> respeitar feriados nacionais</label>
+            </div>
+
+            {/* Calendário de atendimento */}
+            <div>
+              <div className={lbl} style={{ color: 'var(--text-light)' }}>Horário de atendimento (horas úteis)</div>
+              <div className="space-y-1">
+                {WEEKDAYS.map(({ iso, label }) => { const d = days[iso] || { on: false, ms: '09:00', me: '12:00', ts: '13:00', te: '18:00' }; return (
+                  <div key={iso} className="flex items-center gap-2 text-xs">
+                    <label className="flex items-center gap-1.5 w-16" style={{ color: 'var(--text)' }}><input type="checkbox" checked={d.on} onChange={e => setDays(s => ({ ...s, [iso]: { ...d, on: e.target.checked } }))} style={{ accentColor: 'var(--primary)' }} /> {label}</label>
+                    {d.on ? (
+                      <div className="flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                        <input type="time" step={300} value={d.ms} onChange={e => setDays(s => ({ ...s, [iso]: { ...d, ms: e.target.value } }))} className={fieldCls} style={{ ...inputStyle, padding: '2px 6px' }} />–
+                        <input type="time" step={300} value={d.me} onChange={e => setDays(s => ({ ...s, [iso]: { ...d, me: e.target.value } }))} className={fieldCls} style={{ ...inputStyle, padding: '2px 6px' }} />
+                        <span className="mx-1">e</span>
+                        <input type="time" step={300} value={d.ts} onChange={e => setDays(s => ({ ...s, [iso]: { ...d, ts: e.target.value } }))} className={fieldCls} style={{ ...inputStyle, padding: '2px 6px' }} />–
+                        <input type="time" step={300} value={d.te} onChange={e => setDays(s => ({ ...s, [iso]: { ...d, te: e.target.value } }))} className={fieldCls} style={{ ...inputStyle, padding: '2px 6px' }} />
+                      </div>
+                    ) : <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>não atende</span>}
+                  </div>
+                ) })}
+              </div>
+            </div>
+
+            {/* Regras por prioridade */}
+            <div className="space-y-2">
+              <div className={lbl} style={{ color: 'var(--text-light)' }}>Regras por prioridade (horas úteis)</div>
+              {PRIORITIES.map(pr => { const t = tgt[pr]; if (!t) return null; return (
+                <div key={pr} className="rounded-lg p-2.5 space-y-2" style={{ border: '1px solid var(--border)', opacity: t.enabled ? 1 : 0.6 }}>
+                  <div className="flex items-center gap-3 flex-wrap text-xs">
+                    <label className="flex items-center gap-1.5 w-24 font-semibold" style={{ color: 'var(--text)' }}><input type="checkbox" checked={t.enabled} onChange={e => setT(pr, { enabled: e.target.checked })} style={{ accentColor: 'var(--primary)' }} /> {PRIO_LABEL[pr]}</label>
+                    <span style={{ color: 'var(--text-muted)' }}>1ª resposta <input type="number" min="0" step="0.5" className={`${fieldCls} w-16`} style={{ ...inputStyle, padding: '2px 6px' }} value={t.fr} onChange={e => setT(pr, { fr: e.target.value })} /> h</span>
+                    <span style={{ color: 'var(--text-muted)' }}>resolução <input type="number" min="0" step="0.5" className={`${fieldCls} w-16`} style={{ ...inputStyle, padding: '2px 6px' }} value={t.res} onChange={e => setT(pr, { res: e.target.value })} /> h</span>
+                    <span style={{ color: 'var(--text-muted)' }}>máx. ações <input type="number" min="0" className={`${fieldCls} w-14`} style={{ ...inputStyle, padding: '2px 6px' }} value={t.maxA} onChange={e => setT(pr, { maxA: e.target.value })} /></span>
+                  </div>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <span className="text-[11px] w-24 pt-0.5" style={{ color: 'var(--text-light)' }}>Pausa em:</span>
+                    <div className="flex gap-1 flex-wrap flex-1">{statuses.map(s => <Chip key={s.key} active={t.pauses.includes(s.key)} label={s.label} onClick={() => setT(pr, { pauses: toggleIn(t.pauses, s.key) })} />)}</div>
+                  </div>
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <span className="text-[11px] w-24 pt-0.5" style={{ color: 'var(--text-light)' }}>Canais 1ª resp:</span>
+                    <div className="flex gap-1 flex-wrap flex-1">{channels.map(c => <Chip key={c} active={t.channels.includes(c)} label={c} onClick={() => setT(pr, { channels: toggleIn(t.channels, c) })} />)}</div>
+                  </div>
+                </div>
+              ) })}
+              <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>Sem canais marcados = todos os canais disparam a 1ª resposta. Sem pausas em nenhuma regra = usa o “pausa” global do status.</p>
+            </div>
+
+            {/* Feriados do contrato */}
+            <div>
+              <div className={lbl} style={{ color: 'var(--text-light)' }}>Feriados do contrato (além dos nacionais)</div>
+              <div className="flex items-end gap-2 mb-2">
+                <input type="date" value={hDate} onChange={e => setHDate(e.target.value)} className={fieldCls} style={{ ...inputStyle, padding: '4px 8px' }} />
+                <input placeholder="nome (opcional)" value={hName} onChange={e => setHName(e.target.value)} className={`${fieldCls} w-40`} style={inputStyle} />
+                <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={addHoliday}><Plus size={13} /> Add</button>
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {holidays.map(h => (
+                  <span key={h.date} className="text-[11px] px-2 py-0.5 rounded inline-flex items-center gap-1.5" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
+                    {h.date.slice(8, 10)}/{h.date.slice(5, 7)}{h.name ? ` · ${h.name}` : ''}
+                    <button onClick={() => setHolidays(hs => hs.filter(x => x.date !== h.date))}><Trash2 size={11} style={{ color: 'var(--danger)' }} /></button>
+                  </span>
+                ))}
+                {holidays.length === 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum feriado específico.</span>}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              {!policy.is_default ? <button className="text-xs inline-flex items-center gap-1" style={{ color: 'var(--danger)' }} onClick={del}><Trash2 size={13} /> Excluir política</button> : <span />}
+              <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={save} disabled={saving}><Save size={14} /> {saving ? 'Salvando…' : 'Salvar política'}</button>
+            </div>
+          </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
