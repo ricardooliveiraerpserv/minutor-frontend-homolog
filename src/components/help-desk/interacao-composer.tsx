@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
@@ -27,8 +27,18 @@ function deriveTotal(start: string, end: string): string {
 //    exatamente onde está o cursor; não vira anexo separado.
 //  • botão "Anexar" continua para ARQUIVOS (pdf, planilha, etc.) → vão como anexo.
 // O corpo é enviado como HTML sanitizado; imagens inline são data:URI auto-contidas.
-export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSent: () => void }) {
+export interface ComposerStatus { id: number; label: string; is_resolved?: boolean }
+export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus }: {
+  ticketId: number
+  onSent: () => void
+  statuses?: ComposerStatus[]
+  currentStatusId?: number
+  onApplyStatus?: (statusId: number) => void | Promise<void>
+}) {
   const [visibility, setVisibility] = useState<'customer' | 'internal'>('customer')
+  // Status escolhido ao ENVIAR (default = status atual). Mantém = mesmo status; trocar move o chamado.
+  const [sendStatus, setSendStatus] = useState<number | undefined>(currentStatusId)
+  useEffect(() => { setSendStatus(currentStatusId) }, [currentStatusId])
   const [files, setFiles] = useState<File[]>([])
   const [empty, setEmpty] = useState(true)
   const [sending, setSending] = useState(false)
@@ -136,6 +146,8 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
       setStartTime(''); setEndTime(''); setTotalHours(''); setWorkedDate(localToday()); setNoCharge(false)
       if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
       onSent()
+      // Aplica o status escolhido (só quando MUDA — manter não faz nada).
+      if (onApplyStatus && sendStatus && sendStatus !== currentStatusId) await onApplyStatus(sendStatus)
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar')
     } finally { setSending(false) }
@@ -196,6 +208,15 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
           <input type="text" value={noCharge ? '' : totalDisplay} onChange={e => setTotalHours(e.target.value)}
             placeholder="0:00" disabled={noCharge} aria-label="Total de horas"
             className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', opacity: noCharge ? 0.5 : 1 }} />
+          {statuses.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 ml-auto">
+              <span style={{ color: 'var(--text-muted)' }}>Ao enviar → status</span>
+              <select value={sendStatus ?? ''} onChange={e => setSendStatus(Number(e.target.value))} aria-label="Status ao enviar"
+                className="ds-input" style={{ height: 30, fontSize: 12, padding: '0 8px' }}>
+                {statuses.map(s => <option key={s.id} value={s.id}>{s.id === currentStatusId ? `Manter: ${s.label}` : s.label}</option>)}
+              </select>
+            </span>
+          )}
         </div>
       </div>
 
@@ -216,7 +237,7 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
           {files.length > 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{files.length} anexo(s)</span>}
         </div>
         <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={send} disabled={sending || (empty && files.length === 0)}>
-          <Send size={14} /> {sending ? 'Enviando…' : 'Enviar'}
+          <Send size={14} /> {sending ? 'Enviando…' : (sendStatus && sendStatus !== currentStatusId ? `Enviar e mover para: ${statuses.find(s => s.id === sendStatus)?.label ?? ''}` : 'Enviar')}
         </button>
       </div>
     </div>
