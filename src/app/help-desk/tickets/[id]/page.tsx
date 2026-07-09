@@ -46,6 +46,25 @@ interface TicketDetail {
 interface JustificationOpt { id: number; status_id: number; name: string }
 interface CommentAtt { id: number; original_name?: string; file_name?: string; human_size?: string; category?: string }
 interface Comment { id: number; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean; worked_date?: string | null; start_time?: string | null; end_time?: string | null; effort_minutes?: number | null; timesheet_id?: number | null }
+
+// Data local (evita UTC empurrar p/ o dia seguinte à noite no Brasil).
+function localTodayStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+// HH:MM a partir de início→fim; '' se inválido/incompleto.
+function deriveTotalHHMM(start: string, end: string): string {
+  if (!start || !end) return ''
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const mins = (eh * 60 + em) - (sh * 60 + sm)
+  if (!Number.isFinite(mins) || mins <= 0) return ''
+  return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`
+}
+function minutesToHHMM(m?: number | null): string {
+  if (!m || m <= 0) return ''
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+}
 interface Event { id: number; event_type: string; field: string | null; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: number | null; triggeredBy?: Ref | null }
 interface Att { id: number; original_name?: string; file_name?: string; human_size?: string; created_at?: string }
 
@@ -84,15 +103,40 @@ export default function HelpDeskTicketDetailPage() {
   const [comments, setComments] = useState<Comment[]>([])
   const [editCommentId, setEditCommentId] = useState<number | null>(null)
   const commentEditorRef = useRef<RichEditorHandle>(null)
+  // Tempo trabalhado na EDIÇÃO da interação (mesmos campos do composer).
+  const [editTime, setEditTime] = useState({ worked_date: '', start_time: '', end_time: '', total_hours: '' })
+  const openEditComment = (c: Comment) => {
+    setEditCommentId(c.id)
+    setEditTime({
+      worked_date: c.worked_date ? c.worked_date.slice(0, 10) : localTodayStr(),
+      start_time: c.start_time ?? '',
+      end_time: c.end_time ?? '',
+      // Se tinha intervalo, deixa vazio p/ o total DERIVAR (auto-soma); se era manual, pré-preenche.
+      total_hours: (c.start_time && c.end_time) ? '' : minutesToHHMM(c.effort_minutes),
+    })
+  }
   const [editDesc, setEditDesc] = useState(false)
   const descEditorRef = useRef<RichEditorHandle>(null)
   const saveEditComment = async (cid: number) => {
     const body = commentEditorRef.current?.getHtml() ?? ''
     const files = commentEditorRef.current?.getFiles() ?? []
+    const derived = deriveTotalHHMM(editTime.start_time, editTime.end_time)
+    if (editTime.start_time && editTime.end_time && !derived) {
+      toast.error('A hora de fim deve ser maior que a de início.'); return
+    }
     try {
-      await api.patch(`/help-desk/tickets/${id}/comments/${cid}`, { body })
+      const payload: Record<string, unknown> = {
+        body,
+        worked_date: editTime.worked_date || null,
+        start_time: editTime.start_time || null,
+        end_time: editTime.end_time || null,
+      }
+      // Com início/fim, o BE deriva o total; sem eles, manda o total manual.
+      if (!derived && editTime.total_hours) payload.total_hours = editTime.total_hours
+      const resp = await api.patch<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments/${cid}`, payload)
       for (const f of files) { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/tickets/${id}/comments/${cid}/attachments`, fd) }
-      setEditCommentId(null); loadComments(); toast.success('Interação atualizada')
+      setEditCommentId(null); loadComments(); loadTs(); toast.success('Interação atualizada')
+      if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao editar') }
   }
   const [events, setEvents] = useState<Event[]>([])
@@ -358,7 +402,7 @@ export default function HelpDeskTicketDetailPage() {
                         </span>
                         <div className="flex items-center gap-2">
                           {c.can_edit && editCommentId !== c.id && (
-                            <button title="Editar interação" onClick={() => setEditCommentId(c.id)}><Pencil size={12} style={{ color: 'var(--text-light)' }} /></button>
+                            <button title="Editar interação" onClick={() => openEditComment(c)}><Pencil size={12} style={{ color: 'var(--text-light)' }} /></button>
                           )}
                           <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(c.created_at)}</span>
                         </div>
@@ -380,6 +424,20 @@ export default function HelpDeskTicketDetailPage() {
                       {editCommentId === c.id ? (
                         <div className="space-y-2">
                           <RichEditor ref={commentEditorRef} initialHtml={c.body} minHeight={80} />
+                          {/* Tempo trabalhado — total soma automaticamente ao informar início e fim */}
+                          <div className="flex items-center gap-2 flex-wrap text-xs rounded-lg px-2.5 py-2" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+                            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Clock size={13} /> Tempo</span>
+                            <input type="date" value={editTime.worked_date} max={localTodayStr()} onChange={e => setEditTime(t => ({ ...t, worked_date: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
+                            <span style={{ color: 'var(--text-light)' }}>·</span>
+                            <input type="time" value={editTime.start_time} onChange={e => setEditTime(t => ({ ...t, start_time: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+                            <span style={{ color: 'var(--text-light)' }}>→</span>
+                            <input type="time" value={editTime.end_time} onChange={e => setEditTime(t => ({ ...t, end_time: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+                            <span style={{ color: 'var(--text-muted)' }}>Total</span>
+                            {(() => {
+                              const d = deriveTotalHHMM(editTime.start_time, editTime.end_time)
+                              return <input type="text" value={d || editTime.total_hours} readOnly={!!d} onChange={e => setEditTime(t => ({ ...t, total_hours: e.target.value }))} placeholder="0:00" className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }} />
+                            })()}
+                          </div>
                           <div className="flex gap-2">
                             <button onClick={() => saveEditComment(c.id)} className="ds-btn-primary text-xs px-3 py-1 rounded-lg">Salvar</button>
                             <button onClick={() => setEditCommentId(null)} className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
