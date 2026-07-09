@@ -903,7 +903,7 @@ function CrudTable<T>({ rows, cols, render }: { rows: T[]; cols: string[]; rende
 // flag "carregar logo" (mostra o logo acima do título).
 type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
 interface FField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null }
-interface HForm { id: number; name: string; status_id: number | null; title?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FField[]; status?: { id: number; label: string } | null }
+interface HForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FField[]; status?: { id: number; label: string } | null }
 const FIELD_TYPES: { v: FieldType; label: string }[] = [
   { v: 'title', label: 'Título + logo' }, { v: 'section', label: 'Seção (bloco)' }, { v: 'richtext', label: 'Texto rico (com print)' }, { v: 'text', label: 'Texto' },
   { v: 'checkbox', label: 'Checkbox' }, { v: 'date', label: 'Data' }, { v: 'time', label: 'Hora' },
@@ -934,6 +934,7 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
   const [name, setName] = useState(form.name)
   const [statusId, setStatusId] = useState(form.status_id ? String(form.status_id) : '')
   const [title, setTitle] = useState(form.title ?? '')
+  const [subtitle, setSubtitle] = useState(form.subtitle ?? '')
   const [intro, setIntro] = useState(form.intro ?? '')
   const [showLogo, setShowLogo] = useState(form.show_logo ?? true)
   const [active, setActive] = useState(form.active ?? true)
@@ -948,7 +949,7 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
     setSaving(true)
     try {
       await api.put(`/help-desk/forms/${form.id}`, {
-        name, status_id: statusId ? Number(statusId) : null, title: title || null, intro: intro || null, show_logo: showLogo, active,
+        name, status_id: statusId ? Number(statusId) : null, title: title || null, subtitle: subtitle || null, intro: intro || null, show_logo: showLogo, active,
         fields: fields.map(f => ({ key: f.key || newKey(), ftype: f.ftype, label: f.label, hint: f.hint || null, required: !!f.required, min_chars: f.min_chars ?? null })),
       })
       toast.success('Formulário salvo'); onSaved()
@@ -975,6 +976,7 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
           </div>
           <div className="flex items-end gap-3 flex-wrap">
             <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Título (topo)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="🛠️ Detalhamento da Solução" /></div>
+            <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Subtítulo (opcional)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={subtitle} onChange={e => setSubtitle(e.target.value)} placeholder="Negrito, mesma cor, menor, centralizado" /></div>
             <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Introdução (opcional)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={intro} onChange={e => setIntro(e.target.value)} /></div>
           </div>
 

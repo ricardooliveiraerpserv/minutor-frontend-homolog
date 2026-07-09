@@ -10,9 +10,9 @@ import { RichEditor, type RichEditorHandle } from './rich-editor'
 // Nenhum dos dois gera input no preenchimento.
 export type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
 export interface FormField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null }
-export interface HdForm { id: number; name: string; status_id: number | null; title?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FormField[]; status?: { id: number; key: string; label: string } | null }
+export interface HdForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FormField[]; status?: { id: number; key: string; label: string } | null }
 export interface FormValueField { key: string; label: string; hint?: string | null; ftype: FieldType; value: string | boolean }
-export interface FormInstance { form_id: number; title?: string | null; intro?: string | null; show_logo?: boolean; fields: FormValueField[] }
+export interface FormInstance { form_id: number; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; fields: FormValueField[] }
 
 const nonSpaceLen = (html: string) => { const el = document.createElement('div'); el.innerHTML = html; return (el.textContent || '').replace(/\s+/g, '').length }
 const isBlank = (v: string | boolean) => typeof v === 'boolean' ? !v : nonSpaceLen(String(v)) === 0
@@ -21,7 +21,8 @@ const isBlank = (v: string | boolean) => typeof v === 'boolean' ? !v : nonSpaceL
 export function composeFormBody(inst: FormInstance): string {
   let html = ''
   if (inst.show_logo) html += '<div style="text-align:center;margin:0 0 10px 0;"><img src="/logo.png" alt="ERPSERV" style="height:44px;" /></div>'
-  if (inst.title) html += `<div style="text-align:center;font-size:18px;font-weight:bold;color:#5b21b6;margin:0 0 8px 0;">${inst.title}</div>`
+  if (inst.title) html += `<div style="text-align:center;font-size:18px;font-weight:bold;color:#5b21b6;margin:0 0 4px 0;">${inst.title}</div>`
+  if (inst.subtitle) html += `<div style="text-align:center;font-size:14px;font-weight:bold;color:#5b21b6;margin:0 0 8px 0;">${inst.subtitle}</div>`
   if (inst.intro) html += `<p style="text-align:center;color:#374151;margin:0 0 14px 0;">${inst.intro}</p>`
   for (const f of inst.fields) {
     if (f.ftype === 'title') {
@@ -83,7 +84,7 @@ export function DynamicFormModal({ form, initial, submitLabel = 'Salvar e aplica
     if (errors.length) { toast.error(`Preencha: ${errors.join(', ')}.`); return }
 
     const inst: FormInstance = {
-      form_id: form.id, title: form.title, intro: form.intro, show_logo: form.show_logo,
+      form_id: form.id, title: form.title, subtitle: form.subtitle, intro: form.intro, show_logo: form.show_logo,
       // Título/Seção: `value` guarda o flag "carregar logo" (f.required) — não têm input de usuário.
       fields: form.fields.map(f => ({ key: f.key, label: f.label, hint: f.hint, ftype: f.ftype, value: (f.ftype === 'title' || f.ftype === 'section') ? !!f.required : values[f.key] })),
     }
@@ -96,6 +97,7 @@ export function DynamicFormModal({ form, initial, submitLabel = 'Salvar e aplica
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
       <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }} onClick={e => e.stopPropagation()}>
         <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{form.title || form.name}</div>
+        {form.subtitle && <div className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{form.subtitle}</div>}
         {form.intro && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{form.intro}</p>}
         {form.fields.map(f => {
           if (f.ftype === 'title') return (
@@ -157,7 +159,8 @@ export function DynamicFormView({ instance }: { instance: FormInstance }) {
           <img src="/logo.png" alt="ERPSERV" style={{ height: 44, display: 'inline-block' }} />
         </div>
       )}
-      {instance.title && <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, color: '#5b21b6', marginBottom: 8 }}>{instance.title}</div>}
+      {instance.title && <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, color: '#5b21b6', marginBottom: 4 }}>{instance.title}</div>}
+      {instance.subtitle && <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#5b21b6', marginBottom: 8 }}>{instance.subtitle}</div>}
       {instance.intro && <p style={{ textAlign: 'center', color: '#374151', marginBottom: 14 }}>{instance.intro}</p>}
       {instance.fields.map((f, i) => {
         if (f.ftype === 'title') return (
