@@ -2,8 +2,25 @@
 
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { Clock } from 'lucide-react'
 import { sanitizeRich } from '@/lib/sanitize-html'
 import { RichEditor, type RichEditorHandle } from './rich-editor'
+import { TimeSelect5 } from './time-select-5'
+
+// Tempo trabalhado da interação do formulário (vira apontamento quando o contrato tem integração).
+export interface FormTime { worked_date: string; start_time: string; end_time: string; total_hours: string; no_charge: boolean }
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+function deriveTotal(start: string, end: string): string {
+  if (!start || !end) return ''
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const mins = (eh * 60 + em) - (sh * 60 + sm)
+  if (!Number.isFinite(mins) || mins <= 0) return ''
+  return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`
+}
 
 // 'title' = bloco de cabeçalho (texto grande centralizado); 'section' = divisor de bloco.
 // Em ambos, `required` é REAPROVEITADO como flag "carregar logo" (mostra o logo acima).
@@ -59,13 +76,22 @@ export function composeFormBody(inst: FormInstance): string {
 const inputStyle = { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
 
-export function DynamicFormModal({ form, initial, submitLabel = 'Salvar e aplicar', onClose, onSubmit }: {
+export function DynamicFormModal({ form, initial, initialTime, submitLabel = 'Salvar e aplicar', onClose, onSubmit }: {
   form: HdForm
   initial?: FormInstance | null
+  initialTime?: FormTime | null
   submitLabel?: string
   onClose: () => void
-  onSubmit: (inst: FormInstance, body: string) => Promise<void> | void
+  onSubmit: (inst: FormInstance, body: string, time: FormTime) => Promise<void> | void
 }) {
+  // Tempo trabalhado da interação (obrigatório informar — é uma interação). Edição pré-preenche.
+  const [workedDate, setWorkedDate] = useState(initialTime?.worked_date || localToday())
+  const [startTime, setStartTime] = useState(initialTime?.start_time || '')
+  const [endTime, setEndTime] = useState(initialTime?.end_time || '')
+  const [totalHours, setTotalHours] = useState(initialTime?.total_hours || '')
+  const [noCharge, setNoCharge] = useState(!!initialTime?.no_charge)
+  const derivedTotal = deriveTotal(startTime, endTime)
+  const totalDisplay = totalHours || derivedTotal
   // Valor inicial por chave (edição usa a instância salva).
   const initMap: Record<string, string | boolean> = {}
   for (const f of form.fields) {
@@ -103,14 +129,19 @@ export function DynamicFormModal({ form, initial, submitLabel = 'Salvar e aplica
     }
     if (errors.length) { toast.error(`Preencha: ${errors.join(', ')}.`); return }
 
+    // Tempo da interação: ou "Sem apontamento", ou informar início→fim (fim > início) OU total.
+    if (!noCharge && startTime && endTime && !derivedTotal) { toast.error('A hora de fim deve ser maior que a de início.'); return }
+    if (!noCharge && !totalDisplay) { toast.error('Informe as horas da interação (início→fim ou total) ou marque “Sem apontamento”.'); return }
+
     const inst: FormInstance = {
       form_id: form.id, title: form.title, subtitle: form.subtitle, intro: form.intro, show_logo: form.show_logo,
       // Título/Seção: `value` guarda o flag "carregar logo" (f.required) — não têm input de usuário.
       // Campos escalares nunca gravam null (senão renderiza "null" no resultado).
       fields: form.fields.map(f => ({ key: f.key, label: f.label, hint: f.hint, ftype: f.ftype, value: (f.ftype === 'title' || f.ftype === 'section') ? !!f.required : (f.ftype === 'checkbox' ? !!values[f.key] : (values[f.key] ?? '')) })),
     }
+    const time: FormTime = { worked_date: workedDate, start_time: noCharge ? '' : startTime, end_time: noCharge ? '' : endTime, total_hours: noCharge ? '' : totalDisplay, no_charge: noCharge }
     setSaving(true)
-    try { await onSubmit(inst, composeFormBody(inst)) } finally { setSaving(false) }
+    try { await onSubmit(inst, composeFormBody(inst), time) } finally { setSaving(false) }
   }
 
   const lbl = 'text-[15px] font-bold'
@@ -169,6 +200,27 @@ export function DynamicFormModal({ form, initial, submitLabel = 'Salvar e aplica
             </div>
           )
         })}
+
+        {/* Tempo da interação — o formulário É uma interação; movimenta horas quando o
+            contrato tem a integração ligada. "Sem apontamento" trava os campos. */}
+        <div className="rounded-lg px-2.5 py-2 text-xs" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Clock size={13} /> Tempo</span>
+            <input type="date" value={workedDate} max={localToday()} onChange={e => setWorkedDate(e.target.value)}
+              disabled={noCharge} aria-label="Data da interação"
+              className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px', opacity: noCharge ? 0.5 : 1 }} />
+            <span style={{ color: 'var(--text-light)' }}>·</span>
+            <TimeSelect5 value={startTime} onChange={v => { setStartTime(v); setNoCharge(false) }} ariaLabel="Hora início" maxBefore={endTime}
+              topOption={{ label: 'Sem apontamento', active: noCharge, onSelect: () => { setNoCharge(true); setStartTime(''); setEndTime(''); setTotalHours('') } }} />
+            <span style={{ color: 'var(--text-light)' }}>→</span>
+            <TimeSelect5 value={endTime} onChange={setEndTime} disabled={noCharge} ariaLabel="Hora fim" minAfter={startTime} />
+            <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>Total</span>
+            <input type="text" value={noCharge ? '' : totalDisplay} onChange={e => setTotalHours(e.target.value)}
+              placeholder="0:00" disabled={noCharge} aria-label="Total de horas"
+              className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', opacity: noCharge ? 0.5 : 1 }} />
+          </div>
+        </div>
+
         <div className="flex justify-end gap-2 pt-1">
           <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
           <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={submit} disabled={saving}>{saving ? 'Salvando…' : submitLabel}</button>

@@ -14,7 +14,7 @@ import { InteracaoComposer } from '@/components/help-desk/interacao-composer'
 import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 import { SolucaoModal, SolutionView, type Solution } from '@/components/help-desk/solucao-modal'
 import { GmudModal, GmudView, type Gmud } from '@/components/help-desk/gmud-modal'
-import { DynamicFormModal, DynamicFormView, type HdForm, type FormInstance } from '@/components/help-desk/dynamic-form'
+import { DynamicFormModal, DynamicFormView, type HdForm, type FormInstance, type FormTime } from '@/components/help-desk/dynamic-form'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { AgentSelect, type AgentTeam } from '@/components/help-desk/agent-select'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
@@ -241,7 +241,7 @@ export default function HelpDeskTicketDetailPage() {
   const [gmudOpen, setGmudOpen] = useState(false)
   const [dynOpen, setDynOpen] = useState(false)
   const [dynForm, setDynForm] = useState<HdForm | null>(null)
-  const [dynEdit, setDynEdit] = useState<{ commentId: number; instance: FormInstance } | null>(null)
+  const [dynEdit, setDynEdit] = useState<{ commentId: number; instance: FormInstance; time?: FormTime | null } | null>(null)
   const [resolveStatusId, setResolveStatusId] = useState<string | null>(null)
   const [editSolution, setEditSolution] = useState<{ commentId: number; solution: Solution } | null>(null)
   const [editGmud, setEditGmud] = useState<{ commentId: number; gmud: Gmud } | null>(null)
@@ -261,13 +261,20 @@ export default function HelpDeskTicketDetailPage() {
     setDynEdit(null); setDynForm(form); setResolveStatusId(statusId); setDynOpen(true)
   }
 
-  const submitDynForm = async (inst: FormInstance, body: string) => {
+  const submitDynForm = async (inst: FormInstance, body: string, time: FormTime) => {
+    // Tempo da interação → vira apontamento quando o contrato tem a integração ligada.
+    const timeFields: Record<string, unknown> = { worked_date: time.worked_date, no_charge: time.no_charge }
+    if (time.start_time) timeFields.start_time = time.start_time
+    if (time.end_time) timeFields.end_time = time.end_time
+    if (time.total_hours) timeFields.total_hours = time.total_hours
     try {
       if (dynEdit) {
-        await api.patch(`/help-desk/tickets/${id}/comments/${dynEdit.commentId}`, { body, solution: inst, form_kind: 'dynamic' })
+        const resp = await api.patch<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments/${dynEdit.commentId}`, { body, solution: inst, form_kind: 'dynamic', ...timeFields })
+        if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
         toast.success('Formulário atualizado')
       } else {
-        await api.post(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: inst, form_kind: 'dynamic' })
+        const resp = await api.post<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: inst, form_kind: 'dynamic', ...timeFields })
+        if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
         if (resolveStatusId) await changeStatus(resolveStatusId)
         toast.success('Chamado atualizado')
       }
@@ -280,7 +287,15 @@ export default function HelpDeskTicketDetailPage() {
     if (c.form_kind === 'dynamic' && c.solution) {
       const inst = c.solution as unknown as FormInstance
       const form = forms.find(f => f.id === inst.form_id)
-      if (form) { setDynEdit({ commentId: c.id, instance: inst }); setDynForm(form); setResolveStatusId(null); setDynOpen(true) }
+      const mins = c.effort_minutes ?? 0
+      const time: FormTime = {
+        worked_date: c.worked_date ?? '',
+        start_time: (c.start_time ?? '').slice(0, 5),
+        end_time: (c.end_time ?? '').slice(0, 5),
+        total_hours: mins ? `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}` : '',
+        no_charge: !!c.no_charge,
+      }
+      if (form) { setDynEdit({ commentId: c.id, instance: inst, time }); setDynForm(form); setResolveStatusId(null); setDynOpen(true) }
     }
     else if (c.form_kind === 'gmud' && c.solution) { setEditGmud({ commentId: c.id, gmud: c.solution as Gmud }); setResolveStatusId(null); setGmudOpen(true) }
     else if (c.solution) { setEditSolution({ commentId: c.id, solution: c.solution as Solution }); setResolveStatusId(null); setSolucaoOpen(true) }
@@ -726,6 +741,7 @@ export default function HelpDeskTicketDetailPage() {
         <DynamicFormModal
           form={dynForm}
           initial={dynEdit?.instance ?? null}
+          initialTime={dynEdit?.time ?? null}
           submitLabel={dynEdit ? 'Salvar' : `Salvar e mover para: ${dynForm.status?.label ?? ''}`}
           onClose={() => { setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null) }}
           onSubmit={submitDynForm}
