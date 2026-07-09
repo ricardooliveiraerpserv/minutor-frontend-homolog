@@ -5,6 +5,7 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
 import { Send, Paperclip, X, FileText, Clock } from 'lucide-react'
+import { TimeSelect5 } from './time-select-5'
 
 // Data local (YYYY-MM-DD) — NÃO usar toISOString (UTC empurra p/ o dia seguinte à noite no Brasil).
 function localToday(): string {
@@ -191,13 +192,9 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
             aria-label="Data da interação"
             className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
           <span style={{ color: 'var(--text-light)' }}>·</span>
-          <input type="time" step={300} value={startTime} onChange={e => setStartTime(e.target.value)}
-            aria-label="Hora início"
-            className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+          <TimeSelect5 value={startTime} onChange={setStartTime} ariaLabel="Hora início" />
           <span style={{ color: 'var(--text-light)' }}>→</span>
-          <input type="time" step={300} value={endTime} onChange={e => setEndTime(e.target.value)}
-            aria-label="Hora fim"
-            className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+          <TimeSelect5 value={endTime} onChange={setEndTime} ariaLabel="Hora fim" />
           <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>Total</span>
           <input type="text" value={totalDisplay} onChange={e => setTotalHours(e.target.value)}
             placeholder="0:00" aria-label="Total de horas"
