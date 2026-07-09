@@ -27,13 +27,14 @@ function deriveTotal(start: string, end: string): string {
 //    exatamente onde está o cursor; não vira anexo separado.
 //  • botão "Anexar" continua para ARQUIVOS (pdf, planilha, etc.) → vão como anexo.
 // O corpo é enviado como HTML sanitizado; imagens inline são data:URI auto-contidas.
-export interface ComposerStatus { id: number; label: string; is_resolved?: boolean }
-export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, formStatusIds = [], onFormStatus }: {
+export interface ComposerStatus { id: number; label: string; is_resolved?: boolean; allows_scheduling?: boolean }
+export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, onSchedule, formStatusIds = [], onFormStatus }: {
   ticketId: number
   onSent: () => void
   statuses?: ComposerStatus[]
   currentStatusId?: number
   onApplyStatus?: (statusId: number) => void | Promise<void>
+  onSchedule?: (date: string, time: string) => void | Promise<void>   // agenda (pausa SLA) quando o status permite
   formStatusIds?: number[]      // status que têm FORMULÁRIO (abre ao selecionar)
   onFormStatus?: (statusId: number) => void
 }) {
@@ -51,6 +52,11 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
   const [endTime, setEndTime] = useState('')
   const [totalHours, setTotalHours] = useState('')
   const [noCharge, setNoCharge] = useState(false)
+  // Agendamento inline: aparece quando o status escolhido "permite agendamento".
+  const [schedDate, setSchedDate] = useState('')
+  const [schedTime, setSchedTime] = useState('')
+  const selStatus = statuses.find(s => s.id === sendStatus)
+  const canSchedule = !!selStatus?.allows_scheduling
   const derivedTotal = deriveTotal(startTime, endTime)
   const totalDisplay = totalHours || derivedTotal
   const edRef = useRef<HTMLDivElement>(null)
@@ -151,6 +157,9 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
       onSent()
       // Aplica o status escolhido (só quando MUDA — manter não faz nada).
       if (onApplyStatus && sendStatus && sendStatus !== currentStatusId) await onApplyStatus(sendStatus)
+      // Status "agendável" + data informada → agenda (pausa o SLA). Feito APÓS aplicar o status.
+      if (canSchedule && schedDate && onSchedule) { await onSchedule(schedDate, schedTime); toast.success('Chamado agendado — SLA pausado') }
+      setSchedDate(''); setSchedTime('')
       setSendStatus(undefined) // volta a exigir escolha na próxima interação
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar')
@@ -229,6 +238,16 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
                 <option value="">— Selecione o status —</option>
                 {statuses.map(s => <option key={s.id} value={s.id}>{s.id === currentStatusId ? `Manter: ${s.label}` : s.label}</option>)}
               </select>
+              {/* Status "agendável": data (obrigatória p/ agendar) + hora opcional ao lado. Pausa o SLA. */}
+              {canSchedule && (
+                <span className="inline-flex items-center gap-1 pl-1.5 ml-1.5" style={{ borderLeft: '1px solid var(--border)' }}>
+                  <span title="Ao enviar, agenda o chamado e pausa o SLA até esta data." style={{ color: 'var(--text-muted)' }}>📅 agendar</span>
+                  <input type="date" value={schedDate} min={localToday()} onChange={e => setSchedDate(e.target.value)} aria-label="Data do agendamento"
+                    className="ds-input" style={{ height: 30, fontSize: 12, width: 130, padding: '0 6px' }} />
+                  <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} aria-label="Hora do agendamento (opcional)"
+                    className="ds-input" style={{ height: 30, fontSize: 12, width: 88, padding: '0 6px' }} />
+                </span>
+              )}
             </span>
           )}
         </div>

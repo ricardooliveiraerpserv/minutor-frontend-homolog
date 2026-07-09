@@ -26,7 +26,7 @@ import { wsActive, wsContains, wsNext, wsPrev, wsIncr, logEvent, endWorkSession,
 import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, Pencil, Search, Mail } from 'lucide-react'
 
 interface Ref { id: number; name: string; email?: string | null }
-interface StatusOpt { id: number; key: string; label: string; color: string | null; is_open: boolean; is_resolved: boolean; is_terminal: boolean }
+interface StatusOpt { id: number; key: string; label: string; color: string | null; is_open: boolean; is_resolved: boolean; is_terminal: boolean; allows_scheduling?: boolean }
 interface Sla {
   first_response_due_at: string | null; resolution_due_at: string | null
   first_responded_at: string | null; resolved_at: string | null
@@ -481,9 +481,10 @@ export default function HelpDeskTicketDetailPage() {
                 <div className="p-4 space-y-3">
                   {/* Compositor no TOPO — nova interação sempre em cima */}
                   <InteracaoComposer ticketId={id} onSent={() => { loadComments(); loadEvents(); loadTicket() }}
-                    statuses={statuses.map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved }))}
+                    statuses={statuses.map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved, allows_scheduling: s.allows_scheduling }))}
                     currentStatusId={t.status?.id}
                     onApplyStatus={(sid) => onStatusSelect(String(sid))}
+                    onSchedule={async (date, time) => { await api.post(`/help-desk/tickets/${id}/schedule`, { date, time: time || null }) }}
                     formStatusIds={forms.filter(f => f.status_id).map(f => f.status_id as number)}
                     onFormStatus={(sid) => openDynamicForm(String(sid))} />
                   <div className="border-b" style={{ borderColor: 'var(--border)' }} />

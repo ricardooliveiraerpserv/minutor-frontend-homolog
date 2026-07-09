@@ -20,7 +20,7 @@ const lbl = 'text-[11px] font-semibold block mb-0.5'
 
 interface Ref { id: number; name: string }
 interface Category { id: number; name: string; color: string | null; active: boolean; default_team_id: number | null; sla_policy_id: number | null }
-interface Status { id: number; key: string; label: string; color: string | null; sort_order: number; is_default: boolean; is_open: boolean; is_resolved: boolean; is_terminal: boolean; sla_paused: boolean; active: boolean }
+interface Status { id: number; key: string; label: string; color: string | null; sort_order: number; is_default: boolean; is_open: boolean; is_resolved: boolean; is_terminal: boolean; sla_paused: boolean; allows_scheduling: boolean; active: boolean }
 interface Team { id: number; name: string; color: string | null; active: boolean; lead?: Ref | null; members?: Ref[] }
 interface Tag { id: number; name: string; color: string | null }
 interface SlaPause { status_key: string }
@@ -301,11 +301,11 @@ function StatusBlock({ status, justs, reload }: { status: Status; justs: Justifi
   const [edit, setEdit] = useState(false)
   const [label, setLabel] = useState(status.label)
   const [color, setColor] = useState(status.color ?? '#3b82f6')
-  const [f, setF] = useState({ is_default: status.is_default, is_open: status.is_open, is_resolved: status.is_resolved, is_terminal: status.is_terminal, sla_paused: status.sla_paused })
+  const [f, setF] = useState({ is_default: status.is_default, is_open: status.is_open, is_resolved: status.is_resolved, is_terminal: status.is_terminal, sla_paused: status.sla_paused, allows_scheduling: status.allows_scheduling })
   const [jName, setJName] = useState(''); const [jAvail, setJAvail] = useState('public_and_internal')
   const [jEditId, setJEditId] = useState<number | null>(null); const [jEditName, setJEditName] = useState('')
 
-  const FLAGS: [keyof typeof f, string][] = [['is_default', 'inicial'], ['is_open', 'aberto'], ['is_resolved', 'resolvido'], ['is_terminal', 'terminal'], ['sla_paused', 'SLA pausa']]
+  const FLAGS: [keyof typeof f, string][] = [['is_default', 'inicial'], ['is_open', 'aberto'], ['is_resolved', 'resolvido'], ['is_terminal', 'terminal'], ['sla_paused', 'SLA pausa'], ['allows_scheduling', 'agendável']]
   const saveStatus = async () => { try { await api.put(`/help-desk/statuses/${status.id}`, { label: label.trim(), color, ...f }); setEdit(false); toast.success('Status salvo'); reload() } catch { toast.error('Erro ao salvar') } }
   const delStatus = async () => { if (!confirm(`Excluir "${status.label}"?`)) return; try { await api.delete(`/help-desk/statuses/${status.id}`); reload() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') } }
   const addJust = async () => { if (!jName.trim()) return toast.error('Informe a justificativa.'); try { await api.post('/help-desk/justifications', { name: jName.trim(), status_id: status.id, availability: jAvail }); setJName(''); reload() } catch { toast.error('Erro') } }
