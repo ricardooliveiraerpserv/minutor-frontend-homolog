@@ -12,7 +12,7 @@ import { FinalizarAtendimentoModal } from '@/components/help-desk/finalizar-aten
 import { ExecutarPlaybook } from '@/components/help-desk/executar-playbook'
 import { InteracaoComposer } from '@/components/help-desk/interacao-composer'
 import { TimeSelect5 } from '@/components/help-desk/time-select-5'
-import { SolucaoModal, type Solution } from '@/components/help-desk/solucao-modal'
+import { SolucaoModal, SolutionView, type Solution } from '@/components/help-desk/solucao-modal'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { AgentSelect, type AgentTeam } from '@/components/help-desk/agent-select'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
@@ -482,6 +482,8 @@ export default function HelpDeskTicketDetailPage() {
                             <button onClick={() => setEditCommentId(null)} className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
                           </div>
                         </div>
+                      ) : c.solution ? (
+                        <SolutionView solution={c.solution} />
                       ) : c.body && (c.channel === 'email' && isHtmlBody(c.body)
                         ? <EmailFrame html={c.body} />
                         : isHtmlBody(c.body)
