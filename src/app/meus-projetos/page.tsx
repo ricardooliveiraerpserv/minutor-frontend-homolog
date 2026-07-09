@@ -1,10 +1,12 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { FolderOpen, ArrowRight } from 'lucide-react'
+import { FolderOpen, ArrowRight, LayoutGrid, List as ListIcon, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useApiQuery } from '@/hooks/use-query'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
+import { SearchSelect } from '@/components/ui/search-select'
 
 interface MyProject {
   id: number
@@ -31,7 +33,37 @@ export default function MeusProjetosPage() {
   const { data, loading, error } = useApiQuery<{ items: MyProject[] }>(
     '/my-projects?pageSize=200&status=open'
   )
-  const projects = data?.items ?? []
+  const projects = useMemo(() => data?.items ?? [], [data])
+
+  const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [q, setQ] = useState('')
+  const [clientId, setClientId] = useState('')
+
+  // Clientes distintos dos projetos (pro filtro).
+  const clientOptions = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const p of projects) if (p.customer?.id) map.set(p.customer.id, p.customer.name)
+    return Array.from(map, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [projects])
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase()
+    return projects.filter(p => {
+      if (clientId && String(p.customer?.id ?? '') !== clientId) return false
+      if (term) {
+        const hay = `${p.name} ${p.code ?? ''} ${p.customer?.name ?? ''}`.toLowerCase()
+        if (!hay.includes(term)) return false
+      }
+      return true
+    })
+  }, [projects, q, clientId])
+
+  const metrics = (p: MyProject) => {
+    const pool = cronogramaPoolHours(p)
+    const consumed = n(p.consumed_hours)
+    const pct = pool > 0 ? Math.min(100, Math.round((consumed / pool) * 100)) : 0
+    return { pool, consumed, pct }
+  }
 
   return (
     <AppLayout title="Meus Projetos">
@@ -40,9 +72,54 @@ export default function MeusProjetosPage() {
           <FolderOpen size={20} style={{ color: 'var(--primary)' }} />
           <h1 style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)', margin: 0 }}>Meus Projetos</h1>
         </div>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 0, marginBottom: 20 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 0, marginBottom: 16 }}>
           Abra um projeto para ver suas atividades no cronograma e apontar as horas.
         </p>
+
+        {/* Filtros + alternância de visão */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: '1 1 220px', minWidth: 200 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)' }} />
+            <input
+              className="ds-input"
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Buscar projeto ou código…"
+              style={{ width: '100%', paddingLeft: 30, fontSize: 13 }}
+            />
+          </div>
+          <div style={{ flex: '0 1 240px', minWidth: 180 }}>
+            <SearchSelect
+              value={clientId}
+              onChange={setClientId}
+              options={clientOptions}
+              placeholder="Todos os clientes"
+              fullWidth
+            />
+          </div>
+          <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+            {([['grid', LayoutGrid, 'Grade'], ['list', ListIcon, 'Lista']] as const).map(([mode, Icon, title]) => {
+              const active = view === mode
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  title={title}
+                  onClick={() => setView(mode)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: 'none', borderLeft: mode === 'list' ? '1px solid var(--border)' : 'none',
+                    background: active ? 'var(--primary)' : 'transparent',
+                    color: active ? 'var(--primary-fg)' : 'var(--text-muted)',
+                  }}
+                >
+                  <Icon size={14} /> {title}
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
         {loading ? (
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Carregando…</p>
@@ -50,40 +127,27 @@ export default function MeusProjetosPage() {
           <p style={{ fontSize: 13, color: 'var(--danger)' }}>{error}</p>
         ) : projects.length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--text-light)' }}>Você não está alocado em nenhum projeto aberto.</p>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 12,
-          }}>
-            {projects.map(p => {
-              const pool = cronogramaPoolHours(p)
-              const consumed = n(p.consumed_hours)
-              const pct = pool > 0 ? Math.min(100, Math.round((consumed / pool) * 100)) : 0
+        ) : filtered.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--text-light)' }}>Nenhum projeto para os filtros selecionados.</p>
+        ) : view === 'grid' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            {filtered.map(p => {
+              const { pool, consumed, pct } = metrics(p)
               return (
                 <Link
                   key={p.id}
                   href={`/projetos/${p.id}/cronograma?from=meus-projetos`}
                   className="ds-card ds-row-hover"
-                  style={{
-                    display: 'flex', flexDirection: 'column', gap: 8,
-                    padding: 16, textDecoration: 'none', color: 'inherit',
-                  }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 16, textDecoration: 'none', color: 'inherit' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
-                    {p.code && (
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{p.code}</span>
-                    )}
+                    {p.code && <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{p.code}</span>}
                   </div>
-
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--text-muted)' }}>
                     {p.customer?.name && <span>{p.customer.name}</span>}
-                    {p.service_type?.name && (
-                      <span className="ds-status ds-status-info" style={{ fontSize: 10 }}>{p.service_type.name}</span>
-                    )}
+                    {p.service_type?.name && <span className="ds-status ds-status-info" style={{ fontSize: 10 }}>{p.service_type.name}</span>}
                   </div>
-
                   <div style={{ marginTop: 2 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)' }}>
                       <span>Apontáveis <strong style={{ color: 'var(--text)' }}>{fmtHours(pool)}</strong></span>
@@ -95,10 +159,43 @@ export default function MeusProjetosPage() {
                       </div>
                     )}
                   </div>
-
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: 12, fontWeight: 600, color: 'var(--primary)' }}>
                     Abrir cronograma <ArrowRight size={13} />
                   </div>
+                </Link>
+              )
+            })}
+          </div>
+        ) : (
+          /* Visão em LISTA */
+          <div className="ds-card" style={{ overflow: 'hidden', padding: 0 }}>
+            {filtered.map((p, i) => {
+              const { pool, consumed, pct } = metrics(p)
+              return (
+                <Link
+                  key={p.id}
+                  href={`/projetos/${p.id}/cronograma?from=meus-projetos`}
+                  className="ds-row-hover"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                    textDecoration: 'none', color: 'inherit',
+                    borderTop: i > 0 ? '1px solid var(--border)' : 'none',
+                  }}
+                >
+                  <div style={{ flex: '2 1 240px', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+                      {p.code && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace', flexShrink: 0 }}>{p.code}</span>}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {p.customer?.name && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.customer.name}</span>}
+                      {p.service_type?.name && <span className="ds-status ds-status-info" style={{ fontSize: 10, flexShrink: 0 }}>{p.service_type.name}</span>}
+                    </div>
+                  </div>
+                  <div style={{ flex: '1 1 160px', minWidth: 120, textAlign: 'right', fontSize: 12, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                    <span style={{ color: 'var(--text)', fontWeight: 600 }}>{fmtHours(consumed)}</span> / {fmtHours(pool)} · {pct}%
+                  </div>
+                  <ArrowRight size={15} style={{ color: 'var(--primary)', flexShrink: 0 }} />
                 </Link>
               )
             })}
