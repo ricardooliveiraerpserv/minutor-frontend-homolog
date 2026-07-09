@@ -11,6 +11,7 @@ import { Customer360Drawer } from '@/components/help-desk/customer-360-drawer'
 import { FinalizarAtendimentoModal } from '@/components/help-desk/finalizar-atendimento-modal'
 import { ExecutarPlaybook } from '@/components/help-desk/executar-playbook'
 import { InteracaoComposer } from '@/components/help-desk/interacao-composer'
+import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { AgentSelect, type AgentTeam } from '@/components/help-desk/agent-select'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
@@ -442,9 +443,9 @@ export default function HelpDeskTicketDetailPage() {
                               <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Clock size={13} /> Tempo</span>
                               <input type="date" value={editTime.worked_date} max={localTodayStr()} onChange={e => setEditTime(t => ({ ...t, worked_date: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
                               <span style={{ color: 'var(--text-light)' }}>·</span>
-                              <input type="time" step={300} value={editTime.start_time} onChange={e => setEditTime(t => ({ ...t, start_time: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+                              <TimeSelect5 value={editTime.start_time} onChange={v => setEditTime(t => ({ ...t, start_time: v }))} ariaLabel="Hora início" />
                               <span style={{ color: 'var(--text-light)' }}>→</span>
-                              <input type="time" step={300} value={editTime.end_time} onChange={e => setEditTime(t => ({ ...t, end_time: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+                              <TimeSelect5 value={editTime.end_time} onChange={v => setEditTime(t => ({ ...t, end_time: v }))} ariaLabel="Hora fim" />
                               <span style={{ color: 'var(--text-muted)' }}>Total</span>
                               {(() => {
                                 const d = deriveTotalHHMM(editTime.start_time, editTime.end_time)
