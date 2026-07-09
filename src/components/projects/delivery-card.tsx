@@ -16,7 +16,9 @@ const PRIORITY_COLOR: Record<string, string> = {
 
 function formatDue(iso: string | null): string | null {
   if (!iso) return null
-  const d = new Date(iso)
+  // Data YYYY-MM-DD parseada por new Date() vira UTC → no Brasil (UTC-3) volta 1 dia.
+  // Força meia-noite LOCAL para exibir o dia correto (ex.: 02/09 não virar "01 de set.").
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   d.setHours(0, 0, 0, 0)
