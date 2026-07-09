@@ -41,13 +41,20 @@ export function TimeSelect5({
   disabled,
   topOption,
   ariaLabel,
+  minAfter,
+  maxBefore,
 }: {
   value: string
   onChange: (v: string) => void
   disabled?: boolean
   topOption?: { label: string; active: boolean; onSelect: () => void }
   ariaLabel?: string
+  minAfter?: string   // desabilita horários <= este (fim precisa ser > início)
+  maxBefore?: string  // desabilita horários >= este (início precisa ser < fim)
 }) {
+  // Comparação lexicográfica funciona p/ 'HH:MM' com zero-pad (24h).
+  const isBlocked = (t: string) =>
+    (!!minAfter && t <= minAfter) || (!!maxBefore && t >= maxBefore)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -76,11 +83,11 @@ export function TimeSelect5({
     ? TIMES
     : TIMES.filter(t => t.replace(':', '').startsWith(digits) || t.startsWith(query))
 
-  const commit = (v: string) => { onChange(v); setOpen(false) }
+  const commit = (v: string) => { if (isBlocked(v)) return; onChange(v); setOpen(false) }
   const onEnter = () => {
     const typed = parseTyped(query)
-    if (typed) commit(typed)
-    else if (filtered[0]) commit(filtered[0])
+    if (typed && !isBlocked(typed)) commit(typed)
+    else if (!typed) { const first = filtered.find(t => !isBlocked(t)); if (first) commit(first) }
   }
 
   const label = topOption?.active ? topOption.label : (value || '--:--')
@@ -113,14 +120,17 @@ export function TimeSelect5({
                 {topOption.label}
               </button>
             )}
-            {filtered.map(t => (
-              <button key={t} type="button" data-sel={t === value ? '1' : undefined}
-                onClick={() => commit(t)}
-                className="w-full text-left px-2.5 py-1 text-xs ds-row-hover"
-                style={{ background: t === value ? 'var(--primary-soft)' : 'transparent', color: t === value ? 'var(--primary)' : 'var(--text)' }}>
-                {t}
-              </button>
-            ))}
+            {filtered.map(t => {
+              const blocked = isBlocked(t)
+              return (
+                <button key={t} type="button" disabled={blocked} data-sel={t === value ? '1' : undefined}
+                  onClick={() => commit(t)}
+                  className={`w-full text-left px-2.5 py-1 text-xs ${blocked ? '' : 'ds-row-hover'}`}
+                  style={{ background: t === value ? 'var(--primary-soft)' : 'transparent', color: blocked ? 'var(--text-light)' : (t === value ? 'var(--primary)' : 'var(--text)'), opacity: blocked ? 0.4 : 1, cursor: blocked ? 'not-allowed' : 'pointer' }}>
+                  {t}
+                </button>
+              )
+            })}
             {filtered.length === 0 && (
               <div className="px-2.5 py-2 text-xs" style={{ color: 'var(--text-light)' }}>
                 {parseTyped(query) ? `Enter para usar ${parseTyped(query)}` : 'Nenhum horário'}

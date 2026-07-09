@@ -440,10 +440,11 @@ export default function HelpDeskTicketDetailPage() {
                               <input type="date" value={editTime.worked_date} max={localTodayStr()} disabled={editTime.no_charge} onChange={e => setEditTime(t => ({ ...t, worked_date: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px', opacity: editTime.no_charge ? 0.5 : 1 }} />
                               <span style={{ color: 'var(--text-light)' }}>·</span>
                               <TimeSelect5 value={editTime.start_time} ariaLabel="Hora início"
+                                maxBefore={editTime.end_time}
                                 onChange={v => setEditTime(t => ({ ...t, start_time: v, no_charge: false }))}
                                 topOption={{ label: 'Sem apontamento', active: editTime.no_charge, onSelect: () => setEditTime(t => ({ ...t, no_charge: true, start_time: '', end_time: '', total_hours: '' })) }} />
                               <span style={{ color: 'var(--text-light)' }}>→</span>
-                              <TimeSelect5 value={editTime.end_time} disabled={editTime.no_charge} onChange={v => setEditTime(t => ({ ...t, end_time: v }))} ariaLabel="Hora fim" />
+                              <TimeSelect5 value={editTime.end_time} disabled={editTime.no_charge} onChange={v => setEditTime(t => ({ ...t, end_time: v }))} ariaLabel="Hora fim" minAfter={editTime.start_time} />
                               <span style={{ color: 'var(--text-muted)' }}>Total</span>
                               {(() => {
                                 const d = deriveTotalHHMM(editTime.start_time, editTime.end_time)

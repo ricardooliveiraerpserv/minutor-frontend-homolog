@@ -188,9 +188,10 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
             className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px', opacity: noCharge ? 0.5 : 1 }} />
           <span style={{ color: 'var(--text-light)' }}>·</span>
           <TimeSelect5 value={startTime} onChange={v => { setStartTime(v); setNoCharge(false) }} ariaLabel="Hora início"
+            maxBefore={endTime}
             topOption={{ label: 'Sem apontamento', active: noCharge, onSelect: () => { setNoCharge(true); setStartTime(''); setEndTime(''); setTotalHours('') } }} />
           <span style={{ color: 'var(--text-light)' }}>→</span>
-          <TimeSelect5 value={endTime} onChange={setEndTime} disabled={noCharge} ariaLabel="Hora fim" />
+          <TimeSelect5 value={endTime} onChange={setEndTime} disabled={noCharge} ariaLabel="Hora fim" minAfter={startTime} />
           <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>Total</span>
           <input type="text" value={noCharge ? '' : totalDisplay} onChange={e => setTotalHours(e.target.value)}
             placeholder="0:00" disabled={noCharge} aria-label="Total de horas"
