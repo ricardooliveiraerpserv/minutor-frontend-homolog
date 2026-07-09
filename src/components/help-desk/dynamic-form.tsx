@@ -5,8 +5,9 @@ import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
 import { RichEditor, type RichEditorHandle } from './rich-editor'
 
-// 'title' = bloco de cabeçalho (texto grande centralizado). `required` é REAPROVEITADO como
-// flag "carregar logo" (mostra o logo acima do título). Não gera input no preenchimento.
+// 'title' = bloco de cabeçalho (texto grande centralizado); 'section' = divisor de bloco.
+// Em ambos, `required` é REAPROVEITADO como flag "carregar logo" (mostra o logo acima).
+// Nenhum dos dois gera input no preenchimento.
 export type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
 export interface FormField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null }
 export interface HdForm { id: number; name: string; status_id: number | null; title?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FormField[]; status?: { id: number; key: string; label: string } | null }
@@ -28,7 +29,11 @@ export function composeFormBody(inst: FormInstance): string {
       if (f.value) html += '<div style="text-align:center;margin:10px 0 8px 0;"><img src="/logo.png" alt="ERPSERV" style="height:44px;" /></div>'
       html += `<div style="text-align:center;font-size:18px;font-weight:bold;color:#5b21b6;margin:0 0 12px 0;">${f.label}</div>`
     }
-    else if (f.ftype === 'section') html += `<p style="font-weight:bold;font-size:15px;margin:16px 0 6px 0;border-top:1px solid #e5e7eb;padding-top:10px;">${f.label}</p>`
+    else if (f.ftype === 'section') {
+      // `value` (boolean) = flag "carregar logo" da seção.
+      if (f.value) html += '<div style="text-align:center;margin:14px 0 8px 0;"><img src="/logo.png" alt="ERPSERV" style="height:44px;" /></div>'
+      html += `<p style="font-weight:bold;font-size:15px;margin:16px 0 6px 0;border-top:1px solid #e5e7eb;padding-top:10px;">${f.label}</p>`
+    }
     else if (f.ftype === 'richtext') html += `<div style="margin:0 0 12px 0;"><p style="font-weight:bold;margin:0 0 3px 0;">${f.label}</p><div style="padding-left:6px;">${(f.value as string) || ''}</div></div>`
     else if (f.ftype === 'checkbox') html += `<div style="margin:0 0 4px 0;">${f.value ? '☑' : '☐'} ${f.label}</div>`
     else html += `<div style="margin:0 0 6px 0;"><strong>${f.label}:</strong> ${(f.value as string) || '—'}</div>`
@@ -79,8 +84,8 @@ export function DynamicFormModal({ form, initial, submitLabel = 'Salvar e aplica
 
     const inst: FormInstance = {
       form_id: form.id, title: form.title, intro: form.intro, show_logo: form.show_logo,
-      // Título: `value` guarda o flag "carregar logo" (f.required) — não tem input de usuário.
-      fields: form.fields.map(f => ({ key: f.key, label: f.label, hint: f.hint, ftype: f.ftype, value: f.ftype === 'title' ? !!f.required : values[f.key] })),
+      // Título/Seção: `value` guarda o flag "carregar logo" (f.required) — não têm input de usuário.
+      fields: form.fields.map(f => ({ key: f.key, label: f.label, hint: f.hint, ftype: f.ftype, value: (f.ftype === 'title' || f.ftype === 'section') ? !!f.required : values[f.key] })),
     }
     setSaving(true)
     try { await onSubmit(inst, composeFormBody(inst)) } finally { setSaving(false) }
@@ -102,7 +107,15 @@ export function DynamicFormModal({ form, initial, submitLabel = 'Salvar e aplica
               <div className="text-lg font-bold" style={{ color: 'var(--primary)' }}>{f.label}</div>
             </div>
           )
-          if (f.ftype === 'section') return <div key={f.key} className="text-[15px] font-bold pt-2 mt-1 border-t" style={{ color: 'var(--text)', borderColor: 'var(--border)' }}>{f.label}</div>
+          if (f.ftype === 'section') return (
+            <div key={f.key} className="pt-2 mt-1 border-t" style={{ borderColor: 'var(--border)' }}>
+              {f.required && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <div className="text-center mb-1.5"><img src="/logo.png" alt="ERPSERV" style={{ height: 40, display: 'inline-block' }} /></div>
+              )}
+              <div className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>{f.label}</div>
+            </div>
+          )
           const ok = !f.min_chars || (lens[f.key] ?? 0) >= f.min_chars
           return (
             <div key={f.key}>
@@ -156,7 +169,15 @@ export function DynamicFormView({ instance }: { instance: FormInstance }) {
             <div style={{ fontSize: 18, fontWeight: 700, color: '#5b21b6' }}>{f.label}</div>
           </div>
         )
-        if (f.ftype === 'section') return <div key={i} style={{ fontWeight: 700, fontSize: 15, margin: '16px 0 6px', borderTop: '1px solid #e5e7eb', paddingTop: 10 }}>{f.label}</div>
+        if (f.ftype === 'section') return (
+          <div key={i} style={{ borderTop: '1px solid #e5e7eb', paddingTop: 10, margin: '16px 0 6px' }}>
+            {f.value && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <div style={{ textAlign: 'center', marginBottom: 6 }}><img src="/logo.png" alt="ERPSERV" style={{ height: 44, display: 'inline-block' }} /></div>
+            )}
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{f.label}</div>
+          </div>
+        )
         if (f.ftype === 'richtext') return <div key={i} style={{ marginBottom: 12 }}><div style={{ fontWeight: 700, marginBottom: 3 }}>{f.label}</div><div className="hd-rich" style={{ paddingLeft: 6 }} dangerouslySetInnerHTML={{ __html: sanitizeRich(String(f.value || '')) }} /></div>
         if (f.ftype === 'checkbox') return <div key={i} style={{ marginBottom: 4 }}>{f.value ? '☑' : '☐'} {f.label}</div>
         return <div key={i} style={{ marginBottom: 6 }}><strong>{f.label}:</strong> {String(f.value) || '—'}</div>
