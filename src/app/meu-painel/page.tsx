@@ -56,6 +56,7 @@ interface TimesheetItem {
   observation?: string
   ticket?: string
   ticket_subject?: string
+  stage_delivery_id?: number | null
   status: 'pending' | 'approved' | 'rejected' | 'conflicted' | 'adjustment_requested'
   status_display: string
   attachment_url?: string
@@ -1493,6 +1494,7 @@ function isSustentacao(serviceTypeName?: string): boolean {
 const EMPTY_TS = {
   customer_id: '',
   project_id:  '',
+  stage_delivery_id: '',
   date:        todayISO(),
   start_time:  '',
   end_time:    '',
@@ -1886,6 +1888,7 @@ export default function MeuPainelPage() {
     setTsForm({
       customer_id: proj?.customer ? String(proj.customer.id) : '',
       project_id:  String(item.project_id),
+      stage_delivery_id: item.stage_delivery_id ? String(item.stage_delivery_id) : '',
       date:        item.date,
       start_time:  item.start_time,
       end_time:    item.end_time,
@@ -1920,6 +1923,7 @@ export default function MeuPainelPage() {
         observation: tsForm.observation || undefined,
         ticket:      tsForm.ticket      || undefined,
       }
+      if (tsForm.stage_delivery_id) payload.stage_delivery_id = Number(tsForm.stage_delivery_id)
       if (hasTotal && !hasStart) {
         payload.total_hours = hoursToHHMM(totalVal)
       } else {
@@ -2288,6 +2292,28 @@ export default function MeuPainelPage() {
     if (!tsForm.customer_id) return projects
     return projects.filter(p => p.customer && String(p.customer.id) === tsForm.customer_id)
   }, [projects, tsForm.customer_id])
+
+  // Atividades (deliveries) do projeto selecionado — para vincular o apontamento
+  // a uma atividade do cronograma (opcional). Consultor recebe só as que apontar.
+  const [tsActivities, setTsActivities] = useState<{ id: number; title: string; stage_name: string }[]>([])
+  const [tsActivitiesLoading, setTsActivitiesLoading] = useState(false)
+
+  useEffect(() => {
+    const pid = tsForm.project_id
+    if (!pid) { setTsActivities([]); return }
+    let alive = true
+    setTsActivitiesLoading(true)
+    api.get<{ items: { id: number; title: string; stage_name: string }[] }>(`/projects/${pid}/deliveries`)
+      .then(r => { if (alive) setTsActivities(r.items ?? []) })
+      .catch(() => { if (alive) setTsActivities([]) })
+      .finally(() => { if (alive) setTsActivitiesLoading(false) })
+    return () => { alive = false }
+  }, [tsForm.project_id])
+
+  const tsActivityOptions = useMemo(
+    () => tsActivities.map(a => ({ id: a.id, name: `${a.stage_name} — ${a.title}` })),
+    [tsActivities],
+  )
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -3816,16 +3842,27 @@ export default function MeuPainelPage() {
             </h3>
 
             <SearchSelectField label="Cliente" value={tsForm.customer_id}
-              onChange={v => setTsForm(f => ({ ...f, customer_id: v, project_id: '' }))}
+              onChange={v => setTsForm(f => ({ ...f, customer_id: v, project_id: '', stage_delivery_id: '' }))}
               options={consultantCustomers}
               placeholder="Selecione o cliente..."
             />
 
             <SearchSelectField label="Projeto" value={tsForm.project_id}
-              onChange={v => setTsForm(f => ({ ...f, project_id: v }))}
+              onChange={v => setTsForm(f => ({ ...f, project_id: v, stage_delivery_id: '' }))}
               options={tsProjectOptions}
               placeholder={tsForm.customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'}
               required
+            />
+
+            <SearchSelectField label="Atividade" value={tsForm.stage_delivery_id}
+              onChange={v => setTsForm(f => ({ ...f, stage_delivery_id: v }))}
+              options={tsActivityOptions}
+              placeholder={
+                !tsForm.project_id ? 'Selecione o projeto primeiro'
+                : tsActivitiesLoading ? 'Carregando atividades…'
+                : tsActivityOptions.length === 0 ? 'Nenhuma atividade neste projeto'
+                : 'Opcional — vincule a uma atividade'
+              }
             />
 
             {(() => {
