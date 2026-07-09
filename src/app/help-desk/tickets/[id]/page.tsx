@@ -443,7 +443,9 @@ export default function HelpDeskTicketDetailPage() {
                   <InteracaoComposer ticketId={id} onSent={() => { loadComments(); loadEvents(); loadTicket() }}
                     statuses={statuses.map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved }))}
                     currentStatusId={t.status?.id}
-                    onApplyStatus={(sid) => onStatusSelect(String(sid))} />
+                    onApplyStatus={(sid) => onStatusSelect(String(sid))}
+                    formStatusIds={statuses.filter(s => s.is_resolved || s.key === 'solucao_gmud').map(s => s.id)}
+                    onFormStatus={(sid) => onStatusSelect(String(sid))} />
                   <div className="border-b" style={{ borderColor: 'var(--border)' }} />
                   {comments.length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>Sem interações ainda.</p>}
                   {/* Mais recente em cima, mais antiga embaixo */}
