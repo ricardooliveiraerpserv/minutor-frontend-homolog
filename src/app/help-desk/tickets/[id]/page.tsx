@@ -14,6 +14,7 @@ import { InteracaoComposer } from '@/components/help-desk/interacao-composer'
 import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 import { SolucaoModal, SolutionView, type Solution } from '@/components/help-desk/solucao-modal'
 import { GmudModal, GmudView, type Gmud } from '@/components/help-desk/gmud-modal'
+import { DynamicFormModal, DynamicFormView, type HdForm, type FormInstance } from '@/components/help-desk/dynamic-form'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { AgentSelect, type AgentTeam } from '@/components/help-desk/agent-select'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
@@ -234,24 +235,54 @@ export default function HelpDeskTicketDetailPage() {
     try { await api.patch(`/help-desk/tickets/${id}/status`, { status_id: Number(statusId), justification_id: justificationId ?? null }); loadTicket(); loadEvents() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao mudar status') }
   }
-  // Formulários ao RESOLVER: Detalhamento da Solução (resolvido) e GMUD (solucao_gmud).
+  // Formulários dinâmicos (construtor) vinculados a status. Legado: solution/gmud (comentários antigos).
+  const [forms, setForms] = useState<HdForm[]>([])
   const [solucaoOpen, setSolucaoOpen] = useState(false)
   const [gmudOpen, setGmudOpen] = useState(false)
+  const [dynOpen, setDynOpen] = useState(false)
+  const [dynForm, setDynForm] = useState<HdForm | null>(null)
+  const [dynEdit, setDynEdit] = useState<{ commentId: number; instance: FormInstance } | null>(null)
   const [resolveStatusId, setResolveStatusId] = useState<string | null>(null)
   const [editSolution, setEditSolution] = useState<{ commentId: number; solution: Solution } | null>(null)
   const [editGmud, setEditGmud] = useState<{ commentId: number; gmud: Gmud } | null>(null)
 
-  // Status com FORMULÁRIO abre o form antes; senão aplica direto (com justificativa se houver).
+  useEffect(() => { api.get<{ data: HdForm[] }>('/help-desk/forms').then(r => setForms(r?.data ?? [])).catch(() => {}) }, [])
+
+  // Status SEM formulário: aplica direto (com justificativa se houver).
   const onStatusSelect = (statusId: string) => {
-    const st = statuses.find(s => String(s.id) === statusId)
-    if (st?.key === 'solucao_gmud') { setEditGmud(null); setResolveStatusId(statusId); setGmudOpen(true); return }
-    if (st?.is_resolved) { setEditSolution(null); setResolveStatusId(statusId); setSolucaoOpen(true); return }
     if (justifications.some(j => j.status_id === Number(statusId))) setPendingStatus(statusId)
     else changeStatus(statusId)
   }
 
+  // Status COM formulário (do construtor) → abre o modal dinâmico.
+  const openDynamicForm = (statusId: string) => {
+    const form = forms.find(f => String(f.status_id) === statusId)
+    if (!form) { onStatusSelect(statusId); return }
+    setDynEdit(null); setDynForm(form); setResolveStatusId(statusId); setDynOpen(true)
+  }
+
+  const submitDynForm = async (inst: FormInstance, body: string) => {
+    try {
+      if (dynEdit) {
+        await api.patch(`/help-desk/tickets/${id}/comments/${dynEdit.commentId}`, { body, solution: inst, form_kind: 'dynamic' })
+        toast.success('Formulário atualizado')
+      } else {
+        await api.post(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: inst, form_kind: 'dynamic' })
+        if (resolveStatusId) await changeStatus(resolveStatusId)
+        toast.success('Chamado atualizado')
+      }
+      setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null)
+      loadComments(); loadEvents(); loadTicket()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar o formulário') }
+  }
+
   const openFormEdit = (c: Comment) => {
-    if (c.form_kind === 'gmud' && c.solution) { setEditGmud({ commentId: c.id, gmud: c.solution as Gmud }); setResolveStatusId(null); setGmudOpen(true) }
+    if (c.form_kind === 'dynamic' && c.solution) {
+      const inst = c.solution as unknown as FormInstance
+      const form = forms.find(f => f.id === inst.form_id)
+      if (form) { setDynEdit({ commentId: c.id, instance: inst }); setDynForm(form); setResolveStatusId(null); setDynOpen(true) }
+    }
+    else if (c.form_kind === 'gmud' && c.solution) { setEditGmud({ commentId: c.id, gmud: c.solution as Gmud }); setResolveStatusId(null); setGmudOpen(true) }
     else if (c.solution) { setEditSolution({ commentId: c.id, solution: c.solution as Solution }); setResolveStatusId(null); setSolucaoOpen(true) }
   }
 
@@ -444,8 +475,8 @@ export default function HelpDeskTicketDetailPage() {
                     statuses={statuses.map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved }))}
                     currentStatusId={t.status?.id}
                     onApplyStatus={(sid) => onStatusSelect(String(sid))}
-                    formStatusIds={statuses.filter(s => s.is_resolved || s.key === 'solucao_gmud').map(s => s.id)}
-                    onFormStatus={(sid) => onStatusSelect(String(sid))} />
+                    formStatusIds={forms.filter(f => f.status_id).map(f => f.status_id as number)}
+                    onFormStatus={(sid) => openDynamicForm(String(sid))} />
                   <div className="border-b" style={{ borderColor: 'var(--border)' }} />
                   {comments.length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>Sem interações ainda.</p>}
                   {/* Mais recente em cima, mais antiga embaixo */}
@@ -510,6 +541,8 @@ export default function HelpDeskTicketDetailPage() {
                             <button onClick={() => setEditCommentId(null)} className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
                           </div>
                         </div>
+                      ) : c.solution && c.form_kind === 'dynamic' ? (
+                        <DynamicFormView instance={c.solution as unknown as FormInstance} />
                       ) : c.solution && c.form_kind === 'gmud' ? (
                         <GmudView gmud={c.solution as Gmud} />
                       ) : c.solution ? (
@@ -677,6 +710,16 @@ export default function HelpDeskTicketDetailPage() {
           submitLabel={editGmud ? 'Salvar' : 'Salvar e resolver (GMUD)'}
           onClose={() => { setGmudOpen(false); setEditGmud(null); setResolveStatusId(null) }}
           onSubmit={submitGmud}
+        />
+      )}
+
+      {dynOpen && dynForm && (
+        <DynamicFormModal
+          form={dynForm}
+          initial={dynEdit?.instance ?? null}
+          submitLabel={dynEdit ? 'Salvar' : `Salvar e mover para: ${dynForm.status?.label ?? ''}`}
+          onClose={() => { setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null) }}
+          onSubmit={submitDynForm}
         />
       )}
 
