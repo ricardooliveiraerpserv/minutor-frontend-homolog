@@ -25,9 +25,10 @@ function ProjectHoursBar({ projectId }: { projectId?: number | null }) {
     api.get<any>(`/projects/${projectId}/cost-summary`).then(r => {
       const hs = r?.hours_summary ?? {}
       const available = Number(hs.total_available_hours ?? 0)
-      // Consumo = aprovadas + PENDENTES (mesma base do hours_percentage e do SALDO do projeto).
-      // Antes só approved_hours → mostrava "0h consumidas / saldo cheio" enquanto o % já contava o pendente.
-      const consumed  = Number(hs.approved_hours ?? 0) + Number(hs.pending_hours ?? 0)
+      // Consumo = TOTAL apontado (total_logged_hours) — MESMA base do hours_percentage do backend.
+      // Usar approved/pending divergia do % quando o apontamento estava em outro status
+      // (released/conflicted/etc.); mostrava "0h consumidas" com "1% consumido".
+      const consumed  = Number(hs.total_logged_hours ?? (Number(hs.approved_hours ?? 0) + Number(hs.pending_hours ?? 0)))
       const data: ProjectConsumo = {
         available, consumed,
         balance: Math.max(0, available - consumed),
