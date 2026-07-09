@@ -756,7 +756,7 @@ function SelectRow({ label, value, options, onChange, placeholder }: { label: st
   return (
     <div className="flex items-center justify-between gap-2 text-sm">
       <span style={{ color: 'var(--text-light)' }}>{label}</span>
-      <select className="text-sm rounded-lg px-2 py-1 outline-none max-w-[62%] capitalize" style={inputStyle} value={value} onChange={e => onChange(e.target.value)}>
+      <select className="text-sm rounded-lg px-2 py-1 outline-none w-[62%] shrink-0 capitalize" style={inputStyle} value={value} onChange={e => onChange(e.target.value)}>
         {placeholder !== undefined && <option value="">{placeholder}</option>}
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
