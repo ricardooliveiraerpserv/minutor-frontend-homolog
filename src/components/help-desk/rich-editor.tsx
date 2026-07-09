@@ -23,8 +23,8 @@ export interface RichEditorHandle { getHtml: () => string; getFiles: () => File[
  * digitar). Cola PRINT inline (downscale → data:URI), igual ao compositor. Fundo "papel"
  * branco fixo p/ legibilidade do conteúdo de e-mail em qualquer tema. Lê o HTML via ref.getHtml().
  */
-export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; minHeight?: number; showAttach?: boolean; colors?: string[]; allowCustomColor?: boolean }>(
-  function RichEditor({ initialHtml, minHeight = 100, showAttach = true, colors, allowCustomColor = true }, ref) {
+export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; minHeight?: number; showAttach?: boolean; colors?: string[]; allowCustomColor?: boolean; onChange?: () => void }>(
+  function RichEditor({ initialHtml, minHeight = 100, showAttach = true, colors, allowCustomColor = true, onChange }, ref) {
     const palette = colors ?? COLORS
     const edRef = useRef<HTMLDivElement>(null)
     const fileRef = useRef<HTMLInputElement>(null)
@@ -160,6 +160,7 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
           )}
         </div>
         <div ref={edRef} contentEditable suppressContentEditableWarning onPaste={onPaste}
+          onInput={() => onChange?.()}
           onKeyUp={saveSel} onMouseUp={saveSel} onBlur={saveSel}
           className="text-sm hd-rich rounded-lg p-3 outline-none overflow-auto"
           style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderRadius: 8, minHeight, maxHeight: 480 }} />
