@@ -902,13 +902,13 @@ function CrudTable<T>({ rows, cols, render }: { rows: T[]; cols: string[]; rende
 // ── Construtor de Formulários ────────────────────────────────────────────────
 // 'title' = bloco de cabeçalho (título grande centralizado). `required` é reaproveitado como
 // flag "carregar logo" (mostra o logo acima do título).
-type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
+type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time' | 'user'
 interface FRule { when?: string | null; value?: string | null }
 interface FField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FRule | null }
 interface HForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FField[]; status?: { id: number; label: string } | null }
 const FIELD_TYPES: { v: FieldType; label: string }[] = [
   { v: 'title', label: 'Título + logo' }, { v: 'section', label: 'Seção (bloco)' }, { v: 'richtext', label: 'Texto rico (com print)' }, { v: 'text', label: 'Texto' },
-  { v: 'checkbox', label: 'Checkbox' }, { v: 'date', label: 'Data' }, { v: 'time', label: 'Hora' },
+  { v: 'checkbox', label: 'Checkbox' }, { v: 'date', label: 'Data' }, { v: 'time', label: 'Hora' }, { v: 'user', label: 'Usuário (busca)' },
 ]
 const newKey = () => 'f' + (globalThis.crypto?.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 8))
 

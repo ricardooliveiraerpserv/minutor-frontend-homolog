@@ -1,9 +1,11 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Clock } from 'lucide-react'
+import { api } from '@/lib/api'
 import { sanitizeRich } from '@/lib/sanitize-html'
+import { SearchSelect } from '@/components/ui/search-select'
 import { RichEditor, type RichEditorHandle } from './rich-editor'
 import { TimeSelect5 } from './time-select-5'
 
@@ -44,7 +46,7 @@ export const FORM_TAGS: { tag: string; label: string }[] = [
 // 'title' = bloco de cabeçalho (texto grande centralizado); 'section' = divisor de bloco.
 // Em ambos, `required` é REAPROVEITADO como flag "carregar logo" (mostra o logo acima).
 // Nenhum dos dois gera input no preenchimento.
-export type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
+export type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time' | 'user'
 // rule = automação condicional: quando o checkbox `when` está marcado, o campo recebe `value` e trava.
 export interface FieldRule { when?: string | null; value?: string | null }
 export interface FormField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FieldRule | null }
@@ -112,6 +114,13 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, subm
   const [noCharge, setNoCharge] = useState(!!initialTime?.no_charge)
   const derivedTotal = deriveTotal(startTime, endTime)
   const totalDisplay = totalHours || derivedTotal
+  // Campos do tipo "user" buscam do cadastro de usuários (internos).
+  const [users, setUsers] = useState<{ id: number; name: string }[]>([])
+  useEffect(() => {
+    if (form.fields.some(f => f.ftype === 'user')) {
+      api.get<{ data: { id: number; name: string }[] }>('/help-desk/agents?candidates=1').then(r => setUsers(r?.data ?? [])).catch(() => {})
+    }
+  }, [form])
   // Valor inicial por chave (edição usa a instância salva).
   const initMap: Record<string, string | boolean> = {}
   for (const f of form.fields) {
@@ -213,6 +222,10 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, subm
               {f.ftype === 'text' && <input className={`${fieldCls} w-full`} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
               {f.ftype === 'date' && <input type="date" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
               {f.ftype === 'time' && <input type="time" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
+              {f.ftype === 'user' && (
+                <SearchSelect value={String(vals[f.key] || '')} onChange={v => setV(f.key, v)}
+                  options={users.map(u => ({ id: u.name, name: u.name }))} placeholder="Buscar usuário…" fullWidth />
+              )}
               </>)}
               {f.ftype === 'checkbox' && (
                 <label className="flex items-center gap-1.5 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
