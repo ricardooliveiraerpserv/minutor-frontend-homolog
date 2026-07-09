@@ -37,6 +37,7 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [totalHours, setTotalHours] = useState('')
+  const [noCharge, setNoCharge] = useState(false)
   const derivedTotal = deriveTotal(startTime, endTime)
   const totalDisplay = totalHours || derivedTotal
   const edRef = useRef<HTMLDivElement>(null)
@@ -127,10 +128,11 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
       if (startTime) fd.append('start_time', startTime)
       if (endTime) fd.append('end_time', endTime)
       if (totalHours) fd.append('total_hours', totalHours)
+      fd.append('no_charge', noCharge ? '1' : '0')
       const resp = await api.post<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${ticketId}/comments`, fd)
       if (ed) ed.innerHTML = ''
       setFiles([]); setEmpty(true); idemRef.current = null // sucesso → próxima mensagem, nova chave
-      setStartTime(''); setEndTime(''); setTotalHours(''); setWorkedDate(localToday())
+      setStartTime(''); setEndTime(''); setTotalHours(''); setWorkedDate(localToday()); setNoCharge(false)
       if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
       onSent()
     } catch (e) {
@@ -172,27 +174,35 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
       )}
 
       {/* Tempo trabalhado por interação (opcional). Vira apontamento quando o contrato
-          de sustentação tem a integração ligada — movimenta horas como o Movidesk. */}
-      <div className="flex items-center gap-2 flex-wrap text-xs rounded-lg px-2.5 py-2"
+          de sustentação tem a integração ligada — movimenta horas como o Movidesk.
+          "Não gera cobrança" registra o tempo mas NÃO movimenta horas. */}
+      <div className="rounded-lg px-2.5 py-2 space-y-2 text-xs"
         style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
-        <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-          <Clock size={13} /> Tempo
-        </span>
-        <input type="date" value={workedDate} max={localToday()} onChange={e => setWorkedDate(e.target.value)}
-          aria-label="Data da interação"
-          className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
-        <span style={{ color: 'var(--text-light)' }}>·</span>
-        <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
-          aria-label="Hora início"
-          className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
-        <span style={{ color: 'var(--text-light)' }}>→</span>
-        <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
-          aria-label="Hora fim"
-          className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
-        <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>Total</span>
-        <input type="text" value={totalDisplay} onChange={e => setTotalHours(e.target.value)}
-          placeholder="0:00" aria-label="Total de horas"
-          className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }} />
+        <label className="flex items-center gap-1.5 cursor-pointer w-fit" style={{ color: 'var(--text-muted)' }}>
+          <input type="checkbox" checked={noCharge} onChange={e => setNoCharge(e.target.checked)}
+            style={{ accentColor: 'var(--primary)' }} />
+          Não gera cobrança <span style={{ color: 'var(--text-light)' }}>(registra o tempo, mas não movimenta horas)</span>
+        </label>
+        <div className="flex items-center gap-2 flex-wrap" style={{ opacity: noCharge ? 0.55 : 1 }}>
+          <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+            <Clock size={13} /> Tempo
+          </span>
+          <input type="date" value={workedDate} max={localToday()} onChange={e => setWorkedDate(e.target.value)}
+            aria-label="Data da interação"
+            className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
+          <span style={{ color: 'var(--text-light)' }}>·</span>
+          <input type="time" step={300} value={startTime} onChange={e => setStartTime(e.target.value)}
+            aria-label="Hora início"
+            className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+          <span style={{ color: 'var(--text-light)' }}>→</span>
+          <input type="time" step={300} value={endTime} onChange={e => setEndTime(e.target.value)}
+            aria-label="Hora fim"
+            className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+          <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>Total</span>
+          <input type="text" value={totalDisplay} onChange={e => setTotalHours(e.target.value)}
+            placeholder="0:00" aria-label="Total de horas"
+            className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }} />
+        </div>
       </div>
 
       <div className="flex items-center justify-between flex-wrap gap-2">
