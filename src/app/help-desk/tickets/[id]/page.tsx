@@ -422,40 +422,8 @@ export default function HelpDeskTicketDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Coluna principal */}
           <div className="lg:col-span-2 space-y-4">
-            {t.description && (
-              <div className="ds-card p-4">
-                <div className="flex items-center justify-between">
-                  <div className={lbl} style={{ color: 'var(--text-light)' }}>Descrição</div>
-                  {t.can_edit_description && !editDesc && (
-                    <button title="Editar descrição" onClick={() => setEditDesc(true)}><Pencil size={13} style={{ color: 'var(--text-light)' }} /></button>
-                  )}
-                </div>
-                {editDesc ? (
-                  <div className="space-y-2 mt-1">
-                    <RichEditor ref={descEditorRef} initialHtml={t.description ?? ''} minHeight={100} />
-                    <div className="flex gap-2">
-                      <button onClick={async () => {
-                        await updateField({ description: descEditorRef.current?.getHtml() ?? t.description })
-                        for (const f of (descEditorRef.current?.getFiles() ?? [])) { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/tickets/${id}/attachments`, fd) }
-                        setEditDesc(false); loadAtts()
-                      }} className="ds-btn-primary text-xs px-3 py-1 rounded-lg">Salvar</button>
-                      <button onClick={() => setEditDesc(false)} className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
-                    </div>
-                  </div>
-                ) : isHtmlBody(t.description)
-                  ? <div className="mt-1"><EmailFrame html={t.description} /></div>
-                  : <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{t.description}</p>}
-                {atts.length > 0 && (
-                  <div className="mt-2 pt-2 border-t flex flex-wrap gap-2" style={{ borderColor: 'var(--border)' }}>
-                    {atts.map(a => (
-                      <a key={a.id} href={`/api/v1/help-desk/tickets/${id}/attachments/${a.id}/download`} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
-                        <Paperclip size={12} /> <span className="max-w-[180px] truncate">{a.original_name ?? a.file_name ?? `Anexo #${a.id}`}</span>{a.human_size ? ` · ${a.human_size}` : ''}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Descrição não é mais bloco fixo no topo: entra como a interação MAIS ANTIGA,
+                no fim da Conversa (lista é sempre mais novo primeiro). */}
 
             {/* Abas conversa/timeline */}
             <div className="ds-card overflow-hidden">
@@ -463,7 +431,7 @@ export default function HelpDeskTicketDetailPage() {
                 {(['conversa', 'timeline'] as const).map(x => (
                   <button key={x} onClick={() => setTab(x)} className="px-4 py-2 text-sm font-medium"
                     style={{ color: tab === x ? 'var(--primary)' : 'var(--text-muted)', borderBottom: tab === x ? '2px solid var(--primary)' : '2px solid transparent' }}>
-                    {x === 'conversa' ? `Conversa (${comments.length})` : `Timeline (${events.length})`}
+                    {x === 'conversa' ? `Conversa (${comments.length + (t.description ? 1 : 0)})` : `Timeline (${events.length})`}
                   </button>
                 ))}
               </div>
@@ -571,6 +539,47 @@ export default function HelpDeskTicketDetailPage() {
                       )}
                     </div>
                   ))}
+                  {/* Descrição = interação MAIS ANTIGA, sempre no fim da lista. */}
+                  {t.description && (
+                    <div className="rounded-lg p-3" style={{ background: 'var(--surface-sunken)' }}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>
+                          {t.requester_name ?? 'Solicitante'}
+                          <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>descrição inicial</span>
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {t.can_edit_description && !editDesc && (
+                            <button title="Editar descrição" onClick={() => setEditDesc(true)}><Pencil size={12} style={{ color: 'var(--text-light)' }} /></button>
+                          )}
+                          <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(t.created_at)}</span>
+                        </div>
+                      </div>
+                      {editDesc ? (
+                        <div className="space-y-2 mt-1">
+                          <RichEditor ref={descEditorRef} initialHtml={t.description ?? ''} minHeight={100} />
+                          <div className="flex gap-2">
+                            <button onClick={async () => {
+                              await updateField({ description: descEditorRef.current?.getHtml() ?? t.description })
+                              for (const f of (descEditorRef.current?.getFiles() ?? [])) { const fd = new FormData(); fd.append('file', f); await api.post(`/help-desk/tickets/${id}/attachments`, fd) }
+                              setEditDesc(false); loadAtts()
+                            }} className="ds-btn-primary text-xs px-3 py-1 rounded-lg">Salvar</button>
+                            <button onClick={() => setEditDesc(false)} className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
+                          </div>
+                        </div>
+                      ) : isHtmlBody(t.description)
+                        ? <div className="mt-1"><EmailFrame html={t.description} /></div>
+                        : <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{t.description}</p>}
+                      {atts.length > 0 && (
+                        <div className="mt-2 pt-2 border-t flex flex-wrap gap-2" style={{ borderColor: 'var(--border)' }}>
+                          {atts.map(a => (
+                            <a key={a.id} href={`/api/v1/help-desk/tickets/${id}/attachments/${a.id}/download`} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}>
+                              <Paperclip size={12} /> <span className="max-w-[180px] truncate">{a.original_name ?? a.file_name ?? `Anexo #${a.id}`}</span>{a.human_size ? ` · ${a.human_size}` : ''}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-4 space-y-2">
