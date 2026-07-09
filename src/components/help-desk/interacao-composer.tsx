@@ -174,31 +174,27 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
         </div>
       )}
 
-      {/* Tempo trabalhado por interação (opcional). Vira apontamento quando o contrato
-          de sustentação tem a integração ligada — movimenta horas como o Movidesk.
-          "Não gera cobrança" registra o tempo mas NÃO movimenta horas. */}
-      <div className="rounded-lg px-2.5 py-2 space-y-2 text-xs"
+      {/* Tempo trabalhado por interação (opcional). Vira apontamento quando o contrato tem a
+          integração ligada. A 1ª hora tem "Sem apontamento" no topo → trava os demais campos
+          (registra a interação sem movimentar horas). */}
+      <div className="rounded-lg px-2.5 py-2 text-xs"
         style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
-        <label className="flex items-center gap-1.5 cursor-pointer w-fit" style={{ color: 'var(--text-muted)' }}>
-          <input type="checkbox" checked={noCharge} onChange={e => setNoCharge(e.target.checked)}
-            style={{ accentColor: 'var(--primary)' }} />
-          Não gera cobrança <span style={{ color: 'var(--text-light)' }}>(registra o tempo, mas não movimenta horas)</span>
-        </label>
-        <div className="flex items-center gap-2 flex-wrap" style={{ opacity: noCharge ? 0.55 : 1 }}>
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
             <Clock size={13} /> Tempo
           </span>
           <input type="date" value={workedDate} max={localToday()} onChange={e => setWorkedDate(e.target.value)}
-            aria-label="Data da interação"
-            className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
+            disabled={noCharge} aria-label="Data da interação"
+            className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px', opacity: noCharge ? 0.5 : 1 }} />
           <span style={{ color: 'var(--text-light)' }}>·</span>
-          <TimeSelect5 value={startTime} onChange={setStartTime} ariaLabel="Hora início" />
+          <TimeSelect5 value={startTime} onChange={v => { setStartTime(v); setNoCharge(false) }} ariaLabel="Hora início"
+            topOption={{ label: 'Sem apontamento', active: noCharge, onSelect: () => { setNoCharge(true); setStartTime(''); setEndTime(''); setTotalHours('') } }} />
           <span style={{ color: 'var(--text-light)' }}>→</span>
-          <TimeSelect5 value={endTime} onChange={setEndTime} ariaLabel="Hora fim" />
+          <TimeSelect5 value={endTime} onChange={setEndTime} disabled={noCharge} ariaLabel="Hora fim" />
           <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>Total</span>
-          <input type="text" value={totalDisplay} onChange={e => setTotalHours(e.target.value)}
-            placeholder="0:00" aria-label="Total de horas"
-            className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }} />
+          <input type="text" value={noCharge ? '' : totalDisplay} onChange={e => setTotalHours(e.target.value)}
+            placeholder="0:00" disabled={noCharge} aria-label="Total de horas"
+            className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', opacity: noCharge ? 0.5 : 1 }} />
         </div>
       </div>
 
