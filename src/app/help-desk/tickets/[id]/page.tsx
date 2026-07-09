@@ -38,13 +38,14 @@ interface TicketDetail {
   customer?: Ref | null; contact?: Ref | null; assignee?: Ref | null; team?: Ref | null
   category?: { id: number; name: string } | null; status?: StatusOpt | null
   project?: { id: number; name: string } | null
+  contract?: { id: number; categoria?: string | null; helpdesk_integration_enabled?: boolean } | null
   service?: { id: number; name: string; code: string | null } | null
   justification?: { id: number; name: string; status_id: number } | null
   slaPolicy?: Ref | null; created_at: string; sla?: Sla | null
 }
 interface JustificationOpt { id: number; status_id: number; name: string }
 interface CommentAtt { id: number; original_name?: string; file_name?: string; human_size?: string; category?: string }
-interface Comment { id: number; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean }
+interface Comment { id: number; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean; worked_date?: string | null; start_time?: string | null; end_time?: string | null; effort_minutes?: number | null; timesheet_id?: number | null }
 interface Event { id: number; event_type: string; field: string | null; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: number | null; triggeredBy?: Ref | null }
 interface Att { id: number; original_name?: string; file_name?: string; human_size?: string; created_at?: string }
 
@@ -195,6 +196,18 @@ export default function HelpDeskTicketDetailPage() {
   const updateField = async (patch: Record<string, unknown>) => {
     try { await api.put(`/help-desk/tickets/${id}`, patch); loadTicket() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao atualizar') }
+  }
+
+  // Liga/desliga a chave de integração de horas do CONTRATO do chamado (substitui o Movidesk).
+  const [savingIntegration, setSavingIntegration] = useState(false)
+  const toggleIntegration = async (contractId: number, enabled: boolean) => {
+    setSavingIntegration(true)
+    try {
+      await api.patch(`/contracts/${contractId}/helpdesk-integration`, { enabled })
+      toast.success(enabled ? 'Integração de horas ligada' : 'Integração de horas desligada')
+      loadTicket()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao alterar integração') }
+    finally { setSavingIntegration(false) }
   }
 
   // Atribui o agente e, se ele veio de uma equipe, leva o chamado AUTOMATICAMENTE para a fila dessa equipe.
@@ -350,6 +363,20 @@ export default function HelpDeskTicketDetailPage() {
                           <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(c.created_at)}</span>
                         </div>
                       </div>
+                      {typeof c.effort_minutes === 'number' && c.effort_minutes > 0 && (
+                        <div className="flex items-center gap-1.5 flex-wrap mb-1.5 text-[11px]">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                            <Clock size={11} /> {Math.floor(c.effort_minutes / 60)}:{String(c.effort_minutes % 60).padStart(2, '0')}
+                            {c.start_time && c.end_time ? ` · ${c.start_time}–${c.end_time}` : ''}
+                            {c.worked_date ? ` · ${c.worked_date.slice(8, 10)}/${c.worked_date.slice(5, 7)}` : ''}
+                          </span>
+                          {c.timesheet_id && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
+                              <CheckCircle2 size={11} /> apontamento gerado
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {editCommentId === c.id ? (
                         <div className="space-y-2">
                           <RichEditor ref={commentEditorRef} initialHtml={c.body} minHeight={80} />
@@ -459,6 +486,29 @@ export default function HelpDeskTicketDetailPage() {
               <Row label="Reaberturas" value={String(t.reopen_count)} />
               <Row label="Aberto em" value={fmtDate(t.created_at)} />
             </div>
+
+            {/* Chave de integração de horas do CONTRATO (substitui o Movidesk) */}
+            {t.contract && (
+              <div className="ds-card p-4 space-y-2">
+                <div className={lbl} style={{ color: 'var(--text-light)' }}>Integração de horas</div>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Com a chave ligada, as interações com tempo viram apontamento no contrato
+                    {t.contract.categoria === 'sustentacao' ? ' de sustentação' : ''} — movimenta horas como o Movidesk.
+                  </p>
+                  <button type="button" role="switch" aria-checked={!!t.contract.helpdesk_integration_enabled}
+                    disabled={savingIntegration}
+                    onClick={() => toggleIntegration(t.contract!.id, !t.contract!.helpdesk_integration_enabled)}
+                    className="relative shrink-0 rounded-full transition-colors"
+                    style={{ width: 40, height: 22, background: t.contract.helpdesk_integration_enabled ? 'var(--primary)' : 'var(--border)', opacity: savingIntegration ? 0.6 : 1, cursor: savingIntegration ? 'default' : 'pointer' }}>
+                    <span className="absolute rounded-full bg-white transition-all" style={{ width: 18, height: 18, top: 2, left: t.contract.helpdesk_integration_enabled ? 20 : 2 }} />
+                  </button>
+                </div>
+                <div className="text-[11px]" style={{ color: t.contract.helpdesk_integration_enabled ? 'var(--success)' : 'var(--text-light)' }}>
+                  {t.contract.helpdesk_integration_enabled ? 'Ligada — movimentando horas' : 'Desligada — sem movimentação'}
+                </div>
+              </div>
+            )}
 
             {/* Apontamentos (registrados pela finalização do atendimento) */}
             <div className="ds-card p-4 space-y-2">

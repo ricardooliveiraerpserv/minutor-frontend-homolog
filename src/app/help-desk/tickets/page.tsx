@@ -56,9 +56,10 @@ export default function HelpDeskTicketsPage() {
   const [loading, setLoading] = useState(true)
   const [meta, setMeta] = useState<Meta | null>(null)
   const [customers, setCustomers] = useState<Ref[]>([])
+  const [agents, setAgents] = useState<Ref[]>([])
   const [novo, setNovo] = useState(false)
 
-  const F0 = { search: '', status_key: '', priority: '', category_id: '', team_id: '' }
+  const F0 = { search: '', status_key: '', priority: '', category_id: '', team_id: '', assignee_id: '', customer_id: '' }
   const [f, setF] = useState<Record<string, string>>(F0)
   const [mine, setMine] = useState(false)
   const [open, setOpen] = useState(false)
@@ -107,6 +108,7 @@ export default function HelpDeskTicketsPage() {
 
   useEffect(() => {
     api.get<{ data: Meta }>('/help-desk/meta').then(r => r?.data && setMeta(r.data)).catch(() => {})
+    api.get<{ data?: Ref[] }>('/help-desk/agents').then(r => setAgents((r?.data ?? []).map(a => ({ id: a.id, name: a.name })))).catch(() => {})
     api.get<Ref[] | { data?: Ref[]; items?: Ref[] }>('/customers?pageSize=500')
       .then(r => {
         const list = Array.isArray(r) ? r : (r?.data ?? r?.items ?? [])
@@ -179,6 +181,14 @@ export default function HelpDeskTicketsPage() {
           <select className={fieldCls} style={inputStyle} value={f.team_id} onChange={e => set('team_id', e.target.value)}>
             <option value="">Fila (todas)</option>
             {meta?.teams.map(t => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+          </select>
+          <select className={fieldCls} style={inputStyle} value={f.assignee_id} onChange={e => set('assignee_id', e.target.value)}>
+            <option value="">Atendente (todos)</option>
+            {agents.map(a => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+          </select>
+          <select className={fieldCls} style={inputStyle} value={f.customer_id} onChange={e => set('customer_id', e.target.value)}>
+            <option value="">Cliente (todos)</option>
+            {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
           </select>
         </div>
 
