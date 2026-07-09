@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
@@ -36,9 +36,9 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
   onApplyStatus?: (statusId: number) => void | Promise<void>
 }) {
   const [visibility, setVisibility] = useState<'customer' | 'internal'>('customer')
-  // Status escolhido ao ENVIAR (default = status atual). Mantém = mesmo status; trocar move o chamado.
-  const [sendStatus, setSendStatus] = useState<number | undefined>(currentStatusId)
-  useEffect(() => { setSendStatus(currentStatusId) }, [currentStatusId])
+  // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
+  // a resposta só libera após escolher. Escolher o status atual = manter.
+  const [sendStatus, setSendStatus] = useState<number | undefined>(undefined)
   const [files, setFiles] = useState<File[]>([])
   const [empty, setEmpty] = useState(true)
   const [sending, setSending] = useState(false)
@@ -109,6 +109,7 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
   const removeFile = (idx: number) => setFiles(f => f.filter((_, i) => i !== idx))
 
   const send = async () => {
+    if (statuses.length > 0 && !sendStatus) { toast.error('Escolha o status antes de enviar.'); return }
     const ed = edRef.current
     const html = ed ? sanitizeRich(ed.innerHTML) : ''
     const hasText = !empty
@@ -148,6 +149,7 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
       onSent()
       // Aplica o status escolhido (só quando MUDA — manter não faz nada).
       if (onApplyStatus && sendStatus && sendStatus !== currentStatusId) await onApplyStatus(sendStatus)
+      setSendStatus(undefined) // volta a exigir escolha na próxima interação
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar')
     } finally { setSending(false) }
@@ -158,15 +160,19 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
       <div className="relative">
         <div
           ref={edRef}
-          contentEditable
+          contentEditable={!!sendStatus}
           suppressContentEditableWarning
           onInput={syncEmpty}
           onPaste={onPaste}
           className="hd-composer hd-rich w-full text-sm rounded-lg px-3 py-2.5 outline-none overflow-y-auto"
           // Fundo papel branco fixo (legível com print/e-mail colado em qualquer tema).
-          style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', minHeight: 120, maxHeight: 600, resize: 'vertical' }}
+          style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${sendStatus ? '#e5e7eb' : '#f59e0b'}`, minHeight: 120, maxHeight: 600, resize: 'vertical', opacity: sendStatus ? 1 : 0.85, cursor: sendStatus ? 'text' : 'not-allowed' }}
         />
-        {empty && (
+        {!sendStatus ? (
+          <span className="pointer-events-none absolute left-3 top-2.5 text-sm font-medium" style={{ color: '#b45309' }}>
+            ⚠️ Escolha o status em “Ao enviar → status” para liberar a resposta.
+          </span>
+        ) : empty && (
           <span className="pointer-events-none absolute left-3 top-2.5 text-sm" style={{ color: '#9ca3af' }}>
             Escreva uma resposta…  (cole um print direto aqui ou anexe arquivos)
           </span>
@@ -211,8 +217,9 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
           {statuses.length > 0 && (
             <span className="inline-flex items-center gap-1.5 ml-auto">
               <span style={{ color: 'var(--text-muted)' }}>Ao enviar → status</span>
-              <select value={sendStatus ?? ''} onChange={e => setSendStatus(Number(e.target.value))} aria-label="Status ao enviar"
-                className="ds-input" style={{ height: 30, fontSize: 12, padding: '0 8px' }}>
+              <select value={sendStatus ?? ''} onChange={e => setSendStatus(e.target.value ? Number(e.target.value) : undefined)} aria-label="Status ao enviar"
+                className="ds-input" style={{ height: 30, fontSize: 12, padding: '0 8px', borderColor: sendStatus ? 'var(--border)' : '#f59e0b' }}>
+                <option value="">— Selecione o status —</option>
                 {statuses.map(s => <option key={s.id} value={s.id}>{s.id === currentStatusId ? `Manter: ${s.label}` : s.label}</option>)}
               </select>
             </span>
@@ -236,7 +243,7 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
           </label>
           {files.length > 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{files.length} anexo(s)</span>}
         </div>
-        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={send} disabled={sending || (empty && files.length === 0)}>
+        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={send} disabled={sending || !sendStatus || (empty && files.length === 0)}>
           <Send size={14} /> {sending ? 'Enviando…' : (sendStatus && sendStatus !== currentStatusId ? `Enviar e mover para: ${statuses.find(s => s.id === sendStatus)?.label ?? ''}` : 'Enviar')}
         </button>
       </div>
