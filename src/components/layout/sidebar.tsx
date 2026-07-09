@@ -405,39 +405,7 @@ const NAV: NavEntry[] = [
     ],
   },
 
-  // 🎫 Help Desk — exposto SÓ na Replica (IS_REPLICA): feature em construção aqui,
-  // não vaza pra homolog/prod. Espelha os grupos do dev (Operações + Configurações c/ Formulários).
-  ...(IS_REPLICA ? [
-    {
-      type: 'group' as const, module: 'help_desk' as const, label: 'Help Desk', icon: Headphones,
-      items: [
-        { label: 'Central de Operações', href: '/help-desk/operacoes', icon: Radar },
-        { label: 'Chamados', href: '/help-desk/tickets', icon: Ticket },
-        { label: 'Fila (Kanban)', href: '/help-desk/fila', icon: LayoutGrid },
-        { label: 'Base de Conhecimento', href: '/help-desk/kb', icon: FileText },
-      ],
-    },
-    {
-      type: 'group' as const, module: 'help_desk' as const, label: 'Configurações Help Desk', icon: Settings,
-      items: [
-        { label: 'Categorias', href: '/help-desk/configuracoes?tab=categorias', icon: Tag },
-        { label: 'Serviços', href: '/help-desk/configuracoes?tab=servicos', icon: LayoutGrid },
-        { label: 'Justificativas', href: '/help-desk/configuracoes?tab=justificativas', icon: FileText },
-        { label: 'Status', href: '/help-desk/configuracoes?tab=status', icon: ListTodo },
-        { label: 'Equipes', href: '/help-desk/configuracoes?tab=filas', icon: Users },
-        { label: 'Perfis de Acesso', href: '/help-desk/configuracoes?tab=perfis', icon: Layers },
-        { label: 'Pessoas', href: '/help-desk/configuracoes?tab=pessoas', icon: Contact },
-        { label: 'Regras de Associação', href: '/help-desk/configuracoes?tab=associacoes', icon: Database },
-        { label: 'Contas de E-mail', href: '/help-desk/configuracoes?tab=contas-email', icon: Mail },
-        { label: 'Gatilhos (automação)', href: '/help-desk/configuracoes?tab=gatilhos', icon: Zap },
-        { label: 'Comunicação', href: '/help-desk/configuracoes?tab=comunicacao', icon: Mail },
-        { label: 'SLA', href: '/help-desk/configuracoes?tab=sla', icon: Clock },
-        { label: 'Formulários', href: '/help-desk/configuracoes?tab=formularios', icon: FileText },
-        { label: 'Tags', href: '/help-desk/configuracoes?tab=tags', icon: Tag },
-        { label: 'Playbooks', href: '/help-desk/configuracoes?tab=playbooks', icon: Star },
-      ],
-    },
-  ] : []),
+  // 🎫 Help Desk removido do menu (feature não finalizada — não expor na Replica).
 
   // 🧪 Features experimentais — só em DEV1 (sempre visíveis; env-gated)
   ...(IS_DEV1 ? [
