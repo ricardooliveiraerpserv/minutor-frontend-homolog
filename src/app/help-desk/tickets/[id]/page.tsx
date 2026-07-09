@@ -432,24 +432,22 @@ export default function HelpDeskTicketDetailPage() {
                       {editCommentId === c.id ? (
                         <div className="space-y-2">
                           <RichEditor ref={commentEditorRef} initialHtml={c.body} minHeight={80} />
-                          {/* Tempo trabalhado — total soma automaticamente ao informar início e fim.
-                              "Não gera cobrança" registra o tempo mas não movimenta horas. */}
-                          <div className="rounded-lg px-2.5 py-2 space-y-2 text-xs" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
-                            <label className="flex items-center gap-1.5 cursor-pointer w-fit" style={{ color: 'var(--text-muted)' }}>
-                              <input type="checkbox" checked={editTime.no_charge} onChange={e => setEditTime(t => ({ ...t, no_charge: e.target.checked }))} style={{ accentColor: 'var(--primary)' }} />
-                              Não gera cobrança <span style={{ color: 'var(--text-light)' }}>(registra o tempo, mas não movimenta horas)</span>
-                            </label>
-                            <div className="flex items-center gap-2 flex-wrap" style={{ opacity: editTime.no_charge ? 0.55 : 1 }}>
+                          {/* Tempo — total soma automaticamente ao informar início e fim. A 1ª hora
+                              tem "Sem apontamento" no topo → trava os demais campos. */}
+                          <div className="rounded-lg px-2.5 py-2 text-xs" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}><Clock size={13} /> Tempo</span>
-                              <input type="date" value={editTime.worked_date} max={localTodayStr()} onChange={e => setEditTime(t => ({ ...t, worked_date: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
+                              <input type="date" value={editTime.worked_date} max={localTodayStr()} disabled={editTime.no_charge} onChange={e => setEditTime(t => ({ ...t, worked_date: e.target.value }))} className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px', opacity: editTime.no_charge ? 0.5 : 1 }} />
                               <span style={{ color: 'var(--text-light)' }}>·</span>
-                              <TimeSelect5 value={editTime.start_time} onChange={v => setEditTime(t => ({ ...t, start_time: v }))} ariaLabel="Hora início" />
+                              <TimeSelect5 value={editTime.start_time} ariaLabel="Hora início"
+                                onChange={v => setEditTime(t => ({ ...t, start_time: v, no_charge: false }))}
+                                topOption={{ label: 'Sem apontamento', active: editTime.no_charge, onSelect: () => setEditTime(t => ({ ...t, no_charge: true, start_time: '', end_time: '', total_hours: '' })) }} />
                               <span style={{ color: 'var(--text-light)' }}>→</span>
-                              <TimeSelect5 value={editTime.end_time} onChange={v => setEditTime(t => ({ ...t, end_time: v }))} ariaLabel="Hora fim" />
+                              <TimeSelect5 value={editTime.end_time} disabled={editTime.no_charge} onChange={v => setEditTime(t => ({ ...t, end_time: v }))} ariaLabel="Hora fim" />
                               <span style={{ color: 'var(--text-muted)' }}>Total</span>
                               {(() => {
                                 const d = deriveTotalHHMM(editTime.start_time, editTime.end_time)
-                                return <input type="text" value={d || editTime.total_hours} readOnly={!!d} onChange={e => setEditTime(t => ({ ...t, total_hours: e.target.value }))} placeholder="0:00" className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }} />
+                                return <input type="text" value={editTime.no_charge ? '' : (d || editTime.total_hours)} readOnly={!!d} disabled={editTime.no_charge} onChange={e => setEditTime(t => ({ ...t, total_hours: e.target.value }))} placeholder="0:00" className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', opacity: editTime.no_charge ? 0.5 : 1 }} />
                               })()}
                             </div>
                           </div>
