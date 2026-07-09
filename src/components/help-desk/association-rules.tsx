@@ -14,7 +14,7 @@ interface Ref { id: number; name: string }
 interface Rule {
   id: number; domain: string; classification: string | null; enabled: boolean
   customer_id: number | null; access_profile_id: number | null
-  customer?: Ref | null; accessProfile?: Ref | null
+  customer?: Ref | null; access_profile?: Ref | null
 }
 
 export function AssociationRules() {
@@ -85,7 +85,7 @@ export function AssociationRules() {
             {filtered.map(r => (
               <tr key={r.id} className="border-t ds-row-hover" style={{ borderColor: 'var(--border)', background: editing?.id === r.id ? 'var(--primary-soft)' : undefined }}>
                 <td className="px-3 py-2"><button className="text-left font-mono text-[12px]" style={{ color: editing?.id === r.id ? 'var(--primary)' : 'var(--text)' }} onClick={() => startEdit(r)}>{r.domain}</button></td>
-                <td className="px-3 py-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>{r.accessProfile?.name ?? '—'}</td>
+                <td className="px-3 py-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>{r.access_profile?.name ?? '—'}</td>
                 <td className="px-3 py-2 text-[12px]" style={{ color: 'var(--text-light)' }}>{r.classification ?? '—'}</td>
                 <td className="px-3 py-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>{r.customer?.name ?? '—'}</td>
                 <td className="px-3 py-2"><button onClick={() => toggle(r)} className="text-xs px-2 py-0.5 rounded-full" style={{ background: r.enabled ? 'var(--success-bg)' : 'var(--surface-sunken)', color: r.enabled ? 'var(--success-border)' : 'var(--text-muted)' }}>{r.enabled ? 'Sim' : 'Não'}</button></td>
