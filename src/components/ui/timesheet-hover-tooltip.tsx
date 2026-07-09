@@ -25,7 +25,9 @@ function ProjectHoursBar({ projectId }: { projectId?: number | null }) {
     api.get<any>(`/projects/${projectId}/cost-summary`).then(r => {
       const hs = r?.hours_summary ?? {}
       const available = Number(hs.total_available_hours ?? 0)
-      const consumed  = Number(hs.approved_hours ?? 0)
+      // Consumo = aprovadas + PENDENTES (mesma base do hours_percentage e do SALDO do projeto).
+      // Antes só approved_hours → mostrava "0h consumidas / saldo cheio" enquanto o % já contava o pendente.
+      const consumed  = Number(hs.approved_hours ?? 0) + Number(hs.pending_hours ?? 0)
       const data: ProjectConsumo = {
         available, consumed,
         balance: Math.max(0, available - consumed),
