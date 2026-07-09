@@ -4,7 +4,22 @@ import { useState, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
-import { Send, Paperclip, X, FileText } from 'lucide-react'
+import { Send, Paperclip, X, FileText, Clock } from 'lucide-react'
+
+// Data local (YYYY-MM-DD) — NÃO usar toISOString (UTC empurra p/ o dia seguinte à noite no Brasil).
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+// HH:MM a partir de início→fim; '' se inválido/incompleto.
+function deriveTotal(start: string, end: string): string {
+  if (!start || !end) return ''
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const mins = (eh * 60 + em) - (sh * 60 + sm)
+  if (!Number.isFinite(mins) || mins <= 0) return ''
+  return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`
+}
 
 // Compositor de interação estilo e-mail:
 //  • campo amplo (contenteditable) — o PRINT colado entra INLINE no texto (imagem embutida),
@@ -16,6 +31,14 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
   const [files, setFiles] = useState<File[]>([])
   const [empty, setEmpty] = useState(true)
   const [sending, setSending] = useState(false)
+  // Tempo trabalhado NESTA interação (opcional). Movimenta horas quando o contrato
+  // de sustentação tem a chave de integração ligada (substitui o Movidesk).
+  const [workedDate, setWorkedDate] = useState(localToday())
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+  const [totalHours, setTotalHours] = useState('')
+  const derivedTotal = deriveTotal(startTime, endTime)
+  const totalDisplay = totalHours || derivedTotal
   const edRef = useRef<HTMLDivElement>(null)
   // Chave de idempotência por mensagem: reusada em retentativas (não duplica), zerada no sucesso.
   const idemRef = useRef<string | null>(null)
@@ -86,6 +109,10 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
     // Pré-validação de anexos (servidor limita ~25MB) — feedback instantâneo, sem 422.
     const big = files.find(f => f.size > 25 * 1024 * 1024)
     if (big) { toast.error(`"${big.name}" excede 25MB.`); return }
+    // Guard de horário: se início e fim vieram, fim precisa ser depois do início.
+    if (startTime && endTime && !derivedTotal) {
+      toast.error('A hora de fim deve ser maior que a de início.'); return
+    }
     // Mesma mensagem mantém a MESMA chave em retentativas → o servidor não duplica.
     if (!idemRef.current) idemRef.current = (crypto?.randomUUID?.() ?? String(Date.now()) + Math.random())
     setSending(true)
@@ -95,9 +122,16 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
       fd.append('visibility', visibility)
       fd.append('idempotency_key', idemRef.current)
       files.forEach(f => fd.append('files[]', f))
-      await api.post(`/help-desk/tickets/${ticketId}/comments`, fd)
+      // Tempo trabalhado (opcional). total_hours prevalece; senão o servidor deriva de início→fim.
+      if (workedDate) fd.append('worked_date', workedDate)
+      if (startTime) fd.append('start_time', startTime)
+      if (endTime) fd.append('end_time', endTime)
+      if (totalHours) fd.append('total_hours', totalHours)
+      const resp = await api.post<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${ticketId}/comments`, fd)
       if (ed) ed.innerHTML = ''
       setFiles([]); setEmpty(true); idemRef.current = null // sucesso → próxima mensagem, nova chave
+      setStartTime(''); setEndTime(''); setTotalHours(''); setWorkedDate(localToday())
+      if (resp?.data?.apontamento_warning) toast.warning(resp.data.apontamento_warning)
       onSent()
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar')
@@ -136,6 +170,30 @@ export function InteracaoComposer({ ticketId, onSent }: { ticketId: number; onSe
           ))}
         </div>
       )}
+
+      {/* Tempo trabalhado por interação (opcional). Vira apontamento quando o contrato
+          de sustentação tem a integração ligada — movimenta horas como o Movidesk. */}
+      <div className="flex items-center gap-2 flex-wrap text-xs rounded-lg px-2.5 py-2"
+        style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
+        <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+          <Clock size={13} /> Tempo
+        </span>
+        <input type="date" value={workedDate} max={localToday()} onChange={e => setWorkedDate(e.target.value)}
+          aria-label="Data da interação"
+          className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
+        <span style={{ color: 'var(--text-light)' }}>·</span>
+        <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+          aria-label="Hora início"
+          className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+        <span style={{ color: 'var(--text-light)' }}>→</span>
+        <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
+          aria-label="Hora fim"
+          className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+        <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>Total</span>
+        <input type="text" value={totalDisplay} onChange={e => setTotalHours(e.target.value)}
+          placeholder="0:00" aria-label="Total de horas"
+          className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }} />
+      </div>
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
