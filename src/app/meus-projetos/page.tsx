@@ -30,8 +30,9 @@ function fmtHours(v: number): string {
 }
 
 export default function MeusProjetosPage() {
+  // activity_allocated: só projetos onde o consultor está alocado em ATIVIDADE.
   const { data, loading, error } = useApiQuery<{ items: MyProject[] }>(
-    '/my-projects?pageSize=200&status=open'
+    '/my-projects?pageSize=200&status=open&activity_allocated=true'
   )
   const projects = useMemo(() => data?.items ?? [], [data])
 
