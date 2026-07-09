@@ -352,9 +352,11 @@ export default function HelpDeskTicketDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <select className={fieldCls} style={inputStyle} value={t.status?.id ?? ''} onChange={e => onStatusSelect(e.target.value)}>
-              {statuses.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
+            {/* Status é INFORMATIVO aqui — a mudança acontece ao enviar a interação (compositor). */}
+            <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }} title="O status muda ao enviar uma interação">
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: t.status?.color ?? 'var(--text-light)', display: 'inline-block' }} />
+              {t.status?.label ?? '—'}
+            </span>
             <ExecutarPlaybook onExec={runPlaybook} />
             <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => { setFinalizeDefaults(null); setFinalizing(true) }}>
               <CheckCircle2 size={16} /> Finalizar atendimento
@@ -417,7 +419,10 @@ export default function HelpDeskTicketDetailPage() {
               {tab === 'conversa' ? (
                 <div className="p-4 space-y-3">
                   {/* Compositor no TOPO — nova interação sempre em cima */}
-                  <InteracaoComposer ticketId={id} onSent={() => { loadComments(); loadEvents(); loadTicket() }} />
+                  <InteracaoComposer ticketId={id} onSent={() => { loadComments(); loadEvents(); loadTicket() }}
+                    statuses={statuses.map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved }))}
+                    currentStatusId={t.status?.id}
+                    onApplyStatus={(sid) => onStatusSelect(String(sid))} />
                   <div className="border-b" style={{ borderColor: 'var(--border)' }} />
                   {comments.length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>Sem interações ainda.</p>}
                   {/* Mais recente em cima, mais antiga embaixo */}
