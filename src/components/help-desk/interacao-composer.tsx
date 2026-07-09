@@ -176,12 +176,12 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
           onInput={syncEmpty}
           onPaste={onPaste}
           className="hd-composer hd-rich w-full text-sm rounded-lg px-3 py-2.5 outline-none overflow-y-auto"
-          // Fundo papel branco fixo (legível com print/e-mail). Nota interna → fundo ÂMBAR bem
-          // evidente (não vai para o cliente), com borda âmbar mais grossa.
-          style={{ background: visibility === 'internal' ? '#fef3c7' : '#ffffff', color: '#1f2937', border: visibility === 'internal' ? '2px solid #f59e0b' : `1px solid ${sendStatus ? '#e5e7eb' : '#f59e0b'}`, minHeight: 120, maxHeight: 600, resize: 'vertical', opacity: sendStatus ? 1 : 0.85, cursor: sendStatus ? 'text' : 'not-allowed' }}
+          // Fundo papel branco fixo (legível com print/e-mail). Nota interna → fundo ROXO bem
+          // evidente (não vai para o cliente), com borda roxa mais grossa.
+          style={{ background: visibility === 'internal' ? '#ede9fe' : '#ffffff', color: '#1f2937', border: visibility === 'internal' ? '2px solid #7c3aed' : `1px solid ${sendStatus ? '#e5e7eb' : '#f59e0b'}`, minHeight: 120, maxHeight: 600, resize: 'vertical', opacity: sendStatus ? 1 : 0.85, cursor: sendStatus ? 'text' : 'not-allowed' }}
         />
         {visibility === 'internal' && (
-          <span className="pointer-events-none absolute right-3 top-2 text-[11px] font-bold inline-flex items-center gap-1 px-1.5 py-0.5 rounded" style={{ background: '#f59e0b', color: '#ffffff' }}>
+          <span className="pointer-events-none absolute right-3 top-2 text-[11px] font-bold inline-flex items-center gap-1 px-1.5 py-0.5 rounded" style={{ background: '#7c3aed', color: '#ffffff' }}>
             <Lock size={11} /> NOTA INTERNA — não vai ao cliente
           </span>
         )}
@@ -190,8 +190,8 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
             ⚠️ Escolha o status em “Ao enviar → status” para liberar a resposta.
           </span>
         ) : empty && (
-          <span className="pointer-events-none absolute left-3 top-2.5 text-sm" style={{ color: visibility === 'internal' ? '#b45309' : '#9ca3af' }}>
-            {visibility === 'internal' ? 'Escreva uma nota interna… (só a equipe vê — não vai ao cliente)' : 'Escreva uma resposta…  (cole um print direto aqui ou anexe arquivos)'}
+          <span className="pointer-events-none absolute left-3 top-2.5 text-sm" style={{ color: visibility === 'internal' ? '#6d28d9' : '#9ca3af' }}>
+            {visibility === 'internal' ? '🔒 Escreva uma nota interna… (só a equipe vê — não vai ao cliente)' : 'Escreva uma resposta…  (cole um print direto aqui ou anexe arquivos)'}
           </span>
         )}
       </div>
@@ -264,8 +264,8 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
           <div className="flex items-center gap-1 text-xs">
             {(['customer', 'internal'] as const).map(v => {
               const active = visibility === v
-              // Nota interna ATIVA destaca em âmbar (bem evidente que é interno).
-              const bg = active ? (v === 'internal' ? '#f59e0b' : 'var(--primary-soft)') : 'transparent'
+              // Nota interna ATIVA destaca em ROXO (bem evidente que é interno).
+              const bg = active ? (v === 'internal' ? '#7c3aed' : 'var(--primary-soft)') : 'transparent'
               const fg = active ? (v === 'internal' ? '#ffffff' : 'var(--primary)') : 'var(--text-muted)'
               return (
                 <button key={v} onClick={() => setVisibility(v)} className="px-2 py-1 rounded-md inline-flex items-center gap-1 font-medium"
