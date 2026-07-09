@@ -458,7 +458,9 @@ export default function HelpDeskTicketDetailPage() {
         </div>
 
         {/* Resumo Operacional — o essencial para atender; contexto completo no Drawer */}
-        <ResumoOperacional key={refreshKey} ticketId={id} sla={t.sla} onOpenContext={openCtx} onRunPlaybook={runPlaybook} />
+        <ResumoOperacional key={refreshKey} ticketId={id} sla={t.sla}
+          assigneeName={t.assignee?.name} requesterName={t.solicitante?.name ?? t.requester_name ?? t.contact?.name}
+          onOpenContext={openCtx} onRunPlaybook={runPlaybook} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Coluna principal */}

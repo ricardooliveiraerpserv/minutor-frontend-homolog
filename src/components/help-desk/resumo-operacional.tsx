@@ -14,6 +14,8 @@ interface Sla {
   first_response_breached: boolean; resolution_breached: boolean
   first_response_overdue: boolean; resolution_overdue: boolean
   resolution_minutes_left: number | null
+  resolution_due_at?: string | null; first_response_due_at?: string | null
+  paused?: boolean; scheduled?: boolean; scheduled_until?: string | null; scheduled_all_day?: boolean
 }
 interface Atencao { severity: 'danger' | 'warning' | 'info' | 'ok'; code: string; message: string; suggested_playbook: { id: number; name: string } | null }
 interface Ctx {
@@ -31,6 +33,8 @@ const SEV: Record<string, { dot: string; color: string }> = {
 }
 const fmtBRL = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const fmtH = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 0 })} h`
+const fmtDateTime = (s: string) => new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+const fmtDateOnly = (s: string) => new Date(s).toLocaleDateString('pt-BR')
 
 function slaResumo(sla?: Sla | null): { txt: string; color: string } {
   if (!sla) return { txt: '—', color: 'var(--text-muted)' }
@@ -40,7 +44,7 @@ function slaResumo(sla?: Sla | null): { txt: string; color: string } {
   return { txt: 'Dentro do prazo', color: 'var(--success-border)' }
 }
 
-export function ResumoOperacional({ ticketId, sla, onOpenContext, onRunPlaybook }: { ticketId: number; sla?: Sla | null; onOpenContext: () => void; onRunPlaybook?: (playbookId: number) => void }) {
+export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, onOpenContext, onRunPlaybook }: { ticketId: number; sla?: Sla | null; assigneeName?: string | null; requesterName?: string | null; onOpenContext: () => void; onRunPlaybook?: (playbookId: number) => void }) {
   const [ctx, setCtx] = useState<Ctx | null>(null)
   const [empty, setEmpty] = useState(false)
   const load = useCallback(() => {
@@ -57,7 +61,9 @@ export function ResumoOperacional({ ticketId, sla, onOpenContext, onRunPlaybook 
   const bh = ctx?.blocos.contrato.banco_horas
   const usado = bh && bh.contratadas > 0 ? Math.max(0, Math.min(100, Math.round(bh.consumidas / bh.contratadas * 100))) : 0
   const valorHora = ctx?.financeiro_visivel ? ctx?.blocos.contrato.financeiro?.valor_hora : null
-  const atencao = (ctx?.atencoes ?? []).find(a => a.severity !== 'ok') ?? null
+  // SLA já tem célula própria — não repetir como "atenção" (evita SLA duas vezes).
+  const isSlaAtencao = (a: Atencao) => /sla/i.test(a.code) || /sla/i.test(a.message)
+  const atencao = (ctx?.atencoes ?? []).find(a => a.severity !== 'ok' && !isSlaAtencao(a)) ?? null
 
   return (
     <div className="ds-card flex items-center gap-x-6 gap-y-2 px-4 py-3 flex-wrap" style={{ minHeight: 120 }}>
@@ -78,10 +84,27 @@ export function ResumoOperacional({ ticketId, sla, onOpenContext, onRunPlaybook 
         </div>
       </div>
 
-      {/* SLA */}
-      <div className="min-w-[100px]">
+      {/* Consultor alocado */}
+      <div className="min-w-[120px]">
+        <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Consultor</div>
+        <div className="text-sm font-medium truncate max-w-[160px]" style={{ color: assigneeName ? 'var(--text)' : 'var(--text-light)' }}>{assigneeName || 'Não atribuído'}</div>
+      </div>
+
+      {/* Solicitante */}
+      <div className="min-w-[120px]">
+        <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Solicitante</div>
+        <div className="text-sm font-medium truncate max-w-[160px]" style={{ color: 'var(--text)' }}>{requesterName || '—'}</div>
+      </div>
+
+      {/* SLA — status + data limite (ou "retoma em" quando pausado por agendamento) */}
+      <div className="min-w-[150px]">
         <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>SLA</div>
-        <div className="text-sm font-medium" style={{ color: s.color }}>{s.txt}</div>
+        <div className="text-sm font-medium" style={{ color: sla?.paused ? 'var(--warning-border)' : s.color }}>{sla?.paused ? 'SLA pausado' : s.txt}</div>
+        {sla?.scheduled && sla?.scheduled_until ? (
+          <div className="text-[11px]" style={{ color: 'var(--warning-border)' }}>⏸️ retoma {sla.scheduled_all_day ? fmtDateOnly(sla.scheduled_until) : fmtDateTime(sla.scheduled_until)}</div>
+        ) : sla?.resolution_due_at ? (
+          <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>limite {fmtDateTime(sla.resolution_due_at)}</div>
+        ) : null}
       </div>
 
       {/* Valor/hora — somente coordenador/admin/administrativo (financeiro_visivel) */}
