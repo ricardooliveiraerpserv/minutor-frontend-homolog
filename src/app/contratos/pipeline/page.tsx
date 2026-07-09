@@ -2196,6 +2196,12 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const topShare = totalBreakdownHours > 0 && topConsultant ? (topConsultant.total_hours / totalBreakdownHours) * 100 : 0
   const avgHours = breakdown.length > 0 ? totalBreakdownHours / breakdown.length : 0
 
+  // Equipe alocada (project_consultants). O breakdown só traz quem lançou horas, então
+  // projeto sem apontamento mostrava a aba vazia mesmo tendo consultor alocado.
+  const allocated = p?.consultants ?? []
+  const hoursByName = new Map(breakdown.map(c => [c.consultant_name, c]))
+  const consultantsCount = new Set([...allocated.map(c => c.name), ...breakdown.map(c => c.consultant_name)]).size
+
   // alerts
   const alerts: { msg: string; color: string }[] = []
   if (pct >= 90) alerts.push({ msg: `Consumo crítico: ${Math.round(pct)}% das horas já utilizadas`, color: '#ef4444' })
@@ -2206,7 +2212,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
   const isCoordRole = viewerUser?.type === 'coordenador'
   const tabs = [
     { id: 'overview'    as const, label: 'Visão Geral' },
-    { id: 'consultants' as const, label: `Consultores${breakdown.length > 0 ? ` (${breakdown.length})` : ''}` },
+    { id: 'consultants' as const, label: `Consultores${consultantsCount > 0 ? ` (${consultantsCount})` : ''}` },
     { id: 'timesheets'  as const, label: 'Apontamentos' },
     // Aportes / Financeiro / Custo removidos: esta tela não exibe valor financeiro (só horas).
     // Diário do Projeto: só aparece se o usuário tem acesso (é coord/consultor do projeto ou
@@ -2491,9 +2497,30 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
             {/* ── CONSULTORES ── */}
             {tab === 'consultants' && (
               <div className="space-y-4">
+                {/* Equipe alocada: sai de project_consultants, não depende de apontamento. */}
+                {allocated.length > 0 && (
+                  <div className="rounded-xl p-4" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                    <p className="text-[10px] mb-3 uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Equipe alocada ({allocated.length})</p>
+                    <div className="space-y-1.5">
+                      {allocated.map(c => {
+                        const h = hoursByName.get(c.name)
+                        return (
+                          <div key={c.id} className="flex items-center justify-between gap-3">
+                            <span className="text-xs font-semibold truncate" style={{ color: 'var(--text)' }}>{c.name}</span>
+                            <span className="text-[11px] tabular-nums shrink-0" style={{ color: h ? 'var(--text)' : 'var(--text-light)' }}>
+                              {h ? `${fmt(h.total_hours, 1)}h` : 'sem horas lançadas'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
                 {breakdown.length === 0 ? (
                   <div className="flex items-center justify-center py-16">
-                    <p className="text-sm" style={{ color: 'var(--text-light)' }}>Nenhum lançamento de horas encontrado.</p>
+                    <p className="text-sm" style={{ color: 'var(--text-light)' }}>
+                      {allocated.length > 0 ? 'Nenhum lançamento de horas encontrado.' : 'Nenhum consultor alocado e nenhum lançamento de horas.'}
+                    </p>
                   </div>
                 ) : (
                   <>
