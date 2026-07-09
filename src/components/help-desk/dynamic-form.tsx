@@ -9,7 +9,9 @@ import { RichEditor, type RichEditorHandle } from './rich-editor'
 // Em ambos, `required` é REAPROVEITADO como flag "carregar logo" (mostra o logo acima).
 // Nenhum dos dois gera input no preenchimento.
 export type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
-export interface FormField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null }
+// rule = automação condicional: quando o checkbox `when` está marcado, o campo recebe `value` e trava.
+export interface FieldRule { when?: string | null; value?: string | null }
+export interface FormField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FieldRule | null }
 export interface HdForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FormField[]; status?: { id: number; key: string; label: string } | null }
 export interface FormValueField { key: string; label: string; hint?: string | null; ftype: FieldType; value: string | boolean }
 export interface FormInstance { form_id: number; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; fields: FormValueField[] }
@@ -68,15 +70,21 @@ export function DynamicFormModal({ form, initial, submitLabel = 'Salvar e aplica
   })
   const recount = (key: string) => setLens(l => ({ ...l, [key]: nonSpaceLen(richRefs.current[key]?.getHtml() ?? '') }))
   const setV = (key: string, v: string | boolean) => setVals(s => ({ ...s, [key]: v }))
+  // Automação: campo travado quando o checkbox `rule.when` está marcado → recebe `rule.value`.
+  const ruleValue = (f: FormField) => f.rule?.value || 'não se aplica'
+  const ruleLocked = (f: FormField) => !!(f.rule?.when && vals[f.rule.when])
+  const fieldLabel = (key?: string | null) => form.fields.find(x => x.key === key)?.label ?? ''
 
   const submit = async () => {
     // Lê os rich do ref.
     const values: Record<string, string | boolean> = { ...vals }
     for (const f of form.fields) if (f.ftype === 'richtext') values[f.key] = richRefs.current[f.key]?.getHtml() ?? ''
+    // Campos travados por automação recebem o valor da regra (sobrepõe leitura acima).
+    for (const f of form.fields) if (ruleLocked(f)) values[f.key] = ruleValue(f)
 
     const errors: string[] = []
     for (const f of form.fields) {
-      if (f.ftype === 'section' || f.ftype === 'title') continue
+      if (f.ftype === 'section' || f.ftype === 'title' || ruleLocked(f)) continue
       const v = values[f.key]
       if (f.required && isBlank(v)) errors.push(f.label)
       else if ((f.ftype === 'richtext' || f.ftype === 'text') && f.min_chars && !isBlank(v) && nonSpaceLen(String(v)) < f.min_chars) errors.push(`${f.label} (mín. ${f.min_chars})`)
@@ -119,19 +127,27 @@ export function DynamicFormModal({ form, initial, submitLabel = 'Salvar e aplica
             </div>
           )
           const ok = !f.min_chars || (lens[f.key] ?? 0) >= f.min_chars
+          const locked = ruleLocked(f)
           return (
             <div key={f.key}>
               {f.ftype !== 'checkbox' && (
                 <div className="flex items-center justify-between">
                   <label className={lbl} style={{ color: 'var(--text)' }}>{f.label}{f.required ? ' *' : ''}</label>
-                  {f.ftype === 'richtext' && f.min_chars ? <span className="text-[11px] font-semibold" style={{ color: ok ? 'var(--success)' : 'var(--danger)' }}>{lens[f.key] ?? 0}/{f.min_chars}</span> : null}
+                  {!locked && f.ftype === 'richtext' && f.min_chars ? <span className="text-[11px] font-semibold" style={{ color: ok ? 'var(--success)' : 'var(--danger)' }}>{lens[f.key] ?? 0}/{f.min_chars}</span> : null}
                 </div>
               )}
-              {f.hint && f.ftype !== 'checkbox' && <p className="text-[11px] mb-1 leading-snug" style={{ color: 'var(--text-light)' }}>{f.hint}</p>}
+              {f.hint && f.ftype !== 'checkbox' && !locked && <p className="text-[11px] mb-1 leading-snug" style={{ color: 'var(--text-light)' }}>{f.hint}</p>}
+              {locked && f.ftype !== 'checkbox' ? (
+                <div className="text-sm rounded-lg px-2.5 py-1.5 flex items-center gap-2" style={{ background: 'var(--surface-hover)', border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
+                  <span className="italic">{ruleValue(f)}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>travado por “{fieldLabel(f.rule?.when)}”</span>
+                </div>
+              ) : (<>
               {f.ftype === 'richtext' && <RichEditor ref={el => { richRefs.current[f.key] = el }} initialHtml={String(initMap[f.key] || '')} minHeight={70} onChange={() => recount(f.key)} />}
               {f.ftype === 'text' && <input className={`${fieldCls} w-full`} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
               {f.ftype === 'date' && <input type="date" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
               {f.ftype === 'time' && <input type="time" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
+              </>)}
               {f.ftype === 'checkbox' && (
                 <label className="flex items-center gap-1.5 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
                   <input type="checkbox" checked={!!vals[f.key]} onChange={e => setV(f.key, e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> {f.label}{f.required ? ' *' : ''}

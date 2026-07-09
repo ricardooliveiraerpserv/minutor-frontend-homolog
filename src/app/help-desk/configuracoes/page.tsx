@@ -902,7 +902,8 @@ function CrudTable<T>({ rows, cols, render }: { rows: T[]; cols: string[]; rende
 // 'title' = bloco de cabeçalho (título grande centralizado). `required` é reaproveitado como
 // flag "carregar logo" (mostra o logo acima do título).
 type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
-interface FField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null }
+interface FRule { when?: string | null; value?: string | null }
+interface FField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FRule | null }
 interface HForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FField[]; status?: { id: number; label: string } | null }
 const FIELD_TYPES: { v: FieldType; label: string }[] = [
   { v: 'title', label: 'Título + logo' }, { v: 'section', label: 'Seção (bloco)' }, { v: 'richtext', label: 'Texto rico (com print)' }, { v: 'text', label: 'Texto' },
@@ -950,7 +951,7 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
     try {
       await api.put(`/help-desk/forms/${form.id}`, {
         name, status_id: statusId ? Number(statusId) : null, title: title || null, subtitle: subtitle || null, intro: intro || null, show_logo: showLogo, active,
-        fields: fields.map(f => ({ key: f.key || newKey(), ftype: f.ftype, label: f.label, hint: f.hint || null, required: !!f.required, min_chars: f.min_chars ?? null })),
+        fields: fields.map(f => ({ key: f.key || newKey(), ftype: f.ftype, label: f.label, hint: f.hint || null, required: !!f.required, min_chars: f.min_chars ?? null, rule: f.rule?.when ? { when: f.rule.when, value: f.rule.value || 'não se aplica' } : null })),
       })
       toast.success('Formulário salvo'); onSaved()
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao salvar') } finally { setSaving(false) }
@@ -997,6 +998,16 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
                 {f.ftype !== 'section' && f.ftype !== 'title' && <label className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={!!f.required} onChange={e => upd(i, { required: e.target.checked })} style={{ accentColor: 'var(--primary)' }} /> obrig.</label>}
                 {(f.ftype === 'text' || f.ftype === 'richtext') && <input type="number" min="0" className={fieldCls} style={{ ...inputStyle, width: 70 }} value={f.min_chars ?? ''} onChange={e => upd(i, { min_chars: e.target.value ? Number(e.target.value) : null })} placeholder="mín." title="Mínimo de caracteres (sem espaço)" />}
                 <button onClick={() => setFields(fs => fs.filter((_, j) => j !== i))} title="Remover"><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
+                {(f.ftype === 'text' || f.ftype === 'richtext' || f.ftype === 'date' || f.ftype === 'time') && (
+                  <div className="flex items-center gap-1.5 text-[11px] w-full mt-1 pl-6" style={{ color: 'var(--text-muted)' }}>
+                    <span title="Automação: quando o checkbox estiver marcado, este campo trava e recebe o valor abaixo.">⚡ travar se marcar</span>
+                    <select value={f.rule?.when ?? ''} onChange={e => upd(i, { rule: e.target.value ? { when: e.target.value, value: f.rule?.value || 'não se aplica' } : null })} className={fieldCls} style={{ ...inputStyle, maxWidth: 240 }}>
+                      <option value="">— nenhum —</option>
+                      {fields.filter(x => x.ftype === 'checkbox').map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                    </select>
+                    {f.rule?.when && <input className={fieldCls} style={{ ...inputStyle, maxWidth: 180 }} value={f.rule?.value ?? ''} onChange={e => upd(i, { rule: { when: f.rule?.when, value: e.target.value } })} placeholder="não se aplica" title="Valor preenchido quando travado" />}
+                  </div>
+                )}
               </div>
             ))}
             <div className="flex items-center gap-2 flex-wrap">
