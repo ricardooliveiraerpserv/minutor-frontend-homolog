@@ -63,6 +63,16 @@ export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', onClo
   const aRef = useRef<RichEditorHandle>(null)
   const vRef = useRef<RichEditorHandle>(null)
   const [saving, setSaving] = useState(false)
+  const [lens, setLens] = useState(() => ({
+    d: nonSpaceLen(initial?.diagnostico ?? ''),
+    a: nonSpaceLen(initial?.acao ?? ''),
+    v: nonSpaceLen(initial?.validacao ?? ''),
+  }))
+  const recount = () => setLens({
+    d: nonSpaceLen(dRef.current?.getHtml() ?? ''),
+    a: nonSpaceLen(aRef.current?.getHtml() ?? ''),
+    v: nonSpaceLen(vRef.current?.getHtml() ?? ''),
+  })
 
   const submit = async () => {
     const s: Solution = {
@@ -87,12 +97,12 @@ export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', onClo
       <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
         <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>🛠️ Detalhamento da Solução</div>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Todos os campos são obrigatórios (mín. {MIN_CHARS} caracteres cada, espaços não contam). Você pode colar prints de tela.</p>
-        <Field label="🔍 Diagnóstico (Causa)" hint="O que estava causando o problema? Ex.: “A regra fiscal estava desatualizada e gerava imposto errado na NF-e.”">
-          <RichEditor ref={dRef} initialHtml={initial?.diagnostico ?? ''} minHeight={80} /></Field>
-        <Field label="🚀 Ação Realizada (O Ajuste)" hint="O que você fez para corrigir? Ex.: “Atualizei a alíquota de ICMS e reprocessei as notas do período.”">
-          <RichEditor ref={aRef} initialHtml={initial?.acao ?? ''} minHeight={80} /></Field>
-        <Field label="✅ Validação (Teste Efetuado)" hint="Como confirmou que resolveu? Ex.: “Emiti uma NF-e de teste, o imposto saiu correto e o cliente validou.”">
-          <RichEditor ref={vRef} initialHtml={initial?.validacao ?? ''} minHeight={80} /></Field>
+        <Field label="🔍 Diagnóstico (Causa)" hint="O que estava causando o problema? Ex.: “A regra fiscal estava desatualizada e gerava imposto errado na NF-e.”" count={lens.d}>
+          <RichEditor ref={dRef} initialHtml={initial?.diagnostico ?? ''} minHeight={80} onChange={recount} /></Field>
+        <Field label="🚀 Ação Realizada (O Ajuste)" hint="O que você fez para corrigir? Ex.: “Atualizei a alíquota de ICMS e reprocessei as notas do período.”" count={lens.a}>
+          <RichEditor ref={aRef} initialHtml={initial?.acao ?? ''} minHeight={80} onChange={recount} /></Field>
+        <Field label="✅ Validação (Teste Efetuado)" hint="Como confirmou que resolveu? Ex.: “Emiti uma NF-e de teste, o imposto saiu correto e o cliente validou.”" count={lens.v}>
+          <RichEditor ref={vRef} initialHtml={initial?.validacao ?? ''} minHeight={80} onChange={recount} /></Field>
         <div className="flex justify-end gap-2 pt-1">
           <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
           <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={submit} disabled={saving}>{saving ? 'Salvando…' : submitLabel}</button>
@@ -102,10 +112,16 @@ export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', onClo
   )
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, hint, count, children }: { label: string; hint?: string; count?: number; children: React.ReactNode }) {
+  const ok = (count ?? 0) >= MIN_CHARS
   return (
     <div>
-      <label className="text-[15px] font-bold block" style={{ color: 'var(--text)' }}>{label}</label>
+      <div className="flex items-center justify-between">
+        <label className="text-[15px] font-bold" style={{ color: 'var(--text)' }}>{label}</label>
+        {count !== undefined && (
+          <span className="text-[11px] font-semibold" style={{ color: ok ? 'var(--success)' : 'var(--danger)' }}>{count}/{MIN_CHARS}{ok ? '' : ' • mínimo'}</span>
+        )}
+      </div>
       {hint && <p className="text-[11px] mb-1.5 leading-snug" style={{ color: 'var(--text-light)' }}>{hint}</p>}
       {children}
     </div>
