@@ -144,11 +144,14 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
       fd.append('idempotency_key', idemRef.current)
       files.forEach(f => fd.append('files[]', f))
       // Tempo trabalhado (opcional). total_hours prevalece; senão o servidor deriva de início→fim.
-      if (workedDate) fd.append('worked_date', workedDate)
-      if (startTime) fd.append('start_time', startTime)
-      if (endTime) fd.append('end_time', endTime)
-      if (totalHours) fd.append('total_hours', totalHours)
-      fd.append('no_charge', noCharge ? '1' : '0')
+      // Nota interna NÃO gera apontamento → não manda tempo (só resposta ao cliente movimenta horas).
+      if (visibility !== 'internal') {
+        if (workedDate) fd.append('worked_date', workedDate)
+        if (startTime) fd.append('start_time', startTime)
+        if (endTime) fd.append('end_time', endTime)
+        if (totalHours) fd.append('total_hours', totalHours)
+        fd.append('no_charge', noCharge ? '1' : '0')
+      }
       const resp = await api.post<{ data?: { apontamento_warning?: string } }>(`/help-desk/tickets/${ticketId}/comments`, fd)
       if (ed) ed.innerHTML = ''
       setFiles([]); setEmpty(true); idemRef.current = null // sucesso → próxima mensagem, nova chave
@@ -215,6 +218,12 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
       <div className="rounded-lg px-2.5 py-2 text-xs"
         style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)' }}>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Nota interna NÃO gera apontamento → esconde o Tempo (só resposta ao cliente movimenta horas). */}
+          {visibility === 'internal' ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: '#7c3aed' }}>
+              <Lock size={12} /> Nota interna — não gera apontamento de horas
+            </span>
+          ) : (<>
           <span className="inline-flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
             <Clock size={13} /> Tempo
           </span>
@@ -231,6 +240,7 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
           <input type="text" value={noCharge ? '' : totalDisplay} onChange={e => setTotalHours(e.target.value)}
             placeholder="0:00" disabled={noCharge} aria-label="Total de horas"
             className="ds-input" style={{ height: 30, fontSize: 12, width: 64, padding: '0 8px', textAlign: 'center', fontVariantNumeric: 'tabular-nums', opacity: noCharge ? 0.5 : 1 }} />
+          </>)}
           {statuses.length > 0 && (
             <span className="inline-flex items-center gap-1.5 ml-auto">
               <span style={{ color: 'var(--text-muted)' }}>Ao enviar → status</span>
@@ -268,7 +278,7 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
               const bg = active ? (v === 'internal' ? '#7c3aed' : 'var(--primary-soft)') : 'transparent'
               const fg = active ? (v === 'internal' ? '#ffffff' : 'var(--primary)') : 'var(--text-muted)'
               return (
-                <button key={v} onClick={() => setVisibility(v)} className="px-2 py-1 rounded-md inline-flex items-center gap-1 font-medium"
+                <button key={v} onClick={() => { setVisibility(v); if (v === 'internal') { setStartTime(''); setEndTime(''); setTotalHours(''); setNoCharge(false) } }} className="px-2 py-1 rounded-md inline-flex items-center gap-1 font-medium"
                   style={{ background: bg, color: fg }}>
                   {v === 'internal' && <Lock size={12} />}
                   {v === 'customer' ? 'Resposta ao cliente' : 'Nota interna'}
