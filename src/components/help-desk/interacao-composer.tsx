@@ -28,12 +28,14 @@ function deriveTotal(start: string, end: string): string {
 //  • botão "Anexar" continua para ARQUIVOS (pdf, planilha, etc.) → vão como anexo.
 // O corpo é enviado como HTML sanitizado; imagens inline são data:URI auto-contidas.
 export interface ComposerStatus { id: number; label: string; is_resolved?: boolean }
-export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus }: {
+export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, formStatusIds = [], onFormStatus }: {
   ticketId: number
   onSent: () => void
   statuses?: ComposerStatus[]
   currentStatusId?: number
   onApplyStatus?: (statusId: number) => void | Promise<void>
+  formStatusIds?: number[]      // status que têm FORMULÁRIO (abre ao selecionar)
+  onFormStatus?: (statusId: number) => void
 }) {
   const [visibility, setVisibility] = useState<'customer' | 'internal'>('customer')
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
@@ -217,7 +219,12 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
           {statuses.length > 0 && (
             <span className="inline-flex items-center gap-1.5 ml-auto">
               <span style={{ color: 'var(--text-muted)' }}>Ao enviar → status</span>
-              <select value={sendStatus ?? ''} onChange={e => setSendStatus(e.target.value ? Number(e.target.value) : undefined)} aria-label="Status ao enviar"
+              <select value={sendStatus ?? ''} onChange={e => {
+                  const v = e.target.value ? Number(e.target.value) : undefined
+                  // Status COM FORMULÁRIO: abre o formulário na hora (o form é a interação).
+                  if (v && formStatusIds.includes(v)) { onFormStatus?.(v); setSendStatus(undefined); return }
+                  setSendStatus(v)
+                }} aria-label="Status ao enviar"
                 className="ds-input" style={{ height: 30, fontSize: 12, padding: '0 8px', borderColor: sendStatus ? 'var(--border)' : '#f59e0b' }}>
                 <option value="">— Selecione o status —</option>
                 {statuses.map(s => <option key={s.id} value={s.id}>{s.id === currentStatusId ? `Manter: ${s.label}` : s.label}</option>)}
