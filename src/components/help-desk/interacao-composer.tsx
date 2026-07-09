@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
-import { Send, Paperclip, X, FileText, Clock } from 'lucide-react'
+import { Send, Paperclip, X, FileText, Clock, Lock } from 'lucide-react'
 import { TimeSelect5 } from './time-select-5'
 
 // Data local (YYYY-MM-DD) — NÃO usar toISOString (UTC empurra p/ o dia seguinte à noite no Brasil).
@@ -176,16 +176,22 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
           onInput={syncEmpty}
           onPaste={onPaste}
           className="hd-composer hd-rich w-full text-sm rounded-lg px-3 py-2.5 outline-none overflow-y-auto"
-          // Fundo papel branco fixo (legível com print/e-mail colado em qualquer tema).
-          style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${sendStatus ? '#e5e7eb' : '#f59e0b'}`, minHeight: 120, maxHeight: 600, resize: 'vertical', opacity: sendStatus ? 1 : 0.85, cursor: sendStatus ? 'text' : 'not-allowed' }}
+          // Fundo papel branco fixo (legível com print/e-mail). Nota interna → fundo ÂMBAR bem
+          // evidente (não vai para o cliente), com borda âmbar mais grossa.
+          style={{ background: visibility === 'internal' ? '#fef3c7' : '#ffffff', color: '#1f2937', border: visibility === 'internal' ? '2px solid #f59e0b' : `1px solid ${sendStatus ? '#e5e7eb' : '#f59e0b'}`, minHeight: 120, maxHeight: 600, resize: 'vertical', opacity: sendStatus ? 1 : 0.85, cursor: sendStatus ? 'text' : 'not-allowed' }}
         />
+        {visibility === 'internal' && (
+          <span className="pointer-events-none absolute right-3 top-2 text-[11px] font-bold inline-flex items-center gap-1 px-1.5 py-0.5 rounded" style={{ background: '#f59e0b', color: '#ffffff' }}>
+            <Lock size={11} /> NOTA INTERNA — não vai ao cliente
+          </span>
+        )}
         {!sendStatus ? (
           <span className="pointer-events-none absolute left-3 top-2.5 text-sm font-medium" style={{ color: '#b45309' }}>
             ⚠️ Escolha o status em “Ao enviar → status” para liberar a resposta.
           </span>
         ) : empty && (
-          <span className="pointer-events-none absolute left-3 top-2.5 text-sm" style={{ color: '#9ca3af' }}>
-            Escreva uma resposta…  (cole um print direto aqui ou anexe arquivos)
+          <span className="pointer-events-none absolute left-3 top-2.5 text-sm" style={{ color: visibility === 'internal' ? '#b45309' : '#9ca3af' }}>
+            {visibility === 'internal' ? 'Escreva uma nota interna… (só a equipe vê — não vai ao cliente)' : 'Escreva uma resposta…  (cole um print direto aqui ou anexe arquivos)'}
           </span>
         )}
       </div>
@@ -256,12 +262,19 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 text-xs">
-            {(['customer', 'internal'] as const).map(v => (
-              <button key={v} onClick={() => setVisibility(v)} className="px-2 py-1 rounded-md"
-                style={{ background: visibility === v ? 'var(--primary-soft)' : 'transparent', color: visibility === v ? 'var(--primary)' : 'var(--text-muted)' }}>
-                {v === 'customer' ? 'Resposta ao cliente' : 'Nota interna'}
-              </button>
-            ))}
+            {(['customer', 'internal'] as const).map(v => {
+              const active = visibility === v
+              // Nota interna ATIVA destaca em âmbar (bem evidente que é interno).
+              const bg = active ? (v === 'internal' ? '#f59e0b' : 'var(--primary-soft)') : 'transparent'
+              const fg = active ? (v === 'internal' ? '#ffffff' : 'var(--primary)') : 'var(--text-muted)'
+              return (
+                <button key={v} onClick={() => setVisibility(v)} className="px-2 py-1 rounded-md inline-flex items-center gap-1 font-medium"
+                  style={{ background: bg, color: fg }}>
+                  {v === 'internal' && <Lock size={12} />}
+                  {v === 'customer' ? 'Resposta ao cliente' : 'Nota interna'}
+                </button>
+              )
+            })}
           </div>
           <label className="inline-flex items-center gap-1 text-xs cursor-pointer px-2 py-1 rounded-md" style={{ color: 'var(--text-muted)' }}>
             <Paperclip size={14} /> Anexar
