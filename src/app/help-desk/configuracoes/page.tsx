@@ -40,6 +40,7 @@ const TABS = [
   { id: 'gatilhos', label: 'Gatilhos (automação)' },
   { id: 'comunicacao', label: 'Comunicação' },
   { id: 'sla', label: 'SLA' },
+  { id: 'formularios', label: 'Formulários' },
   { id: 'tags', label: 'Tags' },
   { id: 'playbooks', label: 'Playbooks' },
 ] as const
@@ -80,6 +81,7 @@ function ConfigContent() {
         {tab === 'gatilhos' && <Triggers />}
         {tab === 'comunicacao' && <CommTemplate />}
         {tab === 'sla' && <SlaTab />}
+        {tab === 'formularios' && <FormsTab />}
         {tab === 'tags' && <Tags />}
         {tab === 'playbooks' && <Playbooks />}
       </div>
@@ -892,6 +894,115 @@ function CrudTable<T>({ rows, cols, render }: { rows: T[]; cols: string[]; rende
         <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} className="text-left text-[11px] uppercase">{cols.map((c, i) => <th key={i} className="px-3 py-2">{c}</th>)}</tr></thead>
         <tbody>{rows.length === 0 ? <tr><td colSpan={cols.length} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhum registro.</td></tr> : rows.map(render)}</tbody>
       </table>
+    </div>
+  )
+}
+
+// ── Construtor de Formulários ────────────────────────────────────────────────
+type FieldType = 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
+interface FField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null }
+interface HForm { id: number; name: string; status_id: number | null; title?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FField[]; status?: { id: number; label: string } | null }
+const FIELD_TYPES: { v: FieldType; label: string }[] = [
+  { v: 'section', label: 'Seção (título)' }, { v: 'richtext', label: 'Texto rico (com print)' }, { v: 'text', label: 'Texto' },
+  { v: 'checkbox', label: 'Checkbox' }, { v: 'date', label: 'Data' }, { v: 'time', label: 'Hora' },
+]
+const newKey = () => 'f' + (globalThis.crypto?.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 8))
+
+function FormsTab() {
+  const [forms, setForms] = useState<HForm[]>([])
+  const [statuses, setStatuses] = useState<{ id: number; label: string }[]>([])
+  const [newName, setNewName] = useState('')
+  const load = useCallback(() => { api.get<{ data: HForm[] }>('/help-desk/forms?all=1').then(r => setForms(r?.data ?? [])).catch(() => {}) }, [])
+  useEffect(() => { load(); api.get<{ data?: { statuses?: { id: number; label: string }[] } }>('/help-desk/meta').then(r => setStatuses(r?.data?.statuses ?? [])).catch(() => {}) }, [load])
+  const create = async () => { if (!newName.trim()) return toast.error('Informe o nome.'); try { await api.post('/help-desk/forms', { name: newName.trim() }); setNewName(''); load(); toast.success('Formulário criado — abra para configurar') } catch { toast.error('Erro') } }
+  return (
+    <div className="space-y-3">
+      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Crie formulários e vincule a um status. Ao escolher esse status no chamado, o formulário abre e precisa ser preenchido. Cada campo tem legenda, obrigatoriedade e mínimo de caracteres.</p>
+      <div className="ds-card p-3 flex items-end gap-2">
+        <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Novo formulário</label><input className={`${fieldCls} w-56`} style={inputStyle} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ex.: Solução com GMUD" /></div>
+        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={create}><Plus size={15} /> Criar</button>
+      </div>
+      {forms.map(f => <FormEditor key={f.id} form={f} statuses={statuses} onSaved={load} />)}
+    </div>
+  )
+}
+
+function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: number; label: string }[]; onSaved: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState(form.name)
+  const [statusId, setStatusId] = useState(form.status_id ? String(form.status_id) : '')
+  const [title, setTitle] = useState(form.title ?? '')
+  const [intro, setIntro] = useState(form.intro ?? '')
+  const [showLogo, setShowLogo] = useState(form.show_logo ?? true)
+  const [active, setActive] = useState(form.active ?? true)
+  const [fields, setFields] = useState<FField[]>(form.fields ?? [])
+  const [saving, setSaving] = useState(false)
+
+  const upd = (i: number, patch: Partial<FField>) => setFields(fs => fs.map((f, j) => j === i ? { ...f, ...patch } : f))
+  const move = (i: number, dir: -1 | 1) => setFields(fs => { const j = i + dir; if (j < 0 || j >= fs.length) return fs; const c = [...fs]; [c[i], c[j]] = [c[j], c[i]]; return c })
+  const addField = () => setFields(fs => [...fs, { key: newKey(), ftype: 'text', label: 'Novo campo', required: false }])
+  const del = async () => { if (!confirm(`Excluir "${form.name}"?`)) return; try { await api.delete(`/help-desk/forms/${form.id}`); onSaved() } catch { toast.error('Erro') } }
+  const save = async () => {
+    setSaving(true)
+    try {
+      await api.put(`/help-desk/forms/${form.id}`, {
+        name, status_id: statusId ? Number(statusId) : null, title: title || null, intro: intro || null, show_logo: showLogo, active,
+        fields: fields.map(f => ({ key: f.key || newKey(), ftype: f.ftype, label: f.label, hint: f.hint || null, required: !!f.required, min_chars: f.min_chars ?? null })),
+      })
+      toast.success('Formulário salvo'); onSaved()
+    } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao salvar') } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="ds-card p-0 overflow-hidden">
+      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-4 py-3">
+        <span className="font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text)' }}>
+          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />} {form.name}
+          {form.status?.label && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{form.status.label}</span>}
+          {!form.active && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>inativo</span>}
+        </span>
+        <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{form.fields?.length ?? 0} campos</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3 border-t" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex items-end gap-3 flex-wrap pt-3">
+            <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Nome</label><input className={`${fieldCls} w-48`} style={inputStyle} value={name} onChange={e => setName(e.target.value)} /></div>
+            <div className="w-56"><label className={lbl} style={{ color: 'var(--text-light)' }}>Status vinculado</label><SearchSelect value={statusId} onChange={setStatusId} options={[{ id: '', name: '— nenhum —' }, ...statuses.map(s => ({ id: s.id, name: s.label }))]} placeholder="Status…" fullWidth /></div>
+            <label className="flex items-center gap-1.5 text-xs pb-2" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> ativo</label>
+            <label className="flex items-center gap-1.5 text-xs pb-2" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={showLogo} onChange={e => setShowLogo(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> mostrar logo</label>
+          </div>
+          <div className="flex items-end gap-3 flex-wrap">
+            <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Título (topo)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="🛠️ Detalhamento da Solução" /></div>
+            <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Introdução (opcional)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={intro} onChange={e => setIntro(e.target.value)} /></div>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className={lbl} style={{ color: 'var(--text-light)' }}>Campos</div>
+            {fields.map((f, i) => (
+              <div key={i} className="rounded-lg p-2 flex items-center gap-2 flex-wrap" style={{ border: '1px solid var(--border)' }}>
+                <div className="flex flex-col">
+                  <button onClick={() => move(i, -1)} className="text-[10px]" style={{ color: 'var(--text-light)' }}>▲</button>
+                  <button onClick={() => move(i, 1)} className="text-[10px]" style={{ color: 'var(--text-light)' }}>▼</button>
+                </div>
+                <select value={f.ftype} onChange={e => upd(i, { ftype: e.target.value as FieldType })} className={fieldCls} style={{ ...inputStyle, width: 150 }}>
+                  {FIELD_TYPES.map(t => <option key={t.v} value={t.v}>{t.label}</option>)}
+                </select>
+                <input className={`${fieldCls} flex-1 min-w-[140px]`} style={inputStyle} value={f.label} onChange={e => upd(i, { label: e.target.value })} placeholder="Rótulo" />
+                {f.ftype !== 'section' && f.ftype !== 'checkbox' && <input className={`${fieldCls} flex-1 min-w-[160px]`} style={inputStyle} value={f.hint ?? ''} onChange={e => upd(i, { hint: e.target.value })} placeholder="Legenda / exemplo" />}
+                {f.ftype !== 'section' && <label className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={!!f.required} onChange={e => upd(i, { required: e.target.checked })} style={{ accentColor: 'var(--primary)' }} /> obrig.</label>}
+                {(f.ftype === 'text' || f.ftype === 'richtext') && <input type="number" min="0" className={fieldCls} style={{ ...inputStyle, width: 70 }} value={f.min_chars ?? ''} onChange={e => upd(i, { min_chars: e.target.value ? Number(e.target.value) : null })} placeholder="mín." title="Mínimo de caracteres (sem espaço)" />}
+                <button onClick={() => setFields(fs => fs.filter((_, j) => j !== i))} title="Remover"><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
+              </div>
+            ))}
+            <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={addField}><Plus size={13} /> Campo</button>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <button className="text-xs inline-flex items-center gap-1" style={{ color: 'var(--danger)' }} onClick={del}><Trash2 size={13} /> Excluir formulário</button>
+            <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={save} disabled={saving}><Save size={14} /> {saving ? 'Salvando…' : 'Salvar formulário'}</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
