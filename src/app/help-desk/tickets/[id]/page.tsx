@@ -99,7 +99,6 @@ export default function HelpDeskTicketDetailPage() {
   const [pendingStatus, setPendingStatus] = useState<string | null>(null) // status escolhido aguardando justificativa
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
   const [services, setServices] = useState<{ id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]>([])
-  const [channels, setChannels] = useState<string[]>([])
   const [teams, setTeams] = useState<AgentTeam[]>([])
   const [comments, setComments] = useState<Comment[]>([])
   const [editCommentId, setEditCommentId] = useState<number | null>(null)
@@ -224,7 +223,7 @@ export default function HelpDeskTicketDetailPage() {
     api.get<{ data: { statuses: StatusOpt[]; justifications?: JustificationOpt[]; categories?: { id: number; name: string }[]; services?: { id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]; channels?: string[] } }>('/help-desk/meta')
       .then(r => {
         setStatuses(r?.data?.statuses ?? []); setJustifications(r?.data?.justifications ?? [])
-        setCategories(r?.data?.categories ?? []); setServices(r?.data?.services ?? []); setChannels(r?.data?.channels ?? [])
+        setCategories(r?.data?.categories ?? []); setServices(r?.data?.services ?? [])
       }).catch(() => {})
   }, [])
   useEffect(() => { api.get<{ data: AgentTeam[] }>('/help-desk/teams?all=1').then(r => setTeams(r?.data ?? [])).catch(() => {}) }, [])
@@ -552,9 +551,6 @@ export default function HelpDeskTicketDetailPage() {
               <SelectRow label="Nível" value={t.level ?? ''} placeholder="—"
                 options={['N1', 'N2', 'N3'].map(n => ({ value: n, label: n }))}
                 onChange={v => updateField({ level: v || null })} />
-              <SelectRow label="Canal" value={t.channel}
-                options={(channels.length ? channels : ['portal', 'email', 'telefone', 'interno', 'movidesk']).map(c => ({ value: c, label: c }))}
-                onChange={v => updateField({ channel: v })} />
               <Row label="Reaberturas" value={String(t.reopen_count)} />
               <Row label="Aberto em" value={fmtDate(t.created_at)} />
             </div>
