@@ -22,6 +22,25 @@ function deriveTotal(start: string, end: string): string {
   return `${Math.floor(mins / 60)}:${String(mins % 60).padStart(2, '0')}`
 }
 
+// Tags de preenchimento automático: substitui {chave} pelo valor do mapa (nome, cliente, etc.).
+// Tag desconhecida fica como está (não some) — assim o autor percebe erro de digitação.
+export function applyTokens(text: string | null | undefined, tokens: Record<string, string>): string {
+  if (!text) return text ?? ''
+  return text.replace(/\{([a-z0-9_.]+)\}/gi, (m, key) => (key in tokens && tokens[key] !== '') ? tokens[key] : m)
+}
+// Catálogo de tags disponíveis (rótulo p/ o construtor). Os valores vêm do ticket em runtime.
+export const FORM_TAGS: { tag: string; label: string }[] = [
+  { tag: '{ticket.creator.name}', label: 'Nome de quem abriu o chamado' },
+  { tag: '{ticket.creator.email}', label: 'E-mail de quem abriu' },
+  { tag: '{ticket.number}', label: 'Número do chamado' },
+  { tag: '{ticket.subject}', label: 'Assunto do chamado' },
+  { tag: '{cliente}', label: 'Nome do cliente (empresa)' },
+  { tag: '{consultor}', label: 'Consultor responsável (atribuído)' },
+  { tag: '{contato}', label: 'Contato do cliente' },
+  { tag: '{usuario}', label: 'Seu nome (quem está preenchendo)' },
+  { tag: '{data}', label: 'Data de hoje' },
+]
+
 // 'title' = bloco de cabeçalho (texto grande centralizado); 'section' = divisor de bloco.
 // Em ambos, `required` é REAPROVEITADO como flag "carregar logo" (mostra o logo acima).
 // Nenhum dos dois gera input no preenchimento.
@@ -52,7 +71,7 @@ export function composeFormBody(inst: FormInstance): string {
   if (inst.show_logo) html += '<div style="text-align:center;margin:0 0 10px 0;"><img src="/logo.png" alt="ERPSERV" style="height:44px;" /></div>'
   if (inst.title) html += `<div style="text-align:center;font-size:18px;font-weight:bold;color:#5b21b6;margin:0 0 4px 0;">${inst.title}</div>`
   if (inst.subtitle) html += `<div style="text-align:center;font-size:14px;font-weight:bold;color:#5b21b6;margin:0 0 8px 0;">${inst.subtitle}</div>`
-  if (inst.intro) html += `<p style="text-align:center;color:#374151;margin:0 0 14px 0;">${inst.intro}</p>`
+  if (inst.intro) html += `<p style="text-align:center;color:#374151;margin:0 0 14px 0;">${inst.intro.replace(/\n/g, '<br>')}</p>`
   inst.fields.forEach((f, i) => {
     if (f.ftype === 'title') {
       // `value` (boolean) = flag "carregar logo" do bloco de título.
@@ -76,10 +95,11 @@ export function composeFormBody(inst: FormInstance): string {
 const inputStyle = { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
 
-export function DynamicFormModal({ form, initial, initialTime, submitLabel = 'Salvar e aplicar', onClose, onSubmit }: {
+export function DynamicFormModal({ form, initial, initialTime, tokens = {}, submitLabel = 'Salvar e aplicar', onClose, onSubmit }: {
   form: HdForm
   initial?: FormInstance | null
   initialTime?: FormTime | null
+  tokens?: Record<string, string>   // preenchimento automático: {ticket.creator.name} etc.
   submitLabel?: string
   onClose: () => void
   onSubmit: (inst: FormInstance, body: string, time: FormTime) => Promise<void> | void
@@ -133,11 +153,13 @@ export function DynamicFormModal({ form, initial, initialTime, submitLabel = 'Sa
     if (!noCharge && startTime && endTime && !derivedTotal) { toast.error('A hora de fim deve ser maior que a de início.'); return }
     if (!noCharge && !totalDisplay) { toast.error('Informe as horas da interação (início→fim ou total) ou marque “Sem apontamento”.'); return }
 
+    // Tags resolvidas AGORA (grava o valor real na instância — o timeline/e-mail já saem prontos).
+    const tk = (s: string | null | undefined) => applyTokens(s, tokens)
     const inst: FormInstance = {
-      form_id: form.id, title: form.title, subtitle: form.subtitle, intro: form.intro, show_logo: form.show_logo,
+      form_id: form.id, title: tk(form.title), subtitle: tk(form.subtitle), intro: tk(form.intro), show_logo: form.show_logo,
       // Título/Seção: `value` guarda o flag "carregar logo" (f.required) — não têm input de usuário.
-      // Campos escalares nunca gravam null (senão renderiza "null" no resultado).
-      fields: form.fields.map(f => ({ key: f.key, label: f.label, hint: f.hint, ftype: f.ftype, value: (f.ftype === 'title' || f.ftype === 'section') ? !!f.required : (f.ftype === 'checkbox' ? !!values[f.key] : (values[f.key] ?? '')) })),
+      // Campos escalares nunca gravam null (senão renderiza "null" no resultado). Tags resolvidas no texto.
+      fields: form.fields.map(f => ({ key: f.key, label: tk(f.label), hint: f.hint, ftype: f.ftype, value: (f.ftype === 'title' || f.ftype === 'section') ? !!f.required : (f.ftype === 'checkbox' ? !!values[f.key] : tk(String(values[f.key] ?? ''))) })),
     }
     const time: FormTime = { worked_date: workedDate, start_time: noCharge ? '' : startTime, end_time: noCharge ? '' : endTime, total_hours: noCharge ? '' : totalDisplay, no_charge: noCharge }
     setSaving(true)
@@ -148,9 +170,9 @@ export function DynamicFormModal({ form, initial, initialTime, submitLabel = 'Sa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
       <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '92vh' }} onClick={e => e.stopPropagation()}>
-        <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{form.title || form.name}</div>
-        {form.subtitle && <div className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{form.subtitle}</div>}
-        {form.intro && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{form.intro}</p>}
+        <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{applyTokens(form.title, tokens) || form.name}</div>
+        {form.subtitle && <div className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{applyTokens(form.subtitle, tokens)}</div>}
+        {form.intro && <p className="text-xs whitespace-pre-line" style={{ color: 'var(--text-muted)' }}>{applyTokens(form.intro, tokens)}</p>}
         {form.fields.map(f => {
           if (f.ftype === 'title') return (
             <div key={f.key} className="text-center py-1">
@@ -242,7 +264,7 @@ export function DynamicFormView({ instance }: { instance: FormInstance }) {
       )}
       {instance.title && <div style={{ textAlign: 'center', fontSize: 18, fontWeight: 700, color: '#5b21b6', marginBottom: 4 }}>{instance.title}</div>}
       {instance.subtitle && <div style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#5b21b6', marginBottom: 8 }}>{instance.subtitle}</div>}
-      {instance.intro && <p style={{ textAlign: 'center', color: '#374151', marginBottom: 14 }}>{instance.intro}</p>}
+      {instance.intro && <p style={{ textAlign: 'center', color: '#374151', marginBottom: 14, whiteSpace: 'pre-line' }}>{instance.intro}</p>}
       {instance.fields.map((f, i) => {
         if (f.ftype === 'title') return (
           <div key={i} style={{ textAlign: 'center', marginBottom: 12 }}>

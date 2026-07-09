@@ -12,6 +12,7 @@ import { AssociationRules } from '@/components/help-desk/association-rules'
 import { EmailAccounts } from '@/components/help-desk/email-accounts'
 import { Triggers } from '@/components/help-desk/triggers'
 import { CommTemplate } from '@/components/help-desk/comm-template'
+import { FORM_TAGS } from '@/components/help-desk/dynamic-form'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -978,7 +979,17 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
           <div className="flex items-end gap-3 flex-wrap">
             <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Título (topo)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="🛠️ Detalhamento da Solução" /></div>
             <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Subtítulo (opcional)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={subtitle} onChange={e => setSubtitle(e.target.value)} placeholder="Negrito, mesma cor, menor, centralizado" /></div>
-            <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Introdução (opcional)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={intro} onChange={e => setIntro(e.target.value)} /></div>
+            <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Introdução (opcional)</label><textarea rows={3} className={`${fieldCls} w-full`} style={{ ...inputStyle, resize: 'vertical' }} value={intro} onChange={e => setIntro(e.target.value)} placeholder="Use tags como {ticket.creator.name}. Enter quebra linha." /></div>
+          </div>
+          {/* Tags de preenchimento automático — clicar copia p/ a área de transferência. */}
+          <div className="rounded-lg px-2.5 py-2 text-[11px]" style={{ border: '1px dashed var(--border)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+            <span className="font-semibold" style={{ color: 'var(--text-light)' }}>Tags (preenchem sozinhas ao enviar): </span>
+            {FORM_TAGS.map(t => (
+              <button key={t.tag} type="button" title={`${t.label} — clique p/ copiar`}
+                onClick={() => { navigator.clipboard?.writeText(t.tag); toast.success(`Copiado: ${t.tag}`) }}
+                className="inline-flex items-center mr-1.5 mb-1 px-1.5 py-0.5 rounded font-mono"
+                style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{t.tag}</button>
+            ))}
           </div>
 
           <div className="space-y-1.5">

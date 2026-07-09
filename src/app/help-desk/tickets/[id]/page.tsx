@@ -742,6 +742,17 @@ export default function HelpDeskTicketDetailPage() {
           form={dynForm}
           initial={dynEdit?.instance ?? null}
           initialTime={dynEdit?.time ?? null}
+          tokens={{
+            'ticket.creator.name': t.solicitante?.name ?? t.requester_name ?? '',
+            'ticket.creator.email': t.solicitante?.email ?? t.requester_email ?? '',
+            'ticket.number': t.ticket_number ?? '',
+            'ticket.subject': t.subject ?? '',
+            'cliente': t.customer?.name ?? '',
+            'consultor': t.assignee?.name ?? '',
+            'contato': t.contact?.name ?? '',
+            'usuario': user?.name ?? '',
+            'data': new Date().toLocaleDateString('pt-BR'),
+          }}
           submitLabel={dynEdit ? 'Salvar' : `Salvar e mover para: ${dynForm.status?.label ?? ''}`}
           onClose={() => { setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null) }}
           onSubmit={submitDynForm}
