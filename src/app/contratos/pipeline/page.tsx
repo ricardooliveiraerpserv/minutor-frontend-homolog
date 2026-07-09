@@ -2047,6 +2047,7 @@ interface ProjectFull {
   parent_project?: { id: number; name: string; code: string } | null
   coordinators?: { id: number; name: string; email: string }[]
   consultants?: { id: number; name: string; email: string }[]
+  consultant_groups?: { id: number; name: string; consultants?: { id: number; name: string }[] }[]
   approvers?: { id: number; name: string; email: string }[]
   executivo_conta?: { id: number; name: string } | null
 }
@@ -2198,7 +2199,13 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
 
   // Equipe alocada (project_consultants). O breakdown só traz quem lançou horas, então
   // projeto sem apontamento mostrava a aba vazia mesmo tendo consultor alocado.
-  const allocated = p?.consultants ?? []
+  // Alocação vem por consultor direto E por grupo de consultores — quem entra só pelo
+  // grupo não aparece em `consultants` e sumia da relação.
+  const allocated = (() => {
+    const viaGroup = (p?.consultant_groups ?? []).flatMap(g => g.consultants ?? [])
+    const seen = new Set<number>()
+    return [...(p?.consultants ?? []), ...viaGroup].filter(c => !seen.has(c.id) && seen.add(c.id))
+  })()
   const hoursByName = new Map(breakdown.map(c => [c.consultant_name, c]))
   const consultantsCount = new Set([...allocated.map(c => c.name), ...breakdown.map(c => c.consultant_name)]).size
 
