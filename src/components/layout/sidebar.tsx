@@ -424,6 +424,7 @@ const NAV: NavEntry[] = [
       { label: 'Gatilhos (automação)', href: '/help-desk/configuracoes?tab=gatilhos', icon: Zap },
       { label: 'Comunicação', href: '/help-desk/configuracoes?tab=comunicacao', icon: Mail },
       { label: 'SLA', href: '/help-desk/configuracoes?tab=sla', icon: Clock },
+      { label: 'Formulários', href: '/help-desk/configuracoes?tab=formularios', icon: FileText },
       { label: 'Tags', href: '/help-desk/configuracoes?tab=tags', icon: Tag },
       { label: 'Playbooks', href: '/help-desk/configuracoes?tab=playbooks', icon: Star },
     ],
