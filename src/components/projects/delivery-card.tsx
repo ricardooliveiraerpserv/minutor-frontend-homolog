@@ -6,6 +6,11 @@ interface Props {
   delivery: StageDelivery
   onClick: () => void
   isDragging?: boolean
+  code?: string
+  predecessorTitle?: string
+  /** Colunas disponíveis + callback para mover via dropdown (além do arrastar). */
+  columns?: { status: string; label: string }[]
+  onMove?: (status: string) => void
 }
 
 const PRIORITY_COLOR: Record<string, string> = {
@@ -36,7 +41,7 @@ function formatHours(planned: number, actual: number | undefined): string {
   return `${actual.toFixed(1)}/${planned}h`
 }
 
-export function DeliveryCard({ delivery, onClick, isDragging }: Props) {
+export function DeliveryCard({ delivery, onClick, isDragging, columns, onMove }: Props) {
   const planned = Number(delivery.hours_planned ?? 0)
   const actual = delivery.effort_minutes_sum !== undefined && delivery.effort_minutes_sum !== null
     ? Number(delivery.effort_minutes_sum) / 60
@@ -45,22 +50,30 @@ export function DeliveryCard({ delivery, onClick, isDragging }: Props) {
   const due = formatDue(delivery.due_date)
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       className="ds-card"
       style={{
-        display: 'block',
         width: '100%',
-        padding: 12,
-        textAlign: 'left',
-        cursor: isDragging ? 'grabbing' : 'pointer',
         background: 'var(--surface)',
         borderLeft: overdue ? '2px solid var(--danger)' : '1px solid var(--border)',
         boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
         transition: 'box-shadow .12s ease, transform .12s ease',
       }}
     >
+      <button
+        type="button"
+        onClick={onClick}
+        style={{
+          display: 'block',
+          width: '100%',
+          padding: 12,
+          textAlign: 'left',
+          background: 'transparent',
+          border: 'none',
+          color: 'inherit',
+          cursor: isDragging ? 'grabbing' : 'pointer',
+        }}
+      >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
         <span
           title={`Prioridade: ${delivery.priority}`}
@@ -108,6 +121,27 @@ export function DeliveryCard({ delivery, onClick, isDragging }: Props) {
           <span>{formatHours(planned, actual)}</span>
         </span>
       </div>
-    </button>
+      </button>
+      {onMove && columns && columns.length > 0 && (
+        <div
+          onClick={e => e.stopPropagation()}
+          onMouseDown={e => e.stopPropagation()}
+          style={{ borderTop: '1px solid var(--border)', padding: '6px 10px' }}
+        >
+          <select
+            className="ds-input"
+            value=""
+            onChange={e => { const v = e.target.value; if (v) onMove(v); e.currentTarget.value = '' }}
+            title="Mover para outra coluna"
+            style={{ width: '100%', fontSize: 11, padding: '3px 6px', color: 'var(--text-muted)' }}
+          >
+            <option value="">Mover para…</option>
+            {columns.filter(c => c.status !== delivery.status).map(c => (
+              <option key={c.status} value={c.status}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
   )
 }

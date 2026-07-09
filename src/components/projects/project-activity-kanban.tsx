@@ -126,15 +126,9 @@ function EtapaKanban({ projectId, primaryStageId, items, onChanged, canEdit }: {
     return map
   }, [local])
 
-  async function handleDragEnd(result: DropResult) {
-    const { destination, source, draggableId } = result
-    if (!destination) return
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return
-    const movedId = Number(draggableId)
-    const moved = local.find(d => d.id === movedId)
-    if (!moved) return
-    const newStatus = destination.droppableId as DeliveryStatus
-
+  // Move uma atividade de coluna (status). Reusado pelo drag-and-drop E pelo dropdown "Mover para" do card.
+  async function moveTo(moved: Aug, newStatus: DeliveryStatus, orderIndex: number) {
+    if (moved.status === newStatus) return
     if (moved.status === 'backlog' && newStatus !== 'backlog' && moved.predecessor_state === 'pending' && moved.depends_on_delivery_id) {
       toast.error(`Conclua a atividade '${titleById[moved.depends_on_delivery_id] ?? 'predecessora'}' antes de iniciar esta.`)
       return
@@ -143,14 +137,23 @@ function EtapaKanban({ projectId, primaryStageId, items, onChanged, canEdit }: {
       setApprovalFor(moved); return
     }
 
-    setLocal(prev => prev.map(d => d.id === movedId ? { ...d, status: newStatus, order_index: destination.index } : d))
+    setLocal(prev => prev.map(d => d.id === moved.id ? { ...d, status: newStatus, order_index: orderIndex } : d))
     try {
-      await api.post(`/deliveries/${movedId}/move`, { status: newStatus, order_index: destination.index })
+      await api.post(`/deliveries/${moved.id}/move`, { status: newStatus, order_index: orderIndex })
       onChanged()
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Erro ao mover')
       setLocal(items)
     }
+  }
+
+  async function handleDragEnd(result: DropResult) {
+    const { destination, source, draggableId } = result
+    if (!destination) return
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return
+    const moved = local.find(d => d.id === Number(draggableId))
+    if (!moved) return
+    await moveTo(moved, destination.droppableId as DeliveryStatus, destination.index)
   }
 
   async function handleCreate(status: DeliveryStatus) {
@@ -211,6 +214,8 @@ function EtapaKanban({ projectId, primaryStageId, items, onChanged, canEdit }: {
                                 isDragging={snap.isDragging}
                                 onClick={() => setSelected(d)}
                                 predecessorTitle={d.depends_on_delivery_id ? titleById[d.depends_on_delivery_id] : undefined}
+                                columns={canEdit ? COLUMNS : undefined}
+                                onMove={canEdit ? (status => moveTo(d, status as DeliveryStatus, byColumn[status as DeliveryStatus]?.length ?? 0)) : undefined}
                               />
                             </div>
                           )}
