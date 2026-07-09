@@ -13,6 +13,7 @@ import { ExecutarPlaybook } from '@/components/help-desk/executar-playbook'
 import { InteracaoComposer } from '@/components/help-desk/interacao-composer'
 import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 import { SolucaoModal, SolutionView, type Solution } from '@/components/help-desk/solucao-modal'
+import { GmudModal, GmudView, type Gmud } from '@/components/help-desk/gmud-modal'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { AgentSelect, type AgentTeam } from '@/components/help-desk/agent-select'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
@@ -47,7 +48,7 @@ interface TicketDetail {
 }
 interface JustificationOpt { id: number; status_id: number; name: string }
 interface CommentAtt { id: number; original_name?: string; file_name?: string; human_size?: string; category?: string }
-interface Comment { id: number; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean; worked_date?: string | null; start_time?: string | null; end_time?: string | null; effort_minutes?: number | null; timesheet_id?: number | null; no_charge?: boolean; solution?: Solution | null }
+interface Comment { id: number; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean; worked_date?: string | null; start_time?: string | null; end_time?: string | null; effort_minutes?: number | null; timesheet_id?: number | null; no_charge?: boolean; solution?: Solution | Gmud | null; form_kind?: string | null }
 
 // Data local (evita UTC empurrar p/ o dia seguinte à noite no Brasil).
 function localTodayStr(): string {
@@ -233,35 +234,55 @@ export default function HelpDeskTicketDetailPage() {
     try { await api.patch(`/help-desk/tickets/${id}/status`, { status_id: Number(statusId), justification_id: justificationId ?? null }); loadTicket(); loadEvents() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao mudar status') }
   }
-  // Detalhamento da Solução — obrigatório ao RESOLVER.
+  // Formulários ao RESOLVER: Detalhamento da Solução (resolvido) e GMUD (solucao_gmud).
   const [solucaoOpen, setSolucaoOpen] = useState(false)
+  const [gmudOpen, setGmudOpen] = useState(false)
   const [resolveStatusId, setResolveStatusId] = useState<string | null>(null)
   const [editSolution, setEditSolution] = useState<{ commentId: number; solution: Solution } | null>(null)
+  const [editGmud, setEditGmud] = useState<{ commentId: number; gmud: Gmud } | null>(null)
 
-  // Ao escolher um status que tem justificativas cadastradas, pede o motivo antes de aplicar.
-  // Status RESOLVIDO exige o formulário "Detalhamento da Solução" antes.
+  // Status com FORMULÁRIO abre o form antes; senão aplica direto (com justificativa se houver).
   const onStatusSelect = (statusId: string) => {
     const st = statuses.find(s => String(s.id) === statusId)
+    if (st?.key === 'solucao_gmud') { setEditGmud(null); setResolveStatusId(statusId); setGmudOpen(true); return }
     if (st?.is_resolved) { setEditSolution(null); setResolveStatusId(statusId); setSolucaoOpen(true); return }
     if (justifications.some(j => j.status_id === Number(statusId))) setPendingStatus(statusId)
     else changeStatus(statusId)
   }
 
-  const openSolucaoEdit = (c: Comment) => { if (c.solution) { setEditSolution({ commentId: c.id, solution: c.solution }); setResolveStatusId(null); setSolucaoOpen(true) } }
+  const openFormEdit = (c: Comment) => {
+    if (c.form_kind === 'gmud' && c.solution) { setEditGmud({ commentId: c.id, gmud: c.solution as Gmud }); setResolveStatusId(null); setGmudOpen(true) }
+    else if (c.solution) { setEditSolution({ commentId: c.id, solution: c.solution as Solution }); setResolveStatusId(null); setSolucaoOpen(true) }
+  }
 
   const submitSolucao = async (s: Solution, body: string) => {
     try {
       if (editSolution) {
-        await api.patch(`/help-desk/tickets/${id}/comments/${editSolution.commentId}`, { body, solution: s })
+        await api.patch(`/help-desk/tickets/${id}/comments/${editSolution.commentId}`, { body, solution: s, form_kind: 'solution' })
         toast.success('Solução atualizada')
       } else {
-        await api.post(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: s })
+        await api.post(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: s, form_kind: 'solution' })
         if (resolveStatusId) await changeStatus(resolveStatusId)
         toast.success('Chamado resolvido')
       }
       setSolucaoOpen(false); setEditSolution(null); setResolveStatusId(null)
       loadComments(); loadEvents(); loadTicket()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar a solução') }
+  }
+
+  const submitGmud = async (gm: Gmud, body: string) => {
+    try {
+      if (editGmud) {
+        await api.patch(`/help-desk/tickets/${id}/comments/${editGmud.commentId}`, { body, solution: gm, form_kind: 'gmud' })
+        toast.success('GMUD atualizada')
+      } else {
+        await api.post(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: gm, form_kind: 'gmud' })
+        if (resolveStatusId) await changeStatus(resolveStatusId)
+        toast.success('Chamado resolvido com GMUD')
+      }
+      setGmudOpen(false); setEditGmud(null); setResolveStatusId(null)
+      loadComments(); loadEvents(); loadTicket()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar a GMUD') }
   }
 
   // Edição inline dos campos de classificação do chamado (categoria, serviço, prioridade, canal).
@@ -435,7 +456,7 @@ export default function HelpDeskTicketDetailPage() {
                         </span>
                         <div className="flex items-center gap-2">
                           {c.can_edit && editCommentId !== c.id && (
-                            <button title={c.solution ? 'Editar solução' : 'Editar interação'} onClick={() => c.solution ? openSolucaoEdit(c) : openEditComment(c)}><Pencil size={12} style={{ color: 'var(--text-light)' }} /></button>
+                            <button title={c.solution ? (c.form_kind === 'gmud' ? 'Editar GMUD' : 'Editar solução') : 'Editar interação'} onClick={() => c.solution ? openFormEdit(c) : openEditComment(c)}><Pencil size={12} style={{ color: 'var(--text-light)' }} /></button>
                           )}
                           <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(c.created_at)}</span>
                         </div>
@@ -487,8 +508,10 @@ export default function HelpDeskTicketDetailPage() {
                             <button onClick={() => setEditCommentId(null)} className="text-xs px-2 py-1 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
                           </div>
                         </div>
+                      ) : c.solution && c.form_kind === 'gmud' ? (
+                        <GmudView gmud={c.solution as Gmud} />
                       ) : c.solution ? (
-                        <SolutionView solution={c.solution} />
+                        <SolutionView solution={c.solution as Solution} />
                       ) : c.body && (c.channel === 'email' && isHtmlBody(c.body)
                         ? <EmailFrame html={c.body} />
                         : isHtmlBody(c.body)
@@ -643,6 +666,15 @@ export default function HelpDeskTicketDetailPage() {
           submitLabel={editSolution ? 'Salvar' : 'Salvar e resolver'}
           onClose={() => { setSolucaoOpen(false); setEditSolution(null); setResolveStatusId(null) }}
           onSubmit={submitSolucao}
+        />
+      )}
+
+      {gmudOpen && (
+        <GmudModal
+          initial={editGmud?.gmud ?? null}
+          submitLabel={editGmud ? 'Salvar' : 'Salvar e resolver (GMUD)'}
+          onClose={() => { setGmudOpen(false); setEditGmud(null); setResolveStatusId(null) }}
+          onSubmit={submitGmud}
         />
       )}
 
