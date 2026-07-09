@@ -24,6 +24,7 @@ export function AssociationRules() {
   const [q, setQ] = useState('')
   const [tab, setTab] = useState<'vinc' | 'nao'>('vinc')
   const [editing, setEditing] = useState<Rule | null>(null)
+  const [formOpen, setFormOpen] = useState(false)
   const [domain, setDomain] = useState(''); const [customerId, setCustomerId] = useState(''); const [profileId, setProfileId] = useState(''); const [classification, setClassification] = useState(''); const [enabled, setEnabled] = useState(true)
   const domainRef = useRef<HTMLInputElement>(null)
 
@@ -39,19 +40,20 @@ export function AssociationRules() {
   }, [])
 
   const reset = () => { setEditing(null); setDomain(''); setCustomerId(''); setProfileId(''); setClassification(''); setEnabled(true) }
-  const startEdit = (r: Rule) => { setEditing(r); setDomain(r.domain); setCustomerId(r.customer_id ? String(r.customer_id) : ''); setProfileId(r.access_profile_id ? String(r.access_profile_id) : ''); setClassification(r.classification ?? ''); setEnabled(r.enabled) }
+  const closeForm = () => { setFormOpen(false); reset() }
+  const startEdit = (r: Rule) => { setEditing(r); setDomain(r.domain); setCustomerId(r.customer_id ? String(r.customer_id) : ''); setProfileId(r.access_profile_id ? String(r.access_profile_id) : ''); setClassification(r.classification ?? ''); setEnabled(r.enabled); setFormOpen(true) }
   const save = async () => {
     if (!domain.trim()) return toast.error('Informe o domínio.')
     const body = { domain: domain.trim(), customer_id: customerId ? Number(customerId) : null, access_profile_id: profileId ? Number(profileId) : null, classification: classification.trim() || null, enabled }
     try {
       if (editing) await api.put(`/help-desk/association-rules/${editing.id}`, body); else await api.post('/help-desk/association-rules', body)
-      reset(); toast.success('Regra salva'); load()
+      closeForm(); toast.success('Regra salva'); load()
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao salvar') }
   }
   const toggle = async (r: Rule) => { try { await api.put(`/help-desk/association-rules/${r.id}`, { enabled: !r.enabled }); load() } catch { toast.error('Erro') } }
-  const del = async (r: Rule) => { if (!confirm(`Excluir "${r.domain}"?`)) return; try { await api.delete(`/help-desk/association-rules/${r.id}`); if (editing?.id === r.id) reset(); load() } catch { toast.error('Erro') } }
-  // Clicar num cliente (não-vinculado ou "+domínio") prepara o form pra vincular um domínio.
-  const linkClient = (cid: number) => { reset(); setCustomerId(String(cid)); setTimeout(() => domainRef.current?.focus(), 50) }
+  const del = async (r: Rule) => { if (!confirm(`Excluir "${r.domain}"?`)) return; try { await api.delete(`/help-desk/association-rules/${r.id}`); if (editing?.id === r.id) closeForm(); load() } catch { toast.error('Erro') } }
+  // Clicar num cliente (não-vinculado ou "+domínio") abre o modal já com o cliente selecionado.
+  const linkClient = (cid: number) => { reset(); setCustomerId(String(cid)); setFormOpen(true); setTimeout(() => domainRef.current?.focus(), 60) }
 
   // Agrupa as regras por cliente. Vinculados = clientes com ≥1 domínio; Não vinculados =
   // clientes elegíveis (contrato+integração) ainda sem domínio.
@@ -69,23 +71,7 @@ export function AssociationRules() {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Vincula um domínio de e-mail a uma Organização + Perfil de acesso. E-mails de abertura desse domínio são identificados ao cliente certo.</p>
-      <div className="ds-card p-3 flex items-end gap-2 flex-wrap" style={{ border: editing ? '1px solid var(--primary)' : undefined }}>
-        <div><label className={lbl} style={{ color: 'var(--text-light)' }}>{editing ? 'Editando regra' : 'Domínio'}</label>
-          <div className="flex items-center">
-            <span className="text-[11px] px-2 py-1.5 rounded-l-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text-light)', border: '1px solid var(--border)', borderRight: 'none' }}>todos-os-e-mails-de@</span>
-            <input ref={domainRef} className={`${fieldCls} w-48 rounded-l-none`} style={inputStyle} placeholder="agroamazonia.com.br" value={domain} onChange={e => setDomain(e.target.value)} />
-          </div>
-        </div>
-        <div className="w-56"><label className={lbl} style={{ color: 'var(--text-light)' }}>Organização</label>
-          <SearchSelect value={customerId} onChange={setCustomerId} options={[{ id: '', name: '—' }, ...customers]} placeholder="Buscar cliente…" fullWidth /></div>
-        <div className="w-52"><label className={lbl} style={{ color: 'var(--text-light)' }}>Perfil de acesso</label>
-          <SearchSelect value={profileId} onChange={setProfileId} options={[{ id: '', name: '—' }, ...profiles]} placeholder="Perfil…" fullWidth /></div>
-        <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Classificação</label><input className={`${fieldCls} w-36`} style={inputStyle} value={classification} onChange={e => setClassification(e.target.value)} /></div>
-        <label className="flex items-center gap-1.5 text-sm mb-1.5" style={{ color: 'var(--text)' }}><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} /> Habilitado</label>
-        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={save}>{editing ? <><Save size={15} /> Salvar</> : <><Plus size={15} /> Adicionar</>}</button>
-        {editing && <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={reset}>Cancelar</button>}
-      </div>
+      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Vincula um domínio de e-mail a um cliente. Clique num cliente para vincular um domínio (um cliente pode ter vários).</p>
 
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1 border-b flex-1" style={{ borderColor: 'var(--border)' }}>
@@ -145,6 +131,32 @@ export function AssociationRules() {
               <span className="text-[11px] inline-flex items-center gap-1" style={{ color: 'var(--primary)' }}><Plus size={12} /> vincular domínio</span>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Modal de vincular/editar domínio */}
+      {formOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={closeForm}>
+          <div className="ds-card p-4 w-full max-w-md space-y-3" style={{ background: 'var(--surface)' }} onClick={e => e.stopPropagation()}>
+            <div className="font-semibold" style={{ color: 'var(--text)' }}>{editing ? 'Editar domínio' : 'Vincular domínio'}</div>
+            <div>
+              <label className={lbl} style={{ color: 'var(--text-light)' }}>Domínio</label>
+              <div className="flex items-center">
+                <span className="text-[11px] px-2 py-1.5 rounded-l-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text-light)', border: '1px solid var(--border)', borderRight: 'none' }}>todos-os-e-mails-de@</span>
+                <input ref={domainRef} className={`${fieldCls} flex-1 rounded-l-none`} style={inputStyle} placeholder="agroamazonia.com.br" value={domain} onChange={e => setDomain(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save() }} />
+              </div>
+            </div>
+            <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Organização (cliente)</label>
+              <SearchSelect value={customerId} onChange={setCustomerId} options={[{ id: '', name: '—' }, ...customers]} placeholder="Buscar cliente…" fullWidth /></div>
+            <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Perfil de acesso</label>
+              <SearchSelect value={profileId} onChange={setProfileId} options={[{ id: '', name: '—' }, ...profiles]} placeholder="Perfil…" fullWidth /></div>
+            <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Classificação</label><input className={`${fieldCls} w-full`} style={inputStyle} value={classification} onChange={e => setClassification(e.target.value)} /></div>
+            <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text)' }}><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} /> Habilitado</label>
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={closeForm}>Cancelar</button>
+              <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={save}><Save size={15} /> Salvar</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
