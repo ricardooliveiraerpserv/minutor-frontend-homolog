@@ -7,8 +7,13 @@ import { RichEditor, type RichEditorHandle } from './rich-editor'
 
 export interface Solution { diagnostico: string; acao: string; validacao: string }
 
-const strip = (html: string) => html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
-const hasContent = (html: string) => strip(html) !== '' || /<img/i.test(html)
+const MIN_CHARS = 10 // mínimo por campo, SEM contar espaços
+
+/** Nº de caracteres do texto (sem tags/entidades) desconsiderando espaços. */
+function nonSpaceLen(html: string): number {
+  const el = document.createElement('div'); el.innerHTML = html
+  return (el.textContent || '').replace(/\s+/g, '').length
+}
 
 /**
  * HTML composto (usado no `body` da interação e no e-mail): logo + título centralizado +
@@ -65,8 +70,13 @@ export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', onClo
       acao: aRef.current?.getHtml() ?? '',
       validacao: vRef.current?.getHtml() ?? '',
     }
-    if (!hasContent(s.diagnostico) || !hasContent(s.acao) || !hasContent(s.validacao)) {
-      toast.error('Preencha Diagnóstico, Ação Realizada e Validação.'); return
+    const short = ([
+      ['Diagnóstico (Causa)', s.diagnostico],
+      ['Ação Realizada (O Ajuste)', s.acao],
+      ['Validação (Teste Efetuado)', s.validacao],
+    ] as const).filter(([, html]) => nonSpaceLen(html) < MIN_CHARS).map(([label]) => label)
+    if (short.length) {
+      toast.error(`Preencha com no mínimo ${MIN_CHARS} caracteres (sem contar espaços): ${short.join(', ')}.`); return
     }
     setSaving(true)
     try { await onSubmit(s, composeSolutionBody(s)) } finally { setSaving(false) }
@@ -76,7 +86,7 @@ export function SolucaoModal({ initial, submitLabel = 'Salvar e resolver', onClo
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }} onClick={onClose}>
       <div className="ds-card p-5 w-full max-w-2xl space-y-3 overflow-y-auto" style={{ background: 'var(--surface)', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
         <div className="text-lg font-semibold" style={{ color: 'var(--text)' }}>🛠️ Detalhamento da Solução</div>
-        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Obrigatório ao resolver. Você pode colar prints de tela em cada campo.</p>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Todos os campos são obrigatórios (mín. {MIN_CHARS} caracteres cada, espaços não contam). Você pode colar prints de tela.</p>
         <Field label="🔍 Diagnóstico (Causa)" hint="O que estava causando o problema? Ex.: “A regra fiscal estava desatualizada e gerava imposto errado na NF-e.”">
           <RichEditor ref={dRef} initialHtml={initial?.diagnostico ?? ''} minHeight={80} /></Field>
         <Field label="🚀 Ação Realizada (O Ajuste)" hint="O que você fez para corrigir? Ex.: “Atualizei a alíquota de ICMS e reprocessei as notas do período.”">
