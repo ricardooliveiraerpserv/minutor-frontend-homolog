@@ -17,7 +17,7 @@ export interface FormValueField { key: string; label: string; hint?: string | nu
 export interface FormInstance { form_id: number; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; fields: FormValueField[] }
 
 const nonSpaceLen = (html: string) => { const el = document.createElement('div'); el.innerHTML = html; return (el.textContent || '').replace(/\s+/g, '').length }
-const isBlank = (v: string | boolean) => typeof v === 'boolean' ? !v : nonSpaceLen(String(v)) === 0
+const isBlank = (v: string | boolean | null | undefined) => v == null ? true : (typeof v === 'boolean' ? !v : nonSpaceLen(String(v)) === 0)
 // Campo "com conteúdo" p/ o render final: checkbox marcado, ou texto/rich/data/hora não-vazio.
 const fieldHasContent = (f: FormValueField) => f.ftype !== 'title' && f.ftype !== 'section' && (f.ftype === 'checkbox' ? !!f.value : !isBlank(f.value))
 // Uma seção só é trazida se houver algum campo com conteúdo até a próxima seção/título.
@@ -106,7 +106,8 @@ export function DynamicFormModal({ form, initial, submitLabel = 'Salvar e aplica
     const inst: FormInstance = {
       form_id: form.id, title: form.title, subtitle: form.subtitle, intro: form.intro, show_logo: form.show_logo,
       // Título/Seção: `value` guarda o flag "carregar logo" (f.required) — não têm input de usuário.
-      fields: form.fields.map(f => ({ key: f.key, label: f.label, hint: f.hint, ftype: f.ftype, value: (f.ftype === 'title' || f.ftype === 'section') ? !!f.required : values[f.key] })),
+      // Campos escalares nunca gravam null (senão renderiza "null" no resultado).
+      fields: form.fields.map(f => ({ key: f.key, label: f.label, hint: f.hint, ftype: f.ftype, value: (f.ftype === 'title' || f.ftype === 'section') ? !!f.required : (f.ftype === 'checkbox' ? !!values[f.key] : (values[f.key] ?? '')) })),
     }
     setSaving(true)
     try { await onSubmit(inst, composeFormBody(inst)) } finally { setSaving(false) }
