@@ -25,7 +25,7 @@ interface Tag { id: number; name: string; color: string | null }
 interface SlaPause { status_key: string }
 interface SlaTarget { id?: number; priority: string; name?: string | null; enabled?: boolean; first_response_minutes: number | null; resolution_minutes: number | null; first_response_channels?: string[] | null; pause_on_approval?: boolean; max_agent_actions?: number | null; pauses?: SlaPause[] }
 interface SlaHoliday { id?: number; date: string; name?: string | null }
-interface SlaPolicy { id: number; name: string; description?: string | null; customer_id?: number | null; is_default: boolean; active: boolean; timezone?: string | null; use_national_holidays?: boolean; business_hours?: Record<string, [string, string][]> | null; targets: SlaTarget[]; holidays?: SlaHoliday[] }
+interface SlaPolicy { id: number; name: string; description?: string | null; customer_id?: number | null; is_default: boolean; active: boolean; timezone?: string | null; use_national_holidays?: boolean; business_hours?: Record<string, [string, string][]> | null; targets: SlaTarget[]; holidays?: SlaHoliday[]; customers?: { id: number; name: string }[]; customers_count?: number }
 
 const TABS = [
   { id: 'categorias', label: 'Categorias' },
@@ -454,7 +454,7 @@ function SlaTab() {
   const [channels, setChannels] = useState<string[]>([])
   const [customers, setCustomers] = useState<{ id: number; name: string }[]>([])
   const [creating, setCreating] = useState(false)
-  const [nName, setNName] = useState(''); const [nCust, setNCust] = useState(''); const [nDef, setNDef] = useState(false)
+  const [nName, setNName] = useState(''); const [nDef, setNDef] = useState(false)
   const load = useCallback(() => { api.get<{ data: SlaPolicy[] }>('/help-desk/sla-policies?all=1').then(r => setRows(r?.data ?? [])).catch(() => {}) }, [])
   useEffect(() => {
     load()
@@ -465,8 +465,8 @@ function SlaTab() {
   const create = async () => {
     if (!nName.trim()) return toast.error('Informe o nome.')
     try {
-      await api.post('/help-desk/sla-policies', { name: nName.trim(), customer_id: nCust ? Number(nCust) : null, is_default: nDef })
-      setNName(''); setNCust(''); setNDef(false); setCreating(false); load(); toast.success('Política criada')
+      await api.post('/help-desk/sla-policies', { name: nName.trim(), is_default: nDef })
+      setNName(''); setNDef(false); setCreating(false); load(); toast.success('Política criada — abra para configurar e vincular clientes')
     } catch { toast.error('Erro ao criar') }
   }
   return (
@@ -477,19 +477,18 @@ function SlaTab() {
         ) : (
           <div className="flex items-end gap-2 flex-wrap">
             <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Nome</label><input className={`${fieldCls} w-52`} style={inputStyle} value={nName} onChange={e => setNName(e.target.value)} placeholder="Ex.: Cosan" /></div>
-            <div className="w-56"><label className={lbl} style={{ color: 'var(--text-light)' }}>Cliente (escopo)</label><SearchSelect value={nCust} onChange={setNCust} options={[{ id: '', name: '— sem escopo (só se padrão) —' }, ...customers]} placeholder="Cliente…" fullWidth /></div>
             <label className="flex items-center gap-1.5 text-xs pb-2" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={nDef} onChange={e => setNDef(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> contrato padrão</label>
             <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={create}>Criar</button>
             <button className="text-sm px-2 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }} onClick={() => setCreating(false)}>Cancelar</button>
           </div>
         )}
       </div>
-      {rows.map(p => <PolicyCard key={p.id} policy={p} statuses={statuses} channels={channels} onSaved={load} />)}
+      {rows.map(p => <PolicyCard key={p.id} policy={p} statuses={statuses} channels={channels} customers={customers} onSaved={load} />)}
     </div>
   )
 }
 
-function PolicyCard({ policy, statuses, channels, onSaved }: { policy: SlaPolicy; statuses: { key: string; label: string }[]; channels: string[]; onSaved: () => void }) {
+function PolicyCard({ policy, statuses, channels, customers, onSaved }: { policy: SlaPolicy; statuses: { key: string; label: string }[]; channels: string[]; customers: { id: number; name: string }[]; onSaved: () => void }) {
   const [open, setOpen] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -502,6 +501,7 @@ function PolicyCard({ policy, statuses, channels, onSaved }: { policy: SlaPolicy
   const [tgt, setTgt] = useState<Record<string, { enabled: boolean; fr: string; res: string; channels: string[]; pauses: string[]; maxA: string }>>({})
   const [holidays, setHolidays] = useState<SlaHoliday[]>([])
   const [hDate, setHDate] = useState(''); const [hName, setHName] = useState('')
+  const [linked, setLinked] = useState<{ id: number; name: string }[]>([])
 
   const loadDetail = useCallback(async () => {
     try {
@@ -526,7 +526,7 @@ function PolicyCard({ policy, statuses, channels, onSaved }: { policy: SlaPolicy
           maxA: g?.max_agent_actions != null ? String(g.max_agent_actions) : '',
         }
       }
-      setTgt(tt); setHolidays(d.holidays ?? []); setLoaded(true)
+      setTgt(tt); setHolidays(d.holidays ?? []); setLinked(d.customers ?? []); setLoaded(true)
     } catch { toast.error('Erro ao carregar política') }
   }, [policy.id])
   useEffect(() => { if (open && !loaded) loadDetail() }, [open, loaded, loadDetail])
@@ -550,6 +550,7 @@ function PolicyCard({ policy, statuses, channels, onSaved }: { policy: SlaPolicy
       await api.put(`/help-desk/sla-policies/${policy.id}`, {
         name, active, is_default: isDefault, timezone: tz, use_national_holidays: useNat,
         business_hours, targets, holidays: holidays.map(h => ({ date: h.date, name: h.name ?? null })),
+        customer_ids: linked.map(c => c.id),
       })
       toast.success('Política salva'); onSaved(); setLoaded(false); loadDetail()
     } catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
@@ -565,7 +566,7 @@ function PolicyCard({ policy, statuses, channels, onSaved }: { policy: SlaPolicy
           {policy.is_default && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>padrão</span>}
           {!policy.active && <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>inativa</span>}
         </span>
-        <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{policy.targets?.length ?? 0} regras</span>
+        <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{policy.targets?.length ?? 0} regras · {policy.customers_count ?? 0} cliente(s)</span>
       </button>
 
       {open && (
@@ -579,6 +580,26 @@ function PolicyCard({ policy, statuses, channels, onSaved }: { policy: SlaPolicy
               <label className="flex items-center gap-1.5 text-xs pb-2" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={active} onChange={e => setActive(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> ativa</label>
               <label className="flex items-center gap-1.5 text-xs pb-2" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={isDefault} onChange={e => setIsDefault(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> contrato padrão</label>
               <label className="flex items-center gap-1.5 text-xs pb-2" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={useNat} onChange={e => setUseNat(e.target.checked)} style={{ accentColor: 'var(--primary)' }} /> respeitar feriados nacionais</label>
+            </div>
+
+            {/* Clientes vinculados */}
+            <div>
+              <div className={lbl} style={{ color: 'var(--text-light)' }}>
+                Clientes que usam este SLA
+                {isDefault && <span className="ml-1 font-normal normal-case" style={{ color: 'var(--text-light)' }}>— o padrão vale automaticamente para quem NÃO tem SLA vinculado</span>}
+              </div>
+              <div className="w-72 mb-2">
+                <SearchSelect value="" onChange={v => { if (!v) return; const c = customers.find(x => String(x.id) === v); if (c && !linked.some(l => l.id === c.id)) setLinked(ls => [...ls, c]) }}
+                  options={[{ id: '', name: '+ vincular cliente…' }, ...customers.filter(c => !linked.some(l => l.id === c.id))]} placeholder="Buscar cliente…" fullWidth />
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {linked.map(c => (
+                  <span key={c.id} className="text-[11px] px-2 py-0.5 rounded inline-flex items-center gap-1.5" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                    {c.name}<button onClick={() => setLinked(ls => ls.filter(x => x.id !== c.id))}><Trash2 size={11} /></button>
+                  </span>
+                ))}
+                {linked.length === 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>Nenhum cliente vinculado{isDefault ? '' : ' — sem cliente, este SLA não é usado por ninguém'}.</span>}
+              </div>
             </div>
 
             {/* Calendário de atendimento */}
