@@ -7,7 +7,7 @@ import { RichEditor, type RichEditorHandle } from './rich-editor'
 
 export interface Solution { diagnostico: string; acao: string; validacao: string }
 
-const MIN_CHARS = 10 // mínimo por campo, SEM contar espaços
+const MIN_CHARS = 20 // mínimo por campo, SEM contar espaços
 
 /** Nº de caracteres do texto (sem tags/entidades) desconsiderando espaços. */
 function nonSpaceLen(html: string): number {
