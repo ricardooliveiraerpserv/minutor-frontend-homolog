@@ -12,6 +12,7 @@ import { FinalizarAtendimentoModal } from '@/components/help-desk/finalizar-aten
 import { ExecutarPlaybook } from '@/components/help-desk/executar-playbook'
 import { InteracaoComposer } from '@/components/help-desk/interacao-composer'
 import { TimeSelect5 } from '@/components/help-desk/time-select-5'
+import { SolucaoModal, type Solution } from '@/components/help-desk/solucao-modal'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { AgentSelect, type AgentTeam } from '@/components/help-desk/agent-select'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
@@ -46,7 +47,7 @@ interface TicketDetail {
 }
 interface JustificationOpt { id: number; status_id: number; name: string }
 interface CommentAtt { id: number; original_name?: string; file_name?: string; human_size?: string; category?: string }
-interface Comment { id: number; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean; worked_date?: string | null; start_time?: string | null; end_time?: string | null; effort_minutes?: number | null; timesheet_id?: number | null; no_charge?: boolean }
+interface Comment { id: number; body: string; visibility: string; channel?: string | null; is_system: boolean; created_at: string; author?: Ref | null; contact?: Ref | null; attachments?: CommentAtt[]; can_edit?: boolean; worked_date?: string | null; start_time?: string | null; end_time?: string | null; effort_minutes?: number | null; timesheet_id?: number | null; no_charge?: boolean; solution?: Solution | null }
 
 // Data local (evita UTC empurrar p/ o dia seguinte à noite no Brasil).
 function localTodayStr(): string {
@@ -232,10 +233,35 @@ export default function HelpDeskTicketDetailPage() {
     try { await api.patch(`/help-desk/tickets/${id}/status`, { status_id: Number(statusId), justification_id: justificationId ?? null }); loadTicket(); loadEvents() }
     catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao mudar status') }
   }
+  // Detalhamento da Solução — obrigatório ao RESOLVER.
+  const [solucaoOpen, setSolucaoOpen] = useState(false)
+  const [resolveStatusId, setResolveStatusId] = useState<string | null>(null)
+  const [editSolution, setEditSolution] = useState<{ commentId: number; solution: Solution } | null>(null)
+
   // Ao escolher um status que tem justificativas cadastradas, pede o motivo antes de aplicar.
+  // Status RESOLVIDO exige o formulário "Detalhamento da Solução" antes.
   const onStatusSelect = (statusId: string) => {
+    const st = statuses.find(s => String(s.id) === statusId)
+    if (st?.is_resolved) { setEditSolution(null); setResolveStatusId(statusId); setSolucaoOpen(true); return }
     if (justifications.some(j => j.status_id === Number(statusId))) setPendingStatus(statusId)
     else changeStatus(statusId)
+  }
+
+  const openSolucaoEdit = (c: Comment) => { if (c.solution) { setEditSolution({ commentId: c.id, solution: c.solution }); setResolveStatusId(null); setSolucaoOpen(true) } }
+
+  const submitSolucao = async (s: Solution, body: string) => {
+    try {
+      if (editSolution) {
+        await api.patch(`/help-desk/tickets/${id}/comments/${editSolution.commentId}`, { body, solution: s })
+        toast.success('Solução atualizada')
+      } else {
+        await api.post(`/help-desk/tickets/${id}/comments`, { body, visibility: 'customer', solution: s })
+        if (resolveStatusId) await changeStatus(resolveStatusId)
+        toast.success('Chamado resolvido')
+      }
+      setSolucaoOpen(false); setEditSolution(null); setResolveStatusId(null)
+      loadComments(); loadEvents(); loadTicket()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar a solução') }
   }
 
   // Edição inline dos campos de classificação do chamado (categoria, serviço, prioridade, canal).
@@ -404,7 +430,7 @@ export default function HelpDeskTicketDetailPage() {
                         </span>
                         <div className="flex items-center gap-2">
                           {c.can_edit && editCommentId !== c.id && (
-                            <button title="Editar interação" onClick={() => openEditComment(c)}><Pencil size={12} style={{ color: 'var(--text-light)' }} /></button>
+                            <button title={c.solution ? 'Editar solução' : 'Editar interação'} onClick={() => c.solution ? openSolucaoEdit(c) : openEditComment(c)}><Pencil size={12} style={{ color: 'var(--text-light)' }} /></button>
                           )}
                           <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(c.created_at)}</span>
                         </div>
@@ -601,6 +627,15 @@ export default function HelpDeskTicketDetailPage() {
           defaultStatusId={finalizeDefaults?.status_id ?? undefined}
           onClose={() => { setFinalizing(false); setFinalizeDefaults(null) }}
           onDone={onFinalized}
+        />
+      )}
+
+      {solucaoOpen && (
+        <SolucaoModal
+          initial={editSolution?.solution ?? null}
+          submitLabel={editSolution ? 'Salvar' : 'Salvar e resolver'}
+          onClose={() => { setSolucaoOpen(false); setEditSolution(null); setResolveStatusId(null) }}
+          onSubmit={submitSolucao}
         />
       )}
 
