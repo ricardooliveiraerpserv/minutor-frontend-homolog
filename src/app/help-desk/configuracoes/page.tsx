@@ -460,7 +460,10 @@ function SlaTab() {
     load()
     api.get<{ statuses?: { key: string; label: string }[]; channels?: string[] }>('/help-desk/meta')
       .then(r => { setStatuses(r?.statuses ?? []); setChannels(r?.channels ?? []) }).catch(() => {})
-    api.get<{ data: { id: number; name: string }[] }>('/customers?pageSize=500').then(r => setCustomers(r?.data ?? [])).catch(() => {})
+    api.get<{ id: number; name: string }[] | { data?: { id: number; name: string }[]; items?: { id: number; name: string }[] }>('/customers?pageSize=500').then(r => {
+      const list = Array.isArray(r) ? r : (r?.data ?? r?.items ?? [])
+      setCustomers(list.map(c => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name)))
+    }).catch(() => {})
   }, [load])
   const create = async () => {
     if (!nName.trim()) return toast.error('Informe o nome.')
