@@ -33,6 +33,7 @@ interface Sla {
   first_response_breached: boolean; resolution_breached: boolean
   first_response_overdue: boolean; resolution_overdue: boolean
   resolution_minutes_left: number | null; first_response_minutes_left: number | null
+  paused?: boolean; scheduled?: boolean; scheduled_until?: string | null; scheduled_all_day?: boolean
 }
 interface TicketDetail {
   id: number; ticket_number: string | null; subject: string; description: string | null
@@ -80,6 +81,7 @@ const EVENT_LABEL: Record<string, string> = {
   created: 'Chamado aberto', status_changed: 'Status alterado', assigned: 'Atribuído', team_changed: 'Fila alterada',
   priority_changed: 'Prioridade alterada', resolved: 'Resolvido', reopened: 'Reaberto', closed: 'Fechado',
   comment: 'Interação', first_response: 'Primeira resposta', attachment_added: 'Anexo adicionado',
+  scheduled: 'Agendado (SLA pausado)', schedule_resumed: 'Agendamento retomado (SLA)',
 }
 
 function minsLabel(m: number | null): string {
@@ -347,6 +349,30 @@ export default function HelpDeskTicketDetailPage() {
       loadTicket()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao alterar integração') }
     finally { setSavingIntegration(false) }
+  }
+
+  // Agendamento: define data (obrigatória) + hora (opcional). Ao agendar, o SLA pausa.
+  const [schedDate, setSchedDate] = useState('')
+  const [schedTime, setSchedTime] = useState('')
+  const [savingSchedule, setSavingSchedule] = useState(false)
+  const scheduleTicket = async () => {
+    if (!schedDate) { toast.error('Informe a data.'); return }
+    setSavingSchedule(true)
+    try {
+      await api.post(`/help-desk/tickets/${id}/schedule`, { date: schedDate, time: schedTime || null })
+      toast.success('Chamado agendado — SLA pausado')
+      setSchedDate(''); setSchedTime(''); loadTicket()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao agendar') }
+    finally { setSavingSchedule(false) }
+  }
+  const unscheduleTicket = async () => {
+    setSavingSchedule(true)
+    try {
+      await api.delete(`/help-desk/tickets/${id}/schedule`)
+      toast.success('Agendamento cancelado — SLA retomado')
+      loadTicket()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao cancelar agendamento') }
+    finally { setSavingSchedule(false) }
   }
 
   // Atribui o agente e, se ele veio de uma equipe, leva o chamado AUTOMATICAMENTE para a fila dessa equipe.
@@ -668,6 +694,28 @@ export default function HelpDeskTicketDetailPage() {
                 onChange={v => updateField({ level: v || null })} />
               <Row label="Reaberturas" value={String(t.reopen_count)} />
               <Row label="Aberto em" value={fmtDate(t.created_at)} />
+            </div>
+
+            {/* Agendamento — pausa o SLA até a data/hora definida (hora opcional) */}
+            <div className="ds-card p-4 space-y-2">
+              <div className="flex items-center gap-1.5"><Clock size={13} style={{ color: 'var(--text-light)' }} /><span className={lbl} style={{ color: 'var(--text-light)' }}>Agendamento</span></div>
+              {t.sla?.scheduled ? (
+                <>
+                  <div className="text-sm rounded-lg px-2.5 py-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>
+                    ⏸️ SLA pausado — retoma em <strong>{t.sla.scheduled_all_day && t.sla.scheduled_until ? new Date(t.sla.scheduled_until).toLocaleDateString('pt-BR') : fmtDate(t.sla.scheduled_until ?? null)}</strong>
+                  </div>
+                  <button onClick={unscheduleTicket} disabled={savingSchedule} className="ds-btn-secondary text-xs px-3 py-1.5 rounded-lg">Cancelar agendamento (retomar SLA)</button>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Defina uma data (hora opcional) para revisar o chamado. Enquanto agendado, o SLA fica pausado.</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input type="date" value={schedDate} min={new Date().toLocaleDateString('en-CA')} onChange={e => setSchedDate(e.target.value)} className="ds-input" style={{ height: 30, fontSize: 12, width: 140, padding: '0 8px' }} />
+                    <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} aria-label="Hora (opcional)" className="ds-input" style={{ height: 30, fontSize: 12, width: 96, padding: '0 8px' }} />
+                    <button onClick={scheduleTicket} disabled={savingSchedule || !schedDate} className="ds-btn-primary text-xs px-3 py-1.5 rounded-lg">Agendar</button>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Chave de integração de horas do CONTRATO (substitui o Movidesk) */}
