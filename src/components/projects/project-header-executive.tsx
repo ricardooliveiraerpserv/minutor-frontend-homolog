@@ -210,7 +210,7 @@ function PrazoKPI({
             if (days < 0)  return `${Math.abs(days)} dia(s) em atraso`
             if (days < 30) return `em ${days} dia(s)`
             const months = Math.round(days / 30)
-            return `em ~${months} mês${months === 1 ? '' : 'es'}`
+            return `em ~${months} ${months === 1 ? 'mês' : 'meses'}`
           })()}
         </div>
       )}
