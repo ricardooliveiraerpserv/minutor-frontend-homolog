@@ -28,8 +28,9 @@ export function AssociationRules() {
   const load = useCallback(() => { api.get<{ data: Rule[] }>('/help-desk/association-rules').then(r => setRows(r?.data ?? [])).catch(() => {}) }, [])
   useEffect(() => { load() }, [load])
   useEffect(() => {
-    api.get<Ref[] | { data?: Ref[]; items?: Ref[] }>('/customers?pageSize=500').then(r => {
-      const list = Array.isArray(r) ? r : (r?.data ?? r?.items ?? [])
+    // Só clientes com contrato de sustentação + chave de integração ligada.
+    api.get<{ data?: Ref[] }>('/help-desk/integration-customers').then(r => {
+      const list = r?.data ?? []
       setCustomers(list.map(c => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name)))
     }).catch(() => {})
     api.get<{ data: Ref[] }>('/help-desk/access-profiles?all=1&kind=cliente').then(r => setProfiles(r?.data ?? [])).catch(() => {})

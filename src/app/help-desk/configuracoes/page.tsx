@@ -458,8 +458,8 @@ function SlaTab() {
   const load = useCallback(() => { api.get<{ data: SlaPolicy[] }>('/help-desk/sla-policies?all=1').then(r => setRows(r?.data ?? [])).catch(() => {}) }, [])
   useEffect(() => {
     load()
-    api.get<{ statuses?: { key: string; label: string }[]; channels?: string[] }>('/help-desk/meta')
-      .then(r => { setStatuses(r?.statuses ?? []); setChannels(r?.channels ?? []) }).catch(() => {})
+    api.get<{ data?: { statuses?: { key: string; label: string }[]; channels?: string[] } }>('/help-desk/meta')
+      .then(r => { setStatuses(r?.data?.statuses ?? []); setChannels(r?.data?.channels ?? []) }).catch(() => {})
     api.get<{ id: number; name: string }[] | { data?: { id: number; name: string }[]; items?: { id: number; name: string }[] }>('/customers?pageSize=500').then(r => {
       const list = Array.isArray(r) ? r : (r?.data ?? r?.items ?? [])
       setCustomers(list.map(c => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name)))
