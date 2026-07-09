@@ -97,11 +97,12 @@ export function composeFormBody(inst: FormInstance): string {
 const inputStyle = { background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
 
-export function DynamicFormModal({ form, initial, initialTime, tokens = {}, submitLabel = 'Salvar e aplicar', onClose, onSubmit }: {
+export function DynamicFormModal({ form, initial, initialTime, tokens = {}, currentUserName, submitLabel = 'Salvar e aplicar', onClose, onSubmit }: {
   form: HdForm
   initial?: FormInstance | null
   initialTime?: FormTime | null
   tokens?: Record<string, string>   // preenchimento automático: {ticket.creator.name} etc.
+  currentUserName?: string          // atalho "eu" nos campos de usuário
   submitLabel?: string
   onClose: () => void
   onSubmit: (inst: FormInstance, body: string, time: FormTime) => Promise<void> | void
@@ -223,8 +224,16 @@ export function DynamicFormModal({ form, initial, initialTime, tokens = {}, subm
               {f.ftype === 'date' && <input type="date" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
               {f.ftype === 'time' && <input type="time" className={fieldCls} style={inputStyle} value={String(vals[f.key] || '')} onChange={e => setV(f.key, e.target.value)} />}
               {f.ftype === 'user' && (
-                <SearchSelect value={String(vals[f.key] || '')} onChange={v => setV(f.key, v)}
-                  options={users.map(u => ({ id: u.name, name: u.name }))} placeholder="Buscar usuário…" fullWidth />
+                <div className="flex items-center gap-2">
+                  <div className="flex-1"><SearchSelect value={String(vals[f.key] || '')} onChange={v => setV(f.key, v)}
+                    options={users.map(u => ({ id: u.name, name: u.name }))} placeholder="Buscar usuário…" fullWidth /></div>
+                  {currentUserName && (
+                    <button type="button" onClick={() => setV(f.key, currentUserName)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg whitespace-nowrap"
+                      style={{ background: vals[f.key] === currentUserName ? 'var(--primary)' : 'var(--primary-soft)', color: vals[f.key] === currentUserName ? 'var(--primary-fg)' : 'var(--primary)' }}
+                      title={`Sou eu (${currentUserName})`}>Sou eu</button>
+                  )}
+                </div>
               )}
               </>)}
               {f.ftype === 'checkbox' && (

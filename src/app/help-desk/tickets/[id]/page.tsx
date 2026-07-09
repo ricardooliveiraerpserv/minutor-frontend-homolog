@@ -802,6 +802,7 @@ export default function HelpDeskTicketDetailPage() {
             'usuario': user?.name ?? '',
             'data': new Date().toLocaleDateString('pt-BR'),
           }}
+          currentUserName={user?.name}
           submitLabel={dynEdit ? 'Salvar' : `Salvar e mover para: ${dynForm.status?.label ?? ''}`}
           onClose={() => { setDynOpen(false); setDynForm(null); setDynEdit(null); setResolveStatusId(null) }}
           onSubmit={submitDynForm}
