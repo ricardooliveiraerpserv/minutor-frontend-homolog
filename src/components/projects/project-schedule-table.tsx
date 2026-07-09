@@ -1419,7 +1419,7 @@ function InlineDependencySelect({ value, options, canEdit, codes, onSave }: {
         const v = e.target.value
         onSave(v === '' ? null : Number(v))
       }}
-      style={{ fontSize: 12, padding: '2px 6px', width: '100%' }}
+      style={{ fontSize: 12, padding: '2px 24px 2px 6px', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
     >
       <option value="">—</option>
       {options.map(o => (
