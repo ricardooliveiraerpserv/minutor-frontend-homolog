@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { FolderOpen, ArrowRight, LayoutGrid, List as ListIcon, Search } from 'lucide-react'
+import { FolderOpen, ArrowRight, Search } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { useApiQuery } from '@/hooks/use-query'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
@@ -36,7 +36,8 @@ export default function MeusProjetosPage() {
   )
   const projects = useMemo(() => data?.items ?? [], [data])
 
-  const [view, setView] = useState<'grid' | 'list'>('grid')
+  // Só visão em LISTA (opção "Grade" removida a pedido).
+  const [view] = useState<'grid' | 'list'>('list')
   const [q, setQ] = useState('')
   const [clientId, setClientId] = useState('')
 
@@ -97,28 +98,6 @@ export default function MeusProjetosPage() {
               placeholder="Todos os clientes"
               fullWidth
             />
-          </div>
-          <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-            {([['grid', LayoutGrid, 'Grade'], ['list', ListIcon, 'Lista']] as const).map(([mode, Icon, title]) => {
-              const active = view === mode
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  title={title}
-                  onClick={() => setView(mode)}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                    border: 'none', borderLeft: mode === 'list' ? '1px solid var(--border)' : 'none',
-                    background: active ? 'var(--primary)' : 'transparent',
-                    color: active ? 'var(--primary-fg)' : 'var(--text-muted)',
-                  }}
-                >
-                  <Icon size={14} /> {title}
-                </button>
-              )
-            })}
           </div>
         </div>
 
