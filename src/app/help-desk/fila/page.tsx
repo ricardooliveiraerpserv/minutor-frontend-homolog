@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
-import { KanbanSquare, Search, User } from 'lucide-react'
+import { KanbanSquare, Search } from 'lucide-react'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -19,6 +19,7 @@ interface Sla { first_response_breached: boolean; resolution_breached: boolean; 
 interface TicketRow {
   id: number; ticket_number: string | null; subject: string; priority: string; status_id: number | null
   customer?: Ref | null; assignee?: Ref | null; sla?: Sla | null
+  solicitante_nome?: string | null; requester_name?: string | null
 }
 
 const PRIO: Record<string, { label: string; color: string; bg: string }> = {
@@ -150,6 +151,7 @@ export default function HelpDeskFilaPage() {
                         {items.map((t, idx) => {
                           const prio = PRIO[t.priority] ?? PRIO.normal
                           const sig = slaDot(t.sla)
+                          const st = statuses.find(s => s.id === t.status_id)
                           return (
                             <Draggable key={t.id} draggableId={String(t.id)} index={idx}>
                               {(prov, snap) => (
@@ -162,13 +164,22 @@ export default function HelpDeskFilaPage() {
                                     {sig.dot && <span title={sig.title} className="text-[11px]">{sig.dot}</span>}
                                   </div>
                                   <div className="text-sm leading-snug mb-1.5 line-clamp-2" style={{ color: 'var(--text)' }}>{t.subject}</div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-semibold rounded-full px-1.5 py-0.5" style={{ color: prio.color, background: prio.bg }}>{prio.label}</span>
-                                    {t.assignee
-                                      ? <span title={t.assignee.name} className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{iniciais(t.assignee.name)}</span>
-                                      : <User size={13} style={{ color: 'var(--text-light)' }} />}
+                                  {/* Solicitante + Responsável */}
+                                  <div className="space-y-0.5 text-[10px] mb-1.5">
+                                    <div className="truncate"><span style={{ color: 'var(--text-light)' }}>Solic.:</span> <span style={{ color: 'var(--text-muted)' }}>{t.solicitante_nome ?? t.requester_name ?? '—'}</span></div>
+                                    <div className="flex items-center gap-1 truncate"><span style={{ color: 'var(--text-light)' }}>Resp.:</span>
+                                      {t.assignee
+                                        ? <span className="inline-flex items-center gap-1"><span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[8px] font-semibold" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{iniciais(t.assignee.name)}</span><span style={{ color: 'var(--text-muted)' }}>{t.assignee.name}</span></span>
+                                        : <span style={{ color: 'var(--text-light)' }}>não atribuído</span>}
+                                    </div>
                                   </div>
-                                  {t.customer && <div className="text-[10px] mt-1 truncate" style={{ color: 'var(--text-muted)' }}>{t.customer.name}</div>}
+                                  <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                                    <div className="flex items-center gap-1 flex-wrap">
+                                      <span className="text-[10px] font-semibold rounded-full px-1.5 py-0.5" style={{ color: prio.color, background: prio.bg }}>{prio.label}</span>
+                                      {st && <span className="text-[10px] font-semibold rounded-full px-1.5 py-0.5" style={{ color: st.color ?? 'var(--text)', background: (st.color ?? '').startsWith('#') ? `${st.color}22` : 'var(--surface-sunken)', border: `1px solid ${st.color ?? 'var(--border)'}` }}>{st.label}</span>}
+                                    </div>
+                                    {t.customer && <span className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>{t.customer.name}</span>}
+                                  </div>
                                 </div>
                               )}
                             </Draggable>
