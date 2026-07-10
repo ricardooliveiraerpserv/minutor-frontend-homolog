@@ -395,8 +395,8 @@ export default function MeuDiaPage() {
             {/* Ações rápidas (admin/coordenador/administrativo) — fora do Gerenciar, abrem o fluxo direto */}
             {canTeam && pubMode !== 'gerenciar' && (
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Externo: comunicação com cliente (só admin) */}
-                {isAdmin && <button onClick={() => { setPubAction('comm'); setPubMode('gerenciar') }} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Megaphone size={14} /> Comunicação com cliente</button>}
+                {/* Externo: comunicação com cliente (fica separado) */}
+                <button onClick={() => { setPubAction('comm'); setPubMode('gerenciar') }} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Megaphone size={14} /> Comunicação com cliente</button>
                 {/* Interno: Confirmar presença + Nova enquete + Novo Aviso, agrupados num dropdown */}
                 <div className="relative">
                   <button onClick={() => setPubMenuOpen(o => !o)} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Send size={14} /> Comunicação Interna <ChevronDown size={13} /></button>
@@ -419,7 +419,7 @@ export default function MeuDiaPage() {
             )}
             {pubMode === 'mural' ? <PublicacoesView scope="feed" />
               : canTeam && pubMode === 'criadas' ? <PublicacoesView scope="all" />
-              : canTeam && pubMode === 'gerenciar' ? <NotificationAdmin onChanged={load} initialAction={pubAction} onActionConsumed={() => setPubAction(null)} isAdmin={isAdmin} />
+              : canTeam && pubMode === 'gerenciar' ? <NotificationAdmin onChanged={load} initialAction={pubAction} onActionConsumed={() => setPubAction(null)} />
               : <PublicacoesView scope="mine" />}
           </div>
         )}
