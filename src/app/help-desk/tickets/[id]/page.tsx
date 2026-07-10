@@ -443,9 +443,9 @@ export default function HelpDeskTicketDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Status ÚNICO e EVIDENTE — badge sólido na cor do status (informativo; muda ao enviar interação). */}
-            <span className="inline-flex items-center gap-1.5 text-sm font-bold px-3.5 py-2 rounded-lg shadow-sm" style={{ background: t.status?.color ?? 'var(--text-light)', color: '#ffffff' }} title="O status muda ao enviar uma interação">
-              <span style={{ width: 9, height: 9, borderRadius: 999, background: '#ffffff', display: 'inline-block', opacity: 0.9 }} />
+            {/* Status ÚNICO e EVIDENTE — tom da cor + borda na cor + texto do tema (legível em qualquer cor). */}
+            <span className="inline-flex items-center gap-2 text-sm font-bold px-3.5 py-2 rounded-lg" style={{ background: (t.status?.color ?? '').startsWith('#') ? `${t.status!.color}22` : 'var(--surface-sunken)', border: `1.5px solid ${t.status?.color ?? 'var(--border)'}`, color: 'var(--text)' }} title="O status muda ao enviar uma interação">
+              <span style={{ width: 10, height: 10, borderRadius: 999, background: t.status?.color ?? 'var(--text-light)', display: 'inline-block' }} />
               {t.status?.label ?? '—'}
             </span>
             <ExecutarPlaybook onExec={runPlaybook} />
