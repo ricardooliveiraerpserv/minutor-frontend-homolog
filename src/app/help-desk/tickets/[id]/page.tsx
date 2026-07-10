@@ -220,6 +220,9 @@ export default function HelpDeskTicketDetailPage() {
   const [macros, setMacros] = useState<MacroItem[]>([])
   const composerRef = useRef<ComposerHandle>(null)
   useEffect(() => { api.get<{ data: MacroItem[] }>('/help-desk/playbooks').then(r => setMacros(r?.data ?? [])).catch(() => {}) }, [])
+  // Assinatura das respostas ao cliente: SEMPRE do usuário logado (nome + cargo + telefone do cadastro).
+  const usig = (user as { signature?: { role?: string; mobile?: string } } | undefined)?.signature
+  const interactionSignature = user?.name ? ['Atenciosamente,', user.name, usig?.role, usig?.mobile].filter(Boolean).join('\n') : ''
   const runPlaybook = (playbookId: number) => {
     const m = macros.find(x => x.id === playbookId)
     if (modoAtivo) logEvent('playbook_executed', { entityId: id, metadata: { playbook_id: playbookId } })
@@ -488,6 +491,7 @@ export default function HelpDeskTicketDetailPage() {
                     onApplyStatus={(sid) => onStatusSelect(String(sid))}
                     onSchedule={async (date, time) => { await api.post(`/help-desk/tickets/${id}/schedule`, { date, time: time || null }) }}
                     macros={macros}
+                    signature={interactionSignature}
                     formStatusIds={forms.filter(f => f.status_id).map(f => f.status_id as number)}
                     onFormStatus={(sid) => openDynamicForm(String(sid))} />
                   <div className="border-b" style={{ borderColor: 'var(--border)' }} />
