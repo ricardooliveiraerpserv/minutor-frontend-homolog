@@ -6,7 +6,7 @@ import { api } from '@/lib/api'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { toast } from 'sonner'
-import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, X, Paperclip, Upload, Trash2 } from 'lucide-react'
+import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, X, Paperclip, Upload, Trash2, ChevronRight, CheckCircle2, Clock } from 'lucide-react'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -61,11 +61,14 @@ function StatusPill({ status }: { status?: { label: string; cor: string | null }
     <span className="w-2 h-2 rounded-full" style={{ background: status.cor ?? 'var(--text-muted)' }} />{status.label}</span>
 }
 
+const isResolved = (t: PortalTicket) => !!t.sla?.resolvido_em
+
 function Chamados() {
   const [rows, setRows] = useState<PortalTicket[]>([])
   const [loading, setLoading] = useState(true)
   const [sel, setSel] = useState<number | null>(null)
   const [novo, setNovo] = useState(false)
+  const [filter, setFilter] = useState<'abertos' | 'resolvidos' | 'todos'>('abertos')
   const load = useCallback(() => {
     setLoading(true)
     api.get<{ data: PortalTicket[] }>('/help-desk/portal/tickets').then(r => setRows(r?.data ?? [])).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
@@ -74,29 +77,67 @@ function Chamados() {
 
   if (sel) return <TicketView id={sel} onBack={() => { setSel(null); load() }} />
 
+  const abertos = rows.filter(t => !isResolved(t))
+  const resolvidos = rows.filter(t => isResolved(t))
+  const shown = filter === 'todos' ? rows : filter === 'resolvidos' ? resolvidos : abertos
+  const FILTERS: { id: typeof filter; label: string; count: number }[] = [
+    { id: 'abertos', label: 'Em aberto', count: abertos.length },
+    { id: 'resolvidos', label: 'Resolvidos', count: resolvidos.length },
+    { id: 'todos', label: 'Todos', count: rows.length },
+  ]
+
   return (
-    <div className="space-y-3">
-      <div className="flex justify-end">
-        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}><Plus size={16} /> Abrir chamado</button>
+    <div className="space-y-4">
+      {/* Chamada de ação — bem clara */}
+      <div className="ds-card p-4 flex items-center justify-between gap-3 flex-wrap" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+        <div className="min-w-0">
+          <div className="font-semibold" style={{ color: 'var(--primary)' }}>Precisa de ajuda?</div>
+          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Abra um chamado e acompanhe tudo por aqui — respostas, prazos e anexos.</div>
+        </div>
+        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg shrink-0" onClick={() => setNovo(true)}><Plus size={16} /> Abrir chamado</button>
       </div>
-      <div className="ds-card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} className="text-left text-[11px] uppercase">
-            <th className="px-3 py-2">Nº</th><th className="px-3 py-2">Assunto</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Atualizado</th>
-          </tr></thead>
-          <tbody>
-            {loading ? <tr><td colSpan={4} className="px-3 py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</td></tr>
-              : rows.length === 0 ? <tr><td colSpan={4} className="px-3 py-8 text-center" style={{ color: 'var(--text-muted)' }}>Você ainda não tem chamados.</td></tr> : rows.map(t => (
-              <tr key={t.id} className="ds-row-hover cursor-pointer border-t" style={{ borderColor: 'var(--border)' }} onClick={() => setSel(t.id)}>
-                <td className="px-3 py-2 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{t.numero ?? `#${t.id}`}</td>
-                <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{t.assunto}</td>
-                <td className="px-3 py-2"><StatusPill status={t.status} /></td>
-                <td className="px-3 py-2 text-xs" style={{ color: 'var(--text-light)' }}>{fmtDate(t.atualizado_em)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      {/* Filtros por situação */}
+      <div className="flex gap-2 flex-wrap">
+        {FILTERS.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full font-medium"
+            style={{ background: filter === f.id ? 'var(--primary)' : 'var(--surface-sunken)', color: filter === f.id ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
+            {f.label}<span className="text-[11px] px-1.5 rounded-full" style={{ background: filter === f.id ? 'rgba(255,255,255,.25)' : 'var(--surface)', color: filter === f.id ? 'var(--primary-fg)' : 'var(--text-light)' }}>{f.count}</span>
+          </button>
+        ))}
       </div>
+
+      {/* Lista em CARDS */}
+      {loading ? (
+        <div className="py-10 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
+      ) : shown.length === 0 ? (
+        <div className="ds-card py-10 px-4 text-center space-y-2">
+          <LifeBuoy size={30} className="mx-auto" style={{ color: 'var(--text-light)' }} />
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{filter === 'abertos' ? 'Você não tem chamados em aberto.' : filter === 'resolvidos' ? 'Nenhum chamado resolvido ainda.' : 'Você ainda não tem chamados.'}</p>
+          {filter !== 'resolvidos' && <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}><Plus size={15} /> Abrir meu primeiro chamado</button>}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {shown.map(t => (
+            <button key={t.id} onClick={() => setSel(t.id)} className="ds-card p-3 w-full text-left flex items-center gap-3 hover:shadow transition">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-[11px]" style={{ color: 'var(--text-light)' }}>{t.numero ?? `#${t.id}`}</span>
+                  <StatusPill status={t.status} />
+                  {isResolved(t) && <span className="inline-flex items-center gap-0.5 text-[11px]" style={{ color: 'var(--success-border)' }}><CheckCircle2 size={11} /> resolvido</span>}
+                  {!isResolved(t) && t.sla?.em_pausa && <span className="inline-flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>aguardando você</span>}
+                </div>
+                <div className="font-medium mt-0.5 truncate" style={{ color: 'var(--text)' }}>{t.assunto}</div>
+                <div className="flex items-center gap-1 text-xs mt-0.5" style={{ color: 'var(--text-light)' }}>
+                  <Clock size={11} /> Atualizado {fmtDate(t.atualizado_em)}
+                  {!isResolved(t) && t.sla?.previsao_resolucao ? ` · previsão ${fmtDate(t.sla.previsao_resolucao)}` : ''}
+                </div>
+              </div>
+              <ChevronRight size={18} className="shrink-0" style={{ color: 'var(--text-light)' }} />
+            </button>
+          ))}
+        </div>
+      )}
       {novo && <AbrirChamado onClose={() => setNovo(false)} onCreated={(id) => { setNovo(false); load(); setSel(id) }} />}
     </div>
   )
