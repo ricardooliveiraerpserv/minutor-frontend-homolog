@@ -438,16 +438,14 @@ export default function HelpDeskTicketDetailPage() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs" style={{ color: 'var(--text-light)' }}>{t.ticket_number ?? `#${t.id}`}</span>
-                {t.status && <span className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color: t.status.color ?? 'var(--text)' }}>
-                  <span className="w-2 h-2 rounded-full" style={{ background: t.status.color ?? 'var(--text-muted)' }} />{t.status.label}</span>}
               </div>
               <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.subject}</h1>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Status é INFORMATIVO aqui — a mudança acontece ao enviar a interação (compositor). */}
-            <span className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1.5 rounded-lg" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }} title="O status muda ao enviar uma interação">
-              <span style={{ width: 8, height: 8, borderRadius: 999, background: t.status?.color ?? 'var(--text-light)', display: 'inline-block' }} />
+            {/* Status ÚNICO e EVIDENTE — badge sólido na cor do status (informativo; muda ao enviar interação). */}
+            <span className="inline-flex items-center gap-1.5 text-sm font-bold px-3.5 py-2 rounded-lg shadow-sm" style={{ background: t.status?.color ?? 'var(--text-light)', color: '#ffffff' }} title="O status muda ao enviar uma interação">
+              <span style={{ width: 9, height: 9, borderRadius: 999, background: '#ffffff', display: 'inline-block', opacity: 0.9 }} />
               {t.status?.label ?? '—'}
             </span>
             <ExecutarPlaybook onExec={runPlaybook} />
