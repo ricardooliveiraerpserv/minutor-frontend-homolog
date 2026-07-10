@@ -7,7 +7,7 @@ import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { AbrirChamadoModal } from '@/components/help-desk/abrir-chamado-modal'
 import { toast } from 'sonner'
-import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, Paperclip, Trash2, CheckCircle2, Search } from 'lucide-react'
+import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, Paperclip, Trash2, CheckCircle2, Search, X } from 'lucide-react'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -20,7 +20,7 @@ interface PortalComment { id: number; de: 'voce' | 'atendimento'; mensagem: stri
 interface PortalAtt { id: number; nome: string | null; tamanho: string | null; is_image?: boolean; criado_em: string | null; download: string }
 interface PortalTicket {
   id: number; numero: string | null; assunto?: string; prioridade?: string
-  status?: { label: string; cor: string | null } | null
+  status?: { label: string; cor: string | null; is_resolved?: boolean; is_terminal?: boolean } | null
   criado_em?: string; atualizado_em: string; sla?: PortalSla
   descricao?: string | null; comentarios?: PortalComment[]; anexos?: PortalAtt[]
   // Campos visíveis conforme o perfil de acesso do cliente (podem não vir)
@@ -227,10 +227,18 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
   const [t, setT] = useState<PortalTicket | null>(null)
   const [body, setBody] = useState(''); const [sending, setSending] = useState(false)
   const [files, setFiles] = useState<File[]>([])   // anexos/prints DA interação (vão junto do envio)
+  const [rejecting, setRejecting] = useState(false); const [reason, setReason] = useState(''); const [acting, setActing] = useState(false)
   const load = useCallback(() => { api.get<{ data: PortalTicket }>(`/help-desk/portal/tickets/${id}`).then(r => setT(r?.data ?? null)).catch(() => toast.error('Erro')) }, [id])
   useEffect(() => { load() }, [load])
   const addFiles = (list: FileList | File[]) => { const arr = Array.from(list); if (arr.length) setFiles(f => [...f, ...arr]) }
   const removeFile = (i: number) => setFiles(f => f.filter((_, j) => j !== i))
+  const accept = async () => { setActing(true); try { await api.post(`/help-desk/portal/tickets/${id}/accept`, {}); toast.success('Chamado encerrado. Obrigado!'); load() } catch { toast.error('Erro ao aceitar') } finally { setActing(false) } }
+  const reject = async () => {
+    if (!reason.trim()) return toast.error('Informe o motivo da recusa.')
+    setActing(true)
+    try { await api.post(`/help-desk/portal/tickets/${id}/reject`, { reason: reason.trim() }); toast.success('Solução recusada — o chamado voltou para atendimento.'); setRejecting(false); setReason(''); load() }
+    catch { toast.error('Erro ao recusar') } finally { setActing(false) }
+  }
   const send = async () => {
     if (!body.trim() && files.length === 0) return
     setSending(true)
@@ -263,6 +271,32 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
       </div>
       {t.assunto && <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.assunto}</h1>}
       {prazo && !t.sla?.resolvido_em && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Previsão de resolução: {fmtDate(prazo)}</p>}
+
+      {/* Aceite/Recusa da solução — quando resolvido (e ainda não encerrado). */}
+      {t.status?.is_resolved && !t.status?.is_terminal && (
+        <div className="ds-card p-4 space-y-3" style={{ border: '1px solid var(--success-border)' }}>
+          <div className="text-sm font-semibold" style={{ color: 'var(--text)' }}>O atendimento marcou este chamado como <strong>resolvido</strong>. A solução resolveu?</div>
+          {!rejecting ? (
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={accept} disabled={acting} className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg" style={{ background: '#16a34a', color: '#fff', opacity: acting ? 0.6 : 1 }}>
+                <CheckCircle2 size={16} /> Aceitar e encerrar
+              </button>
+              <button onClick={() => setRejecting(true)} disabled={acting} className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg" style={{ background: '#ef4444', color: '#fff', opacity: acting ? 0.6 : 1 }}>
+                <X size={16} /> Recusar
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} autoFocus placeholder="Diga o que faltou ou por que a solução não resolveu…"
+                className={`${fieldCls} w-full`} style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb' }} />
+              <div className="flex gap-2">
+                <button onClick={reject} disabled={acting || !reason.trim()} className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-1.5 rounded-lg" style={{ background: '#ef4444', color: '#fff', opacity: (acting || !reason.trim()) ? 0.6 : 1 }}>Enviar recusa</button>
+                <button onClick={() => { setRejecting(false); setReason('') }} className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg">Cancelar</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Detalhes do chamado — o cliente vê os dados do próprio chamado */}
       <div className="ds-card p-3 space-y-1.5 text-sm">
