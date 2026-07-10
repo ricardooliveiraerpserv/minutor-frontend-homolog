@@ -48,13 +48,13 @@ export function AbrirChamadoModal({ onClose, onCreated }: { onClose: () => void;
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center pt-16 px-4" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
-      <div className="ds-card w-full max-w-lg p-4 space-y-3" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[80] flex items-start justify-center pt-10 px-4" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
+      <div className="ds-card w-full max-w-4xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between"><h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Abrir chamado</h2><button onClick={onClose}><X size={18} style={{ color: 'var(--text-muted)' }} /></button></div>
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Assunto *</label><input className={`${fieldCls} w-full`} style={inputStyle} value={subject} onChange={e => setSubject(e.target.value)} autoFocus /></div>
         <div>
           <label className={lbl} style={{ color: 'var(--text-light)' }}>Descrição <span style={{ color: 'var(--text-light)' }}>· cole um print aqui (Ctrl+V)</span></label>
-          <textarea className={`${fieldCls} w-full`} style={inputStyle} rows={4} value={description} onChange={e => setDescription(e.target.value)} onPaste={onPaste} />
+          <textarea className={`${fieldCls} w-full`} style={{ ...inputStyle, minHeight: 260, resize: 'vertical' }} rows={10} value={description} onChange={e => setDescription(e.target.value)} onPaste={onPaste} />
         </div>
         {canUrgency && <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Prioridade</label><select className={`${fieldCls} w-full capitalize`} style={inputStyle} value={priority} onChange={e => setPriority(e.target.value)}>{PRIO.map(p => <option key={p} value={p}>{p}</option>)}</select></div>}
 
