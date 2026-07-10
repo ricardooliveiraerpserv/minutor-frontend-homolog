@@ -8,7 +8,8 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
-import { KanbanSquare, Search } from 'lucide-react'
+import { KanbanSquare, Search, GripVertical } from 'lucide-react'
+import { useColumnOrder } from '@/lib/kanban-column-order'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -105,6 +106,10 @@ export default function HelpDeskFilaPage() {
       .catch(() => {})
   }, [])
 
+  // Ordem das colunas por usuário (arrasta o cabeçalho p/ reordenar).
+  const { ordered: colOrder, headerProps } = useColumnOrder('fila', statuses.map(s => String(s.id)), user?.id)
+  const orderedStatuses = useMemo(() => colOrder.map(id => statuses.find(s => String(s.id) === id)).filter(Boolean) as StatusOpt[], [colOrder, statuses])
+
   const byColumn = useMemo(() => {
     const map: Record<number, TicketRow[]> = {}
     statuses.forEach(s => { map[s.id] = [] })
@@ -192,7 +197,7 @@ export default function HelpDeskFilaPage() {
 
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-3 overflow-x-auto pb-2">
-            {statuses.map(col => {
+            {orderedStatuses.map(col => {
               const items = byColumn[col.id] ?? []
               return (
                 <Droppable droppableId={String(col.id)} key={col.id}>
@@ -200,8 +205,9 @@ export default function HelpDeskFilaPage() {
                     <div ref={provided.innerRef} {...provided.droppableProps}
                       className="rounded-lg p-2.5 flex flex-col shrink-0 w-72"
                       style={{ background: snapshot.isDraggingOver ? 'var(--surface-hover)' : 'var(--surface)', border: '1px solid var(--border)', minHeight: 200, transition: 'background .12s ease' }}>
-                      <div className="flex items-center justify-between mb-2 px-1">
+                      <div className="flex items-center justify-between mb-2 px-1 rounded" title="Arraste para reordenar a coluna" {...headerProps(String(col.id))}>
                         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: col.color ?? 'var(--text-muted)' }}>
+                          <GripVertical size={12} style={{ color: 'var(--text-light)', opacity: 0.6 }} />
                           <span className="w-2 h-2 rounded-full" style={{ background: col.color ?? 'var(--text-muted)' }} />{col.label}
                         </span>
                         <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{items.length}</span>

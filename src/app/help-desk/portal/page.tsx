@@ -7,7 +7,8 @@ import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { AbrirChamadoModal } from '@/components/help-desk/abrir-chamado-modal'
 import { toast } from 'sonner'
-import { LifeBuoy, Plus, BookOpen, ArrowLeft, ArrowRight, Send, ThumbsUp, ThumbsDown, Paperclip, Trash2, CheckCircle2, Search, X } from 'lucide-react'
+import { LifeBuoy, Plus, BookOpen, ArrowLeft, ArrowRight, Send, ThumbsUp, ThumbsDown, Paperclip, Trash2, CheckCircle2, Search, X, GripVertical } from 'lucide-react'
+import { useColumnOrder } from '@/lib/kanban-column-order'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -111,6 +112,8 @@ function Chamados() {
   const [qTicket, setQTicket] = useState('') // busca por número do ticket
   const [fSolic, setFSolic] = useState('')   // filtro solicitante
   const [fResp, setFResp] = useState('')     // filtro responsável (agente)
+  // Ordem das colunas do cliente (arrasta o cabeçalho p/ reordenar; salvo no navegador).
+  const { ordered: colOrder, headerProps } = useColumnOrder('portal', BUCKETS.map(b => b.label))
   const load = useCallback(() => {
     setLoading(true)
     api.get<{ data: PortalTicket[] }>('/help-desk/portal/tickets').then(r => setRows(r?.data ?? [])).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
@@ -145,6 +148,7 @@ function Chamados() {
       return b.statuses.includes(l) || (b.label === 'Pendente ERPSERV' && !KNOWN_STATUSES.has(l))
     }),
   }))
+  const orderedColumns = colOrder.map(l => columns.find(c => c.label === l)).filter(Boolean) as typeof columns
 
   return (
     <div className="space-y-4">
@@ -188,9 +192,10 @@ function Chamados() {
         </div>
       ) : (
         <div className="flex gap-3 overflow-x-auto pb-2">
-          {columns.map(col => (
+          {orderedColumns.map(col => (
             <div key={col.label} className="w-[270px] shrink-0">
-              <div className="flex items-center gap-2 mb-2 px-1">
+              <div className="flex items-center gap-2 mb-2 px-1 rounded" title="Arraste para reordenar a coluna" {...headerProps(col.label)}>
+                <GripVertical size={13} style={{ color: 'var(--text-light)', opacity: 0.6 }} className="shrink-0" />
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: col.cor ?? 'var(--text-muted)' }} />
                 <span className="text-sm font-semibold truncate" style={{ color: col.cor ?? 'var(--text)' }}>{col.label}</span>
                 <span className="text-[11px] px-1.5 rounded-full" style={{ background: 'var(--surface-sunken)', color: 'var(--text-light)' }}>{col.items.length}</span>
