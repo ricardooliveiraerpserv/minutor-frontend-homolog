@@ -83,6 +83,7 @@ const EVENT_LABEL: Record<string, string> = {
   priority_changed: 'Prioridade alterada', resolved: 'Resolvido', reopened: 'Reaberto', closed: 'Fechado',
   comment: 'Interação', first_response: 'Primeira resposta', attachment_added: 'Anexo adicionado',
   scheduled: 'Agendado (SLA pausado)', schedule_resumed: 'Agendamento retomado (SLA)',
+  continuacao_aberta: '↩️ Aberto como continuação do chamado', continuacao_gerada: 'Cliente respondeu após o encerramento — aberto novo chamado',
 }
 
 function minsLabel(m: number | null): string {
@@ -653,7 +654,7 @@ export default function HelpDeskTicketDetailPage() {
                       <Clock size={13} className="mt-1" style={{ color: 'var(--text-light)' }} />
                       <div>
                         <span style={{ color: 'var(--text)' }}>{EVENT_LABEL[e.event_type] ?? e.event_type}</span>
-                        {(e.from_value || e.to_value) && <span style={{ color: 'var(--text-muted)' }}> — {e.from_value ?? '∅'} → {e.to_value ?? '∅'}</span>}
+                        {(e.from_value || e.to_value) && <span style={{ color: 'var(--text-muted)' }}> — {e.from_value ? `${e.from_value} → ${e.to_value ?? '∅'}` : e.to_value}</span>}
                         <span className="ml-1.5 text-[11px]" style={{ color: 'var(--text-light)' }}>· {fmtDate(e.created_at)}{e.triggeredBy ? ` · ${e.triggeredBy.name}` : ''}</span>
                       </div>
                     </div>
