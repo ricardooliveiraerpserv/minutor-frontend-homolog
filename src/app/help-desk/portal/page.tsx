@@ -7,7 +7,7 @@ import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { AbrirChamadoModal } from '@/components/help-desk/abrir-chamado-modal'
 import { toast } from 'sonner'
-import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, Paperclip, Trash2, CheckCircle2 } from 'lucide-react'
+import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, Paperclip, Trash2, CheckCircle2, Search } from 'lucide-react'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -105,6 +105,10 @@ function Chamados() {
   const [loading, setLoading] = useState(true)
   const [sel, setSel] = useState<number | null>(null)
   const [novo, setNovo] = useState(false)
+  const [q, setQ] = useState('')            // busca geral (assunto/nº/pessoas)
+  const [qTicket, setQTicket] = useState('') // busca por número do ticket
+  const [fSolic, setFSolic] = useState('')   // filtro solicitante
+  const [fResp, setFResp] = useState('')     // filtro responsável (agente)
   const load = useCallback(() => {
     setLoading(true)
     api.get<{ data: PortalTicket[] }>('/help-desk/portal/tickets').then(r => setRows(r?.data ?? [])).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
@@ -118,10 +122,23 @@ function Chamados() {
 
   if (sel) return <TicketView id={sel} onBack={() => { setSel(null); load() }} />
 
-  // Colunas do Kanban = BUCKETS fixos (todos os chamados). Status desconhecido cai em "Pendente ERPSERV".
+  // Opções de filtro (valores distintos presentes) + aplicação dos filtros.
+  const solicitantes = Array.from(new Set(rows.map(t => t.solicitante).filter(Boolean))) as string[]
+  const responsaveis = Array.from(new Set(rows.map(t => t.agente).filter(Boolean))) as string[]
+  const norm = (s?: string | null) => (s ?? '').toLowerCase()
+  const filteredRows = rows.filter(t => {
+    if (fSolic && t.solicitante !== fSolic) return false
+    if (fResp && t.agente !== fResp) return false
+    if (qTicket && !norm(t.numero).includes(qTicket.toLowerCase())) return false
+    if (q && ![t.numero, t.assunto, t.solicitante, t.agente].map(norm).join(' ').includes(q.toLowerCase())) return false
+    return true
+  })
+  const hasFilter = !!(q || qTicket || fSolic || fResp)
+
+  // Colunas do Kanban = BUCKETS fixos (chamados filtrados). Status desconhecido cai em "Pendente ERPSERV".
   const columns = BUCKETS.map(b => ({
     label: b.label, cor: b.cor,
-    items: rows.filter(t => {
+    items: filteredRows.filter(t => {
       const l = t.status?.label ?? ''
       return b.statuses.includes(l) || (b.label === 'Pendente ERPSERV' && !KNOWN_STATUSES.has(l))
     }),
@@ -137,6 +154,26 @@ function Chamados() {
         </div>
         <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg shrink-0" onClick={() => setNovo(true)}><Plus size={16} /> Abrir chamado</button>
       </div>
+
+      {/* Filtros: busca geral, por ticket, solicitante e responsável */}
+      {rows.length > 0 && (
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
+            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar (assunto, nº, pessoa)…" className={`${fieldCls} w-full`} style={{ ...inputStyle, paddingLeft: 30 }} />
+          </div>
+          <input value={qTicket} onChange={e => setQTicket(e.target.value)} placeholder="Nº do ticket" className={fieldCls} style={{ ...inputStyle, width: 130 }} />
+          <select value={fSolic} onChange={e => setFSolic(e.target.value)} className={fieldCls} style={{ ...inputStyle, maxWidth: 200 }}>
+            <option value="">Solicitante: todos</option>
+            {solicitantes.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={fResp} onChange={e => setFResp(e.target.value)} className={fieldCls} style={{ ...inputStyle, maxWidth: 200 }}>
+            <option value="">Responsável: todos</option>
+            {responsaveis.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          {hasFilter && <button onClick={() => { setQ(''); setQTicket(''); setFSolic(''); setFResp('') }} className="text-xs px-2 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>Limpar</button>}
+        </div>
+      )}
 
       {/* KANBAN — colunas por bucket (única visão do cliente) */}
       {loading ? (
