@@ -73,12 +73,10 @@ export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, 
         <div className="font-semibold text-sm truncate" style={{ color: 'var(--text)' }}>{ctx?.blocos.cliente.empresa ?? '—'}</div>
       </div>
 
-      {/* Banco de horas */}
+      {/* Banco de horas — saldo ABAIXO do rótulo (como as demais células) + barra */}
       <div className="min-w-[200px] flex-1 max-w-[280px]">
-        <div className="flex items-center justify-between text-[11px]" style={{ color: 'var(--text-light)' }}>
-          <span>Banco de horas</span>
-          {bh && <span style={{ color: bh.saldo < 0 ? 'var(--danger-border)' : 'var(--text)' }}>Saldo: {fmtH(bh.saldo)}</span>}
-        </div>
+        <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Banco de horas</div>
+        {bh && <div className="text-sm font-medium" style={{ color: bh.saldo < 0 ? 'var(--danger-border)' : 'var(--text)' }}>Saldo: {fmtH(bh.saldo)}</div>}
         <div className="h-2 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
           <div className="h-full rounded-full" style={{ width: `${usado}%`, background: usado >= 100 ? 'var(--danger-border)' : usado >= 80 ? 'var(--warning-border)' : 'var(--success-border)' }} />
         </div>
