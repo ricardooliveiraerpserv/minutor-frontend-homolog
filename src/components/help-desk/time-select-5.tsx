@@ -104,7 +104,7 @@ export function TimeSelect5({
         <ChevronDown size={12} style={{ color: 'var(--text-light)', flexShrink: 0 }} />
       </button>
       {open && !disabled && (
-        <div className="absolute z-50 mt-1 left-0 rounded-lg shadow-xl overflow-hidden"
+        <div className="absolute z-50 bottom-full mb-1 left-0 rounded-lg shadow-xl overflow-hidden"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', minWidth: topOption ? 150 : 108 }}>
           {/* Campo de digitação (busca/entrada direta) */}
           <div className="p-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
