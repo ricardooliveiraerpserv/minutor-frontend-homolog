@@ -206,10 +206,19 @@ function Chamados() {
                         {d.dot && <span title={d.title} className="text-xs leading-none">{d.dot}</span>}
                       </div>
                       <div className="font-semibold text-sm leading-snug" style={{ color: 'var(--text)' }}>{t.assunto}</div>
-                      <div className="flex items-center justify-between gap-2">
-                        {prio && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: prio.color, background: prio.bg }}>{prio.label}</span>}
-                        {isResolved(t) ? <span className="inline-flex items-center gap-0.5 text-[10px]" style={{ color: 'var(--success-border)' }}><CheckCircle2 size={10} /> resolvido</span>
-                          : t.sla?.em_pausa && <span className="text-[10px]" style={{ color: 'var(--warning-border)' }}>aguardando você</span>}
+                      {/* Solicitante + Responsável */}
+                      {(t.solicitante || t.agente) && (
+                        <div className="space-y-0.5 text-[11px]">
+                          {t.solicitante && <div className="truncate"><span style={{ color: 'var(--text-light)' }}>Solicitante:</span> <span style={{ color: 'var(--text-muted)' }}>{t.solicitante}</span></div>}
+                          <div className="truncate"><span style={{ color: 'var(--text-light)' }}>Responsável:</span> <span style={{ color: 'var(--text-muted)' }}>{t.agente ?? 'não atribuído'}</span></div>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {prio && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: prio.color, background: prio.bg }}>{prio.label}</span>}
+                          {t.status && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: t.status.cor ?? 'var(--text)', background: (t.status.cor ?? '').startsWith('#') ? `${t.status.cor}22` : 'var(--surface-sunken)', border: `1px solid ${t.status.cor ?? 'var(--border)'}` }}>{t.status.label}</span>}
+                        </div>
+                        {t.sla?.em_pausa && <span className="text-[10px]" style={{ color: 'var(--warning-border)' }}>aguardando você</span>}
                       </div>
                     </button>
                   )
