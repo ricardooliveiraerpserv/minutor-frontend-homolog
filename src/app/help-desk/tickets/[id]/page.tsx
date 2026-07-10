@@ -590,7 +590,7 @@ export default function HelpDeskTicketDetailPage() {
                     <div className="rounded-lg p-3" style={{ background: 'var(--surface-sunken)' }}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>
-                          {t.requester_name ?? 'Solicitante'}
+                          {t.solicitante?.name ?? t.requester_name ?? t.contact?.name ?? 'Solicitante'}
                           <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>descrição inicial</span>
                         </span>
                         <div className="flex items-center gap-2">
