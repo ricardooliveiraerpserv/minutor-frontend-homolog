@@ -16,7 +16,7 @@ const fmtDate = (s?: string | null) => s ? new Date(s).toLocaleString('pt-BR', {
 // Payload do Portal (DTO curado — sem campos internos)
 interface PortalSla { previsao_resolucao: string | null; respondido: boolean; resolvido_em: string | null; em_pausa: boolean }
 interface PortalCommentAtt { id: number; nome: string | null; tamanho: string | null; is_image: boolean; download: string }
-interface PortalComment { id: number; de: 'voce' | 'atendimento'; mensagem: string; criado_em: string; anexos?: PortalCommentAtt[] }
+interface PortalComment { id: number; de: 'voce' | 'atendimento'; autor?: string; mensagem: string; criado_em: string; anexos?: PortalCommentAtt[] }
 interface PortalAtt { id: number; nome: string | null; tamanho: string | null; is_image?: boolean; criado_em: string | null; download: string }
 interface PortalTicket {
   id: number; numero: string | null; assunto?: string; prioridade?: string
@@ -356,7 +356,7 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
         {(t.comentarios ?? []).length === 0 && <p className="text-sm text-center py-2" style={{ color: 'var(--text-muted)' }}>Sem respostas ainda.</p>}
         {(t.comentarios ?? []).slice().reverse().map(c => (
           <div key={c.id} className="rounded-lg p-3" style={{ background: c.de === 'voce' ? 'var(--primary-soft)' : 'var(--surface-sunken)' }}>
-            <div className="flex items-center justify-between mb-1"><span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{c.de === 'voce' ? 'Você' : 'Atendimento'}</span><span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(c.criado_em)}</span></div>
+            <div className="flex items-center justify-between mb-1"><span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{c.autor ?? (c.de === 'voce' ? 'Você' : 'Atendimento')}</span><span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(c.criado_em)}</span></div>
             {c.mensagem && (
               <div className="text-sm rounded-lg px-3 py-2" style={{ background: '#ffffff', color: '#1f2937' }}>
                 {isHtmlBody(c.mensagem)
