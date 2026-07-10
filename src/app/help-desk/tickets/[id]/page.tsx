@@ -23,7 +23,8 @@ import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-e
 import { ModoAtendimentoBar, FilaConcluida, type SessionSummary } from '@/components/help-desk/modo-atendimento'
 import { getSession, nextTicketId, queuePosition, queueHref } from '@/lib/help-desk-session'
 import { wsActive, wsContains, wsNext, wsPrev, wsIncr, logEvent, endWorkSession, fetchSummary, wsSetIds, getWorkSession } from '@/lib/work-session'
-import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, Pencil, Search, Mail } from 'lucide-react'
+import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, Pencil, Search, Mail, GitMerge, Unlink } from 'lucide-react'
+import { MesclarModal } from '@/components/help-desk/mesclar-modal'
 
 interface Ref { id: number; name: string; email?: string | null }
 interface StatusOpt { id: number; key: string; label: string; color: string | null; is_open: boolean; is_resolved: boolean; is_terminal: boolean; allows_scheduling?: boolean }
@@ -38,7 +39,7 @@ interface Sla {
 interface TicketDetail {
   id: number; ticket_number: string | null; subject: string; description: string | null
   priority: string; level: string | null; channel: string; reopen_count: number
-  requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean
+  requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean; can_merge?: boolean
   solicitante?: { name: string | null; email: string | null } | null
   previous_ticket?: { id: number; ticket_number: string | null; subject: string } | null
   continuation_ticket?: { id: number; ticket_number: string | null } | null
@@ -72,6 +73,7 @@ function minutesToHHMM(m?: number | null): string {
   if (!m || m <= 0) return ''
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
 }
+interface MergedRow { id: number; ticket_number: string | null; subject: string; customer: string | null; status: string | null; comments: number }
 interface Event { id: number; event_type: string; field: string | null; from_value: string | null; to_value: string | null; created_at: string; triggered_by?: number | null; triggeredBy?: Ref | null }
 interface Att { id: number; original_name?: string; file_name?: string; human_size?: string; created_at?: string }
 
@@ -102,6 +104,8 @@ export default function HelpDeskTicketDetailPage() {
 
   const [t, setT] = useState<TicketDetail | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
+  const [merged, setMerged] = useState<MergedRow[]>([])
   const [statuses, setStatuses] = useState<StatusOpt[]>([])
   const [justifications, setJustifications] = useState<JustificationOpt[]>([])
   const [pendingStatus, setPendingStatus] = useState<string | null>(null) // status escolhido aguardando justificativa
@@ -182,8 +186,18 @@ export default function HelpDeskTicketDetailPage() {
   const loadEvents = useCallback(() => { if (id) api.get<{ data: Event[] }>(`/help-desk/tickets/${id}/timeline`).then(r => setEvents(r?.data ?? [])).catch(() => {}) }, [id])
   const loadAtts = useCallback(() => { if (id) api.get<{ data: Att[] }>(`/help-desk/tickets/${id}/attachments`).then(r => setAtts(r?.data ?? [])).catch(() => {}) }, [id])
   const loadTs = useCallback(() => { if (id) api.get<{ data: typeof apontamentos }>(`/help-desk/tickets/${id}/timesheets`).then(r => setApontamentos(r?.data ?? [])).catch(() => {}) }, [id])
+  const loadMerged = useCallback(() => { if (id) api.get<{ data: MergedRow[] }>(`/help-desk/tickets/${id}/merged`).then(r => setMerged(r?.data ?? [])).catch(() => {}) }, [id])
 
-  useEffect(() => { loadTicket(); loadComments(); loadEvents(); loadAtts(); loadTs() }, [loadTicket, loadComments, loadEvents, loadAtts, loadTs])
+  useEffect(() => { loadTicket(); loadComments(); loadEvents(); loadAtts(); loadTs(); loadMerged() }, [loadTicket, loadComments, loadEvents, loadAtts, loadTs, loadMerged])
+
+  const unmerge = async (sourceId: number, num: string | null) => {
+    if (!confirm(`Desfazer a mescla do chamado ${num ?? sourceId}? As interações originais dele voltam pra ele e ele volta a ficar ativo.`)) return
+    try {
+      await api.post(`/help-desk/tickets/${id}/unmerge/${sourceId}`, {})
+      toast.success('Mescla desfeita.')
+      loadMerged(); loadComments(); loadEvents()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao desmesclar') }
+  }
 
   // Ao trocar de chamado, reseta o estado da tela de trabalho.
   useEffect(() => { setConcluido(false); setFinalizing(false); setChecklist([]); setFinalizeDefaults(null); setFinal(null) }, [id])
@@ -454,6 +468,11 @@ export default function HelpDeskTicketDetailPage() {
               {t.status?.label ?? '—'}
             </span>
             <ExecutarPlaybook onExec={runPlaybook} />
+            {t.can_merge && (
+              <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setMergeOpen(true)} title="Mesclar este chamado em outro">
+                <GitMerge size={15} /> Mesclar
+              </button>
+            )}
             <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => { setFinalizeDefaults(null); setFinalizing(true) }}>
               <CheckCircle2 size={16} /> Finalizar atendimento
             </button>
@@ -490,6 +509,29 @@ export default function HelpDeskTicketDetailPage() {
               className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg shrink-0" title="Abrir o chamado atual">
               Ver chamado atual <ArrowRight size={14} />
             </button>
+          </div>
+        )}
+
+        {/* TICKETS MESCLADOS — chamados mesclados NESTE (com desfazer por item) */}
+        {merged.length > 0 && (
+          <div className="ds-card p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              <GitMerge size={15} style={{ color: 'var(--primary)' }} /> Tickets mesclados <span style={{ color: 'var(--text-muted)' }}>({merged.length})</span>
+            </div>
+            {merged.map(m => (
+              <div key={m.id} className="flex items-center justify-between gap-2 rounded-lg px-3 py-2" style={{ background: 'var(--surface-sunken)' }}>
+                <div className="flex items-center gap-2 min-w-0">
+                  <button onClick={() => router.push(`/help-desk/tickets/${m.id}`)} className="font-mono text-[11px] shrink-0 underline" style={{ color: 'var(--primary)' }}>{m.ticket_number ?? `#${m.id}`}</button>
+                  <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{m.subject}</span>
+                  <span className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>{m.customer ?? ''}{m.comments ? ` · ${m.comments} int.` : ''}</span>
+                </div>
+                {t.can_merge && (
+                  <button onClick={() => unmerge(m.id, m.ticket_number)} className="ds-btn-secondary inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg shrink-0" title="Desfazer a mescla deste chamado">
+                    <Unlink size={12} /> Desfazer mescla
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -796,6 +838,13 @@ export default function HelpDeskTicketDetailPage() {
         </div>
       </div>
 
+      {mergeOpen && t && (
+        <MesclarModal
+          sources={[{ id: t.id, ticket_number: t.ticket_number, subject: t.subject }]}
+          onClose={() => setMergeOpen(false)}
+          onDone={(targetId) => { setMergeOpen(false); toast.success('Chamado mesclado — abrindo o chamado de destino.'); router.push(`/help-desk/tickets/${targetId}`) }}
+        />
+      )}
       {finalizing && t && (
         <FinalizarAtendimentoModal
           ticketId={id}

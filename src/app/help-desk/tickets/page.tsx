@@ -8,7 +8,8 @@ import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
-import { Ticket, Plus, Search, Inbox, X } from 'lucide-react'
+import { Ticket, Plus, Search, Inbox, X, GitMerge } from 'lucide-react'
+import { MesclarModal } from '@/components/help-desk/mesclar-modal'
 
 interface Ref { id: number; name: string }
 interface StatusOpt { id: number; key: string; label: string; color: string | null; is_open: boolean; is_resolved: boolean; is_terminal: boolean }
@@ -57,6 +58,9 @@ export default function HelpDeskTicketsPage() {
   const [customers, setCustomers] = useState<Ref[]>([])
   const [agents, setAgents] = useState<Ref[]>([])
   const [novo, setNovo] = useState(false)
+  const [sel, setSel] = useState<Set<number>>(new Set())
+  const [mergeOpen, setMergeOpen] = useState(false)
+  const toggleSel = (id: number) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   const F0 = { search: '', status_key: '', priority: '', category_id: '', team_id: '', assignee_id: '', customer_id: '' }
   const [f, setF] = useState<Record<string, string>>(F0)
@@ -126,9 +130,16 @@ export default function HelpDeskTicketsPage() {
             <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Chamados</h1>
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({counters.total})</span>
           </div>
-          <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}>
-            <Plus size={16} /> Novo chamado
-          </button>
+          <div className="flex items-center gap-2">
+            {sel.size >= 1 && (
+              <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setMergeOpen(true)}>
+                <GitMerge size={15} /> Mesclar selecionados ({sel.size})
+              </button>
+            )}
+            <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}>
+              <Plus size={16} /> Novo chamado
+            </button>
+          </div>
         </div>
 
         {/* KPIs / filtros rápidos */}
@@ -185,6 +196,7 @@ export default function HelpDeskTicketsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} className="text-left text-[11px] uppercase tracking-wide">
+                <th className="px-2 py-2 w-8"></th>
                 <th className="px-3 py-2">Nº</th>
                 <th className="px-3 py-2">Assunto</th>
                 <th className="px-3 py-2">Cliente</th>
@@ -198,9 +210,9 @@ export default function HelpDeskTicketsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="px-3 py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</td></tr>
+                <tr><td colSpan={10} className="px-3 py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={9} className="px-3 py-8 text-center" style={{ color: 'var(--text-muted)' }}>
+                <tr><td colSpan={10} className="px-3 py-8 text-center" style={{ color: 'var(--text-muted)' }}>
                   <Inbox size={20} className="inline mr-1.5 -mt-0.5" /> Nenhum chamado.
                 </td></tr>
               ) : rows.map(t => {
@@ -209,6 +221,9 @@ export default function HelpDeskTicketsPage() {
                 return (
                   <tr key={t.id} className="ds-row-hover cursor-pointer border-t" style={{ borderColor: 'var(--border)' }}
                     onClick={() => openTicket(t.id)}>
+                    <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={sel.has(t.id)} onChange={() => toggleSel(t.id)} title="Selecionar para mesclar" />
+                    </td>
                     <td className="px-3 py-2 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{t.ticket_number ?? `#${t.id}`}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{t.subject}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{t.customer?.name ?? '—'}</td>
@@ -233,6 +248,13 @@ export default function HelpDeskTicketsPage() {
       </div>
 
       {novo && <NovoChamado meta={meta} customers={customers} onClose={() => setNovo(false)} onCreated={(id) => { setNovo(false); router.push(`/help-desk/tickets/${id}`) }} />}
+      {mergeOpen && (
+        <MesclarModal
+          sources={rows.filter(r => sel.has(r.id)).map(r => ({ id: r.id, ticket_number: r.ticket_number, subject: r.subject }))}
+          onClose={() => setMergeOpen(false)}
+          onDone={() => { setMergeOpen(false); setSel(new Set()); load() }}
+        />
+      )}
     </AppLayout>
   )
 }
