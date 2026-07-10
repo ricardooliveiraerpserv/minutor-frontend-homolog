@@ -66,7 +66,27 @@ export default function HelpDeskFilaPage() {
   const [f, setF] = useState({ search: '', priority: '', team_id: '' })
   const [mine, setMine] = useState(false)
   const [period, setPeriod] = useState('') // período de abertura (client-side)
+  const [cf, setCf] = useState({ consultor: '', cliente: '', solicitante: '' }) // filtros client-side por nome
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v }))
+  const setC = (k: keyof typeof cf, v: string) => setCf(s => ({ ...s, [k]: v }))
+
+  // Opções derivadas dos chamados carregados.
+  const opts = useMemo(() => {
+    const uniq = (xs: (string | null | undefined)[]) => Array.from(new Set(xs.filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b))
+    return {
+      consultores: uniq(local.map(t => t.assignee?.name)),
+      clientes: uniq(local.map(t => t.customer?.name)),
+      solicitantes: uniq(local.map(t => t.solicitante_nome)),
+    }
+  }, [local])
+
+  // Predicado client-side (período + consultor + cliente + solicitante).
+  const matchFilters = useCallback((t: TicketRow) =>
+    abertoNoPeriodo(t.created_at, period)
+    && (!cf.consultor || t.assignee?.name === cf.consultor)
+    && (!cf.cliente || t.customer?.name === cf.cliente)
+    && (!cf.solicitante || t.solicitante_nome === cf.solicitante)
+  , [period, cf])
 
   const qs = useMemo(() => {
     const p = new URLSearchParams({ limit: '500' })
@@ -88,9 +108,9 @@ export default function HelpDeskFilaPage() {
   const byColumn = useMemo(() => {
     const map: Record<number, TicketRow[]> = {}
     statuses.forEach(s => { map[s.id] = [] })
-    local.filter(t => abertoNoPeriodo(t.created_at, period)).forEach(t => { if (t.status_id != null && map[t.status_id]) map[t.status_id].push(t) })
+    local.filter(matchFilters).forEach(t => { if (t.status_id != null && map[t.status_id]) map[t.status_id].push(t) })
     return map
-  }, [local, statuses, period])
+  }, [local, statuses, matchFilters])
 
   // Modo Atendimento — restaura filtros da sessão ao voltar para a fila.
   useEffect(() => {
@@ -134,7 +154,7 @@ export default function HelpDeskFilaPage() {
           <div className="flex items-center gap-2">
             <KanbanSquare size={20} style={{ color: 'var(--primary)' }} />
             <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Fila de atendimento</h1>
-            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({local.filter(t => abertoNoPeriodo(t.created_at, period)).length})</span>
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({local.filter(matchFilters).length})</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
@@ -154,6 +174,15 @@ export default function HelpDeskFilaPage() {
               <option value="semana">Aberto esta semana</option>
               <option value="mes">Aberto este mês</option>
               <option value="ano">Aberto este ano</option>
+            </select>
+            <select className={fieldCls} style={inputStyle} value={cf.consultor} onChange={e => setC('consultor', e.target.value)} title="Filtrar por responsável">
+              <option value="">Consultor</option>{opts.consultores.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <select className={fieldCls} style={inputStyle} value={cf.cliente} onChange={e => setC('cliente', e.target.value)} title="Filtrar por cliente">
+              <option value="">Cliente</option>{opts.clientes.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <select className={fieldCls} style={inputStyle} value={cf.solicitante} onChange={e => setC('solicitante', e.target.value)} title="Filtrar por solicitante">
+              <option value="">Solicitante</option>{opts.solicitantes.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
             <button onClick={() => setMine(m => !m)} className="text-sm px-3 py-1.5 rounded-lg" style={{ background: mine ? 'var(--primary-soft)' : 'var(--surface)', color: mine ? 'var(--primary)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>
               Meus
