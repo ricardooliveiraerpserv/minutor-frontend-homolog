@@ -90,6 +90,8 @@ function Chamados() {
   const [novo, setNovo] = useState(false)
   const [filter, setFilter] = useState<'abertos' | 'resolvidos' | 'todos'>('abertos')
   const [view, setView] = useState<'lista' | 'kanban'>('lista')
+  const [boardStatuses, setBoardStatuses] = useState<{ label: string; cor: string | null }[]>([])
+  useEffect(() => { api.get<{ data: { label: string; cor: string | null }[] }>('/help-desk/portal/statuses').then(r => setBoardStatuses(r?.data ?? [])).catch(() => {}) }, [])
   const load = useCallback(() => {
     setLoading(true)
     api.get<{ data: PortalTicket[] }>('/help-desk/portal/tickets').then(r => setRows(r?.data ?? [])).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
@@ -111,15 +113,20 @@ function Chamados() {
     { id: 'resolvidos', label: 'Resolvidos', count: resolvidos.length },
     { id: 'todos', label: 'Todos', count: rows.length },
   ]
-  // Colunas do Kanban: agrupa por status (na ordem em que aparecem).
+  // Colunas do Kanban: TODOS os status (na ordem do cadastro), mesmo vazios. Status fora do
+  // board mas presente em algum chamado (ex.: fechado) entra no fim.
   const columns = (() => {
-    const map = new Map<string, { label: string; cor: string | null; items: PortalTicket[] }>()
+    const byLabel = new Map<string, PortalTicket[]>()
     for (const t of shown) {
-      const key = t.status?.label ?? 'Sem status'
-      if (!map.has(key)) map.set(key, { label: key, cor: t.status?.cor ?? null, items: [] })
-      map.get(key)!.items.push(t)
+      const k = t.status?.label ?? 'Sem status'
+      if (!byLabel.has(k)) byLabel.set(k, [])
+      byLabel.get(k)!.push(t)
     }
-    return Array.from(map.values())
+    const cols: { label: string; cor: string | null; items: PortalTicket[] }[] = []
+    const seen = new Set<string>()
+    for (const s of boardStatuses) { cols.push({ label: s.label, cor: s.cor, items: byLabel.get(s.label) ?? [] }); seen.add(s.label) }
+    for (const [label, items] of byLabel) { if (!seen.has(label)) cols.push({ label, cor: items[0]?.status?.cor ?? null, items }) }
+    return cols
   })()
 
   return (
