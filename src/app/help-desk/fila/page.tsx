@@ -36,6 +36,13 @@ function slaDot(sla?: Sla | null): { dot: string; title: string } {
 }
 const iniciais = (name?: string | null) => (name ?? '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 
+/** Data de abertura compacta: "10/07/26 16:58". */
+const fmtAberto = (iso?: string | null) => {
+  if (!iso) return ''
+  const d = new Date(iso); if (isNaN(d.getTime())) return ''
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
 /** Filtra por período de ABERTURA (created_at). '' = qualquer. Semana começa na segunda. */
 function abertoNoPeriodo(iso: string | null | undefined, period: string): boolean {
   if (!period || !iso) return true
@@ -182,9 +189,12 @@ export default function HelpDeskFilaPage() {
                                   onClick={() => openTicket(t.id)}
                                   className="ds-card p-2.5 cursor-pointer"
                                   style={{ ...prov.draggableProps.style, boxShadow: snap.isDragging ? '0 4px 12px rgba(0,0,0,.18)' : undefined }}>
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="font-mono text-[10px]" style={{ color: 'var(--text-light)' }}>{t.ticket_number ?? `#${t.id}`}</span>
-                                    {sig.dot && <span title={sig.title} className="text-[11px]">{sig.dot}</span>}
+                                  <div className="flex items-center justify-between mb-1 gap-1.5">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="font-mono text-[10px]" style={{ color: 'var(--text-light)' }}>{t.ticket_number ?? `#${t.id}`}</span>
+                                      {t.created_at && <span className="text-[10px] whitespace-nowrap" style={{ color: 'var(--text-light)' }}>· {fmtAberto(t.created_at)}</span>}
+                                    </div>
+                                    {sig.dot && <span title={sig.title} className="text-[11px] shrink-0">{sig.dot}</span>}
                                   </div>
                                   <div className="text-sm leading-snug mb-1.5 line-clamp-2" style={{ color: 'var(--text)' }}>{t.subject}</div>
                                   {/* Solicitante + Responsável */}
