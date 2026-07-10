@@ -213,7 +213,9 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
   return (
     <div className="space-y-3 w-full max-w-5xl">
       <div className="flex items-center gap-3">
-        <button onClick={onBack}><ArrowLeft size={20} style={{ color: 'var(--text-muted)' }} /></button>
+        <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ds-btn-secondary" title="Voltar para meus chamados">
+          <ArrowLeft size={16} /> Voltar
+        </button>
         <span className="font-mono text-xl font-bold" style={{ color: 'var(--text)' }}>{t.numero ?? `#${t.id}`}</span>
         {t.status && (
           <span className="inline-flex items-center gap-1.5 text-base font-semibold" style={{ color: t.status.cor ?? 'var(--text)' }}>
