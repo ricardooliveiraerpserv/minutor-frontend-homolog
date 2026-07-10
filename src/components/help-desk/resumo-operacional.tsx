@@ -67,10 +67,10 @@ export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, 
 
   return (
     <div className="ds-card flex items-center gap-x-6 gap-y-2 px-4 py-3 flex-wrap" style={{ minHeight: 120 }}>
-      {/* Cliente */}
-      <div className="min-w-[140px]">
-        <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Cliente</div>
-        <div className="font-semibold text-sm truncate" style={{ color: 'var(--text)' }}>{ctx?.blocos.cliente.empresa ?? '—'}</div>
+      {/* Cliente — destaque (é a informação-âncora do atendimento) */}
+      <div className="min-w-[150px]">
+        <div className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: 'var(--primary)' }}>Cliente</div>
+        <div className="font-bold text-xl leading-tight truncate max-w-[240px]" style={{ color: 'var(--text)' }}>{ctx?.blocos.cliente.empresa ?? '—'}</div>
       </div>
 
       {/* Banco de horas — saldo ABAIXO do rótulo (como as demais células) + barra */}
