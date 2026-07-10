@@ -8,7 +8,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
-import { KanbanSquare, Search, GripVertical } from 'lucide-react'
+import { KanbanSquare, Search, GripVertical, CalendarClock } from 'lucide-react'
 import { useColumnOrder } from '@/lib/kanban-column-order'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
@@ -21,6 +21,7 @@ interface TicketRow {
   id: number; ticket_number: string | null; subject: string; priority: string; status_id: number | null
   customer?: Ref | null; assignee?: Ref | null; sla?: Sla | null
   solicitante_nome?: string | null; requester_name?: string | null; created_at?: string | null
+  scheduled_until?: string | null; scheduled_all_day?: boolean
 }
 
 const PRIO: Record<string, { label: string; color: string; bg: string }> = {
@@ -42,6 +43,15 @@ const fmtAberto = (iso?: string | null) => {
   if (!iso) return ''
   const d = new Date(iso); if (isNaN(d.getTime())) return ''
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+/** Data do agendamento: só a data se for "dia inteiro", senão data + hora. */
+const fmtAgendamento = (iso?: string | null, allDay?: boolean) => {
+  if (!iso) return ''
+  const d = new Date(iso); if (isNaN(d.getTime())) return ''
+  return allDay
+    ? d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+    : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
 /** Filtra por período de ABERTURA (created_at). '' = qualquer. Semana começa na segunda. */
@@ -232,6 +242,13 @@ export default function HelpDeskFilaPage() {
                                     {sig.dot && <span title={sig.title} className="text-[11px] shrink-0">{sig.dot}</span>}
                                   </div>
                                   <div className="text-sm leading-snug mb-1.5 line-clamp-2" style={{ color: 'var(--text)' }}>{t.subject}</div>
+                                  {/* Agendamento — data quando o chamado está agendado */}
+                                  {t.scheduled_until && (
+                                    <div className="inline-flex items-center gap-1 text-[10px] font-semibold rounded-md px-1.5 py-0.5 mb-1.5" title="Chamado agendado"
+                                      style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
+                                      <CalendarClock size={11} /> Agendado: {fmtAgendamento(t.scheduled_until, t.scheduled_all_day)}
+                                    </div>
+                                  )}
                                   {/* Solicitante + Responsável */}
                                   <div className="space-y-0.5 text-[10px] mb-1.5">
                                     <div className="truncate"><span style={{ color: 'var(--text-light)' }}>Solic.:</span> <span style={{ color: 'var(--text-muted)' }}>{t.solicitante_nome ?? t.requester_name ?? '—'}</span></div>
