@@ -7,7 +7,7 @@ import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { AbrirChamadoModal } from '@/components/help-desk/abrir-chamado-modal'
 import { toast } from 'sonner'
-import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, Paperclip, Trash2, CheckCircle2, Search, X } from 'lucide-react'
+import { LifeBuoy, Plus, BookOpen, ArrowLeft, ArrowRight, Send, ThumbsUp, ThumbsDown, Paperclip, Trash2, CheckCircle2, Search, X } from 'lucide-react'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -28,6 +28,7 @@ interface PortalTicket {
   categoria?: string | null; servico?: string | null; nivel?: string | null; reaberturas?: number; cc?: string[]
   responsavel?: string | null
   justificativa?: string | null; horas_apontadas?: number; tags?: string[]; sla_primeira_resposta?: string | null
+  chamado_anterior?: { id: number; numero: string | null } | null
 }
 interface KbArticle { id: number; titulo: string; resumo: string | null; conteudo?: string | null; categoria?: string | null }
 
@@ -120,7 +121,7 @@ function Chamados() {
     if (p && /^\d+$/.test(p)) setSel(Number(p))
   }, [])
 
-  if (sel) return <TicketView id={sel} onBack={() => { setSel(null); load() }} />
+  if (sel) return <TicketView id={sel} onBack={() => { setSel(null); load() }} onOpen={(nid) => setSel(nid)} />
 
   // Opções de filtro (valores distintos presentes) + aplicação dos filtros.
   const solicitantes = Array.from(new Set(rows.map(t => t.solicitante).filter(Boolean))) as string[]
@@ -223,7 +224,7 @@ function Chamados() {
   )
 }
 
-function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
+function TicketView({ id, onBack, onOpen }: { id: number; onBack: () => void; onOpen: (id: number) => void }) {
   const [t, setT] = useState<PortalTicket | null>(null)
   const [body, setBody] = useState(''); const [sending, setSending] = useState(false)
   const [files, setFiles] = useState<File[]>([])   // anexos/prints DA interação (vão junto do envio)
@@ -271,6 +272,20 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
       </div>
       {t.assunto && <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.assunto}</h1>}
       {prazo && !t.sla?.resolvido_em && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Previsão de resolução: {fmtDate(prazo)}</p>}
+
+      {/* Continuação — este chamado dá sequência a um chamado anterior encerrado */}
+      {t.chamado_anterior && (
+        <div className="flex items-center justify-between gap-3 flex-wrap rounded-lg px-4 py-3"
+          style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+          <div className="text-sm font-semibold" style={{ color: 'var(--warning)' }}>
+            🔗 Continuação do chamado <span className="font-mono font-bold">{t.chamado_anterior.numero ?? `#${t.chamado_anterior.id}`}</span> — este chamado dá sequência a um atendimento encerrado.
+          </div>
+          <button onClick={() => onOpen(t.chamado_anterior!.id)}
+            className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg shrink-0" title="Ver o chamado anterior">
+            Ver chamado anterior <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Aceite/Recusa da solução — quando resolvido (e ainda não encerrado). */}
       {t.status?.is_resolved && !t.status?.is_terminal && (
