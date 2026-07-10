@@ -25,6 +25,7 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
   const [month, setMonth] = useState(today.getMonth() + 1)   // 1-12
   const [monthLabel, setMonthLabel] = useState('')
   const [events, setEvents] = useState<CalEvento[]>([])
+  const [tiposVisiveis, setTiposVisiveis] = useState<CalEvento['tipo'][]>([])   // tipos que o perfil pode ver (matriz de visibilidade)
   const [showAll, setShowAll] = useState(false)
   const [modalDate, setModalDate] = useState<string | null>(null)   // dia clicado no calendário → pop-up de detalhes
   const { user } = useAuth()
@@ -48,8 +49,8 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
   }
 
   const load = useCallback((y: number, m: number) => {
-    api.get<{ data: { eventos: CalEvento[]; mes: string } }>(`/calendar/events?month=${y}-${pad(m)}`)
-      .then(r => { setEvents(r.data?.eventos ?? []); setMonthLabel(r.data?.mes ?? '') })
+    api.get<{ data: { eventos: CalEvento[]; mes: string; tipos?: CalEvento['tipo'][] } }>(`/calendar/events?month=${y}-${pad(m)}`)
+      .then(r => { setEvents(r.data?.eventos ?? []); setMonthLabel(r.data?.mes ?? ''); setTiposVisiveis(r.data?.tipos ?? []) })
       .catch(() => {})
   }, [])
   useEffect(() => { load(year, month) }, [load, year, month])
@@ -66,10 +67,10 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
   const list = showAll ? full : full.slice(0, MAX_VISIBLE)
   const hidden = full.length - list.length
 
-  // Legenda só com os tipos que ESTE perfil realmente vê. Os eventos já vêm filtrados
-  // por perfil no backend (/calendar/events respeita a matriz de visibilidade), então
-  // derivar da lista garante que a legenda nunca mostra um tipo que o usuário não enxerga.
-  const tiposNaAgenda = (Object.keys(DOT) as CalEvento['tipo'][]).filter(t => events.some(e => e.tipo === t))
+  // Legenda: os tipos que ESTE perfil PODE ver pela matriz de visibilidade (vem do backend
+  // em `tipos`), na ordem canônica do DOT. Fallback (backend antigo): tipos presentes no mês.
+  const tiposNaAgenda = (Object.keys(DOT) as CalEvento['tipo'][]).filter(t =>
+    tiposVisiveis.length > 0 ? tiposVisiveis.includes(t) : events.some(e => e.tipo === t))
 
   return (
     <div className="ds-card p-3 space-y-3">
