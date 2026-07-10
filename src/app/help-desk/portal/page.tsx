@@ -65,6 +65,24 @@ function StatusPill({ status }: { status?: { label: string; cor: string | null }
 
 const isResolved = (t: PortalTicket) => !!t.sla?.resolvido_em
 
+// Pílula de prioridade colorida (igual ao Kanban do agente).
+const PRIO_MAP: Record<string, { label: string; color: string; bg: string }> = {
+  baixa:   { label: 'Baixa',   color: '#16a34a', bg: 'rgba(22,163,74,.16)' },
+  normal:  { label: 'Média',   color: '#3b82f6', bg: 'rgba(59,130,246,.16)' },
+  alta:    { label: 'Alta',    color: '#f59e0b', bg: 'rgba(245,158,11,.16)' },
+  urgente: { label: 'Urgente', color: '#ef4444', bg: 'rgba(239,68,68,.16)' },
+}
+// Bolinha de criticidade do prazo (voltada ao cliente): resolvido/pausa sem bolinha; senão pela previsão.
+function portalDot(t: PortalTicket): { dot: string; title: string } {
+  if (isResolved(t) || t.sla?.em_pausa) return { dot: '', title: '' }
+  const p = t.sla?.previsao_resolucao
+  if (!p) return { dot: '🟢', title: 'No prazo' }
+  const diff = new Date(p).getTime() - Date.now()
+  if (diff < 0) return { dot: '🔴', title: 'Prazo estourado' }
+  if (diff < 24 * 3600 * 1000) return { dot: '🟡', title: 'Vencendo' }
+  return { dot: '🟢', title: 'No prazo' }
+}
+
 function Chamados() {
   const [rows, setRows] = useState<PortalTicket[]>([])
   const [loading, setLoading] = useState(true)
@@ -153,16 +171,24 @@ function Chamados() {
                 <span className="text-[11px] px-1.5 rounded-full" style={{ background: 'var(--surface-sunken)', color: 'var(--text-light)' }}>{col.items.length}</span>
               </div>
               <div className="space-y-2 rounded-lg p-2" style={{ background: 'var(--surface-sunken)', minHeight: 80 }}>
-                {col.items.map(t => (
-                  <button key={t.id} onClick={() => setSel(t.id)} className="ds-card p-2.5 w-full text-left space-y-1 hover:shadow transition" style={{ background: 'var(--surface)' }}>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[11px]" style={{ color: 'var(--text-light)' }}>{t.numero ?? `#${t.id}`}</span>
-                      {!isResolved(t) && t.sla?.em_pausa && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>aguardando você</span>}
-                    </div>
-                    <div className="font-medium text-sm truncate" style={{ color: 'var(--text)' }}>{t.assunto}</div>
-                    <div className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-light)' }}><Clock size={10} /> {fmtDate(t.atualizado_em)}</div>
-                  </button>
-                ))}
+                {col.items.map(t => {
+                  const prio = t.prioridade ? PRIO_MAP[t.prioridade] : null
+                  const d = portalDot(t)
+                  return (
+                    <button key={t.id} onClick={() => setSel(t.id)} className="ds-card p-3 w-full text-left space-y-2 hover:shadow transition" style={{ background: 'var(--surface)' }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-mono text-[11px]" style={{ color: 'var(--text-light)' }}>{t.numero ?? `#${t.id}`}</span>
+                        {d.dot && <span title={d.title} className="text-xs leading-none">{d.dot}</span>}
+                      </div>
+                      <div className="font-semibold text-sm leading-snug" style={{ color: 'var(--text)' }}>{t.assunto}</div>
+                      <div className="flex items-center justify-between gap-2">
+                        {prio && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: prio.color, background: prio.bg }}>{prio.label}</span>}
+                        {isResolved(t) ? <span className="inline-flex items-center gap-0.5 text-[10px]" style={{ color: 'var(--success-border)' }}><CheckCircle2 size={10} /> resolvido</span>
+                          : t.sla?.em_pausa && <span className="text-[10px]" style={{ color: 'var(--warning-border)' }}>aguardando você</span>}
+                      </div>
+                    </button>
+                  )
+                })}
                 {col.items.length === 0 && <p className="text-[11px] text-center py-3" style={{ color: 'var(--text-light)' }}>—</p>}
               </div>
             </div>
