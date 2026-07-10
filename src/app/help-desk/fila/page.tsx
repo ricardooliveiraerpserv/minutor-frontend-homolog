@@ -19,7 +19,7 @@ interface Sla { first_response_breached: boolean; resolution_breached: boolean; 
 interface TicketRow {
   id: number; ticket_number: string | null; subject: string; priority: string; status_id: number | null
   customer?: Ref | null; assignee?: Ref | null; sla?: Sla | null
-  solicitante_nome?: string | null; requester_name?: string | null
+  solicitante_nome?: string | null; requester_name?: string | null; created_at?: string | null
 }
 
 const PRIO: Record<string, { label: string; color: string; bg: string }> = {
@@ -36,6 +36,20 @@ function slaDot(sla?: Sla | null): { dot: string; title: string } {
 }
 const iniciais = (name?: string | null) => (name ?? '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 
+/** Filtra por período de ABERTURA (created_at). '' = qualquer. Semana começa na segunda. */
+function abertoNoPeriodo(iso: string | null | undefined, period: string): boolean {
+  if (!period || !iso) return true
+  const d = new Date(iso); if (isNaN(d.getTime())) return true
+  const now = new Date()
+  const hoje = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (period === 'hoje') return d >= hoje
+  if (period === 'ontem') { const y = new Date(hoje); y.setDate(y.getDate() - 1); return d >= y && d < hoje }
+  if (period === 'semana') { const w = new Date(hoje); w.setDate(w.getDate() - ((w.getDay() + 6) % 7)); return d >= w }
+  if (period === 'mes') return d >= new Date(now.getFullYear(), now.getMonth(), 1)
+  if (period === 'ano') return d >= new Date(now.getFullYear(), 0, 1)
+  return true
+}
+
 export default function HelpDeskFilaPage() {
   const router = useRouter()
   const { user } = useAuth()
@@ -44,6 +58,7 @@ export default function HelpDeskFilaPage() {
   const [local, setLocal] = useState<TicketRow[]>([])
   const [f, setF] = useState({ search: '', priority: '', team_id: '' })
   const [mine, setMine] = useState(false)
+  const [period, setPeriod] = useState('') // período de abertura (client-side)
   const set = (k: string, v: string) => setF(s => ({ ...s, [k]: v }))
 
   const qs = useMemo(() => {
@@ -66,9 +81,9 @@ export default function HelpDeskFilaPage() {
   const byColumn = useMemo(() => {
     const map: Record<number, TicketRow[]> = {}
     statuses.forEach(s => { map[s.id] = [] })
-    local.forEach(t => { if (t.status_id != null && map[t.status_id]) map[t.status_id].push(t) })
+    local.filter(t => abertoNoPeriodo(t.created_at, period)).forEach(t => { if (t.status_id != null && map[t.status_id]) map[t.status_id].push(t) })
     return map
-  }, [local, statuses])
+  }, [local, statuses, period])
 
   // Modo Atendimento — restaura filtros da sessão ao voltar para a fila.
   useEffect(() => {
@@ -112,7 +127,7 @@ export default function HelpDeskFilaPage() {
           <div className="flex items-center gap-2">
             <KanbanSquare size={20} style={{ color: 'var(--primary)' }} />
             <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Fila de atendimento</h1>
-            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({local.length})</span>
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({local.filter(t => abertoNoPeriodo(t.created_at, period)).length})</span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
@@ -124,6 +139,14 @@ export default function HelpDeskFilaPage() {
             </select>
             <select className={fieldCls} style={inputStyle} value={f.team_id} onChange={e => set('team_id', e.target.value)}>
               <option value="">Fila</option>{teams.map(t => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
+            </select>
+            <select className={fieldCls} style={inputStyle} value={period} onChange={e => setPeriod(e.target.value)} title="Filtrar por data de abertura">
+              <option value="">Aberto: qualquer</option>
+              <option value="hoje">Aberto hoje</option>
+              <option value="ontem">Aberto ontem</option>
+              <option value="semana">Aberto esta semana</option>
+              <option value="mes">Aberto este mês</option>
+              <option value="ano">Aberto este ano</option>
             </select>
             <button onClick={() => setMine(m => !m)} className="text-sm px-3 py-1.5 rounded-lg" style={{ background: mine ? 'var(--primary-soft)' : 'var(--surface)', color: mine ? 'var(--primary)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>
               Meus
