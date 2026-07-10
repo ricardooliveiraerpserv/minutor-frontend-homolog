@@ -7,7 +7,7 @@ import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { AbrirChamadoModal } from '@/components/help-desk/abrir-chamado-modal'
 import { toast } from 'sonner'
-import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, Paperclip, Upload, Trash2, ChevronRight, CheckCircle2, Clock, List, LayoutGrid } from 'lucide-react'
+import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, Paperclip, Upload, Trash2, CheckCircle2 } from 'lucide-react'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -57,11 +57,6 @@ export default function HelpDeskPortalPage() {
 function PRow({ k, v }: { k: string; v: string }) {
   return <div className="flex items-center justify-between gap-2"><span style={{ color: 'var(--text-light)' }}>{k}</span><span className="text-right truncate" style={{ color: 'var(--text)' }}>{v}</span></div>
 }
-function StatusPill({ status }: { status?: { label: string; cor: string | null } | null }) {
-  if (!status) return null
-  return <span className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color: status.cor ?? 'var(--text)' }}>
-    <span className="w-2 h-2 rounded-full" style={{ background: status.cor ?? 'var(--text-muted)' }} />{status.label}</span>
-}
 
 const isResolved = (t: PortalTicket) => !!t.sla?.resolvido_em
 
@@ -98,8 +93,6 @@ function Chamados() {
   const [loading, setLoading] = useState(true)
   const [sel, setSel] = useState<number | null>(null)
   const [novo, setNovo] = useState(false)
-  const [filter, setFilter] = useState<'abertos' | 'resolvidos' | 'todos'>('abertos')
-  const [view, setView] = useState<'lista' | 'kanban'>('lista')
   const load = useCallback(() => {
     setLoading(true)
     api.get<{ data: PortalTicket[] }>('/help-desk/portal/tickets').then(r => setRows(r?.data ?? [])).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
@@ -113,16 +106,7 @@ function Chamados() {
 
   if (sel) return <TicketView id={sel} onBack={() => { setSel(null); load() }} />
 
-  const abertos = rows.filter(t => !isResolved(t))
-  const resolvidos = rows.filter(t => isResolved(t))
-  const shown = filter === 'todos' ? rows : filter === 'resolvidos' ? resolvidos : abertos
-  const FILTERS: { id: typeof filter; label: string; count: number }[] = [
-    { id: 'abertos', label: 'Em aberto', count: abertos.length },
-    { id: 'resolvidos', label: 'Resolvidos', count: resolvidos.length },
-    { id: 'todos', label: 'Todos', count: rows.length },
-  ]
-  // Colunas do Kanban = BUCKETS fixos (usa TODOS os chamados, não o filtro). Status desconhecido
-  // cai em "Pendente ERPSERV".
+  // Colunas do Kanban = BUCKETS fixos (todos os chamados). Status desconhecido cai em "Pendente ERPSERV".
   const columns = BUCKETS.map(b => ({
     label: b.label, cor: b.cor,
     items: rows.filter(t => {
@@ -142,35 +126,16 @@ function Chamados() {
         <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg shrink-0" onClick={() => setNovo(true)}><Plus size={16} /> Abrir chamado</button>
       </div>
 
-      {/* Filtros por situação (só na Lista — o Kanban agrupa por bucket) + alternância Lista/Kanban */}
-      <div className="flex gap-2 flex-wrap items-center">
-        {view === 'lista' && FILTERS.map(f => (
-          <button key={f.id} onClick={() => setFilter(f.id)} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full font-medium"
-            style={{ background: filter === f.id ? 'var(--primary)' : 'var(--surface-sunken)', color: filter === f.id ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
-            {f.label}<span className="text-[11px] px-1.5 rounded-full" style={{ background: filter === f.id ? 'rgba(255,255,255,.25)' : 'var(--surface)', color: filter === f.id ? 'var(--primary-fg)' : 'var(--text-light)' }}>{f.count}</span>
-          </button>
-        ))}
-        <div className="ml-auto inline-flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-          {(['lista', 'kanban'] as const).map(v => (
-            <button key={v} onClick={() => setView(v)} className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 font-medium capitalize"
-              style={{ background: view === v ? 'var(--primary)' : 'transparent', color: view === v ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
-              {v === 'lista' ? <List size={13} /> : <LayoutGrid size={13} />}{v}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Lista em CARDS */}
+      {/* KANBAN — colunas por bucket (única visão do cliente) */}
       {loading ? (
         <div className="py-10 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
-      ) : (view === 'kanban' ? rows.length === 0 : shown.length === 0) ? (
+      ) : rows.length === 0 ? (
         <div className="ds-card py-10 px-4 text-center space-y-2">
           <LifeBuoy size={30} className="mx-auto" style={{ color: 'var(--text-light)' }} />
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{view === 'kanban' ? 'Você ainda não tem chamados.' : filter === 'abertos' ? 'Você não tem chamados em aberto.' : filter === 'resolvidos' ? 'Nenhum chamado resolvido ainda.' : 'Você ainda não tem chamados.'}</p>
-          {filter !== 'resolvidos' && <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}><Plus size={15} /> Abrir meu primeiro chamado</button>}
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Você ainda não tem chamados.</p>
+          <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}><Plus size={15} /> Abrir meu primeiro chamado</button>
         </div>
-      ) : view === 'kanban' ? (
-        /* KANBAN — colunas por status */
+      ) : (
         <div className="flex gap-3 overflow-x-auto pb-2">
           {columns.map(col => (
             <div key={col.label} className="w-[270px] shrink-0">
@@ -201,27 +166,6 @@ function Chamados() {
                 {col.items.length === 0 && <p className="text-[11px] text-center py-3" style={{ color: 'var(--text-light)' }}>—</p>}
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {shown.map(t => (
-            <button key={t.id} onClick={() => setSel(t.id)} className="ds-card p-3 w-full text-left flex items-center gap-3 hover:shadow transition">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-[11px]" style={{ color: 'var(--text-light)' }}>{t.numero ?? `#${t.id}`}</span>
-                  <StatusPill status={t.status} />
-                  {isResolved(t) && <span className="inline-flex items-center gap-0.5 text-[11px]" style={{ color: 'var(--success-border)' }}><CheckCircle2 size={11} /> resolvido</span>}
-                  {!isResolved(t) && t.sla?.em_pausa && <span className="inline-flex items-center gap-0.5 text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>aguardando você</span>}
-                </div>
-                <div className="font-medium mt-0.5 truncate" style={{ color: 'var(--text)' }}>{t.assunto}</div>
-                <div className="flex items-center gap-1 text-xs mt-0.5" style={{ color: 'var(--text-light)' }}>
-                  <Clock size={11} /> Atualizado {fmtDate(t.atualizado_em)}
-                  {!isResolved(t) && t.sla?.previsao_resolucao ? ` · previsão ${fmtDate(t.sla.previsao_resolucao)}` : ''}
-                </div>
-              </div>
-              <ChevronRight size={18} className="shrink-0" style={{ color: 'var(--text-light)' }} />
-            </button>
           ))}
         </div>
       )}
