@@ -72,6 +72,16 @@ const PRIO_MAP: Record<string, { label: string; color: string; bg: string }> = {
   alta:    { label: 'Alta',    color: '#f59e0b', bg: 'rgba(245,158,11,.16)' },
   urgente: { label: 'Urgente', color: '#ef4444', bg: 'rgba(239,68,68,.16)' },
 }
+// Kanban do CLIENTE: agluttina os status internos em buckets simples (perfil interno não muda).
+const BUCKETS: { label: string; cor: string; statuses: string[] }[] = [
+  { label: 'Pendente ERPSERV',   cor: '#3b82f6', statuses: ['Novo', 'Em andamento', 'GMUD em Planejamento', 'Em Desenvolvimento'] },
+  { label: 'Pendente cliente',   cor: '#f59e0b', statuses: ['Aguardando cliente'] },
+  { label: 'Pendente terceiros', cor: '#a855f7', statuses: ['Pendente terceiros'] },
+  { label: 'Resolvido',          cor: '#16a34a', statuses: ['Resolvido', 'Solução com GMUD'] },
+  { label: 'Fechado',            cor: '#6b7280', statuses: ['Fechado', 'Cancelado'] },
+]
+const KNOWN_STATUSES = new Set(BUCKETS.flatMap(b => b.statuses))
+
 // Bolinha de criticidade do prazo (voltada ao cliente): resolvido/pausa sem bolinha; senão pela previsão.
 function portalDot(t: PortalTicket): { dot: string; title: string } {
   if (isResolved(t) || t.sla?.em_pausa) return { dot: '', title: '' }
@@ -90,8 +100,6 @@ function Chamados() {
   const [novo, setNovo] = useState(false)
   const [filter, setFilter] = useState<'abertos' | 'resolvidos' | 'todos'>('abertos')
   const [view, setView] = useState<'lista' | 'kanban'>('lista')
-  const [boardStatuses, setBoardStatuses] = useState<{ label: string; cor: string | null }[]>([])
-  useEffect(() => { api.get<{ data: { label: string; cor: string | null }[] }>('/help-desk/portal/statuses').then(r => setBoardStatuses(r?.data ?? [])).catch(() => {}) }, [])
   const load = useCallback(() => {
     setLoading(true)
     api.get<{ data: PortalTicket[] }>('/help-desk/portal/tickets').then(r => setRows(r?.data ?? [])).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
@@ -113,21 +121,15 @@ function Chamados() {
     { id: 'resolvidos', label: 'Resolvidos', count: resolvidos.length },
     { id: 'todos', label: 'Todos', count: rows.length },
   ]
-  // Colunas do Kanban: TODOS os status (na ordem do cadastro), mesmo vazios. Status fora do
-  // board mas presente em algum chamado (ex.: fechado) entra no fim.
-  const columns = (() => {
-    const byLabel = new Map<string, PortalTicket[]>()
-    for (const t of shown) {
-      const k = t.status?.label ?? 'Sem status'
-      if (!byLabel.has(k)) byLabel.set(k, [])
-      byLabel.get(k)!.push(t)
-    }
-    const cols: { label: string; cor: string | null; items: PortalTicket[] }[] = []
-    const seen = new Set<string>()
-    for (const s of boardStatuses) { cols.push({ label: s.label, cor: s.cor, items: byLabel.get(s.label) ?? [] }); seen.add(s.label) }
-    for (const [label, items] of byLabel) { if (!seen.has(label)) cols.push({ label, cor: items[0]?.status?.cor ?? null, items }) }
-    return cols
-  })()
+  // Colunas do Kanban = BUCKETS fixos (usa TODOS os chamados, não o filtro). Status desconhecido
+  // cai em "Pendente ERPSERV".
+  const columns = BUCKETS.map(b => ({
+    label: b.label, cor: b.cor,
+    items: rows.filter(t => {
+      const l = t.status?.label ?? ''
+      return b.statuses.includes(l) || (b.label === 'Pendente ERPSERV' && !KNOWN_STATUSES.has(l))
+    }),
+  }))
 
   return (
     <div className="space-y-4">
@@ -140,9 +142,9 @@ function Chamados() {
         <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg shrink-0" onClick={() => setNovo(true)}><Plus size={16} /> Abrir chamado</button>
       </div>
 
-      {/* Filtros por situação + alternância Lista/Kanban */}
+      {/* Filtros por situação (só na Lista — o Kanban agrupa por bucket) + alternância Lista/Kanban */}
       <div className="flex gap-2 flex-wrap items-center">
-        {FILTERS.map(f => (
+        {view === 'lista' && FILTERS.map(f => (
           <button key={f.id} onClick={() => setFilter(f.id)} className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full font-medium"
             style={{ background: filter === f.id ? 'var(--primary)' : 'var(--surface-sunken)', color: filter === f.id ? 'var(--primary-fg)' : 'var(--text-muted)' }}>
             {f.label}<span className="text-[11px] px-1.5 rounded-full" style={{ background: filter === f.id ? 'rgba(255,255,255,.25)' : 'var(--surface)', color: filter === f.id ? 'var(--primary-fg)' : 'var(--text-light)' }}>{f.count}</span>
@@ -161,10 +163,10 @@ function Chamados() {
       {/* Lista em CARDS */}
       {loading ? (
         <div className="py-10 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
-      ) : shown.length === 0 ? (
+      ) : (view === 'kanban' ? rows.length === 0 : shown.length === 0) ? (
         <div className="ds-card py-10 px-4 text-center space-y-2">
           <LifeBuoy size={30} className="mx-auto" style={{ color: 'var(--text-light)' }} />
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{filter === 'abertos' ? 'Você não tem chamados em aberto.' : filter === 'resolvidos' ? 'Nenhum chamado resolvido ainda.' : 'Você ainda não tem chamados.'}</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{view === 'kanban' ? 'Você ainda não tem chamados.' : filter === 'abertos' ? 'Você não tem chamados em aberto.' : filter === 'resolvidos' ? 'Nenhum chamado resolvido ainda.' : 'Você ainda não tem chamados.'}</p>
           {filter !== 'resolvidos' && <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}><Plus size={15} /> Abrir meu primeiro chamado</button>}
         </div>
       ) : view === 'kanban' ? (
