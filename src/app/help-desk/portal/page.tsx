@@ -168,11 +168,15 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
   const prazo = t.sla?.previsao_resolucao
   return (
     <div className="space-y-3 max-w-2xl">
-      <div className="flex items-center gap-2">
-        <button onClick={onBack}><ArrowLeft size={18} style={{ color: 'var(--text-muted)' }} /></button>
-        <span className="font-mono text-xs" style={{ color: 'var(--text-light)' }}>{t.numero ?? `#${t.id}`}</span>
-        <StatusPill status={t.status} />
-        {t.sla?.em_pausa && <span className="text-[11px] px-1.5 py-0.5 rounded-full" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>aguardando você</span>}
+      <div className="flex items-center gap-3">
+        <button onClick={onBack}><ArrowLeft size={20} style={{ color: 'var(--text-muted)' }} /></button>
+        <span className="font-mono text-xl font-bold" style={{ color: 'var(--text)' }}>{t.numero ?? `#${t.id}`}</span>
+        {t.status && (
+          <span className="inline-flex items-center gap-1.5 text-base font-semibold" style={{ color: t.status.cor ?? 'var(--text)' }}>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: t.status.cor ?? 'var(--text-muted)' }} />{t.status.label}
+          </span>
+        )}
+        {t.sla?.em_pausa && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}>aguardando você</span>}
       </div>
       {t.assunto && <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.assunto}</h1>}
       {prazo && !t.sla?.resolvido_em && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Previsão de resolução: {fmtDate(prazo)}</p>}
