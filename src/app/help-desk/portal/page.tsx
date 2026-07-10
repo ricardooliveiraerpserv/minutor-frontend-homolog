@@ -328,26 +328,6 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
         {t.sla_primeira_resposta && <PRow k="Limite 1ª resposta" v={fmtDate(t.sla_primeira_resposta)} />}
         {t.tags && t.tags.length > 0 && <PRow k="Tags" v={t.tags.join(', ')} />}
       </div>
-      {/* Descrição (1ª interação) + seus anexos — nada de anexo solto. */}
-      {(t.descricao || (t.anexos && t.anexos.length > 0)) && (
-        <div className="ds-card p-3 space-y-2">
-          <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Descrição</div>
-          {t.descricao && (isHtmlBody(t.descricao)
-            ? <EmailFrame html={t.descricao} />
-            : <p className="text-sm whitespace-pre-wrap rounded-lg px-3 py-2.5" style={{ background: '#ffffff', color: '#1f2937' }}>{t.descricao}</p>)}
-          {t.anexos && t.anexos.length > 0 && (
-            <div className="space-y-2 pt-1">
-              {t.anexos.filter(a => a.is_image).map(a => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <a key={a.id} href={a.download} target="_blank" rel="noopener noreferrer"><img src={a.download} alt={a.nome ?? 'anexo'} className="rounded-lg max-h-64" style={{ border: '1px solid var(--border)' }} /></a>
-              ))}
-              {t.anexos.filter(a => !a.is_image).map(a => (
-                <a key={a.id} href={a.download} className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--primary)' }}><Paperclip size={12} /> {a.nome ?? `Anexo #${a.id}`}{a.tamanho ? ` · ${a.tamanho}` : ''}</a>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Conversa — compositor no topo, mais RECENTE primeiro. Anexos vão junto de cada interação. */}
       <div className="ds-card p-3 space-y-3">
@@ -397,6 +377,32 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
             )}
           </div>
         ))}
+
+        {/* Descrição = interação MAIS ANTIGA → por último (a conversa é mais novo primeiro). */}
+        {(t.descricao || (t.anexos && t.anexos.length > 0)) && (
+          <div className="rounded-lg p-3" style={{ background: 'var(--surface-sunken)' }}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}>Você
+                <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>descrição inicial</span>
+              </span>
+              <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(t.criado_em)}</span>
+            </div>
+            {t.descricao && (isHtmlBody(t.descricao)
+              ? <EmailFrame html={t.descricao} />
+              : <div className="text-sm rounded-lg px-3 py-2 whitespace-pre-wrap" style={{ background: '#ffffff', color: '#1f2937' }}>{t.descricao}</div>)}
+            {t.anexos && t.anexos.length > 0 && (
+              <div className="mt-2 space-y-2">
+                {t.anexos.filter(a => a.is_image).map(a => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <a key={a.id} href={a.download} target="_blank" rel="noopener noreferrer"><img src={a.download} alt={a.nome ?? 'anexo'} className="rounded-lg max-h-64" style={{ border: '1px solid var(--border)' }} /></a>
+                ))}
+                {t.anexos.filter(a => !a.is_image).map(a => (
+                  <a key={a.id} href={a.download} className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--primary)' }}><Paperclip size={12} /> {a.nome ?? `Anexo #${a.id}`}{a.tamanho ? ` · ${a.tamanho}` : ''}</a>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
