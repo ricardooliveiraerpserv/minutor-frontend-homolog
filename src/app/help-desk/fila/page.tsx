@@ -8,8 +8,7 @@ import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
-import { startWorkSession } from '@/lib/work-session'
-import { KanbanSquare, Search, User, Play } from 'lucide-react'
+import { KanbanSquare, Search, User } from 'lucide-react'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -86,15 +85,6 @@ export default function HelpDeskFilaPage() {
     router.push(`/help-desk/tickets/${ticketId}`)
   }
 
-  // Modo Atendimento — sessão contínua na ordem do board.
-  const iniciarModo = async () => {
-    const ids = orderedIds()
-    if (ids.length === 0) return toast.error('Nenhum chamado na fila.')
-    const teamName = teams.find(t => String(t.id) === f.team_id)?.name
-    const first = await startWorkSession({ scope: 'help_desk', source: 'kanban', filters: { ...f, mine }, label: teamName ? `Fila: ${teamName}` : 'Fila', ids })
-    if (first) router.push(`/help-desk/tickets/${first}`)
-  }
-
   const onDragEnd = async (r: DropResult) => {
     const { destination, source, draggableId } = r
     if (!destination || destination.droppableId === source.droppableId) return
@@ -136,9 +126,6 @@ export default function HelpDeskFilaPage() {
             </select>
             <button onClick={() => setMine(m => !m)} className="text-sm px-3 py-1.5 rounded-lg" style={{ background: mine ? 'var(--primary-soft)' : 'var(--surface)', color: mine ? 'var(--primary)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>
               Meus
-            </button>
-            <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={iniciarModo}>
-              <Play size={15} /> Iniciar Modo Atendimento
             </button>
           </div>
         </div>

@@ -7,9 +7,8 @@ import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
-import { startWorkSession } from '@/lib/work-session'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
-import { Ticket, Plus, Search, Inbox, X, Play } from 'lucide-react'
+import { Ticket, Plus, Search, Inbox, X } from 'lucide-react'
 
 interface Ref { id: number; name: string }
 interface StatusOpt { id: number; key: string; label: string; color: string | null; is_open: boolean; is_resolved: boolean; is_terminal: boolean }
@@ -98,14 +97,6 @@ export default function HelpDeskTicketsPage() {
     router.push(`/help-desk/tickets/${ticketId}`)
   }
 
-  // Modo Atendimento — inicia uma sessão contínua a partir da fila atual.
-  const iniciarModo = async () => {
-    if (rows.length === 0) return toast.error('Nenhum chamado na fila.')
-    const teamName = meta?.teams.find(t => String(t.id) === f.team_id)?.name
-    const first = await startWorkSession({ scope: 'help_desk', source: 'list', filters: { ...f, mine, open, breached }, label: teamName ? `Fila: ${teamName}` : 'Atendimento', ids: rows.map(r => r.id) })
-    if (first) router.push(`/help-desk/tickets/${first}`)
-  }
-
   useEffect(() => {
     api.get<{ data: Meta }>('/help-desk/meta').then(r => r?.data && setMeta(r.data)).catch(() => {})
     api.get<{ data?: Ref[] }>('/help-desk/agents').then(r => setAgents((r?.data ?? []).map(a => ({ id: a.id, name: a.name })))).catch(() => {})
@@ -135,9 +126,6 @@ export default function HelpDeskTicketsPage() {
             <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Chamados</h1>
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({counters.total})</span>
           </div>
-          <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={iniciarModo}>
-            <Play size={15} /> Iniciar Modo Atendimento
-          </button>
           <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}>
             <Plus size={16} /> Novo chamado
           </button>
