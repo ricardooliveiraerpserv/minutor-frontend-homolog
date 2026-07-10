@@ -10,7 +10,7 @@ import { ResumoOperacional } from '@/components/help-desk/resumo-operacional'
 import { Customer360Drawer } from '@/components/help-desk/customer-360-drawer'
 import { FinalizarAtendimentoModal } from '@/components/help-desk/finalizar-atendimento-modal'
 import { ExecutarPlaybook } from '@/components/help-desk/executar-playbook'
-import { InteracaoComposer } from '@/components/help-desk/interacao-composer'
+import { InteracaoComposer, type ComposerHandle, type MacroItem } from '@/components/help-desk/interacao-composer'
 import { TimeSelect5 } from '@/components/help-desk/time-select-5'
 import { SolucaoModal, SolutionView, type Solution } from '@/components/help-desk/solucao-modal'
 import { GmudModal, GmudView, type Gmud } from '@/components/help-desk/gmud-modal'
@@ -216,13 +216,14 @@ export default function HelpDeskTicketDetailPage() {
   // Playbook aplicado no servidor (sem finalizar): recarrega e mostra o checklist (se houver).
   const onPlaybookApplied = (cl: string[]) => { loadTicket(); loadComments(); loadEvents(); setRefreshKey(k => k + 1); setChecklist(cl) }
   const onPlaybookFinalize = (defaults: { reply: string | null; status_id: number | null }, cl: string[]) => { setFinalizeDefaults(defaults); setChecklist(cl); setFinalizing(true) }
-  const runPlaybook = async (playbookId: number) => {
-    try {
-      const r = await api.post<{ data: { start_finalize: boolean; checklist?: string[]; defaults?: { reply: string | null; status_id: number | null } } }>(`/help-desk/tickets/${id}/playbooks/${playbookId}/execute`, {})
-      if (modoAtivo) logEvent('playbook_executed', { entityId: id, metadata: { playbook_id: playbookId } })
-      if (r.data.start_finalize) onPlaybookFinalize(r.data.defaults ?? { reply: null, status_id: null }, r.data.checklist ?? [])
-      else { toast.success('Macro executada'); onPlaybookApplied(r.data.checklist ?? []) }
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao executar macro') }
+  // Macros (ex-playbooks): APENAS preenchem o texto da interação (client-side), gated pelo status.
+  const [macros, setMacros] = useState<MacroItem[]>([])
+  const composerRef = useRef<ComposerHandle>(null)
+  useEffect(() => { api.get<{ data: MacroItem[] }>('/help-desk/playbooks').then(r => setMacros(r?.data ?? [])).catch(() => {}) }, [])
+  const runPlaybook = (playbookId: number) => {
+    const m = macros.find(x => x.id === playbookId)
+    if (modoAtivo) logEvent('playbook_executed', { entityId: id, metadata: { playbook_id: playbookId } })
+    composerRef.current?.insertMacroReply(m?.reply ?? '')
   }
   useEffect(() => {
     api.get<{ data: { statuses: StatusOpt[]; justifications?: JustificationOpt[]; categories?: { id: number; name: string }[]; services?: { id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]; channels?: string[] } }>('/help-desk/meta')
@@ -481,11 +482,12 @@ export default function HelpDeskTicketDetailPage() {
               {tab === 'conversa' ? (
                 <div className="p-4 space-y-3">
                   {/* Compositor no TOPO — nova interação sempre em cima */}
-                  <InteracaoComposer ticketId={id} onSent={() => { loadComments(); loadEvents(); loadTicket() }}
+                  <InteracaoComposer ref={composerRef} ticketId={id} onSent={() => { loadComments(); loadEvents(); loadTicket() }}
                     statuses={statuses.map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved, allows_scheduling: s.allows_scheduling }))}
                     currentStatusId={t.status?.id}
                     onApplyStatus={(sid) => onStatusSelect(String(sid))}
                     onSchedule={async (date, time) => { await api.post(`/help-desk/tickets/${id}/schedule`, { date, time: time || null }) }}
+                    macros={macros}
                     formStatusIds={forms.filter(f => f.status_id).map(f => f.status_id as number)}
                     onFormStatus={(sid) => openDynamicForm(String(sid))} />
                   <div className="border-b" style={{ borderColor: 'var(--border)' }} />

@@ -1,11 +1,15 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useImperativeHandle, forwardRef } from 'react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
-import { Send, Paperclip, X, FileText, Clock, Lock } from 'lucide-react'
+import { Send, Paperclip, X, FileText, Clock, Lock, Zap, ChevronDown } from 'lucide-react'
 import { TimeSelect5 } from './time-select-5'
+
+// Macro (ex-playbook): só preenche o texto da interação.
+export interface MacroItem { id: number; name: string; color?: string | null; category?: string | null; reply?: string | null; internal?: string | null }
+export interface ComposerHandle { insertMacroReply: (text: string) => void }
 
 // Data local (YYYY-MM-DD) — NÃO usar toISOString (UTC empurra p/ o dia seguinte à noite no Brasil).
 function localToday(): string {
@@ -28,7 +32,7 @@ function deriveTotal(start: string, end: string): string {
 //  • botão "Anexar" continua para ARQUIVOS (pdf, planilha, etc.) → vão como anexo.
 // O corpo é enviado como HTML sanitizado; imagens inline são data:URI auto-contidas.
 export interface ComposerStatus { id: number; label: string; is_resolved?: boolean; allows_scheduling?: boolean }
-export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, onSchedule, formStatusIds = [], onFormStatus }: {
+export const InteracaoComposer = forwardRef<ComposerHandle, {
   ticketId: number
   onSent: () => void
   statuses?: ComposerStatus[]
@@ -37,7 +41,8 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
   onSchedule?: (date: string, time: string) => void | Promise<void>   // agenda (pausa SLA) quando o status permite
   formStatusIds?: number[]      // status que têm FORMULÁRIO (abre ao selecionar)
   onFormStatus?: (statusId: number) => void
-}) {
+  macros?: MacroItem[]          // macros (ex-playbooks) — preenchem o texto
+}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, onSchedule, formStatusIds = [], onFormStatus, macros = [] }, ref) {
   const [visibility, setVisibility] = useState<'customer' | 'internal'>('customer')
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
   // a resposta só libera após escolher. Escolher o status atual = manter.
@@ -64,6 +69,20 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
   const idemRef = useRef<string | null>(null)
 
   const syncEmpty = () => { const ed = edRef.current; setEmpty(!ed || ed.textContent?.trim() === '' && !ed.querySelector('img')) }
+
+  // Macro (ex-playbook): APENAS insere o texto no campo de resposta. Só após escolher o status.
+  const [macroOpen, setMacroOpen] = useState(false)
+  const insertMacroReply = (text: string) => {
+    if (!sendStatus) { toast.error('Escolha o status antes de aplicar a macro.'); return }
+    const t = (text ?? '').trim()
+    if (!t) { toast.error('Esta macro não tem texto de resposta.'); return }
+    const ed = edRef.current; if (!ed) return
+    ed.focus()
+    const safe = t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+    document.execCommand('insertHTML', false, (ed.textContent?.trim() ? '<br>' : '') + safe)
+    syncEmpty()
+  }
+  useImperativeHandle(ref, () => ({ insertMacroReply }), [sendStatus]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const insertImage = (dataUrl: string) => {
     const ed = edRef.current; if (!ed) return
@@ -290,6 +309,32 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
             <Paperclip size={14} /> Anexar
             <input type="file" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = '' }} />
           </label>
+          {/* Macro — insere o texto da resposta. Só habilita após escolher o status. */}
+          {macros.length > 0 && (
+            <div className="relative">
+              <button type="button" onClick={() => setMacroOpen(o => !o)} disabled={!sendStatus}
+                title={sendStatus ? 'Inserir o texto de uma macro' : 'Escolha o status primeiro'}
+                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md font-medium"
+                style={{ color: sendStatus ? 'var(--primary)' : 'var(--text-light)', background: 'var(--primary-soft)', opacity: sendStatus ? 1 : 0.55, cursor: sendStatus ? 'pointer' : 'not-allowed' }}>
+                <Zap size={13} /> Macro <ChevronDown size={12} />
+              </button>
+              {macroOpen && sendStatus && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMacroOpen(false)} />
+                  <div className="absolute left-0 bottom-full mb-1 z-50 w-64 ds-card p-1 max-h-72 overflow-y-auto" style={{ boxShadow: '0 8px 24px rgba(0,0,0,.18)' }}>
+                    {macros.map(m => (
+                      <button key={m.id} type="button" onClick={() => { setMacroOpen(false); insertMacroReply(visibility === 'internal' ? (m.internal || m.reply || '') : (m.reply || '')) }}
+                        className="flex items-center gap-2 w-full text-left px-2 py-1.5 rounded ds-row-hover text-sm">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: m.color ?? 'var(--text-muted)' }} />
+                        <span className="flex-1 truncate" style={{ color: 'var(--text)' }}>{m.name}</span>
+                        {m.category && <span className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>{m.category}</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           {files.length > 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{files.length} anexo(s)</span>}
         </div>
         <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={send} disabled={sending || !sendStatus || (empty && files.length === 0)}>
@@ -298,4 +343,4 @@ export function InteracaoComposer({ ticketId, onSent, statuses = [], currentStat
       </div>
     </div>
   )
-}
+})
