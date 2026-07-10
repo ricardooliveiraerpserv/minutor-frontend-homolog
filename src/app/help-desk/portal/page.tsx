@@ -7,17 +7,17 @@ import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { EmailFrame } from '@/components/help-desk/email-frame'
 import { AbrirChamadoModal } from '@/components/help-desk/abrir-chamado-modal'
 import { toast } from 'sonner'
-import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, Paperclip, Upload, Trash2, CheckCircle2 } from 'lucide-react'
+import { LifeBuoy, Plus, BookOpen, ArrowLeft, Send, ThumbsUp, ThumbsDown, Paperclip, Trash2, CheckCircle2 } from 'lucide-react'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
-const lbl = 'text-[11px] font-semibold block mb-0.5'
 const fmtDate = (s?: string | null) => s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'
 
 // Payload do Portal (DTO curado — sem campos internos)
 interface PortalSla { previsao_resolucao: string | null; respondido: boolean; resolvido_em: string | null; em_pausa: boolean }
-interface PortalComment { id: number; de: 'voce' | 'atendimento'; mensagem: string; criado_em: string }
-interface PortalAtt { id: number; nome: string | null; tamanho: string | null; criado_em: string | null; download: string }
+interface PortalCommentAtt { id: number; nome: string | null; tamanho: string | null; is_image: boolean; download: string }
+interface PortalComment { id: number; de: 'voce' | 'atendimento'; mensagem: string; criado_em: string; anexos?: PortalCommentAtt[] }
+interface PortalAtt { id: number; nome: string | null; tamanho: string | null; is_image?: boolean; criado_em: string | null; download: string }
 interface PortalTicket {
   id: number; numero: string | null; assunto?: string; prioridade?: string
   status?: { label: string; cor: string | null } | null
@@ -177,16 +177,22 @@ function Chamados() {
 function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
   const [t, setT] = useState<PortalTicket | null>(null)
   const [body, setBody] = useState(''); const [sending, setSending] = useState(false)
-  const [uploading, setUploading] = useState(false)
+  const [files, setFiles] = useState<File[]>([])   // anexos/prints DA interação (vão junto do envio)
   const load = useCallback(() => { api.get<{ data: PortalTicket }>(`/help-desk/portal/tickets/${id}`).then(r => setT(r?.data ?? null)).catch(() => toast.error('Erro')) }, [id])
   useEffect(() => { load() }, [load])
-  const send = async () => { if (!body.trim()) return; setSending(true); try { await api.post(`/help-desk/portal/tickets/${id}/comments`, { body: body.trim() }); setBody(''); load() } catch { toast.error('Erro ao enviar') } finally { setSending(false) } }
-  const upload = async (file: File) => {
-    setUploading(true); const fd = new FormData(); fd.append('file', file)
-    try { await api.post(`/help-desk/portal/tickets/${id}/attachments`, fd); toast.success('Arquivo anexado'); load() }
-    catch { toast.error('Erro ao anexar') } finally { setUploading(false) }
+  const addFiles = (list: FileList | File[]) => { const arr = Array.from(list); if (arr.length) setFiles(f => [...f, ...arr]) }
+  const removeFile = (i: number) => setFiles(f => f.filter((_, j) => j !== i))
+  const send = async () => {
+    if (!body.trim() && files.length === 0) return
+    setSending(true)
+    try {
+      const fd = new FormData()
+      fd.append('body', body.trim())
+      files.forEach(f => fd.append('files[]', f))
+      await api.post(`/help-desk/portal/tickets/${id}/comments`, fd)
+      setBody(''); setFiles([]); load()
+    } catch { toast.error('Erro ao enviar') } finally { setSending(false) }
   }
-  const delAtt = async (attId: number) => { try { await api.delete(`/help-desk/portal/tickets/${id}/attachments/${attId}`); load() } catch { toast.error('Erro ao excluir') } }
 
   if (!t) return <div className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
   const prazo = t.sla?.previsao_resolucao
@@ -224,47 +230,69 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
         {t.sla_primeira_resposta && <PRow k="Limite 1ª resposta" v={fmtDate(t.sla_primeira_resposta)} />}
         {t.tags && t.tags.length > 0 && <PRow k="Tags" v={t.tags.join(', ')} />}
       </div>
-      {t.descricao && (isHtmlBody(t.descricao)
-        ? <EmailFrame html={t.descricao} />
-        : <div className="ds-card p-3"><p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{t.descricao}</p></div>)}
-
-      {/* Anexos */}
-      <div className="ds-card p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className={lbl} style={{ color: 'var(--text-light)' }}><Paperclip size={12} className="inline -mt-0.5 mr-1" />Anexos ({t.anexos?.length ?? 0})</span>
-          <label className="inline-flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--primary)' }}>
-            {uploading ? 'Enviando…' : <><Upload size={13} /> Anexar arquivo</>}
-            <input type="file" className="hidden" disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.currentTarget.value = '' }} />
-          </label>
+      {/* Descrição (1ª interação) + seus anexos — nada de anexo solto. */}
+      {(t.descricao || (t.anexos && t.anexos.length > 0)) && (
+        <div className="ds-card p-3 space-y-2">
+          <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Descrição</div>
+          {t.descricao && (isHtmlBody(t.descricao)
+            ? <EmailFrame html={t.descricao} />
+            : <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{t.descricao}</p>)}
+          {t.anexos && t.anexos.length > 0 && (
+            <div className="space-y-2 pt-1">
+              {t.anexos.filter(a => a.is_image).map(a => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <a key={a.id} href={a.download} target="_blank" rel="noopener noreferrer"><img src={a.download} alt={a.nome ?? 'anexo'} className="rounded-lg max-h-64" style={{ border: '1px solid var(--border)' }} /></a>
+              ))}
+              {t.anexos.filter(a => !a.is_image).map(a => (
+                <a key={a.id} href={a.download} className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--primary)' }}><Paperclip size={12} /> {a.nome ?? `Anexo #${a.id}`}{a.tamanho ? ` · ${a.tamanho}` : ''}</a>
+              ))}
+            </div>
+          )}
         </div>
-        {(t.anexos ?? []).length === 0 ? <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Nenhum anexo.</p> : (t.anexos ?? []).map(a => (
-          <div key={a.id} className="flex items-center justify-between text-xs">
-            <a href={a.download} className="ds-link truncate" style={{ color: 'var(--primary)' }}>{a.nome ?? `Anexo #${a.id}`} {a.tamanho ? `· ${a.tamanho}` : ''}</a>
-            <button onClick={() => delAtt(a.id)} title="Excluir meu anexo"><Trash2 size={13} style={{ color: 'var(--danger-border)' }} /></button>
-          </div>
-        ))}
-      </div>
+      )}
 
-      {/* Conversa */}
+      {/* Conversa — anexos vão JUNTO de cada interação (nada solto). */}
       <div className="ds-card p-3 space-y-3">
         {(t.comentarios ?? []).length === 0 && <p className="text-sm text-center py-2" style={{ color: 'var(--text-muted)' }}>Sem respostas ainda.</p>}
         {(t.comentarios ?? []).map(c => (
           <div key={c.id} className="rounded-lg p-3" style={{ background: c.de === 'voce' ? 'var(--primary-soft)' : 'var(--surface-sunken)' }}>
             <div className="flex items-center justify-between mb-1"><span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{c.de === 'voce' ? 'Você' : 'Atendimento'}</span><span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(c.criado_em)}</span></div>
-            {isHtmlBody(c.mensagem)
+            {c.mensagem && (isHtmlBody(c.mensagem)
               ? <div className="text-sm hd-rich" style={{ color: 'var(--text)' }} dangerouslySetInnerHTML={{ __html: sanitizeRich(c.mensagem) }} />
-              : <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{c.mensagem}</p>}
+              : <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{c.mensagem}</p>)}
+            {c.anexos && c.anexos.length > 0 && (
+              <div className="mt-2 space-y-2">
+                {c.anexos.filter(a => a.is_image).map(a => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <a key={a.id} href={a.download} target="_blank" rel="noopener noreferrer"><img src={a.download} alt={a.nome ?? 'anexo'} className="rounded-lg max-h-64" style={{ border: '1px solid var(--border)' }} /></a>
+                ))}
+                {c.anexos.filter(a => !a.is_image).map(a => (
+                  <a key={a.id} href={a.download} className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--primary)' }}><Paperclip size={12} /> {a.nome ?? `Anexo #${a.id}`}{a.tamanho ? ` · ${a.tamanho}` : ''}</a>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         <div className="border-t pt-3 space-y-2" style={{ borderColor: 'var(--border)' }}>
+          {/* Anexos DA resposta (aparecem como chips e vão junto ao enviar) */}
+          {files.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {files.map((f, i) => (
+                <div key={i} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px]" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+                  <Paperclip size={11} /><span className="max-w-[140px] truncate">{f.name}</span>
+                  <button onClick={() => removeFile(i)} aria-label="Remover"><Trash2 size={11} style={{ color: 'var(--text-light)' }} /></button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2">
-            <textarea className={`${fieldCls} flex-1`} style={inputStyle} rows={2} placeholder="Escreva uma resposta… (cole um print com Ctrl+V)" value={body} onChange={e => setBody(e.target.value)}
-              onPaste={e => { const imgs = Array.from(e.clipboardData.items).filter(it => it.type.startsWith('image/')); const fs = imgs.map(it => it.getAsFile()).filter(Boolean) as File[]; fs.forEach(f => upload(f)) }} />
-            <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 rounded-lg self-end py-2" onClick={send} disabled={sending || !body.trim()}><Send size={14} /></button>
+            <textarea className={`${fieldCls} flex-1`} style={inputStyle} rows={2} placeholder="Escreva uma resposta… (cole um print com Ctrl+V ou anexe arquivos)" value={body} onChange={e => setBody(e.target.value)}
+              onPaste={e => { const imgs = Array.from(e.clipboardData.items).filter(it => it.type.startsWith('image/')); const fs = imgs.map(it => it.getAsFile()).filter(Boolean) as File[]; if (fs.length) { addFiles(fs); toast.success('Print anexado') } }} />
+            <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 rounded-lg self-end py-2" onClick={send} disabled={sending || (!body.trim() && files.length === 0)}><Send size={14} /></button>
           </div>
           <label className="inline-flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--primary)' }}>
-            {uploading ? 'Enviando…' : <><Paperclip size={13} /> Anexar arquivo</>}
-            <input type="file" className="hidden" disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.currentTarget.value = '' }} />
+            <Paperclip size={13} /> Anexar arquivo
+            <input type="file" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = '' }} />
           </label>
         </div>
       </div>
