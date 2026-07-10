@@ -460,6 +460,7 @@ export default function HelpDeskTicketDetailPage() {
         {/* Resumo Operacional — o essencial para atender; contexto completo no Drawer */}
         <ResumoOperacional key={refreshKey} ticketId={id} sla={t.sla}
           assigneeName={t.assignee?.name} requesterName={t.solicitante?.name ?? t.requester_name ?? t.contact?.name}
+          apontadoHoras={apontamentos.reduce((s, a) => s + (a.horas || 0), 0)}
           onOpenContext={openCtx} onRunPlaybook={runPlaybook} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

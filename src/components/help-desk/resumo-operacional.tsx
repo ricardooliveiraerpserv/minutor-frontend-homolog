@@ -44,7 +44,7 @@ function slaResumo(sla?: Sla | null): { txt: string; color: string } {
   return { txt: 'Dentro do prazo', color: 'var(--success-border)' }
 }
 
-export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, onOpenContext, onRunPlaybook }: { ticketId: number; sla?: Sla | null; assigneeName?: string | null; requesterName?: string | null; onOpenContext: () => void; onRunPlaybook?: (playbookId: number) => void }) {
+export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, apontadoHoras, onOpenContext, onRunPlaybook }: { ticketId: number; sla?: Sla | null; assigneeName?: string | null; requesterName?: string | null; apontadoHoras?: number; onOpenContext: () => void; onRunPlaybook?: (playbookId: number) => void }) {
   const [ctx, setCtx] = useState<Ctx | null>(null)
   const [empty, setEmpty] = useState(false)
   const load = useCallback(() => {
@@ -103,6 +103,12 @@ export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, 
         ) : sla?.resolution_due_at ? (
           <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>limite {fmtDateTime(sla.resolution_due_at)}</div>
         ) : null}
+      </div>
+
+      {/* Horas apontadas no chamado (soma dos apontamentos) */}
+      <div className="min-w-[100px]">
+        <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Horas apontadas</div>
+        <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{(apontadoHoras ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h</div>
       </div>
 
       {/* Valor/hora — somente coordenador/admin/administrativo (financeiro_visivel) */}
