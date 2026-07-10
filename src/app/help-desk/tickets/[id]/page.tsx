@@ -221,8 +221,8 @@ export default function HelpDeskTicketDetailPage() {
       const r = await api.post<{ data: { start_finalize: boolean; checklist?: string[]; defaults?: { reply: string | null; status_id: number | null } } }>(`/help-desk/tickets/${id}/playbooks/${playbookId}/execute`, {})
       if (modoAtivo) logEvent('playbook_executed', { entityId: id, metadata: { playbook_id: playbookId } })
       if (r.data.start_finalize) onPlaybookFinalize(r.data.defaults ?? { reply: null, status_id: null }, r.data.checklist ?? [])
-      else { toast.success('Playbook executado'); onPlaybookApplied(r.data.checklist ?? []) }
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao executar playbook') }
+      else { toast.success('Macro executada'); onPlaybookApplied(r.data.checklist ?? []) }
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao executar macro') }
   }
   useEffect(() => {
     api.get<{ data: { statuses: StatusOpt[]; justifications?: JustificationOpt[]; categories?: { id: number; name: string }[]; services?: { id: number; parent_id: number | null; name: string; code: string | null; selectable_by_agent?: boolean }[]; channels?: string[] } }>('/help-desk/meta')
@@ -422,7 +422,7 @@ export default function HelpDeskTicketDetailPage() {
         {checklist.length > 0 && (
           <div className="ds-card p-3" style={{ borderColor: 'var(--primary)' }}>
             <div className="flex items-center justify-between mb-1">
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--primary)' }}><CheckSquare size={13} /> Checklist do playbook</span>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--primary)' }}><CheckSquare size={13} /> Checklist da macro</span>
               <button onClick={() => setChecklist([])}><X size={15} style={{ color: 'var(--text-muted)' }} /></button>
             </div>
             <ul className="space-y-0.5">

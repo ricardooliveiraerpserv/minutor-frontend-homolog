@@ -43,7 +43,7 @@ const TABS = [
   { id: 'sla', label: 'SLA' },
   { id: 'formularios', label: 'Formulários' },
   { id: 'tags', label: 'Tags' },
-  { id: 'playbooks', label: 'Playbooks' },
+  { id: 'playbooks', label: 'Macros' },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -121,10 +121,10 @@ function Playbooks() {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Procedimentos operacionais executados em uma ação.</p>
-        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing('new')}><Plus size={15} /> Novo playbook</button>
+        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing('new')}><Plus size={15} /> Nova macro</button>
       </div>
       <div className="space-y-2">
-        {rows.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum playbook.</p>}
+        {rows.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma macro.</p>}
         {rows.map(p => (
           <div key={p.id} className="ds-card p-3 flex items-center justify-between gap-2">
             <button className="flex items-center gap-2 flex-1 text-left" onClick={() => setEditing(p)}>
@@ -177,7 +177,7 @@ function PlaybookEditor({ pb, statuses, teams, agents, onBack, onSaved }: {
     try {
       if (p) await api.put(`/help-desk/playbooks/${p.id}`, body)
       else await api.post('/help-desk/playbooks', body)
-      toast.success('Playbook salvo'); onSaved()
+      toast.success('Macro salva'); onSaved()
     } catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
   }
 
@@ -208,7 +208,7 @@ function PlaybookEditor({ pb, statuses, teams, agents, onBack, onSaved }: {
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Checklist (um item por linha)</label><textarea className={`${fieldCls} w-full`} style={inputStyle} rows={3} value={checklist} onChange={e => setChecklist(e.target.value)} /></div>
         <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text)' }}><input type="checkbox" checked={startFinalize} onChange={e => setStartFinalize(e.target.checked)} /> Abrir fluxo &quot;Finalizar Atendimento&quot;</label>
         {startFinalize && <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Status sugerido na finalização</label><select className={`${fieldCls} w-64`} style={inputStyle} value={finalizeStatusId} onChange={e => setFinalizeStatusId(e.target.value)}><option value="">—</option>{statuses.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></div>}
-        <div className="flex justify-end"><button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg" onClick={save} disabled={saving}><Save size={14} /> Salvar playbook</button></div>
+        <div className="flex justify-end"><button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg" onClick={save} disabled={saving}><Save size={14} /> Salvar macro</button></div>
       </div>
     </div>
   )

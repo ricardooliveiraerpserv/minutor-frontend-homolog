@@ -189,7 +189,7 @@ export default function CentralOperacoesPage() {
                   <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>{s.label}</div>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
                     <span>{s.atendidos} atendidos</span><span>{s.resolvidos} resolvidos</span><span>{s.horas_apontadas}h</span>
-                    {s.playbooks > 0 && <span>{s.playbooks} playbooks</span>}
+                    {s.playbooks > 0 && <span>{s.playbooks} macros</span>}
                     {s.tempo_medio_seg && <span>média {fmtDur(s.tempo_medio_seg)}</span>}
                   </div>
                   <div className="flex items-center justify-between pt-0.5">
