@@ -72,7 +72,7 @@ const PRIO_MAP: Record<string, { label: string; color: string; bg: string }> = {
 }
 // Kanban do CLIENTE: agluttina os status internos em buckets simples (perfil interno não muda).
 const BUCKETS: { label: string; cor: string; statuses: string[] }[] = [
-  { label: 'Pendente ERPSERV',   cor: '#3b82f6', statuses: ['Novo', 'Em andamento', 'GMUD em Planejamento', 'Em Desenvolvimento'] },
+  { label: 'Pendente ERPSERV',   cor: '#3b82f6', statuses: ['Novo', 'Em atendimento', 'GMUD em Planejamento', 'Em Desenvolvimento'] },
   { label: 'Pendente cliente',   cor: '#f59e0b', statuses: ['Aguardando cliente'] },
   { label: 'Pendente terceiros', cor: '#a855f7', statuses: ['Pendente terceiros'] },
   { label: 'Resolvido',          cor: '#16a34a', statuses: ['Resolvido', 'Solução com GMUD'] },
