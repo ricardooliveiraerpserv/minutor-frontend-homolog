@@ -382,7 +382,7 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
         {(t.descricao || (t.anexos && t.anexos.length > 0)) && (
           <div className="rounded-lg p-3" style={{ background: 'var(--surface-sunken)' }}>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}>Você
+              <span className="text-xs font-semibold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}>{t.solicitante ?? 'Você'}
                 <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>descrição inicial</span>
               </span>
               <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(t.criado_em)}</span>
