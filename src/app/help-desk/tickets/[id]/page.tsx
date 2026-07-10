@@ -41,6 +41,7 @@ interface TicketDetail {
   requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean
   solicitante?: { name: string | null; email: string | null } | null
   previous_ticket?: { id: number; ticket_number: string | null; subject: string } | null
+  continuation_ticket?: { id: number; ticket_number: string | null } | null
   customer?: Ref | null; contact?: Ref | null; assignee?: Ref | null; team?: Ref | null
   category?: { id: number; name: string } | null; status?: StatusOpt | null
   project?: { id: number; name: string } | null
@@ -472,6 +473,22 @@ export default function HelpDeskTicketDetailPage() {
             <button onClick={() => router.push(`/help-desk/tickets/${t.previous_ticket!.id}`)}
               className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg shrink-0" title="Abrir o chamado de origem">
               Ver chamado de origem <ArrowRight size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Este chamado (encerrado) teve continuidade — botão pro chamado atual */}
+        {t.continuation_ticket && (
+          <div className="flex items-center justify-between gap-3 flex-wrap rounded-lg px-4 py-3"
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+            <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--primary)' }}>
+              <ArrowRight size={16} className="shrink-0" />
+              <span>➡️ Este atendimento teve continuidade no chamado{' '}
+                <span className="font-mono font-bold">{t.continuation_ticket.ticket_number ?? `#${t.continuation_ticket.id}`}</span>.</span>
+            </div>
+            <button onClick={() => router.push(`/help-desk/tickets/${t.continuation_ticket!.id}`)}
+              className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg shrink-0" title="Abrir o chamado atual">
+              Ver chamado atual <ArrowRight size={14} />
             </button>
           </div>
         )}

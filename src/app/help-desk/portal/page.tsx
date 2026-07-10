@@ -29,6 +29,7 @@ interface PortalTicket {
   responsavel?: string | null
   justificativa?: string | null; horas_apontadas?: number; tags?: string[]; sla_primeira_resposta?: string | null
   chamado_anterior?: { id: number; numero: string | null } | null
+  chamado_atual?: { id: number; numero: string | null } | null
 }
 interface KbArticle { id: number; titulo: string; resumo: string | null; conteudo?: string | null; categoria?: string | null }
 
@@ -283,6 +284,20 @@ function TicketView({ id, onBack, onOpen }: { id: number; onBack: () => void; on
           <button onClick={() => onOpen(t.chamado_anterior!.id)}
             className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg shrink-0" title="Ver o chamado anterior">
             Ver chamado anterior <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Este chamado (encerrado) teve continuidade — botão pro chamado atual/novo */}
+      {t.chamado_atual && (
+        <div className="flex items-center justify-between gap-3 flex-wrap rounded-lg px-4 py-3"
+          style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+          <div className="text-sm font-semibold" style={{ color: 'var(--primary)' }}>
+            ➡️ Este atendimento teve continuidade no chamado <span className="font-mono font-bold">{t.chamado_atual.numero ?? `#${t.chamado_atual.id}`}</span>.
+          </div>
+          <button onClick={() => onOpen(t.chamado_atual!.id)}
+            className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg shrink-0" title="Ver o chamado atual">
+            Ver chamado atual <ArrowRight size={14} />
           </button>
         </div>
       )}
