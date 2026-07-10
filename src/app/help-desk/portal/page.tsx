@@ -77,6 +77,18 @@ const BUCKETS: { label: string; cor: string; statuses: string[] }[] = [
 ]
 const KNOWN_STATUSES = new Set(BUCKETS.flatMap(b => b.statuses))
 
+// Status do SLA voltado ao cliente (rótulo + cor).
+function slaStatus(t: PortalTicket): { label: string; color: string } {
+  if (t.sla?.resolvido_em) return { label: 'Resolvido', color: 'var(--success-border)' }
+  if (t.sla?.em_pausa) return { label: 'Pausado — aguardando você', color: 'var(--warning-border)' }
+  const p = t.sla?.previsao_resolucao
+  if (!p) return { label: '—', color: 'var(--text-muted)' }
+  const diff = new Date(p).getTime() - Date.now()
+  if (diff < 0) return { label: 'Prazo estourado', color: 'var(--danger-border)' }
+  if (diff < 24 * 3600 * 1000) return { label: 'Vencendo', color: 'var(--warning-border)' }
+  return { label: 'No prazo', color: 'var(--success-border)' }
+}
+
 // Bolinha de criticidade do prazo (voltada ao cliente): resolvido/pausa sem bolinha; senão pela previsão.
 function portalDot(t: PortalTicket): { dot: string; title: string } {
   if (isResolved(t) || t.sla?.em_pausa) return { dot: '', title: '' }
@@ -196,8 +208,10 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
 
   if (!t) return <div className="py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</div>
   const prazo = t.sla?.previsao_resolucao
+  const sla = slaStatus(t)
+  const prio = t.prioridade ? PRIO_MAP[t.prioridade] : null
   return (
-    <div className="space-y-3 max-w-2xl">
+    <div className="space-y-3 w-full max-w-5xl">
       <div className="flex items-center gap-3">
         <button onClick={onBack}><ArrowLeft size={20} style={{ color: 'var(--text-muted)' }} /></button>
         <span className="font-mono text-xl font-bold" style={{ color: 'var(--text)' }}>{t.numero ?? `#${t.id}`}</span>
@@ -220,7 +234,18 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
         {t.equipe && <PRow k="Equipe" v={t.equipe} />}
         {t.categoria && <PRow k="Categoria" v={t.categoria} />}
         {t.servico && <PRow k="Serviço" v={t.servico} />}
-        {t.prioridade && <PRow k="Urgência" v={t.prioridade} />}
+        {prio && (
+          <div className="flex items-center justify-between gap-2">
+            <span style={{ color: 'var(--text-light)' }}>Urgência</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ color: prio.color, background: prio.bg }}>{prio.label}</span>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-2">
+          <span style={{ color: 'var(--text-light)' }}>SLA</span>
+          <span className="inline-flex items-center gap-1.5 font-semibold" style={{ color: sla.color }}>
+            <span className="w-2 h-2 rounded-full" style={{ background: sla.color }} />{sla.label}
+          </span>
+        </div>
         {t.nivel && <PRow k="Nível" v={t.nivel} />}
         {t.cc && t.cc.length > 0 && <PRow k="CC (envolvidos)" v={t.cc.join(', ')} />}
         {t.reaberturas != null && <PRow k="Reaberturas" v={String(t.reaberturas)} />}
@@ -236,7 +261,7 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
           <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Descrição</div>
           {t.descricao && (isHtmlBody(t.descricao)
             ? <EmailFrame html={t.descricao} />
-            : <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{t.descricao}</p>)}
+            : <p className="text-sm whitespace-pre-wrap rounded-lg px-3 py-2.5" style={{ background: '#ffffff', color: '#1f2937' }}>{t.descricao}</p>)}
           {t.anexos && t.anexos.length > 0 && (
             <div className="space-y-2 pt-1">
               {t.anexos.filter(a => a.is_image).map(a => (
@@ -257,9 +282,13 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
         {(t.comentarios ?? []).map(c => (
           <div key={c.id} className="rounded-lg p-3" style={{ background: c.de === 'voce' ? 'var(--primary-soft)' : 'var(--surface-sunken)' }}>
             <div className="flex items-center justify-between mb-1"><span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{c.de === 'voce' ? 'Você' : 'Atendimento'}</span><span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(c.criado_em)}</span></div>
-            {c.mensagem && (isHtmlBody(c.mensagem)
-              ? <div className="text-sm hd-rich" style={{ color: 'var(--text)' }} dangerouslySetInnerHTML={{ __html: sanitizeRich(c.mensagem) }} />
-              : <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{c.mensagem}</p>)}
+            {c.mensagem && (
+              <div className="text-sm rounded-lg px-3 py-2" style={{ background: '#ffffff', color: '#1f2937' }}>
+                {isHtmlBody(c.mensagem)
+                  ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(c.mensagem) }} />
+                  : <p className="whitespace-pre-wrap">{c.mensagem}</p>}
+              </div>
+            )}
             {c.anexos && c.anexos.length > 0 && (
               <div className="mt-2 space-y-2">
                 {c.anexos.filter(a => a.is_image).map(a => (
@@ -286,7 +315,7 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
             </div>
           )}
           <div className="flex gap-2">
-            <textarea className={`${fieldCls} flex-1`} style={inputStyle} rows={2} placeholder="Escreva uma resposta… (cole um print com Ctrl+V ou anexe arquivos)" value={body} onChange={e => setBody(e.target.value)}
+            <textarea className={`${fieldCls} flex-1`} style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb' }} rows={2} placeholder="Escreva uma resposta… (cole um print com Ctrl+V ou anexe arquivos)" value={body} onChange={e => setBody(e.target.value)}
               onPaste={e => { const imgs = Array.from(e.clipboardData.items).filter(it => it.type.startsWith('image/')); const fs = imgs.map(it => it.getAsFile()).filter(Boolean) as File[]; if (fs.length) { addFiles(fs); toast.success('Print anexado') } }} />
             <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 rounded-lg self-end py-2" onClick={send} disabled={sending || (!body.trim() && files.length === 0)}><Send size={14} /></button>
           </div>
