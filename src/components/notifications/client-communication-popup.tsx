@@ -10,6 +10,13 @@ interface UnreadItem { id: number; tipo: string; title: string; excerpt: string;
 const TIPO_L: Record<string, string> = { aviso: 'Aviso', formal: 'Comunicação formal', marketing: 'Marketing', campanha: 'Campanha' }
 const POLL_MS = 30000   // rede de segurança (igual ao popup interno) — aparece sem o usuário recarregar
 
+// "Ver como" (impersonação): NÃO exibir o pop-up — o admin não deve marcar comunicado do cliente
+// como lido, e a leitura não persiste pro impersonado (por isso "reaparece" ao recarregar).
+function isImpersonating(): boolean {
+  if (typeof window === 'undefined') return false
+  try { return !!window.sessionStorage.getItem('minutor_impersonating') } catch { return false }
+}
+
 /**
  * Popup de prévia exibido ao cliente quando há comunicado novo (não lido). Aparece em TEMPO REAL
  * (checagem ao montar + polling + ao focar a aba), sem precisar recarregar. Não fecha ao clicar fora.
@@ -24,6 +31,7 @@ export function ClientCommunicationPopup() {
   openRef.current = open
 
   const check = useCallback(() => {
+    if (isImpersonating()) return                                // "Ver como": sem pop-up de comunicado
     if (pathname === '/comunicados' || openRef.current) return   // a aba Comunicados marca como lido
     api.get<{ data: { count: number; items: UnreadItem[] } }>('/communications/unread')
       .then(r => {
