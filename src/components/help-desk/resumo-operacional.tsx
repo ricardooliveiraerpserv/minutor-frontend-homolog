@@ -65,63 +65,80 @@ export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, 
   const isSlaAtencao = (a: Atencao) => /sla/i.test(a.code) || /sla/i.test(a.message)
   const atencao = (ctx?.atencoes ?? []).find(a => a.severity !== 'ok' && !isSlaAtencao(a)) ?? null
 
+  // Rótulo padrão (uniforme em todas as células).
+  const lbl = 'text-[10px] uppercase tracking-wide font-semibold'
+  const val = 'text-sm font-semibold leading-tight'
+  const cell = 'pl-5 ml-1 border-l'   // divisória vertical entre as células
+  const border = { borderColor: 'var(--border)' }
+
   return (
-    <div className="ds-card flex items-center gap-x-6 gap-y-2 px-4 py-3 flex-wrap" style={{ minHeight: 120 }}>
-      {/* Cliente — destaque (é a informação-âncora do atendimento) */}
-      <div className="min-w-[150px]">
-        <div className="text-[11px] uppercase tracking-wide font-semibold" style={{ color: 'var(--primary)' }}>Cliente</div>
-        <div className="font-bold text-xl leading-tight truncate max-w-[240px]" style={{ color: 'var(--text)' }}>{ctx?.blocos.cliente.empresa ?? '—'}</div>
-      </div>
+    <div className="ds-card px-4 py-3">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-stretch gap-y-3 flex-wrap">
+          {/* Cliente — âncora do atendimento */}
+          <div className="min-w-[150px] pr-2">
+            <div className={lbl} style={{ color: 'var(--primary)' }}>Cliente</div>
+            <div className="font-bold text-xl leading-tight truncate max-w-[220px]" style={{ color: 'var(--text)' }}>{ctx?.blocos.cliente.empresa ?? '—'}</div>
+          </div>
 
-      {/* Banco de horas — saldo ABAIXO do rótulo (como as demais células) + barra */}
-      <div className="min-w-[200px] flex-1 max-w-[280px]">
-        <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Banco de horas</div>
-        {bh && <div className="text-sm font-medium" style={{ color: bh.saldo < 0 ? 'var(--danger-border)' : 'var(--text)' }}>Saldo: {fmtH(bh.saldo)}</div>}
-        <div className="h-2 rounded-full mt-1 overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
-          <div className="h-full rounded-full" style={{ width: `${usado}%`, background: usado >= 100 ? 'var(--danger-border)' : usado >= 80 ? 'var(--warning-border)' : 'var(--success-border)' }} />
+          {/* Consultor */}
+          <div className={`min-w-[140px] ${cell}`} style={border}>
+            <div className={lbl} style={{ color: 'var(--text-light)' }}>Consultor</div>
+            <div className={`${val} truncate max-w-[170px]`} style={{ color: assigneeName ? 'var(--text)' : 'var(--text-light)' }}>{assigneeName || 'Não atribuído'}</div>
+          </div>
+
+          {/* Solicitante */}
+          <div className={`min-w-[140px] ${cell}`} style={border}>
+            <div className={lbl} style={{ color: 'var(--text-light)' }}>Solicitante</div>
+            <div className={`${val} truncate max-w-[170px]`} style={{ color: 'var(--text)' }}>{requesterName || '—'}</div>
+          </div>
+
+          {/* SLA — status + limite ou retomada */}
+          <div className={`min-w-[150px] ${cell}`} style={border}>
+            <div className={lbl} style={{ color: 'var(--text-light)' }}>SLA</div>
+            <div className={val} style={{ color: sla?.paused ? 'var(--warning-border)' : s.color }}>{sla?.paused ? 'SLA pausado' : s.txt}</div>
+            {sla?.scheduled && sla?.scheduled_until ? (
+              <div className="text-[11px] mt-0.5" style={{ color: 'var(--warning-border)' }}>⏸️ retoma {sla.scheduled_all_day ? fmtDateOnly(sla.scheduled_until) : fmtDateTime(sla.scheduled_until)}</div>
+            ) : sla?.resolution_due_at ? (
+              <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>limite {fmtDateTime(sla.resolution_due_at)}</div>
+            ) : null}
+          </div>
+
+          {/* Horas apontadas */}
+          <div className={`min-w-[110px] ${cell}`} style={border}>
+            <div className={lbl} style={{ color: 'var(--text-light)' }}>Horas apontadas</div>
+            <div className={val} style={{ color: 'var(--text)' }}>{(apontadoHoras ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h</div>
+          </div>
+
+          {/* Valor/hora — só financeiro_visivel */}
+          {valorHora != null && (
+            <div className={`min-w-[100px] ${cell}`} style={border}>
+              <div className={lbl} style={{ color: 'var(--text-light)' }}>Valor/hora</div>
+              <div className={val} style={{ color: 'var(--text)' }}>{fmtBRL(valorHora)}</div>
+            </div>
+          )}
+
+          {/* Banco de horas — barra ocupa a largura da célula */}
+          <div className={`min-w-[190px] flex-1 max-w-[260px] ${cell}`} style={border}>
+            <div className="flex items-center justify-between gap-2">
+              <div className={lbl} style={{ color: 'var(--text-light)' }}>Banco de horas</div>
+              {bh && <span className="text-xs font-semibold" style={{ color: bh.saldo < 0 ? 'var(--danger-border)' : 'var(--text)' }}>{fmtH(bh.saldo)}</span>}
+            </div>
+            <div className="h-2 rounded-full mt-1.5 overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
+              <div className="h-full rounded-full" style={{ width: `${usado}%`, background: usado >= 100 ? 'var(--danger-border)' : usado >= 80 ? 'var(--warning-border)' : 'var(--success-border)' }} />
+            </div>
+          </div>
         </div>
+
+        {/* Ver contexto completo → Drawer */}
+        <button onClick={onOpenContext} className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg shrink-0">
+          <PanelRightOpen size={15} /> Ver contexto completo
+        </button>
       </div>
 
-      {/* Consultor alocado */}
-      <div className="min-w-[120px]">
-        <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Consultor</div>
-        <div className="text-sm font-medium truncate max-w-[160px]" style={{ color: assigneeName ? 'var(--text)' : 'var(--text-light)' }}>{assigneeName || 'Não atribuído'}</div>
-      </div>
-
-      {/* Solicitante */}
-      <div className="min-w-[120px]">
-        <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Solicitante</div>
-        <div className="text-sm font-medium truncate max-w-[160px]" style={{ color: 'var(--text)' }}>{requesterName || '—'}</div>
-      </div>
-
-      {/* SLA — status + data limite (ou "retoma em" quando pausado por agendamento) */}
-      <div className="min-w-[150px]">
-        <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>SLA</div>
-        <div className="text-sm font-medium" style={{ color: sla?.paused ? 'var(--warning-border)' : s.color }}>{sla?.paused ? 'SLA pausado' : s.txt}</div>
-        {sla?.scheduled && sla?.scheduled_until ? (
-          <div className="text-[11px]" style={{ color: 'var(--warning-border)' }}>⏸️ retoma {sla.scheduled_all_day ? fmtDateOnly(sla.scheduled_until) : fmtDateTime(sla.scheduled_until)}</div>
-        ) : sla?.resolution_due_at ? (
-          <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>limite {fmtDateTime(sla.resolution_due_at)}</div>
-        ) : null}
-      </div>
-
-      {/* Horas apontadas no chamado (soma dos apontamentos) */}
-      <div className="min-w-[100px]">
-        <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Horas apontadas</div>
-        <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{(apontadoHoras ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} h</div>
-      </div>
-
-      {/* Valor/hora — somente coordenador/admin/administrativo (financeiro_visivel) */}
-      {valorHora != null && (
-        <div className="min-w-[90px]">
-          <div className="text-[11px]" style={{ color: 'var(--text-light)' }}>Valor/hora</div>
-          <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>{fmtBRL(valorHora)}</div>
-        </div>
-      )}
-
-      {/* Atenção (diagnóstico) + ação 1-clique se houver playbook sugerido */}
+      {/* Atenção (diagnóstico não-SLA) numa faixa própria abaixo */}
       {atencao && (
-        <div className="flex items-center gap-1.5 min-w-[180px] flex-1 basis-full lg:basis-auto">
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t" style={border}>
           <span className="text-sm" style={{ color: SEV[atencao.severity]?.color }}>{SEV[atencao.severity]?.dot} {atencao.message}</span>
           {atencao.suggested_playbook && onRunPlaybook && (
             <button className="inline-flex items-center gap-1 text-[11px] font-semibold rounded-lg px-2 py-0.5 shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
@@ -129,11 +146,6 @@ export function ResumoOperacional({ ticketId, sla, assigneeName, requesterName, 
           )}
         </div>
       )}
-
-      {/* Ver contexto completo → Drawer */}
-      <button onClick={onOpenContext} className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg ml-auto shrink-0">
-        <PanelRightOpen size={15} /> Ver contexto completo
-      </button>
     </div>
   )
 }
