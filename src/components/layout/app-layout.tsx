@@ -133,7 +133,7 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
               </button>
             </div>
           )}
-          {helpOpen && <AbrirChamadoModal onClose={() => setHelpOpen(false)} onCreated={() => setHelpOpen(false)} />}
+          {helpOpen && <AbrirChamadoModal onClose={() => setHelpOpen(false)} onCreated={(id) => { setHelpOpen(false); router.push(`/help-desk/portal?ticket=${id}`) }} />}
 
           <main className="flex-1 overflow-y-auto p-4 md:p-8">
             {children}

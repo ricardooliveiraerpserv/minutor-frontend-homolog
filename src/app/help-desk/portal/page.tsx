@@ -74,6 +74,11 @@ function Chamados() {
     api.get<{ data: PortalTicket[] }>('/help-desk/portal/tickets').then(r => setRows(r?.data ?? [])).catch(() => toast.error('Erro ao carregar')).finally(() => setLoading(false))
   }, [])
   useEffect(() => { load() }, [load])
+  // Deep-link: /help-desk/portal?ticket=<id> (ex.: "Ver chamado" da faixa de ajuda) abre o chamado.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get('ticket')
+    if (p && /^\d+$/.test(p)) setSel(Number(p))
+  }, [])
 
   if (sel) return <TicketView id={sel} onBack={() => { setSel(null); load() }} />
 
