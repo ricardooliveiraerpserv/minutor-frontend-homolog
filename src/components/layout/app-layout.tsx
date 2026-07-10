@@ -10,7 +10,7 @@ import { api } from '@/lib/api'
 import { NotificationPopups } from '@/components/notifications/notification-popups'
 import { ClientCommunicationPopup } from '@/components/notifications/client-communication-popup'
 import { NavConfigProvider } from '@/contexts/nav-config-context'
-import { Building2, User } from 'lucide-react'
+import { Building2, User, LifeBuoy, Plus } from 'lucide-react'
 
 // Banner de ambiente: cores distintas para evitar confundir DEV ↔ HOMOLOG ↔ PROD.
 // Faixa de ambiente é única, no layout raiz (src/app/layout.tsx). Aqui não duplica.
@@ -115,6 +115,21 @@ export function AppLayout({ children, title, actions }: AppLayoutProps) {
                 </span>
               )}
             </div>
+          )}
+
+          {/* Faixa DISCRETA "Precisa de ajuda?" — em todas as telas do cliente (menos o próprio portal). */}
+          {isCliente && !pathname.startsWith('/help-desk') && (
+            <button onClick={() => router.push('/help-desk/portal')}
+              className="shrink-0 w-full flex items-center gap-2 px-4 md:px-6 py-1.5 border-b text-left ds-row-hover"
+              style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken)' }}>
+              <LifeBuoy size={13} style={{ color: 'var(--primary)' }} className="shrink-0" />
+              <span className="text-xs flex-1 min-w-0 truncate" style={{ color: 'var(--text-muted)' }}>
+                <strong style={{ color: 'var(--text)' }}>Precisa de ajuda?</strong> Abra um chamado e acompanhe respostas, prazos e anexos.
+              </span>
+              <span className="text-[11px] font-semibold inline-flex items-center gap-1 px-2 py-0.5 rounded-lg shrink-0" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                <Plus size={12} /> Abrir chamado
+              </span>
+            </button>
           )}
 
           <main className="flex-1 overflow-y-auto p-4 md:p-8">
