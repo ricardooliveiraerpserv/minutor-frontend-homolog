@@ -40,6 +40,7 @@ interface TicketDetail {
   priority: string; level: string | null; channel: string; reopen_count: number
   requester_name?: string | null; requester_email?: string | null; cc_emails?: string[] | null; can_edit_description?: boolean
   solicitante?: { name: string | null; email: string | null } | null
+  previous_ticket?: { id: number; ticket_number: string | null; subject: string } | null
   customer?: Ref | null; contact?: Ref | null; assignee?: Ref | null; team?: Ref | null
   category?: { id: number; name: string } | null; status?: StatusOpt | null
   project?: { id: number; name: string } | null
@@ -456,6 +457,23 @@ export default function HelpDeskTicketDetailPage() {
             </button>
           </div>
         </div>
+
+        {/* CONTINUAÇÃO — banner bem evidente quando o chamado dá sequência a um chamado encerrado */}
+        {t.previous_ticket && (
+          <div className="flex items-center justify-between gap-3 flex-wrap rounded-lg px-4 py-3"
+            style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+            <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--warning)' }}>
+              <ArrowRight size={16} className="shrink-0" />
+              <span>🔗 Continuação do chamado{' '}
+                <span className="font-mono font-bold">{t.previous_ticket.ticket_number ?? `#${t.previous_ticket.id}`}</span>
+                {' '}— este chamado dá sequência a um atendimento encerrado.</span>
+            </div>
+            <button onClick={() => router.push(`/help-desk/tickets/${t.previous_ticket!.id}`)}
+              className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg shrink-0" title="Abrir o chamado de origem">
+              Ver chamado de origem <ArrowRight size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Resumo Operacional — o essencial para atender; contexto completo no Drawer */}
         <ResumoOperacional key={refreshKey} ticketId={id} sla={t.sla}
