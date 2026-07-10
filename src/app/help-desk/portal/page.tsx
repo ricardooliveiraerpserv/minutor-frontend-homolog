@@ -215,9 +215,16 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
               : <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{c.mensagem}</p>}
           </div>
         ))}
-        <div className="border-t pt-3 flex gap-2" style={{ borderColor: 'var(--border)' }}>
-          <textarea className={`${fieldCls} flex-1`} style={inputStyle} rows={2} placeholder="Escreva uma resposta…" value={body} onChange={e => setBody(e.target.value)} />
-          <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 rounded-lg self-end py-2" onClick={send} disabled={sending || !body.trim()}><Send size={14} /></button>
+        <div className="border-t pt-3 space-y-2" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex gap-2">
+            <textarea className={`${fieldCls} flex-1`} style={inputStyle} rows={2} placeholder="Escreva uma resposta… (cole um print com Ctrl+V)" value={body} onChange={e => setBody(e.target.value)}
+              onPaste={e => { const imgs = Array.from(e.clipboardData.items).filter(it => it.type.startsWith('image/')); const fs = imgs.map(it => it.getAsFile()).filter(Boolean) as File[]; fs.forEach(f => upload(f)) }} />
+            <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 rounded-lg self-end py-2" onClick={send} disabled={sending || !body.trim()}><Send size={14} /></button>
+          </div>
+          <label className="inline-flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--primary)' }}>
+            {uploading ? 'Enviando…' : <><Paperclip size={13} /> Anexar arquivo</>}
+            <input type="file" className="hidden" disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) upload(f); e.currentTarget.value = '' }} />
+          </label>
         </div>
       </div>
     </div>
