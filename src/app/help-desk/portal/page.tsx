@@ -24,7 +24,9 @@ interface PortalTicket {
   criado_em?: string; atualizado_em: string; sla?: PortalSla
   descricao?: string | null; comentarios?: PortalComment[]; anexos?: PortalAtt[]
   // Campos visíveis conforme o perfil de acesso do cliente (podem não vir)
-  servico?: string | null; responsavel?: string | null; categoria?: string | null
+  cliente?: string | null; solicitante?: string | null; agente?: string | null; equipe?: string | null
+  categoria?: string | null; servico?: string | null; nivel?: string | null; reaberturas?: number; cc?: string[]
+  responsavel?: string | null
   justificativa?: string | null; horas_apontadas?: number; tags?: string[]; sla_primeira_resposta?: string | null
 }
 interface KbArticle { id: number; titulo: string; resumo: string | null; conteudo?: string | null; categoria?: string | null }
@@ -175,19 +177,25 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
       {t.assunto && <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.assunto}</h1>}
       {prazo && !t.sla?.resolvido_em && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Previsão de resolução: {fmtDate(prazo)}</p>}
 
-      {/* Detalhes visíveis conforme o perfil de acesso (só mostra o que vier) */}
-      {(t.servico || t.responsavel || t.categoria || t.justificativa || t.prioridade || t.horas_apontadas != null || (t.tags && t.tags.length > 0) || t.sla_primeira_resposta) && (
-        <div className="ds-card p-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-          {t.servico && <PRow k="Serviço" v={t.servico} />}
-          {t.categoria && <PRow k="Categoria" v={t.categoria} />}
-          {t.prioridade && <PRow k="Urgência" v={t.prioridade} />}
-          {t.responsavel && <PRow k="Responsável" v={t.responsavel} />}
-          {t.justificativa && <PRow k="Justificativa" v={t.justificativa} />}
-          {t.horas_apontadas != null && <PRow k="Horas apontadas" v={`${t.horas_apontadas}h`} />}
-          {t.sla_primeira_resposta && <PRow k="Limite 1ª resposta" v={fmtDate(t.sla_primeira_resposta)} />}
-          {t.tags && t.tags.length > 0 && <PRow k="Tags" v={t.tags.join(', ')} />}
-        </div>
-      )}
+      {/* Detalhes do chamado — o cliente vê os dados do próprio chamado */}
+      <div className="ds-card p-3 space-y-1.5 text-sm">
+        <div className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-light)' }}>Detalhes</div>
+        {t.cliente && <PRow k="Cliente" v={t.cliente} />}
+        {t.solicitante && <PRow k="Solicitante" v={t.solicitante} />}
+        {(t.agente || t.responsavel) && <PRow k="Agente" v={(t.agente || t.responsavel)!} />}
+        {t.equipe && <PRow k="Equipe" v={t.equipe} />}
+        {t.categoria && <PRow k="Categoria" v={t.categoria} />}
+        {t.servico && <PRow k="Serviço" v={t.servico} />}
+        {t.prioridade && <PRow k="Urgência" v={t.prioridade} />}
+        {t.nivel && <PRow k="Nível" v={t.nivel} />}
+        {t.cc && t.cc.length > 0 && <PRow k="CC (envolvidos)" v={t.cc.join(', ')} />}
+        {t.reaberturas != null && <PRow k="Reaberturas" v={String(t.reaberturas)} />}
+        {t.criado_em && <PRow k="Aberto em" v={fmtDate(t.criado_em)} />}
+        {t.justificativa && <PRow k="Justificativa" v={t.justificativa} />}
+        {t.horas_apontadas != null && <PRow k="Horas apontadas" v={`${t.horas_apontadas}h`} />}
+        {t.sla_primeira_resposta && <PRow k="Limite 1ª resposta" v={fmtDate(t.sla_primeira_resposta)} />}
+        {t.tags && t.tags.length > 0 && <PRow k="Tags" v={t.tags.join(', ')} />}
+      </div>
       {t.descricao && (isHtmlBody(t.descricao)
         ? <EmailFrame html={t.descricao} />
         : <div className="ds-card p-3"><p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{t.descricao}</p></div>)}
