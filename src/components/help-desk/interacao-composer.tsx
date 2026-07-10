@@ -42,8 +42,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   formStatusIds?: number[]      // status que têm FORMULÁRIO (abre ao selecionar)
   onFormStatus?: (statusId: number) => void
   macros?: MacroItem[]          // macros (ex-playbooks) — preenchem o texto
-  signature?: string            // assinatura anexada às RESPOSTAS AO CLIENTE
-}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, onSchedule, formStatusIds = [], onFormStatus, macros = [], signature }, ref) {
+}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, onSchedule, formStatusIds = [], onFormStatus, macros = [] }, ref) {
   const [visibility, setVisibility] = useState<'customer' | 'internal'>('customer')
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
   // a resposta só libera após escolher. Escolher o status atual = manter.
@@ -158,14 +157,8 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     if (!idemRef.current) idemRef.current = (crypto?.randomUUID?.() ?? String(Date.now()) + Math.random())
     setSending(true)
     try {
-      // Assinatura: só em RESPOSTA AO CLIENTE com texto (nota interna e anexo-só não assinam).
-      let bodyHtml = hasText ? html : ''
-      if (visibility === 'customer' && signature && bodyHtml) {
-        const sig = signature.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
-        bodyHtml += `<div data-hd-sig="1" style="color:#6b7280;margin-top:14px;">${sig}</div>`
-      }
       const fd = new FormData()
-      fd.append('body', bodyHtml)
+      fd.append('body', hasText ? html : '')
       fd.append('visibility', visibility)
       fd.append('idempotency_key', idemRef.current)
       files.forEach(f => fd.append('files[]', f))
@@ -225,10 +218,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
         )}
       </div>
 
-      {/* Aviso da assinatura (só resposta ao cliente) */}
-      {visibility === 'customer' && signature && (
-        <div className="text-[11px] flex items-start gap-1 whitespace-pre-line px-1" style={{ color: 'var(--text-light)' }}>
-          <span>✍️</span><span><strong>Assinatura incluída no envio:</strong>{'\n'}{signature}</span>
+      {/* Aviso da assinatura (só resposta ao cliente) — a assinatura do SEU cadastro é anexada no envio. */}
+      {visibility === 'customer' && (
+        <div className="text-[11px] flex items-center gap-1 px-1" style={{ color: 'var(--text-light)' }}>
+          <span>✍️</span><span>Sua assinatura (do seu cadastro) será incluída no envio.</span>
         </div>
       )}
 
