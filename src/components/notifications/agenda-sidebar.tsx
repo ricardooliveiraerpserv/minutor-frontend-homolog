@@ -66,6 +66,11 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
   const list = showAll ? full : full.slice(0, MAX_VISIBLE)
   const hidden = full.length - list.length
 
+  // Legenda só com os tipos que ESTE perfil realmente vê. Os eventos já vêm filtrados
+  // por perfil no backend (/calendar/events respeita a matriz de visibilidade), então
+  // derivar da lista garante que a legenda nunca mostra um tipo que o usuário não enxerga.
+  const tiposNaAgenda = (Object.keys(DOT) as CalEvento['tipo'][]).filter(t => events.some(e => e.tipo === t))
+
   return (
     <div className="ds-card p-3 space-y-3">
       <div className="flex items-center gap-2">
@@ -81,14 +86,16 @@ export function AgendaSidebar({ selectedDate, onSelectDate }: { selectedDate: st
         onSelect={iso => { if (events.some(e => e.data === iso)) setModalDate(iso); onSelectDate(selectedDate === iso ? null : iso) }}
       />
 
-      {/* Legenda */}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1">
-        {Object.values(DOT).map(d => (
-          <span key={d.label} className="inline-flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-light)' }}>
-            <span style={{ width: 6, height: 6, borderRadius: 999, background: d.color, display: 'inline-block' }} />{d.label}
-          </span>
-        ))}
-      </div>
+      {/* Legenda — só os tipos visíveis a este perfil (deriva dos eventos já filtrados) */}
+      {tiposNaAgenda.length > 0 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1">
+          {tiposNaAgenda.map(t => DOT[t]).map(d => (
+            <span key={d.label} className="inline-flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-light)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: 999, background: d.color, display: 'inline-block' }} />{d.label}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Eventos (do dia selecionado ou do mês) — máx 5 visíveis */}
       <div className="border-t pt-2" style={{ borderColor: 'var(--border)' }}>
