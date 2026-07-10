@@ -17,6 +17,16 @@ function isImpersonating(): boolean {
   try { return !!window.sessionStorage.getItem('minutor_impersonating') } catch { return false }
 }
 
+// "Já exibi este comunicado" PERSISTE (localStorage) — senão o pop-up renaga a cada F5.
+const LS_KEY = 'client_comm_shown_v1'
+function loadShown(): Set<number> {
+  if (typeof window === 'undefined') return new Set()
+  try { return new Set(JSON.parse(localStorage.getItem(LS_KEY) || '[]')) } catch { return new Set() }
+}
+function saveShown(s: Set<number>) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(Array.from(s).slice(-300))) } catch { /* noop */ }
+}
+
 /**
  * Popup de prévia exibido ao cliente quando há comunicado novo (não lido). Aparece em TEMPO REAL
  * (checagem ao montar + polling + ao focar a aba), sem precisar recarregar. Não fecha ao clicar fora.
@@ -39,12 +49,16 @@ export function ClientCommunicationPopup() {
         const fresh = list.filter(it => !shownIds.current.has(it.id))
         if (fresh.length > 0) {
           list.forEach(it => shownIds.current.add(it.id))
+          saveShown(shownIds.current)   // não renagar no próximo F5
           setItems(list)
           setOpen(true)
         }
       })
       .catch(() => {})
   }, [pathname])
+
+  // Restaura o "já exibido" ao montar (persiste entre recarregamentos).
+  useEffect(() => { shownIds.current = loadShown() }, [])
 
   // Tempo real: checa ao montar/navegar + polling + ao focar a aba (mesma lógica do popup interno).
   useEffect(() => {
@@ -61,8 +75,13 @@ export function ClientCommunicationPopup() {
   const rest = items.length - 1
   const dt = (iso: string | null) => iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
 
-  const close = () => setOpen(false)
-  const readAll = () => { setOpen(false); router.push('/comunicados') }
+  const close = () => setOpen(false)   // "Depois": fecha; não renaga (shownIds persistido)
+  const readAll = () => {
+    setOpen(false)
+    // Marca os comunicados como lidos (some do não-lido e do badge) e leva pra tela.
+    api.post('/communications/mark-read', { ids: items.map(i => i.id) }).catch(() => {})
+    router.push('/comunicados')
+  }
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,.5)' }}>
