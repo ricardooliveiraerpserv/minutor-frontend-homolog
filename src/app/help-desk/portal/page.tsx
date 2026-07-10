@@ -349,10 +349,32 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
         </div>
       )}
 
-      {/* Conversa — anexos vão JUNTO de cada interação (nada solto). */}
+      {/* Conversa — compositor no topo, mais RECENTE primeiro. Anexos vão junto de cada interação. */}
       <div className="ds-card p-3 space-y-3">
+        {/* Compositor no topo */}
+        <div className="space-y-2 pb-3 border-b" style={{ borderColor: 'var(--border)' }}>
+          {files.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {files.map((f, i) => (
+                <div key={i} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px]" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+                  <Paperclip size={11} /><span className="max-w-[140px] truncate">{f.name}</span>
+                  <button onClick={() => removeFile(i)} aria-label="Remover"><Trash2 size={11} style={{ color: 'var(--text-light)' }} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <textarea className={`${fieldCls} flex-1`} style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb' }} rows={2} placeholder="Escreva uma resposta… (cole um print com Ctrl+V ou anexe arquivos)" value={body} onChange={e => setBody(e.target.value)}
+              onPaste={e => { const imgs = Array.from(e.clipboardData.items).filter(it => it.type.startsWith('image/')); const fs = imgs.map(it => it.getAsFile()).filter(Boolean) as File[]; if (fs.length) { addFiles(fs); toast.success('Print anexado') } }} />
+            <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 rounded-lg self-end py-2" onClick={send} disabled={sending || (!body.trim() && files.length === 0)}><Send size={14} /></button>
+          </div>
+          <label className="inline-flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--primary)' }}>
+            <Paperclip size={13} /> Anexar arquivo
+            <input type="file" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = '' }} />
+          </label>
+        </div>
         {(t.comentarios ?? []).length === 0 && <p className="text-sm text-center py-2" style={{ color: 'var(--text-muted)' }}>Sem respostas ainda.</p>}
-        {(t.comentarios ?? []).map(c => (
+        {(t.comentarios ?? []).slice().reverse().map(c => (
           <div key={c.id} className="rounded-lg p-3" style={{ background: c.de === 'voce' ? 'var(--primary-soft)' : 'var(--surface-sunken)' }}>
             <div className="flex items-center justify-between mb-1"><span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{c.de === 'voce' ? 'Você' : 'Atendimento'}</span><span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{fmtDate(c.criado_em)}</span></div>
             {c.mensagem && (
@@ -375,28 +397,6 @@ function TicketView({ id, onBack }: { id: number; onBack: () => void }) {
             )}
           </div>
         ))}
-        <div className="border-t pt-3 space-y-2" style={{ borderColor: 'var(--border)' }}>
-          {/* Anexos DA resposta (aparecem como chips e vão junto ao enviar) */}
-          {files.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {files.map((f, i) => (
-                <div key={i} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11px]" style={{ border: '1px solid var(--border)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
-                  <Paperclip size={11} /><span className="max-w-[140px] truncate">{f.name}</span>
-                  <button onClick={() => removeFile(i)} aria-label="Remover"><Trash2 size={11} style={{ color: 'var(--text-light)' }} /></button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <textarea className={`${fieldCls} flex-1`} style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb' }} rows={2} placeholder="Escreva uma resposta… (cole um print com Ctrl+V ou anexe arquivos)" value={body} onChange={e => setBody(e.target.value)}
-              onPaste={e => { const imgs = Array.from(e.clipboardData.items).filter(it => it.type.startsWith('image/')); const fs = imgs.map(it => it.getAsFile()).filter(Boolean) as File[]; if (fs.length) { addFiles(fs); toast.success('Print anexado') } }} />
-            <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 rounded-lg self-end py-2" onClick={send} disabled={sending || (!body.trim() && files.length === 0)}><Send size={14} /></button>
-          </div>
-          <label className="inline-flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--primary)' }}>
-            <Paperclip size={13} /> Anexar arquivo
-            <input type="file" multiple className="hidden" onChange={e => { if (e.target.files) addFiles(e.target.files); e.currentTarget.value = '' }} />
-          </label>
-        </div>
       </div>
     </div>
   )
