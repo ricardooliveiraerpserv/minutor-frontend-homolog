@@ -384,7 +384,7 @@ export default function MeuDiaPage() {
               {([
                 ['recebidas', 'Recebidas', Megaphone],
                 ['mural', 'Mural', BookOpen],
-                ...(isAdmin ? [['criadas', 'Criadas', Send], ['gerenciar', 'Gerenciar / Publicar', Settings]] : []),
+                ...(canTeam ? [['criadas', 'Criadas', Send], ['gerenciar', 'Gerenciar / Publicar', Settings]] : []),
               ] as ['recebidas' | 'mural' | 'criadas' | 'gerenciar', string, typeof Megaphone][]).map(([m, l, Ic]) => (
                 <button key={m} onClick={() => setPubMode(m)} className="text-xs px-3 py-1 rounded-md font-medium inline-flex items-center gap-1.5"
                   style={{ background: pubMode === m ? 'var(--surface)' : 'transparent', color: pubMode === m ? 'var(--primary)' : 'var(--text-muted)' }}>
@@ -392,11 +392,11 @@ export default function MeuDiaPage() {
                 </button>
               ))}
             </div>
-            {/* Ações rápidas (admin) — fora do Gerenciar, abrem o fluxo direto */}
-            {isAdmin && pubMode !== 'gerenciar' && (
+            {/* Ações rápidas (admin/coordenador/administrativo) — fora do Gerenciar, abrem o fluxo direto */}
+            {canTeam && pubMode !== 'gerenciar' && (
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Externo: comunicação com cliente (fica separado) */}
-                <button onClick={() => { setPubAction('comm'); setPubMode('gerenciar') }} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Megaphone size={14} /> Comunicação com cliente</button>
+                {/* Externo: comunicação com cliente (só admin) */}
+                {isAdmin && <button onClick={() => { setPubAction('comm'); setPubMode('gerenciar') }} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Megaphone size={14} /> Comunicação com cliente</button>}
                 {/* Interno: Confirmar presença + Nova enquete + Novo Aviso, agrupados num dropdown */}
                 <div className="relative">
                   <button onClick={() => setPubMenuOpen(o => !o)} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Send size={14} /> Comunicação Interna <ChevronDown size={13} /></button>
@@ -418,8 +418,8 @@ export default function MeuDiaPage() {
               </div>
             )}
             {pubMode === 'mural' ? <PublicacoesView scope="feed" />
-              : isAdmin && pubMode === 'criadas' ? <PublicacoesView scope="all" />
-              : isAdmin && pubMode === 'gerenciar' ? <NotificationAdmin onChanged={load} initialAction={pubAction} onActionConsumed={() => setPubAction(null)} />
+              : canTeam && pubMode === 'criadas' ? <PublicacoesView scope="all" />
+              : canTeam && pubMode === 'gerenciar' ? <NotificationAdmin onChanged={load} initialAction={pubAction} onActionConsumed={() => setPubAction(null)} isAdmin={isAdmin} />
               : <PublicacoesView scope="mine" />}
           </div>
         )}

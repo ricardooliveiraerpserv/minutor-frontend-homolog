@@ -56,7 +56,7 @@ const expiryIso = (dateStr: string): string => {
 }
 const isPastDate = (dateStr: string): boolean => !!dateStr && dateStr < todayLocal()
 
-export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }: { onChanged?: () => void; initialAction?: string | null; onActionConsumed?: () => void }) {
+export function NotificationAdmin({ onChanged, initialAction, onActionConsumed, isAdmin = false }: { onChanged?: () => void; initialAction?: string | null; onActionConsumed?: () => void; isAdmin?: boolean }) {
   const [showComm, setShowComm] = useState(false)
   const [rows, setRows] = useState<Notif[]>([])
   const [editing, setEditing] = useState<Draft | null>(null)
@@ -121,7 +121,7 @@ export function NotificationAdmin({ onChanged, initialAction, onActionConsumed }
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Gerenciar notificações</span>
         <div className="flex items-center gap-2">
-          <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setShowComm(true)} title="Aviso / Comunicação formal para clientes (sem marketing)"><Megaphone size={15} /> Comunicação com cliente</button>
+          {isAdmin && <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setShowComm(true)} title="Aviso / Comunicação formal para clientes (sem marketing)"><Megaphone size={15} /> Comunicação com cliente</button>}
           <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" title="Notificação com botões de decisão (você nomeia) + log de quem clicou" onClick={() => setEditing({
             type: 'info', priority: 'medium', target_roles: [], version: 1,
             title: 'Confirmação de presença',
