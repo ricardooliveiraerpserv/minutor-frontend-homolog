@@ -435,12 +435,12 @@ export default function HelpDeskTicketDetailPage() {
 
         {/* Header */}
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-start gap-2">
-            <button onClick={() => router.push(queueHref(getSession()?.source))} className="mt-0.5"><ArrowLeft size={18} style={{ color: 'var(--text-muted)' }} /></button>
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push(queueHref(getSession()?.source))} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ds-btn-secondary shrink-0" title="Voltar para a fila">
+              <ArrowLeft size={16} /> Voltar
+            </button>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs" style={{ color: 'var(--text-light)' }}>{t.ticket_number ?? `#${t.id}`}</span>
-              </div>
+              <span className="font-mono text-xl font-bold" style={{ color: 'var(--text)' }}>{t.ticket_number ?? `#${t.id}`}</span>
               <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>{t.subject}</h1>
             </div>
           </div>
