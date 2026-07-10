@@ -90,8 +90,9 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
     // Imagem REDIMENSIONÁVEL com o mouse (como no Movidesk): o container tem resize horizontal
     // (alça no canto), a imagem preenche 100% e a altura segue a proporção. O tamanho escolhido
     // fica no style inline → persiste no envio.
+    // Borda AZUL evidente + alça de redimensionar (arrastar o canto inferior-direito).
     document.execCommand('insertHTML', false,
-      `<span style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:80px;width:340px;border:1px solid rgba(125,125,125,.35);border-radius:8px;margin:6px 0;vertical-align:top;">` +
+      `<span title="Arraste o canto para redimensionar" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:100px;width:360px;border:2px solid #2563eb;border-radius:8px;margin:6px 0;vertical-align:top;cursor:ew-resize;">` +
       `<img src="${dataUrl}" alt="print" style="width:100%;display:block;" /></span><br/>`)
     syncEmpty()
   }
