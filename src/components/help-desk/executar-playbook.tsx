@@ -19,7 +19,7 @@ export function ExecutarPlaybook({ onExec }: { onExec: (playbookId: number) => v
   return (
     <div className="relative">
       <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setOpen(o => !o)}>
-        <Zap size={15} /> Executar Playbook <ChevronDown size={14} />
+        <Zap size={15} /> Executar Macro <ChevronDown size={14} />
       </button>
       {open && (
         <>

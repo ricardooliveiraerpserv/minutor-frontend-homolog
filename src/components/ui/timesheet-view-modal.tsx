@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   X, Clock, Pencil, Calendar, User, Building2, FolderOpen,
-  Ticket, Hash, Paperclip, FileText, CheckCircle, Globe, Webhook, DollarSign, TrendingUp,
+  Ticket, Hash, Paperclip, FileText, CheckCircle, Globe, Webhook, Headphones, DollarSign, TrendingUp,
 } from 'lucide-react'
 import { Badge } from '@/components/ds'
 import type { Timesheet } from '@/types'
@@ -58,6 +58,12 @@ function InfoRow({ icon: Icon, label, value, children, last }: {
 }
 
 function OriginChip({ origin }: { origin?: string }) {
+  if (origin === 'help_desk') return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{ background: 'rgba(20,184,166,0.14)', color: '#14b8a6' }} title="Apontamento gerado por uma interação do Help Desk">
+      <Headphones size={11} /> Help Desk
+    </span>
+  )
   if (origin === 'webhook') return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
       style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}>
