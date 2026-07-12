@@ -8,6 +8,9 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { X, ChevronDown, Search, Mail, PenLine } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
+import { BotScopesEditor } from './BotScopesEditor'
+import { BotVisibilityEditor } from './BotVisibilityEditor'
+import { listPermissionProfiles } from '@/lib/bot-config'
 import { SignatureEditor, type SignatureData } from '@/components/users/signature-editor'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -17,6 +20,11 @@ interface UserData {
   name: string
   email: string
   enabled: boolean
+  can_use_bot?: boolean
+  bot_allowed_scopes?: string[] | null
+  bot_visibility?: 'self' | 'team' | 'all'
+  bot_scope_overrides?: Record<string, 'inherit' | 'self' | 'team' | 'all' | 'denied'> | null
+  inbox_email_disabled?: boolean
   hourly_rate?: number
   rate_type?: string
   daily_hours?: number
@@ -307,6 +315,11 @@ const EMPTY_FORM = {
   password: '',
   smtp_app_password: '',
   enabled: true,
+  can_use_bot: false,
+  bot_allowed_scopes: null as string[] | null,
+  bot_visibility: 'self' as 'self' | 'team' | 'all',
+  bot_scope_overrides: null as Record<string, 'inherit' | 'self' | 'team' | 'all' | 'denied'> | null,
+  inbox_email_disabled: false,
   hourly_rate: '',
   rate_type: 'hourly' as 'hourly' | 'monthly',
   daily_hours: '8',
@@ -424,6 +437,11 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           password:            '',
           smtp_app_password:   '', // write-only no BE — nunca retorna; mantém em branco
           enabled:             item.enabled,
+          can_use_bot:         item.can_use_bot ?? false,
+          bot_allowed_scopes:  item.bot_allowed_scopes ?? null,
+          bot_visibility:      (item.bot_visibility ?? 'self') as 'self' | 'team' | 'all',
+          bot_scope_overrides: (item.bot_scope_overrides ?? null) as Record<string, 'inherit' | 'self' | 'team' | 'all' | 'denied'> | null,
+          inbox_email_disabled: item.inbox_email_disabled ?? false,
           hourly_rate:         item.hourly_rate ? String(item.hourly_rate) : '',
           rate_type:           (item.rate_type as 'hourly' | 'monthly') ?? 'hourly',
           daily_hours:            item.daily_hours != null ? String(item.daily_hours) : '8',
@@ -469,6 +487,11 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         name:        form.name,
         email:       form.email,
         enabled:     form.enabled,
+        can_use_bot: form.can_use_bot,
+        bot_allowed_scopes: form.bot_allowed_scopes,
+        bot_visibility: form.bot_visibility,
+        bot_scope_overrides: form.bot_scope_overrides,
+        inbox_email_disabled: form.inbox_email_disabled,
         type:        resolveTypeForBackend(form.profiles[0]),
         customer_id:  form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
         partner_id:   needsPartnerField && form.partner_id ? form.partner_id : null,
@@ -988,6 +1011,66 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 label="Diretor de Projetos (recebe os e-mails das fases do contrato)"
               />
             )}
+
+            {/* ── Permissão para chamar @bot no chat ── */}
+            <Toggle
+              value={form.can_use_bot}
+              onChange={() => setForm(f => ({ ...f, can_use_bot: !f.can_use_bot }))}
+              label="Pode usar @bot no chat (IA do Minutor)"
+            />
+
+            {/* ── Áreas que este user pode consultar via @bot ── */}
+            {form.can_use_bot && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-zinc-400 uppercase tracking-wider font-semibold">
+                    Permissões deste user no BOT
+                  </span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const profileType = form.profiles[0] ? resolveTypeForBackend(form.profiles[0]) : null
+                      if (!profileType) { toast.error('Selecione um perfil de acesso primeiro'); return }
+                      try {
+                        const r = await listPermissionProfiles()
+                        const p = r.data.find(x => x.profile_type === profileType)
+                        if (!p) { toast.error(`Sem política para perfil ${profileType}`); return }
+                        setForm(f => ({
+                          ...f,
+                          can_use_bot:         p.can_use_bot,
+                          bot_allowed_scopes:  p.allowed_scopes,
+                          bot_visibility:      p.visibility,
+                          bot_scope_overrides: p.scope_overrides,
+                        }))
+                        toast.success(`Aplicado padrão de "${p.label}"`)
+                      } catch (e) {
+                        toast.error((e as Error).message)
+                      }
+                    }}
+                    className="text-[11px] text-emerald-300 hover:underline"
+                  >
+                    Resetar para padrão do perfil
+                  </button>
+                </div>
+                <BotScopesEditor
+                  value={form.bot_allowed_scopes}
+                  onChange={scopes => setForm(f => ({ ...f, bot_allowed_scopes: scopes }))}
+                />
+                <BotVisibilityEditor
+                  visibility={form.bot_visibility}
+                  overrides={form.bot_scope_overrides}
+                  onChangeVisibility={v => setForm(f => ({ ...f, bot_visibility: v }))}
+                  onChangeOverrides={o => setForm(f => ({ ...f, bot_scope_overrides: o }))}
+                />
+              </>
+            )}
+
+            {/* ── Desligar notificações de chat por email ── */}
+            <Toggle
+              value={!form.inbox_email_disabled}
+              onChange={() => setForm(f => ({ ...f, inbox_email_disabled: !f.inbox_email_disabled }))}
+              label="Receber digest de mensagens não lidas por email"
+            />
 
             {/* ── Assinatura padrão (perfis internos) ── */}
             {!form.profiles.includes('cliente') && (
