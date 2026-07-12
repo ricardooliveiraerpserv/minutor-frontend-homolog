@@ -12,6 +12,15 @@ import type {
   ConversationSummary, InboxMessage, NotificationStatusValue,
 } from '@/types/inbox'
 
+// Numa conversa BOT, distingue Q&A (pergunta do user / resposta do bot àquela
+// pergunta) dos alertas proativos do Operational Feed: Q&A vira balão de chat,
+// alerta continua card. A resposta do bot carrega user_message_id (ou pending).
+function isConversational(m: InboxMessage): boolean {
+  return m.type.value === 'user'
+    || !!m.metadata?.user_message_id
+    || !!m.metadata?.pending
+}
+
 type Filter = 'active' | 'all' | 'resolved' | 'archived' | 'snoozed'
 
 const FILTER_QUERY: Record<Filter, string | undefined> = {
@@ -95,12 +104,13 @@ export function MessageList({ conversation, currentUserId }: Props) {
     }
   }, [conversation?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Scroll para o final em conversas tipo chat
+  // Scroll para o final em conversas tipo chat (e na conversa BOT, que agora
+  // também aceita Q&A direto).
   useEffect(() => {
-    if (isChat && bottomRef.current) {
+    if ((isChat || isBot) && bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [data?.data?.length, isChat])
+  }, [data?.data?.length, isChat, isBot])
 
   // Filtro client-side de busca dentro da conversa.
   // Importante: este hook precisa ficar ANTES dos early returns para manter
@@ -248,8 +258,8 @@ export function MessageList({ conversation, currentUserId }: Props) {
               {isBot && filter === 'active' ? (
                 <>
                   <InboxIcon size={36} className="mx-auto mb-3 text-[var(--text-light)]" />
-                  <p className="text-sm text-[var(--text-muted)]">Inbox limpo.</p>
-                  <p className="text-xs mt-1 text-[var(--text-light)]">Nenhum item operacional pendente.</p>
+                  <p className="text-sm text-[var(--text-muted)]">Nenhum alerta pendente.</p>
+                  <p className="text-xs mt-1 text-[var(--text-light)]">Pergunte algo ao BOT aqui embaixo — ex.: <em>quais os contratos do cliente X</em>.</p>
                 </>
               ) : isBot ? (
                 <>
@@ -268,7 +278,31 @@ export function MessageList({ conversation, currentUserId }: Props) {
             </div>
           </div>
         ) : isBot ? (
-          items.map(m => <MessageItem key={m.id} message={m} />)
+          <>
+            {(() => {
+              const asc = [...items].reverse()
+              return asc.map((m, i) => {
+                // Alerta proativo → card. Q&A (pergunta/resposta) → balão de chat.
+                if (!isConversational(m)) {
+                  return <MessageItem key={m.id} message={m} />
+                }
+                const prev = i > 0 ? asc[i - 1] : null
+                const sameSender = prev?.sender?.id === m.sender?.id && prev?.type.value === m.type.value
+                const closeInTime = prev
+                  ? new Date(m.created_at).getTime() - new Date(prev.created_at).getTime() < 2 * 60_000
+                  : false
+                return (
+                  <ChatMessageItem
+                    key={m.id}
+                    message={m}
+                    isOwn={!!currentUserId && m.sender?.id === currentUserId}
+                    compact={!!prev && isConversational(prev) && sameSender && closeInTime}
+                  />
+                )
+              })
+            })()}
+            <div ref={bottomRef} />
+          </>
         ) : (
           <>
             {(() => {
@@ -322,6 +356,11 @@ export function MessageList({ conversation, currentUserId }: Props) {
           replyTo={replyTo}
           onCancelReply={() => setReplyTo(null)}
         />
+      )}
+
+      {/* Conversa direta com o BOT: toda mensagem vira pergunta ao @bot. */}
+      {isBot && (
+        <Composer conversationId={conversation.id} forceBot />
       )}
     </div>
   )
