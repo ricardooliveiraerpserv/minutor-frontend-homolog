@@ -46,6 +46,9 @@ import {
   Inbox,
   Mail,
   Banknote,
+  Bot,
+  Activity,
+  MessageCircle,
   ListFilter,
   CalendarX,
   XCircle,
@@ -196,6 +199,8 @@ const IS_DEV1 = false  // experimentais desligados (localhost tem APP_ENV=dev s�
 const HOME_ITEMS: NavEntry[] = [
   { type: 'item', label: 'Meu Dia',       href: '/inicio',       icon: Home,            badge: 'critical' },
   { type: 'item', label: 'Meu Painel',    href: '/meu-painel',   icon: LayoutDashboard },
+  { type: 'item', label: 'Feed Operacional', href: '/feed-operacional', icon: Activity },
+  { type: 'item', label: 'Chat',          href: '/inbox',        icon: MessageCircle },
 ]
 
 const NAV_COORDINATOR: NavEntry[] = [
@@ -232,6 +237,7 @@ const NAV: NavEntry[] = [
 
   // ── ⚙️ CONFIGURADOR (associado via catálogo; aparece no módulo Configurador) ──
   { type: 'item', label: 'Configurador de Menus', href: '/configurador', icon: SlidersHorizontal, catalogKey: 'configurador' },
+  { type: 'item', label: 'BOT Minutor', href: '/configuracoes/bot-minutor', icon: Bot, catalogKey: 'configurador' },
 
   // ── 🛠 SERVIÇOS ──
   {
