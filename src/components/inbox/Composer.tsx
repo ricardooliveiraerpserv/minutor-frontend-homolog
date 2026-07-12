@@ -14,6 +14,11 @@ interface ComposerProps {
   autoFocus?: boolean
   replyTo?: InboxMessage | null
   onCancelReply?: () => void
+  /**
+   * Conversa direta com o BOT: TODA mensagem vira pergunta ao @bot
+   * (sem precisar do prefixo). Usado na conversa "BOT Minutor".
+   */
+  forceBot?: boolean
 }
 
 const BOT_PREFIX = /^@bot\b/i
@@ -24,7 +29,7 @@ function initials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
 }
 
-export function Composer({ conversationId, placeholder, autoFocus = true, replyTo, onCancelReply }: ComposerProps) {
+export function Composer({ conversationId, placeholder, autoFocus = true, replyTo, onCancelReply, forceBot = false }: ComposerProps) {
   const qc = useQueryClient()
   const [value, setValue] = useState('')
   const [busy, setBusy] = useState(false)
@@ -43,7 +48,7 @@ export function Composer({ conversationId, placeholder, autoFocus = true, replyT
   const recorderChunksRef = useRef<Blob[]>([])
   const recorderTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const isBotQuery = BOT_PREFIX.test(value.trimStart())
+  const isBotQuery = forceBot || BOT_PREFIX.test(value.trimStart())
 
   // Autocomplete @ — buscar usuários só quando há query ativa
   const { data: mentionsRes } = useQuery({
@@ -192,7 +197,7 @@ export function Composer({ conversationId, placeholder, autoFocus = true, replyT
     const hasFiles = files.length > 0
     if ((!body && !hasFiles) || busy) return
 
-    const asBot = BOT_PREFIX.test(body)
+    const asBot = forceBot || BOT_PREFIX.test(body)
 
     setBusy(true)
     if (asBot) setBotThinking(true)
@@ -409,7 +414,9 @@ export function Composer({ conversationId, placeholder, autoFocus = true, replyT
             rows={2}
             disabled={botThinking}
             aria-label="Escrever mensagem"
-            placeholder={placeholder ?? 'Mensagem... Use @bot para perguntar ao BOT ou @usuario para mencionar alguém'}
+            placeholder={placeholder ?? (forceBot
+              ? 'Pergunte ao BOT — ex.: quais os contratos do cliente X'
+              : 'Mensagem... Use @bot para perguntar ao BOT ou @usuario para mencionar alguém')}
             className={[
               'flex-1 resize-none border rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-light)] focus:outline-none transition-colors disabled:opacity-60',
               isBotQuery
