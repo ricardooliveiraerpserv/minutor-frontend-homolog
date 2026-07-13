@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { listConversations } from '@/lib/inbox'
 import { isChatSoundOn, setChatSoundOn, playChatSound } from '@/lib/chat-prefs'
+import { useAuth } from '@/hooks/use-auth'
 import type { ConversationSummary } from '@/types/inbox'
 
 function initials(name: string): string {
@@ -25,6 +26,7 @@ function displayName(c: ConversationSummary): string {
  */
 export function ChatBell() {
   const router = useRouter()
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [soundOn, setSoundOn] = useState(true)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -93,7 +95,7 @@ export function ChatBell() {
               {total > 0 && <span className="text-[11px] mr-0.5" style={{ color: 'var(--text-light)' }}>{total} não lida{total > 1 ? 's' : ''}</span>}
               <button
                 type="button"
-                onClick={() => playChatSound()}
+                onClick={() => playChatSound(user?.chat_sound ?? undefined, user?.chat_sound_volume ?? undefined)}
                 title="Ouvir o som"
                 aria-label="Ouvir o som de mensagens"
                 className="p-1 rounded-md transition-colors hover:bg-[var(--surface-hover)]"

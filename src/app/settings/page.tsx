@@ -10,8 +10,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Settings,
-  RefreshCw, CheckCircle, XCircle, Users, X, Briefcase,
+  RefreshCw, CheckCircle, XCircle, Users, X, Briefcase, Play,
 } from 'lucide-react'
+import { CHAT_TONES, DEFAULT_TONE, DEFAULT_VOLUME, playChatSound } from '@/lib/chat-prefs'
 import type { SystemSettings } from '@/types'
 import { UserManagementTab } from './UserManagementTab'
 import { CargosTab } from './CargosTab'
@@ -143,6 +144,44 @@ function GeneralTab() {
               className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 w-40"
             />
             <p className="text-[11px] text-[var(--text-light)] mt-1">A competência do mês anterior é encerrada automaticamente neste dia útil (pula fins de semana e feriados). Padrão: 2.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-sm font-medium text-[var(--text)] mb-4 pb-2 border-b border-[var(--border)]">Notificações do Chat (som)</h3>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs text-[var(--text-muted)]">Toque ao receber mensagem</Label>
+            <div className="flex items-center gap-2 mt-1.5">
+              <select
+                value={(settings.chat_notification_sound as string) ?? DEFAULT_TONE}
+                onChange={e => setSettings(s => ({ ...s, chat_notification_sound: e.target.value }))}
+                className="bg-[var(--surface-hover)] border border-[var(--border)] rounded-md text-white h-9 px-2 w-56 text-sm"
+              >
+                {CHAT_TONES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+              <Button
+                type="button" variant="secondary"
+                onClick={() => playChatSound(
+                  (settings.chat_notification_sound as string) ?? DEFAULT_TONE,
+                  Number(settings.chat_notification_volume ?? DEFAULT_VOLUME),
+                )}
+                className="h-9 gap-1.5"
+              >
+                <Play size={14} /> Ouvir
+              </Button>
+            </div>
+            <p className="text-[11px] text-[var(--text-light)] mt-1">Vale para todos os usuários. Cada pessoa ainda pode silenciar para si no ícone de mensagens.</p>
+          </div>
+          <div>
+            <Label className="text-xs text-[var(--text-muted)]">Volume — {Number(settings.chat_notification_volume ?? DEFAULT_VOLUME)}%</Label>
+            <input
+              type="range" min={0} max={100} step={5}
+              value={Number(settings.chat_notification_volume ?? DEFAULT_VOLUME)}
+              onChange={e => setSettings(s => ({ ...s, chat_notification_volume: Number(e.target.value) }))}
+              className="mt-2 w-56 accent-[var(--primary)]"
+            />
           </div>
         </div>
       </section>
