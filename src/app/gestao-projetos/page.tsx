@@ -210,7 +210,9 @@ function coordinationMeta(p: ProjectWithTeam, displaySold: number) {
   // Banco apontável inclui o APORTE (aporte soma com as contratadas).
   const aporte = Math.max(0, Number((p as any).total_available_hours ?? displaySold) - displaySold)
   const bank = (explicit ? raw! : displaySold) + aporte
-  const consumed = Number(p.coordination_consumed_hours ?? 0)
+  // Consumido = horas APONTADAS do projeto (não só do coordenador) — o banco apontável
+  // é consumido pelos apontamentos. Saldo = Horas Apontáveis − apontadas.
+  const consumed = Number(p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0))
   const saldo = Math.round((bank - consumed) * 100) / 100
   const pct = bank > 0 ? (consumed / bank) * 100 : 0
   const risk: 'saudavel' | 'atencao' | 'critico' | 'estourado' =
