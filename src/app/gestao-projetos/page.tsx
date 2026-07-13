@@ -2253,9 +2253,9 @@ function GestaoProjetosInner() {
   useEffect(() => {
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
     api.get<any>('/service-types?pageSize=100').then(r => setServiceTypes(items(r))).catch(() => {})
-    // Todos os coordenadores (projetos E sustentação) — o filtro de Gestão de Contratos
-    // não deve excluir os de sustentação.
-    api.get<any>('/users?type=coordenador&pageSize=200')
+    // Coordenadores = MESMA lista das colunas do Kanban de Contratos (nativos +
+    // admins com projeto + override + marcados como is_coordinator no cadastro).
+    api.get<any>('/contracts/coordinators')
       .then(r => setCoordinatorsList(items(r).map((u: any) => ({ id: String(u.id), name: u.name }))))
       .catch(() => {})
     api.get<any>('/executives?pageSize=200')
