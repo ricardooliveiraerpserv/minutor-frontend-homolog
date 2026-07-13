@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { MessageCircle, Volume2, VolumeX } from 'lucide-react'
+import { MessageCircle, Volume2, VolumeX, Play } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { listConversations } from '@/lib/inbox'
-import { isChatSoundOn, setChatSoundOn } from '@/lib/chat-prefs'
+import { isChatSoundOn, setChatSoundOn, playChatSound } from '@/lib/chat-prefs'
 import type { ConversationSummary } from '@/types/inbox'
 
 function initials(name: string): string {
@@ -89,8 +89,18 @@ export function ChatBell() {
         >
           <div className="px-3 py-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border)' }}>
             <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Mensagens</span>
-            <div className="flex items-center gap-2">
-              {total > 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{total} não lida{total > 1 ? 's' : ''}</span>}
+            <div className="flex items-center gap-1.5">
+              {total > 0 && <span className="text-[11px] mr-0.5" style={{ color: 'var(--text-light)' }}>{total} não lida{total > 1 ? 's' : ''}</span>}
+              <button
+                type="button"
+                onClick={() => playChatSound()}
+                title="Ouvir o som"
+                aria-label="Ouvir o som de mensagens"
+                className="p-1 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
+                style={{ color: 'var(--text-light)' }}
+              >
+                <Play size={13} />
+              </button>
               <button
                 type="button"
                 onClick={toggleSound}
