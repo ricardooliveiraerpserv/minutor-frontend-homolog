@@ -7,6 +7,7 @@ import { Header } from './header'
 import { ModuleProvider } from '@/contexts/module-context'
 import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
+import { presenceHeartbeat } from '@/lib/inbox'
 import { NotificationPopups } from '@/components/notifications/notification-popups'
 import { NavConfigProvider } from '@/contexts/nav-config-context'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
@@ -43,6 +44,19 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
   useEffect(() => {
     if (!loading && !user) router.replace('/login')
   }, [loading, user, router])
+
+  // Presença GLOBAL: marca "online" em QUALQUER tela autenticada (não só no Chat).
+  // Sem isto, o heartbeat só saía do /inbox e o painel "online agora" ficava sempre vazio.
+  // Janelas no backend: <5min = online, 5–15min = ausente, ≥15min = offline.
+  useEffect(() => {
+    if (!user) return
+    const beat = () => { presenceHeartbeat('online').catch(() => {}) }
+    beat()
+    const t = setInterval(beat, 120_000)
+    const onVis = () => { if (document.visibilityState === 'visible') beat() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onVis) }
+  }, [user?.id])
 
   useEffect(() => {
     if (user?.type === 'cliente' && user.customer_id) {
