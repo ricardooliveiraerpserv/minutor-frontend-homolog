@@ -16,6 +16,7 @@ import { AgendaSidebar } from '@/components/notifications/agenda-sidebar'
 import { TeamDay } from '@/components/notifications/team-day'
 import { OutlookIntegrationCard } from '@/components/notifications/outlook-integration-card'
 import { BirthdayCard } from '@/components/notifications/birthday-card'
+import { PendingChatsCard } from '@/components/notifications/pending-chats-card'
 import { NotificationCenter } from '@/components/notifications/notification-center'
 import { PublicacoesView } from '@/components/notifications/publicacoes-view'
 import { AcoesView } from '@/components/notifications/acoes-view'
@@ -202,6 +203,8 @@ export default function MeuDiaPage() {
         {tab === 'dia' && (
           <div className="flex flex-col lg:flex-row gap-4 items-start">
             <div className="w-full lg:w-[68%] space-y-5 min-w-0">
+              {/* CONVERSAS PENDENTES DO CHAT — substitui o e-mail de digest */}
+              <PendingChatsCard />
               {/* PUBLICAÇÕES DE HOJE — 1º item (só no dia; depois fica na aba Publicações) */}
               {view === 'mine' && todayPubs.length > 0 && (
                 <button onClick={() => setTab('publicacoes')} className="w-full ds-card p-3 text-left flex items-start gap-2.5 animate-[popIn_.2s_ease-out]" style={{ borderLeft: '4px solid var(--primary)', background: 'var(--primary-soft)' }}>
