@@ -647,7 +647,17 @@ export default function HelpDeskTicketDetailPage() {
 
               {tab === 'conversa' ? (
                 <div className="p-4 space-y-4">
-                  {/* Compositor no TOPO — nova interação sempre em cima */}
+                  {/* Chamado FECHADO (terminal): sem novas interações — só reabrindo. */}
+                  {t.status?.is_terminal ? (
+                    <div className="rounded-lg px-4 py-3 flex items-center gap-2.5" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+                      <Lock size={16} style={{ color: 'var(--text-light)' }} />
+                      <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                        <b style={{ color: 'var(--text)' }}>Chamado fechado.</b> Não é possível adicionar interações.
+                        {t.can_reopen && ' Reabra pelo menu Opções para continuar.'}
+                      </div>
+                    </div>
+                  ) : (
+                  /* Compositor no TOPO — nova interação sempre em cima */
                   <InteracaoComposer ref={composerRef} ticketId={id} onSent={() => { loadComments(); loadEvents(); loadTicket() }}
                     /* Encerrar (status terminal) só p/ quem tem permissão — coordenador/admin por padrão. */
                     statuses={statuses.filter(s => t.can_close || !s.is_terminal).map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved, allows_scheduling: s.allows_scheduling }))}
@@ -658,10 +668,20 @@ export default function HelpDeskTicketDetailPage() {
                       ? ((user as { can_timesheet_sustentacao?: boolean })?.can_timesheet_sustentacao ? 'hidden' : 'required')
                       : 'optional'}
                     onApplyStatus={(sid) => onStatusSelect(String(sid))}
+                    /* Concluir exige classificação: Categoria, Serviço, Urgência e Nível preenchidos. */
+                    resolveBlockedReason={(() => {
+                      const f: string[] = []
+                      if (!t.category?.id) f.push('Categoria')
+                      if (!t.service?.id) f.push('Serviço')
+                      if (!t.priority) f.push('Urgência')
+                      if (!t.level) f.push('Nível')
+                      return f.length ? `Preencha antes de concluir o atendimento: ${f.join(', ')}.` : undefined
+                    })()}
                     onSchedule={async (date, time) => { await api.post(`/help-desk/tickets/${id}/schedule`, { date, time: time || null }) }}
                     macros={macros}
                     formStatusIds={forms.filter(f => f.status_id).map(f => f.status_id as number)}
                     onFormStatus={(sid) => openDynamicForm(String(sid))} />
+                  )}
                   <div className="border-b" style={{ borderColor: 'var(--border)' }} />
                   {comments.length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>Sem interações ainda.</p>}
                   {/* Mais recente em cima, mais antiga embaixo */}
