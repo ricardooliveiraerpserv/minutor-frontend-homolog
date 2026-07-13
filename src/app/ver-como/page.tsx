@@ -6,7 +6,6 @@ import { PageHeader } from '@/components/ds'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { api, ApiError } from '@/lib/api'
-import { useAuth } from '@/hooks/use-auth'
 import { toast } from 'sonner'
 import { Eye, Users, Building2, Handshake, Search, Loader2 } from 'lucide-react'
 
@@ -52,7 +51,6 @@ const CONSULTOR_FILTERS: { v: string; l: string }[] = [
 interface Partner { id: number; name: string }
 
 export default function VerComoPage() {
-  const { user } = useAuth()
   const [kind, setKind] = useState<Kind | null>(null)
   const [parceiroAdmin, setParceiroAdmin] = useState<boolean>(true)
   const [filter, setFilter] = useState('')            // consultor: vínculo/cargo
@@ -62,6 +60,17 @@ export default function VerComoPage() {
   const [results, setResults] = useState<Candidate[]>([])
   const [loading, setLoading] = useState(false)
   const [entering, setEntering] = useState<number | null>(null)
+  // Blocos (cliente/consultor/parceiro) liberados a ESTE usuário — vêm do backend
+  // (bloco liberado no Configurador + trava de nível). null = ainda carregando.
+  const [allowedKinds, setAllowedKinds] = useState<Kind[] | null>(null)
+
+  useEffect(() => {
+    api.get<{ data: Kind[] }>('/impersonate/kinds')
+      .then(r => setAllowedKinds(r.data ?? []))
+      .catch(() => setAllowedKinds([]))
+  }, [])
+
+  const visibleKinds = KINDS.filter(k => (allowedKinds ?? []).includes(k.id))
 
   const load = useCallback(async (k: Kind, admin: boolean, query: string, flt: string, pid: string) => {
     setLoading(true)
@@ -149,10 +158,12 @@ export default function VerComoPage() {
     if (k === 'parceiro') setParceiroAdmin(true)
   }
 
-  if (user && user.type !== 'admin') {
+  // Sem nenhum bloco liberado → sem acesso. (Quem tem a tela no menu mas nenhum bloco
+  // liberado no Configurador cai aqui. Admin/administrativo sempre têm todos.)
+  if (allowedKinds !== null && allowedKinds.length === 0) {
     return (
       <AppLayout title="Ver como">
-        <div className="p-8"><p className="text-sm" style={{ color: 'var(--text-muted)' }}>Acesso restrito a administradores.</p></div>
+        <div className="p-8"><p className="text-sm" style={{ color: 'var(--text-muted)' }}>Você não tem nenhum tipo de visão liberado. Fale com um administrador.</p></div>
       </AppLayout>
     )
   }
@@ -168,7 +179,7 @@ export default function VerComoPage() {
 
         {/* Passo 1 — tipo de visão */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          {KINDS.map(({ id, label, icon: Icon, hint }) => {
+          {visibleKinds.map(({ id, label, icon: Icon, hint }) => {
             const active = kind === id
             return (
               <button

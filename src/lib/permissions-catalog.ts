@@ -99,6 +99,14 @@ export const SCREEN_ACTIONS_CATALOG: Record<string, ScreenActionOption[]> = {
     { label: 'Reenviar boas-vindas' },   // ação de UI — sem permissão dedicada
     { label: 'Excluir',             permission: 'users.delete' },
   ],
+  // "Ver como": cada bloco é uma ação liberável por perfil. Libere aqui quem pode ver
+  // como Cliente / Consultor / Parceiro. (Admin e Administrativo têm todos por padrão.)
+  // A trava de nível — não ver privilégio igual/maior — é do backend, não configurável aqui.
+  '/ver-como': [
+    { label: 'Ver como Cliente',   permission: 'ver_como.cliente' },
+    { label: 'Ver como Consultor', permission: 'ver_como.consultor' },
+    { label: 'Ver como Parceiro',  permission: 'ver_como.parceiro' },
+  ],
 }
 
 /** Tira query/hash da key pra casar no catálogo (ex.: '/cadastros?tab=x' → '/cadastros'). */
