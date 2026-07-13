@@ -1,42 +1,142 @@
 'use client'
 
-import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { MessageCircle } from 'lucide-react'
-import { unreadSummary } from '@/lib/inbox'
+import { formatDistanceToNow } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { listConversations } from '@/lib/inbox'
+import type { ConversationSummary } from '@/types/inbox'
+
+function initials(name: string): string {
+  return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
+}
+
+function displayName(c: ConversationSummary): string {
+  return c.other_user?.name ?? c.title ?? 'Conversa'
+}
 
 /**
- * Botão flutuante no header global apontando pro /inbox.
- * Mostra badge com total de mensagens não lidas (chat + bot).
- * Polling de 30s. Cluster discreto — não invade espaço de outros indicadores.
+ * Ícone de mensagens no header. Badge com total não lido; ao clicar abre uma
+ * lista das conversas com mensagens novas (remetente + prévia + hora). Clicar
+ * num item abre a conversa no /inbox. Compartilha o cache ['inbox-conversations'].
  */
 export function ChatBell() {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
   const { data } = useQuery({
-    queryKey: ['inbox-unread-summary'],
-    queryFn: unreadSummary,
-    refetchInterval: 30_000,
-    staleTime: 15_000,
+    queryKey: ['inbox-conversations'],
+    queryFn: listConversations,
+    refetchInterval: 20_000,
+    staleTime: 10_000,
   })
 
-  const total = data?.total_unread ?? 0
+  const conversations = data?.data ?? []
+  const total = conversations.reduce((s, c) => s + (c.unread_count ?? 0), 0)
+  const unreadConvs = conversations
+    .filter(c => c.unread_count > 0)
+    .sort((a, b) => (b.last_message_at ?? '').localeCompare(a.last_message_at ?? ''))
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  const go = (id: number) => { setOpen(false); router.push(`/inbox?c=${id}`) }
 
   return (
-    <Link
-      href="/inbox"
-      title="Abrir chat"
-      aria-label={total > 0 ? `Chat (${total} não lidas)` : 'Abrir chat'}
-      className="relative p-1.5 rounded-md transition-colors hover:bg-zinc-800"
-      style={{ color: total > 0 ? 'var(--primary)' : '#71717A' }}
-    >
-      <MessageCircle size={16}/>
-      {total > 0 && (
-        <span
-          className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center pointer-events-none"
-          style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
+    <div className="relative" ref={wrapRef}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        title="Mensagens"
+        aria-label={total > 0 ? `Mensagens (${total} não lidas)` : 'Mensagens'}
+        className="relative p-1.5 rounded-md transition-colors hover:bg-zinc-800"
+        style={{ color: total > 0 ? 'var(--primary)' : '#71717A' }}
+      >
+        <MessageCircle size={16} />
+        {total > 0 && (
+          <span
+            className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center pointer-events-none"
+            style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
+          >
+            {total > 9 ? '9+' : total}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-xl border shadow-xl z-[90] overflow-hidden"
+          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          {total > 9 ? '9+' : total}
-        </span>
+          <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Mensagens</span>
+            {total > 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{total} não lida{total > 1 ? 's' : ''}</span>}
+          </div>
+
+          <div className="max-h-80 overflow-y-auto">
+            {unreadConvs.length === 0 ? (
+              <div className="px-3 py-6 text-center text-sm" style={{ color: 'var(--text-light)' }}>
+                Nenhuma mensagem nova
+              </div>
+            ) : (
+              unreadConvs.map(c => {
+                const rel = c.last_message_at
+                  ? formatDistanceToNow(new Date(c.last_message_at), { addSuffix: false, locale: ptBR })
+                  : ''
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => go(c.id)}
+                    className="w-full text-left px-3 py-2.5 flex items-start gap-3 border-b transition-colors hover:bg-[var(--surface-hover)]"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-semibold shrink-0"
+                      style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+                    >
+                      {initials(displayName(c))}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{displayName(c)}</span>
+                        {rel && <span className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>{rel}</span>}
+                      </div>
+                      <p className="text-xs mt-0.5 line-clamp-1" style={{ color: 'var(--text-muted)' }}>
+                        {c.last_message?.preview || 'Nova mensagem'}
+                      </p>
+                    </div>
+                    <span
+                      className="shrink-0 min-w-4 h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center mt-1"
+                      style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}
+                    >
+                      {c.unread_count > 9 ? '9+' : c.unread_count}
+                    </span>
+                  </button>
+                )
+              })
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => { setOpen(false); router.push('/inbox') }}
+            className="w-full px-3 py-2 text-center text-xs font-semibold transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ color: 'var(--primary)' }}
+          >
+            Abrir chat
+          </button>
+        </div>
       )}
-    </Link>
+    </div>
   )
 }
