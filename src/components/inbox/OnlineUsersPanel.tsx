@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { listChatUsers } from '@/lib/inbox'
+import { listOnlineUsers } from '@/lib/inbox'
 import type { ChatUser } from '@/types/inbox'
 import { PresenceDot } from './PresenceDot'
 
@@ -15,8 +15,8 @@ function initials(name: string): string {
 
 export function OnlineUsersPanel({ onStartDirect }: Props) {
   const { data } = useQuery({
-    queryKey: ['chat-users-online'],
-    queryFn: () => listChatUsers(),
+    queryKey: ['presence-online-users'],
+    queryFn: () => listOnlineUsers(),
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',

@@ -126,6 +126,11 @@ export function listPresence(userIds?: number[]): Promise<{ data: PresenceEntry[
   return api.get(`/presence${q}`)
 }
 
+// Quem está realmente online/ausente agora (pela presença, sem corte alfabético de 50).
+export function listOnlineUsers(): Promise<{ data: ChatUser[] }> {
+  return api.get('/presence/online')
+}
+
 // --- Chat humano ---
 
 export function listChatUsers(q?: string): Promise<{ data: ChatUser[] }> {
