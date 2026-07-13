@@ -5,6 +5,7 @@ import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/contexts/auth-context'
+import { PresenceHeartbeat } from '@/components/presence-heartbeat'
 import { useState } from 'react'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -27,6 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         <TooltipProvider>
           <AuthProvider>
+            <PresenceHeartbeat />
             {children}
             <Toaster richColors position="top-right" />
           </AuthProvider>
