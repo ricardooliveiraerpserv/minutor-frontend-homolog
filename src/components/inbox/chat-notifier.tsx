@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { X, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { listConversations } from '@/lib/inbox'
-import { isChatSoundOn } from '@/lib/chat-prefs'
+import { isChatSoundOn, playChatSound } from '@/lib/chat-prefs'
 import type { ConversationSummary } from '@/types/inbox'
 
 interface Popup {
@@ -20,28 +20,6 @@ function initials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
 }
 
-/** "Ding" curto de 2 notas via Web Audio — sem arquivo de áudio, sem rede. */
-function playPing() {
-  try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-    if (!Ctx) return
-    const ctx = new Ctx()
-    const now = ctx.currentTime
-    ;[880, 1180].forEach((freq, i) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      const t = now + i * 0.12
-      gain.gain.setValueAtTime(0, t)
-      gain.gain.linearRampToValueAtTime(0.25, t + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18)
-      osc.connect(gain); gain.connect(ctx.destination)
-      osc.start(t); osc.stop(t + 0.2)
-    })
-    setTimeout(() => ctx.close().catch(() => {}), 700)
-  } catch { /* navegador bloqueou áudio até interação — silêncio */ }
-}
 
 function displayName(c: ConversationSummary): string {
   return c.other_user?.name ?? c.title ?? 'Conversa'
@@ -98,7 +76,7 @@ export function ChatNotifier() {
 
     if (fresh.length) {
       setPopups(prev => [...fresh, ...prev].slice(0, 4))
-      if (isChatSoundOn()) playPing()
+      if (isChatSoundOn()) playChatSound()
     }
   }, [data, onInbox])
 
