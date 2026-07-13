@@ -15,6 +15,7 @@ import {
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 type Tipo = 'consultor' | 'parceiro'
+type Natureza = 'adiantamento' | 'emprestimo'
 
 interface Parcela { numero?: number; year_month: string; valor: number }
 
@@ -23,7 +24,10 @@ interface Adiantamento {
   beneficiario_tipo: Tipo
   beneficiario_id: number
   beneficiario_nome: string
+  tipo: Natureza
   valor_total: number
+  data_realizado: string | null
+  disponibilizado: boolean
   num_parcelas: number
   primeira_competencia: string
   descricao: string | null
@@ -68,9 +72,13 @@ export default function AdiantamentosPage() {
   // Form (modal)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [natureza, setNatureza] = useState<Natureza>('adiantamento')
   const [tipo, setTipo] = useState<Tipo>('consultor')
   const [beneficiarioId, setBeneficiarioId] = useState<string>('')
   const [valorTotal, setValorTotal] = useState('')
+  const [disponibilizado, setDisponibilizado] = useState(true)
+  const [feitoMonth, setFeitoMonth] = useState<number | null>(null)
+  const [feitoYear, setFeitoYear] = useState<number | null>(null)
   const [numParcelas, setNumParcelas] = useState('1')
   const [compMonth, setCompMonth] = useState<number | null>(null)
   const [compYear, setCompYear] = useState<number | null>(null)
@@ -112,22 +120,42 @@ export default function AdiantamentosPage() {
 
   const openNovo = () => {
     setEditingId(null)
+    setNatureza('adiantamento')
     setTipo('consultor'); setBeneficiarioId(''); setValorTotal(''); setNumParcelas('1')
+    setDisponibilizado(true)
+    setFeitoMonth(null); setFeitoYear(null)
     setCompMonth(null); setCompYear(null); setDescricao(''); setParcelas([])
     setModalOpen(true)
   }
 
   const openEditar = (a: Adiantamento) => {
     setEditingId(a.id)
+    setNatureza(a.tipo ?? 'adiantamento')
     setTipo(a.beneficiario_tipo)
     setBeneficiarioId(String(a.beneficiario_id))
     setValorTotal(String(a.valor_total))
+    setDisponibilizado(a.disponibilizado ?? true)
     setNumParcelas(String(a.num_parcelas))
+    if (a.data_realizado) {
+      const [fy, fm] = a.data_realizado.split('-').map(Number)
+      setFeitoMonth(fm); setFeitoYear(fy)
+    } else { setFeitoMonth(null); setFeitoYear(null) }
     const [y, m] = a.primeira_competencia.split('-').map(Number)
     setCompMonth(m); setCompYear(y)
     setDescricao(a.descricao ?? '')
     setParcelas(a.parcelas.map(p => ({ numero: p.numero, year_month: p.year_month, valor: Number(p.valor) })))
     setModalOpen(true)
+  }
+
+  // Ao escolher a data em que foi feito, sugere a competência de desconto/quitação:
+  // adiantamento desconta no mesmo mês; empréstimo começa a quitar no mês seguinte.
+  const pickFeito = (m: number, y: number) => {
+    setFeitoMonth(m || null); setFeitoYear(y || null)
+    if (m && y) {
+      const offset = natureza === 'emprestimo' ? 1 : 0
+      const d = new Date(y, (m - 1) + offset, 1)
+      setCompMonth(d.getMonth() + 1); setCompYear(d.getFullYear())
+    }
   }
 
   const setParcelaValor = (idx: number, v: string) =>
@@ -139,13 +167,17 @@ export default function AdiantamentosPage() {
     if (!beneficiarioId) { toast.error('Selecione o beneficiário'); return }
     const total = parseFloat(valorTotal.replace(',', '.')) || 0
     if (total <= 0) { toast.error('Informe o valor total'); return }
+    if (!feitoMonth || !feitoYear) { toast.error('Informe a data em que foi feito'); return }
     if (!startYM) { toast.error('Informe a competência inicial'); return }
     if (parcelas.length === 0) { toast.error('Nenhuma parcela gerada'); return }
 
     const payload = {
       beneficiario_tipo: tipo,
+      tipo: natureza,
       beneficiario_id: Number(beneficiarioId),
       valor_total: total,
+      disponibilizado: natureza === 'emprestimo' ? disponibilizado : true,
+      data_realizado: `${feitoYear}-${String(feitoMonth).padStart(2, '0')}-01`,
       num_parcelas: parcelas.length,
       primeira_competencia: parcelas[0].year_month,
       descricao: descricao.trim() || null,
@@ -177,19 +209,19 @@ export default function AdiantamentosPage() {
   }
 
   return (
-    <AppLayout title="Adiantamentos">
+    <AppLayout title="Adiantamentos e Empréstimos">
       <div className="flex-1 flex flex-col min-h-0 overflow-auto">
         <div className="px-4 md:px-6 pt-6 pb-4 border-b flex items-center justify-between gap-3" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-3">
             <Banknote size={20} style={{ color: 'var(--primary)' }} />
             <div>
-              <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Adiantamentos</h1>
+              <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Adiantamentos e Empréstimos</h1>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Adiantamentos a colaboradores (consultores, diretores, coordenadores) e parceiros, parcelados — descontados no fechamento de cada mês.
+                Colaboradores (consultores, diretores, coordenadores) e parceiros. <b>Adiantamento</b> desconta no fechamento; <b>empréstimo</b> soma no mês em que foi feito e é quitado pelas parcelas.
               </p>
             </div>
           </div>
-          <Button variant="primary" size="sm" icon={Plus} onClick={openNovo}>Novo adiantamento</Button>
+          <Button variant="primary" size="sm" icon={Plus} onClick={openNovo}>Incluir adiantamento ou empréstimo</Button>
         </div>
 
         <div className="flex-1 overflow-auto p-4 md:p-6">
@@ -202,8 +234,10 @@ export default function AdiantamentosPage() {
                 <Thead>
                   <tr>
                     <Th>Beneficiário</Th>
-                    <Th>Tipo</Th>
+                    <Th>Natureza</Th>
+                    <Th>Perfil</Th>
                     <Th right>Valor total</Th>
+                    <Th>Feito em</Th>
                     <Th>Parcelas</Th>
                     <Th>Período</Th>
                     <Th>Descrição</Th>
@@ -213,15 +247,27 @@ export default function AdiantamentosPage() {
                 <Tbody>
                   {lista.map(a => {
                     const ult = a.parcelas[a.parcelas.length - 1]
+                    const isEmp = a.tipo === 'emprestimo'
                     return (
                       <Tr key={a.id}>
                         <Td className="text-sm font-medium">{a.beneficiario_nome}</Td>
+                        <Td>
+                          <div className="flex items-center gap-1.5">
+                            <Badge variant={isEmp ? 'success' : 'warning'}>
+                              {isEmp ? 'Empréstimo' : 'Adiantamento'}
+                            </Badge>
+                            {isEmp && !a.disponibilizado && (
+                              <Badge variant="danger">Pendente</Badge>
+                            )}
+                          </div>
+                        </Td>
                         <Td>
                           <Badge variant={a.beneficiario_tipo === 'parceiro' ? 'purple' : 'primary'}>
                             {a.beneficiario_tipo === 'parceiro' ? 'Parceiro' : 'Colaborador'}
                           </Badge>
                         </Td>
                         <Td right className="tabular-nums text-sm font-semibold">{formatBRL(a.valor_total)}</Td>
+                        <Td className="text-xs" muted>{a.data_realizado ? fmtComp(a.data_realizado.slice(0, 7)) : '—'}</Td>
                         <Td className="text-xs" muted>{a.num_parcelas}x</Td>
                         <Td className="text-xs" muted>
                           {fmtComp(a.primeira_competencia)}{ult ? ` — ${fmtComp(ult.year_month)}` : ''}
@@ -243,9 +289,52 @@ export default function AdiantamentosPage() {
       </div>
 
       {/* Modal de cadastro/edição */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Editar adiantamento' : 'Novo adiantamento'} width="max-w-2xl">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Editar lançamento' : 'Incluir adiantamento ou empréstimo'} width="max-w-2xl">
         <div className="flex flex-col gap-4">
-          {/* Tipo */}
+          {/* Natureza: adiantamento (desconta) × empréstimo (soma e quita) */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
+              Natureza
+            </label>
+            <div className="flex gap-2">
+              {(['adiantamento', 'emprestimo'] as const).map(n => (
+                <button key={n} type="button"
+                  onClick={() => setNatureza(n)}
+                  className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors"
+                  style={natureza === n
+                    ? { background: 'var(--primary)', color: 'var(--primary-fg)' }
+                    : { background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                >
+                  {n === 'adiantamento' ? 'Adiantamento' : 'Empréstimo'}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              {natureza === 'emprestimo'
+                ? 'No empréstimo o valor é somado ao fechamento do mês em que foi feito, e depois descontado nas parcelas dos meses seguintes.'
+                : 'No adiantamento o valor é descontado do fechamento, nas parcelas informadas abaixo.'}
+            </p>
+          </div>
+
+          {/* Empréstimo: só entra no fechamento quando o valor já foi disponibilizado */}
+          {natureza === 'emprestimo' && (
+            <label className="flex items-start gap-2.5 rounded-lg p-3 cursor-pointer"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+              <input type="checkbox" checked={disponibilizado}
+                onChange={e => setDisponibilizado(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0" style={{ accentColor: 'var(--primary)' }} />
+              <span className="text-xs" style={{ color: 'var(--text)' }}>
+                <b>Disponibilizar no fechamento</b>
+                <span className="block text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  {disponibilizado
+                    ? 'O valor é somado a este fechamento e as parcelas começam a descontar nos meses seguintes.'
+                    : 'O empréstimo fica só registrado (pendente) e não altera nenhum fechamento.'}
+                </span>
+              </span>
+            </label>
+          )}
+
+          {/* Perfil do beneficiário */}
           <div className="flex gap-2">
             {(['consultor', 'parceiro'] as const).map(t => (
               <button key={t} type="button"
@@ -272,14 +361,21 @@ export default function AdiantamentosPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <TextInput label="Valor total (R$)" type="number" min="0" step="0.01" inputMode="decimal"
               value={valorTotal} onChange={e => setValorTotal(e.target.value)} placeholder="0,00" />
-            <TextInput label="Nº de parcelas" type="number" min="1" max="120"
-              value={numParcelas} onChange={e => setNumParcelas(e.target.value)} />
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
-                Começa a descontar em
+                Data em que foi feito
               </label>
-              <MonthYearPicker month={compMonth} year={compYear} onChange={(m, y) => { setCompMonth(m || null); setCompYear(y || null) }} />
+              <MonthYearPicker month={feitoMonth} year={feitoYear} onChange={(m, y) => pickFeito(m, y)} />
             </div>
+            <TextInput label="Nº de parcelas" type="number" min="1" max="120"
+              value={numParcelas} onChange={e => setNumParcelas(e.target.value)} />
+          </div>
+
+          <div className="flex flex-col gap-1.5 max-w-[220px]">
+            <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
+              {natureza === 'emprestimo' ? 'Quitação começa em' : 'Começa a descontar em'}
+            </label>
+            <MonthYearPicker month={compMonth} year={compYear} onChange={(m, y) => { setCompMonth(m || null); setCompYear(y || null) }} />
           </div>
 
           <div className="flex flex-col gap-1.5">

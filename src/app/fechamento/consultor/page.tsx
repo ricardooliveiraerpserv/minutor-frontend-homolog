@@ -37,9 +37,10 @@ interface ConsultorBase {
   desconto_desc: string | null
   adiantamento: number      // ajuste manual: adiantamento + parcelas da rotina
   adiantamento_desc?: string | null  // descrição das parcelas de adiantamento do mês
+  emprestimo_aporte?: number // rotina: empréstimo que SOMA no mês em que foi feito
   adicional: number         // ajuste manual: adicional
   adicional_desc: string | null
-  recebimento: number       // total + despesas − desconto − adiantamento + adicional
+  recebimento: number       // total + despesas − desconto − adiantamento + adicional + empréstimo
   envio_em: string | null   // ISO do último envio do fechamento; null = não enviado
   envio_por: string | null  // nome de quem enviou
   notas?: NotasPayload      // NFS-e + Nota de débito (só consultor PJ avulso)
@@ -357,13 +358,14 @@ function buildReport(
 
   const baseValor = mode === 'servicos' ? servTotal : mode === 'despesa' ? despTot : servTotal + despTot
 
-  // Ajustes manuais (desconto/adiantamento/adicional) — entram no Recebimento final.
+  // Ajustes manuais (desconto/adiantamento/adicional) + aporte de empréstimo — entram no Recebimento final.
   const desconto     = consultor.desconto || 0
   const adiantamento = consultor.adiantamento || 0
+  const emprestimo   = consultor.emprestimo_aporte || 0
   const adicional    = consultor.adicional || 0
   // No relatório de Despesas só entram as despesas — sem ajustes nem recebimento.
-  const temAjustes   = mode !== 'despesa' && (desconto !== 0 || adiantamento !== 0 || adicional !== 0)
-  const recebimento  = baseValor - desconto - adiantamento + adicional
+  const temAjustes   = mode !== 'despesa' && (desconto !== 0 || adiantamento !== 0 || emprestimo !== 0 || adicional !== 0)
+  const recebimento  = baseValor - desconto - adiantamento + adicional + emprestimo
 
   const ajustesHtml = temAjustes ? `
     <div class="section">
@@ -377,6 +379,7 @@ function buildReport(
           ${isDesp && despTot > 0 ? `<tr class="main-row"><td>Despesa</td><td>—</td><td class="right" style="color:#16a34a">+ ${formatBRL(despTot)}</td></tr>` : ''}
           <tr class="main-row"><td>Desconto</td><td>${consultor.desconto_desc ?? '—'}</td><td class="right" style="color:#dc2626">− ${formatBRL(desconto)}</td></tr>
           <tr class="main-row"><td>Adiantamento</td><td>${consultor.adiantamento_desc ?? '—'}</td><td class="right" style="color:#dc2626">− ${formatBRL(adiantamento)}</td></tr>
+          ${emprestimo !== 0 ? `<tr class="main-row"><td>Empréstimo</td><td>—</td><td class="right" style="color:#16a34a">+ ${formatBRL(emprestimo)}</td></tr>` : ''}
           <tr class="main-row"><td>Adicional</td><td>${consultor.adicional_desc ?? '—'}</td><td class="right" style="color:#16a34a">+ ${formatBRL(adicional)}</td></tr>
         </tbody>
       </table>
@@ -385,7 +388,7 @@ function buildReport(
 
   const totalValor = temAjustes ? recebimento : baseValor
   const totalLabel = temAjustes
-    ? `RECEBIMENTO &nbsp;<span style="font-size:10px;font-weight:normal">(base ${formatBRL(baseValor)} − desconto ${formatBRL(desconto)} − adiantamento ${formatBRL(adiantamento)} + adicional ${formatBRL(adicional)})</span>`
+    ? `RECEBIMENTO &nbsp;<span style="font-size:10px;font-weight:normal">(base ${formatBRL(baseValor)} − desconto ${formatBRL(desconto)} − adiantamento ${formatBRL(adiantamento)} + adicional ${formatBRL(adicional)}${emprestimo !== 0 ? ` + empréstimo ${formatBRL(emprestimo)}` : ''})</span>`
     : mode === 'servicos'
       ? 'TOTAL A PAGAR — SERVIÇOS'
       : mode === 'despesa'
@@ -855,9 +858,9 @@ export default function FechamentoConsultorPage() {
     )
   }
 
-  // Recebimento ao vivo = serviços + despesas − desconto − adiantamento + adicional.
+  // Recebimento ao vivo = serviços + despesas − desconto − adiantamento + adicional + empréstimo.
   function calcRecebimento(c: ConsultorBase, desconto: number, adiantamento: number, adicional: number): number {
-    return c.total + (c.total_despesas || 0) - desconto - adiantamento + adicional
+    return c.total + (c.total_despesas || 0) - desconto - adiantamento + adicional + (c.emprestimo_aporte || 0)
   }
 
   // 4 colunas (Desconto / Adiantamento / Adicional editáveis + Total/Recebimento ao vivo).
@@ -962,11 +965,13 @@ export default function FechamentoConsultorPage() {
           {formatBRL(recebimento)}
           {(() => {
             const d = num(desconto), a = num(adiantamento), ad = num(adicional)
+            const emp = c.emprestimo_aporte || 0
             const parts: string[] = [`serv ${formatBRL(c.total)}`]
             if (c.total_despesas > 0) parts.push(`+ desp ${formatBRL(c.total_despesas)}`)
             if (d > 0)  parts.push(`− desc ${formatBRL(d)}`)
             if (a > 0)  parts.push(`− adiant ${formatBRL(a)}`)
             if (ad > 0) parts.push(`+ adic ${formatBRL(ad)}`)
+            if (emp > 0) parts.push(`+ emprést ${formatBRL(emp)}`)
             // Empilha cada parcela em sua própria linha (whitespace-nowrap) para não quebrar no meio do valor.
             return parts.length > 1 ? (
               <div className="flex flex-col items-end text-[10px] font-normal leading-tight" style={{ color: 'var(--text-light)' }}>
