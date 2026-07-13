@@ -156,7 +156,7 @@ export function MultiSelect({
               : filtered.map(o => {
                   const checked = value.includes(String(o.id))
                   return (
-                    <button key={o.id} type="button" onClick={() => toggle(String(o.id))}
+                    <button key={o.id} type="button" onClick={() => toggle(String(o.id))} title={o.name}
                       className="w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2"
                       style={{ color: checked ? 'var(--primary)' : 'var(--text)', fontWeight: checked ? 500 : 400 }}
                       onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-hover)' }}

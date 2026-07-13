@@ -24,12 +24,17 @@ function ProjectHoursBar({ projectId }: { projectId?: number | null }) {
     let cancel = false
     api.get<any>(`/projects/${projectId}/cost-summary`).then(r => {
       const hs = r?.hours_summary ?? {}
-      const available = Number(hs.total_available_hours ?? 0)
-      const consumed  = Number(hs.approved_hours ?? 0)
+      // "Apontáveis" = teto real de apontamento (Fechado/BH Fixo = Horas Apontáveis, não
+      // as vendidas), coerente com o bloqueio do backend. Fallback p/ o campo antigo.
+      const hasApont = hs.apontaveis_hours != null
+      const available = Number(hasApont ? hs.apontaveis_hours : hs.total_available_hours ?? 0)
+      const balance   = hasApont
+        ? Math.max(0, Number(hs.apontaveis_balance ?? 0))
+        : Math.max(0, available - Number(hs.approved_hours ?? 0))
+      const consumed  = Math.max(0, available - balance)
       const data: ProjectConsumo = {
-        available, consumed,
-        balance: Math.max(0, available - consumed),
-        pct: Number(hs.hours_percentage ?? (available > 0 ? (consumed / available) * 100 : 0)),
+        available, consumed, balance,
+        pct: Number(hasApont ? hs.apontaveis_percentage : (hs.hours_percentage ?? (available > 0 ? (consumed / available) * 100 : 0))),
       }
       consumoCache.set(projectId, data)
       if (!cancel) setC(data)

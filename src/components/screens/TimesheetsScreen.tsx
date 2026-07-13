@@ -1050,7 +1050,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
 
   // Opções do filtro de projeto em árvore: filho aparece sob o pai com seta ↳ (azul).
   const projectTreeOptions = useMemo(() => {
-    const list = projectsList as Array<{ id: number; name: string; parent_project_id?: number | null }>
+    const list = projectsList as Array<{ id: number; name: string; code?: string | null; parent_project_id?: number | null }>
     const ids = new Set(list.map(p => p.id))
     const byParent = new Map<number | null, typeof list>()
     for (const p of list) {
@@ -1062,7 +1062,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, ex
     const out: { id: number; name: string; depth: number }[] = []
     const walk = (parentId: number | null, depth: number) => {
       for (const p of (byParent.get(parentId) ?? []).sort(sortName)) {
-        out.push({ id: p.id, name: p.name, depth })
+        out.push({ id: p.id, name: p.code ? `${p.code} — ${p.name}` : p.name, depth })
         walk(p.id, depth + 1)
       }
     }
