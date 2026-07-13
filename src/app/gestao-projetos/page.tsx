@@ -722,7 +722,8 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
           {(() => {
             const cBank = Number((project as any).coordination_hours ?? 0)
             if (cBank <= 0) return <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>
-            const cCons = Number((project as any).coordination_consumed_hours ?? 0)
+            // Banco = Horas Apontáveis; consumido = horas APONTADAS do projeto (não só do coordenador).
+            const cCons = calcProjHours(project).consumedHours
             const cPct  = (cCons / cBank) * 100
             const cColor = cPct >= 90 ? 'var(--danger-border)' : cPct >= 70 ? 'var(--warning-border)' : 'var(--success-border)'
             const cSaldo = cBank - cCons
@@ -752,7 +753,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                   </div>
                   <div className="grid grid-cols-3 gap-1 text-center mb-2">
                     <div>
-                      <p className="text-[9px]" style={{ color: 'var(--text-light)' }}>Vendidas</p>
+                      <p className="text-[9px]" style={{ color: 'var(--text-light)' }}>Apontáveis</p>
                       <p className="text-xs font-bold tabular-nums" style={{ color: 'var(--text)' }}>{cBank.toFixed(1)}h</p>
                     </div>
                     <div>
@@ -2459,7 +2460,7 @@ function GestaoProjetosInner() {
         case 'coord': {
           const bank = Number((p as any).coordination_hours ?? 0)
           if (bank <= 0) return -1
-          return (Number((p as any).coordination_consumed_hours ?? 0) / bank) * 100
+          return (calcProjHours(p).consumedHours / bank) * 100
         }
       }
     }
