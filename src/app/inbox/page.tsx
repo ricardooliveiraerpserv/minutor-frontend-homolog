@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -16,9 +17,17 @@ import { SeveritySummary } from '@/components/inbox/SeveritySummary'
 import { NewConversationModal } from '@/components/inbox/NewConversationModal'
 import type { PresenceStatusValue } from '@/types/inbox'
 
+// useSearchParams exige Suspense no build de produção (next build) — wrapper abaixo.
 export default function InboxPage() {
+  return <Suspense fallback={null}><InboxInner /></Suspense>
+}
+
+function InboxInner() {
   const { user } = useAuth()
   const qc = useQueryClient()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const paramC = searchParams.get('c')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [newOpen, setNewOpen] = useState(false)
 
@@ -64,11 +73,21 @@ export default function InboxPage() {
     return map
   }, [presenceData])
 
+  // Abertura via ?c=<id> (vindo do ícone de mensagens / pop-up). Aplica e limpa a URL.
   useEffect(() => {
-    if (!selectedId && conversations.length > 0) {
+    if (!paramC) return
+    const pc = Number(paramC)
+    if (conversations.some(c => c.id === pc)) {
+      setSelectedId(pc)
+      router.replace('/inbox', { scroll: false })
+    }
+  }, [paramC, conversations, router])
+
+  useEffect(() => {
+    if (!selectedId && !paramC && conversations.length > 0) {
       setSelectedId(conversations[0].id)
     }
-  }, [conversations, selectedId])
+  }, [conversations, selectedId, paramC])
 
   useEffect(() => {
     presenceHeartbeat('online').catch(() => {})
