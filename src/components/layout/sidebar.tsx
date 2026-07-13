@@ -243,7 +243,7 @@ const NAV: NavEntry[] = [
   // ── 🤖 BOT MINUTOR — telas configuráveis pelo Configurador (acesso por perfil/usuário) ──
   { type: 'item', label: 'Feed Operacional', href: '/feed-operacional',          icon: Activity,       catalogKey: 'bot_minutor' },
   { type: 'item', label: 'Chat',             href: '/inbox',                     icon: MessageCircle,  catalogKey: 'bot_minutor' },
-  { type: 'item', label: 'BOT Minutor',      href: '/configuracoes/bot-minutor', icon: Bot,            catalogKey: 'bot_minutor' },
+  { type: 'item', label: 'BOT Minutor',      href: '/configuracoes/bot-minutor', icon: Settings,       catalogKey: 'bot_minutor' },
 
   // 👁 "Ver como" agora é item do CONFIGURADOR (módulo Administrativo › Sistema, só Replica) —
   // gerenciável pela árvore. Não é mais hardcoded aqui.

@@ -6,6 +6,7 @@ import { Toaster } from 'sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/contexts/auth-context'
 import { DeniedActionsProvider } from '@/contexts/denied-actions-context'
+import { PresenceHeartbeat } from '@/components/presence-heartbeat'
 import { useState } from 'react'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -28,6 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         <TooltipProvider>
           <AuthProvider>
+            <PresenceHeartbeat />
             <DeniedActionsProvider>
               {children}
             </DeniedActionsProvider>
