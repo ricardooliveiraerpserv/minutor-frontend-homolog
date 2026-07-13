@@ -841,14 +841,29 @@ function FlatView({ usage, screens, onPerm, onToggle, onLabel }: { usage: Record
 /** Seletor visual de ícone (lucide) para pasta/módulo. */
 function IconPicker({ value, onPick, fallback }: { value?: string; onPick: (name: string) => void; fallback?: LucideIcon }) {
   const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const Cur = iconComp(value, fallback ?? Folder)
+  const toggle = () => {
+    if (!open && wrapRef.current) {
+      const r = wrapRef.current.getBoundingClientRect()
+      const vw = typeof window !== 'undefined' ? window.innerWidth : 1280
+      const vh = typeof window !== 'undefined' ? window.innerHeight : 800
+      const H = 240, W = 250
+      // posição fixed: abre pra cima quando não cabe embaixo (evita corte no fim da lista)
+      const top = (r.bottom + H > vh) ? Math.max(8, r.top - H - 4) : r.bottom + 4
+      const left = Math.max(8, Math.min(r.left, vw - W - 8))
+      setPos({ top, left })
+    }
+    setOpen(o => !o)
+  }
   return (
-    <div className="relative shrink-0">
-      <button onClick={() => setOpen(o => !o)} title="Escolher ícone" className="p-0.5 rounded hover:bg-[var(--surface-hover)]"><Cur size={15} style={{ color: 'var(--primary)' }} /></button>
+    <div ref={wrapRef} className="relative shrink-0">
+      <button onClick={toggle} title="Escolher ícone" className="p-0.5 rounded hover:bg-[var(--surface-hover)]"><Cur size={15} style={{ color: 'var(--primary)' }} /></button>
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute z-40 mt-1 p-2 grid grid-cols-8 gap-0.5 rounded-lg shadow-xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)', width: 250 }}>
+          <div className="fixed z-40 p-2 grid grid-cols-8 gap-0.5 rounded-lg shadow-xl" style={{ top: pos?.top ?? 0, left: pos?.left ?? 0, background: 'var(--surface)', border: '1px solid var(--border)', width: 250 }}>
             {Object.entries(ICONS).map(([name, C]) => (
               <button key={name} onClick={() => { onPick(name); setOpen(false) }} title={name} className="p-1.5 rounded hover:bg-[var(--surface-hover)]" style={{ color: value === name ? 'var(--primary)' : 'var(--text-muted)' }}><C size={16} /></button>
             ))}
