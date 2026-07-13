@@ -45,7 +45,10 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   // Regra de horas por perfil em sustentação: 'hidden' = campo some (usuário aponta manualmente,
   // opcional); 'required' = campo obrigatório (deve apontar); 'optional' = padrão (opcional).
   timeMode?: 'hidden' | 'required' | 'optional'
-}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, onSchedule, formStatusIds = [], onFormStatus, macros = [], timeMode = 'optional' }, ref) {
+  // Motivo p/ bloquear a conclusão (ex.: classificação incompleta). Se setado, envio com status
+  // resolvido é barrado com essa mensagem.
+  resolveBlockedReason?: string
+}>(function InteracaoComposer({ ticketId, onSent, statuses = [], currentStatusId, onApplyStatus, onSchedule, formStatusIds = [], onFormStatus, macros = [], timeMode = 'optional', resolveBlockedReason }, ref) {
   const [visibility, setVisibility] = useState<'customer' | 'internal'>('customer')
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
   // a resposta só libera após escolher. Escolher o status atual = manter.
@@ -148,6 +151,8 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
 
   const send = async () => {
     if (statuses.length > 0 && !sendStatus) { toast.error('Escolha o status antes de enviar.'); return }
+    // Concluir (status resolvido) exige classificação completa (Categoria/Serviço/Urgência/Nível).
+    if (selStatus?.is_resolved && resolveBlockedReason) { toast.error(resolveBlockedReason); return }
     const ed = edRef.current
     const html = ed ? sanitizeRich(ed.innerHTML) : ''
     const hasText = !empty
