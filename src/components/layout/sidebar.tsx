@@ -203,8 +203,6 @@ const IS_REPLICA = process.env.NEXT_PUBLIC_APP_ENV === 'local'
 const HOME_ITEMS: NavEntry[] = [
   { type: 'item', label: 'Meu Dia',       href: '/inicio',       icon: Home,            badge: 'critical' },
   { type: 'item', label: 'Meu Painel',    href: '/meu-painel',   icon: LayoutDashboard },
-  { type: 'item', label: 'Feed Operacional', href: '/feed-operacional', icon: Activity },
-  { type: 'item', label: 'Chat',          href: '/inbox',        icon: MessageCircle },
 ]
 
 const NAV_COORDINATOR: NavEntry[] = [
@@ -241,7 +239,11 @@ const NAV: NavEntry[] = [
 
   // ── ⚙️ CONFIGURADOR (associado via catálogo; aparece no módulo Configurador) ──
   { type: 'item', label: 'Configurador de Menus', href: '/configurador', icon: SlidersHorizontal, catalogKey: 'configurador' },
-  { type: 'item', label: 'BOT Minutor', href: '/configuracoes/bot-minutor', icon: Bot, catalogKey: 'configurador' },
+
+  // ── 🤖 BOT MINUTOR — telas configuráveis pelo Configurador (acesso por perfil/usuário) ──
+  { type: 'item', label: 'Feed Operacional', href: '/feed-operacional',          icon: Activity,       catalogKey: 'bot_minutor' },
+  { type: 'item', label: 'Chat',             href: '/inbox',                     icon: MessageCircle,  catalogKey: 'bot_minutor' },
+  { type: 'item', label: 'BOT Minutor',      href: '/configuracoes/bot-minutor', icon: Bot,            catalogKey: 'bot_minutor' },
 
   // 👁 "Ver como" agora é item do CONFIGURADOR (módulo Administrativo › Sistema, só Replica) —
   // gerenciável pela árvore. Não é mais hardcoded aqui.
