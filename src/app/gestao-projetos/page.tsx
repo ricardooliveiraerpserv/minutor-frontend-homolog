@@ -2253,7 +2253,9 @@ function GestaoProjetosInner() {
   useEffect(() => {
     const items = (r: any) => Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
     api.get<any>('/service-types?pageSize=100').then(r => setServiceTypes(items(r))).catch(() => {})
-    api.get<any>('/users?type=coordenador&coordinator_type=projetos&pageSize=200')
+    // Todos os coordenadores (projetos E sustentação) — o filtro de Gestão de Contratos
+    // não deve excluir os de sustentação.
+    api.get<any>('/users?type=coordenador&pageSize=200')
       .then(r => setCoordinatorsList(items(r).map((u: any) => ({ id: String(u.id), name: u.name }))))
       .catch(() => {})
     api.get<any>('/executives?pageSize=200')
