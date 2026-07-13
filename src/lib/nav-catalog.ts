@@ -83,6 +83,11 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/settings?tab=perfis', label: 'Cadastro de Perfil', group: 'Sistema' },
   { key: '/ver-como',          label: 'Ver como',         group: 'Sistema' },
   { key: '/liberacao-pipeline', label: 'Liberação de Visualização', group: 'Sistema' },
+
+  // BOT Minutor — telas configuráveis (acesso definido por perfil/usuário no Configurador)
+  { key: '/feed-operacional',          label: 'Feed Operacional', group: 'BOT Minutor' },
+  { key: '/inbox',                     label: 'Chat',             group: 'BOT Minutor' },
+  { key: '/configuracoes/bot-minutor', label: 'BOT Minutor',      group: 'BOT Minutor' },
 ]
 
 export const CATALOG_LABEL: Record<string, string> = Object.fromEntries(NAV_CATALOG.map(c => [c.key, c.label]))
