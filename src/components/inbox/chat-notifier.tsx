@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { X, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { listConversations } from '@/lib/inbox'
+import { isChatSoundOn } from '@/lib/chat-prefs'
 import type { ConversationSummary } from '@/types/inbox'
 
 interface Popup {
@@ -97,7 +98,7 @@ export function ChatNotifier() {
 
     if (fresh.length) {
       setPopups(prev => [...fresh, ...prev].slice(0, 4))
-      playPing()
+      if (isChatSoundOn()) playPing()
     }
   }, [data, onInbox])
 

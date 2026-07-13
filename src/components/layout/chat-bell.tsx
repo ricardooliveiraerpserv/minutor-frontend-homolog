@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, Volume2, VolumeX } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { listConversations } from '@/lib/inbox'
+import { isChatSoundOn, setChatSoundOn } from '@/lib/chat-prefs'
 import type { ConversationSummary } from '@/types/inbox'
 
 function initials(name: string): string {
@@ -25,7 +26,16 @@ function displayName(c: ConversationSummary): string {
 export function ChatBell() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [soundOn, setSoundOn] = useState(true)
   const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { setSoundOn(isChatSoundOn()) }, [open])
+
+  const toggleSound = () => {
+    const next = !soundOn
+    setSoundOn(next)
+    setChatSoundOn(next)
+  }
 
   const { data } = useQuery({
     queryKey: ['inbox-conversations'],
@@ -77,9 +87,21 @@ export function ChatBell() {
           className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1rem)] rounded-xl border shadow-xl z-[90] overflow-hidden"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
+          <div className="px-3 py-2 border-b flex items-center justify-between gap-2" style={{ borderColor: 'var(--border)' }}>
             <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Mensagens</span>
-            {total > 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{total} não lida{total > 1 ? 's' : ''}</span>}
+            <div className="flex items-center gap-2">
+              {total > 0 && <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>{total} não lida{total > 1 ? 's' : ''}</span>}
+              <button
+                type="button"
+                onClick={toggleSound}
+                title={soundOn ? 'Som ligado — clique para silenciar' : 'Som desligado — clique para ativar'}
+                aria-label={soundOn ? 'Silenciar som de mensagens' : 'Ativar som de mensagens'}
+                className="p-1 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
+                style={{ color: soundOn ? 'var(--primary)' : 'var(--text-light)' }}
+              >
+                {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+              </button>
+            </div>
           </div>
 
           <div className="max-h-80 overflow-y-auto">
