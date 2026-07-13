@@ -88,7 +88,7 @@ export function Triggers() {
                 <td className="px-3 py-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>{meta?.events[t.event] ?? t.event}</td>
                 <td className="px-3 py-2">
                   <button type="button" onClick={() => toggle(t)} className="w-9 h-5 rounded-full p-0.5 transition-colors" style={{ background: t.enabled ? 'var(--primary)' : 'var(--surface-sunken)' }}>
-                    <span className="block w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: t.enabled ? 'translateX(16px)' : 'none' }} />
+                    <span className="block w-4 h-4 rounded-full transition-transform" style={{ background: 'var(--surface)', transform: t.enabled ? 'translateX(16px)' : 'none' }} />
                   </button>
                 </td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
@@ -113,7 +113,7 @@ export function Triggers() {
             <div className="max-h-[68vh] overflow-auto">
               {preview.mode === 'template' && preview.html
                 ? <EmailFrame html={preview.html} />
-                : <div className="bg-white p-4" style={{ color: '#1f2937' }}><div className="text-sm whitespace-pre-wrap">{preview.body || '—'}</div>{preview.footer && <div dangerouslySetInnerHTML={{ __html: preview.footer }} />}</div>}
+                : <div className="p-4" style={{ background: '#ffffff', color: '#1f2937' }}><div className="text-sm whitespace-pre-wrap">{preview.body || '—'}</div>{preview.footer && <div dangerouslySetInnerHTML={{ __html: preview.footer }} />}</div>}
             </div>
             <div className="px-4 py-2 text-[11px]" style={{ color: 'var(--text-light)', borderTop: '1px solid var(--border)' }}>Renderizado com dados do chamado {preview.sample}</div>
           </div>
@@ -397,7 +397,7 @@ function SendEmailParams({ p, setMany, set, meta }: { p: Record<string, unknown>
         </div>
         {pv?.subject && <div className="px-3 py-1.5 text-[12px]" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>Assunto: <span style={{ color: 'var(--text)' }}>{pv.subject}</span></div>}
         {pv?.mode === 'template' && pv.html ? <EmailFrame html={pv.html} />
-          : <div className="bg-white p-3" style={{ color: '#1f2937' }}><div className="text-sm whitespace-pre-wrap">{pv?.body || '—'}</div>{pv?.footer && <div dangerouslySetInnerHTML={{ __html: pv.footer }} />}</div>}
+          : <div className="p-3" style={{ background: '#ffffff', color: '#1f2937' }}><div className="text-sm whitespace-pre-wrap">{pv?.body || '—'}</div>{pv?.footer && <div dangerouslySetInnerHTML={{ __html: pv.footer }} />}</div>}
       </div>
     </div>
   )

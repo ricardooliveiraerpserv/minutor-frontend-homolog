@@ -84,7 +84,7 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (b: boolean) =
   return (
     <button type="button" onClick={() => onChange(!on)} className="flex items-center gap-2 text-sm text-left">
       <span className="w-9 h-5 rounded-full p-0.5 transition-colors shrink-0" style={{ background: on ? 'var(--primary)' : 'var(--surface-sunken)' }}>
-        <span className="block w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: on ? 'translateX(16px)' : 'none' }} />
+        <span className="block w-4 h-4 rounded-full transition-transform" style={{ background: 'var(--surface)', transform: on ? 'translateX(16px)' : 'none' }} />
       </span>
       <span style={{ color: 'var(--text)' }}>{label}</span>
     </button>

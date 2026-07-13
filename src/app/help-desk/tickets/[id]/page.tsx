@@ -953,7 +953,7 @@ export default function HelpDeskTicketDetailPage() {
                     onClick={() => toggleIntegration(t.contract!.id, !t.contract!.helpdesk_integration_enabled)}
                     className="relative shrink-0 rounded-full transition-colors"
                     style={{ width: 40, height: 22, background: t.contract.helpdesk_integration_enabled ? 'var(--primary)' : 'var(--border)', opacity: savingIntegration ? 0.6 : 1, cursor: savingIntegration ? 'default' : 'pointer' }}>
-                    <span className="absolute rounded-full bg-white transition-all" style={{ width: 18, height: 18, top: 2, left: t.contract.helpdesk_integration_enabled ? 20 : 2 }} />
+                    <span className="absolute rounded-full transition-all" style={{ background: 'var(--surface)', width: 18, height: 18, top: 2, left: t.contract.helpdesk_integration_enabled ? 20 : 2 }} />
                   </button>
                 </div>
                 <div className="text-[11px]" style={{ color: t.contract.helpdesk_integration_enabled ? 'var(--success)' : 'var(--text-light)' }}>
