@@ -42,6 +42,7 @@ interface UserData {
   can_timesheet_sustentacao?: boolean
   is_bizify?: boolean
   is_diretor_projetos?: boolean
+  is_coordinator?: boolean
   full_name?: string | null
   cpf?: string | null
   matricula?: string | null
@@ -337,6 +338,7 @@ const EMPTY_FORM = {
   can_timesheet_sustentacao: false,
   is_bizify: false,
   is_diretor_projetos: false,
+  is_coordinator: false,
   // Folha de pagamento
   full_name: '',
   cpf: '',
@@ -459,6 +461,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           can_timesheet_sustentacao:  item.can_timesheet_sustentacao ?? false,
           is_bizify:                  item.is_bizify ?? false,
           is_diretor_projetos:        item.is_diretor_projetos ?? false,
+          is_coordinator:             item.is_coordinator ?? false,
           full_name:                  item.full_name ?? '',
           cpf:                        item.cpf ?? '',
           matricula:                  item.matricula ?? '',
@@ -502,6 +505,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       if (form.daily_hours) payload.daily_hours = parseFloat(form.daily_hours)
       payload.is_bizify = form.is_bizify
       payload.is_diretor_projetos = form.is_diretor_projetos
+      payload.is_coordinator = form.is_coordinator
       if (form.profiles.includes('consultor') && form.consultant_type) {
         payload.consultant_type       = form.consultant_type
         payload.bank_hours_start_date = form.bank_hours_start_date || null
@@ -1012,6 +1016,16 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
               />
             )}
 
+            {/* ── É coordenador? — só p/ perfis NÃO-coordenador-nativos (admin/administrativo);
+                   coordenador nativo já é coordenador por definição. Marca o usuário para
+                   aparecer nas colunas do Kanban de Contratos e no filtro de coordenadores. ── */}
+            {form.profiles[0] && !['coordenador', 'cliente', 'parceiro_admin'].includes(resolveTypeForBackend(form.profiles[0])) && (
+              <Toggle
+                value={form.is_coordinator}
+                onChange={() => setForm(f => ({ ...f, is_coordinator: !f.is_coordinator }))}
+                label="É coordenador (aparece no Kanban de Contratos e no filtro de coordenadores)"
+              />
+            )}
             {/* ── Permissão para chamar @bot no chat ── */}
             <Toggle
               value={form.can_use_bot}
