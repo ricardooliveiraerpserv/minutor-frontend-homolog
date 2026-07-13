@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { AlertTriangle, BarChart3, Bell, CheckCircle2, Zap, X, ShieldAlert, Info, Clock, ChevronsDown } from 'lucide-react'
@@ -54,6 +55,7 @@ function savePopped(uid: number, set: Set<string>) {
  */
 export function NotificationPopups({ userId }: { userId: number }) {
   const router = useRouter()
+  const qc = useQueryClient()
   const [queue, setQueue] = useState<Notif[]>([])
   const [sel, setSel] = useState<number[]>([])
   const [busy, setBusy] = useState(false)
@@ -103,10 +105,13 @@ export function NotificationPopups({ userId }: { userId: number }) {
     try {
       es = new EventSource('/api/v1/notifications/stream')
       es.addEventListener('notify', () => fetchNew())
+      // Chat em tempo real: ao chegar mensagem nova, invalida o cache de conversas —
+      // o ChatBell/ChatNotifier (mesmo queryKey) atualizam e sobem o pop-up na hora.
+      es.addEventListener('inbox', () => qc.invalidateQueries({ queryKey: ['inbox-conversations'] }))
       // onerror: o próprio EventSource reconecta (respeitando o "retry"); nada a fazer.
     } catch { /* sem SSE → fica só o polling */ }
     return () => { es?.close() }
-  }, [fetchNew])
+  }, [fetchNew, qc])
 
   const current = queue[0]
 
