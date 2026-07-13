@@ -14,6 +14,8 @@ export interface User {
   daily_hours?: number | null
   bank_hours_start_date?: string | null
   guaranteed_hours?: number | null
+  chat_sound?: string | null          // toque global de notificação de chat
+  chat_sound_volume?: number | null   // volume global (0–100)
 }
 
 export interface AuthResponse {
