@@ -82,6 +82,8 @@ export function TimeSelect5({
   const filtered = query.trim() === ''
     ? TIMES
     : TIMES.filter(t => t.replace(':', '').startsWith(digits) || t.startsWith(query))
+  // Opções bloqueadas (fim <= início / início >= fim) ficam OCULTAS, não desabilitadas.
+  const visible = filtered.filter(t => !isBlocked(t))
 
   const commit = (v: string) => { if (isBlocked(v)) return; onChange(v); setOpen(false) }
   const onEnter = () => {
@@ -102,7 +104,7 @@ export function TimeSelect5({
         <ChevronDown size={12} style={{ color: 'var(--text-light)', flexShrink: 0 }} />
       </button>
       {open && !disabled && (
-        <div className="absolute z-50 mt-1 left-0 rounded-lg shadow-xl overflow-hidden"
+        <div className="absolute z-50 bottom-full mb-1 left-0 rounded-lg shadow-xl overflow-hidden"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)', minWidth: topOption ? 150 : 108 }}>
           {/* Campo de digitação (busca/entrada direta) */}
           <div className="p-1.5 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -120,18 +122,15 @@ export function TimeSelect5({
                 {topOption.label}
               </button>
             )}
-            {filtered.map(t => {
-              const blocked = isBlocked(t)
-              return (
-                <button key={t} type="button" disabled={blocked} data-sel={t === value ? '1' : undefined}
-                  onClick={() => commit(t)}
-                  className={`w-full text-left px-2.5 py-1 text-xs ${blocked ? '' : 'ds-row-hover'}`}
-                  style={{ background: t === value ? 'var(--primary-soft)' : 'transparent', color: blocked ? 'var(--text-light)' : (t === value ? 'var(--primary)' : 'var(--text)'), opacity: blocked ? 0.4 : 1, cursor: blocked ? 'not-allowed' : 'pointer' }}>
-                  {t}
-                </button>
-              )
-            })}
-            {filtered.length === 0 && (
+            {visible.map(t => (
+              <button key={t} type="button" data-sel={t === value ? '1' : undefined}
+                onClick={() => commit(t)}
+                className="w-full text-left px-2.5 py-1 text-xs ds-row-hover"
+                style={{ background: t === value ? 'var(--primary-soft)' : 'transparent', color: t === value ? 'var(--primary)' : 'var(--text)', cursor: 'pointer' }}>
+                {t}
+              </button>
+            ))}
+            {visible.length === 0 && (
               <div className="px-2.5 py-2 text-xs" style={{ color: 'var(--text-light)' }}>
                 {parseTyped(query) ? `Enter para usar ${parseTyped(query)}` : 'Nenhum horário'}
               </div>

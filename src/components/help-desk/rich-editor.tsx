@@ -91,8 +91,9 @@ export const RichEditor = forwardRef<RichEditorHandle, { initialHtml: string; mi
     const insertImage = (dataUrl: string) => {
       const ed = edRef.current; if (!ed) return
       ed.focus()
+      // Borda AZUL evidente + alça de redimensionar (arrastar o canto inferior-direito).
       document.execCommand('insertHTML', false,
-        `<span style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:80px;width:340px;border:1px solid rgba(125,125,125,.35);border-radius:8px;margin:6px 0;vertical-align:top;">` +
+        `<span title="Arraste o canto para redimensionar" style="display:inline-block;overflow:hidden;resize:horizontal;max-width:100%;min-width:100px;width:360px;border:2px solid #2563eb;border-radius:8px;margin:6px 0;vertical-align:top;cursor:ew-resize;">` +
         `<img src="${dataUrl}" alt="print" style="width:100%;display:block;" /></span><br/>`)
     }
 

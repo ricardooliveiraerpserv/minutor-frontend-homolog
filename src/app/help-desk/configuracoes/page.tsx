@@ -12,6 +12,8 @@ import { AssociationRules } from '@/components/help-desk/association-rules'
 import { EmailAccounts } from '@/components/help-desk/email-accounts'
 import { Triggers } from '@/components/help-desk/triggers'
 import { CommTemplate } from '@/components/help-desk/comm-template'
+import { PortalColumnsEditor } from '@/components/help-desk/portal-columns-editor'
+import { FORM_TAGS } from '@/components/help-desk/dynamic-form'
 
 const inputStyle = { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }
 const fieldCls = 'text-sm rounded-lg px-2.5 py-1.5 outline-none'
@@ -19,7 +21,7 @@ const lbl = 'text-[11px] font-semibold block mb-0.5'
 
 interface Ref { id: number; name: string }
 interface Category { id: number; name: string; color: string | null; active: boolean; default_team_id: number | null; sla_policy_id: number | null }
-interface Status { id: number; key: string; label: string; color: string | null; sort_order: number; is_default: boolean; is_open: boolean; is_resolved: boolean; is_terminal: boolean; sla_paused: boolean; active: boolean }
+interface Status { id: number; key: string; label: string; color: string | null; sort_order: number; is_default: boolean; is_open: boolean; is_resolved: boolean; is_terminal: boolean; sla_paused: boolean; allows_scheduling: boolean; active: boolean }
 interface Team { id: number; name: string; color: string | null; active: boolean; lead?: Ref | null; members?: Ref[] }
 interface Tag { id: number; name: string; color: string | null }
 interface SlaPause { status_key: string }
@@ -32,6 +34,7 @@ const TABS = [
   { id: 'servicos', label: 'Serviços' },
   { id: 'justificativas', label: 'Justificativas' },
   { id: 'status', label: 'Status' },
+  { id: 'kanban-cliente', label: 'Kanban do cliente' },
   { id: 'filas', label: 'Equipes' },
   { id: 'perfis', label: 'Perfis de Acesso' },
   { id: 'pessoas', label: 'Pessoas' },
@@ -42,7 +45,7 @@ const TABS = [
   { id: 'sla', label: 'SLA' },
   { id: 'formularios', label: 'Formulários' },
   { id: 'tags', label: 'Tags' },
-  { id: 'playbooks', label: 'Playbooks' },
+  { id: 'playbooks', label: 'Macros' },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -73,6 +76,7 @@ function ConfigContent() {
         {tab === 'servicos' && <Servicos />}
         {tab === 'justificativas' && <Justificativas />}
         {tab === 'status' && <Statuses />}
+        {tab === 'kanban-cliente' && <PortalColumnsEditor />}
         {tab === 'filas' && <Filas />}
         {tab === 'perfis' && <AccessProfiles />}
         {tab === 'pessoas' && <HelpDeskPeople />}
@@ -120,10 +124,10 @@ function Playbooks() {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Procedimentos operacionais executados em uma ação.</p>
-        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing('new')}><Plus size={15} /> Novo playbook</button>
+        <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setEditing('new')}><Plus size={15} /> Nova macro</button>
       </div>
       <div className="space-y-2">
-        {rows.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhum playbook.</p>}
+        {rows.length === 0 && <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Nenhuma macro.</p>}
         {rows.map(p => (
           <div key={p.id} className="ds-card p-3 flex items-center justify-between gap-2">
             <button className="flex items-center gap-2 flex-1 text-left" onClick={() => setEditing(p)}>
@@ -176,7 +180,7 @@ function PlaybookEditor({ pb, statuses, teams, agents, onBack, onSaved }: {
     try {
       if (p) await api.put(`/help-desk/playbooks/${p.id}`, body)
       else await api.post('/help-desk/playbooks', body)
-      toast.success('Playbook salvo'); onSaved()
+      toast.success('Macro salva'); onSaved()
     } catch { toast.error('Erro ao salvar') } finally { setSaving(false) }
   }
 
@@ -207,7 +211,7 @@ function PlaybookEditor({ pb, statuses, teams, agents, onBack, onSaved }: {
         <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Checklist (um item por linha)</label><textarea className={`${fieldCls} w-full`} style={inputStyle} rows={3} value={checklist} onChange={e => setChecklist(e.target.value)} /></div>
         <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--text)' }}><input type="checkbox" checked={startFinalize} onChange={e => setStartFinalize(e.target.checked)} /> Abrir fluxo &quot;Finalizar Atendimento&quot;</label>
         {startFinalize && <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Status sugerido na finalização</label><select className={`${fieldCls} w-64`} style={inputStyle} value={finalizeStatusId} onChange={e => setFinalizeStatusId(e.target.value)}><option value="">—</option>{statuses.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select></div>}
-        <div className="flex justify-end"><button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg" onClick={save} disabled={saving}><Save size={14} /> Salvar playbook</button></div>
+        <div className="flex justify-end"><button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg" onClick={save} disabled={saving}><Save size={14} /> Salvar macro</button></div>
       </div>
     </div>
   )
@@ -300,11 +304,11 @@ function StatusBlock({ status, justs, reload }: { status: Status; justs: Justifi
   const [edit, setEdit] = useState(false)
   const [label, setLabel] = useState(status.label)
   const [color, setColor] = useState(status.color ?? '#3b82f6')
-  const [f, setF] = useState({ is_default: status.is_default, is_open: status.is_open, is_resolved: status.is_resolved, is_terminal: status.is_terminal, sla_paused: status.sla_paused })
+  const [f, setF] = useState({ is_default: status.is_default, is_open: status.is_open, is_resolved: status.is_resolved, is_terminal: status.is_terminal, sla_paused: status.sla_paused, allows_scheduling: status.allows_scheduling })
   const [jName, setJName] = useState(''); const [jAvail, setJAvail] = useState('public_and_internal')
   const [jEditId, setJEditId] = useState<number | null>(null); const [jEditName, setJEditName] = useState('')
 
-  const FLAGS: [keyof typeof f, string][] = [['is_default', 'inicial'], ['is_open', 'aberto'], ['is_resolved', 'resolvido'], ['is_terminal', 'terminal'], ['sla_paused', 'SLA pausa']]
+  const FLAGS: [keyof typeof f, string][] = [['is_default', 'inicial'], ['is_open', 'aberto'], ['is_resolved', 'resolvido'], ['is_terminal', 'terminal'], ['sla_paused', 'SLA pausa'], ['allows_scheduling', 'agendável']]
   const saveStatus = async () => { try { await api.put(`/help-desk/statuses/${status.id}`, { label: label.trim(), color, ...f }); setEdit(false); toast.success('Status salvo'); reload() } catch { toast.error('Erro ao salvar') } }
   const delStatus = async () => { if (!confirm(`Excluir "${status.label}"?`)) return; try { await api.delete(`/help-desk/statuses/${status.id}`); reload() } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') } }
   const addJust = async () => { if (!jName.trim()) return toast.error('Informe a justificativa.'); try { await api.post('/help-desk/justifications', { name: jName.trim(), status_id: status.id, availability: jAvail }); setJName(''); reload() } catch { toast.error('Erro') } }
@@ -899,12 +903,15 @@ function CrudTable<T>({ rows, cols, render }: { rows: T[]; cols: string[]; rende
 }
 
 // ── Construtor de Formulários ────────────────────────────────────────────────
-type FieldType = 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time'
-interface FField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null }
-interface HForm { id: number; name: string; status_id: number | null; title?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FField[]; status?: { id: number; label: string } | null }
+// 'title' = bloco de cabeçalho (título grande centralizado). `required` é reaproveitado como
+// flag "carregar logo" (mostra o logo acima do título).
+type FieldType = 'title' | 'section' | 'text' | 'richtext' | 'checkbox' | 'date' | 'time' | 'user'
+interface FRule { when?: string | null; value?: string | null }
+interface FField { id?: number; key: string; ftype: FieldType; label: string; hint?: string | null; required?: boolean; min_chars?: number | null; rule?: FRule | null }
+interface HForm { id: number; name: string; status_id: number | null; title?: string | null; subtitle?: string | null; intro?: string | null; show_logo?: boolean; active?: boolean; fields: FField[]; status?: { id: number; label: string } | null }
 const FIELD_TYPES: { v: FieldType; label: string }[] = [
-  { v: 'section', label: 'Seção (título)' }, { v: 'richtext', label: 'Texto rico (com print)' }, { v: 'text', label: 'Texto' },
-  { v: 'checkbox', label: 'Checkbox' }, { v: 'date', label: 'Data' }, { v: 'time', label: 'Hora' },
+  { v: 'title', label: 'Título + logo' }, { v: 'section', label: 'Seção (bloco)' }, { v: 'richtext', label: 'Texto rico (com print)' }, { v: 'text', label: 'Texto' },
+  { v: 'checkbox', label: 'Checkbox' }, { v: 'date', label: 'Data' }, { v: 'time', label: 'Hora' }, { v: 'user', label: 'Usuário (busca)' },
 ]
 const newKey = () => 'f' + (globalThis.crypto?.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 8))
 
@@ -932,6 +939,7 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
   const [name, setName] = useState(form.name)
   const [statusId, setStatusId] = useState(form.status_id ? String(form.status_id) : '')
   const [title, setTitle] = useState(form.title ?? '')
+  const [subtitle, setSubtitle] = useState(form.subtitle ?? '')
   const [intro, setIntro] = useState(form.intro ?? '')
   const [showLogo, setShowLogo] = useState(form.show_logo ?? true)
   const [active, setActive] = useState(form.active ?? true)
@@ -940,14 +948,14 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
 
   const upd = (i: number, patch: Partial<FField>) => setFields(fs => fs.map((f, j) => j === i ? { ...f, ...patch } : f))
   const move = (i: number, dir: -1 | 1) => setFields(fs => { const j = i + dir; if (j < 0 || j >= fs.length) return fs; const c = [...fs]; [c[i], c[j]] = [c[j], c[i]]; return c })
-  const addField = () => setFields(fs => [...fs, { key: newKey(), ftype: 'text', label: 'Novo campo', required: false }])
+  const addBlock = (ftype: FieldType, label: string, required = false) => setFields(fs => [...fs, { key: newKey(), ftype, label, required }])
   const del = async () => { if (!confirm(`Excluir "${form.name}"?`)) return; try { await api.delete(`/help-desk/forms/${form.id}`); onSaved() } catch { toast.error('Erro') } }
   const save = async () => {
     setSaving(true)
     try {
       await api.put(`/help-desk/forms/${form.id}`, {
-        name, status_id: statusId ? Number(statusId) : null, title: title || null, intro: intro || null, show_logo: showLogo, active,
-        fields: fields.map(f => ({ key: f.key || newKey(), ftype: f.ftype, label: f.label, hint: f.hint || null, required: !!f.required, min_chars: f.min_chars ?? null })),
+        name, status_id: statusId ? Number(statusId) : null, title: title || null, subtitle: subtitle || null, intro: intro || null, show_logo: showLogo, active,
+        fields: fields.map(f => ({ key: f.key || newKey(), ftype: f.ftype, label: f.label, hint: f.hint || null, required: !!f.required, min_chars: f.min_chars ?? null, rule: f.rule?.when ? { when: f.rule.when, value: f.rule.value || 'não se aplica' } : null })),
       })
       toast.success('Formulário salvo'); onSaved()
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao salvar') } finally { setSaving(false) }
@@ -973,7 +981,18 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
           </div>
           <div className="flex items-end gap-3 flex-wrap">
             <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Título (topo)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="🛠️ Detalhamento da Solução" /></div>
-            <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Introdução (opcional)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={intro} onChange={e => setIntro(e.target.value)} /></div>
+            <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Subtítulo (opcional)</label><input className={`${fieldCls} w-full`} style={inputStyle} value={subtitle} onChange={e => setSubtitle(e.target.value)} placeholder="Negrito, mesma cor, menor, centralizado" /></div>
+            <div className="flex-1 min-w-[220px]"><label className={lbl} style={{ color: 'var(--text-light)' }}>Introdução (opcional)</label><textarea rows={3} className={`${fieldCls} w-full`} style={{ ...inputStyle, resize: 'vertical' }} value={intro} onChange={e => setIntro(e.target.value)} placeholder="Use tags como {ticket.creator.name}. Enter quebra linha." /></div>
+          </div>
+          {/* Tags de preenchimento automático — clicar copia p/ a área de transferência. */}
+          <div className="rounded-lg px-2.5 py-2 text-[11px]" style={{ border: '1px dashed var(--border)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+            <span className="font-semibold" style={{ color: 'var(--text-light)' }}>Tags (preenchem sozinhas ao enviar): </span>
+            {FORM_TAGS.map(t => (
+              <button key={t.tag} type="button" title={`${t.label} — clique p/ copiar`}
+                onClick={() => { navigator.clipboard?.writeText(t.tag); toast.success(`Copiado: ${t.tag}`) }}
+                className="inline-flex items-center mr-1.5 mb-1 px-1.5 py-0.5 rounded font-mono"
+                style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>{t.tag}</button>
+            ))}
           </div>
 
           <div className="space-y-1.5">
@@ -987,14 +1006,29 @@ function FormEditor({ form, statuses, onSaved }: { form: HForm; statuses: { id: 
                 <select value={f.ftype} onChange={e => upd(i, { ftype: e.target.value as FieldType })} className={fieldCls} style={{ ...inputStyle, width: 150 }}>
                   {FIELD_TYPES.map(t => <option key={t.v} value={t.v}>{t.label}</option>)}
                 </select>
-                <input className={`${fieldCls} flex-1 min-w-[140px]`} style={inputStyle} value={f.label} onChange={e => upd(i, { label: e.target.value })} placeholder="Rótulo" />
-                {f.ftype !== 'section' && f.ftype !== 'checkbox' && <input className={`${fieldCls} flex-1 min-w-[160px]`} style={inputStyle} value={f.hint ?? ''} onChange={e => upd(i, { hint: e.target.value })} placeholder="Legenda / exemplo" />}
-                {f.ftype !== 'section' && <label className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={!!f.required} onChange={e => upd(i, { required: e.target.checked })} style={{ accentColor: 'var(--primary)' }} /> obrig.</label>}
+                <input className={`${fieldCls} flex-1 min-w-[140px]`} style={inputStyle} value={f.label} onChange={e => upd(i, { label: e.target.value })} placeholder={f.ftype === 'title' ? 'Texto do título' : 'Rótulo'} />
+                {f.ftype !== 'section' && f.ftype !== 'title' && f.ftype !== 'checkbox' && <input className={`${fieldCls} flex-1 min-w-[160px]`} style={inputStyle} value={f.hint ?? ''} onChange={e => upd(i, { hint: e.target.value })} placeholder="Legenda / exemplo" />}
+                {(f.ftype === 'title' || f.ftype === 'section') && <label className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={!!f.required} onChange={e => upd(i, { required: e.target.checked })} style={{ accentColor: 'var(--primary)' }} /> carregar logo</label>}
+                {f.ftype !== 'section' && f.ftype !== 'title' && <label className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--text-muted)' }}><input type="checkbox" checked={!!f.required} onChange={e => upd(i, { required: e.target.checked })} style={{ accentColor: 'var(--primary)' }} /> obrig.</label>}
                 {(f.ftype === 'text' || f.ftype === 'richtext') && <input type="number" min="0" className={fieldCls} style={{ ...inputStyle, width: 70 }} value={f.min_chars ?? ''} onChange={e => upd(i, { min_chars: e.target.value ? Number(e.target.value) : null })} placeholder="mín." title="Mínimo de caracteres (sem espaço)" />}
                 <button onClick={() => setFields(fs => fs.filter((_, j) => j !== i))} title="Remover"><Trash2 size={14} style={{ color: 'var(--danger)' }} /></button>
+                {(f.ftype === 'text' || f.ftype === 'richtext' || f.ftype === 'date' || f.ftype === 'time') && (
+                  <div className="flex items-center gap-1.5 text-[11px] w-full mt-1 pl-6" style={{ color: 'var(--text-muted)' }}>
+                    <span title="Automação: quando o checkbox estiver marcado, este campo trava e recebe o valor abaixo.">⚡ travar se marcar</span>
+                    <select value={f.rule?.when ?? ''} onChange={e => upd(i, { rule: e.target.value ? { when: e.target.value, value: f.rule?.value || 'não se aplica' } : null })} className={fieldCls} style={{ ...inputStyle, maxWidth: 240 }}>
+                      <option value="">— nenhum —</option>
+                      {fields.filter(x => x.ftype === 'checkbox').map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                    </select>
+                    {f.rule?.when && <input className={fieldCls} style={{ ...inputStyle, maxWidth: 180 }} value={f.rule?.value ?? ''} onChange={e => upd(i, { rule: { when: f.rule?.when, value: e.target.value } })} placeholder="não se aplica" title="Valor preenchido quando travado" />}
+                  </div>
+                )}
               </div>
             ))}
-            <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={addField}><Plus size={13} /> Campo</button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={() => addBlock('title', 'Detalhamento da Solução', true)}><Plus size={13} /> Título + logo</button>
+              <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={() => addBlock('section', 'Novo bloco')}><Plus size={13} /> Bloco (seção)</button>
+              <button className="ds-btn-secondary text-xs px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1" onClick={() => addBlock('text', 'Novo campo')}><Plus size={13} /> Campo</button>
+            </div>
           </div>
 
           <div className="flex items-center justify-between pt-1">

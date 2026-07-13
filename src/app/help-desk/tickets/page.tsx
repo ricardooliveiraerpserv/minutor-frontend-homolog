@@ -3,13 +3,13 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
-import { api, ApiError } from '@/lib/api'
+import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { startSession, getSession } from '@/lib/help-desk-session'
-import { startWorkSession } from '@/lib/work-session'
-import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
-import { Ticket, Plus, Search, Inbox, X, Play } from 'lucide-react'
+import { Ticket, Plus, Search, Inbox, GitMerge } from 'lucide-react'
+import { MesclarModal } from '@/components/help-desk/mesclar-modal'
+import { NovoChamadoModal } from '@/components/help-desk/novo-chamado-modal'
 
 interface Ref { id: number; name: string }
 interface StatusOpt { id: number; key: string; label: string; color: string | null; is_open: boolean; is_resolved: boolean; is_terminal: boolean }
@@ -56,9 +56,15 @@ export default function HelpDeskTicketsPage() {
   const [loading, setLoading] = useState(true)
   const [meta, setMeta] = useState<Meta | null>(null)
   const [customers, setCustomers] = useState<Ref[]>([])
+  const [agents, setAgents] = useState<Ref[]>([])
   const [novo, setNovo] = useState(false)
+  const [sel, setSel] = useState<Set<number>>(new Set())
+  const [mergeOpen, setMergeOpen] = useState(false)
+  const toggleSel = (id: number) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  // Deep-link (?novo=1), ex.: botão "Novo chamado" da Fila — abre o modal de abertura.
+  useEffect(() => { if (new URLSearchParams(window.location.search).get('novo') === '1') setNovo(true) }, [])
 
-  const F0 = { search: '', status_key: '', priority: '', category_id: '', team_id: '' }
+  const F0 = { search: '', status_key: '', priority: '', category_id: '', team_id: '', assignee_id: '', customer_id: '' }
   const [f, setF] = useState<Record<string, string>>(F0)
   const [mine, setMine] = useState(false)
   const [open, setOpen] = useState(false)
@@ -97,16 +103,9 @@ export default function HelpDeskTicketsPage() {
     router.push(`/help-desk/tickets/${ticketId}`)
   }
 
-  // Modo Atendimento — inicia uma sessão contínua a partir da fila atual.
-  const iniciarModo = async () => {
-    if (rows.length === 0) return toast.error('Nenhum chamado na fila.')
-    const teamName = meta?.teams.find(t => String(t.id) === f.team_id)?.name
-    const first = await startWorkSession({ scope: 'help_desk', source: 'list', filters: { ...f, mine, open, breached }, label: teamName ? `Fila: ${teamName}` : 'Atendimento', ids: rows.map(r => r.id) })
-    if (first) router.push(`/help-desk/tickets/${first}`)
-  }
-
   useEffect(() => {
     api.get<{ data: Meta }>('/help-desk/meta').then(r => r?.data && setMeta(r.data)).catch(() => {})
+    api.get<{ data?: Ref[] }>('/help-desk/agents').then(r => setAgents((r?.data ?? []).map(a => ({ id: a.id, name: a.name })))).catch(() => {})
     api.get<Ref[] | { data?: Ref[]; items?: Ref[] }>('/customers?pageSize=500')
       .then(r => {
         const list = Array.isArray(r) ? r : (r?.data ?? r?.items ?? [])
@@ -133,12 +132,16 @@ export default function HelpDeskTicketsPage() {
             <h1 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>Chamados</h1>
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>({counters.total})</span>
           </div>
-          <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={iniciarModo}>
-            <Play size={15} /> Iniciar Modo Atendimento
-          </button>
-          <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}>
-            <Plus size={16} /> Novo chamado
-          </button>
+          <div className="flex items-center gap-2">
+            {sel.size >= 1 && (
+              <button className="ds-btn-secondary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setMergeOpen(true)}>
+                <GitMerge size={15} /> Mesclar selecionados ({sel.size})
+              </button>
+            )}
+            <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}>
+              <Plus size={16} /> Novo chamado
+            </button>
+          </div>
         </div>
 
         {/* KPIs / filtros rápidos */}
@@ -180,6 +183,14 @@ export default function HelpDeskTicketsPage() {
             <option value="">Fila (todas)</option>
             {meta?.teams.map(t => <option key={t.id} value={String(t.id)}>{t.name}</option>)}
           </select>
+          <select className={fieldCls} style={inputStyle} value={f.assignee_id} onChange={e => set('assignee_id', e.target.value)}>
+            <option value="">Atendente (todos)</option>
+            {agents.map(a => <option key={a.id} value={String(a.id)}>{a.name}</option>)}
+          </select>
+          <select className={fieldCls} style={inputStyle} value={f.customer_id} onChange={e => set('customer_id', e.target.value)}>
+            <option value="">Cliente (todos)</option>
+            {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
+          </select>
         </div>
 
         {/* Tabela */}
@@ -187,6 +198,7 @@ export default function HelpDeskTicketsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} className="text-left text-[11px] uppercase tracking-wide">
+                <th className="px-2 py-2 w-8"></th>
                 <th className="px-3 py-2">Nº</th>
                 <th className="px-3 py-2">Assunto</th>
                 <th className="px-3 py-2">Cliente</th>
@@ -200,9 +212,9 @@ export default function HelpDeskTicketsPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9} className="px-3 py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</td></tr>
+                <tr><td colSpan={10} className="px-3 py-8 text-center" style={{ color: 'var(--text-muted)' }}>Carregando…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={9} className="px-3 py-8 text-center" style={{ color: 'var(--text-muted)' }}>
+                <tr><td colSpan={10} className="px-3 py-8 text-center" style={{ color: 'var(--text-muted)' }}>
                   <Inbox size={20} className="inline mr-1.5 -mt-0.5" /> Nenhum chamado.
                 </td></tr>
               ) : rows.map(t => {
@@ -211,6 +223,9 @@ export default function HelpDeskTicketsPage() {
                 return (
                   <tr key={t.id} className="ds-row-hover cursor-pointer border-t" style={{ borderColor: 'var(--border)' }}
                     onClick={() => openTicket(t.id)}>
+                    <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={sel.has(t.id)} onChange={() => toggleSel(t.id)} title="Selecionar para mesclar" />
+                    </td>
                     <td className="px-3 py-2 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{t.ticket_number ?? `#${t.id}`}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{t.subject}</td>
                     <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>{t.customer?.name ?? '—'}</td>
@@ -234,86 +249,15 @@ export default function HelpDeskTicketsPage() {
         </div>
       </div>
 
-      {novo && <NovoChamado meta={meta} customers={customers} onClose={() => setNovo(false)} onCreated={(id) => { setNovo(false); router.push(`/help-desk/tickets/${id}`) }} />}
+      {novo && <NovoChamadoModal meta={meta} customers={customers} onClose={() => setNovo(false)} onCreated={(id) => { setNovo(false); router.push(`/help-desk/tickets/${id}`) }} />}
+      {mergeOpen && (
+        <MesclarModal
+          sources={rows.filter(r => sel.has(r.id)).map(r => ({ id: r.id, ticket_number: r.ticket_number, subject: r.subject, customer_id: r.customer?.id ?? null, customer_nome: r.customer?.name ?? null }))}
+          onClose={() => setMergeOpen(false)}
+          onDone={() => { setMergeOpen(false); setSel(new Set()); load() }}
+        />
+      )}
     </AppLayout>
   )
 }
 
-function NovoChamado({ meta, customers, onClose, onCreated }: { meta: Meta | null; customers: Ref[]; onClose: () => void; onCreated: (id: number) => void }) {
-  const [subject, setSubject] = useState('')
-  const [description, setDescription] = useState('')
-  const [priority, setPriority] = useState('normal')
-  const [categoryId, setCategoryId] = useState('')
-  const [serviceId, setServiceId] = useState('')
-  const [customerId, setCustomerId] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  const submit = async () => {
-    if (!subject.trim()) return toast.error('Informe o assunto.')
-    setSaving(true)
-    try {
-      const r = await api.post<{ data: { id: number } }>('/help-desk/tickets', {
-        subject: subject.trim(), description: description.trim() || null, priority,
-        category_id: categoryId || null, service_id: serviceId || null, customer_id: customerId || null,
-      })
-      toast.success('Chamado aberto')
-      onCreated(r.data.id)
-    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao abrir chamado') } finally { setSaving(false) }
-  }
-
-  const lbl = 'text-[11px] font-semibold block mb-0.5'
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={onClose}>
-      <div className="ds-card w-full max-w-lg p-4 space-y-3" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>Novo chamado</h2>
-          <button onClick={onClose}><X size={18} style={{ color: 'var(--text-muted)' }} /></button>
-        </div>
-        <div>
-          <label className={lbl} style={{ color: 'var(--text-light)' }}>Assunto *</label>
-          <input className={`${fieldCls} w-full`} style={inputStyle} value={subject} onChange={e => setSubject(e.target.value)} autoFocus />
-        </div>
-        <div>
-          <label className={lbl} style={{ color: 'var(--text-light)' }}>Descrição</label>
-          <textarea className={`${fieldCls} w-full`} style={inputStyle} rows={4} value={description} onChange={e => setDescription(e.target.value)} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {(meta?.my_inform?.urgency ?? true) && (
-            <div>
-              <label className={lbl} style={{ color: 'var(--text-light)' }}>Urgência</label>
-              <select className={`${fieldCls} w-full`} style={inputStyle} value={priority} onChange={e => setPriority(e.target.value)}>
-                {(meta?.priorities ?? ['baixa', 'normal', 'alta', 'urgente']).map(p => <option key={p} value={p}>{PRIO[p]?.label ?? p}</option>)}
-              </select>
-            </div>
-          )}
-          {(meta?.my_inform?.category ?? true) && (
-            <div>
-              <label className={lbl} style={{ color: 'var(--text-light)' }}>Categoria</label>
-              <select className={`${fieldCls} w-full`} style={inputStyle} value={categoryId} onChange={e => setCategoryId(e.target.value)}>
-                <option value="">—</option>
-                {meta?.categories.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-              </select>
-            </div>
-          )}
-        </div>
-        {(meta?.my_inform?.service ?? true) && (
-          <div>
-            <label className={lbl} style={{ color: 'var(--text-light)' }}>Serviço</label>
-            <ServiceTreeSelect services={meta?.services ?? []} value={serviceId ? Number(serviceId) : null} onChange={id => setServiceId(id ? String(id) : '')} />
-          </div>
-        )}
-        <div>
-          <label className={lbl} style={{ color: 'var(--text-light)' }}>Cliente</label>
-          <select className={`${fieldCls} w-full`} style={inputStyle} value={customerId} onChange={e => setCustomerId(e.target.value)}>
-            <option value="">— (interno)</option>
-            {customers.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
-          </select>
-        </div>
-        <div className="flex justify-end gap-2 pt-1">
-          <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={onClose}>Cancelar</button>
-          <button className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg" onClick={submit} disabled={saving}>{saving ? 'Abrindo…' : 'Abrir chamado'}</button>
-        </div>
-      </div>
-    </div>
-  )
-}

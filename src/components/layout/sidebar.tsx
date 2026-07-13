@@ -506,12 +506,12 @@ function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], item
   const keep = (href: string) => itemConfig[href]?.active !== false
   const lbl = (href: string) => itemConfig[href]?.label || CATALOG_LABEL[href] || href
   const ico = (href: string) => HREF_ICON[href.split('?')[0]] || FileText
-  const link = (n: NavTreeNode): NavLink => ({ label: lbl(n.screen!), href: n.screen!, icon: ico(n.screen!) })
+  const link = (n: NavTreeNode): NavLink => ({ label: n.label || lbl(n.screen!), href: n.screen!, icon: ico(n.screen!) })
 
   const out: NavEntry[] = []
   for (const n of mod.items ?? []) {
     if (!nodeVis(n)) continue
-    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: lbl(n.screen), href: n.screen, icon: ico(n.screen) }) }
+    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: n.label || lbl(n.screen), href: n.screen, icon: ico(n.screen) }) }
     else {
       const items: (NavLink | NavSubGroup)[] = []
       for (const c of n.children ?? []) {

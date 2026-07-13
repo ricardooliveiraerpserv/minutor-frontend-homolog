@@ -40,7 +40,13 @@ const SCHEMA: Record<Kind, Tab[]> = {
     { id: 'atendimento', label: 'Atendimento', sections: [
       { controls: [
         { key: 'service.delete_tickets', label: 'Permitir excluir ticket', type: 'toggle' },
+        { key: 'service.merge_tickets', label: 'Permitir mesclar tickets', type: 'toggle' },
+        { key: 'service.print_ticket', label: 'Permitir imprimir/gerar PDF do ticket', type: 'toggle' },
+        { key: 'service.view_sla', label: 'Exibir “Detalhes do SLA” (política, prazos e situação de vencimento)', type: 'toggle' },
+        { key: 'service.clone_tickets', label: 'Permitir clonar ticket (abrir cópia com a mesma classificação)', type: 'toggle' },
+        { key: 'service.send_email', label: 'Permitir enviar e-mail avulso a partir do ticket', type: 'toggle' },
         { key: 'service.reopen_tickets', label: 'Permitir reabrir ticket', type: 'toggle' },
+        { key: 'service.close_tickets', label: 'Permitir encerrar ticket (coordenador e admin já têm por padrão)', type: 'toggle' },
         { key: 'service.collision', label: 'Sinalização de colisão (quem está vendo o ticket)', type: 'toggle' },
         { key: 'service.default_action', label: 'Tipo padrão da ação em tickets públicos', type: 'radio', options: [{ value: 'public', label: 'Ação pública' }, { value: 'internal', label: 'Ação interna' }] },
         { key: 'service.edit_actions', label: 'Permitir edição de ações', type: 'radio', options: [{ value: 'last_own', label: 'Somente a última e de sua autoria' }, { value: 'last_any', label: 'Somente a última, qualquer agente' }, { value: 'any_own', label: 'Qualquer ação de sua autoria' }, { value: 'any_any', label: 'Qualquer ação, qualquer agente' }, { value: 'none', label: 'Não permitir' }] },
@@ -51,7 +57,9 @@ const SCHEMA: Record<Kind, Tab[]> = {
       { controls: [
         { key: 'policies.all_catalog', label: 'Acesso a todos os itens do catálogo de serviços', type: 'toggle' },
         { key: 'policies.can_be_assignee', label: 'Pode ser atribuído como responsável', type: 'toggle' },
-        { key: 'policies.view_tickets', label: 'Permitir visualizar tickets', type: 'radio', options: VIEW_SCOPE },
+        { key: 'policies.see_new_column', label: 'Exibir a coluna “Novo” na fila (tickets ainda não distribuídos)', type: 'toggle' },
+        { key: 'policies.global_search', label: 'Busca global (lupa) — pesquisar e abrir qualquer chamado, mesmo fora da sua fila', type: 'toggle' },
+        { key: 'policies.view_tickets', label: 'Permitir visualizar tickets (defina se enxerga os não distribuídos a ele)', type: 'radio', options: VIEW_SCOPE },
         { key: 'policies.edit_tickets', label: 'Permitir editar tickets', type: 'radio', options: VIEW_SCOPE },
         { key: 'policies.actions_editable', label: 'Criar ações onde tem acesso a edição', type: 'radio', options: ACTION_TYPES },
         { key: 'policies.actions_not_editable', label: 'Criar ações onde NÃO tem acesso a edição', type: 'radio', options: ACTION_TYPES },
@@ -59,6 +67,8 @@ const SCHEMA: Record<Kind, Tab[]> = {
     ] },
     { id: 'apontamentos', label: 'Apontamentos', sections: [
       { controls: [
+        { key: 'time.apontamentos_scope', label: 'Ver apontamentos do ticket', type: 'radio', options: [{ value: 'all', label: 'Todos os apontamentos' }, { value: 'own', label: 'Somente os do usuário logado' }] },
+        { key: 'time.view_contract', label: 'Ver contrato no resumo do chamado (tipo e saldo de horas)', type: 'toggle' },
         { key: 'time.see_worked_values', label: 'Ver valores de horas trabalhadas do ticket', type: 'toggle' },
         { key: 'time.contract_summary', label: 'Acessar relatório de resumo do contrato de horas', type: 'toggle' },
         { key: 'time.contract_chart', label: 'Exibir gráfico de consumo de horas do contrato', type: 'toggle' },
@@ -102,7 +112,7 @@ const SCHEMA: Record<Kind, Tab[]> = {
 
 // Toggles ligados por padrão (estilo Movidesk) — o resto começa desligado.
 const ON_BY_DEFAULT: Record<Kind, Set<string>> = {
-  agent: new Set(['tickets.inform.service', 'tickets.inform.sla_due', 'tickets.inform.category', 'tickets.inform.urgency', 'tickets.inform.subject', 'tickets.inform.tags', 'policies.all_catalog', 'policies.can_be_assignee', 'service.reopen_tickets', 'tickets.personal_views', 'tickets.bulk_actions']),
+  agent: new Set(['tickets.inform.service', 'tickets.inform.sla_due', 'tickets.inform.category', 'tickets.inform.urgency', 'tickets.inform.subject', 'tickets.inform.tags', 'policies.all_catalog', 'policies.can_be_assignee', 'policies.see_new_column', 'policies.global_search', 'service.merge_tickets', 'service.print_ticket', 'service.view_sla', 'service.clone_tickets', 'service.send_email', 'service.reopen_tickets', 'time.view_contract', 'tickets.personal_views', 'tickets.bulk_actions']),
   cliente: new Set(['tickets.inform.category', 'tickets.inform.subject', 'tickets.personal_views', 'tickets.view_in.service', 'tickets.view_in.responsible', 'tickets.view_in.category', 'tickets.view_in.sla_due', 'tickets.view_in.status', 'tickets.view_in.justification', 'tickets.view_in.subject', 'policies.all_catalog']),
 }
 function defaultsFor(kind: Kind): Record<string, unknown> {
@@ -120,7 +130,7 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (b: boolean) =
   return (
     <button type="button" onClick={() => onChange(!on)} className="flex items-center gap-2 text-sm text-left">
       <span className="w-9 h-5 rounded-full p-0.5 transition-colors shrink-0" style={{ background: on ? 'var(--primary)' : 'var(--surface-sunken)' }}>
-        <span className="block w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: on ? 'translateX(16px)' : 'none' }} />
+        <span className="block w-4 h-4 rounded-full transition-transform" style={{ background: 'var(--surface)', transform: on ? 'translateX(16px)' : 'none' }} />
       </span>
       <span style={{ color: 'var(--text)' }}>{label}</span>
     </button>

@@ -54,7 +54,7 @@ export function Triggers() {
     const pr = ea.params ?? {}
     const isTpl = pr.layout === 'template' || (pr.message !== undefined && pr.body === undefined)
     const payload = isTpl
-      ? { subject: String(pr.subject ?? ''), message: String(pr.message ?? ''), blocks: (pr.blocks as string[]) ?? [], to: (pr.to as string[]) ?? [] }
+      ? { subject: String(pr.subject ?? ''), notification_title: String(pr.notification_title ?? ''), notification_subtitle: String(pr.notification_subtitle ?? ''), message: String(pr.message ?? ''), blocks: (pr.blocks as string[]) ?? [], to: (pr.to as string[]) ?? [] }
       : { subject: String(pr.subject ?? ''), body: String(pr.body ?? '') }
     try {
       const r = await api.post<{ data: { mode: string; subject: string; html?: string; body?: string; footer?: string; sample: string } }>('/help-desk/triggers/preview-email', payload)
@@ -88,7 +88,7 @@ export function Triggers() {
                 <td className="px-3 py-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>{meta?.events[t.event] ?? t.event}</td>
                 <td className="px-3 py-2">
                   <button type="button" onClick={() => toggle(t)} className="w-9 h-5 rounded-full p-0.5 transition-colors" style={{ background: t.enabled ? 'var(--primary)' : 'var(--surface-sunken)' }}>
-                    <span className="block w-4 h-4 rounded-full bg-white transition-transform" style={{ transform: t.enabled ? 'translateX(16px)' : 'none' }} />
+                    <span className="block w-4 h-4 rounded-full transition-transform" style={{ background: 'var(--surface)', transform: t.enabled ? 'translateX(16px)' : 'none' }} />
                   </button>
                 </td>
                 <td className="px-3 py-2 text-right whitespace-nowrap">
@@ -104,7 +104,7 @@ export function Triggers() {
 
       {preview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setPreview(null)}>
-          <div className="w-full max-w-lg rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-2xl rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
               <div className="text-sm font-medium" style={{ color: 'var(--text)' }}>Prévia do e-mail · {preview.name}</div>
               <button onClick={() => setPreview(null)}><X size={16} style={{ color: 'var(--text-light)' }} /></button>
@@ -113,7 +113,7 @@ export function Triggers() {
             <div className="max-h-[68vh] overflow-auto">
               {preview.mode === 'template' && preview.html
                 ? <EmailFrame html={preview.html} />
-                : <div className="bg-white p-4" style={{ color: '#1f2937' }}><div className="text-sm whitespace-pre-wrap">{preview.body || '—'}</div>{preview.footer && <div dangerouslySetInnerHTML={{ __html: preview.footer }} />}</div>}
+                : <div className="p-4" style={{ background: '#ffffff', color: '#1f2937' }}><div className="text-sm whitespace-pre-wrap">{preview.body || '—'}</div>{preview.footer && <div dangerouslySetInnerHTML={{ __html: preview.footer }} />}</div>}
             </div>
             <div className="px-4 py-2 text-[11px]" style={{ color: 'var(--text-light)', borderTop: '1px solid var(--border)' }}>Renderizado com dados do chamado {preview.sample}</div>
           </div>
@@ -327,7 +327,7 @@ function SendEmailParams({ p, setMany, set, meta }: { p: Record<string, unknown>
     const h = setTimeout(async () => {
       try {
         const payload = mode === 'template'
-          ? { subject: String(p.subject ?? ''), message: String(p.message ?? ''), blocks, to }
+          ? { subject: String(p.subject ?? ''), notification_title: String(p.notification_title ?? ''), notification_subtitle: String(p.notification_subtitle ?? ''), message: String(p.message ?? ''), blocks, to }
           : { subject: String(p.subject ?? ''), body: String(p.body ?? '') }
         const r = await api.post<{ data: typeof pv }>('/help-desk/triggers/preview-email', payload)
         setPv(r?.data ?? null)
@@ -356,6 +356,8 @@ function SendEmailParams({ p, setMany, set, meta }: { p: Record<string, unknown>
       <input className={`${fieldCls} w-full`} style={inputStyle} value={String(p.subject ?? '')} onChange={e => set('subject', e.target.value)} placeholder="Assunto — ex.: Chamado {ticket.number} atribuído a você" />
 
       {mode === 'template' ? <>
+        <input className={`${fieldCls} w-full`} style={inputStyle} value={String(p.notification_title ?? '')} onChange={e => set('notification_title', e.target.value)} placeholder="Título da notificação — ex.: 🔔 Chamados unificados" />
+        <input className={`${fieldCls} w-full`} style={inputStyle} value={String(p.notification_subtitle ?? '')} onChange={e => set('notification_subtitle', e.target.value)} placeholder="Descrição curta — ex.: Sua solicitação foi vinculada a um chamado já existente." />
         <div className="relative">
           <button type="button" onClick={openTpls} className="text-xs inline-flex items-center gap-1 px-2 py-1 rounded-lg" style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}><LayoutTemplate size={13} /> Usar um modelo <ChevronDown size={12} /></button>
           {showTpl && (
@@ -395,7 +397,7 @@ function SendEmailParams({ p, setMany, set, meta }: { p: Record<string, unknown>
         </div>
         {pv?.subject && <div className="px-3 py-1.5 text-[12px]" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>Assunto: <span style={{ color: 'var(--text)' }}>{pv.subject}</span></div>}
         {pv?.mode === 'template' && pv.html ? <EmailFrame html={pv.html} />
-          : <div className="bg-white p-3" style={{ color: '#1f2937' }}><div className="text-sm whitespace-pre-wrap">{pv?.body || '—'}</div>{pv?.footer && <div dangerouslySetInnerHTML={{ __html: pv.footer }} />}</div>}
+          : <div className="p-3" style={{ background: '#ffffff', color: '#1f2937' }}><div className="text-sm whitespace-pre-wrap">{pv?.body || '—'}</div>{pv?.footer && <div dangerouslySetInnerHTML={{ __html: pv.footer }} />}</div>}
       </div>
     </div>
   )
