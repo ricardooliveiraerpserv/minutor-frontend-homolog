@@ -11,7 +11,8 @@ import {
   AlertTriangle, MonitorPlay, ChevronRight, FolderPlus, Folder, Repeat, FileText, List, Network, FolderInput,
   FolderOpen, LayoutGrid, BarChart2, DollarSign, Database, Mail, Settings, Layers, Briefcase, Wrench, CreditCard,
   CalendarDays, Building2, Handshake, Clock, Receipt, TrendingUp, Star, Headphones, Home, LayoutDashboard, Contact,
-  Ticket, Tag, Zap, Webhook, Box, Package, Bookmark, Flag, Heart, Bell, Calculator, ShieldCheck, type LucideIcon,
+  Ticket, Tag, Zap, Webhook, Box, Package, Bookmark, Flag, Heart, Bell, Calculator, ShieldCheck,
+  Bot, Activity, MessageCircle, type LucideIcon,
 } from 'lucide-react'
 
 // Paleta de ícones (lucide) para pastas/módulos — nome → componente. Cobre os ícones já usados na nav.
@@ -19,7 +20,7 @@ const ICONS: Record<string, LucideIcon> = {
   Folder, FolderOpen, LayoutGrid, BarChart2, DollarSign, Database, Mail, Settings, Layers, FileText, Briefcase,
   Wrench, CreditCard, CalendarDays, Building2, Handshake, Clock, Receipt, TrendingUp, Star, Headphones, Home,
   LayoutDashboard, Contact, Ticket, Tag, Zap, Webhook, Network, Users, Box, Package, Bookmark, Flag, Heart, Bell,
-  Calculator, ShieldCheck,
+  Calculator, ShieldCheck, Bot, Activity, MessageCircle,
 }
 const iconComp = (name?: string, fallback: LucideIcon = Folder): LucideIcon => (name && ICONS[name]) || fallback
 
