@@ -20,6 +20,7 @@ import { MentionsBell } from './mentions-bell'
 import { ChatBell } from './chat-bell'
 import { NotificationBell } from './notification-bell'
 import { AppsMenu } from './apps-menu'
+import { CompanySelector } from './company-selector'
 
 interface HeaderProps {
   title?: string
@@ -168,6 +169,9 @@ export function Header({ title, actions, onMenuClick }: HeaderProps) {
       <div className="flex items-center gap-2">
 
         {actions}
+
+        {/* Seletor de empresa ativa (multi-empresa) — só aparece com >1 empresa */}
+        {user && <CompanySelector />}
 
         {/* Launcher de módulos (Administrativo / Serviços) */}
         {user && user.type !== 'cliente' && <AppsMenu />}

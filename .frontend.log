@@ -1,0 +1,64 @@
+▲ Next.js 16.2.3 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.68.129:3000
+- Environments: .env.local
+✓ Ready in 1885ms
+⚠ `eslint` configuration in next.config.ts is no longer supported. See more info here: https://nextjs.org/docs/app/api-reference/cli/next#next-lint-options
+⚠ Invalid next.config.ts options detected: 
+⚠     Unrecognized key(s) in object: 'eslint'
+⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+ GET / 307 in 3.3s (next.js: 3.0s, application-code: 248ms)
+ GET / 307 in 98ms (next.js: 37ms, application-code: 61ms)
+○ Compiling /inicio ...
+ GET /inicio 200 in 5.0s (next.js: 4.1s, application-code: 997ms)
+ GET /manifest.webmanifest 200 in 523ms (next.js: 512ms, application-code: 11ms)
+ POST /api/auth/logout 200 in 179ms (next.js: 136ms, application-code: 43ms)
+ POST /api/auth/logout 200 in 167ms (next.js: 108ms, application-code: 59ms)
+ POST /api/auth/logout 200 in 216ms (next.js: 131ms, application-code: 85ms)
+ POST /api/auth/logout 200 in 210ms (next.js: 118ms, application-code: 92ms)
+ POST /api/auth/logout 200 in 256ms (next.js: 164ms, application-code: 92ms)
+ POST /api/auth/logout 200 in 50ms (next.js: 1531µs, application-code: 49ms)
+ POST /api/auth/logout 200 in 227ms (next.js: 123ms, application-code: 104ms)
+ GET /login 200 in 395ms (next.js: 343ms, application-code: 52ms)
+ GET /login 200 in 401ms (next.js: 359ms, application-code: 41ms)
+ GET /manifest.webmanifest 200 in 20ms (next.js: 15ms, application-code: 5ms)
+[browser] Image with src "/logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[browser] Image with src "/logo.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+ POST /api/auth/login 401 in 650ms (next.js: 185ms, application-code: 465ms)
+ POST /api/auth/login 200 in 505ms (next.js: 4ms, application-code: 501ms)
+ GET /inicio 200 in 50ms (next.js: 4ms, application-code: 46ms)
+ GET /manifest.webmanifest 200 in 10ms (next.js: 4ms, application-code: 6ms)
+✓ Compiled in 607ms
+✓ Compiled in 89ms
+✓ Compiled in 206ms
+ GET /inicio 200 in 207ms (next.js: 93ms, application-code: 114ms)
+ GET /inicio 200 in 18ms (next.js: 1647µs, application-code: 16ms)
+ GET /manifest.webmanifest 200 in 55ms (next.js: 48ms, application-code: 7ms)
+Failed to proxy http://localhost:8000/api/v1/notifications Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Failed to proxy http://localhost:8000/api/v1/me/badges Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Failed to proxy http://localhost:8000/api/v1/notifications/actions Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+ GET / 307 in 232ms (next.js: 45ms, application-code: 187ms)
