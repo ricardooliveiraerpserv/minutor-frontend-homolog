@@ -639,7 +639,7 @@ export default function HelpDeskTicketDetailPage() {
                 no fim da Conversa (lista é sempre mais novo primeiro). */}
 
             {/* Abas conversa/timeline */}
-            <div className="ds-card overflow-hidden">
+            <div className="ds-card">
               <div className="flex border-b" style={{ borderColor: 'var(--border)' }}>
                 {(['conversa', 'timeline'] as const).map(x => (
                   <button key={x} onClick={() => setTab(x)} className="px-4 py-2 text-sm font-medium"
@@ -768,7 +768,7 @@ export default function HelpDeskTicketDetailPage() {
                         ) : c.solution ? (
                           <div className="w-full"><SolutionView solution={c.solution as Solution} /></div>
                         ) : c.body ? (
-                          <div className="hd-msg-body text-sm text-left rounded-2xl px-3.5 py-2.5 w-fit" style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
+                          <div className={`hd-msg-body text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(c.body) ? 'w-max max-w-[calc(100vw_-_320px)]' : 'w-fit max-w-full'}`} style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
                             {isHtmlBody(c.body)
                               ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(c.body) }} />
                               : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
@@ -823,7 +823,7 @@ export default function HelpDeskTicketDetailPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className="hd-msg-body text-sm text-left rounded-2xl px-3.5 py-2.5 w-fit" style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
+                          <div className={`hd-msg-body text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(t.description) ? 'w-max max-w-[calc(100vw_-_320px)]' : 'w-fit max-w-full'}`} style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
                             {isHtmlBody(t.description)
                               ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(t.description) }} />
                               : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
