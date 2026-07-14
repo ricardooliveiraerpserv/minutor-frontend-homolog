@@ -1190,3 +1190,11 @@ html.dark .sidebar-erpserv-logo {
   /* célula sem rótulo (checkbox/ações) alinha o conteúdo à esquerda */
   table.ds-table > tbody > tr > td:not([data-label]) { align-items: flex-start; }
 }
+
+/* Interação no balão do chamado: o conteúdo (inclusive assinaturas de e-mail com tabela larga)
+   deve CABER por completo, sem barra de rolagem. Tabelas viram fluidas e o conteúdo quebra. */
+.hd-msg-body { word-break: break-word; overflow-wrap: anywhere; max-width: 100%; }
+.hd-msg-body table { width: 100% !important; max-width: 100% !important; table-layout: fixed !important; }
+.hd-msg-body td, .hd-msg-body th { word-break: break-word; overflow-wrap: anywhere; max-width: 100%; }
+.hd-msg-body img { max-width: 100% !important; height: auto !important; }
+.hd-msg-body a { word-break: break-all; }
