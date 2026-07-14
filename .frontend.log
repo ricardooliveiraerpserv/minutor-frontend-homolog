@@ -32,3 +32,21 @@ Error: socket hang up
 ✓ Compiled in 92ms
 ✓ Compiled in 74ms
 ✓ Compiled in 65ms
+Failed to proxy http://localhost:8000/api/v1/me/badges Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+Error: socket hang up
+    at ignore-listed frames {
+  code: 'ECONNRESET'
+}
+ GET /users 200 in 84ms (next.js: 18ms, application-code: 66ms)
+ GET /manifest.webmanifest 200 in 15ms (next.js: 3ms, application-code: 13ms)
+ GET /users 200 in 52ms (next.js: 8ms, application-code: 43ms)
+ GET /manifest.webmanifest 200 in 4ms (next.js: 1326µs, application-code: 2ms)
+ GET /manifest.webmanifest 200 in 13ms (next.js: 9ms, application-code: 4ms)
+ GET /users 200 in 107ms (next.js: 7ms, application-code: 100ms)
+[browser] Image with src "/logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[browser] Image with src "/logo.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+✓ Compiled in 232ms

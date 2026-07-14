@@ -1010,7 +1010,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             {isConsultor && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
-                  Empresa (folha)
+                  Empresa base
                 </label>
                 <select
                   value={form.home_company_id ?? ''}
@@ -1021,7 +1021,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                  Empresa em que entra a folha/fechamento deste funcionário (ERPSERV ou Bizify). Vincula automaticamente.
+                  Empresa base do funcionário. <b>Fixos/administrativos</b> apuram por ela; <b>horistas/banco de horas</b> apuram pela empresa do <b>projeto</b> em que atuaram. Vincula automaticamente.
                 </p>
               </div>
             )}
