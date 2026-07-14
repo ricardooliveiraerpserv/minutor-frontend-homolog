@@ -768,7 +768,7 @@ export default function HelpDeskTicketDetailPage() {
                         ) : c.solution ? (
                           <div className="w-full"><SolutionView solution={c.solution as Solution} /></div>
                         ) : c.body ? (
-                          <div className="hd-msg-body text-sm text-left rounded-2xl px-3.5 py-2.5 w-fit max-w-full" style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
+                          <div className="hd-msg-body text-sm text-left rounded-2xl px-3.5 py-2.5 w-fit max-w-full overflow-x-auto" style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
                             {isHtmlBody(c.body)
                               ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(c.body) }} />
                               : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
