@@ -239,6 +239,7 @@ const NAV: NavEntry[] = [
 
   // ── ⚙️ CONFIGURADOR (associado via catálogo; aparece no módulo Configurador) ──
   { type: 'item', label: 'Configurador de Menus', href: '/configurador', icon: SlidersHorizontal, catalogKey: 'configurador' },
+  { type: 'item', label: 'Empresas do Grupo', href: '/configuracoes/empresas', icon: Building2, catalogKey: 'configuracoes_empresas' },
 
   // ── 🤖 BOT MINUTOR — telas configuráveis pelo Configurador (acesso por perfil/usuário) ──
   { type: 'item', label: 'Feed Operacional', href: '/feed-operacional',          icon: Activity,       catalogKey: 'bot_minutor' },
