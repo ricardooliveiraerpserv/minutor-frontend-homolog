@@ -31,7 +31,7 @@ function deriveTotal(start: string, end: string): string {
 //    exatamente onde está o cursor; não vira anexo separado.
 //  • botão "Anexar" continua para ARQUIVOS (pdf, planilha, etc.) → vão como anexo.
 // O corpo é enviado como HTML sanitizado; imagens inline são data:URI auto-contidas.
-export interface ComposerStatus { id: number; label: string; is_resolved?: boolean; allows_scheduling?: boolean }
+export interface ComposerStatus { id: number; label: string; is_resolved?: boolean; is_terminal?: boolean; allows_scheduling?: boolean }
 export const InteracaoComposer = forwardRef<ComposerHandle, {
   ticketId: number
   onSent: () => void
@@ -53,6 +53,7 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   // Status é OBRIGATÓRIO antes de escrever (há status com formulário). Começa em "Selecione";
   // a resposta só libera após escolher. Escolher o status atual = manter.
   const [sendStatus, setSendStatus] = useState<number | undefined>(undefined)
+  const [stOpen, setStOpen] = useState(false)  // dropdown custom de status
   const [files, setFiles] = useState<File[]>([])
   const [empty, setEmpty] = useState(true)
   const [sending, setSending] = useState(false)
@@ -67,6 +68,27 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   const [schedDate, setSchedDate] = useState('')
   const [schedTime, setSchedTime] = useState('')
   const selStatus = statuses.find(s => s.id === sendStatus)
+  // Status crítico = conclui (resolvido) ou encerra (terminal). Cor: terminal→danger, resolvido→warning.
+  const isCritical = (s?: ComposerStatus) => !!s && (!!s.is_terminal || !!s.is_resolved)
+  // Ordena: normais primeiro (bloco de cima), depois CONCLUI (resolvido), por fim ENCERRA (terminal).
+  const orderedStatuses = [...statuses].sort((a, b) => {
+    const rank = (s: ComposerStatus) => s.is_terminal ? 2 : (s.is_resolved ? 1 : 0)
+    return rank(a) - rank(b)
+  })
+  const statusColor = (s?: ComposerStatus) => !s ? 'var(--text-muted)' : (s.is_terminal ? 'var(--danger-border)' : (s.is_resolved ? 'var(--warning-border)' : 'var(--text)'))
+  const pickStatus = (s: ComposerStatus) => {
+    setStOpen(false)
+    // Status com formulário: abre o form (o form é a própria interação).
+    if (formStatusIds.includes(s.id)) { onFormStatus?.(s.id); setSendStatus(undefined); return }
+    // Crítico → pede confirmação antes de armar o status.
+    if (isCritical(s) && s.id !== currentStatusId) {
+      const msg = s.is_terminal
+        ? `Tem certeza sobre esta operação?\n\nEncerrar o chamado como "${s.label}" fecha o atendimento e impede novas interações.`
+        : `Tem certeza sobre esta operação?\n\nConcluir o chamado como "${s.label}".`
+      if (!window.confirm(msg)) return
+    }
+    setSendStatus(s.id)
+  }
   const canSchedule = !!selStatus?.allows_scheduling
   const derivedTotal = deriveTotal(startTime, endTime)
   const totalDisplay = totalHours || derivedTotal
@@ -295,18 +317,32 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
           {timeMode === 'required' && <span className="text-[11px] font-semibold" style={{ color: 'var(--danger-border)' }}>* obrigatório</span>}
           </>)}
           {statuses.length > 0 && (
-            <span className="inline-flex items-center gap-1.5 ml-auto">
+            <span className="relative inline-flex items-center gap-1.5 ml-auto">
               <span style={{ color: 'var(--text-muted)' }}>Ao enviar → status</span>
-              <select value={sendStatus ?? ''} onChange={e => {
-                  const v = e.target.value ? Number(e.target.value) : undefined
-                  // Status COM FORMULÁRIO: abre o formulário na hora (o form é a interação).
-                  if (v && formStatusIds.includes(v)) { onFormStatus?.(v); setSendStatus(undefined); return }
-                  setSendStatus(v)
-                }} aria-label="Status ao enviar"
-                className="ds-input" style={{ height: 30, fontSize: 12, padding: '0 8px', borderColor: sendStatus ? 'var(--border)' : '#f59e0b' }}>
-                <option value="">— Selecione o status —</option>
-                {statuses.map(s => <option key={s.id} value={s.id}>{s.id === currentStatusId ? `Manter: ${s.label}` : s.label}</option>)}
-              </select>
+              {/* Dropdown custom: crítico (resolvido/terminal) colorido + confirmação ao escolher.
+                  Cores: terminal (Fechado/Cancelado) = danger; resolvido (Resolvido/GMUD) = warning. */}
+              <button type="button" onClick={() => setStOpen(o => !o)} aria-label="Status ao enviar"
+                className="ds-input inline-flex items-center gap-1.5" style={{ height: 30, fontSize: 12, padding: '0 8px', borderColor: sendStatus ? 'var(--border)' : '#f59e0b', color: statusColor(selStatus), fontWeight: isCritical(selStatus) ? 700 : 400 }}>
+                {selStatus ? (selStatus.id === currentStatusId ? `Manter: ${selStatus.label}` : selStatus.label) : '— Selecione o status —'}
+                <ChevronDown size={13} />
+              </button>
+              {stOpen && (<>
+                <div className="fixed inset-0 z-40" onClick={() => setStOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 rounded-lg py-1 min-w-[210px] max-h-[300px] overflow-y-auto" style={{ border: '1px solid var(--border)', background: 'var(--surface)', boxShadow: '0 10px 28px rgba(0,0,0,.22)' }}>
+                  {orderedStatuses.map(s => {
+                    const crit = isCritical(s)
+                    return (
+                      <button key={s.id} type="button" onClick={() => pickStatus(s)}
+                        className="flex items-center gap-2 w-full text-left px-3 py-1.5 text-xs ds-row-hover"
+                        style={{ color: statusColor(s), fontWeight: crit ? 700 : 500 }}>
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColor(s) }} />
+                        <span className="truncate">{s.id === currentStatusId ? `Manter: ${s.label}` : s.label}</span>
+                        {crit && <span className="ml-auto shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: s.is_terminal ? 'var(--danger-bg)' : 'var(--warning-bg)', color: statusColor(s) }}>{s.is_terminal ? 'ENCERRA' : 'CONCLUI'}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>)}
               {/* Status "agendável": data (obrigatória p/ agendar) + hora opcional ao lado. Pausa o SLA. */}
               {canSchedule && (
                 <span className="inline-flex items-center gap-1 pl-1.5 ml-1.5" style={{ borderLeft: '1px solid var(--border)' }}>

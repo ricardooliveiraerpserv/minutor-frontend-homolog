@@ -549,8 +549,8 @@ export default function HelpDeskTicketDetailPage() {
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setOptOpen(false)} />
                   <div className="absolute right-0 mt-1 z-50 w-60 rounded-xl py-1.5 overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface)', boxShadow: '0 12px 32px rgba(0,0,0,.18)' }}>
-                    {t.can_send_email && <><div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Comunicação</div>
-                    <OptItem icon={Send} onClick={() => { setOptOpen(false); setEmailOpen(true) }}>Enviar e-mail</OptItem></>}
+                    <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Comunicação</div>
+                    {t.can_send_email && <OptItem icon={Send} onClick={() => { setOptOpen(false); setEmailOpen(true) }}>Enviar e-mail</OptItem>}
                     <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-light)' }}>Informações</div>
                     <OptItem icon={ListFilter} onClick={() => { setOptOpen(false); setDetailsOpen(true) }}>Detalhes do ticket</OptItem>
                     {t.can_view_sla && <OptItem icon={Gauge} onClick={() => { setOptOpen(false); setSlaOpen(true) }}>Detalhes do SLA</OptItem>}
@@ -666,7 +666,7 @@ export default function HelpDeskTicketDetailPage() {
                   /* Compositor no TOPO — nova interação sempre em cima */
                   <InteracaoComposer ref={composerRef} ticketId={id} onSent={() => { loadComments(); loadEvents(); loadTicket() }}
                     /* Encerrar (status terminal) só p/ quem tem permissão — coordenador/admin por padrão. */
-                    statuses={statuses.filter(s => t.can_close || !s.is_terminal).map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved, allows_scheduling: s.allows_scheduling }))}
+                    statuses={statuses.filter(s => t.can_close || !s.is_terminal).map(s => ({ id: s.id, label: s.label, is_resolved: s.is_resolved, is_terminal: s.is_terminal, allows_scheduling: s.allows_scheduling }))}
                     currentStatusId={t.status?.id}
                     /* Regra de horas em sustentação: quem PODE apontar manualmente → campo some (opcional);
                        quem NÃO pode → campo obrigatório. Fora de sustentação: opcional (padrão). */
