@@ -702,7 +702,7 @@ export default function HelpDeskTicketDetailPage() {
                     return (
                     <div key={c.id} className={`flex gap-2.5 ${right ? 'flex-row-reverse' : ''}`}>
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
-                      <div className={`flex flex-col min-w-0 ${editing ? 'w-full' : 'max-w-full'} ${right ? 'items-end' : 'items-start'}`}>
+                      <div className={`flex flex-col ${editing ? 'w-full min-w-0' : isHtmlBody(c.body) ? 'w-max max-w-[calc(100vw_-_300px)] shrink-0' : 'min-w-0 max-w-full'} ${right ? 'items-end' : 'items-start'}`}>
                         <div className="flex items-center gap-2 mb-1 text-[11px]">
                           <span className="font-semibold" style={{ color: 'var(--text)' }}>{autor}</span>
                           {isInternal && <span className="inline-flex items-center gap-0.5 text-[10px]" style={{ color: 'var(--warning-border)' }}><Lock size={10} /> nota interna</span>}
@@ -801,7 +801,7 @@ export default function HelpDeskTicketDetailPage() {
                     return (
                     <div className="flex gap-2.5">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
-                      <div className={`flex flex-col min-w-0 ${editDesc ? 'w-full' : 'max-w-full'} items-start`}>
+                      <div className={`flex flex-col items-start ${editDesc ? 'w-full min-w-0' : isHtmlBody(t.description) ? 'w-max max-w-[calc(100vw_-_300px)] shrink-0' : 'min-w-0 max-w-full'}`}>
                         <div className="flex items-center gap-2 mb-1 text-[11px]">
                           <span className="font-semibold" style={{ color: 'var(--text)' }}>{autor}</span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>descrição inicial</span>
