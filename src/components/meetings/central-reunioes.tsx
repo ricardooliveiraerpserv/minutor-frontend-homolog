@@ -19,7 +19,7 @@ interface Meeting {
   join_url: string | null; participants: { name: string | null }[]
   origin_type: string | null; origin_label: string | null; origin_id: number | null; origin_ref: string | null
 }
-interface CalEvent { id: string; subject: string; starts_at: string; ends_at: string | null; is_all_day: boolean; is_online: boolean; join_url: string | null }
+interface CalEvent { id: string; subject: string; starts_at: string; ends_at: string | null; is_all_day: boolean; is_online: boolean; join_url: string | null; location?: string | null; organizer?: string | null; attendees?: string[]; web_link?: string | null; preview?: string | null }
 type Row = { kind: 'meeting'; m: Meeting } | { kind: 'cal'; c: CalEvent }
 const PROV: Record<string, string> = { teams: 'Teams', meet: 'Meet', zoom: 'Zoom', webex: 'Webex', presencial: 'Presencial' }
 const STATUS: Record<string, { label: string; color: string; bg: string }> = {
@@ -54,6 +54,7 @@ export function CentralReunioes() {
   const [search, setSearch] = useState('')
   const [novaOpen, setNovaOpen] = useState(false)
   const [detailId, setDetailId] = useState<number | null>(null)
+  const [calDetail, setCalDetail] = useState<CalEvent | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [calEvents, setCalEvents] = useState<CalEvent[]>([])
@@ -160,7 +161,7 @@ export function CentralReunioes() {
                   {list.map(row => row.kind === 'cal' ? (() => {
                     const c = row.c
                     return (
-                      <div key={`c-${c.id}`} className="flex items-center gap-3 px-4 py-2.5 border-t" style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken)' }}>
+                      <div key={`c-${c.id}`} onClick={() => setCalDetail(c)} className="flex items-center gap-3 px-4 py-2.5 border-t ds-row-hover cursor-pointer" style={{ borderColor: 'var(--border)', background: 'var(--surface-sunken)' }} title="Ver detalhes">
                         <div className="w-14 text-center shrink-0">
                           <div className="text-sm font-bold" style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{c.is_all_day ? '—' : fmtTime(c.starts_at)}</div>
                         </div>
@@ -170,7 +171,7 @@ export function CentralReunioes() {
                         </div>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>Agenda</span>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {c.join_url && <a href={c.join_url} target="_blank" className="ds-btn-secondary text-xs px-2.5 py-1 rounded-md inline-flex items-center gap-1"><ExternalLink size={11} /> Entrar</a>}
+                          {c.join_url && <a href={c.join_url} target="_blank" onClick={e => e.stopPropagation()} className="ds-btn-secondary text-xs px-2.5 py-1 rounded-md inline-flex items-center gap-1"><ExternalLink size={11} /> Entrar</a>}
                         </div>
                       </div>
                     )
@@ -215,6 +216,39 @@ export function CentralReunioes() {
 
       {novaOpen && <AgendarReuniaoModal onClose={() => setNovaOpen(false)} onCreated={() => { setNovaOpen(false); load() }} />}
       {detailId !== null && <MeetingDetailsModal meetingId={detailId} onClose={() => setDetailId(null)} onChanged={load} />}
+
+      {calDetail && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] px-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => setCalDetail(null)}>
+          <div className="ds-card w-full max-w-md overflow-hidden" style={{ padding: 0 }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
+              <div className="text-sm font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text)' }}>
+                <CalendarClock size={15} style={{ color: 'var(--primary)' }} /> Compromisso — Calendário Microsoft
+              </div>
+              <button onClick={() => setCalDetail(null)}><X size={16} style={{ color: 'var(--text-light)' }} /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="text-base font-semibold" style={{ color: 'var(--text)' }}>{calDetail.subject}</div>
+              <div className="space-y-1.5 text-sm" style={{ color: 'var(--text-muted)' }}>
+                <div className="inline-flex items-center gap-2"><CalendarClock size={14} /> {calDetail.is_all_day ? 'Dia inteiro · ' : ''}{new Date(calDetail.starts_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: calDetail.is_all_day ? undefined : 'short' })}{calDetail.ends_at && !calDetail.is_all_day ? ` – ${fmtTime(calDetail.ends_at)}` : ''}</div>
+                {calDetail.organizer && <div className="inline-flex items-center gap-2"><Users size={14} /> Organizador: {calDetail.organizer}</div>}
+                {calDetail.location && <div>📍 {calDetail.location}</div>}
+                {calDetail.is_online && <div style={{ color: 'var(--success-border)' }}>● Reunião online</div>}
+              </div>
+              {calDetail.attendees && calDetail.attendees.length > 0 && (
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--text-light)' }}>Participantes ({calDetail.attendees.length})</div>
+                  <div className="text-sm" style={{ color: 'var(--text)' }}>{calDetail.attendees.join(', ')}</div>
+                </div>
+              )}
+              {calDetail.preview && <div className="text-sm rounded-lg p-2.5 whitespace-pre-wrap max-h-40 overflow-y-auto" style={{ background: 'var(--surface-sunken)', color: 'var(--text)' }}>{calDetail.preview}</div>}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {calDetail.join_url && <a href={calDetail.join_url} target="_blank" className="ds-btn-primary text-sm px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"><ExternalLink size={14} /> Entrar</a>}
+                {calDetail.web_link && <a href={calDetail.web_link} target="_blank" className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"><ExternalLink size={14} /> Abrir no Outlook</a>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
