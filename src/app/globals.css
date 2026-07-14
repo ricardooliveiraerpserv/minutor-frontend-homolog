@@ -1191,8 +1191,6 @@ html.dark .sidebar-erpserv-logo {
   table.ds-table > tbody > tr > td:not([data-label]) { align-items: flex-start; }
 }
 
-/* Interação no balão: o balão ABRAÇA o conteúdo (tamanho natural, sem forçar largura). Só evita
-   imagens estourarem o container e quebra palavras longas — sem mexer no tamanho da assinatura. */
-.hd-msg-body { word-break: break-word; overflow-wrap: anywhere; }
-.hd-msg-body img { max-width: 100%; height: auto; }
-.hd-msg-body table { max-width: 100%; }
+.hd-msg-body table { width: auto !important; max-width: 100% !important; }
+.hd-msg-body img { max-width: 100% !important; height: auto !important; }
+.hd-msg-body { word-break: break-word; }
