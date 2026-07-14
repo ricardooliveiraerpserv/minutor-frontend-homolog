@@ -68,7 +68,9 @@ function InternalCronogramaPage() {
   const { user } = useAuth()
   const isConsultor = user?.type === 'consultor'
   const canEdit = user?.type !== 'consultor' && user?.type !== 'cliente'
-  const [executive, toggleExecutive] = useExecutiveMode()
+  const [executiveRaw, toggleExecutive] = useExecutiveMode()
+  // Consultor nunca fica em modo executivo (toggle escondido); ignora valor preso no localStorage.
+  const executive = executiveRaw && !isConsultor
   const [highlightUserId, setHighlightUserId] = useState<number | null>(null)
 
   const view: ViewMode = normalizeView(searchParams.get('view')) ?? 'operacao'
@@ -288,11 +290,14 @@ function InternalCronogramaPage() {
           timeline: counts.overdueCount,
         }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {project && (
+          {/* "Liberado à gestão" e "Modo executivo" são visão de gestão — o consultor
+              só vê o que foi liberado a ele, sem horas/pool do projeto. */}
+          {!isConsultor && project && (
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               Liberado à gestão: <strong style={{ color: 'var(--text)' }}>{cronogramaPoolHours(project)}h</strong>
             </span>
           )}
+          {!isConsultor && (
           <button
             type="button"
             onClick={() => toggleExecutive()}
@@ -308,6 +313,7 @@ function InternalCronogramaPage() {
             {executive ? <EyeOff size={12} /> : <Eye size={12} />}
             Modo executivo
           </button>
+          )}
           {canEdit && (
             <button
               type="button"
