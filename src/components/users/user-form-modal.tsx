@@ -41,6 +41,7 @@ interface UserData {
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
   is_bizify?: boolean
+  home_company_id?: number | null
   is_diretor_projetos?: boolean
   is_coordinator?: boolean
   full_name?: string | null
@@ -337,6 +338,7 @@ const EMPTY_FORM = {
   extra_permissions: [] as string[],
   can_timesheet_sustentacao: false,
   is_bizify: false,
+  home_company_id: null,
   is_diretor_projetos: false,
   is_coordinator: false,
   // Folha de pagamento
@@ -372,6 +374,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
   const [form,    setForm]    = useState({ ...EMPTY_FORM })
   // Usuário em edição (prefill) — equivale a `modal.item` da página de Usuários.
   const [editItem, setEditItem] = useState<UserData | null>(null)
@@ -410,6 +413,9 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
     ).catch(() => {})
     api.get<any>('/partners?pageSize=-1').then(r =>
       setPartners(Array.isArray(r?.items) ? r.items : [])
+    ).catch(() => {})
+    api.get<{ data: { id: number; name: string }[] }>('/companies').then(r =>
+      setCompanies(r?.data ?? [])
     ).catch(() => {})
   }, [open])
 
@@ -460,6 +466,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           extra_permissions:          item.extra_permissions ?? [],
           can_timesheet_sustentacao:  item.can_timesheet_sustentacao ?? false,
           is_bizify:                  item.is_bizify ?? false,
+          home_company_id:            item.home_company_id ?? null,
           is_diretor_projetos:        item.is_diretor_projetos ?? false,
           is_coordinator:             item.is_coordinator ?? false,
           full_name:                  item.full_name ?? '',
@@ -503,7 +510,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       }
       if (form.hourly_rate) payload.hourly_rate = parseFloat(form.hourly_rate)
       if (form.daily_hours) payload.daily_hours = parseFloat(form.daily_hours)
-      payload.is_bizify = form.is_bizify
+      payload.home_company_id = form.home_company_id  // empresa da folha (o BE deriva is_bizify)
       payload.is_diretor_projetos = form.is_diretor_projetos
       payload.is_coordinator = form.is_coordinator
       if (form.profiles.includes('consultor') && form.consultant_type) {
@@ -998,13 +1005,25 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
               />
             )}
 
-            {/* ── Funcionário Bizify (separa do resultado ERPSERV no fechamento) ── */}
+            {/* ── Empresa da FOLHA (unifica o legado "Funcionário Bizify"): define em qual
+                   empresa entra a folha/fechamento deste funcionário. O is_bizify deriva daqui. ── */}
             {isConsultor && (
-              <Toggle
-                value={form.is_bizify}
-                onChange={() => setForm(f => ({ ...f, is_bizify: !f.is_bizify }))}
-                label="Funcionário Bizify (sai dos cards ERPSERV e vai pra aba Bizify no fechamento)"
-              />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
+                  Empresa (folha)
+                </label>
+                <select
+                  value={form.home_company_id ?? ''}
+                  onChange={e => setForm(f => ({ ...f, home_company_id: e.target.value ? Number(e.target.value) : null }))}
+                  className="ds-input"
+                >
+                  <option value="">— selecionar —</option>
+                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  Empresa em que entra a folha/fechamento deste funcionário (ERPSERV ou Bizify). Vincula automaticamente.
+                </p>
+              </div>
             )}
 
             {/* ── Diretor de Projetos (recebe e-mails das fases do contrato — Triagem) ── */}
