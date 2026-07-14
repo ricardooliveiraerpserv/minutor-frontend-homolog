@@ -1211,3 +1211,25 @@ AggregateError:
  GET /manifest.webmanifest 200 in 13ms (next.js: 8ms, application-code: 5ms)
  GET /inicio 200 in 14ms (next.js: 2ms, application-code: 12ms)
  GET /manifest.webmanifest 200 in 4ms (next.js: 1631µs, application-code: 3ms)
+ GET /inicio 200 in 24ms (next.js: 4ms, application-code: 19ms)
+ GET /manifest.webmanifest 200 in 4ms (next.js: 1387µs, application-code: 3ms)
+ GET /inicio 200 in 40ms (next.js: 14ms, application-code: 26ms)
+ GET /manifest.webmanifest 200 in 7ms (next.js: 3ms, application-code: 4ms)
+ GET /inicio 200 in 30ms (next.js: 11ms, application-code: 19ms)
+ GET /manifest.webmanifest 200 in 5ms (next.js: 2ms, application-code: 3ms)
+ GET /inicio 200 in 63ms (next.js: 5ms, application-code: 58ms)
+ GET /manifest.webmanifest 200 in 7ms (next.js: 3ms, application-code: 5ms)
+ GET /inicio 200 in 479ms (next.js: 5ms, application-code: 474ms)
+ GET /manifest.webmanifest 200 in 23ms (next.js: 20ms, application-code: 3ms)
+[browser] Image with src "/logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+ GET /investimento-comercial 200 in 2.4s (next.js: 2.4s, application-code: 20ms)
+ GET /investimento-comercial 200 in 26ms (next.js: 3ms, application-code: 23ms)
+ GET /manifest.webmanifest 200 in 22ms (next.js: 17ms, application-code: 6ms)
+✓ Compiled in 268ms
+ GET /investimento-comercial 200 in 300ms (next.js: 14ms, application-code: 287ms)
+ GET /manifest.webmanifest 200 in 13ms (next.js: 8ms, application-code: 5ms)
+[browser] Image with src "/logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+✓ Compiled in 316ms
+ GET /investimento-comercial 200 in 121ms (next.js: 17ms, application-code: 104ms)
+ GET /manifest.webmanifest 200 in 12ms (next.js: 4ms, application-code: 8ms)
+[browser] Image with src "/logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.

@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useModules } from '@/contexts/module-context'
-import { moduleColorByIndex } from '@/lib/module-color'
+import { moduleColorByIndex, readableText } from '@/lib/module-color'
 import { Building2 } from 'lucide-react'
 
 interface CompanyItem { id: number; name: string; color: string | null; active: boolean }
@@ -40,17 +40,17 @@ export function ContextBar() {
       {company && (
         <span
           className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-extrabold uppercase tracking-wide shadow-sm"
-          style={{ background: companyColor, color: '#fff' }}
+          style={{ background: companyColor, color: readableText(companyColor) }}
         >
           <Building2 size={15} /> {company.name}
         </span>
       )}
       {mod && (
         <span
-          className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-sm font-bold uppercase tracking-wide"
-          style={{ background: `${modColor}40`, color: modColor }}
+          className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-sm font-bold uppercase tracking-wide shadow-sm"
+          style={{ background: modColor, color: readableText(modColor) }}
         >
-          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: modColor }} />
+          <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: readableText(modColor), opacity: 0.85 }} />
           {mod.label}
         </span>
       )}
