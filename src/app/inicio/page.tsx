@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus } from 'lucide-react'
+import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus, Video } from 'lucide-react'
+import { CentralReunioes } from '@/components/meetings/central-reunioes'
 import { DOT, type CalEvento } from '@/components/notifications/calendar-mini'
 import { useAuth } from '@/hooks/use-auth'
 import { TasksCard } from '@/components/notifications/tasks-card'
@@ -25,7 +26,7 @@ interface Task {
 }
 interface Pub { id: number; tipo: string; title: string; created_at: string | null }
 const TIPO_PUB: Record<string, string> = { aviso: 'Aviso', formal: 'Comunicação', campanha: 'Campanha', marketing: 'Marketing' }
-type TabKey = 'dia' | 'acoes' | 'tarefas' | 'publicacoes'
+type TabKey = 'dia' | 'acoes' | 'tarefas' | 'publicacoes' | 'reunioes'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
@@ -143,6 +144,7 @@ export default function MeuDiaPage() {
     { k: 'dia', label: 'Meu Dia', icon: Home, badge: overdue.length, badgeColor: 'var(--danger-border)' },
     ...(canActions ? [{ k: 'acoes' as TabKey, label: 'Ações', icon: ShieldAlert, badge: actionsCount, badgeColor: 'var(--danger-border)' }] : []),
     { k: 'tarefas', label: 'Tarefas', icon: ListChecks, badge: taskPending, badgeColor: overdue.length ? 'var(--danger-border)' : 'var(--warning-border)' },
+    { k: 'reunioes', label: 'Reuniões', icon: Video },
     { k: 'publicacoes', label: 'Publicações', icon: Megaphone },
   ]
 
@@ -327,6 +329,9 @@ export default function MeuDiaPage() {
             <TasksCard key={`full-${tasksKey}`} onChanged={loadTasks} />
           </div>
         )}
+
+        {/* ════════ REUNIÕES — Central de Reuniões (mesmo conteúdo de /reunioes) ════════ */}
+        {tab === 'reunioes' && <CentralReunioes />}
 
         {/* ════════ PUBLICAÇÕES — recebidas + gerenciar/publicar (admin) ════════ */}
         {tab === 'publicacoes' && (

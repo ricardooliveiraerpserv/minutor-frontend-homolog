@@ -5,6 +5,7 @@ import { api, ApiError } from '@/lib/api'
 import { uploadDirect } from '@/lib/upload'
 import { previewText } from '@/lib/sanitize'
 import { useAuth } from '@/hooks/use-auth'
+import { MeetingsPanel } from '@/components/meetings/meetings-panel'
 import { toast } from 'sonner'
 import { ExternalLink, AlertTriangle, DollarSign, TrendingUp, BarChart2, UserCheck, X, Check, Trash2, Download, FileText } from 'lucide-react'
 import { MonthlyAccrualTable } from '@/components/projects/monthly-accrual-table'
@@ -109,7 +110,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
 }) {
   const [p, setP] = useState<ProjectFull | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'extrato'>((initialTab as any) ?? 'overview')
+  const [tab, setTab] = useState<'overview' | 'financial' | 'consultants' | 'timesheets' | 'cost' | 'aportes' | 'extrato' | 'reunioes'>((initialTab as any) ?? 'overview')
   const [breakdown, setBreakdown] = useState<ConsultantBreakdown[]>([])
   const [costSummary, setCostSummary] = useState<CostSummary | null>(null)
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>([])
@@ -236,6 +237,7 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
     { id: 'overview'    as const, label: 'Visão Geral' },
     { id: 'consultants' as const, label: `Consultores${breakdown.length > 0 ? ` (${breakdown.length})` : ''}` },
     { id: 'timesheets'  as const, label: 'Apontamentos' },
+    { id: 'reunioes'    as const, label: 'Reuniões' },
     // Aportes financeiros e Extrato: ocultos p/ coordenador de sustentação.
     ...(isSustCoord ? [] : [
       { id: 'aportes'     as const, label: `Aportes${aportesList.length > 0 ? ` (${aportesList.length})` : ''}` },
@@ -706,6 +708,10 @@ export function ProjectViewModal({ projectId, onClose, userRole, initialTab }: {
                   </div>
                 )}
               </div>
+            )}
+
+            {tab === 'reunioes' && (
+              <MeetingsPanel originType="PROJECT" originId={projectId} originTitle={p?.name} />
             )}
 
             {tab === 'extrato' && !isSustCoord && (
