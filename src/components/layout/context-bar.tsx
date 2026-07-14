@@ -34,7 +34,7 @@ export function ContextBar() {
       className="shrink-0 flex items-center gap-3 px-4 md:px-6 h-11"
       style={{
         borderTop: `4px solid ${modColor}`,
-        background: `linear-gradient(90deg, ${modColor}2e 0%, ${modColor}12 45%, transparent 100%)`,
+        background: `linear-gradient(90deg, ${modColor}59 0%, ${modColor}33 55%, ${modColor}1f 100%)`,
       }}
     >
       {company && (
@@ -48,7 +48,7 @@ export function ContextBar() {
       {mod && (
         <span
           className="inline-flex items-center gap-2 px-3 py-1 rounded-lg text-sm font-bold uppercase tracking-wide"
-          style={{ background: `${modColor}26`, color: modColor }}
+          style={{ background: `${modColor}40`, color: modColor }}
         >
           <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: modColor }} />
           {mod.label}

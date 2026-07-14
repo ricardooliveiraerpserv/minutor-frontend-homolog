@@ -1205,3 +1205,9 @@ AggregateError:
  GET /manifest.webmanifest 200 in 4ms (next.js: 1306µs, application-code: 3ms)
  GET /inicio 200 in 25ms (next.js: 3ms, application-code: 22ms)
  GET /manifest.webmanifest 200 in 4ms (next.js: 1339µs, application-code: 2ms)
+✓ Compiled in 138ms
+✓ Compiled in 73ms
+ GET /inicio 200 in 59ms (next.js: 25ms, application-code: 34ms)
+ GET /manifest.webmanifest 200 in 13ms (next.js: 8ms, application-code: 5ms)
+ GET /inicio 200 in 14ms (next.js: 2ms, application-code: 12ms)
+ GET /manifest.webmanifest 200 in 4ms (next.js: 1631µs, application-code: 3ms)
