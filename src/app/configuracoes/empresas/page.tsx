@@ -20,7 +20,7 @@ const ROLE_LABEL: Record<string, string> = {
 }
 
 interface Company {
-  id: number; name: string; slug: string; cnpj: string | null
+  id: number; name: string; slug: string; cnpj: string | null; color: string | null
   type: CompanyType; status: CompanyStatus; users_count: number
 }
 interface CompanyUser { id: number; name: string; email: string; role: string }
@@ -35,6 +35,7 @@ export default function EmpresasPage() {
   const [editing, setEditing] = useState<Company | null>(null)
   const [name, setName] = useState('')
   const [cnpj, setCnpj] = useState('')
+  const [color, setColor] = useState('#06b6d4')
   const [type, setType] = useState<CompanyType>('internal')
   const [status, setStatus] = useState<CompanyStatus>('active')
   const [saving, setSaving] = useState(false)
@@ -57,17 +58,17 @@ export default function EmpresasPage() {
   useEffect(() => { load() }, [load])
 
   const openNew = () => {
-    setEditing(null); setName(''); setCnpj(''); setType('internal'); setStatus('active'); setModalOpen(true)
+    setEditing(null); setName(''); setCnpj(''); setColor('#06b6d4'); setType('internal'); setStatus('active'); setModalOpen(true)
   }
   const openEdit = (c: Company) => {
-    setEditing(c); setName(c.name); setCnpj(c.cnpj ?? ''); setType(c.type); setStatus(c.status); setModalOpen(true)
+    setEditing(c); setName(c.name); setCnpj(c.cnpj ?? ''); setColor(c.color ?? '#06b6d4'); setType(c.type); setStatus(c.status); setModalOpen(true)
   }
 
   const save = async () => {
     if (!name.trim()) { toast.error('Informe o nome'); return }
     setSaving(true)
     try {
-      const payload = { name: name.trim(), cnpj: cnpj.trim() || null, type, status }
+      const payload = { name: name.trim(), cnpj: cnpj.trim() || null, color, type, status }
       if (editing) await api.put(`/companies/${editing.id}`, payload)
       else await api.post('/companies', payload)
       toast.success(editing ? 'Empresa atualizada' : 'Empresa criada')
@@ -128,7 +129,12 @@ export default function EmpresasPage() {
               <Tbody>
                 {list.map(c => (
                   <Tr key={c.id}>
-                    <Td className="text-sm font-medium">{c.name}{c.cnpj ? <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>{c.cnpj}</span> : null}</Td>
+                    <Td className="text-sm font-medium">
+                      <span className="inline-flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full shrink-0" style={{ background: c.color || 'var(--border)' }} />
+                        {c.name}{c.cnpj ? <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{c.cnpj}</span> : null}
+                      </span>
+                    </Td>
                     <Td><Badge variant={c.type === 'internal' ? 'primary' : 'purple'}>{c.type === 'internal' ? 'Interna' : 'Externa'}</Badge></Td>
                     <Td><Badge variant={c.status === 'active' ? 'success' : 'danger'}>{c.status === 'active' ? 'Ativa' : 'Inativa'}</Badge></Td>
                     <Td className="text-sm tabular-nums">{c.users_count}</Td>
@@ -148,7 +154,14 @@ export default function EmpresasPage() {
       {/* Cadastro / edição */}
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Editar empresa' : 'Nova empresa'} width="max-w-lg">
         <div className="flex flex-col gap-4">
-          <TextInput label="Nome" value={name} onChange={e => setName(e.target.value)} placeholder="Ex.: ERPSERV" />
+          <div className="flex items-end gap-3">
+            <div className="flex-1"><TextInput label="Nome" value={name} onChange={e => setName(e.target.value)} placeholder="Ex.: ERPSERV" /></div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Cor</label>
+              <input type="color" value={color} onChange={e => setColor(e.target.value)}
+                className="w-12 h-10 rounded-lg cursor-pointer bg-transparent" style={{ border: '1px solid var(--border)' }} title="Cor de identidade da empresa" />
+            </div>
+          </div>
           <TextInput label="CNPJ (opcional)" value={cnpj} onChange={e => setCnpj(e.target.value)} placeholder="00.000.000/0000-00" />
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">

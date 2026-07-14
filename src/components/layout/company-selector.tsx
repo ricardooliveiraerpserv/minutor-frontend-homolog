@@ -3,12 +3,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { Building2, Check, ChevronDown, Loader2 } from 'lucide-react'
+import { Check, ChevronDown, Loader2 } from 'lucide-react'
 
 interface CompanyItem {
   id: number
   name: string
   slug: string
+  color: string | null
   type: string
   role: string
   active: boolean
@@ -56,10 +57,10 @@ export function CompanySelector() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 px-2.5 h-8 rounded-md text-xs font-medium transition-colors hover:bg-[var(--surface-hover)]"
-        style={{ color: 'var(--text)', border: '1px solid var(--border)' }}
+        className="flex items-center gap-1.5 px-2.5 h-8 rounded-md text-xs font-semibold transition-colors hover:bg-[var(--surface-hover)]"
+        style={{ color: 'var(--text)', border: `1.5px solid ${active?.color || 'var(--border)'}` }}
       >
-        <Building2 size={14} style={{ color: 'var(--primary)' }} />
+        <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: active?.color || 'var(--primary)' }} />
         <span className="truncate max-w-[120px]">{active?.name ?? 'Empresa'}</span>
         <ChevronDown size={13} style={{ color: 'var(--text-muted)' }} />
       </button>
@@ -79,9 +80,12 @@ export function CompanySelector() {
               disabled={switching !== null}
               className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-60"
             >
-              <div className="min-w-0">
-                <p className="text-sm truncate" style={{ color: 'var(--text)' }}>{c.name}</p>
-                <p className="text-[11px] capitalize" style={{ color: 'var(--text-muted)' }}>{c.role}</p>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: c.color || 'var(--primary)' }} />
+                <div className="min-w-0">
+                  <p className="text-sm truncate" style={{ color: 'var(--text)' }}>{c.name}</p>
+                  <p className="text-[11px] capitalize" style={{ color: 'var(--text-muted)' }}>{c.role}</p>
+                </div>
               </div>
               {switching === c.id
                 ? <Loader2 size={15} className="animate-spin" style={{ color: 'var(--primary)' }} />
