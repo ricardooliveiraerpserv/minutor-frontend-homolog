@@ -50,3 +50,37 @@ Error: socket hang up
 [browser] Image with src "/logo.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
 Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
 ✓ Compiled in 232ms
+ GET /users 200 in 108ms (next.js: 41ms, application-code: 66ms)
+ GET /manifest.webmanifest 200 in 28ms (next.js: 4ms, application-code: 24ms)
+ GET /users 200 in 54ms (next.js: 3ms, application-code: 51ms)
+ GET /manifest.webmanifest 200 in 4ms (next.js: 1405µs, application-code: 2ms)
+ GET /users 200 in 66ms (next.js: 6ms, application-code: 60ms)
+ GET /manifest.webmanifest 200 in 40ms (next.js: 36ms, application-code: 4ms)
+ GET /users 200 in 75ms (next.js: 15ms, application-code: 60ms)
+ GET /manifest.webmanifest 200 in 10ms (next.js: 7ms, application-code: 3ms)
+[browser] Image with src "/logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[browser] Image with src "/logo.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+ GET /users 200 in 71ms (next.js: 24ms, application-code: 47ms)
+ GET /manifest.webmanifest 200 in 11ms (next.js: 7ms, application-code: 4ms)
+ GET /users 200 in 64ms (next.js: 9ms, application-code: 55ms)
+ GET /manifest.webmanifest 200 in 14ms (next.js: 10ms, application-code: 4ms)
+ GET /users 200 in 79ms (next.js: 6ms, application-code: 73ms)
+ GET /manifest.webmanifest 200 in 5ms (next.js: 1947µs, application-code: 3ms)
+[browser] Image with src "/logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio.
+[browser] Image with src "/logo.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+ GET /inicio 200 in 1679ms (next.js: 1652ms, application-code: 27ms)
+ GET /manifest.webmanifest 200 in 9ms (next.js: 3ms, application-code: 6ms)
+ GET /fechamento/cliente 200 in 1172ms (next.js: 1116ms, application-code: 57ms)
+ GET /manifest.webmanifest 200 in 10ms (next.js: 3ms, application-code: 6ms)
+ GET /fechamento/parceiro 200 in 1264ms (next.js: 1205ms, application-code: 59ms)
+ GET /manifest.webmanifest 200 in 8ms (next.js: 3ms, application-code: 5ms)
+ GET /fechamento/folha 200 in 1173ms (next.js: 1121ms, application-code: 52ms)
+ GET /manifest.webmanifest 200 in 9ms (next.js: 4ms, application-code: 5ms)
+✓ Compiled in 278ms
+✓ Compiled in 130ms
+✓ Compiled in 199ms
+✓ Compiled in 143ms
+ GET /fechamento/folha 200 in 74ms (next.js: 16ms, application-code: 58ms)
+ GET /manifest.webmanifest 200 in 11ms (next.js: 4ms, application-code: 7ms)
