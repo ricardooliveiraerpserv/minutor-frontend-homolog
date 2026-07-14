@@ -200,8 +200,23 @@ export default function HelpDeskFilaPage() {
     const p = new URLSearchParams({ limit: '500' })
     Object.entries(f).forEach(([k, v]) => { if (v) p.set(k, v) })
     if (mine) p.set('mine', '1')
+    // ESCALA: empurra o filtro de data pro backend (índice created_at) — a fila carrega só o período
+    // pedido, não "os 500 mais recentes de toda a história". Sem período → modo FILA (ativos + recentes).
+    const pad = (n: number) => String(n).padStart(2, '0')
+    let hasDate = false
+    if (dateMode === 'month' && refMonth != null && refYear != null) {
+      const last = new Date(refYear, refMonth, 0).getDate()
+      p.set('created_from', `${refYear}-${pad(refMonth)}-01 00:00:00`)
+      p.set('created_to', `${refYear}-${pad(refMonth)}-${pad(last)} 23:59:59`)
+      hasDate = true
+    } else if (dateMode === 'period' && (dateFrom || dateTo)) {
+      if (dateFrom) p.set('created_from', `${dateFrom} 00:00:00`)
+      if (dateTo) p.set('created_to', `${dateTo} 23:59:59`)
+      hasDate = true
+    }
+    if (!hasDate) p.set('queue', '1')
     return p.toString()
-  }, [f, mine])
+  }, [f, mine, dateMode, refMonth, refYear, dateFrom, dateTo])
 
   const load = useCallback(() => {
     api.get<{ data: TicketRow[] }>(`/help-desk/tickets?${qs}`).then(r => setLocal(r?.data ?? [])).catch(() => toast.error('Erro ao carregar'))
