@@ -29,6 +29,8 @@ import { CloneTicketModal } from '@/components/help-desk/clone-ticket-modal'
 import { ScheduleReopenModal } from '@/components/help-desk/schedule-reopen-modal'
 import { ReportOptionsModal } from '@/components/help-desk/report-options-modal'
 import { SendEmailModal } from '@/components/help-desk/send-email-modal'
+import { AgendarReuniaoModal } from '@/components/help-desk/agendar-reuniao-modal'
+import { ReunioesCard } from '@/components/help-desk/reunioes-card'
 
 interface Ref { id: number; name: string; email?: string | null; type?: string | null }
 interface StatusOpt { id: number; key: string; label: string; color: string | null; is_open: boolean; is_resolved: boolean; is_terminal: boolean; allows_scheduling?: boolean }
@@ -140,6 +142,8 @@ export default function HelpDeskTicketDetailPage() {
   const [reopenOpen, setReopenOpen] = useState(false)  // modal "Reabertura agendada"
   const [reportOpen, setReportOpen] = useState(false)  // modal opções do relatório PDF
   const [emailOpen, setEmailOpen] = useState(false)  // modal "Enviar e-mail avulso"
+  const [reuniaoOpen, setReuniaoOpen] = useState(false)  // modal "Agendar reunião"
+  const [reuniaoKey, setReuniaoKey] = useState(0)  // refresh do card de reuniões
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const doDelete = async () => {
@@ -647,6 +651,8 @@ export default function HelpDeskTicketDetailPage() {
 
               {tab === 'conversa' ? (
                 <div className="p-4 space-y-4">
+                  {/* Card de reunião (Central de Reuniões) — próxima acima da conversa; muda pós-realização. */}
+                  <ReunioesCard ticketId={id} refreshKey={reuniaoKey} onTicketChange={() => { loadTicket(); loadComments(); loadEvents() }} onSchedule={() => setReuniaoOpen(true)} />
                   {/* Chamado FECHADO (terminal): sem novas interações — só reabrindo. */}
                   {t.status?.is_terminal ? (
                     <div className="rounded-lg px-4 py-3 flex items-center gap-2.5" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
@@ -1044,6 +1050,9 @@ export default function HelpDeskTicketDetailPage() {
       {cloneOpen && t && <CloneTicketModal ticketId={id} sourceSubject={t.subject ?? ''} onClose={() => setCloneOpen(false)} />}
       {reopenOpen && t && <ScheduleReopenModal ticketId={id} onClose={() => setReopenOpen(false)} onDone={() => { loadTicket(); loadEvents() }} />}
       {reportOpen && <ReportOptionsModal onClose={() => setReportOpen(false)} onGenerate={(ap) => openReport(ap)} />}
+      {reuniaoOpen && t && <AgendarReuniaoModal originType="HELPDESK_TICKET" originId={id}
+        defaultTitle={`Reunião — ${t.subject ?? ''}`}
+        onClose={() => setReuniaoOpen(false)} onCreated={() => { setReuniaoKey(k => k + 1); loadTicket(); loadComments(); loadEvents() }} />}
       {emailOpen && t && <SendEmailModal ticketId={id}
         defaultTo={t.solicitante?.email ?? t.requester_email ?? t.contact?.email ?? null}
         defaultSubject={`[${t.ticket_number ?? id}] ${t.subject ?? ''}`}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, type ReactNode } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
+import { PortalReunioes } from '@/components/help-desk/portal-reunioes'
 import { api } from '@/lib/api'
 import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
 import { AbrirChamadoModal } from '@/components/help-desk/abrir-chamado-modal'
@@ -47,19 +48,27 @@ interface PortalTicket {
 
 export default function HelpDeskPortalPage() {
   const [novo, setNovo] = useState(false)
+  const [pageTab, setPageTab] = useState<'chamados' | 'reunioes'>('chamados')
   const { user } = useAuth()
   const isCliente = user?.type === 'cliente' // "Abrir chamado" só para o cliente
   return (
     <AppLayout
       title="Help Desk"
-      actions={isCliente ? (
+      actions={isCliente && pageTab === 'chamados' ? (
         <button className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg" onClick={() => setNovo(true)}>
           <Plus size={15} /> Abrir chamado
         </button>
       ) : undefined}
     >
       <div className="space-y-4">
-        <Chamados novo={novo} setNovo={setNovo} />
+        {/* Abas do portal: Chamados | Reuniões */}
+        <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border)' }}>
+          {([['chamados', 'Chamados'], ['reunioes', 'Reuniões']] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setPageTab(k)} className="text-sm font-semibold px-4 py-2 transition-colors"
+              style={{ color: pageTab === k ? 'var(--primary)' : 'var(--text-muted)', borderBottom: `2px solid ${pageTab === k ? 'var(--primary)' : 'transparent'}`, marginBottom: -1 }}>{l}</button>
+          ))}
+        </div>
+        {pageTab === 'chamados' ? <Chamados novo={novo} setNovo={setNovo} /> : <PortalReunioes />}
       </div>
     </AppLayout>
   )
