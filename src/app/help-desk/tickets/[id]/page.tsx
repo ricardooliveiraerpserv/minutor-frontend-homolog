@@ -98,6 +98,52 @@ const avatarColor = (name?: string | null) => {
   let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
   return AVATAR_COLORS[h % AVATAR_COLORS.length]
 }
+/**
+ * Renderiza o corpo HTML de um e-mail em um <iframe> ISOLADO — documento próprio,
+ * SEM nenhum CSS da aplicação (nem o reset global do Tailwind). O conteúdo é
+ * colocado byte-a-byte como recebido; nenhuma regra em img/table/td/etc. do app
+ * alcança o interior. Só o container externo (o balão) é nosso.
+ *
+ * O iframe começa largo o bastante para o e-mail assumir o layout de design
+ * (as tabelas width:100% respeitam max-width:880 = largura de leitura do e-mail),
+ * depois encolhe para a largura/altura reais do conteúdo. Assim o e-mail renderiza
+ * exatamente como num cliente de e-mail; o balão (overflow-x-auto) rola se a
+ * viewport for menor que o conteúdo — sem nunca alterar o HTML.
+ */
+function EmailFrame({ html }: { html: string }) {
+  const ref = useRef<HTMLIFrameElement>(null)
+  const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
+  useEffect(() => {
+    const f = ref.current
+    if (!f) return
+    const measure = () => {
+      const d = f.contentDocument
+      if (!d || !d.body) return
+      setSize({ w: Math.ceil(d.body.scrollWidth), h: Math.ceil(d.body.scrollHeight) })
+    }
+    const onload = () => {
+      measure()
+      const d = f.contentDocument
+      if (d) Array.from(d.images).forEach(img => { if (!img.complete) img.addEventListener('load', measure) })
+    }
+    f.addEventListener('load', onload)
+    onload() // srcDoc pode já ter carregado
+    return () => f.removeEventListener('load', onload)
+  }, [html])
+  // body width:fit-content + max-width:880 -> e-mail no layout de design; margin:0 = sem borda extra.
+  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html{margin:0;padding:0}body{margin:0;padding:0;width:fit-content;max-width:880px}</style></head><body>${html}</body></html>`
+  return (
+    <iframe
+      ref={ref}
+      srcDoc={srcDoc}
+      title="Conteúdo do e-mail"
+      scrolling="no"
+      sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+      style={{ width: size.w || 880, height: size.h || 200, border: 0, display: 'block', colorScheme: 'light' }}
+    />
+  )
+}
+
 const PRIO_LABEL: Record<string, string> = { baixa: 'Baixa', normal: 'Média', alta: 'Alta', urgente: 'Urgente' }
 const EVENT_LABEL: Record<string, string> = {
   created: '🎫 Chamado aberto', status: '🔄 Status alterado', status_changed: '🔄 Status alterado', assigned: '👤 Responsável definido', team_changed: '👥 Equipe alterada',
@@ -770,7 +816,7 @@ export default function HelpDeskTicketDetailPage() {
                         ) : c.body ? (
                           <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(c.body) ? 'w-max max-w-[min(880px,calc(100vw_-_380px))] overflow-x-auto' : 'hd-msg-body w-fit max-w-full'}`} style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
                             {isHtmlBody(c.body)
-                              ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(c.body) }} />
+                              ? <EmailFrame html={sanitizeRich(c.body)} />
                               : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
                           </div>
                         ) : null}
@@ -825,7 +871,7 @@ export default function HelpDeskTicketDetailPage() {
                         ) : (
                           <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(t.description) ? 'w-max max-w-[min(880px,calc(100vw_-_380px))] overflow-x-auto' : 'hd-msg-body w-fit max-w-full'}`} style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
                             {isHtmlBody(t.description)
-                              ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(t.description) }} />
+                              ? <EmailFrame html={sanitizeRich(t.description)} />
                               : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
                           </div>
                         )}
