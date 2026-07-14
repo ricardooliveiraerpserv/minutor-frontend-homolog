@@ -801,7 +801,7 @@ export default function HelpDeskTicketDetailPage() {
                     return (
                     <div className="flex gap-2.5">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
-                      <div className={`flex flex-col min-w-0 ${editDesc ? 'w-full' : 'max-w-[85%]'} items-start`}>
+                      <div className={`flex flex-col min-w-0 ${editDesc ? 'w-full' : 'max-w-full'} items-start`}>
                         <div className="flex items-center gap-2 mb-1 text-[11px]">
                           <span className="font-semibold" style={{ color: 'var(--text)' }}>{autor}</span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>descrição inicial</span>
@@ -823,7 +823,7 @@ export default function HelpDeskTicketDetailPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className="hd-msg-body text-sm text-left rounded-2xl px-3.5 py-2.5 w-fit max-w-full overflow-x-auto" style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
+                          <div className="hd-msg-body text-sm text-left rounded-2xl px-3.5 py-2.5 w-fit" style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
                             {isHtmlBody(t.description)
                               ? <div className="hd-rich" dangerouslySetInnerHTML={{ __html: sanitizeRich(t.description) }} />
                               : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
