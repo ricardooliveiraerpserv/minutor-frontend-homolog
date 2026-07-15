@@ -191,10 +191,15 @@ export default function HelpDeskFilaPage() {
     && (mf.solicitante.length === 0 || (!!t.solicitante_nome && mf.solicitante.includes(t.solicitante_nome)))
     && (mf.priority.length === 0 || mf.priority.includes(t.priority))
   , [dateMode, refMonth, refYear, dateFrom, dateTo, mf]) // eslint-disable-line react-hooks/exhaustive-deps
-  // + "dias sem interação da equipe" (limiar ≥ N).
-  const matchFilters = useCallback((t: TicketRow) =>
-    matchBase(t) && (!semInteracao || (t.dias_sem_interacao ?? 0) >= Number(semInteracao))
-  , [matchBase, semInteracao])
+  // + "dias sem interação da equipe". Bate com a CONTAGEM/rótulo dos chips: '1'/'2' = EXATAMENTE
+  // N dia(s); '3' = "3+ dias" = ≥ 3. (Antes filtrava ≥ N sempre → clicar "2 dias"=0 trazia os 3+.)
+  const matchFilters = useCallback((t: TicketRow) => {
+    if (!matchBase(t)) return false
+    if (!semInteracao) return true
+    const d = t.dias_sem_interacao ?? 0
+    const n = Number(semInteracao)
+    return n >= 3 ? d >= 3 : d === n
+  }, [matchBase, semInteracao])
 
   const qs = useMemo(() => {
     const p = new URLSearchParams({ limit: '500' })
@@ -466,7 +471,7 @@ export default function HelpDeskFilaPage() {
                       const on = semInteracao === v          // SELECIONADO (filtrando) → chip preenchido sólido + ✓
                       const critical = v === '3' && n > 0 && !on  // "3+ dias" com casos = alerta (só quando NÃO selecionado)
                       return (
-                        <button key={v} onClick={() => setSemInteracao(cur => cur === v ? '' : v)} title={on ? 'Filtrando — clique para remover' : `Filtrar: ≥ ${v} dia(s) útil(eis) sem interação da equipe`}
+                        <button key={v} onClick={() => setSemInteracao(cur => cur === v ? '' : v)} title={on ? 'Filtrando — clique para remover' : `Filtrar: ${v === '3' ? '≥ 3 dias úteis' : `exatamente ${v} dia(s) útil(eis)`} sem interação da equipe`}
                           className={`inline-flex items-center gap-1.5 rounded-lg border cursor-pointer transition-colors ${on ? 'px-2.5 py-1 font-semibold' : 'px-2.5 py-1 ds-row-hover'} ${critical ? 'hd-pulse' : ''}`}
                           style={on
                             ? { borderColor: color, background: color, boxShadow: `0 0 0 2px ${color}44` }
