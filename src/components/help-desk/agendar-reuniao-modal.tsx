@@ -23,14 +23,22 @@ function nowLocal(offsetMin = 60) {
   return { date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, time: `${p(d.getHours())}:00` }
 }
 
-export function AgendarReuniaoModal({ originType, originId, defaultTitle, onClose, onCreated }: {
-  originType?: string; originId?: number; defaultTitle?: string; onClose: () => void; onCreated: () => void
+export function AgendarReuniaoModal({ originType, originId, defaultTitle, meeting, onClose, onCreated }: {
+  originType?: string; originId?: number; defaultTitle?: string
+  meeting?: { id: number; title: string; starts_at: string; duration_minutes: number } | null
+  onClose: () => void; onCreated: () => void
 }) {
+  const editing = !!meeting
   const init = nowLocal()
-  const [title, setTitle] = useState(defaultTitle ?? '')
-  const [date, setDate] = useState(init.date)
-  const [time, setTime] = useState('09:00')
-  const [duration, setDuration] = useState(30)
+  // Modo edição: pré-preenche data/hora/duração da reunião existente (reagendar).
+  const initEdit = meeting ? (() => {
+    const d = new Date(meeting.starts_at); const p = (n: number) => String(n).padStart(2, '0')
+    return { date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, time: `${p(d.getHours())}:${p(d.getMinutes())}` }
+  })() : null
+  const [title, setTitle] = useState(meeting?.title ?? defaultTitle ?? '')
+  const [date, setDate] = useState(initEdit?.date ?? init.date)
+  const [time, setTime] = useState(initEdit?.time ?? '09:00')
+  const [duration, setDuration] = useState(meeting?.duration_minutes ?? 30)
   const [provider, setProvider] = useState('teams')
   const [description, setDescription] = useState('')
   const [sendInvites, setSendInvites] = useState(true)
@@ -41,10 +49,10 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, onClos
   // Prefill dos participantes sugeridos da origem (solicitante/responsável/CC). Reunião avulsa (sem
   // origem, criada pela Central) começa sem sugeridos.
   useEffect(() => {
-    if (!originType || !originId) return
+    if (editing || !originType || !originId) return  // edição = reagendar; não recarrega sugeridos
     api.get<{ data: Part[] }>(`/meetings/suggested-participants?origin_type=${originType}&origin_id=${originId}`)
       .then(r => setParts(r?.data ?? [])).catch(() => {})
-  }, [originType, originId])
+  }, [editing, originType, originId])
 
   const removePart = (i: number) => setParts(ps => ps.filter((_, j) => j !== i))
   const addEmail = () => {
@@ -58,13 +66,19 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, onClos
     if (!date || !time) { toast.error('Informe data e hora.'); return }
     setSaving(true)
     try {
-      await api.post('/meetings', {
-        title: title.trim(), description: description.trim() || null, provider,
-        starts_at: `${date}T${time}:00`, duration_minutes: duration,
-        origin_type: originType ?? 'AGENDA', origin_id: originId ?? null,
-        participants: parts, send_invites: sendInvites,
-      })
-      toast.success('Reunião agendada.')
+      if (editing && meeting) {
+        // Reagendar: o backend (PUT /meetings/{id}) altera data/hora/duração da reunião.
+        await api.put(`/meetings/${meeting.id}`, { starts_at: `${date}T${time}:00`, duration_minutes: duration })
+        toast.success('Reunião reagendada.')
+      } else {
+        await api.post('/meetings', {
+          title: title.trim(), description: description.trim() || null, provider,
+          starts_at: `${date}T${time}:00`, duration_minutes: duration,
+          origin_type: originType ?? 'AGENDA', origin_id: originId ?? null,
+          participants: parts, send_invites: sendInvites,
+        })
+        toast.success('Reunião agendada.')
+      }
       onCreated(); onClose()
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao agendar') }
     finally { setSaving(false) }
@@ -75,7 +89,7 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, onClos
       <div className="ds-card w-full max-w-lg overflow-hidden" style={{ padding: 0 }} onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="text-sm font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text)' }}>
-            <Video size={15} style={{ color: 'var(--primary)' }} /> Agendar reunião
+            <Video size={15} style={{ color: 'var(--primary)' }} /> {editing ? 'Editar reunião' : 'Agendar reunião'}
           </div>
           <button onClick={onClose}><X size={16} style={{ color: 'var(--text-light)' }} /></button>
         </div>
@@ -83,11 +97,11 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, onClos
         <div className="p-4 space-y-3 max-h-[68vh] overflow-y-auto">
           <div>
             <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: 'var(--text-light)' }}>Título</label>
-            <input className="ds-input w-full" value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex.: Alinhamento sobre o chamado" autoFocus />
+            <input className="ds-input w-full" value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex.: Alinhamento sobre o chamado" autoFocus={!editing} disabled={editing} style={editing ? { opacity: 0.6 } : undefined} />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div><label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: 'var(--text-light)' }}>Data</label>
-              <input type="date" className="ds-input w-full" value={date} min={init.date} onChange={e => setDate(e.target.value)} /></div>
+              <input type="date" className="ds-input w-full" value={date} min={editing ? undefined : init.date} onChange={e => setDate(e.target.value)} /></div>
             <div><label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: 'var(--text-light)' }}>Hora</label>
               <input type="time" className="ds-input w-full" value={time} onChange={e => setTime(e.target.value)} /></div>
             <div><label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: 'var(--text-light)' }}>Duração</label>
@@ -95,6 +109,12 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, onClos
                 {[15, 30, 45, 60, 90, 120].map(m => <option key={m} value={m}>{m} min</option>)}
               </select></div>
           </div>
+          {editing && (
+            <div className="text-[11px] rounded-lg px-3 py-2" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+              Ao salvar, apenas <b>data, hora e duração</b> são alterados. Título e participantes seguem os da reunião original.
+            </div>
+          )}
+          {!editing && (<>
           <div>
             <label className="text-[11px] font-semibold uppercase tracking-wide block mb-1" style={{ color: 'var(--text-light)' }}>Tipo</label>
             <div className="flex flex-wrap gap-1.5">
@@ -137,12 +157,13 @@ export function AgendarReuniaoModal({ originType, originId, defaultTitle, onClos
             </span>
             Enviar convites aos participantes
           </button>
+          </>)}
         </div>
 
         <div className="flex justify-end gap-2 px-4 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
           <button className="ds-btn-secondary" onClick={onClose} disabled={saving}>Cancelar</button>
           <button className="ds-btn-primary inline-flex items-center gap-1.5" onClick={submit} disabled={saving}>
-            <CalendarClock size={14} /> {saving ? 'Agendando…' : 'Criar reunião'}
+            <CalendarClock size={14} /> {saving ? 'Salvando…' : editing ? 'Salvar alterações' : 'Criar reunião'}
           </button>
         </div>
       </div>

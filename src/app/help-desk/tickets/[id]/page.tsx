@@ -195,6 +195,8 @@ export default function HelpDeskTicketDetailPage() {
   const [emailOpen, setEmailOpen] = useState(false)  // modal "Enviar e-mail avulso"
   const [reuniaoOpen, setReuniaoOpen] = useState(false)  // modal "Agendar reunião"
   const [reuniaoKey, setReuniaoKey] = useState(0)  // refresh do card de reuniões
+  // Reunião em edição (reagendar) — quando setada, o modal abre em modo edição.
+  const [editMeeting, setEditMeeting] = useState<{ id: number; title: string; starts_at: string; duration_minutes: number } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const doDelete = async () => {
@@ -703,7 +705,7 @@ export default function HelpDeskTicketDetailPage() {
               {tab === 'conversa' ? (
                 <div className="p-4 space-y-4">
                   {/* Card de reunião (Central de Reuniões) — próxima acima da conversa; muda pós-realização. */}
-                  <ReunioesCard ticketId={id} refreshKey={reuniaoKey} onTicketChange={() => { loadTicket(); loadComments(); loadEvents() }} onSchedule={() => setReuniaoOpen(true)} />
+                  <ReunioesCard ticketId={id} refreshKey={reuniaoKey} onTicketChange={() => { loadTicket(); loadComments(); loadEvents() }} onSchedule={() => { setEditMeeting(null); setReuniaoOpen(true) }} onEdit={(m) => { setEditMeeting({ id: m.id, title: m.title, starts_at: m.starts_at, duration_minutes: m.duration_minutes ?? 30 }); setReuniaoOpen(true) }} />
                   {/* Chamado FECHADO (terminal): sem novas interações — só reabrindo. */}
                   {t.status?.is_terminal ? (
                     <div className="rounded-lg px-4 py-3 flex items-center gap-2.5" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
@@ -1102,8 +1104,8 @@ export default function HelpDeskTicketDetailPage() {
       {reopenOpen && t && <ScheduleReopenModal ticketId={id} onClose={() => setReopenOpen(false)} onDone={() => { loadTicket(); loadEvents() }} />}
       {reportOpen && <ReportOptionsModal onClose={() => setReportOpen(false)} onGenerate={(ap) => openReport(ap)} />}
       {reuniaoOpen && t && <AgendarReuniaoModal originType="HELPDESK_TICKET" originId={id}
-        defaultTitle={`Reunião — ${t.subject ?? ''}`}
-        onClose={() => setReuniaoOpen(false)} onCreated={() => { setReuniaoKey(k => k + 1); loadTicket(); loadComments(); loadEvents() }} />}
+        defaultTitle={`Reunião — ${t.subject ?? ''}`} meeting={editMeeting}
+        onClose={() => { setReuniaoOpen(false); setEditMeeting(null) }} onCreated={() => { setReuniaoKey(k => k + 1); setEditMeeting(null); loadTicket(); loadComments(); loadEvents() }} />}
       {emailOpen && t && <SendEmailModal ticketId={id}
         defaultTo={t.solicitante?.email ?? t.requester_email ?? t.contact?.email ?? null}
         defaultSubject={`[${t.ticket_number ?? id}] ${t.subject ?? ''}`}
