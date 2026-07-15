@@ -41,18 +41,19 @@ export function CronogramaExecutiveHeader({ executive, teamLoad, alerts }: Props
         gap: 14,
         alignItems: 'stretch',
       }}>
-        {/* Progresso por HORAS: horas planejadas concluídas / total planejado. */}
+        {/* Progresso por HORAS: horas CONSUMIDAS (apontadas) / total planejado — NÃO exige conclusão
+            de atividade (diferente da Evolução). Espelha as horas gastas, igual ao card "Consumidas". */}
         {(() => {
-          const pctH = e.progress_hours_pct ?? 0
-          const doneH = e.hours_done ?? 0
+          const actualH = e.hours_actual ?? 0
+          const pctH = e.hours_planned > 0 ? (actualH / e.hours_planned) * 100 : 0
           return (
             <Card icon={<Clock size={14} />} label="Progresso (horas)">
               <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
                 {pctH.toFixed(0)}%
               </div>
-              <ProgressBar pct={pctH} />
+              <ProgressBar pct={Math.min(100, pctH)} />
               <div className="ds-text-body-sm" style={{ color: 'var(--text-muted)' }}>
-                {Math.round(doneH)}h / {Math.round(e.hours_planned)}h concluídas
+                {Math.round(actualH)}h / {Math.round(e.hours_planned)}h trabalhadas
               </div>
             </Card>
           )
