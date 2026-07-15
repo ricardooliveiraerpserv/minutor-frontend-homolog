@@ -319,6 +319,19 @@ const BIZIFY_COL: Column = {
   sustentacaoValidator: (c) => !!(c.service_type?.toLowerCase().includes('bizify') || c.contract_type?.toLowerCase().includes('bizify')),
 }
 
+// Coluna SaaS — só no kanban da empresa Bizify (definida pelo tipo de contrato SaaS).
+const SAAS_COLOR = '#a78bfa'
+const SAAS_COL: Column = {
+  id: 'sust_saas', label: 'SaaS', type: 'sustentacao', emoji: '🧩', color: SAAS_COLOR,
+  sustentacaoValidator: (c) => !!(c.contract_type?.toLowerCase().includes('saas') || c.service_type?.toLowerCase().includes('saas')),
+}
+
+// Colunas de sustentação do kanban BIZIFY: mantém BH Fixo/Mensal/On Demand, troca Cloud→SaaS.
+const SUSTENTACAO_COLS_BIZIFY: Column[] = [
+  ...SUSTENTACAO_COLS.filter(c => c.id !== 'sust_cloud'),
+  SAAS_COL,
+]
+
 const APORTE_COLOR = '#22c55e'
 const APORTE_COL: Column = {
   id: 'aporte', label: 'Aporte', type: 'aporte', emoji: '💰', color: APORTE_COLOR,
@@ -1060,7 +1073,7 @@ const COL_LABEL: Record<string, string> = {
   em_planejamento: 'Em Planejamento', em_validacao: 'Em Validação', em_revisao: 'Em Revisão',
   aprovado: 'Aprovado', inicio_autorizado: 'Início Autorizado', alocado: 'Alocado',
   sust_bh_fixo: 'BH Fixo', sust_bh_mensal: 'BH Mensal', sust_on_demand: 'On Demand',
-  sust_cloud: 'Cloud', sust_bizify: 'Bizify',
+  sust_cloud: 'Cloud', sust_bizify: 'Bizify', sust_saas: 'SaaS',
 }
 function colLabel(col: string) {
   if (col?.startsWith('coordinator:')) return 'Coordenador'
@@ -1388,8 +1401,11 @@ function KanbanContent() {
   const [aporteCards,       setAporteCards]        = useState<AporteCard[]>([])
   const [selectedAporte,    setSelectedAporte]     = useState<AporteCard | null>(null)
   const [coordinators,      setCoordinators]       = useState<Coordinator[]>([])
+  // Multi-empresa: kanban Bizify — colunas por "Coordenador Bizify" + SaaS quando a empresa ativa é Bizify.
+  const [isBizifyActive,    setIsBizifyActive]     = useState(false)
+  const [bizifyCoordinators, setBizifyCoordinators] = useState<Coordinator[]>([])
   const [sustGroups,        setSustGroups]         = useState<SustGroups>({
-    sust_bh_fixo: [], sust_bh_mensal: [], sust_on_demand: [], sust_cloud: [], sust_bizify: [],
+    sust_bh_fixo: [], sust_bh_mensal: [], sust_on_demand: [], sust_cloud: [], sust_bizify: [], sust_saas: [],
   })
   const [loading,           setLoading]            = useState(true)
   const [selected,          setSelected]           = useState<ContractCard | null>(null)
@@ -1415,12 +1431,15 @@ function KanbanContent() {
       setProjectCards(r.project_cards ?? [])
       setAporteCards(r.aporte_cards ?? [])
       setCoordinators(r.coordinators ?? [])
+      setIsBizifyActive(r.is_bizify_active ?? false)
+      setBizifyCoordinators(r.bizify_coordinators ?? [])
       setSustGroups({
         sust_bh_fixo:   r.sustentacao_groups?.sust_bh_fixo   ?? [],
         sust_bh_mensal: r.sustentacao_groups?.sust_bh_mensal ?? [],
         sust_on_demand: r.sustentacao_groups?.sust_on_demand ?? [],
         sust_cloud:     r.sustentacao_groups?.sust_cloud     ?? [],
         sust_bizify:    r.sustentacao_groups?.sust_bizify    ?? [],
+        sust_saas:      r.sustentacao_groups?.sust_saas      ?? [],
       })
     } catch { toast.error('Erro ao carregar kanban') }
     finally   { setLoading(false) }
@@ -1451,7 +1470,25 @@ function KanbanContent() {
   // + status (Encerrado/Pausado/Cancelado). Mesmos endpoints do board de contratos →
   // movimentação reflete em Demandas e Projetos (e vice-versa). Colunas de status escopadas
   // aos projetos desses coordenadores (ver projectsInStatusCol). Sem intake/Bizify/Aporte.
-  const columns: Column[] = isSustCoordenador
+  const columns: Column[] = isBizifyActive
+    // Kanban BIZIFY (empresa ativa = Bizify): colunas por "Coordenador Bizify" (flag no user)
+    // + BH Fixo/Mensal/On Demand/SaaS + status. Sem Cloud, sem coluna Bizify genérica.
+    ? [
+        ...FIXED_COLUMNS,
+        ...bizifyCoordinators.map(c => ({
+          id:            `coordinator:${c.id}`,
+          label:         c.name,
+          type:          'coordinator' as const,
+          coordinatorId: c.id,
+          emoji:         '👤',
+          color:         BIZIFY_COLOR,
+        })),
+        ...SUSTENTACAO_COLS_BIZIFY,
+        ...STATUS_PROJECT_COLUMNS,
+        APORTE_COL,
+        ADITIVO_COL,
+      ]
+    : isSustCoordenador
     ? [
         {
           id:            `coordinator:${user!.id}`,
