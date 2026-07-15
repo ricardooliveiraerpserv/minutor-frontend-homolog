@@ -65,6 +65,7 @@ export interface ExecutiveSummary {
   overdue_count: number
   hours_planned: number
   hours_actual: number
+  hours_consumed?: number
   hours_balance: number
   hours_available: number
   overall_risk: 'low' | 'medium' | 'high'

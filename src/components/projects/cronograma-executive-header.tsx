@@ -44,7 +44,7 @@ export function CronogramaExecutiveHeader({ executive, teamLoad, alerts }: Props
         {/* Progresso por HORAS: horas CONSUMIDAS (apontadas) / total planejado — NÃO exige conclusão
             de atividade (diferente da Evolução). Espelha as horas gastas, igual ao card "Consumidas". */}
         {(() => {
-          const actualH = e.hours_actual ?? 0
+          const actualH = e.hours_consumed ?? e.hours_actual ?? 0
           const pctH = e.hours_planned > 0 ? (actualH / e.hours_planned) * 100 : 0
           return (
             <Card icon={<Clock size={14} />} label="Progresso (horas)">
