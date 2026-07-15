@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
-import { Video, CalendarClock, Copy, X, CheckCircle2, Users, ExternalLink, Clock, FileText, MessageSquarePlus, Save, Sparkles } from 'lucide-react'
+import { Video, CalendarClock, Copy, X, CheckCircle2, Users, ExternalLink, Clock, FileText, MessageSquarePlus, Save, Sparkles, Pencil } from 'lucide-react'
 
 // Card de reunião no chamado: mostra a PRÓXIMA reunião (entrar/copiar/cancelar; "Entrar agora" no
 // horário) ou, se não houver futura, a última REALIZADA. Fase 0 — provider ainda no-op.
@@ -18,7 +18,7 @@ interface Meeting {
 const PROV: Record<string, string> = { teams: 'Microsoft Teams', meet: 'Google Meet', zoom: 'Zoom', webex: 'Webex', presencial: 'Presencial' }
 const fmt = (s: string) => new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
-export function ReunioesCard({ ticketId, refreshKey, onTicketChange, onSchedule }: { ticketId: number; refreshKey: number; onTicketChange?: () => void; onSchedule?: () => void }) {
+export function ReunioesCard({ ticketId, refreshKey, onTicketChange, onSchedule, onEdit }: { ticketId: number; refreshKey: number; onTicketChange?: () => void; onSchedule?: () => void; onEdit?: (m: Meeting) => void }) {
   const [meetings, setMeetings] = useState<Meeting[]>([])
   const [tick, setTick] = useState(0) // re-render por minuto p/ "Entrar agora"
   const [notesOpen, setNotesOpen] = useState(false)
@@ -36,10 +36,13 @@ export function ReunioesCard({ ticketId, refreshKey, onTicketChange, onSchedule 
   useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 60_000); return () => clearInterval(t) }, [])
 
   const now = Date.now(); void tick
-  const upcoming = meetings
+  const scheduled = meetings
     .filter(m => m.status === 'scheduled' || m.status === 'live')
-    .filter(m => !m.ends_at || new Date(m.ends_at).getTime() > now)
-    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0]
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+  // Próxima FUTURA; se não houver, a última AGENDADA (mesmo com horário já passado) — uma reunião
+  // agendada NÃO some do card só porque o horário passou: ainda dá pra Entrar/Copiar/Cancelar/Editar.
+  // (Ela só sai daqui quando for cancelada ou marcada como realizada.)
+  const upcoming = scheduled.find(x => !x.ends_at || new Date(x.ends_at).getTime() > now) ?? scheduled[scheduled.length - 1]
   const done = meetings.filter(m => m.status === 'ended').sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime())[0]
   const m = upcoming ?? done
 
@@ -64,6 +67,7 @@ export function ReunioesCard({ ticketId, refreshKey, onTicketChange, onSchedule 
   const startMs = new Date(m.starts_at).getTime()
   const endMs = m.ends_at ? new Date(m.ends_at).getTime() : startMs + (m.duration_minutes ?? 30) * 60_000
   const joinable = !isDone && now >= startMs - 10 * 60_000 && now <= endMs // janela: 10min antes até o fim
+  const isPast = !isDone && now > endMs // agendada, mas o horário já passou (aguardando cancelar/realizar)
 
   const copyLink = () => { if (m.join_url) { navigator.clipboard.writeText(m.join_url); toast.success('Link copiado.') } else toast.message('Sem link do Teams — conecte sua conta Microsoft no Meu Dia para gerar automaticamente.') }
   const cancelMeeting = async () => {
@@ -110,7 +114,7 @@ export function ReunioesCard({ ticketId, refreshKey, onTicketChange, onSchedule 
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-[10px] font-bold uppercase tracking-wide" style={{ color: isDone ? 'var(--text-light)' : 'var(--primary)' }}>
-            {isDone ? 'Reunião realizada' : (m.status === 'live' ? 'Reunião em andamento' : 'Próxima reunião')}
+            {isDone ? 'Reunião realizada' : m.status === 'live' ? 'Reunião em andamento' : isPast ? 'Reunião agendada' : 'Próxima reunião'}
           </div>
           <div className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{m.title}</div>
           <div className="text-[11px] mt-0.5 inline-flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
@@ -127,6 +131,7 @@ export function ReunioesCard({ ticketId, refreshKey, onTicketChange, onSchedule 
                 ? <a href={m.join_url} target="_blank" className="ds-btn-secondary text-xs px-3 py-1 rounded-md inline-flex items-center gap-1"><ExternalLink size={12} /> Entrar</a>
                 : <span className="text-[11px] px-2 py-1" style={{ color: 'var(--text-light)' }}>sem link — conecte o Teams no Meu Dia</span>)}
             {!isDone && <button onClick={copyLink} className="ds-btn-secondary text-xs px-3 py-1 rounded-md inline-flex items-center gap-1"><Copy size={12} /> Copiar link</button>}
+            {!isDone && onEdit && <button onClick={() => onEdit(m)} className="ds-btn-secondary text-xs px-3 py-1 rounded-md inline-flex items-center gap-1"><Pencil size={12} /> Editar</button>}
             {!isDone && <button onClick={cancelMeeting} className="text-xs px-3 py-1 rounded-md inline-flex items-center gap-1" style={{ color: 'var(--danger-border)' }}><X size={12} /> Cancelar</button>}
             {isDone && <button onClick={logHours} className="ds-btn-secondary text-xs px-3 py-1 rounded-md inline-flex items-center gap-1"><Clock size={12} /> Apontar horas</button>}
             {isDone && <button onClick={noteToTicket} className="ds-btn-secondary text-xs px-3 py-1 rounded-md inline-flex items-center gap-1"><MessageSquarePlus size={12} /> Registrar no chamado</button>}
