@@ -68,7 +68,7 @@ export default function ClientesPage() {
   const [filterStatus, setFilterStatus] = useState<'todos' | 'ativo' | 'inativo'>('todos')
   const [executives, setExecutives] = useState<Executive[]>([])
   const [modal, setModal] = useState<{ open: boolean; item?: CustomerFull }>({ open: false })
-  const [form, setForm] = useState({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, executive_id: '', emails_administrativos: [] as string[], secondary_cgcs: [] as string[] })
+  const [form, setForm] = useState({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, executive_id: '', executive_bizify_id: '', emails_administrativos: [] as string[], secondary_cgcs: [] as string[] })
   const [novoCgcCli, setNovoCgcCli] = useState('')
   const addCgcCli = () => {
     const c = novoCgcCli.replace(/\D/g, '')
@@ -146,7 +146,7 @@ export default function ClientesPage() {
   }
 
   const openCreate = () => {
-    setForm({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, executive_id: '', emails_administrativos: [], secondary_cgcs: [] })
+    setForm({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, executive_id: '', executive_bizify_id: '', emails_administrativos: [], secondary_cgcs: [] })
     setNovoEmailCli('')
     setModal({ open: true })
   }
@@ -159,6 +159,7 @@ export default function ClientesPage() {
       code_prefix: item.code_prefix ?? '',
       active: item.active,
       executive_id: item.executive_id ? String(item.executive_id) : '',
+      executive_bizify_id: item.executive_bizify_id ? String(item.executive_bizify_id) : '',
       emails_administrativos: (item as CustomerFull & { emails_administrativos?: string[] }).emails_administrativos ?? [],
       secondary_cgcs: item.secondary_cgcs ?? [],
     })
@@ -172,6 +173,7 @@ export default function ClientesPage() {
       const payload = {
         ...form,
         executive_id: form.executive_id ? Number(form.executive_id) : null,
+        executive_bizify_id: form.executive_bizify_id ? Number(form.executive_bizify_id) : null,
         code_prefix: form.code_prefix || null,
       }
       if (modal.item) await api.put(`/customers/${modal.item.id}`, payload)
@@ -351,10 +353,21 @@ export default function ClientesPage() {
                   )}
                 </div>
                 <div>
-                  <Label className="text-xs text-[var(--text-muted)]">Executivo</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Executivo ERPSERV</Label>
                   <select
                     value={form.executive_id}
                     onChange={e => setForm(f => ({ ...f, executive_id: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-lg text-xs outline-none appearance-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)]"
+                  >
+                    <option value="">Sem executivo</option>
+                    {executives.map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs text-[var(--text-muted)]">Executivo Bizify</Label>
+                  <select
+                    value={form.executive_bizify_id}
+                    onChange={e => setForm(f => ({ ...f, executive_bizify_id: e.target.value }))}
                     className="mt-1 w-full px-3 py-2 rounded-lg text-xs outline-none appearance-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)]"
                   >
                     <option value="">Sem executivo</option>
