@@ -44,6 +44,7 @@ interface UserData {
   home_company_id?: number | null
   is_diretor_projetos?: boolean
   is_coordinator?: boolean
+  is_bizify_coordinator?: boolean
   full_name?: string | null
   cpf?: string | null
   matricula?: string | null
@@ -341,6 +342,7 @@ const EMPTY_FORM = {
   home_company_id: null,
   is_diretor_projetos: false,
   is_coordinator: false,
+  is_bizify_coordinator: false,
   // Folha de pagamento
   full_name: '',
   cpf: '',
@@ -469,6 +471,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           home_company_id:            item.home_company_id ?? null,
           is_diretor_projetos:        item.is_diretor_projetos ?? false,
           is_coordinator:             item.is_coordinator ?? false,
+          is_bizify_coordinator:      item.is_bizify_coordinator ?? false,
           full_name:                  item.full_name ?? '',
           cpf:                        item.cpf ?? '',
           matricula:                  item.matricula ?? '',
@@ -513,6 +516,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       payload.home_company_id = form.home_company_id  // empresa da folha (o BE deriva is_bizify)
       payload.is_diretor_projetos = form.is_diretor_projetos
       payload.is_coordinator = form.is_coordinator
+      payload.is_bizify_coordinator = form.is_bizify_coordinator
       if (form.profiles.includes('consultor') && form.consultant_type) {
         payload.consultant_type       = form.consultant_type
         payload.bank_hours_start_date = form.bank_hours_start_date || null
@@ -1043,6 +1047,16 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 value={form.is_coordinator}
                 onChange={() => setForm(f => ({ ...f, is_coordinator: !f.is_coordinator }))}
                 label="É coordenador (aparece no Kanban de Contratos e no filtro de coordenadores)"
+              />
+            )}
+            {/* ── Coordenador Bizify? — coordenador/admin/administrativo. Ligado, ganha coluna
+                   própria no Kanban de Contratos SÓ quando a empresa ativa é Bizify (recebe os
+                   contratos SaaS/Bizify que ele coordena). ── */}
+            {form.profiles[0] && ['coordenador', 'admin', 'administrativo'].includes(resolveTypeForBackend(form.profiles[0])) && (
+              <Toggle
+                value={form.is_bizify_coordinator ?? false}
+                onChange={() => setForm(f => ({ ...f, is_bizify_coordinator: !f.is_bizify_coordinator }))}
+                label="Coordenador Bizify? (coluna própria no Kanban quando a empresa ativa é Bizify)"
               />
             )}
             {/* ── Permissão para chamar @bot no chat ── */}
