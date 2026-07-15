@@ -356,6 +356,12 @@ export default function InvestimentoComercialPage() {
     })
   }, [projects, clientSearch, categoriaFilter])
 
+  // Contagem de CLIENTES distintos (não de projetos) para o rótulo "N clientes".
+  const clientCount = useMemo(
+    () => new Set(filtered.map(p => p.customer?.id).filter(Boolean)).size,
+    [filtered],
+  )
+
   // Opções de Lead (categoria Leads) p/ o filtro das abas Apontamentos/Aprovações.
   const leadOptions = useMemo(
     () => projects.filter(p => p.categoria_interna === 'Leads').map(p => ({ id: p.id, name: p.name || p.code })),
@@ -803,7 +809,7 @@ export default function InvestimentoComercialPage() {
         {activeTab === 'projetos' && (
           <>
             <span className="text-xs ml-auto" style={{ color: 'var(--text-light)' }}>
-              {filtered.length} cliente{filtered.length !== 1 ? 's' : ''}
+              {clientCount} cliente{clientCount !== 1 ? 's' : ''}
               {filterMonth > 0 && !hoursLoading && (
                 <span> · <span className="font-semibold" style={{ color: 'var(--text)' }}>{fmtHours(totalHours)}</span> total</span>
               )}
