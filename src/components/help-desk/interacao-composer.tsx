@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { sanitizeRich } from '@/lib/sanitize-html'
 import { Send, Paperclip, X, FileText, Clock, Lock, Zap, ChevronDown } from 'lucide-react'
 import { TimeSelect5 } from './time-select-5'
+import { EmailFrame } from './email-frame'
 
 // Macro (ex-playbook): só preenche o texto da interação.
 export interface MacroItem { id: number; name: string; color?: string | null; category?: string | null; reply?: string | null; internal?: string | null }
@@ -67,6 +68,19 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
   // Agendamento inline: aparece quando o status escolhido "permite agendamento".
   const [schedDate, setSchedDate] = useState('')
   const [schedTime, setSchedTime] = useState('')
+  // Preview da assinatura do cadastro (a MESMA anexada no envio — GET /signature/mine).
+  const [sigPreviewOpen, setSigPreviewOpen] = useState(false)
+  const [sigPreviewHtml, setSigPreviewHtml] = useState<string | null>(null)
+  const toggleSigPreview = async () => {
+    const next = !sigPreviewOpen
+    setSigPreviewOpen(next)
+    if (next && sigPreviewHtml === null) {
+      try {
+        const r = await api.get<{ data: { html: string } }>('/signature/mine')
+        setSigPreviewHtml(r.data?.html ?? '')
+      } catch { setSigPreviewHtml('') }
+    }
+  }
   const selStatus = statuses.find(s => s.id === sendStatus)
   // Status crítico = conclui (resolvido) ou encerra (terminal). Cor: terminal→danger, resolvido→warning.
   const isCritical = (s?: ComposerStatus) => !!s && (!!s.is_terminal || !!s.is_resolved)
@@ -262,10 +276,23 @@ export const InteracaoComposer = forwardRef<ComposerHandle, {
         )}
       </div>
 
-      {/* Aviso da assinatura (só resposta ao cliente) — a assinatura do SEU cadastro é anexada no envio. */}
+      {/* Assinatura (só resposta ao cliente) — a do SEU cadastro é anexada no envio; preview opcional. */}
       {visibility === 'customer' && (
-        <div className="text-[11px] flex items-center gap-1 px-1" style={{ color: 'var(--text-light)' }}>
-          <span>✍️</span><span>Sua assinatura (do seu cadastro) será incluída no envio.</span>
+        <div className="px-1 space-y-1.5">
+          <div className="text-[11px] flex items-center gap-1.5" style={{ color: 'var(--text-light)' }}>
+            <span>✍️</span>
+            <span>Sua assinatura (do seu cadastro) será incluída no envio.</span>
+            <button type="button" onClick={toggleSigPreview} className="underline" style={{ color: 'var(--primary)' }}>
+              {sigPreviewOpen ? 'ocultar preview' : 'ver preview'}
+            </button>
+          </div>
+          {sigPreviewOpen && (
+            sigPreviewHtml === null
+              ? <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>carregando…</div>
+              : sigPreviewHtml
+                ? <div className="rounded-lg overflow-x-auto" style={{ maxWidth: '100%' }}><EmailFrame key={sigPreviewHtml.length} html={sigPreviewHtml} /></div>
+                : <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Não foi possível carregar o preview.</div>
+          )}
         </div>
       )}
 
