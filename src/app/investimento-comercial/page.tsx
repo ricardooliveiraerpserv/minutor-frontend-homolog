@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, Fragment } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import { useActiveCompany } from '@/hooks/use-active-company'
 import { useRouter } from 'next/navigation'
 import {
   Search, Users, X, Check, TrendingUp, Clock,
@@ -27,7 +28,7 @@ interface ConsultantGroup { id: number; name: string; users: Consultant[] }
 interface ICProject {
   id: number; name: string; code: string; status: string
   categoria_interna: string | null
-  customer: { id: number; name: string } | null
+  customer: { id: number; name: string; active?: boolean } | null
   consultants: Consultant[]
   coordinators: Consultant[]
   parent_project_id: number | null
@@ -105,6 +106,9 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
 export default function InvestimentoComercialPage() {
   const { user } = useAuth()
   const router   = useRouter()
+  // Multi-empresa: a "CASA" do investimento interno é a empresa ATIVA (Bizify → cliente BIZIFY).
+  const { isBizify } = useActiveCompany()
+  const houseName = isBizify ? 'BIZIFY' : 'ERPSERV'
 
   const now = new Date()
   const [filterMonth, setFilterMonth] = useState<number>(now.getMonth() + 1)
@@ -277,10 +281,10 @@ export default function InvestimentoComercialPage() {
 
   // Auto-expandir o cliente ERPSERV ao carregar (é o destaque da página)
   useEffect(() => {
-    const erpserv = projects.find(p => (p.customer?.name ?? '').toUpperCase().includes('ERPSERV'))?.customer
+    const erpserv = projects.find(p => (p.customer?.name ?? '').toUpperCase().includes(houseName))?.customer
     if (!erpserv) return
     setExpandedCustomers(prev => prev.has(erpserv.id) ? prev : new Set(prev).add(erpserv.id))
-  }, [projects])
+  }, [projects, houseName])
 
   const handleCreateProject = async () => {
     const name = newProjectName.trim()
@@ -343,6 +347,8 @@ export default function InvestimentoComercialPage() {
   const filtered = useMemo(() => {
     const q = clientSearch.toLowerCase()
     return projects.filter(p => {
+      // Somente clientes ATIVOS (a CASA é ativa; leads ficam aninhados na CASA e não são dropados).
+      if (p.customer && p.customer.active === false) return false
       if (q && !(p.customer?.name.toLowerCase().includes(q) || p.consultants.some(c => c.name.toLowerCase().includes(q)) || (p.name ?? '').toLowerCase().includes(q))) return false
       if (categoriaFilter === 'todas') return true
       if (categoriaFilter === 'sem')   return !p.categoria_interna
@@ -454,7 +460,7 @@ export default function InvestimentoComercialPage() {
         <Td>
           <div className="flex items-center gap-1 justify-end">
             {isAdmin && (<>
-              {depth === 0 && project.categoria_interna === 'Comercial' && (project.customer?.name ?? '').toUpperCase().includes('ERPSERV') && (
+              {depth === 0 && project.categoria_interna === 'Comercial' && (project.customer?.name ?? '').toUpperCase().includes(houseName) && (
                 <Button size="sm" variant="ghost" onClick={() => addLead(project)} aria-label="Adicionar lead">
                   <Plus size={13} className="mr-1" /> Lead
                 </Button>
@@ -497,7 +503,7 @@ export default function InvestimentoComercialPage() {
       if (!groups.has(key)) groups.set(key, { customer: p.customer, projects: [] })
       groups.get(key)!.projects.push(p)
     }
-    const isErpserv = (name: string) => name.toUpperCase().includes('ERPSERV')
+    const isErpserv = (name: string) => name.toUpperCase().includes(houseName)
     const groupList = [...groups.values()].sort((a, b) => {
       const aErp = isErpserv(a.customer.name)
       const bErp = isErpserv(b.customer.name)
@@ -807,7 +813,7 @@ export default function InvestimentoComercialPage() {
                 setLeadMode(false); setNewProjectParent(''); setNewProjectCategoria('Projeto')
                 setNewProjectName(''); setNewProjectApprover(''); setNewProjectOpen(true)
               }}>
-                <Plus size={13} className="mr-1" /> Novo Projeto Interno (ERPSERV)
+                <Plus size={13} className="mr-1" /> Novo Projeto Interno ({houseName})
               </Button>
             )}
           </>
@@ -867,7 +873,7 @@ export default function InvestimentoComercialPage() {
       {activeTab === 'mensal'      && renderMensal()}
       {activeTab === 'detalhe'     && renderDetalhe()}
 
-      {/* Modal: Novo Projeto Interno (ERPSERV) */}
+      {/* Modal: Novo Projeto Interno ({houseName}) */}
       {newProjectOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}
           onClick={() => !creatingProject && setNewProjectOpen(false)}>
@@ -881,7 +887,7 @@ export default function InvestimentoComercialPage() {
             </div>
             <div className="px-6 py-5 space-y-4">
               <p className="text-xs" style={{ color: 'var(--text-light)' }}>
-                Cliente: <span className="font-semibold" style={{ color: 'var(--text)' }}>ERPSERV</span> · sem horas e sem valor de contrato
+                Cliente: <span className="font-semibold" style={{ color: 'var(--text)' }}>{houseName}</span> · sem horas e sem valor de contrato
               </p>
               {leadMode ? (
                 <p className="text-xs" style={{ color: 'var(--text-light)' }}>
@@ -899,7 +905,7 @@ export default function InvestimentoComercialPage() {
                     value={newProjectParent}
                     onChange={setNewProjectParent}
                     options={projects
-                      .filter(p => (p.customer?.name ?? '').toUpperCase().includes('ERPSERV') && !p.parent_project_id)
+                      .filter(p => (p.customer?.name ?? '').toUpperCase().includes(houseName) && !p.parent_project_id)
                       .map(p => ({ id: p.id, name: p.name || p.code }))}
                     placeholder="Aninhar abaixo de um investimento (ex.: Investimento Leads)..."
                   />
@@ -1112,7 +1118,7 @@ export default function InvestimentoComercialPage() {
 
               {/* Projeto Real por consultor — só em investimentos de Projeto/Suporte.
                   Define quais projetos reais do cliente cada consultor pode apontar. */}
-              {(modal.project!.categoria_interna === 'Projeto' || modal.project!.categoria_interna === 'Suporte') && !(modal.project!.customer?.name ?? '').toUpperCase().includes('ERPSERV') && selected.length > 0 && (
+              {(modal.project!.categoria_interna === 'Projeto' || modal.project!.categoria_interna === 'Suporte') && !(modal.project!.customer?.name ?? '').toUpperCase().includes(houseName) && selected.length > 0 && (
                 <div>
                   <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Projeto Real por consultor</label>
                   <p className="text-[10px] mb-2" style={{ color: 'var(--text-light)' }}>
