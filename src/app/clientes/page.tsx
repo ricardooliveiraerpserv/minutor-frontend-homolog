@@ -14,6 +14,7 @@ import * as XLSX from 'xlsx'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
 import { useAuth } from '@/hooks/use-auth'
+import { useActiveCompany } from '@/hooks/use-active-company'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import type { CustomerFull, Executive } from '@/types'
 
@@ -56,6 +57,7 @@ export default function ClientesPage() {
   const canUpdate = isAdmin || hasPermission('customers.update') || hasPermission('customers.manage')
   const canDelete = isAdmin || hasPermission('customers.delete') || hasPermission('customers.manage')
   // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isBizify } = useActiveCompany()
   const { isDenied } = useDeniedActions()
   const dCreate = isDenied('/clientes', 'create')
   const dEdit   = isDenied('/clientes', 'edit')
@@ -113,7 +115,8 @@ export default function ClientesPage() {
   const filtered = items.filter(c => {
     const q = search.toLowerCase()
     const matchSearch = !q || c.name.toLowerCase().includes(q) || (c.company_name ?? '').toLowerCase().includes(q) || (c.cgc ?? '').includes(q)
-    const matchExec = !filterExecutive || String(c.executive_id) === filterExecutive
+    // Multi-empresa: filtra pelo executivo da empresa ATIVA (Bizify → executive_bizify_id).
+    const matchExec = !filterExecutive || String(isBizify ? c.executive_bizify_id : c.executive_id) === filterExecutive
     const matchStatus = filterStatus === 'todos' || (filterStatus === 'ativo' ? c.active : !c.active)
     return matchSearch && matchExec && matchStatus
   })
