@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import type { StageDelivery, DeliveryStatus } from '@/lib/types/project-stage'
 import type { ScheduleStage } from '@/hooks/use-project-schedule'
 import { DeliveryCard } from './delivery-card'
+import { useAuth } from '@/hooks/use-auth'
 import { DeliverySidePanel } from './delivery-side-panel'
 import { ApprovalRequestModal } from './approval-request-modal'
 
@@ -106,6 +107,9 @@ function EtapaKanban({ projectId, primaryStageId, items, onChanged, canEdit }: {
   canEdit: boolean
 }) {
   const [local, setLocal] = useState<Aug[]>(items)
+  const { user } = useAuth()
+  // Consultor arrasta só a PRÓPRIA atividade (responsável); coord/admin (canEdit) arrastam qualquer.
+  const canDrag = (d: StageDelivery) => canEdit || (user?.type === 'consultor' && String(d.responsible_user_id ?? '') === String(user?.id ?? ''))
   const [selected, setSelected] = useState<StageDelivery | null>(null)
   const [approvalFor, setApprovalFor] = useState<StageDelivery | null>(null)
   const [creatingIn, setCreatingIn] = useState<DeliveryStatus | null>(null)
@@ -203,7 +207,7 @@ function EtapaKanban({ projectId, primaryStageId, items, onChanged, canEdit }: {
                       {cards.map((d, idx) => {
                         const sc = subColor(d._subName)
                         return (
-                        <Draggable key={d.id} draggableId={String(d.id)} index={idx}>
+                        <Draggable key={d.id} draggableId={String(d.id)} index={idx} isDragDisabled={!canDrag(d)}>
                           {(prov, snap) => (
                             <div ref={prov.innerRef} {...prov.draggableProps} {...prov.dragHandleProps}
                               style={{ ...prov.draggableProps.style, borderLeft: sc ? `3px solid ${sc}` : undefined, borderRadius: sc ? 6 : undefined, paddingLeft: sc ? 6 : undefined }}>

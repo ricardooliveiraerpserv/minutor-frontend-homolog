@@ -8,6 +8,7 @@ import type { StageDelivery, DeliveryStatus, DeliveryPriority } from '@/lib/type
 import { DeliveryTimeline } from './delivery-timeline'
 import { ActivityTimesheets } from './activity-timesheets'
 import { SearchSelect } from '@/components/ui/search-select'
+import { useAuth } from '@/hooks/use-auth'
 
 interface Props {
   delivery: StageDelivery
@@ -42,6 +43,11 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
   const [respOpts, setRespOpts] = useState<{ id: number; name: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [timelineKey, setTimelineKey] = useState(0)
+  const { user } = useAuth()
+  const isConsultor = user?.type === 'consultor'
+  const isOwn = String(delivery.responsible_user_id ?? '') === String(user?.id ?? '')
+  const canFullEdit = !isConsultor && user?.type !== 'cliente'   // coord/admin: edita tudo
+  const canMoveStatus = canFullEdit || (isConsultor && isOwn)    // consultor alocado: só o STATUS da própria
 
   // Responsável da atividade: consultores + parceiros (alocar o responsável).
   useEffect(() => {
@@ -75,15 +81,21 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
   async function handleSave() {
     setSaving(true)
     try {
-      const updated = await api.patch<StageDelivery>(`/deliveries/${delivery.id}`, {
-        title: title.trim(),
-        description: description.trim() || null,
-        hours_planned: hours ? Number(hours) : 0,
-        priority,
-        status,
-        due_date: due || null,
-        responsible_user_id: respId ? Number(respId) : null,
-      })
+      let updated: StageDelivery
+      if (canFullEdit) {
+        updated = await api.patch<StageDelivery>(`/deliveries/${delivery.id}`, {
+          title: title.trim(),
+          description: description.trim() || null,
+          hours_planned: hours ? Number(hours) : 0,
+          priority,
+          status,
+          due_date: due || null,
+          responsible_user_id: respId ? Number(respId) : null,
+        })
+      } else {
+        // Consultor alocado: só muda o STATUS da própria atividade — via /move (permitido; não exige projects.update).
+        updated = await api.post<StageDelivery>(`/deliveries/${delivery.id}/move`, { status })
+      }
       onUpdated(updated)
       setTimelineKey(k => k + 1)
       toast.success('Entrega atualizada')
@@ -156,6 +168,7 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
             className="ds-input"
             value={title}
             onChange={e => setTitle(e.target.value)}
+            disabled={!canFullEdit}
             placeholder="Título"
             style={{ width: '100%', fontSize: 16, fontWeight: 500, padding: '10px 12px' }}
           />
@@ -163,6 +176,7 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
           <textarea
             value={description}
             onChange={e => setDescription(e.target.value)}
+            disabled={!canFullEdit}
             placeholder="Descrição (opcional)"
             rows={3}
             className="ds-input"
@@ -175,6 +189,7 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
               value={respId}
               onChange={setRespId}
               options={respOpts}
+              disabled={!canFullEdit}
               placeholder="Sem responsável"
               fullWidth
             />
@@ -186,6 +201,7 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
                 className="ds-input"
                 value={status}
                 onChange={e => setStatus(e.target.value as DeliveryStatus)}
+                disabled={!canMoveStatus}
                 style={{ width: '100%' }}
               >
                 {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -197,6 +213,7 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
                 className="ds-input"
                 value={priority}
                 onChange={e => setPriority(e.target.value as DeliveryPriority)}
+                disabled={!canFullEdit}
                 style={{ width: '100%' }}
               >
                 {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -209,6 +226,7 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
                 className="ds-input"
                 value={hours}
                 onChange={e => setHours(e.target.value)}
+                disabled={!canFullEdit}
                 style={{ width: '100%' }}
               />
             </Field>
@@ -219,6 +237,7 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
                 className="ds-input"
                 value={due}
                 onChange={e => setDue(e.target.value)}
+                disabled={!canFullEdit}
                 style={{ width: '100%' }}
               />
             </Field>
@@ -229,12 +248,12 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
               type="button"
               className="ds-btn-primary"
               onClick={handleSave}
-              disabled={saving || !title.trim()}
+              disabled={saving || !canMoveStatus || (canFullEdit && !title.trim())}
               style={{ fontSize: 13, padding: '8px 16px' }}
             >
               {saving ? 'Salvando…' : 'Salvar'}
             </button>
-            <button
+            {canFullEdit && <button
               type="button"
               onClick={handleDelete}
               style={{
@@ -246,7 +265,7 @@ export function DeliverySidePanel({ delivery, projectId, onClose, onUpdated, onD
               }}
             >
               Excluir
-            </button>
+            </button>}
           </div>
 
           {/* Apontamentos da própria atividade: consultor aponta aqui, coord/admin
