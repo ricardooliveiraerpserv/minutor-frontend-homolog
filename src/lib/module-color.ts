@@ -26,6 +26,18 @@ export function moduleColorByIndex(i: number): string {
   return PALETTE[n]
 }
 
+/** Cores FIXAS por módulo (têm precedência sobre o índice) — módulos com identidade própria. */
+const MODULE_KEY_COLOR: Record<string, string> = {
+  crm: '#8b5cf6',        // violet — 🤝 comercial
+  help_desk: '#14b8a6',  // teal — 🎫 atendimento
+}
+
+/** Cor do módulo: usa a cor fixa por key (crm/help_desk) se houver; senão, cai no índice. */
+export function moduleColorFor(key: string | null | undefined, index: number): string {
+  if (key && MODULE_KEY_COLOR[key]) return MODULE_KEY_COLOR[key]
+  return moduleColorByIndex(index)
+}
+
 /** Texto legível sobre um fundo sólido `hex` — escuro p/ cores claras, branco p/ escuras. Serve nos 2 temas. */
 export function readableText(hex: string | null | undefined): string {
   const h = (hex || '#64748b').replace('#', '')
