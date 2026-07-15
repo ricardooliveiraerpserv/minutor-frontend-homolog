@@ -50,6 +50,12 @@ const HEADER_HEIGHT = 40
 
 function parseDate(s: string | null | undefined): Date | null {
   if (!s) return null
+  // Cronograma é granularidade de DIA. As datas chegam como "YYYY-MM-DD" ou
+  // "YYYY-MM-DDT00:00:00Z" (UTC). `new Date(s)` interpretaria a meia-noite UTC e,
+  // no fuso -3, VOLTARIA 1 dia (17/08 → 16/08). Extrai a parte da data e constrói
+  // LOCAL, preservando o dia-calendário exibido no Planejamento.
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s)
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
   const d = new Date(s)
   return Number.isNaN(d.getTime()) ? null : d
 }
