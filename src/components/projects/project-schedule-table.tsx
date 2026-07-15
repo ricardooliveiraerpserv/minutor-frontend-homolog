@@ -255,7 +255,12 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
   // somadas. Retorna sempre (mesmo etapa-folha, sem sub-etapas).
   const rollupFor = (etapa: ScheduleStage): { hours: number; start: string | null; end: string | null } => {
     const subs = childrenByParent.get(etapa.id) ?? []
-    let hours = num(etapa.effective_hours_planned ?? etapa.deliveries_hours_planned_sum)
+    // Com filtro de responsável ativo, as horas da etapa somam só as atividades
+    // VISÍVEIS (etapa.deliveries já vem filtrado); sem filtro, usa o total efetivo do backend.
+    const stageHours = (st: ScheduleStage) => fid != null
+      ? (st.deliveries ?? []).reduce((a, d) => a + num(d.hours_planned), 0)
+      : num(st.effective_hours_planned ?? st.deliveries_hours_planned_sum)
+    let hours = stageHours(etapa)
     const starts: string[] = [], ends: string[] = []
     const collect = (st: ScheduleStage) => {
       for (const d of st.deliveries ?? []) {
@@ -265,7 +270,7 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
     }
     collect(etapa)
     for (const sub of subs) {
-      hours += num(sub.effective_hours_planned ?? sub.deliveries_hours_planned_sum)
+      hours += stageHours(sub)
       collect(sub)
     }
     starts.sort(); ends.sort()
