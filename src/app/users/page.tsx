@@ -167,8 +167,9 @@ export default function UsersPage() {
   const canEdit       = has('users.update')        && !isDenied('/users', 'users.update')
   const canDelete     = has('users.delete')        && !isDenied('/users', 'users.delete')
   const canResetPwd   = has('users.reset_password') && !isDenied('/users', 'users.reset_password')
-  // Reenviar boas-vindas usa o MESMO gate de reset na API (mesmo grupo de rota) — espelha aqui.
-  const canResendWelcome = canResetPwd
+  // Reenviar boas-vindas: precisa poder resetar (mesmo grupo de rota na API) E não estar
+  // negado pelo Configurador na ação própria de reenviar.
+  const canResendWelcome = canResetPwd && !isDenied('/users', 'reenviar_boas_vindas')
   // Ver a lista: quem tem view_all OU quem pode resetar (precisa enxergar p/ resetar — grupos reset-only).
   const canView       = has('users.view_all') || canResetPwd
   const canViewDetail = has('users.view_all') && !isDenied('/users', 'users.view_all')
