@@ -163,16 +163,16 @@ export default function UsersPage() {
   // perm-base. `isDenied('/users', <ação>)` esconde o botão quando a política nega o perfil/usuário
   // — exatamente o que o middleware screen.action bloqueia na API. Sem hardcode de perfil.
   const has = (perm: string) => isAdmin || ep.includes(perm)
-  const canCreate     = has('users.create')        && !isDenied('/users', 'users.create')
-  const canEdit       = has('users.update')        && !isDenied('/users', 'users.update')
-  const canDelete     = has('users.delete')        && !isDenied('/users', 'users.delete')
-  const canResetPwd   = has('users.reset_password') && !isDenied('/users', 'users.reset_password')
+  const canCreate     = has('users.create')        && !isDenied('/users', 'create')
+  const canEdit       = has('users.update')        && !isDenied('/users', 'edit')
+  const canDelete     = has('users.delete')        && !isDenied('/users', 'delete')
+  const canResetPwd   = has('users.reset_password') && !isDenied('/users', 'reset_password')
   // Reenviar boas-vindas: precisa poder resetar (mesmo grupo de rota na API) E não estar
   // negado pelo Configurador na ação própria de reenviar.
-  const canResendWelcome = canResetPwd && !isDenied('/users', 'reenviar_boas_vindas')
+  const canResendWelcome = canResetPwd && !isDenied('/users', 'resend_welcome')
   // Ver a lista: quem tem view_all OU quem pode resetar (precisa enxergar p/ resetar — grupos reset-only).
   const canView       = has('users.view_all') || canResetPwd
-  const canViewDetail = has('users.view_all') && !isDenied('/users', 'users.view_all')
+  const canViewDetail = has('users.view_all') && !isDenied('/users', 'view')
 
   const [users,     setUsers]     = useState<UserItem[]>([])
   const [customers, setCustomers] = useState<CustomerOption[]>([])
