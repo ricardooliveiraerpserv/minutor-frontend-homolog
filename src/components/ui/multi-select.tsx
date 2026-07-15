@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { ChevronDown, Search, Check } from 'lucide-react'
 
 // depth > 0 = projeto filho: indenta e prefixa com uma seta azul "↳".
-export interface MultiSelectOption { id: number | string; name: string; depth?: number }
+export interface MultiSelectOption { id: number | string; name: string; depth?: number; ondemand?: boolean }
 
 export function MultiSelect({
   label,
@@ -167,10 +167,10 @@ export function MultiSelect({
                       </span>
                       {o.depth ? (
                         <span className="inline-flex items-center gap-1 truncate" style={{ paddingLeft: (o.depth - 1) * 14 }}>
-                          <span style={{ color: 'var(--primary)' }}>↳</span>
-                          <span className="truncate">{o.name}</span>
+                          <span style={{ color: o.ondemand ? 'var(--warning)' : 'var(--primary)' }}>↳</span>
+                          <span className="truncate" style={o.ondemand ? { color: 'var(--warning)', fontWeight: 600 } : undefined}>{o.name}</span>
                         </span>
-                      ) : <span className="truncate">{o.name}</span>}
+                      ) : <span className="truncate" style={o.ondemand ? { color: 'var(--warning)', fontWeight: 600 } : undefined}>{o.name}</span>}
                     </button>
                   )
                 })}

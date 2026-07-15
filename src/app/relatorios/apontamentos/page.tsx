@@ -27,7 +27,7 @@ type DateField  = 'date' | 'created_at'
 type StatusKey  = 'pending' | 'approved'
 
 interface Customer    { id: number; name: string }
-interface Project     { id: number; name: string; parent_project_id?: number | null }
+interface Project     { id: number; name: string; parent_project_id?: number | null; ondemand?: boolean }
 interface ServiceType { id: number; name: string }
 
 interface TicketSummaryRow {
@@ -149,10 +149,20 @@ export default function RelatorioApontamentosPage() {
   // ── Load projects do cliente selecionado
   useEffect(() => {
     if (!customerId) { setProjects([]); setProjectIds([]); return }
-    api.get<any>(`/projects?customer_id=${customerId}&pageSize=500`)
+    // include_sust_ondemand_children: só nesta tela, o coord de sustentação também recebe
+    // o filho On Demand da sustentação (regra global de visibilidade não muda no backend).
+    api.get<any>(`/projects?customer_id=${customerId}&pageSize=500&include_sust_ondemand_children=true`)
       .then(r => {
         const list: any[] = Array.isArray(r) ? r : r?.items ?? r?.data ?? []
-        setProjects(list.map(p => ({ id: p.id, name: p.name, parent_project_id: p.parent_project_id ?? null })))
+        setProjects(list.map(p => ({
+          id: p.id,
+          name: p.name,
+          parent_project_id: p.parent_project_id ?? null,
+          // Filho On Demand (contract_type on_demand + tem pai) → destacado no seletor.
+          ondemand: (p.contract_type?.code === 'on_demand'
+            || /on\s*demand/i.test(p.contract_type_display ?? p.contract_type?.name ?? ''))
+            && (p.parent_project_id ?? null) !== null,
+        })))
       })
       .catch(() => setProjects([]))
     setProjectIds([])
@@ -228,10 +238,10 @@ export default function RelatorioApontamentosPage() {
       arr.push(p); byParent.set(key, arr)
     }
     const sortName = (a: Project, b: Project) => a.name.localeCompare(b.name, 'pt-BR')
-    const out: { id: number; name: string; depth: number }[] = []
+    const out: { id: number; name: string; depth: number; ondemand?: boolean }[] = []
     const walk = (parentId: number | null, depth: number) => {
       for (const p of (byParent.get(parentId) ?? []).sort(sortName)) {
-        out.push({ id: p.id, name: p.name, depth })
+        out.push({ id: p.id, name: p.name, depth, ondemand: p.ondemand })
         walk(p.id, depth + 1)
       }
     }
