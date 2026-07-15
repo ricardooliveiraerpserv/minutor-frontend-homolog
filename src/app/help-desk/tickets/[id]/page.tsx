@@ -15,7 +15,7 @@ import { GmudModal, GmudView, type Gmud } from '@/components/help-desk/gmud-moda
 import { DynamicFormModal, DynamicFormView, type HdForm, type FormInstance, type FormTime } from '@/components/help-desk/dynamic-form'
 import { ServiceTreeSelect } from '@/components/help-desk/service-tree-select'
 import { AgentSelect, type AgentTeam } from '@/components/help-desk/agent-select'
-import { sanitizeRich, isHtmlBody } from '@/lib/sanitize-html'
+import { sanitizeRich, sanitizeEmail, isHtmlBody } from '@/lib/sanitize-html'
 import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-editor'
 import { ModoAtendimentoBar, FilaConcluida, type SessionSummary } from '@/components/help-desk/modo-atendimento'
 import { getSession, nextTicketId, queuePosition, queueHref } from '@/lib/help-desk-session'
@@ -821,7 +821,7 @@ export default function HelpDeskTicketDetailPage() {
                         ) : c.body ? (
                           <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(c.body) ? 'w-max max-w-[min(880px,calc(100vw_-_380px))] overflow-x-auto' : 'hd-msg-body w-fit max-w-full'}`} style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
                             {isHtmlBody(c.body)
-                              ? <EmailFrame html={sanitizeRich(c.body)} />
+                              ? <EmailFrame html={sanitizeEmail(c.body)} />
                               : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
                           </div>
                         ) : null}
@@ -876,7 +876,7 @@ export default function HelpDeskTicketDetailPage() {
                         ) : (
                           <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(t.description) ? 'w-max max-w-[min(880px,calc(100vw_-_380px))] overflow-x-auto' : 'hd-msg-body w-fit max-w-full'}`} style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
                             {isHtmlBody(t.description)
-                              ? <EmailFrame html={sanitizeRich(t.description)} />
+                              ? <EmailFrame html={sanitizeEmail(t.description)} />
                               : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
                           </div>
                         )}
