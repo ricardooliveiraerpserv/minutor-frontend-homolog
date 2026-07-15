@@ -504,12 +504,19 @@ function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], item
   // (ex.: /cadastros?tab=*) colapsavam todas no mesmo ícone do href base.
   const leafIco = (n: NavTreeNode): LucideIcon =>
     (n.icon ? (lucideIcons as Record<string, LucideIcon>)[n.icon] : undefined) || ico(n.screen!)
-  const link = (n: NavTreeNode): NavLink => ({ label: lbl(n.screen!), href: n.screen!, icon: leafIco(n) })
+  // exactMatch quando o href é PREFIXO de outro href do módulo (ex.:
+  // /relatorios/rentabilidade tem filhos /consultor e /projeto). Sem isso o
+  // pai faz prefix-match e acende junto com o filho ("dois selecionados").
+  const allHrefs: string[] = []
+  const collectHrefs = (ns: NavTreeNode[] = []) => ns.forEach(n => { if (n.screen) allHrefs.push(n.screen.split('?')[0]); collectHrefs(n.children ?? []) })
+  collectHrefs(mod.items ?? [])
+  const needsExact = (href: string) => { const base = href.split('?')[0]; return allHrefs.some(h => h !== base && h.startsWith(base + '/')) }
+  const link = (n: NavTreeNode): NavLink => ({ label: lbl(n.screen!), href: n.screen!, icon: leafIco(n), exactMatch: needsExact(n.screen!) })
 
   const out: NavEntry[] = []
   for (const n of mod.items ?? []) {
     if (!nodeVis(n)) continue
-    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: lbl(n.screen), href: n.screen, icon: leafIco(n) }) }
+    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: lbl(n.screen), href: n.screen, icon: leafIco(n), exactMatch: needsExact(n.screen) }) }
     else {
       const items: (NavLink | NavSubGroup)[] = []
       for (const c of n.children ?? []) {
@@ -916,7 +923,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         {navToRender.map(entry => {
           // ── Plain item ──
           if (entry.type === 'item') {
-            const active = isActive(entry.href, entry.matchPaths)
+            const active = isActive(entry.href, entry.matchPaths, entry.exactMatch)
             const Icon   = entry.icon
             // Badge de ação: vermelho (tarefas atrasadas/pendentes), amarelo (notificações não lidas).
             const badgeCount = entry.badge === 'tasks' ? (badges.overdue_tasks || badges.pending_tasks)
