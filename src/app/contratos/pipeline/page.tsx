@@ -19,6 +19,7 @@ import { ProjectDataModal } from '@/components/shared/ProjectDataModal'
 import { ContractFormModal } from '@/components/contracts/ContractFormModal'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
+import { exportProjetosToExcel, type ProjetoExportRow } from '@/lib/exportProjetos'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -4063,6 +4064,7 @@ function KanbanContent() {
   const [filterCoordinators,  setFilterCoordinators]  = useState<string[]>([])
   const [filterProjectNames,  setFilterProjectNames]  = useState<string[]>([])
   const [saudeFilter,         setSaudeFilter]         = useState<'' | 'green' | 'yellow' | 'red'>('')
+  const [filterStatuses,      setFilterStatuses]      = useState<string[]>([])
   // Coordenador: chip "Meus projetos / Todos". Default 'meus' — filtra pelos projetos
   // onde o coordenador logado está em `coordinator_ids`. Esconde de outros perfis.
   const [coordScope,          setCoordScope]          = useState<'meus' | 'todos'>('meus')
@@ -4369,6 +4371,62 @@ function KanbanContent() {
 
   const isSustType = (st?: string | null) => /sustentac|cloud|bizify/i.test(st ?? '')
 
+  // Exportação Excel da lista de Projetos (respeita os filtros aplicados). Disponível a todos os perfis.
+  const handleExportProjetos = () => {
+    const rowHealth = (p: ProjectCard): 'green' | 'yellow' | 'red' => {
+      const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
+      const sold = isCoordRow ? Number(p.coordination_hours ?? 0) : Number(p.sold_hours ?? 0)
+      const cons = isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : Number(p.consumed_hours ?? 0)
+      const pct = sold > 0 ? (cons / sold) * 100 : 0
+      return pct >= 90 ? 'red' : pct >= 70 ? 'yellow' : 'green'
+    }
+    const isOnDemand = (p: ProjectCard) => (p.contract_type ?? '').toLowerCase().includes('on demand')
+    const sq = filterSearch.trim().toLowerCase()
+    const list = projectCards
+      .filter(p => !isCoord || !isSustType(p.service_type))
+      .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
+      .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
+      .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
+      .filter(p => {
+        if (filterCustomers.length > 0 && !filterCustomers.includes(p.customer_name)) return false
+        if (sq && !p.customer_name.toLowerCase().includes(sq) && !(p.project_name ?? '').toLowerCase().includes(sq)) return false
+        if (filterExecutivos.length > 0 && !filterExecutivos.includes(p.executivo_conta_name ?? '')) return false
+        return true
+      })
+      .filter(p => filterStatuses.length === 0 || filterStatuses.includes(p.status))
+      .filter(p => !saudeFilter || rowHealth(p) === saudeFilter)
+
+    if (list.length === 0) { toast.info('Nenhum projeto para exportar.'); return }
+
+    const rows: ProjetoExportRow[] = list.map(p => {
+      const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
+      const rowVendidas = isCoordRow ? Number(p.coordination_hours) : (p.sold_hours ?? null)
+      const rowConsumed = isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : (p.consumed_hours ?? null)
+      const rowSaldo    = isCoordRow ? (Number(rowVendidas) - Number(rowConsumed)) : (p.general_hours_balance ?? null)
+      const onDemand = isOnDemand(p)
+      const saude = rowHealth(p)
+      const cBank = Number(p.coordination_hours ?? 0)
+      const cCons = Number(p.coordination_consumed_hours ?? 0)
+      return {
+        cliente:      p.customer_name ?? '',
+        projeto:      p.project_name ?? '',
+        codigo:       p.code ?? '',
+        tipoContrato: p.contract_type ?? '',
+        tipoServico:  p.service_type ?? '',
+        fase:         PROJECT_COLS.find(c => c.id === PROJECT_STATUS_TO_COL[p.status])?.label ?? 'Projeto',
+        horas:        rowVendidas != null ? `${rowVendidas}${isCoordRow ? ' *' : ''}` : '',
+        consumidas:   rowConsumed != null ? Number(rowConsumed).toFixed(1) : '',
+        saldo:        onDemand ? '—' : rowSaldo != null ? Number(rowSaldo).toFixed(1) : '',
+        saude:        saude === 'red' ? 'Crítico' : saude === 'yellow' ? 'Atenção' : 'Saudável',
+        coord:        cBank > 0 ? `${Math.round((cCons / cBank) * 100)}%` : '—',
+        status:       STATUS_BADGE[p.status]?.label ?? p.status,
+      }
+    })
+
+    const stamp = new Date().toISOString().slice(0, 10)
+    exportProjetosToExcel(rows, !isCliente, `projetos-${stamp}`)
+  }
+
   const projectsInCol = (colId: string): ProjectCard[] =>
     projectCards
       .filter(p => projectColumnId(p) === colId)
@@ -4636,6 +4694,15 @@ function KanbanContent() {
                 <Plus size={13} /> Nova Requisição
               </button>
             )}
+            {/* Exportar Excel — todos os perfis; exporta a lista de projetos com os filtros aplicados */}
+            <button onClick={handleExportProjetos}
+              title="Exportar projetos para Excel"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-hover)'; e.currentTarget.style.borderColor = 'var(--border-strong)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--surface)'; e.currentTarget.style.borderColor = 'var(--border)' }}>
+              <Download size={13} /> Excel
+            </button>
             <button onClick={() => setViewMode(viewMode === 'kanban' ? 'list' : 'kanban')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
               style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
@@ -4722,6 +4789,18 @@ function KanbanContent() {
               wide
             />
           )}
+          {/* Filtro por status do projeto */}
+          {listTab === 'projetos' && (
+            <MultiSelect
+              value={filterStatuses}
+              onChange={setFilterStatuses}
+              options={[...new Set(projectCards.map(p => p.status).filter(Boolean))]
+                .map(s => ({ id: s as string, name: STATUS_BADGE[s as string]?.label ?? (s as string) }))
+                .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))}
+              placeholder="Todos os status"
+              wide
+            />
+          )}
           {/* Filtro de saúde — chips coloridos + legenda */}
           {listTab === 'projetos' && (
             <div className="flex items-center gap-2 flex-wrap">
@@ -4750,8 +4829,8 @@ function KanbanContent() {
               </div>
             </div>
           )}
-          {(filterSearch || filterCustomers.length > 0 || filterExecutivos.length > 0 || filterCoordinators.length > 0 || filterProjectNames.length > 0 || saudeFilter) && (
-            <button onClick={() => { setFilterSearch(''); setFilterCustomers([]); setFilterExecutivos([]); setFilterCoordinators([]); setFilterProjectNames([]); setSaudeFilter('') }}
+          {(filterSearch || filterCustomers.length > 0 || filterExecutivos.length > 0 || filterCoordinators.length > 0 || filterProjectNames.length > 0 || filterStatuses.length > 0 || saudeFilter) && (
+            <button onClick={() => { setFilterSearch(''); setFilterCustomers([]); setFilterExecutivos([]); setFilterCoordinators([]); setFilterProjectNames([]); setFilterStatuses([]); setSaudeFilter('') }}
               className="text-xs font-medium px-2 py-1.5 rounded-lg transition-colors"
               style={{ color: 'var(--primary)' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-hover)' }}
@@ -4790,6 +4869,7 @@ function KanbanContent() {
             .filter(p => !isCoord || coordScope === 'todos' || (!!user?.id && (p.coordinator_ids ?? []).includes(user.id)))
             .filter(p => filterCoordinators.length === 0 || (p.coordinators ?? []).some(c => filterCoordinators.includes(c)))
             .filter(p => filterProjectNames.length === 0 || filterProjectNames.includes(String(p.id)))
+            .filter(p => filterStatuses.length === 0 || filterStatuses.includes(p.status))
             .filter(p => {
               if (filterCustomers.length > 0 && !filterCustomers.includes(p.customer_name)) return false
               if (sq && !p.customer_name.toLowerCase().includes(sq) && !(p.project_name ?? '').toLowerCase().includes(sq)) return false
