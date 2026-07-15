@@ -55,6 +55,9 @@ export interface ExecutiveSummary {
   progress_pct: number
   total_deliveries: number
   done_deliveries: number
+  /** Progresso por horas: % das horas planejadas já concluídas + horas concluídas. */
+  progress_hours_pct?: number
+  hours_done?: number
   in_progress_count: number
   review_count: number
   blocked_count: number
