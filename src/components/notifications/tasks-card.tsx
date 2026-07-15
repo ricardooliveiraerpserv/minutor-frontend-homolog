@@ -291,6 +291,9 @@ function EditModal({ task, canDelegate, ask, onClose, onSaved }: { task: Task; c
   const [entType, setEntType] = useState(task.entity_type ?? '')
   const [entId, setEntId] = useState<number | null>(task.entity_id)
   const [entLabel, setEntLabel] = useState(task.entity_label ?? '')
+  // Vínculo com projeto: filtra pelo cliente primeiro
+  const [entCustId, setEntCustId] = useState<number | null>(null)
+  const [entCustLabel, setEntCustLabel] = useState('')
   const [assignedTo, setAssignedTo] = useState<number | null>(task.assigned_to)
   const [assignedName, setAssignedName] = useState(task.assigned_name ?? '')
   const [completedState, setCompletedState] = useState(task.completed)
@@ -411,15 +414,23 @@ function EditModal({ task, canDelegate, ask, onClose, onSaved }: { task: Task; c
           {/* Vinculação */}
           <div className="grid grid-cols-2 gap-3">
             <div><label className={lbl} style={{ color: 'var(--text-light)' }}>🔗 Vincular a</label>
-              <select className={fieldCls} style={inputStyle} value={entType} onChange={e => { setEntType(e.target.value); setEntId(null); setEntLabel('') }}>
+              <select className={fieldCls} style={inputStyle} value={entType} onChange={e => { setEntType(e.target.value); setEntId(null); setEntLabel(''); setEntCustId(null); setEntCustLabel('') }}>
                 <option value="">Nenhum</option>
                 {Object.entries(ENT_L).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </select></div>
-            {entType && (
+            {/* Projeto: cliente primeiro; outros tipos: picker direto */}
+            {entType === 'project' ? (
+              <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Cliente</label>
+                <EntityPicker type="customer" value={entCustLabel} onPick={(o) => { setEntCustId(o.id); setEntCustLabel(o.name); setEntId(null); setEntLabel('') }} /></div>
+            ) : entType && (
               <div><label className={lbl} style={{ color: 'var(--text-light)' }}>{ENT_L[entType]}</label>
                 <EntityPicker type={entType} value={entLabel} onPick={(o) => { setEntId(o.id); setEntLabel(o.name) }} /></div>
             )}
           </div>
+          {entType === 'project' && (
+            <div><label className={lbl} style={{ color: 'var(--text-light)' }}>Projeto</label>
+              <EntityPicker type="project" customerId={entCustId} value={entLabel} onPick={(o) => { setEntId(o.id); setEntLabel(o.name) }} /></div>
+          )}
         </div>
         <div className="px-4 py-3 flex justify-end gap-2 border-t" style={{ borderColor: 'var(--border)' }}>
           <button onClick={onClose} className="text-sm px-3 py-1.5 rounded-lg" style={{ color: 'var(--text-muted)' }}>Cancelar</button>
@@ -460,7 +471,7 @@ function UserPicker({ value, onPick }: { value: string; onPick: (o: EntOpt) => v
   )
 }
 
-function EntityPicker({ type, value, onPick }: { type: string; value: string; onPick: (o: EntOpt) => void }) {
+function EntityPicker({ type, value, onPick, customerId }: { type: string; value: string; onPick: (o: EntOpt) => void; customerId?: number | null }) {
   const [q, setQ] = useState(value)
   const [open, setOpen] = useState(false)
   const [opts, setOpts] = useState<EntOpt[]>([])
@@ -469,10 +480,11 @@ function EntityPicker({ type, value, onPick }: { type: string; value: string; on
     if (!open) return
     const term = q === value ? '' : q   // valor inalterado = lista TODOS; só filtra ao digitar
     const t = setTimeout(() => {
-      api.get<{ data: EntOpt[] }>(`/tasks/entities?type=${type}&search=${encodeURIComponent(term)}`).then(r => setOpts(r.data ?? [])).catch(() => {})
+      const cust = customerId ? `&customer_id=${customerId}` : ''
+      api.get<{ data: EntOpt[] }>(`/tasks/entities?type=${type}&search=${encodeURIComponent(term)}${cust}`).then(r => setOpts(r.data ?? [])).catch(() => {})
     }, 200)
     return () => clearTimeout(t)
-  }, [q, open, type, value])
+  }, [q, open, type, value, customerId])
   return (
     <div className="relative">
       <div className="flex items-center gap-1 rounded-lg px-2" style={inputStyle}>
@@ -481,9 +493,9 @@ function EntityPicker({ type, value, onPick }: { type: string; value: string; on
           onFocus={() => setOpen(true)} onChange={e => { setQ(e.target.value); setOpen(true) }} placeholder="Buscar…" />
       </div>
       {open && opts.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full rounded-lg overflow-hidden shadow-lg max-h-48 overflow-y-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="absolute z-20 mt-1 w-full rounded-lg overflow-hidden shadow-lg max-h-48 overflow-y-auto" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           {opts.map(o => (
-            <button key={o.id} type="button" onClick={() => { onPick(o); setQ(o.name); setOpen(false) }} className="w-full text-left px-3 py-1.5 text-sm" style={{ color: 'var(--text)' }}>{o.name}</button>
+            <button key={o.id} type="button" onClick={() => { onPick(o); setQ(o.name); setOpen(false) }} className="w-full text-left px-3 py-1.5 text-sm leading-snug whitespace-normal break-words" style={{ color: 'var(--text)' }}>{o.name}</button>
           ))}
         </div>
       )}
