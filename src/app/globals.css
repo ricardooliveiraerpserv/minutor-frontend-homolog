@@ -1152,6 +1152,10 @@ html.dark .sidebar-erpserv-logo {
   filter: grayscale(1) invert(1) brightness(10);
   opacity: 0.4;
 }
+/* Sidebar — logo Bizify: roxo no light, roxo→branco no dark (azul mantido). Troca de imagem. */
+.logo-bizify-dark { display: none; }
+html.dark .logo-bizify-light { display: none; }
+html.dark .logo-bizify-dark { display: block; }
 /* ─────────────────────────────────────────────────────────────────────────
  * MOBILE-FIRST: tabelas do design system (.ds-table) viram CARDS no celular.
  * Cada <tr> = um card independente; cada <td> mostra o rótulo da coluna

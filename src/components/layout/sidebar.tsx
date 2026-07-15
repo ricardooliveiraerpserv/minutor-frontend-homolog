@@ -1088,13 +1088,15 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       {/* ── Company logo (varia pela empresa ativa) ── */}
       {!collapsed && (
         <div className="flex items-center justify-center px-5 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
-          <Image
-            src={isBizify ? '/logo-bizify.png' : '/logo.png'}
-            alt={isBizify ? 'Bizify' : 'ERPServ'}
-            width={90}
-            height={36}
-            className={isBizify ? 'object-contain' : 'object-contain sidebar-erpserv-logo'}
-          />
+          {isBizify ? (
+            <>
+              {/* claro: roxo · escuro: roxo→branco (troca por CSS via html.dark) */}
+              <Image src="/logo-bizify.png" alt="Bizify" width={90} height={36} className="object-contain logo-bizify-light" />
+              <Image src="/logo-bizify-dark.png" alt="Bizify" width={90} height={36} className="object-contain logo-bizify-dark" />
+            </>
+          ) : (
+            <Image src="/logo.png" alt="ERPServ" width={90} height={36} className="object-contain sidebar-erpserv-logo" />
+          )}
         </div>
       )}
 
