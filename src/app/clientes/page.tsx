@@ -30,7 +30,7 @@ function ActiveBadge({ active }: { active: boolean }) {
 function TableSkeleton() {
   return <>{Array.from({ length: 6 }).map((_, i) => (
     <tr key={i} className="border-b border-[var(--border)]">
-      {Array.from({ length: 7 }).map((_, j) => (
+      {Array.from({ length: 8 }).map((_, j) => (
         <td key={j} className="px-3 py-2.5"><Skeleton className="h-3 w-full bg-[var(--surface-hover)]" /></td>
       ))}
     </tr>
@@ -136,7 +136,8 @@ export default function ClientesPage() {
       'Razão Social': c.company_name ?? '',
       'CPF/CNPJ':     c.cgc ?? '',
       Prefixo:        c.code_prefix ?? '',
-      Executivo:      c.executive?.name ?? '',
+      'Executivo ERPSERV':      c.executive?.name ?? '',
+      'Executivo Bizify':   c.executive_bizify?.name ?? '',
       Status:         c.active ? 'Ativo' : 'Inativo',
     }))
     const ws = XLSX.utils.json_to_sheet(rows)
@@ -251,7 +252,8 @@ export default function ClientesPage() {
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Razão Social</th>
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">CPF/CNPJ</th>
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden xl:table-cell">Prefixo</th>
-                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Executivo</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Executivo ERPSERV</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Executivo Bizify</th>
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
               </tr>
             </thead>
@@ -273,6 +275,7 @@ export default function ClientesPage() {
                   <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden sm:table-cell">{item.cgc || '—'}</td>
                   <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden xl:table-cell">{item.code_prefix || '—'}</td>
                   <td className="px-3 py-2.5 text-[var(--text-muted)] hidden lg:table-cell">{item.executive?.name || '—'}</td>
+                  <td className="px-3 py-2.5 text-[var(--text-muted)] hidden lg:table-cell">{item.executive_bizify?.name || '—'}</td>
                   <td className="px-3 py-2.5"><ActiveBadge active={item.active} /></td>
                 </tr>
               ))}
