@@ -1,6 +1,7 @@
 'use client'
 
 import { AppLayout } from '@/components/layout/app-layout'
+import { Skeleton } from '@/components/ui/loading'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
@@ -351,7 +352,7 @@ export default function ContratosPage() {
   const tabProjetos  = contracts.filter(c => !!c.project_id)
   const visibleContracts = listTab === 'projetos' ? tabProjetos : tabContratos
 
-  const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-cyan-500/40'
+  const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)]'
   const inputStyle = { border: '1px solid var(--border)', color: 'var(--text)' }
 
   return (
@@ -359,13 +360,13 @@ export default function ContratosPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-white">Contratos</h1>
+          <h1 className="text-xl font-bold text-[var(--text)]">Contratos</h1>
           <p className="text-xs text-[var(--text-light)] mt-0.5">{total} contrato{total !== 1 ? 's' : ''} cadastrado{total !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => router.push('/contratos/kanban')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
             <LayoutGrid size={14} /> Kanban
           </button>
           <button onClick={openNew}
@@ -404,14 +405,14 @@ export default function ContratosPage() {
           <button key={tab.id} onClick={() => setListTab(tab.id)}
             className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
             style={listTab === tab.id
-              ? { background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }
+              ? { background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }
               : { color: 'var(--text-muted)', border: '1px solid transparent' }
             }>
             {tab.label}
             <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
               style={listTab === tab.id
                 ? { background: 'var(--primary-soft)', color: 'var(--primary)' }
-                : { background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }
+                : { background: 'var(--surface-hover)', color: 'var(--text-muted)' }
               }>{tab.count}</span>
           </button>
         ))}
@@ -438,14 +439,20 @@ export default function ContratosPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && (
-              <tr><td colSpan={listTab === 'projetos' ? 11 : 9} className="px-4 py-8 text-center text-[var(--text-light)] text-xs">Carregando...</td></tr>
+            {loading && visibleContracts.length === 0 && (
+              Array.from({ length: 6 }).map((_, r) => (
+                <tr key={`sk-${r}`} style={{ borderTop: r > 0 ? '1px solid var(--border)' : undefined }}>
+                  {Array.from({ length: listTab === 'projetos' ? 11 : 9 }).map((_, c) => (
+                    <td key={c} className="px-4 py-3"><Skeleton className="h-4 w-full" /></td>
+                  ))}
+                </tr>
+              ))
             )}
             {!loading && visibleContracts.length === 0 && (
               <tr><td colSpan={listTab === 'projetos' ? 11 : 9} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum item encontrado.</td></tr>
             )}
-            {!loading && visibleContracts.map((c, i) => (
-              <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+            {visibleContracts.length > 0 && visibleContracts.map((c, i) => (
+              <tr key={c.id} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined, background: i % 2 === 0 ? 'transparent' : 'var(--surface-sunken)' }}>
                 <td className="w-10 px-2 py-3 text-center relative">
                   <button
                     onClick={e => { e.stopPropagation(); setOpenDropdown(openDropdown === c.id ? null : c.id) }}
@@ -454,7 +461,7 @@ export default function ContratosPage() {
                   </button>
                   {openDropdown === c.id && (
                     <div ref={dropdownRef} className="absolute left-8 top-8 z-[200] rounded-xl overflow-hidden shadow-xl"
-                      style={{ background: '#1c1c1e', border: '1px solid var(--border)', minWidth: 168 }}>
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)', minWidth: 168 }}>
                       {listTab === 'projetos' && isAdminOrCoord ? (
                         PROJECT_MENU_ITEMS.map(item => {
                           const Icon = item.icon
@@ -462,8 +469,8 @@ export default function ContratosPage() {
                             <button key={item.action}
                               onClick={e => { e.stopPropagation(); setOpenDropdown(null); handleProjectAction(c, item.action) }}
                               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]"
-                              style={{ color: item.action === 'delete' ? '#f87171' : 'var(--text)' }}>
-                              <Icon size={14} className="shrink-0" style={{ color: item.action === 'delete' ? '#f87171' : '#a1a1aa' }} /> {item.label}
+                              style={{ color: item.action === 'delete' ? 'var(--danger)' : 'var(--text)' }}>
+                              <Icon size={14} className="shrink-0" style={{ color: item.action === 'delete' ? 'var(--danger)' : 'var(--text-muted)' }} /> {item.label}
                             </button>
                           )
                         })
@@ -478,15 +485,15 @@ export default function ContratosPage() {
                             <Pencil size={14} className="text-[var(--text-muted)]" /> Editar
                           </button>
                           <button onClick={e => { e.stopPropagation(); setOpenDropdown(null); setDeleteTarget({ id: c.id, name: c.customer?.name ?? `Contrato #${c.id}`, type: 'contract' }) }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: '#f87171' }}>
-                            <Trash2 size={14} style={{ color: '#f87171' }} /> Excluir
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]" style={{ color: 'var(--danger)' }}>
+                            <Trash2 size={14} style={{ color: 'var(--danger)' }} /> Excluir
                           </button>
                         </>
                       )}
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-3 text-white font-medium">{c.customer?.name ?? '—'}</td>
+                <td className="px-4 py-3 text-[var(--text)] font-medium">{c.customer?.name ?? '—'}</td>
                 <td className="px-4 py-3 text-[var(--text)]">{CATEGORIA_LABEL[c.categoria]}</td>
                 <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{c.contract_type?.name ?? '—'}</td>
                 <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{c.service_type?.name ?? '—'}</td>
@@ -500,7 +507,7 @@ export default function ContratosPage() {
                       {!c.project ? '—' : hideHours ? '—' : c.project.consumed_hours != null ? `${c.project.consumed_hours.toFixed(1)}h` : '—'}
                     </td>
                     <td className="px-4 py-3 text-center text-xs"
-                      style={{ color: !hideHours && c.project && (bal ?? 0) < 0 ? '#ef4444' : 'rgb(212 212 216)' }}>
+                      style={{ color: !hideHours && c.project && (bal ?? 0) < 0 ? 'var(--danger-border)' : 'var(--text)' }}>
                       {!c.project ? '—' : hideHours ? '—' : bal != null ? `${bal.toFixed(1)}h` : '—'}
                     </td>
                   </>)
@@ -667,7 +674,7 @@ export default function ContratosPage() {
                 </button>
                 <button onClick={() => { openEdit(vc); setViewContract(null) }}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold"
-                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
                   <Pencil size={13} /> Editar Contrato
                 </button>
               </div>
@@ -680,8 +687,8 @@ export default function ContratosPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
           <div className="w-full max-w-md rounded-2xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
             <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-              <h2 className="text-base font-semibold text-white flex items-center gap-2">
-                <Rocket size={16} style={{ color: '#eab308' }} /> Gerar Projeto
+              <h2 className="text-base font-semibold text-[var(--text)] flex items-center gap-2">
+                <Rocket size={16} style={{ color: 'var(--warning-border)' }} /> Gerar Projeto
               </h2>
               <p className="text-xs text-[var(--text-light)] mt-1">{genModal.contract.customer?.name}</p>
             </div>
@@ -699,7 +706,7 @@ export default function ContratosPage() {
                         onClick={() => setGenCoordinatorIds(ids => sel ? ids.filter(i => i !== u.id) : [...ids, u.id])}
                         className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left"
                         style={{
-                          background: sel ? 'var(--primary-soft)' : 'rgba(255,255,255,0.03)',
+                          background: sel ? 'var(--primary-soft)' : 'var(--surface-hover)',
                           border: `1px solid ${sel ? 'var(--primary)' : 'var(--border)'}`,
                           color: sel ? 'var(--primary)' : 'var(--text)',
                         }}>
@@ -719,12 +726,12 @@ export default function ContratosPage() {
             </div>
             <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <button onClick={() => setGenModal(null)} disabled={generating}
-                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-white transition-colors">
+                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
                 Cancelar
               </button>
               <button onClick={confirmGenerateProject} disabled={generating}
                 className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60"
-                style={{ background: '#eab308', color: 'var(--primary-fg)' }}>
+                style={{ background: 'var(--warning-border)', color: 'var(--primary-fg)' }}>
                 <Rocket size={14} />
                 {generating ? 'Gerando...' : 'Confirmar e Gerar'}
               </button>
@@ -761,11 +768,11 @@ export default function ContratosPage() {
       {/* ── Delete confirmation modal ── */}
       {deleteTarget && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70">
-          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid rgba(239,68,68,0.4)' }}>
+          <div className="rounded-2xl w-full max-w-sm overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--danger-border)' }}>
             <div className="px-6 py-5 flex items-center gap-3">
               <Trash2 size={20} className="text-[var(--danger)] shrink-0" />
               <div>
-                <p className="font-semibold text-white">Excluir {deleteTarget.type === 'project' ? 'Projeto' : 'Contrato'}</p>
+                <p className="font-semibold text-[var(--text)]">Excluir {deleteTarget.type === 'project' ? 'Projeto' : 'Contrato'}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">{deleteTarget.name}</p>
               </div>
             </div>
@@ -774,7 +781,7 @@ export default function ContratosPage() {
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <button onClick={() => setDeleteTarget(null)} disabled={deleting}
-                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-white transition-colors">
+                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
                 Cancelar
               </button>
               <button disabled={deleting} onClick={async () => {
@@ -794,7 +801,7 @@ export default function ContratosPage() {
                 } finally { setDeleting(false) }
               }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                style={{ background: 'rgba(239,68,68,0.15)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}>
+                style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-border)' }}>
                 <Trash2 size={14} /> {deleting ? 'Excluindo...' : 'Excluir'}
               </button>
             </div>
@@ -841,7 +848,7 @@ function ProjectStatusModal({ projectId, projectName, onClose, onSaved }: {
         <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-base font-bold text-white">Alterar Status</p>
+              <p className="text-base font-bold text-[var(--text)]">Alterar Status</p>
               <p className="text-xs text-[var(--text-light)] mt-0.5">{projectName}</p>
             </div>
             <button onClick={onClose} className="p-1 rounded-lg hover:bg-[var(--surface-hover)] transition-colors text-[var(--text-muted)]"><X size={16} /></button>
@@ -853,7 +860,7 @@ function ProjectStatusModal({ projectId, projectName, onClose, onSaved }: {
               onClick={() => setSelected(s.value)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left"
               style={{
-                background: selected === s.value ? `${s.color}12` : 'rgba(255,255,255,0.03)',
+                background: selected === s.value ? `${s.color}12` : 'var(--surface-hover)',
                 border: `1px solid ${selected === s.value ? s.color : 'var(--border)'}`,
                 color: selected === s.value ? s.color : 'var(--text)',
               }}>
@@ -863,7 +870,7 @@ function ProjectStatusModal({ projectId, projectName, onClose, onSaved }: {
           ))}
         </div>
         <div className="flex justify-end gap-3 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
-          <button onClick={onClose} disabled={saving} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-white transition-colors">
+          <button onClick={onClose} disabled={saving} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
             Cancelar
           </button>
           <button onClick={save} disabled={saving || !selected}

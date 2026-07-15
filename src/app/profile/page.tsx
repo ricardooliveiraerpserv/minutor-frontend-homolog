@@ -2,13 +2,15 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useState, useEffect } from 'react'
-import { api, ApiError, secureUrl } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
+import { AuthedImg } from '@/components/ui/authed-img'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { User, Lock, RefreshCw, Eye, EyeOff, Copy, Check, PenLine, Camera, Trash2 } from 'lucide-react'
+import { Skeleton } from '@/components/ui/loading'
 import { SignatureEditor, type SignatureData } from '@/components/users/signature-editor'
 
 // ─── Password mode ────────────────────────────────────────────────────────────
@@ -37,7 +39,7 @@ async function compressImage(file: File, maxDim = 512, quality = 0.85): Promise<
 }
 
 export default function ProfilePage() {
-  const { user, refreshUser } = useAuth()
+  const { user, loading: authLoading, refreshUser } = useAuth()
 
   // Info fields
   const [name,       setName]       = useState('')
@@ -45,10 +47,11 @@ export default function ProfilePage() {
   const [savingInfo, setSavingInfo] = useState(false)
 
   // Assinatura + foto de perfil
-  const [signature,   setSignature]   = useState<SignatureData>({})
-  const [savingSig,   setSavingSig]   = useState(false)
-  const [photoUrl,    setPhotoUrl]    = useState<string | null>(null)
-  const [photoBusy,   setPhotoBusy]   = useState(false)
+  const [signature,  setSignature]  = useState<SignatureData>({})
+  const [defaultCargo, setDefaultCargo] = useState('Consultor') // padrão do perfil (cadastro Cargos por Perfil)
+  const [savingSig,  setSavingSig]  = useState(false)
+  const [photoUrl,   setPhotoUrl]   = useState<string | null>(null)
+  const [photoBusy,  setPhotoBusy]  = useState(false)
   const userType = user?.type
 
   useEffect(() => {
@@ -65,7 +68,11 @@ export default function ProfilePage() {
       .then(p => {
         const sig = (p.signature as SignatureData | null) ?? {}
         // Foto na assinatura: ligada por padrão quando há foto de perfil (a menos que já tenha sido desmarcada).
-        setSignature({ ...sig, role: p.default_cargo || sig.role || 'Consultor', show_photo: sig.show_photo ?? !!p.profile_photo_url })
+        const dc = p.default_cargo || 'Consultor'
+        setDefaultCargo(dc)
+        const custom = !!sig.custom_cargo
+        // custom_cargo: usa o cargo próprio; senão mostra o padrão do perfil.
+        setSignature({ ...sig, custom_cargo: custom, role: custom ? (sig.role || '') : dc, show_photo: sig.show_photo ?? !!p.profile_photo_url })
         if (p.profile_photo_url !== undefined) setPhotoUrl(p.profile_photo_url ?? null)
       })
       .catch(() => setSignature(s => ({ ...s, role: s.role || 'Consultor' })))
@@ -213,51 +220,69 @@ export default function ProfilePage() {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--primary-soft)]">
               <User size={14} className="text-[var(--primary)]" />
             </div>
-            <h2 className="text-sm font-semibold text-white">Dados pessoais</h2>
+            <h2 className="text-sm font-semibold text-[var(--text)]">Dados pessoais</h2>
           </div>
 
-          {/* ── Foto de perfil (avatar do sistema) — todos os perfis, inclusive cliente ── */}
-          <div className="flex items-center gap-4">
-            <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-[var(--surface-hover)] border border-[var(--border)]">
-              {photoUrl
-                ? <img src={secureUrl(photoUrl)} alt="" className="w-full h-full object-cover" />
-                : <span className="text-lg font-bold text-[var(--text-muted)]">{(name || '?').trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</span>}
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-[11px] text-[var(--text-light)]">Aparece em todo o sistema (menu, topo). JPG/PNG até 2MB.</p>
-              <div className="flex items-center gap-2">
-                <label className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] text-xs font-medium cursor-pointer text-[var(--text)] hover:border-[var(--border-strong)] ${photoBusy ? 'opacity-60 pointer-events-none' : ''}`}>
-                  <Camera size={13} /> {photoUrl ? 'Trocar foto' : 'Enviar foto'}
-                  <input type="file" accept="image/*" className="hidden" disabled={photoBusy}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = '' }} />
-                </label>
-                {photoUrl && (
-                  <button type="button" onClick={removePhoto} disabled={photoBusy}
-                    className="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] text-xs text-[var(--text-muted)] hover:text-[var(--danger)] hover:border-red-500/50 disabled:opacity-60">
-                    <Trash2 size={13} /> Remover
-                  </button>
-                )}
+          {authLoading && !user ? (
+            <div className="space-y-4">
+              <div>
+                <Skeleton className="h-3 w-12 mb-1.5" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+              <div>
+                <Skeleton className="h-3 w-14 mb-1.5" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+              <div className="flex justify-end">
+                <Skeleton className="h-8 w-28" />
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* ── Foto de perfil (avatar do sistema) — todos os perfis, inclusive cliente ── */}
+              <div className="flex items-center gap-4">
+                <div className="relative w-16 h-16 rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-[var(--surface-hover)] border border-[var(--border)]">
+                  {photoUrl
+                    ? <AuthedImg src={photoUrl} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-lg font-bold text-[var(--text-muted)]">{(name || '?').trim().split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}</span>}
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-[var(--text-light)]">Aparece em todo o sistema (menu, topo). JPG/PNG até 2MB.</p>
+                  <div className="flex items-center gap-2">
+                    <label className={`inline-flex items-center gap-1.5 px-3 h-8 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] text-xs font-medium cursor-pointer text-[var(--text)] hover:border-[var(--border-strong)] ${photoBusy ? 'opacity-60 pointer-events-none' : ''}`}>
+                      <Camera size={13} /> {photoUrl ? 'Trocar foto' : 'Enviar foto'}
+                      <input type="file" accept="image/*" className="hidden" disabled={photoBusy}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = '' }} />
+                    </label>
+                    {photoUrl && (
+                      <button type="button" onClick={removePhoto} disabled={photoBusy}
+                        className="inline-flex items-center gap-1.5 px-3 h-8 rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] text-xs text-[var(--text-muted)] hover:text-[var(--danger)] hover:border-[var(--danger-border)] disabled:opacity-60">
+                        <Trash2 size={13} /> Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
 
-          <div>
-            <Label className="text-xs text-[var(--text-muted)]">Nome</Label>
-            <Input value={name} onChange={e => setName(e.target.value)}
-              className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
-          </div>
-          <div>
-            <Label className="text-xs text-[var(--text-muted)]">E-mail</Label>
-            <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
-          </div>
+              <div>
+                <Label className="text-xs text-[var(--text-muted)]">Nome</Label>
+                <Input value={name} onChange={e => setName(e.target.value)}
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs text-[var(--text-muted)]">E-mail</Label>
+                <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
+              </div>
 
-          <div className="flex justify-end">
-            <Button onClick={saveInfo} disabled={savingInfo || !name || !email}
-              className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
-              {savingInfo ? 'Salvando...' : 'Salvar dados'}
-            </Button>
-          </div>
+              <div className="flex justify-end">
+                <Button onClick={saveInfo} disabled={savingInfo || !name || !email}
+                  className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
+                  {savingInfo ? 'Salvando...' : 'Salvar dados'}
+                </Button>
+              </div>
+            </>
+          )}
         </section>
 
         {/* ── Assinatura de e-mail ── */}
@@ -267,14 +292,27 @@ export default function ProfilePage() {
               <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--purple-bg)]">
                 <PenLine size={14} className="text-[var(--purple)]" />
               </div>
-              <h2 className="text-sm font-semibold text-white">Assinatura de e-mail</h2>
+              <h2 className="text-sm font-semibold text-[var(--text)]">Assinatura de e-mail</h2>
             </div>
 
-            <SignatureEditor value={signature} onChange={setSignature} name={name} email={email} lockRole hidePhoto />
+            {/* Cargo: por padrão vem do perfil (cadastro). Marcar "Personalizar" ignora o padrão e libera edição. */}
+            <label className="flex items-center gap-2 mb-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="accent-[var(--primary)] w-4 h-4"
+                checked={!!signature.custom_cargo}
+                onChange={e => setSignature(s => e.target.checked
+                  ? { ...s, custom_cargo: true }
+                  : { ...s, custom_cargo: false, role: defaultCargo })}
+              />
+              <span className="text-xs text-[var(--text)]">Personalizar cargo <span className="text-[var(--text-light)]">(ignora o padrão do perfil; desmarque para voltar a “{defaultCargo}”)</span></span>
+            </label>
+
+            <SignatureEditor value={signature} onChange={setSignature} name={name} email={email} lockRole={!signature.custom_cargo} hidePhoto />
 
             <div className="flex justify-end">
               <Button onClick={saveSignature} disabled={savingSig}
-                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                 {savingSig ? 'Salvando...' : 'Salvar assinatura'}
               </Button>
             </div>
@@ -287,7 +325,7 @@ export default function ProfilePage() {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--warning-bg)]">
               <Lock size={14} className="text-[var(--warning)]" />
             </div>
-            <h2 className="text-sm font-semibold text-white">Senha</h2>
+            <h2 className="text-sm font-semibold text-[var(--text)]">Senha</h2>
           </div>
 
           {/* Modo selector */}
@@ -296,7 +334,7 @@ export default function ProfilePage() {
               onClick={() => selectMode('auto')}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium transition-all ${
                 passwordMode === 'auto'
-                  ? 'bg-[var(--warning-bg)] border-yellow-500/50 text-[var(--warning)]'
+                  ? 'bg-[var(--warning-bg)] border-[var(--warning-border)] text-[var(--warning)]'
                   : 'bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
               }`}
             >
@@ -307,7 +345,7 @@ export default function ProfilePage() {
               onClick={() => selectMode('manual')}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium transition-all ${
                 passwordMode === 'manual'
-                  ? 'bg-[var(--warning-bg)] border-yellow-500/50 text-[var(--warning)]'
+                  ? 'bg-[var(--warning-bg)] border-[var(--warning-border)] text-[var(--warning)]'
                   : 'bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
               }`}
             >
@@ -334,7 +372,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <Button onClick={generatePassword} disabled={savingPassword}
-                  className="w-full h-9 text-xs bg-[var(--warning-bg)] hover:bg-yellow-600 text-white gap-2">
+                  className="w-full h-9 text-xs bg-[var(--warning-bg)] hover:bg-[var(--warning-border)] text-[var(--primary-fg)] gap-2">
                   <RefreshCw size={13} className={savingPassword ? 'animate-spin' : ''} />
                   {savingPassword ? 'Gerando...' : 'Gerar nova senha'}
                 </Button>
@@ -358,7 +396,7 @@ export default function ProfilePage() {
                     type={showCurrent ? 'text' : 'password'}
                     value={currentPassword}
                     onChange={e => setCurrentPassword(e.target.value)}
-                    className="bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs pr-9"
+                    className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs pr-9"
                   />
                   <button onClick={() => setShowCurrent(v => !v)}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-[var(--text)]">
@@ -373,7 +411,7 @@ export default function ProfilePage() {
                     type={showNew ? 'text' : 'password'}
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
-                    className="bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs pr-9"
+                    className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs pr-9"
                   />
                   <button onClick={() => setShowNew(v => !v)}
                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-[var(--text)]">
@@ -388,8 +426,8 @@ export default function ProfilePage() {
                     type={showConfirm ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={e => setConfirmPassword(e.target.value)}
-                    className={`bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs pr-9 ${
-                      confirmPassword && confirmPassword !== newPassword ? 'border-red-500' : ''
+                    className={`bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs pr-9 ${
+                      confirmPassword && confirmPassword !== newPassword ? 'border-[var(--danger-border)]' : ''
                     }`}
                   />
                   <button onClick={() => setShowConfirm(v => !v)}
@@ -405,7 +443,7 @@ export default function ProfilePage() {
                 <Button
                   onClick={saveManualPassword}
                   disabled={savingPassword || !currentPassword || !newPassword || newPassword !== confirmPassword}
-                  className="h-8 text-xs bg-[var(--warning-bg)] hover:bg-yellow-600 text-white">
+                  className="h-8 text-xs bg-[var(--warning-bg)] hover:bg-[var(--warning-border)] text-[var(--primary-fg)]">
                   {savingPassword ? 'Salvando...' : 'Alterar senha'}
                 </Button>
               </div>

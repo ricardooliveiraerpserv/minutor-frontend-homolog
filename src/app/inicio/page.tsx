@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus, Video } from 'lucide-react'
+import { AlertTriangle, Sun, Sunrise, Moon, ListChecks, Eye, Target, Check, Users, Bell, Home, Megaphone, Settings, Send, BookOpen, ShieldAlert, CalendarDays, BarChart3, Plus, Video, Clock, MapPin, Link2, DollarSign, ChevronDown } from 'lucide-react'
 import { CentralReunioes } from '@/components/meetings/central-reunioes'
+import { TimesheetFormModal } from '@/components/ui/timesheet-form-modal'
+import { ExpenseQuickModal } from '@/components/ui/expense-quick-modal'
 import { DOT, type CalEvento } from '@/components/notifications/calendar-mini'
 import { useAuth } from '@/hooks/use-auth'
 import { TasksCard } from '@/components/notifications/tasks-card'
@@ -15,6 +17,7 @@ import { AgendaSidebar } from '@/components/notifications/agenda-sidebar'
 import { TeamDay } from '@/components/notifications/team-day'
 import { OutlookIntegrationCard } from '@/components/notifications/outlook-integration-card'
 import { BirthdayCard } from '@/components/notifications/birthday-card'
+import { PendingChatsCard } from '@/components/notifications/pending-chats-card'
 import { NotificationCenter } from '@/components/notifications/notification-center'
 import { PublicacoesView } from '@/components/notifications/publicacoes-view'
 import { AcoesView } from '@/components/notifications/acoes-view'
@@ -55,6 +58,7 @@ export default function MeuDiaPage() {
   const [tab, setTab] = useState<TabKey>('dia')
   const [pubMode, setPubMode] = useState<'recebidas' | 'mural' | 'criadas' | 'gerenciar' | 'lembretes'>('recebidas')
   const [pubAction, setPubAction] = useState<string | null>(null) // ação a abrir ao ir p/ Gerenciar
+  const [pubMenuOpen, setPubMenuOpen] = useState(false)           // dropdown "Comunicação Interna"
   const [tasks, setTasks] = useState<Task[]>([])
   const [pubs, setPubs] = useState<Pub[]>([])
   const [actionsCount, setActionsCount] = useState(0)
@@ -71,6 +75,8 @@ export default function MeuDiaPage() {
   const canTeam = ['admin', 'coordenador', 'administrativo'].includes(user?.type ?? '')
   const canActions = ['consultor', 'coordenador', 'admin', 'administrativo', 'parceiro_admin'].includes(user?.type ?? '')
   const tasksRef = useRef<HTMLDivElement>(null)
+  const [tsOpen, setTsOpen] = useState(false)     // modal apontar horas (mesmo da Operação)
+  const [expOpen, setExpOpen] = useState(false)   // modal apontar despesa
   const agendaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { if (user?.type === 'cliente') router.replace('/dashboard') }, [user?.type, router])
@@ -164,6 +170,12 @@ export default function MeuDiaPage() {
                 {foco && <span className="text-[11px] inline-flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}><Target size={11} /> Foco: {foco.label} ({foco.urgent > 0 ? `${foco.urgent} urgente${foco.urgent > 1 ? 's' : ''}` : `${foco.count} tarefa${foco.count > 1 ? 's' : ''}`})</span>}
               </div>
             </div>
+            {canActions && (
+              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                <button onClick={() => setTsOpen(true)} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Clock size={14} /> Apontar horas</button>
+                <button onClick={() => setExpOpen(true)} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><DollarSign size={14} /> Apontar despesa</button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -193,6 +205,8 @@ export default function MeuDiaPage() {
         {tab === 'dia' && (
           <div className="flex flex-col lg:flex-row gap-4 items-start">
             <div className="w-full lg:w-[68%] space-y-5 min-w-0">
+              {/* CONVERSAS PENDENTES DO CHAT — substitui o e-mail de digest */}
+              <PendingChatsCard />
               {/* PUBLICAÇÕES DE HOJE — 1º item (só no dia; depois fica na aba Publicações) */}
               {view === 'mine' && todayPubs.length > 0 && (
                 <button onClick={() => setTab('publicacoes')} className="w-full ds-card p-3 text-left flex items-start gap-2.5 animate-[popIn_.2s_ease-out]" style={{ borderLeft: '4px solid var(--primary)', background: 'var(--primary-soft)' }}>
@@ -266,11 +280,38 @@ export default function MeuDiaPage() {
                     </div>
                     {todayEvents.map((e, i) => {
                       const d = DOT[e.tipo]
+                      const conv = e.convidados ?? []
+                      const grupos = ([
+                        ['Aceitaram', conv.filter(c => c.resposta === 'accepted')],
+                        ['Talvez', conv.filter(c => c.resposta === 'tentativelyAccepted')],
+                        ['Recusaram', conv.filter(c => c.resposta === 'declined')],
+                        ['Sem resposta', conv.filter(c => !['accepted', 'tentativelyAccepted', 'declined'].includes(c.resposta))],
+                      ] as [string, typeof conv][]).filter(([, l]) => l.length > 0)
+                      const isTeams = !!e.link && e.link.includes('teams.microsoft.com')
                       return (
-                        <div key={i} className="ds-card p-2.5 flex items-center gap-2.5" style={{ borderLeft: `3px solid ${d?.color ?? 'var(--primary)'}` }}>
-                          <span className="shrink-0 text-[15px]">{d?.icon ?? '📅'}</span>
-                          <span className="flex-1 min-w-0 truncate text-[13px] font-medium" style={{ color: 'var(--text)' }}>{e.titulo}</span>
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-sunken)', color: d?.color ?? 'var(--text-muted)' }}>{d?.label ?? e.tipo}</span>
+                        <div key={i} className="ds-card p-2.5" style={{ borderLeft: `3px solid ${d?.color ?? 'var(--primary)'}` }}>
+                          <div className="flex items-center gap-2.5">
+                            <span className="shrink-0 text-[15px]">{d?.icon ?? '📅'}</span>
+                            <span className="flex-1 min-w-0 truncate text-[13px] font-medium" style={{ color: 'var(--text)' }}>{e.titulo}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: 'var(--surface-sunken)', color: d?.color ?? 'var(--text-muted)' }}>{d?.label ?? e.tipo}</span>
+                          </div>
+                          {e.tipo === 'outlook' && (e.hora || e.local || e.link || conv.length > 0) && (
+                            <div className="mt-1.5 ml-[26px] space-y-1 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                              {e.hora && <div className="flex items-center gap-1.5"><Clock size={11} className="shrink-0" /> <span>{e.hora}{e.hora_fim ? ` – ${e.hora_fim}` : ''}{e.organizador ? ` · por ${e.organizador}` : ''}</span></div>}
+                              {e.local && <div className="flex items-start gap-1.5"><MapPin size={11} className="mt-[2px] shrink-0" /> <span>{e.local}</span></div>}
+                              {e.link && <a href={e.link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-medium" style={{ color: 'var(--primary)' }}><Link2 size={11} className="shrink-0" /> {isTeams ? 'Ingressar no Teams' : 'Abrir convite'}</a>}
+                              {grupos.length > 0 && (
+                                <div className="flex items-start gap-1.5">
+                                  <Users size={11} className="mt-[2px] shrink-0" />
+                                  <div className="space-y-0.5">
+                                    {grupos.map(([label, lista]) => (
+                                      <div key={label}><span style={{ color: 'var(--text-light)' }}>{label} ({lista.length}):</span> {lista.map(c => c.nome).join(', ')}</div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -339,7 +380,7 @@ export default function MeuDiaPage() {
             <MinimizableHint storageKey="hint:publicacoes" title="Publicações — o que é cada botão e suas variações">
               <p><b style={{ color: 'var(--text)' }}>Abas:</b> <b>Recebidas</b> = as que chegaram pra você · <b>Mural</b> = tudo que você pode ler · <b>Criadas</b> = as que você publicou · <b>Gerenciar/Publicar</b> = administração (admin).</p>
               {isAdmin && <>
-                <p><b style={{ color: 'var(--text)' }}>+ Nova notificação</b> — publicação para o time. <b>Variações de Tipo:</b></p>
+                <p><b style={{ color: 'var(--text)' }}>Comunicação Interna</b> — menu com <b>Confirmar presença</b>, <b>Nova enquete</b> e <b>Novo Aviso</b> (publicação para o time). <b>Variações do Novo Aviso:</b></p>
                 <p className="pl-3">• <b>Aviso</b> — exige <b>"Confirmar leitura"</b> e registra quem leu (log). Se a mensagem for longa, o botão só libera após <b>rolar até o fim</b>.</p>
                 <p className="pl-3">• <b>Ação (com botão)</b> — inclui um <b>botão-link (CTA)</b> com texto + rota. Pode ainda ter <b>"Botões de decisão"</b> (ex.: "Confirmo"/"Não vou") que exigem resposta e geram log de quem clicou.</p>
                 <p><b style={{ color: 'var(--text)' }}>Confirmar presença</b> — atalho que já cria uma notificação com botões de decisão (registra quem confirmou).</p>
@@ -351,7 +392,7 @@ export default function MeuDiaPage() {
               {([
                 ['recebidas', 'Recebidas', Megaphone],
                 ['mural', 'Mural', BookOpen],
-                ...(isAdmin ? [['criadas', 'Criadas', Send], ['gerenciar', 'Gerenciar / Publicar', Settings]] : []),
+                ...(canTeam ? [['criadas', 'Criadas', Send], ['gerenciar', 'Gerenciar / Publicar', Settings]] : []),
               ] as ['recebidas' | 'mural' | 'criadas' | 'gerenciar', string, typeof Megaphone][]).map(([m, l, Ic]) => (
                 <button key={m} onClick={() => setPubMode(m)} className="text-xs px-3 py-1 rounded-md font-medium inline-flex items-center gap-1.5"
                   style={{ background: pubMode === m ? 'var(--surface)' : 'transparent', color: pubMode === m ? 'var(--primary)' : 'var(--text-muted)' }}>
@@ -359,26 +400,41 @@ export default function MeuDiaPage() {
                 </button>
               ))}
             </div>
-            {/* Ações rápidas (admin) — fora do Gerenciar, abrem o fluxo direto */}
-            {isAdmin && pubMode !== 'gerenciar' && (
+            {/* Ações rápidas (admin/coordenador/administrativo) — fora do Gerenciar, abrem o fluxo direto */}
+            {canTeam && pubMode !== 'gerenciar' && (
               <div className="flex items-center gap-2 flex-wrap">
-                {([
-                  ['comm', 'Comunicação com cliente', Megaphone],
-                  ['presence', 'Confirmar presença', CalendarDays],
-                  ['poll', 'Nova enquete', BarChart3],
-                ] as [string, string, typeof Megaphone][]).map(([a, l, Ic]) => (
-                  <button key={a} onClick={() => { setPubAction(a); setPubMode('gerenciar') }} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Ic size={14} /> {l}</button>
-                ))}
-                <button onClick={() => { setPubAction('new'); setPubMode('gerenciar') }} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Plus size={14} /> Nova notificação</button>
+                {/* Externo: comunicação com cliente (fica separado) */}
+                <button onClick={() => { setPubAction('comm'); setPubMode('gerenciar') }} className="ds-btn-secondary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Megaphone size={14} /> Comunicação com cliente</button>
+                {/* Interno: Confirmar presença + Nova enquete + Novo Aviso, agrupados num dropdown */}
+                <div className="relative">
+                  <button onClick={() => setPubMenuOpen(o => !o)} className="ds-btn-primary inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"><Send size={14} /> Comunicação Interna <ChevronDown size={13} /></button>
+                  {pubMenuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-[60]" onClick={() => setPubMenuOpen(false)} />
+                      <div className="absolute left-0 top-full mt-1 z-[61] rounded-lg p-1 shadow-xl min-w-[210px]" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                        {([
+                          ['presence', 'Confirmar presença', CalendarDays],
+                          ['poll', 'Nova enquete', BarChart3],
+                          ['new', 'Novo Aviso', Plus],
+                        ] as [string, string, typeof Megaphone][]).map(([a, l, Ic]) => (
+                          <button key={a} onClick={() => { setPubAction(a); setPubMode('gerenciar'); setPubMenuOpen(false) }} className="w-full text-left text-[12px] px-2.5 py-2 rounded-md inline-flex items-center gap-2 ds-row-hover" style={{ color: 'var(--text)' }}><Ic size={13} style={{ color: 'var(--primary)' }} /> {l}</button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             )}
             {pubMode === 'mural' ? <PublicacoesView scope="feed" />
-              : isAdmin && pubMode === 'criadas' ? <PublicacoesView scope="all" />
-              : isAdmin && pubMode === 'gerenciar' ? <NotificationAdmin onChanged={load} initialAction={pubAction} onActionConsumed={() => setPubAction(null)} />
+              : canTeam && pubMode === 'criadas' ? <PublicacoesView scope="all" />
+              : canTeam && pubMode === 'gerenciar' ? <NotificationAdmin onChanged={load} initialAction={pubAction} onActionConsumed={() => setPubAction(null)} />
               : <PublicacoesView scope="mine" />}
           </div>
         )}
       </div>
+
+      <TimesheetFormModal open={tsOpen} onClose={() => setTsOpen(false)} onSaved={() => { setTsOpen(false); load() }} currentUser={user} />
+      <ExpenseQuickModal open={expOpen} onClose={() => setExpOpen(false)} onSaved={() => { setExpOpen(false); load() }} currentUser={user} />
     </AppLayout>
   )
 }

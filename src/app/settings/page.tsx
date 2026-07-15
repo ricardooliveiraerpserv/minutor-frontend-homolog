@@ -147,6 +147,8 @@ function GeneralTab() {
         </div>
       </section>
 
+      {/* Som do chat foi movido para Configurações BOT → aba "Som". */}
+
       <OpenPeriodsPanel />
 
       <section>

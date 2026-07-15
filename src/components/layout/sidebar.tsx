@@ -59,9 +59,11 @@ import {
   ListTodo,
   Radar,
   SlidersHorizontal,
+  Eye,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, secureUrl } from '@/lib/api'
+import { AuthedImg } from '@/components/ui/authed-img'
 import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LucideIcon } from 'lucide-react'
@@ -83,7 +85,7 @@ type NavItem = {
   icon: LucideIcon
   matchPaths?: string[]
   exactMatch?: boolean
-  badge?: 'tasks' | 'notifications' | 'critical'   // indicador de ação na navegação
+  badge?: 'tasks' | 'notifications' | 'critical' | 'comunicados'   // indicador de ação na navegação
   module?: ModuleId
   catalogKey?: string   // key do catálogo (Configurador)
   // Visível em qualquer módulo (ignora o filtro de módulo) — p/ itens de sistema
@@ -193,6 +195,8 @@ function filterNavByModule(
 
 // Meus Cards e Capacidade ainda em desenvolvimento — só DEV1
 const IS_DEV1 = false  // experimentais desligados (localhost tem APP_ENV=dev só p/ faixa)
+// "Ver como" (impersonation): ferramenta SÓ da Replica (APP_ENV=local). Fora dela nem aparece.
+const IS_REPLICA = process.env.NEXT_PUBLIC_APP_ENV === 'local'
 
 // Itens "home" — Meu Dia agrupa as abas (Notificações/Tarefas/Publicações/Config) internamente.
 // Badge "critical" aparece quando há tarefa atrasada (gatilho de ação sempre visível).
@@ -235,11 +239,15 @@ const NAV: NavEntry[] = [
 
   // ── ⚙️ CONFIGURADOR (associado via catálogo; aparece no módulo Configurador) ──
   { type: 'item', label: 'Configurador de Menus', href: '/configurador', icon: SlidersHorizontal, catalogKey: 'configurador' },
+  { type: 'item', label: 'Empresas do Grupo', href: '/configuracoes/empresas', icon: Building2, catalogKey: 'configuracoes_empresas' },
 
   // ── 🤖 BOT MINUTOR — telas configuráveis pelo Configurador (acesso por perfil/usuário) ──
   { type: 'item', label: 'Feed Operacional', href: '/feed-operacional',          icon: Activity,       catalogKey: 'bot_minutor' },
   { type: 'item', label: 'Chat',             href: '/inbox',                     icon: MessageCircle,  catalogKey: 'bot_minutor' },
   { type: 'item', label: 'BOT Minutor',      href: '/configuracoes/bot-minutor', icon: Settings,       catalogKey: 'bot_minutor' },
+
+  // 👁 "Ver como" agora é item do CONFIGURADOR (módulo Administrativo › Sistema, só Replica) —
+  // gerenciável pela árvore. Não é mais hardcoded aqui.
 
   // ── 🛠 SERVIÇOS ──
   {
@@ -472,12 +480,20 @@ const iconByName = (name?: string): LucideIcon =>
 
 // href (sem query) → ícone, varrendo o NAV hardcoded p/ preservar os ícones das telas.
 const HREF_ICON: Record<string, LucideIcon> = {}
+// Registra a href COMPLETA (com query) e também a base (sem query, 1º vence).
+// Sem a chave completa, telas /cadastros?tab=* colapsavam todas no ícone do 1º
+// item /cadastros (Executivos = Star) — todas apareciam com estrela.
+const putIcon = (href: string, icon: LucideIcon) => {
+  if (!HREF_ICON[href]) HREF_ICON[href] = icon
+  const base = href.split('?')[0]
+  if (!HREF_ICON[base]) HREF_ICON[base] = icon
+}
 ;(function collect(entries: NavEntry[]) {
   for (const e of entries) {
-    if (e.type === 'item') { const k = e.href.split('?')[0]; if (!HREF_ICON[k]) HREF_ICON[k] = e.icon }
+    if (e.type === 'item') putIcon(e.href, e.icon)
     else for (const it of e.items) {
-      if ('href' in it) { const k = it.href.split('?')[0]; if (!HREF_ICON[k]) HREF_ICON[k] = it.icon }
-      else for (const s of it.items) { const k = s.href.split('?')[0]; if (!HREF_ICON[k]) HREF_ICON[k] = s.icon }
+      if ('href' in it) putIcon(it.href, it.icon)
+      else for (const s of it.items) putIcon(s.href, s.icon)
     }
   }
 })(NAV)
@@ -486,8 +502,12 @@ type ItemConfMap = Record<string, { modules: string[]; active: boolean; profiles
 
 // Perfis EFETIVOS do usuário: coordenador é separado por coordinator_type
 // (coordenador_projetos | coordenador_sustentacao); mantém 'coordenador' p/ compat.
-function effectiveProfiles(type?: string | null, coord?: string | null): string[] {
-  if (type === 'coordenador') return ['coordenador', `coordenador_${coord ?? 'projetos'}`]
+function effectiveProfiles(u?: { type?: string | null; coordinator_type?: string | null; consultant_type?: string | null; is_executive?: boolean | null } | null): string[] {
+  const type = u?.type
+  if (type === 'coordenador') return ['coordenador', `coordenador_${u?.coordinator_type ?? 'projetos'}`]
+  // Espelha User::effectiveProfiles do backend: consultor por vínculo, parceiro por is_executive.
+  if (type === 'consultor' && u?.consultant_type) return ['consultor', `consultor_${u.consultant_type}`]
+  if (type === 'parceiro_admin') return ['parceiro_admin', u?.is_executive ? 'parceiro_gestor' : 'parceiro_simples']
   return type ? [type] : []
 }
 
@@ -507,13 +527,25 @@ function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], item
   }
   const keep = (href: string) => itemConfig[href]?.active !== false
   const lbl = (href: string) => itemConfig[href]?.label || CATALOG_LABEL[href] || href
-  const ico = (href: string) => HREF_ICON[href.split('?')[0]] || FileText
-  const link = (n: NavTreeNode): NavLink => ({ label: n.label || lbl(n.screen!), href: n.screen!, icon: ico(n.screen!) })
+  const ico = (href: string) => HREF_ICON[href] || HREF_ICON[href.split('?')[0]] || FileText
+  // Ícone da folha: prioriza o ícone salvo no nó (Configurador), depois o estático
+  // por href (HREF_ICON, sem query), por fim FileText. Sem isso, telas com querystring
+  // (ex.: /cadastros?tab=*) colapsavam todas no mesmo ícone do href base.
+  const leafIco = (n: NavTreeNode): LucideIcon =>
+    (n.icon ? (lucideIcons as Record<string, LucideIcon>)[n.icon] : undefined) || ico(n.screen!)
+  // exactMatch quando o href é PREFIXO de outro href do módulo (ex.:
+  // /relatorios/rentabilidade tem filhos /consultor e /projeto). Sem isso o
+  // pai faz prefix-match e acende junto com o filho ("dois selecionados").
+  const allHrefs: string[] = []
+  const collectHrefs = (ns: NavTreeNode[] = []) => ns.forEach(n => { if (n.screen) allHrefs.push(n.screen.split('?')[0]); collectHrefs(n.children ?? []) })
+  collectHrefs(mod.items ?? [])
+  const needsExact = (href: string) => { const base = href.split('?')[0]; return allHrefs.some(h => h !== base && h.startsWith(base + '/')) }
+  const link = (n: NavTreeNode): NavLink => ({ label: n.label || lbl(n.screen!), href: n.screen!, icon: leafIco(n), exactMatch: needsExact(n.screen!) })
 
   const out: NavEntry[] = []
   for (const n of mod.items ?? []) {
     if (!nodeVis(n)) continue
-    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: n.label || lbl(n.screen), href: n.screen, icon: ico(n.screen) }) }
+    if (n.screen) { if (keep(n.screen)) out.push({ type: 'item', label: n.label || lbl(n.screen), href: n.screen, icon: leafIco(n), exactMatch: needsExact(n.screen) }) }
     else {
       const items: (NavLink | NavSubGroup)[] = []
       for (const c of n.children ?? []) {
@@ -572,7 +604,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const isAdministrativo   = user?.type === 'administrativo'
 
   // Badges de ação na navegação (tarefas atrasadas/pendentes + notificações não lidas) — sempre visíveis.
-  const [badges, setBadges] = useState({ overdue_tasks: 0, pending_tasks: 0, unread_notifications: 0, critical: false })
+  const [badges, setBadges] = useState({ overdue_tasks: 0, pending_tasks: 0, unread_notifications: 0, unread_communications: 0, critical: false })
   useEffect(() => {
     if (isCliente) return
     const fetchBadges = () => api.get<{ data: typeof badges }>('/me/badges').then(r => { if (r.data) setBadges(r.data) }).catch(() => {})
@@ -768,6 +800,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         .filter(([code]) => clienteContractCodes.has(code))
         .map(([, item]) => item)
       const nav: NavEntry[] = [
+        { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone, badge: 'comunicados' },
         { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2 },
         { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone },
         { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid },
@@ -845,7 +878,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   // prefixados, sem duplicar telas que já estão na árvore.
   const moduleNav = useMemo(() => {
     if (isCliente || !selectedModule || allowedModules.length <= 1) return visibleNav
-    const eff = effectiveProfiles(user?.type, user?.coordinator_type)
+    const eff = effectiveProfiles(user)
     const built = buildModuleNav(selectedModule, navModules, itemConfig, eff, user?.id ?? 0)
     if (built.length === 0) return visibleNav
     const builtHrefs = new Set<string>()
@@ -861,7 +894,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     const home: NavEntry[] = []
     for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
     return [...home, ...built]
-  }, [visibleNav, selectedModule, allowedModules, navModules, itemConfig, user?.type, user?.coordinator_type, user?.id, isCliente])
+  }, [visibleNav, selectedModule, allowedModules, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,
   // sem fechar os já abertos manualmente.
@@ -1027,7 +1060,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
                 className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold shrink-0"
                 style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
               >
-                {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : initials}
+                {avatarUrl ? <AuthedImg src={avatarUrl} alt="" className="w-full h-full object-cover" fallback={initials} /> : initials}
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold truncate leading-tight" style={{ color: 'var(--text)' }}>{user.name}</p>
@@ -1047,7 +1080,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
               className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold mx-auto"
               style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
             >
-              {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : initials}
+              {avatarUrl ? <AuthedImg src={avatarUrl} alt="" className="w-full h-full object-cover" fallback={initials} /> : initials}
             </div>
           )}
         </div>
@@ -1086,12 +1119,14 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         {navToRender.map(entry => {
           // ── Plain item ──
           if (entry.type === 'item') {
-            const active = isActive(entry.href, entry.matchPaths)
+            const active = isActive(entry.href, entry.matchPaths, entry.exactMatch)
             const Icon   = entry.icon
             // Badge de ação: vermelho (tarefas atrasadas/pendentes), amarelo (notificações não lidas).
             const badgeCount = entry.badge === 'tasks' ? (badges.overdue_tasks || badges.pending_tasks)
-              : entry.badge === 'notifications' ? badges.unread_notifications : 0
-            const badgeColor = entry.badge === 'tasks' ? 'var(--danger-border)' : 'var(--warning-border)'
+              : entry.badge === 'notifications' ? badges.unread_notifications
+              : entry.badge === 'comunicados' ? badges.unread_communications : 0
+            const badgeColor = entry.badge === 'tasks' ? 'var(--danger-border)'
+              : entry.badge === 'comunicados' ? 'var(--primary)' : 'var(--warning-border)'
             const isCriticalDay = entry.badge === 'critical' && badges.critical
             const item = (
               <Link

@@ -25,8 +25,10 @@ import { ExpenseHoverTooltip, useExpenseHover } from '@/components/ui/timesheet-
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
 import { MultiSelect } from '@/components/ui/multi-select'
 import { useAuth } from '@/hooks/use-auth'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { useTableSort } from '@/hooks/use-table-sort'
+import type { PortalDate } from '@/lib/portal-date'
 import * as XLSX from 'xlsx'
 
 // FASE 11.2.FE — Helper centralizado em src/lib/attachments.ts.
@@ -44,12 +46,12 @@ function ReceiptLink({ url }: { url: string }) {
     <div className="flex items-center gap-2">
       <button type="button" onClick={() => handle(false)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary-soft)' }}>
+        style={{ background: 'var(--primary-soft)', color: 'var(--primary)', border: '1px solid var(--primary)' }}>
         <Eye size={11} /> {loading ? 'Carregando...' : 'Visualizar'}
       </button>
       <button type="button" onClick={() => handle(true)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-light)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        style={{ background: 'var(--surface-hover)', color: 'var(--text-light)', border: '1px solid var(--border)' }}>
         <Download size={11} /> Baixar
       </button>
     </div>
@@ -59,10 +61,10 @@ function ReceiptLink({ url }: { url: string }) {
 // ─── Expense detail helpers ───────────────────────────────────────────────────
 
 const EXP_STATUS_CONF: Record<string, { bg: string; color: string; label: string }> = {
-  pending:              { bg: 'rgba(234,179,8,0.12)',  color: '#EAB308', label: 'Pendente' },
-  approved:             { bg: 'rgba(34,197,94,0.12)',  color: '#22C55E', label: 'Aprovado' },
-  rejected:             { bg: 'rgba(239,68,68,0.12)',  color: '#EF4444', label: 'Rejeitado' },
-  adjustment_requested: { bg: 'rgba(249,115,22,0.12)', color: '#F97316', label: 'Ajuste Solicitado' },
+  pending:              { bg: 'var(--warning-bg)',  color: 'var(--warning-border)', label: 'Pendente' },
+  approved:             { bg: 'var(--success-bg)',  color: 'var(--success-border)', label: 'Aprovado' },
+  rejected:             { bg: 'var(--danger-bg)',  color: 'var(--danger-border)', label: 'Rejeitado' },
+  adjustment_requested: { bg: 'var(--warning-bg)', color: 'var(--warning-border)', label: 'Ajuste Solicitado' },
 }
 const EXP_TYPE_LABEL: Record<string, string> = {
   reimbursement:  'Reembolso',
@@ -158,10 +160,10 @@ function SearchSelect({ value, onChange, options, placeholder }: {
 }
 
 const STATUS_CLASS: Record<string, string> = {
-  pending:              'bg-[var(--warning-bg)] text-[var(--warning)] border-yellow-500/30',
-  approved:             'bg-[var(--success-bg)] text-[var(--success)] border-green-500/30',
-  rejected:             'bg-[var(--danger-bg)] text-[var(--danger)] border-red-500/30',
-  adjustment_requested: 'bg-[var(--warning-bg)] text-[var(--warning)] border-orange-500/30',
+  pending:              'bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning-border)]',
+  approved:             'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]',
+  rejected:             'bg-[var(--danger-bg)] text-[var(--danger)] border-[var(--danger-border)]',
+  adjustment_requested: 'bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning-border)]',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -287,7 +289,7 @@ function DateRangePicker({ from, to, onChange }: {
                 onMouseLeave={() => setHover(null)}
                 onClick={() => handleDay(d)}
                 className={`h-7 w-full text-xs transition-colors rounded ${
-                  s || e ? 'bg-[var(--primary)] text-[var(--primary-fg)] font-bold'
+                  s || e ? 'bg-[var(--primary)] text-[var(--bg)] font-bold'
                   : ir    ? 'bg-[var(--primary-soft)] text-[var(--primary)]'
                   : td    ? 'text-[var(--primary)] font-semibold hover:bg-[var(--surface-hover)]'
                   :         'text-[var(--text)] hover:bg-[var(--surface-hover)]'
@@ -311,7 +313,7 @@ function DateRangePicker({ from, to, onChange }: {
   return (
     <>
       <button ref={btnRef} type="button" onClick={toggle}
-        className={`flex items-center gap-2 h-8 px-3 bg-[var(--surface-hover)] border text-xs rounded-md hover:border-[var(--border-strong)] transition-colors whitespace-nowrap ${from || to ? 'border-cyan-500/50 text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>
+        className={`flex items-center gap-2 h-8 px-3 bg-[var(--surface-hover)] border text-xs rounded-md hover:border-[var(--border-strong)] transition-colors whitespace-nowrap ${from || to ? 'border-[var(--primary)] text-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}>
         <CalendarDays size={12} className={from || to ? 'text-[var(--primary)]' : 'text-[var(--text-light)]'} />
         {displayText}
         {(from || to) && (
@@ -415,9 +417,10 @@ function RowMenu({ items }: { items: RowMenuItem[] }) {
 export interface ExpensesScreenProps {
   scope?: 'sustentacao'
   embedded?: boolean
+  extDate?: PortalDate
 }
 
-export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
+export function ExpensesScreen({ scope, embedded, extDate }: ExpensesScreenProps = {}) {
   const { user } = useAuth()
   const isCoordenador    = user?.type === 'coordenador'
   const isAdmin          = user?.type === 'admin'
@@ -425,8 +428,15 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   const canActAsUser     = isAdmin || isCoordenador || isAdministrativo
   const isCliente        = user?.type === 'cliente'
   const canPay           = isAdmin || isAdministrativo
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView   = isDenied('/expenses', 'view')
+  const dEdit   = isDenied('/expenses', 'edit')
+  const dDelete = isDenied('/expenses', 'delete')
+  const dPay    = isDenied('/expenses', 'pay')
+  const dReopen = isDenied('/expenses', 'reopen')
   // Chip "Meus projetos / Todos" pra coordenador (idem Apontamentos / Demandas).
-  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>('meus')
+  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>(scope === 'sustentacao' ? 'todos' : 'meus')
 
   const { filters: flt, set: setFilter, clear: clearPersistedFilters } = usePersistedFilters(
     'expenses',
@@ -466,6 +476,23 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   const setContractTypeId = (v: string)                     => setFilter('contractTypeId', v)
   const setCategoriaServico = (v: '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento') => setFilter('categoriaServico', v)
 
+  // Portal (embedded): usa o filtro de data DE CIMA do portal e esconde o interno (um filtro só).
+  useEffect(() => {
+    if (!extDate) return
+    setFilterMode(extDate.mode)
+    if (extDate.mode === 'month') {
+      if (extDate.month && extDate.year) {
+        const mm = String(extDate.month).padStart(2, '0')
+        const last = new Date(extDate.year, extDate.month, 0).getDate()
+        setRefMonth(extDate.month); setRefYear(extDate.year)
+        setDateFrom(`${extDate.year}-${mm}-01`); setDateTo(`${extDate.year}-${mm}-${String(last).padStart(2, '0')}`)
+      } else { setRefMonth(null); setRefYear(null); setDateFrom(''); setDateTo('') }
+    } else {
+      setRefMonth(null); setRefYear(null); setDateFrom(extDate.from ?? ''); setDateTo(extDate.to ?? '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extDate?.mode, extDate?.month, extDate?.year, extDate?.from, extDate?.to])
+
   const [data, setData] = useState<PaginatedResponse<Expense> | null>(null)
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; item?: Expense }>({ open: false })
@@ -481,6 +508,9 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   const [receipt, setReceipt] = useState<File | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [projects, setProjects] = useState<SelectOption[]>([])
+  // Projetos reais do investimento: só os escolhidos p/ este consultor na Alocação
+  // (endpoint real-project-options, com fallback p/ todos os reais do cliente).
+  const [realProjects, setRealProjects] = useState<SelectOption[]>([])
   const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; id?: number }>({ open: false })
   const [viewItem,       setViewItem]       = useState<Expense | null>(null)
   const [customers,        setCustomers]        = useState<SelectOption[]>([])
@@ -626,6 +656,24 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
   // ERPSERV (empresa própria): investimento interno não pede Projeto Real (sem projeto de cliente real).
   const selectedCustomer = (customers as any[]).find(c => String(c.id) === form.customer_id)
   const isErpservCustomer = String(selectedCustomer?.name ?? '').trim().toUpperCase() === 'ERPSERV'
+
+  // Carrega os "Projetos Reais" do investimento selecionado: SÓ os escolhidos p/ este
+  // consultor na Alocação (mesmo modelo do apontamento). Endpoint real-project-options.
+  useEffect(() => {
+    if (!modal.open || !form.project_id) { setRealProjects([]); return }
+    const sel = (projects as any[]).find(p => String(p.id) === form.project_id)
+    const isInvest = !!sel?.is_investimento_comercial && !isErpservCustomer
+    if (!isInvest) { setRealProjects([]); return }
+    let cancelled = false
+    const rq = new URLSearchParams()
+    // Despesa de outro consultor (admin/coord/adm agindo em nome de).
+    if (canActAsUser && form.user_id && form.user_id !== String(user?.id)) rq.set('user_id', form.user_id)
+    api.get<{ items: any[] }>(`/projects/${form.project_id}/real-project-options?${rq}`)
+      .then(r => { if (!cancelled) setRealProjects(Array.isArray(r?.items) ? r.items as any[] : []) })
+      .catch(() => { if (!cancelled) setRealProjects([]) })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modal.open, form.project_id, form.user_id, isErpservCustomer])
 
   // Sub-1 Despesas CRUD (Cat B — REGRA DO DINHEIRO: nunca otimista). useAsyncAction + apiMessage.
   // fetch cru mantido: multipart + _method=PUT é o workaround do Laravel p/ upload em edição (useCrudActions não cobre).
@@ -820,6 +868,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
+            {!extDate && (<>
             <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
               {(['month', 'period'] as const).map((mode) => (
                 <button key={mode} onClick={() => setFilterMode(mode)}
@@ -850,11 +899,12 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 onChange={(f, t) => { setDateFrom(f); setDateTo(t); setRefMonth(null); setRefYear(null); setPage(1) }}
               />
             )}
+            </>)}
             {!isCliente && ([
-              { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
+              { id: 'sustentacao',  label: 'Sustentação', color: 'var(--warning-border)',            bg: 'var(--warning-bg)',  border: 'var(--warning-border)' },
               { id: 'projeto',      label: 'Projeto',     color: 'var(--primary)',            bg: 'var(--primary-soft)',   border: 'var(--primary)' },
-              { id: 'bizify',       label: 'Bizify',      color: '#a78bfa',            bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },
-              { id: 'investimento', label: 'Investimento', color: '#ef4444',           bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)' },
+              { id: 'bizify',       label: 'Bizify',      color: 'var(--brand-purple)',            bg: 'rgba(167,139,250,0.12)', border: 'var(--brand-purple)' },
+              { id: 'investimento', label: 'Investimento', color: 'var(--danger-border)',           bg: 'var(--danger-bg)',   border: 'var(--danger-border)' },
             ] as const).map(opt => {
               const active = (categoriaServico || '') === opt.id
               return (
@@ -871,7 +921,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             {(customerIds.length > 0 || projectId || userIds.length > 0 || coordinatorIds.length > 0 || executiveIds.length > 0 || contractTypeId || dateFrom || dateTo) && (
               <button onClick={() => clearPersistedFilters()}
                 className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs transition-all hover:bg-[var(--surface-hover)]"
-                style={{ color: 'var(--danger-border)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                style={{ color: 'var(--danger-border)', border: '1px solid var(--danger-border)' }}>
                 <X size={11} /> Limpar
               </button>
             )}
@@ -939,7 +989,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                   <button key={s.value} onClick={() => { setIsPaidFilter(s.value); setPage(1) }}
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                     style={isPaidFilter === s.value
-                      ? { background: s.value === 'true' ? '#3f3f46' : 'var(--primary)', color: s.value === 'true' ? '#a1a1aa' : '#0A0A0B' }
+                      ? { background: s.value === 'true' ? 'var(--surface-hover)' : 'var(--primary)', color: s.value === 'true' ? 'var(--text-muted)' : 'var(--bg)' }
                       : { color: 'var(--text-muted)', background: 'transparent' }
                     }>
                     {s.label}
@@ -983,18 +1033,18 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                     <Td className="w-10">
                       <div onClick={e => e.stopPropagation()}>
                       <RowMenu items={[
-                        { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) },
+                        ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) }]),
                         ...(canEdit(exp) ? [
-                          { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) },
-                          { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true },
+                          ...(dEdit ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) }]),
+                          ...(dDelete ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true }]),
                         ] : []),
                         ...(exp.receipt_url ? [
                           { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
                         ] : []),
-                        ...(canPay && (exp.status === 'approved' || exp.is_paid) ? [
+                        ...(!dPay && canPay && (exp.status === 'approved' || exp.is_paid) ? [
                           { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
                         ] : []),
-                        ...(canPay && exp.status === 'approved' && !exp.is_paid ? [
+                        ...(!dReopen && canPay && exp.status === 'approved' && !exp.is_paid ? [
                           { label: 'Estornar Aprovação', icon: <Undo2 size={12} />, onClick: () => setRevertTarget(exp), danger: true },
                         ] : []),
                       ]} />
@@ -1029,10 +1079,10 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                   {!isCliente && (
                     <Td>
                       {exp.is_paid
-                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-[var(--success)]">Pago</span>
+                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--success-bg)] text-[var(--success)]">Pago</span>
                         : (exp.user?.partner_id != null && exp.status === 'approved')
-                          ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-[var(--success)]">Pago no fechamento</span>
-                          : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-950 text-[var(--warning)]">Em aberto</span>
+                          ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--success-bg)] text-[var(--success)]">Pago no fechamento</span>
+                          : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--warning-bg)] text-[var(--warning)]">Em aberto</span>
                       }
                     </Td>
                   )}
@@ -1080,18 +1130,18 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                     {!isCliente && (
                       <div onClick={e => e.stopPropagation()}>
                         <RowMenu items={[
-                          { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) },
+                          ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewItem(exp) }]),
                           ...(canEdit(exp) ? [
-                            { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) },
-                            { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true },
+                            ...(dEdit ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(exp) }]),
+                            ...(dDelete ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(exp.id), danger: true }]),
                           ] : []),
                           ...(exp.receipt_url ? [
                             { label: 'Ver Comprovante', icon: <Paperclip size={12} />, onClick: () => openReceipt(exp.receipt_url!) },
                           ] : []),
-                          ...(canPay && (exp.status === 'approved' || exp.is_paid) ? [
+                          ...(!dPay && canPay && (exp.status === 'approved' || exp.is_paid) ? [
                             { label: exp.is_paid ? 'Desmarcar Pago' : 'Marcar como Pago', icon: <DollarSign size={12} />, onClick: () => togglePaid(exp) },
                           ] : []),
-                          ...(canPay && exp.status === 'approved' && !exp.is_paid ? [
+                          ...(!dReopen && canPay && exp.status === 'approved' && !exp.is_paid ? [
                             { label: 'Estornar Aprovação', icon: <Undo2 size={12} />, onClick: () => setRevertTarget(exp), danger: true },
                           ] : []),
                         ]} />
@@ -1120,10 +1170,10 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                       <Badge variant={exp.status as any}>{STATUS_LABEL[exp.status] ?? exp.status}</Badge>
                     </ReasonTooltip>
                     {exp.is_paid
-                      ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-[var(--success)]">Pago</span>
+                      ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--success-bg)] text-[var(--success)]">Pago</span>
                       : (exp.user?.partner_id != null && exp.status === 'approved')
-                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-[var(--success)]">Pago no fechamento</span>
-                        : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-950 text-[var(--warning)]">Em aberto</span>
+                        ? <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--success-bg)] text-[var(--success)]">Pago no fechamento</span>
+                        : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[var(--warning-bg)] text-[var(--warning)]">Em aberto</span>
                     }
                   </div>
                 )}
@@ -1148,7 +1198,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
       {modal.open && (
         <ModalOverlay onClose={() => setModal({ open: false })}>
           <div className="p-5">
-            <h3 className="text-sm font-semibold text-white mb-4">{modal.item ? 'Editar Despesa' : 'Nova Despesa'}</h3>
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-4">{modal.item ? 'Editar Despesa' : 'Nova Despesa'}</h3>
             <div className="space-y-3">
               {canActAsUser && (
                 <div>
@@ -1194,25 +1244,27 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 </div>
               </div>
 
-              {/* Projeto Real — só para projetos de INVESTIMENTO (despesa contabiliza no investimento). */}
+              {/* Projeto Real — só para projetos de INVESTIMENTO (despesa contabiliza no investimento).
+                  realProjects já vem filtrado do backend: só os reais escolhidos p/ este consultor. */}
               {(() => {
                 const sel = (projects as any[]).find(p => String(p.id) === form.project_id)
                 if (!sel?.is_investimento_comercial || isErpservCustomer) return null
-                const soSustentacao = sel?.categoria_interna === 'Suporte'
-                const realOpts = (projects as any[]).filter(p => {
-                  if (p.is_investimento_comercial || String(p.id) === form.project_id) return false
-                  if (soSustentacao && p.service_type?.code !== 'sustentacao') return false
-                  return true
-                })
+                const realOpts = (realProjects as any[]).filter(p => String(p.id) !== form.project_id)
+                const semReais = realOpts.length === 0
                 return (
                   <div>
-                    <Label className="text-xs text-[var(--text-muted)]">Projeto Real *{soSustentacao ? ' (Sustentação)' : ''}</Label>
+                    <Label className="text-xs text-[var(--text-muted)]">Projeto Real *</Label>
+                    {semReais && (
+                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--warning)' }}>
+                        Nenhum projeto real disponível para este cliente.
+                      </p>
+                    )}
                     <div className="mt-1">
                       <SearchSelect
                         value={form.real_project_id}
                         onChange={v => setForm(f => ({ ...f, real_project_id: v }))}
                         options={realOpts}
-                        placeholder="Selecione o projeto real..."
+                        placeholder={semReais ? 'Nenhum projeto real disponível' : 'Selecione o projeto real...'}
                       />
                     </div>
                   </div>
@@ -1233,18 +1285,18 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
                   <Input type="date" value={form.expense_date} onChange={e => setForm(f => ({ ...f, expense_date: e.target.value }))}
-                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                 </div>
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Valor *</Label>
                   <Input type="number" min="0.01" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                 </div>
               </div>
               <div>
                 <Label className="text-xs text-[var(--text-muted)]">Descrição *</Label>
                 <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
               </div>
               <div>
                 <Label className="text-xs text-[var(--text-muted)]">Comprovante</Label>
@@ -1260,7 +1312,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
             <div className="flex gap-2 mt-5 justify-end">
               <UIButton variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</UIButton>
               <UIButton onClick={save} disabled={saving || !form.project_id || !form.expense_category_id || !form.expense_date || !form.amount || !form.description}
-                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                 {saving ? 'Salvando...' : 'Salvar'}
               </UIButton>
             </div>
@@ -1292,16 +1344,16 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
         <ModalOverlay onClose={() => setPaidBlockModal({ open: false })}>
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-950 flex items-center justify-center">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[var(--warning-bg)] flex items-center justify-center">
                 <AlertTriangle size={18} className="text-[var(--warning)]" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-white">Pagamento não permitido</h3>
+                <h3 className="text-sm font-semibold text-[var(--text)]">Pagamento não permitido</h3>
                 <p className="text-xs text-[var(--text-light)] mt-0.5">Despesa pendente de aprovação</p>
               </div>
             </div>
             <p className="text-sm text-[var(--text)] mb-2">
-              Esta despesa ainda não foi aprovada e <strong className="text-white">não pode ser marcada como paga</strong>.
+              Esta despesa ainda não foi aprovada e <strong className="text-[var(--text)]">não pode ser marcada como paga</strong>.
             </p>
             <p className="text-sm text-[var(--text-light)] mb-6">
               O pagamento só pode ser registrado após a aprovação pelo gestor responsável. Solicite a aprovação antes de efetuar o pagamento.
@@ -1327,18 +1379,18 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
         <ModalOverlay onClose={() => setRevertTarget(null)}>
           <div className="p-6 space-y-5">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(249,115,22,0.12)' }}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--warning-bg)' }}>
                 <Undo2 size={16} color="#F97316" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Estornar Aprovação</h3>
+                <h3 className="text-base font-bold text-[var(--text)]">Estornar Aprovação</h3>
                 <p className="text-xs text-[var(--text-light)]">
                   Despesa #{revertTarget.id} · {revertTarget.formatted_amount}
                 </p>
               </div>
             </div>
-            <div className="rounded-xl p-3 text-sm" style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.2)' }}>
-              <p style={{ color: '#F97316' }}>
+            <div className="rounded-xl p-3 text-sm" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+              <p style={{ color: 'var(--warning-border)' }}>
                 Esta ação irá reverter a aprovação, retornando a despesa ao status <strong>pendente</strong>.
               </p>
             </div>
@@ -1353,7 +1405,7 @@ export function ExpensesScreen({ scope, embedded }: ExpensesScreenProps = {}) {
                 onClick={submitRevert}
                 disabled={reverting}
                 className="flex-1 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                style={{ background: 'rgba(249,115,22,0.15)', color: '#F97316', border: '1px solid rgba(249,115,22,0.3)' }}
+                style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)', border: '1px solid var(--warning-border)' }}
               >
                 {reverting
                   ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />

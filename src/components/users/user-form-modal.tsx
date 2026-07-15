@@ -41,8 +41,10 @@ interface UserData {
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
   is_bizify?: boolean
+  home_company_id?: number | null
   is_diretor_projetos?: boolean
   is_coordinator?: boolean
+  is_bizify_coordinator?: boolean
   full_name?: string | null
   cpf?: string | null
   matricula?: string | null
@@ -285,7 +287,7 @@ function ConsultantTypeCard({
 
         {/* Opções dentro do mesmo card */}
         {open && (
-          <div className="border-t border-[var(--border)]/60 px-2 pb-2 pt-1.5 space-y-1">
+          <div className="border-t border-[var(--border)] px-2 pb-2 pt-1.5 space-y-1">
             {CONSULTANT_OPTIONS.map(opt => (
               <button key={opt.value} type="button"
                 onClick={() => { onChange(opt.value); setOpen(false) }}
@@ -337,8 +339,10 @@ const EMPTY_FORM = {
   extra_permissions: [] as string[],
   can_timesheet_sustentacao: false,
   is_bizify: false,
+  home_company_id: null,
   is_diretor_projetos: false,
   is_coordinator: false,
+  is_bizify_coordinator: false,
   // Folha de pagamento
   full_name: '',
   cpf: '',
@@ -372,6 +376,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [partners,  setPartners]  = useState<PartnerOption[]>([])
+  const [companies, setCompanies] = useState<{ id: number; name: string }[]>([])
   const [form,    setForm]    = useState({ ...EMPTY_FORM })
   // Usuário em edição (prefill) — equivale a `modal.item` da página de Usuários.
   const [editItem, setEditItem] = useState<UserData | null>(null)
@@ -410,6 +415,9 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
     ).catch(() => {})
     api.get<any>('/partners?pageSize=-1').then(r =>
       setPartners(Array.isArray(r?.items) ? r.items : [])
+    ).catch(() => {})
+    api.get<{ data: { id: number; name: string }[] }>('/companies').then(r =>
+      setCompanies(r?.data ?? [])
     ).catch(() => {})
   }, [open])
 
@@ -460,8 +468,10 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           extra_permissions:          item.extra_permissions ?? [],
           can_timesheet_sustentacao:  item.can_timesheet_sustentacao ?? false,
           is_bizify:                  item.is_bizify ?? false,
+          home_company_id:            item.home_company_id ?? null,
           is_diretor_projetos:        item.is_diretor_projetos ?? false,
           is_coordinator:             item.is_coordinator ?? false,
+          is_bizify_coordinator:      item.is_bizify_coordinator ?? false,
           full_name:                  item.full_name ?? '',
           cpf:                        item.cpf ?? '',
           matricula:                  item.matricula ?? '',
@@ -503,9 +513,10 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       }
       if (form.hourly_rate) payload.hourly_rate = parseFloat(form.hourly_rate)
       if (form.daily_hours) payload.daily_hours = parseFloat(form.daily_hours)
-      payload.is_bizify = form.is_bizify
+      payload.home_company_id = form.home_company_id  // empresa da folha (o BE deriva is_bizify)
       payload.is_diretor_projetos = form.is_diretor_projetos
       payload.is_coordinator = form.is_coordinator
+      payload.is_bizify_coordinator = form.is_bizify_coordinator
       if (form.profiles.includes('consultor') && form.consultant_type) {
         payload.consultant_type       = form.consultant_type
         payload.bank_hours_start_date = form.bank_hours_start_date || null
@@ -535,6 +546,8 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         payload.matricula      = form.matricula || null
         payload.birth_date     = form.birth_date || null
         payload.payroll_status = form.payroll_status || PAYROLL_STATUS_DEFAULT
+        // Assinatura padrão (estruturada) — perfis internos (não-cliente).
+        payload.signature = form.signature ?? {}
       }
       // Assinatura padrão (estruturada) — vale p/ perfis internos (não-cliente).
       if (!form.profiles.includes('cliente')) payload.signature = form.signature ?? {}
@@ -634,7 +647,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
   return (
     <ModalOverlay onClose={onClose}>
       <div className="p-5 max-h-[90vh] overflow-y-auto space-y-4">
-        <h3 className="text-sm font-semibold text-white">
+        <h3 className="text-sm font-semibold text-[var(--text)]">
           {isEdit ? 'Editar Usuário' : 'Novo Usuário'}
         </h3>
 
@@ -658,16 +671,16 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                   className={`py-2 px-3 rounded-lg text-xs font-medium border transition-all text-left ${
                     active
                       ? isAdminOption
-                        ? 'bg-[var(--warning-bg)] border-amber-500 text-[var(--warning)]'
-                        : 'bg-[var(--primary-soft)] border-blue-500 text-[var(--primary)]'
+                        ? 'bg-[var(--warning-bg)] border-[var(--warning-border)] text-[var(--warning)]'
+                        : 'bg-[var(--primary-soft)] border-[var(--primary)] text-[var(--primary)]'
                       : isAdminOption
-                        ? 'bg-[var(--surface-hover)] border-amber-800/60 text-[var(--warning)]/80 hover:border-amber-600'
+                        ? 'bg-[var(--surface-hover)] border-[var(--warning-border)] text-[var(--warning)] hover:border-[var(--warning-border)]'
                         : 'bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--border-strong)]'
                   }`}
                 >
                   <span className={`mr-1.5 inline-block w-3 h-3 rounded border text-center leading-[10px] ${
                     active
-                      ? isAdminOption ? 'border-amber-400 bg-[var(--warning-border)] text-white' : 'border-blue-400 bg-[var(--primary)] text-white'
+                      ? isAdminOption ? 'border-[var(--warning-border)] bg-[var(--warning-border)] text-[var(--primary-fg)]' : 'border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-fg)]'
                       : 'border-[var(--border-strong)]'
                   }`}>{active ? '✓' : ''}</span>
                   {opt.label}
@@ -683,12 +696,12 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
             <div>
               <Label className="text-xs text-[var(--text-muted)]">Nome *</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
             </div>
             <div>
               <Label className="text-xs text-[var(--text-muted)]">E-mail *</Label>
               <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
             </div>
             {showAppPassword && (
               <div>
@@ -697,7 +710,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                   onChange={e => setForm(f => ({ ...f, smtp_app_password: e.target.value }))}
                   placeholder={isEdit ? 'Deixe em branco para manter a atual' : ''}
                   autoComplete="off"
-                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                 <p className="mt-1 text-[10px] text-[var(--text-light)]">
                   Senha de aplicativo do Office 365 para enviar os fechamentos a partir do e-mail deste usuário. Deixe em branco para manter a atual.
                 </p>
@@ -709,7 +722,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 <Label className="text-xs text-[var(--text-muted)]">Senha inicial</Label>
                 <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   placeholder="Deixe vazio para gerar automaticamente"
-                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                  className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                 <p className="mt-1 text-[10px] text-[var(--text-light)]">
                   {form.password
                     ? 'O usuário receberá esta senha por e-mail de boas-vindas.'
@@ -720,7 +733,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
             {/* ── Reenviar boas-vindas (apenas edição) ── */}
             {isEdit && canResetPwd && (
-              <div className="border border-[var(--border)]/50 rounded-lg p-3 bg-[var(--surface-hover)] space-y-2">
+              <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-hover)] space-y-2">
                 <p className="text-xs font-medium text-[var(--text)] flex items-center gap-1.5">
                   <Mail size={12} className="text-[var(--primary)]" />
                   Reenviar e-mail de boas-vindas
@@ -731,13 +744,13 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                     value={resendPwd}
                     onChange={e => setResendPwd(e.target.value)}
                     placeholder="Senha predefinida (deixe vazio para gerar nova)"
-                    className="flex-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs"
+                    className="flex-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs"
                   />
                   <button
                     type="button"
                     onClick={resendWelcomeFromModal}
                     disabled={resendingModal}
-                    className="flex items-center gap-1.5 px-3 h-8 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-cyan-500/30 rounded-md text-xs font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
+                    className="flex items-center gap-1.5 px-3 h-8 bg-[var(--primary-soft)] hover:bg-[var(--primary-soft)] text-[var(--primary)] border border-[var(--primary)] rounded-md text-xs font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
                   >
                     <Mail size={11} />
                     {resendingModal ? 'Enviando...' : 'Reenviar'}
@@ -753,7 +766,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
             {/* ── Remuneração (Consultor / Coordenador / Parceiro) ── */}
             {hasRate && isParceiroAdm && partnerIsFixed ? (
-              <div className="text-[10px] text-[var(--text-light)] bg-[var(--surface-hover)] rounded-md px-3 py-2 border border-[var(--border)]/50">
+              <div className="text-[10px] text-[var(--text-light)] bg-[var(--surface-hover)] rounded-md px-3 py-2 border border-[var(--border)]">
                 Valor hora definido pelo parceiro:{' '}
                 <span className="text-[var(--primary)] font-medium">
                   R$ {selectedPartner?.hourly_rate ? Number(selectedPartner.hourly_rate).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '—'}/h
@@ -783,7 +796,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                           onClick={() => setForm(f => ({ ...f, rate_type: t }))}
                           className={`px-3 py-1.5 font-medium transition-colors ${
                             form.rate_type === t
-                              ? 'bg-[var(--primary)] text-white'
+                              ? 'bg-[var(--primary)] text-[var(--primary-fg)]'
                               : 'bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]'
                           }`}>
                           {t === 'hourly' ? 'Por Hora' : 'Fixo'}
@@ -801,7 +814,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                       setForm(f => ({ ...f, hourly_rate: digits === '' ? '' : String(parseInt(digits, 10) / 100) }))
                     }}
                     placeholder="0,00"
-                    className="flex-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs text-right" />
+                    className="flex-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs text-right" />
                   <span className="text-xs text-[var(--text-light)]">R$</span>
                 </div>
               </div>
@@ -815,7 +828,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                   <Input type="number" min="1" max="24" step="0.5" value={form.daily_hours}
                     onChange={e => setForm(f => ({ ...f, daily_hours: e.target.value }))}
                     placeholder="8"
-                    className="w-24 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs" />
+                    className="w-24 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs" />
                   <span className="text-xs text-[var(--text-light)]">h/dia (padrão: 8h)</span>
                 </div>
               </div>
@@ -829,7 +842,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                   type="date"
                   value={form.bank_hours_start_date}
                   onChange={e => setForm(f => ({ ...f, bank_hours_start_date: e.target.value }))}
-                  className="w-44 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs"
+                  className="w-44 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs"
                 />
                 <p className="text-xs text-[var(--text-light)] mt-1">
                   {form.consultant_type === 'banco_de_horas'
@@ -874,7 +887,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                     value={form.guaranteed_hours}
                     onChange={e => setForm(f => ({ ...f, guaranteed_hours: e.target.value }))}
                     placeholder="Ex: 160"
-                    className="w-28 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs" />
+                    className="w-28 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs" />
                   <span className="text-xs text-[var(--text-light)]">h/mês (piso mínimo de cobrança)</span>
                 </div>
                 <p className="text-[10px] text-[var(--text-light)] mt-1">
@@ -893,7 +906,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                       onClick={() => setForm(f => ({ ...f, coordinator_type: val }))}
                       className={`flex-1 px-3 py-2 font-medium transition-colors ${
                         form.coordinator_type === val
-                          ? 'bg-[var(--primary)] text-white'
+                          ? 'bg-[var(--primary)] text-[var(--primary-fg)]'
                           : 'bg-[var(--surface-hover)] text-[var(--text-muted)] hover:text-[var(--text)]'
                       }`}>
                       {label}
@@ -959,32 +972,32 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
 
             {/* ── Folha de pagamento (perfis internos: exceto Cliente/Parceiro) ── */}
             {showPayroll && (
-              <div className="border border-[var(--border)]/50 rounded-lg p-3 bg-[var(--surface-hover)] space-y-3">
+              <div className="border border-[var(--border)] rounded-lg p-3 bg-[var(--surface-hover)] space-y-3">
                 <p className="text-xs font-semibold text-[var(--text)]">Folha de pagamento</p>
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Nome Completo</Label>
                   <Input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
                     placeholder="Nome completo conforme documento"
-                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1">
                     <Label className="text-xs text-[var(--text-muted)]">CPF</Label>
                     <Input value={form.cpf} onChange={e => setForm(f => ({ ...f, cpf: formatCpf(e.target.value) }))}
                       placeholder="000.000.000-00" inputMode="numeric"
-                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                   </div>
                   <div className="w-32">
                     <Label className="text-xs text-[var(--text-muted)]">Matrícula</Label>
                     <Input value={form.matricula} onChange={e => setForm(f => ({ ...f, matricula: e.target.value }))}
                       placeholder="Ex: 26434"
-                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                   </div>
                   <div className="w-40">
                     <Label className="text-xs text-[var(--text-muted)]">Data de nascimento</Label>
                     <Input type="date" value={form.birth_date} onChange={e => setForm(f => ({ ...f, birth_date: e.target.value }))}
                       title="Usada na campanha de aniversário"
-                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                      className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                   </div>
                 </div>
                 <FieldSelect
@@ -1005,13 +1018,25 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
               />
             )}
 
-            {/* ── Funcionário Bizify (separa do resultado ERPSERV no fechamento) ── */}
+            {/* ── Empresa da FOLHA (unifica o legado "Funcionário Bizify"): define em qual
+                   empresa entra a folha/fechamento deste funcionário. O is_bizify deriva daqui. ── */}
             {isConsultor && (
-              <Toggle
-                value={form.is_bizify}
-                onChange={() => setForm(f => ({ ...f, is_bizify: !f.is_bizify }))}
-                label="Funcionário Bizify (sai dos cards ERPSERV e vai pra aba Bizify no fechamento)"
-              />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>
+                  Empresa base
+                </label>
+                <select
+                  value={form.home_company_id ?? ''}
+                  onChange={e => setForm(f => ({ ...f, home_company_id: e.target.value ? Number(e.target.value) : null }))}
+                  className="ds-input"
+                >
+                  <option value="">— selecionar —</option>
+                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  Empresa base do funcionário. <b>Fixos/administrativos</b> apuram por ela; <b>horistas/banco de horas</b> apuram pela empresa do <b>projeto</b> em que atuaram. Vincula automaticamente.
+                </p>
+              </div>
             )}
 
             {/* ── Diretor de Projetos (recebe e-mails das fases do contrato — Triagem) ── */}
@@ -1031,6 +1056,16 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 value={form.is_coordinator}
                 onChange={() => setForm(f => ({ ...f, is_coordinator: !f.is_coordinator }))}
                 label="É coordenador (aparece no Kanban de Contratos e no filtro de coordenadores)"
+              />
+            )}
+            {/* ── Coordenador Bizify? — coordenador/admin/administrativo. Ligado, ganha coluna
+                   própria no Kanban de Contratos SÓ quando a empresa ativa é Bizify (recebe os
+                   contratos SaaS/Bizify que ele coordena). ── */}
+            {form.profiles[0] && ['coordenador', 'admin', 'administrativo'].includes(resolveTypeForBackend(form.profiles[0])) && (
+              <Toggle
+                value={form.is_bizify_coordinator ?? false}
+                onChange={() => setForm(f => ({ ...f, is_bizify_coordinator: !f.is_bizify_coordinator }))}
+                label="Coordenador Bizify? (coluna própria no Kanban quando a empresa ativa é Bizify)"
               />
             )}
 
@@ -1107,7 +1142,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 <div className="text-[12px] font-bold inline-flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
                   <PenLine size={14} /> Assinatura
                 </div>
-                <SignatureEditor value={form.signature} onChange={s => setForm(f => ({ ...f, signature: { ...f.signature, ...s } }))} name={form.name} email={form.email} />
+                <SignatureEditor value={form.signature} onChange={s => setForm(f => ({ ...f, signature: { ...f.signature, ...s } }))} name={form.name} email={form.email} userId={userId ?? 0} />
               </div>
             )}
           </>
@@ -1117,7 +1152,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           <Button variant="outline" onClick={onClose}
             className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
           <Button onClick={() => save()} disabled={saving || !canSave}
-            className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
+            className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
             {saving ? 'Salvando...' : 'Salvar'}
           </Button>
         </div>
@@ -1129,7 +1164,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
       {rateModalOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
-            <p className="text-sm font-semibold text-white mb-3">Vigência da alteração</p>
+            <p className="text-sm font-semibold text-[var(--text)] mb-3">Vigência da alteração</p>
             <p className="text-[13px] leading-relaxed text-[var(--text-muted)] mb-4">
               A partir de qual mês essa alteração (valor hora / tipo) passa a valer? Meses anteriores (fechamentos já feitos) não mudam.
             </p>
@@ -1140,7 +1175,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 value={rateEffectiveMonth}
                 min={new Date().toISOString().slice(0, 7)}
                 onChange={e => setRateEffectiveMonth(e.target.value)}
-                className="bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs"
+                className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
               />
             </div>
             <div className="flex items-center justify-end gap-2">
@@ -1149,7 +1184,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
               <Button
                 onClick={() => { setRateModalOpen(false); save(`${rateEffectiveMonth}-01`) }}
                 disabled={!rateEffectiveMonth}
-                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                 Confirmar
               </Button>
             </div>
@@ -1162,7 +1197,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-lg rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-sm font-semibold text-white">Histórico de valores</p>
+              <p className="text-sm font-semibold text-[var(--text)]">Histórico de valores</p>
               <button onClick={() => setRateHistoryOpen(false)} className="text-[var(--text-light)] hover:text-[var(--text)]">
                 <X size={16} />
               </button>

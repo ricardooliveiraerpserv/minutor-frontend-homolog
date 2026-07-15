@@ -285,8 +285,7 @@ function EditModal({ task, canDelegate, ask, onClose, onSaved }: { task: Task; c
   const [recur, setRecur] = useState(task.recurrence_type)
   const [interval, setIntervalV] = useState(task.recurrence_interval || 1)
   const [weekdays, setWeekdays] = useState<number[]>(task.recurrence_type === 'weekly' ? (task.recurrence_weekdays ?? []) : [])
-  // Diária: por padrão = dias úteis (seg–sex). Marcar "todos os dias" inclui fim de semana.
-  const [allDays, setAllDays] = useState<boolean>(task.recurrence_type === 'daily' && !!task.id && (task.recurrence_weekdays?.length ?? 0) === 0)
+  const [businessOnly, setBusinessOnly] = useState<boolean>(task.recurrence_type === 'daily' && (task.recurrence_weekdays?.length ?? 0) >= 5)
   const [recurEnd, setRecurEnd] = useState(task.recurrence_end_date ?? '')
   const toggleWeekday = (i: number) => setWeekdays(w => w.includes(i) ? w.filter(x => x !== i) : [...w, i].sort((a, b) => a - b))
   const [entType, setEntType] = useState(task.entity_type ?? '')
@@ -301,7 +300,7 @@ function EditModal({ task, canDelegate, ask, onClose, onSaved }: { task: Task; c
   const save = async () => {
     if (!title.trim()) return toast.error('Informe o título.')
     if (recur === 'weekly' && weekdays.length === 0) return toast.error('Selecione ao menos um dia da semana.')
-    const weekdaysPayload = recur === 'weekly' ? weekdays : recur === 'daily' ? (allDays ? [] : [1, 2, 3, 4, 5]) : []
+    const weekdaysPayload = recur === 'weekly' ? weekdays : recur === 'daily' && businessOnly ? [1, 2, 3, 4, 5] : []
     const body = {
       title: title.trim(), due_date: date || null, due_time: time || null, type, priority,
       recurrence_type: recur, recurrence_interval: recur === 'monthly' ? (Number(interval) || 1) : 1,
@@ -380,10 +379,10 @@ function EditModal({ task, canDelegate, ask, onClose, onSaved }: { task: Task; c
               <input type="number" min={1} className={fieldCls} style={inputStyle} value={interval} onChange={e => setIntervalV(Number(e.target.value))} /></div>
           )}
 
-          {/* DIÁRIA: padrão = dias úteis; marcar p/ considerar todos os dias */}
+          {/* DIÁRIA: todo dia, com opção de só dias úteis */}
           {recur === 'daily' && (
             <label className="flex items-center gap-2 text-[13px] cursor-pointer" style={{ color: 'var(--text)' }}>
-              <input type="checkbox" checked={allDays} onChange={e => setAllDays(e.target.checked)} /> Considerar todos os dias <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>(inclui sábado e domingo; desmarcado = seg–sex)</span>
+              <input type="checkbox" checked={businessOnly} onChange={e => setBusinessOnly(e.target.checked)} /> Somente dias úteis <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>(seg–sex)</span>
             </label>
           )}
 

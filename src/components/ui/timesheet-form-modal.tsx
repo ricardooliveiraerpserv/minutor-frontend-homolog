@@ -238,6 +238,28 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.customer_id])
 
+  // Carrega os "Projetos Reais" quando um projeto de INVESTIMENTO é selecionado:
+  // traz SÓ os reais escolhidos para este consultor naquele investimento (definidos
+  // na Alocação do investimento). Endpoint: /projects/{invest}/real-project-options.
+  useEffect(() => {
+    if (!form.project_id) { setRealProjects([]); return }
+    const sel = projects.find(p => String(p.id) === form.project_id) as any
+    const isInvest = !!sel?.is_investimento_comercial && !isErpservCustomer
+      && (sel?.categoria_interna === 'Projeto' || sel?.categoria_interna === 'Suporte')
+    if (!isInvest) { setRealProjects([]); return }
+
+    let cancelled = false
+    const mapProj = (p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type_code ?? p.service_type?.code ?? null, is_investimento_comercial: !!p.is_investimento_comercial, categoria_interna: p.categoria_interna ?? null })
+    const rq = new URLSearchParams()
+    const actingAsOther = canActAsUser && form.user_id && form.user_id !== String(currentUser?.id)
+    if (actingAsOther) rq.set('user_id', form.user_id)
+    api.get<{ items: any[] }>(`/projects/${form.project_id}/real-project-options?${rq}`)
+      .then(r => { if (!cancelled) setRealProjects(Array.isArray(r?.items) ? r.items.map(mapProj) : []) })
+      .catch(() => { if (!cancelled) setRealProjects([]) })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.project_id, form.user_id])
+
   // Auto-calculate times in Horário mode
   useEffect(() => {
     if (useTotal) return
@@ -395,24 +417,32 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               // Comercial nem nos investimentos internos da própria ERPSERV.
               if (!sel?.is_investimento_comercial || isErpservCustomer) return null
               if (!(sel?.categoria_interna === 'Projeto' || sel?.categoria_interna === 'Suporte')) return null
+              // realProjects já vem filtrado do backend: só os reais escolhidos p/ este
+              // consultor neste investimento (endpoint real-project-options, com fallback).
               const soSustentacao = sel?.categoria_interna === 'Suporte'
               const realOpts = realProjects.filter(p => {
                 if ((p as any).is_investimento_comercial || String(p.id) === form.project_id) return false
                 if (soSustentacao && (p as any).service_type_code !== 'sustentacao') return false
                 return true
               })
+              const semReais = realOpts.length === 0
               return (
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Projeto Real *</Label>
                   <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>
-                    Projeto verdadeiro da hora. O apontamento continua contabilizado no investimento; o coordenador do projeto real aprova.{soSustentacao ? ' (apenas projetos de Sustentação)' : ''}
+                    Projeto verdadeiro da hora. O apontamento continua contabilizado no investimento; o coordenador do projeto real aprova.
                   </p>
+                  {semReais && (
+                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--warning)' }}>
+                      Nenhum projeto real disponível para este cliente.
+                    </p>
+                  )}
                   <div className="mt-1">
                     <SearchSelect
                       value={form.real_project_id}
                       onChange={v => setForm(f => ({ ...f, real_project_id: v }))}
                       options={realOpts}
-                      placeholder="Selecione o projeto real..."
+                      placeholder={semReais ? 'Nenhum projeto real disponível' : 'Selecione o projeto real...'}
                     />
                   </div>
                 </div>

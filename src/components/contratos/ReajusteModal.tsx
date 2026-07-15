@@ -24,6 +24,7 @@ export interface ReajusteTarget {
   id: number
   label: string
   periodo?: { inicio: string; fim: string; label: string } | null
+  manual?: boolean
 }
 
 const brl = (v: number | null) =>
@@ -60,6 +61,14 @@ export function ReajusteModal({ target, onClose, onApplied }: {
   const [comunicando, setComunicando] = useState(false)
   // Renovar sem reajuste: só avança o vencimento +1 ano (não mexe no valor).
   const [renovando, setRenovando] = useState(false)
+  // Prévia + corpo editável do e-mail.
+  const [emailPreview, setEmailPreview] = useState<{ subject: string; html: string } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [emailMensagem, setEmailMensagem] = useState('')
+  const [mensagemSeeded, setMensagemSeeded] = useState(false)
+
+  // Base dos endpoints: contrato vs inclusão manual (sem contrato).
+  const base = target.manual ? `/contracts/reajustes/manual/${target.id}` : `/contracts/${target.id}`
 
   const addEmail = () => {
     const e = novoEmail.trim().toLowerCase()
@@ -78,7 +87,7 @@ export function ReajusteModal({ target, onClose, onApplied }: {
     setBuscando(true)
     setPreview(null)
     try {
-      const res = await api.get<Preview>(`/contracts/${target.id}/adjustment-preview?index_type=${idx}`)
+      const res = await api.get<Preview>(`${base}/adjustment-preview?index_type=${idx}`)
       setPreview(res)
       setEmails(res.cliente_emails ?? [])
     } catch (e: unknown) {
@@ -92,7 +101,7 @@ export function ReajusteModal({ target, onClose, onApplied }: {
     if (!preview) return
     setAplicando(true)
     try {
-      await api.post(`/contracts/${target.id}/apply-adjustment`, {
+      await api.post(`${base}/apply-adjustment`, {
         indice: preview.indice,
         percentual: preview.percentual_total ?? preview.percentual,
         periodo_inicio: preview.periodo_inicio ?? preview.periodo.inicio,
@@ -127,14 +136,29 @@ export function ReajusteModal({ target, onClose, onApplied }: {
     if (!emails.length) { toast.error('Informe ao menos um e-mail'); return }
     setComunicando(true)
     try {
-      const res = await api.post<{ emails: string[] }>(`/contracts/${target.id}/notify-client-adjustment`,
-        { emails, salvar })
-      toast.success(`Comunicado enviado (${res.emails.length} destinatário${res.emails.length !== 1 ? 's' : ''})${salvar ? ' · e-mails salvos no cliente' : ''}`)
+      const res = await api.post<{ emails: string[] }>(`${base}/notify-client-adjustment`,
+        { emails, salvar, mensagem: mensagemSeeded ? emailMensagem : undefined })
+      toast.success(`Comunicado enviado (${res.emails.length} destinatário${res.emails.length !== 1 ? 's' : ''})${salvar ? ' · e-mails salvos' : ''}`)
       onClose()
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Erro ao enviar o comunicado')
     } finally {
       setComunicando(false)
+    }
+  }
+
+  const verPrevia = async () => {
+    setPreviewLoading(true)
+    try {
+      const q = mensagemSeeded ? `?mensagem=${encodeURIComponent(emailMensagem)}` : ''
+      const res = await api.get<{ subject: string; html: string; mensagem_padrao?: string }>(`${base}/adjustment-email-preview${q}`)
+      setEmailPreview({ subject: res.subject, html: res.html })
+      // Primeira prévia: semeia o editor com o texto padrão do corpo.
+      if (!mensagemSeeded) { setEmailMensagem(res.mensagem_padrao ?? ''); setMensagemSeeded(true) }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao gerar a prévia do e-mail')
+    } finally {
+      setPreviewLoading(false)
     }
   }
 
@@ -227,8 +251,37 @@ export function ReajusteModal({ target, onClose, onApplied }: {
               </div>
               <label className="flex items-start gap-2 mt-2.5 text-xs cursor-pointer" style={{ color: 'var(--text-muted)' }}>
                 <input type="checkbox" checked={salvar} onChange={e => setSalvar(e.target.checked)} className="mt-0.5" />
-                <span>Salvar estes e-mails no cadastro do cliente (mesma lista do fechamento). <b>Desmarque para envio avulso</b> (não salva).</span>
+                <span>Salvar estes e-mails {target.manual ? 'nesta inclusão manual' : 'no cadastro do cliente'} para os próximos reajustes. <b>Desmarque para envio avulso</b> (não salva).</span>
               </label>
+
+              {/* Prévia do e-mail */}
+              <div className="mt-3">
+                <button onClick={verPrevia} disabled={previewLoading}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+                  style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)' }}>
+                  <Mail size={14} /> {previewLoading ? 'Gerando prévia…' : (emailPreview ? 'Atualizar prévia' : 'Prévia do e-mail')}
+                </button>
+                {mensagemSeeded && (
+                  <div className="mt-2">
+                    <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Corpo do e-mail (editável)</label>
+                    <textarea value={emailMensagem} onChange={e => setEmailMensagem(e.target.value)} rows={5}
+                      className="w-full rounded-lg px-3 py-2 text-sm mt-1" style={{ ...st, resize: 'vertical', fontFamily: 'inherit' }}
+                      placeholder="Texto do comunicado…" />
+                    <p className="text-[11px] mt-1" style={{ color: 'var(--text-light)' }}>
+                      Edite o texto e clique em <b>Atualizar prévia</b>. O quadro de valores e a saudação são fixos.
+                    </p>
+                  </div>
+                )}
+                {emailPreview && (
+                  <div className="mt-2 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                    <div className="px-3 py-2 text-xs font-semibold" style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                      Assunto: <span style={{ color: 'var(--text)' }}>{emailPreview.subject}</span>
+                    </div>
+                    <iframe title="Prévia do e-mail" srcDoc={emailPreview.html}
+                      style={{ width: '100%', height: 320, border: 'none', background: '#fff' }} />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -241,12 +294,14 @@ export function ReajusteModal({ target, onClose, onApplied }: {
               style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
               <X size={15} /> Cancelar
             </button>
-            <button onClick={renovarSemReajuste} disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
-              title="Não reajustar: apenas avança o vencimento do contrato em +1 ano">
-              <CalendarClock size={15} /> {renovando ? 'Renovando…' : 'Renovar sem reajuste (+1 ano)'}
-            </button>
+            {!target.manual && (
+              <button onClick={renovarSemReajuste} disabled={busy}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                title="Não reajustar: apenas avança o vencimento do contrato em +1 ano">
+                <CalendarClock size={15} /> {renovando ? 'Renovando…' : 'Renovar sem reajuste (+1 ano)'}
+              </button>
+            )}
             <button onClick={aplicarReajuste} disabled={!preview || busy}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
               style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>

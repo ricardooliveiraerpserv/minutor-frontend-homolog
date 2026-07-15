@@ -3,6 +3,7 @@ export interface User {
   name: string
   email: string
   profile_photo_url?: string | null
+  modules?: string[] | null   // navegação modular: módulos liberados pro usuário
   type?: string | null
   coordinator_type?: 'projetos' | 'sustentacao' | null
   customer_id?: number | null
@@ -15,6 +16,8 @@ export interface User {
   daily_hours?: number | null
   bank_hours_start_date?: string | null
   guaranteed_hours?: number | null
+  chat_sound?: string | null          // toque global de notificação de chat
+  chat_sound_volume?: number | null   // volume global (0–100)
 }
 
 export interface AuthResponse {
@@ -158,6 +161,9 @@ export interface CustomerFull {
   active: boolean
   executive_id?: number | null
   executive?: Executive
+  executive_bizify_id?: number | null
+  executive_bizify?: Executive
+  is_bizify_customer?: boolean
   created_at: string
 }
 

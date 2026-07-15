@@ -113,9 +113,9 @@ function fmtMin(minutes: number) {
 // < 4h verde | 4-8h amarelo | 8-12h laranja | > 12h vermelho
 function ticketTotalColor(minutes: number): string {
   if (minutes < 240)  return '#10B981'
-  if (minutes < 480)  return '#F59E0B'
+  if (minutes < 480)  return 'var(--warning-border)'
   if (minutes < 720)  return '#F97316'
-  return '#EF4444'
+  return 'var(--danger-border)'
 }
 
 function fmtBRL(val: number) {
@@ -232,10 +232,10 @@ function TsStatusBadge({ status, display }: { status: string; display?: string }
     pending:              'bg-[var(--warning-bg)] text-[var(--warning)] border-yellow-500/20',
     approved:             'bg-[var(--success-bg)]  text-[var(--success)]  border-green-500/20',
     rejected:             'bg-[var(--danger-bg)]    text-[var(--danger)]    border-red-500/20',
-    adjustment_requested: 'bg-[var(--primary-soft)]   text-[var(--primary)]   border-[var(--primary)]/20',
+    adjustment_requested: 'bg-[var(--purple-bg)]   text-[var(--purple)]   border-[var(--purple-border)]/40',
     conflicted:           'bg-[var(--purple-bg)] text-[var(--purple)] border-purple-500/20',
     internal:             'bg-[var(--neutral-bg)]  text-[var(--text-muted)]  border-[var(--border)]',
-    released:             'bg-[var(--primary-soft)]   text-[var(--primary)]   border-[var(--primary)]/20',
+    released:             'bg-[var(--info-bg)]   text-[var(--info)]   border-[var(--info-border)]/40',
   }
   const labels: Record<string, string> = {
     pending: 'Pendente', approved: 'Aprovado', rejected: 'Rejeitado',
@@ -340,8 +340,8 @@ async function openReceiptUrl(url: string) {
 
 const EXP_STATUS_CONF: Record<string, { bg: string; color: string; label: string }> = {
   pending:              { bg: 'rgba(234,179,8,0.12)',  color: '#EAB308', label: 'Pendente' },
-  approved:             { bg: 'rgba(34,197,94,0.12)',  color: '#22C55E', label: 'Aprovado' },
-  rejected:             { bg: 'rgba(239,68,68,0.12)',  color: '#EF4444', label: 'Rejeitado' },
+  approved:             { bg: 'rgba(34,197,94,0.12)',  color: 'var(--success-border)', label: 'Aprovado' },
+  rejected:             { bg: 'rgba(239,68,68,0.12)',  color: 'var(--danger-border)', label: 'Rejeitado' },
   adjustment_requested: { bg: 'rgba(249,115,22,0.12)', color: '#F97316', label: 'Ajuste Solicitado' },
 }
 const EXP_TYPE_LABEL: Record<string, string> = {
@@ -387,7 +387,7 @@ function ExpApproveModal({
   const [adjReason,    setAdjReason]    = useState('')
   const [adjSubmitted, setAdjSubmitted] = useState(false)
 
-  const sc = EXP_STATUS_CONF[item.status] ?? { bg: 'rgba(113,113,122,0.12)', color: '#71717A', label: item.status }
+  const sc = EXP_STATUS_CONF[item.status] ?? { bg: 'rgba(113,113,122,0.12)', color: 'var(--text-light)', label: item.status }
 
   const handleApprove = () => {
     setSubmitted(true)
@@ -530,7 +530,7 @@ function ExpApproveModal({
                   Cancelar
                 </button>
                 <button onClick={handleApprove} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-green-600 hover:bg-[var(--success-border)] text-white disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-green-600 hover:bg-[var(--success-border)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
                   <Check size={12} /> {approving ? 'Aprovando...' : 'Aprovar'}
                 </button>
               </>
@@ -541,7 +541,7 @@ function ExpApproveModal({
                   Voltar
                 </button>
                 <button onClick={handleAdjustment} disabled={approving}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-[var(--primary)] hover:bg-[var(--primary)] text-white disabled:opacity-50 transition-colors">
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
                   <RotateCcw size={12} /> {approving ? 'Enviando...' : 'Enviar Solicitação'}
                 </button>
               </>
@@ -592,16 +592,21 @@ export default function ApprovalsPage() {
   const setCategoriaServico = (v: '' | 'sustentacao' | 'projeto' | 'bizify' | 'investimento') => setFilter('categoriaServico', v)
 
   // Vindo do card "Apontamentos para aprovar" do Meu Dia (/approvals?tab=timesheets&coordinator_id=ID):
-  // aplica o escopo do coordenador (só os projetos que ele coordena) + a aba certa. window.location
-  // evita exigir Suspense do useSearchParams nesta página.
+  // aplica o escopo do coordenador da URL. DEPENDE de user?.id porque o usePersistedFilters re-hidrata
+  // o filtro salvo quando o user carrega; aplicando o param DEPOIS, o coordinator_id da URL vence.
+  const urlParamsApplied = useRef(false)
   useEffect(() => {
+    if (urlParamsApplied.current) return
     const sp = new URLSearchParams(window.location.search)
     const cid = sp.get('coordinator_id')
     const t   = sp.get('tab')
+    if (!cid && !t) { urlParamsApplied.current = true; return }
+    if (user?.id == null) return   // espera o user (e a re-hidratação) carregar
     if (cid) setFilter('coordinatorId', cid)
     if (t === 'expenses' || t === 'timesheets') setFilter('tab', t)
+    urlParamsApplied.current = true
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [user?.id])
 
   const tsStatus  = 'pending'
   const expStatus = 'pending'
@@ -1009,10 +1014,10 @@ export default function ApprovalsPage() {
                 />
               )}
               {([
-                { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
+                { id: 'sustentacao',  label: 'Sustentação', color: 'var(--warning-border)',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
                 { id: 'projeto',      label: 'Projeto',     color: 'var(--primary)',            bg: 'var(--primary-soft)',   border: 'var(--primary)' },
                 { id: 'bizify',       label: 'Bizify',      color: '#a78bfa',            bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },
-                { id: 'investimento', label: 'Investimento', color: '#ef4444',           bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)' },
+                { id: 'investimento', label: 'Investimento', color: 'var(--danger-border)',           bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)' },
               ] as const).map(opt => {
                 const active = (categoriaServico || '') === opt.id
                 return (
@@ -1079,15 +1084,15 @@ export default function ApprovalsPage() {
             <span className="ml-2 font-semibold text-[var(--primary)]">· {fmtMin(selectedMinutes)}</span>
           </span>
           <button onClick={bulkApproveTs} disabled={approving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-600 hover:bg-[var(--success-border)] text-white disabled:opacity-50 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-green-600 hover:bg-[var(--success-border)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
             <Check size={12} />{approving ? 'Aprovando...' : 'Aprovar todos'}
           </button>
           <button onClick={() => { setBulkAdjOpen(true); setBulkAdjReason('') }} disabled={approving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-amber-600 hover:bg-[var(--warning-border)] text-white disabled:opacity-50 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-amber-600 hover:bg-[var(--warning-border)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
             <RotateCcw size={12} /> Solicitar Ajuste
           </button>
           <button onClick={() => { setRejectModal({ open: true, ids: selected }); setRejectReason('') }} disabled={approving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 hover:bg-[var(--danger-border)] text-white disabled:opacity-50 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-red-600 hover:bg-[var(--danger-border)] text-[var(--primary-fg)] disabled:opacity-50 transition-colors">
             <XCircle size={12} /> Rejeitar todos
           </button>
           <button onClick={() => setSelected([])} className="p-1.5 rounded-md text-[var(--text-light)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition-colors">
@@ -1220,7 +1225,7 @@ export default function ApprovalsPage() {
                     return (
                       <div className="flex flex-col items-end gap-0.5">
                         <span>{fmtMin(ts.effort_minutes)}</span>
-                        <span className="text-[10px] font-normal" style={{ color: '#22C55E' }}>
+                        <span className="text-[10px] font-normal" style={{ color: 'var(--success-border)' }}>
                           +{Number(ts.consultant_extra_pct)}% = {fmtMin(totalMin)}
                         </span>
                       </div>
@@ -1448,7 +1453,7 @@ export default function ApprovalsPage() {
       {bulkAdjOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-sm p-5 shadow-xl">
-            <h3 className="text-sm font-semibold text-white mb-1">Solicitar Ajuste</h3>
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-1">Solicitar Ajuste</h3>
             <p className="text-xs text-[var(--text-muted)] mb-3">{selected.length} apontamento(s) selecionado(s). Descreva o que os colaboradores devem corrigir.</p>
             <Label className="text-xs text-[var(--text-muted)]">Motivo do ajuste *</Label>
             <textarea
@@ -1457,13 +1462,13 @@ export default function ApprovalsPage() {
               onChange={e => setBulkAdjReason(e.target.value)}
               placeholder="Ex: Descrição incompleta, horas incorretas..."
               rows={3}
-              className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-white text-xs rounded-lg px-3 py-2 outline-none focus:border-[var(--primary)] resize-none placeholder:text-[var(--text-muted)]"
+              className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-[var(--primary)] resize-none placeholder:text-[var(--text-muted)]"
             />
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setBulkAdjOpen(false); setBulkAdjReason('') }}
                 className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
               <Button onClick={bulkAdjTs} disabled={bulkAdjLoading || !bulkAdjReason.trim()}
-                className="h-8 text-xs bg-amber-600 hover:bg-[var(--warning-border)] text-white">
+                className="h-8 text-xs bg-amber-600 hover:bg-[var(--warning-border)] text-[var(--primary-fg)]">
                 <RotateCcw size={12} className="mr-1" />
                 {bulkAdjLoading ? 'Enviando...' : 'Solicitar ajuste'}
               </Button>
@@ -1476,7 +1481,7 @@ export default function ApprovalsPage() {
       {adjModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-sm p-5 shadow-xl">
-            <h3 className="text-sm font-semibold text-white mb-1">Solicitar Ajuste</h3>
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-1">Solicitar Ajuste</h3>
             <p className="text-xs text-[var(--text-muted)] mb-3">Descreva o que o colaborador deve corrigir antes da aprovação.</p>
             <Label className="text-xs text-[var(--text-muted)]">Motivo do ajuste *</Label>
             <textarea
@@ -1485,13 +1490,13 @@ export default function ApprovalsPage() {
               onChange={e => setAdjReason(e.target.value)}
               placeholder="Ex: Comprovante ilegível, valor incorreto, descrição incompleta..."
               rows={3}
-              className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-white text-xs rounded-lg px-3 py-2 outline-none focus:border-[var(--primary)] resize-none placeholder:text-[var(--text-muted)]"
+              className="mt-1 w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-3 py-2 outline-none focus:border-[var(--primary)] resize-none placeholder:text-[var(--text-muted)]"
             />
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setAdjModal({ open: false, id: null, type: 'expense' }); setAdjReason('') }}
                 className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
               <Button onClick={handleAdjustment} disabled={adjLoading || !adjReason.trim()}
-                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
+                className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                 <RotateCcw size={12} className="mr-1" />
                 {adjLoading ? 'Enviando...' : 'Solicitar ajuste'}
               </Button>
@@ -1504,19 +1509,19 @@ export default function ApprovalsPage() {
       {rejectModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-sm p-5 shadow-xl">
-            <h3 className="text-sm font-semibold text-white mb-1">
+            <h3 className="text-sm font-semibold text-[var(--text)] mb-1">
               {rejectModal.ids.length === 1 ? 'Rejeitar item' : `Rejeitar ${rejectModal.ids.length} itens`}
             </h3>
             <p className="text-xs text-[var(--text-muted)] mb-3">Informe o motivo da rejeição <span className="text-[var(--danger)] font-semibold">(obrigatório)</span>.</p>
             <Label className="text-xs text-[var(--text-muted)]">Motivo <span className="text-[var(--danger)]">*</span></Label>
             <Input value={rejectReason} onChange={e => setRejectReason(e.target.value)}
               placeholder="Ex: Fora do prazo, informação incorreta..."
-              className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+              className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
             <div className="flex gap-2 mt-4 justify-end">
               <Button variant="outline" onClick={() => { setRejectModal({ open: false, ids: [] }); setRejectReason('') }}
                 className="h-8 text-xs border-[var(--border)] text-[var(--text)]">Cancelar</Button>
               <Button onClick={handleReject} disabled={approving || !rejectReason.trim()}
-                className="h-8 text-xs bg-red-600 hover:bg-[var(--danger-border)] text-white disabled:opacity-50">
+                className="h-8 text-xs bg-red-600 hover:bg-[var(--danger-border)] text-[var(--primary-fg)] disabled:opacity-50">
                 {approving ? 'Rejeitando...' : 'Confirmar rejeição'}
               </Button>
             </div>

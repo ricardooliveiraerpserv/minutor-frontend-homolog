@@ -80,7 +80,9 @@ export const NAV_CATALOG: CatalogItem[] = [
   { key: '/users',             label: 'Usuários',         group: 'Sistema' },
   { key: '/settings',          label: 'Geral',            group: 'Sistema' },
   { key: '/settings?tab=cargos', label: 'Cargos por Perfil', group: 'Sistema' },
+  { key: '/settings?tab=perfis', label: 'Cadastro de Perfil', group: 'Sistema' },
   { key: '/ver-como',          label: 'Ver como',         group: 'Sistema' },
+  { key: '/configuracoes/empresas', label: 'Empresas do Grupo', group: 'Sistema' },
   { key: '/liberacao-pipeline', label: 'Liberação de Visualização', group: 'Sistema' },
 
   // BOT Minutor — telas configuráveis (acesso definido por perfil/usuário no Configurador)

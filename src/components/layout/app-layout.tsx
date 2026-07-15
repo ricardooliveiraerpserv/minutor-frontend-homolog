@@ -4,10 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
+import { ContextBar } from './context-bar'
 import { ModuleProvider } from '@/contexts/module-context'
 import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
 import { NotificationPopups } from '@/components/notifications/notification-popups'
+import { ClientCommunicationPopup } from '@/components/notifications/client-communication-popup'
 import { NavConfigProvider } from '@/contexts/nav-config-context'
 import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { Building2, User, Lock } from 'lucide-react'
@@ -74,12 +76,17 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
 
       {/* Pop-ups globais da Central de Notificações (avisos / decisões / enquetes) — exceto cliente. */}
       {user.type !== 'cliente' && <NotificationPopups userId={user.id} />}
+      {/* Cliente: pop-up de comunicações novas (não lidas) — aparece em qualquer tela, exceto Comunicados. */}
+      {user.type === 'cliente' && <ClientCommunicationPopup />}
 
       <ModuleProvider>
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <Sidebar user={user} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <Header title={title} actions={actions} onMenuClick={() => setMobileNavOpen(true)} />
+
+          {/* ── Faixa de contexto: empresa ativa (cor da empresa) + módulo (cor do módulo) ── */}
+          <ContextBar />
 
           {/* ── Faixa de identidade ── */}
           {displayName && (

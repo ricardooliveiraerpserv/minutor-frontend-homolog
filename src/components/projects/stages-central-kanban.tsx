@@ -22,7 +22,7 @@ interface Column {
 
 const COLUMNS: Column[] = [
   { status: 'planejamento', label: 'Planejamento', color: 'var(--text-muted)' },
-  { status: 'execucao',     label: 'Em Execução',  color: 'var(--primary)' },
+  { status: 'execucao',     label: 'Em Execução',  color: 'var(--info)' },
   { status: 'homologacao',  label: 'Homologação',  color: 'var(--warning)' },
   { status: 'bloqueada',    label: 'Bloqueada',    color: 'var(--danger)' },
   { status: 'concluida',    label: 'Concluída',    color: 'var(--success)' },
@@ -185,7 +185,7 @@ function StageMacroCard({ stage, projectId, executive, code }: { stage: ProjectS
             <div style={{
               height: '100%',
               width: `${Math.min(100, pct)}%`,
-              background: 'var(--primary)',
+              background: 'var(--info)',
               transition: 'width .2s ease',
             }} />
           </div>

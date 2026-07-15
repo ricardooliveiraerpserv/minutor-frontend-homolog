@@ -208,11 +208,14 @@ interface ContractFormModalProps {
   prefill?: Partial<FormState>
   prefillContacts?: ContractContact[]
   opportunityId?: number
+  // Esconde a VISUALIZAÇÃO/download dos anexos já enviados do contrato (mantém o upload).
+  // Usado no pipeline (Demandas e Projetos): o único anexo visualizável é o do Diário do Projeto.
+  hideAttachmentView?: boolean
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function ContractFormModal({ open, editContract, onClose, onSaved, prefill, prefillContacts, opportunityId }: ContractFormModalProps) {
+export function ContractFormModal({ open, editContract, onClose, onSaved, prefill, prefillContacts, opportunityId, hideAttachmentView = false }: ContractFormModalProps) {
   // Master data
   const [customers, setCustomers]         = useState<SelectOption[]>([])
   const [users, setUsers]                 = useState<SelectOption[]>([])
@@ -639,13 +642,13 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
   // Aba "Anexos" removida: o upload da Proposta/Aprovação já fica na 1ª aba (Cliente) e alimenta o mesmo pendingFiles.
   const TABS = ['Cliente', 'Classificação', 'Faturamento', 'Despesas', 'Operacional', 'Contatos', 'Financeiro', 'Comercial', 'Observações']
 
-  const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-cyan-500/40'
+  const inputCls   = 'w-full px-3 py-2 rounded-lg text-sm bg-transparent outline-none focus:ring-1 focus:ring-[var(--primary)]'
   const inputStyle = { border: '1px solid var(--border)', color: 'var(--text)' }
   const labelCls   = 'block text-xs text-[var(--text-muted)] mb-1'
 
   const attachmentSection = (
     <div className="space-y-4">
-      {internalEdit && internalEdit.attachments.length > 0 && (
+      {!hideAttachmentView && internalEdit && internalEdit.attachments.length > 0 && (
         <div>
           <p className="text-xs text-[var(--text-muted)] mb-2">Arquivos já enviados</p>
           <div className="space-y-2">
@@ -685,7 +688,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
             if (f) { setPendingFiles(p => [...p, { file: f, type: selectedAttachType }]); e.target.value = '' }
           }} />
         <button onClick={() => fileInputRef.current?.click()}
-          className="w-full py-6 rounded-lg border-2 border-dashed text-xs text-[var(--text-light)] hover:border-[var(--primary)]/40 hover:text-[var(--text)] transition-colors"
+          className="w-full py-6 rounded-lg border-2 border-dashed text-xs text-[var(--text-light)] hover:border-[var(--primary)] hover:text-[var(--text)] transition-colors"
           style={{ borderColor: 'var(--border)' }}>
           Clique para selecionar arquivo ({ATTACHMENT_TYPE_LABEL[selectedAttachType]})
         </button>
@@ -695,7 +698,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
         <div className="space-y-1">
           <p className="text-xs text-[var(--text-muted)]">Aguardando upload ({pendingFiles.length})</p>
           {pendingFiles.map((pf, i) => (
-            <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)' }}>
+            <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
               <div>
                 <p className="text-xs text-[var(--text)]">{pf.file.name}</p>
                 <p className="text-[10px] text-[var(--text-muted)]">{ATTACHMENT_TYPE_LABEL[pf.type]} · {fmt(pf.file.size)}</p>
@@ -714,7 +717,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <h2 className="text-base font-semibold text-white">{internalEdit ? 'Editar Contrato' : 'Novo Contrato'}</h2>
+            <h2 className="text-base font-semibold text-[var(--text)]">{internalEdit ? 'Editar Contrato' : 'Novo Contrato'}</h2>
             {(selectedContractType || form.service_type_id) && (
               <p className="text-[11px] text-[var(--text-light)] mt-0.5 flex items-center gap-1.5">
                 {selectedContractType && <span style={{ color: 'var(--primary)' }}>{selectedContractType.name}</span>}
@@ -748,10 +751,10 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
               {/* ── Toggle "É aporte?" — primeira opção do form (Aporte v2) ── */}
               {!internalEdit && (
                 <div className="rounded-xl p-3 flex items-center justify-between gap-3"
-                  style={{ background: form.is_aporte ? 'rgba(34,197,94,0.08)' : 'var(--surface-hover)',
-                           border: `1px solid ${form.is_aporte ? 'rgba(34,197,94,0.45)' : 'var(--border)'}` }}>
+                  style={{ background: form.is_aporte ? 'var(--success-bg)' : 'var(--surface-hover)',
+                           border: `1px solid ${form.is_aporte ? 'var(--success-border)' : 'var(--border)'}` }}>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: form.is_aporte ? '#22c55e' : 'var(--text)' }}>
+                    <p className="text-sm font-semibold" style={{ color: form.is_aporte ? 'var(--success-border)' : 'var(--text)' }}>
                       É aporte?
                     </p>
                     <p className="text-[11px]" style={{ color: 'var(--text-light)' }}>
@@ -762,7 +765,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                     type="button"
                     onClick={() => setForm(f => ({ ...f, is_aporte: !f.is_aporte }))}
                     className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors"
-                    style={{ background: form.is_aporte ? '#22c55e' : 'rgba(255,255,255,0.18)' }}
+                    style={{ background: form.is_aporte ? 'var(--success-border)' : 'var(--surface-hover)' }}
                   >
                     <span className="pointer-events-none inline-block h-5 w-5 mt-0.5 ml-0.5 rounded-full bg-[var(--surface)] shadow transition-transform"
                       style={{ transform: form.is_aporte ? 'translateX(20px)' : 'translateX(0)' }} />
@@ -780,7 +783,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                   <div className="space-y-5">
                     {/* Cliente */}
                     <div>
-                      <label className={labelCls}>Cliente <span style={{ color: '#ef4444' }}>*</span></label>
+                      <label className={labelCls}>Cliente <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                       <SearchSelect
                         value={form.customer_id}
                         onChange={v => setForm(f => ({ ...f, customer_id: v, aporte_target_project_id: '' }))}
@@ -792,7 +795,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                     {/* Projeto destino (pai ou filho) */}
                     {form.customer_id && (
                       <div>
-                        <label className={labelCls}>Projeto que recebe o aporte <span style={{ color: '#ef4444' }}>*</span></label>
+                        <label className={labelCls}>Projeto que recebe o aporte <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                         {aporteProjects.length === 0
                           ? <p className="text-xs text-[var(--warning)] italic px-3 py-2 rounded-lg" style={inputStyle}>Nenhum projeto disponível para este cliente</p>
                           : <SearchSelect
@@ -808,9 +811,9 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                     {/* Banner azul quando destino é projeto filho */}
                     {isChildTarget && selectedAporteProj && (
                       <div className="rounded-xl p-3 flex items-start gap-2"
-                        style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.45)' }}>
-                        <span className="text-base" style={{ color: '#38bdf8' }}>ℹ</span>
-                        <div className="text-[11px]" style={{ color: '#38bdf8' }}>
+                        style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)' }}>
+                        <span className="text-base" style={{ color: 'var(--primary)' }}>ℹ</span>
+                        <div className="text-[11px]" style={{ color: 'var(--primary)' }}>
                           Este aporte será registrado no projeto <span className="font-semibold">{selectedAporteProj.name}</span>,
                           consumindo do saldo do pai <span className="font-semibold">{selectedAporteProj.parent_code} — {selectedAporteProj.parent_name}</span>.
                           <br/>
@@ -822,27 +825,27 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                     {/* Horas + Valor/hora + Total */}
                     <div className="grid grid-cols-3 gap-3">
                       <div>
-                        <label className={labelCls}>Quantidade de horas <span style={{ color: '#ef4444' }}>*</span></label>
+                        <label className={labelCls}>Quantidade de horas <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                         <input type="number" min="0.01" step="0.5"
                           value={form.aporte_horas}
                           onChange={e => setForm(f => ({ ...f, aporte_horas: e.target.value }))}
                           placeholder="0"
-                          className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40"
+                          className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-[var(--primary)]"
                           style={inputStyle} />
                       </div>
                       <div>
-                        <label className={labelCls}>Valor da hora (R$) <span style={{ color: '#ef4444' }}>*</span></label>
+                        <label className={labelCls}>Valor da hora (R$) <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                         <input type="number" min="0.01" step="0.01"
                           value={form.aporte_valor_hora}
                           onChange={e => setForm(f => ({ ...f, aporte_valor_hora: e.target.value }))}
                           placeholder="0,00"
-                          className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40"
+                          className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-[var(--primary)]"
                           style={inputStyle} />
                       </div>
                       <div>
                         <label className={labelCls}>Total do aporte</label>
                         <div className="px-3 py-2 rounded-lg text-sm font-semibold tabular-nums"
-                          style={{ ...inputStyle, background: 'rgba(34,197,94,0.10)', color: '#22c55e', borderColor: 'rgba(34,197,94,0.4)' }}>
+                          style={{ ...inputStyle, background: 'var(--success-bg)', color: 'var(--success-border)', borderColor: 'var(--success-border)' }}>
                           {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </div>
                       </div>
@@ -850,11 +853,11 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
 
                     {/* Motivo (dropdown) */}
                     <div>
-                      <label className={labelCls}>Motivo do aporte <span style={{ color: '#ef4444' }}>*</span></label>
+                      <label className={labelCls}>Motivo do aporte <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                       <select
                         value={form.aporte_motivo}
                         onChange={e => setForm(f => ({ ...f, aporte_motivo: e.target.value as FormState['aporte_motivo'] }))}
-                        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40"
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-[var(--primary)]"
                         style={inputStyle}
                       >
                         <option value="aporte">Aporte</option>
@@ -865,11 +868,11 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
 
                     {/* Data do aporte */}
                     <div>
-                      <label className={labelCls}>Data do aporte <span style={{ color: '#ef4444' }}>*</span></label>
+                      <label className={labelCls}>Data do aporte <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                       <input type="date"
                         value={form.aporte_data}
                         onChange={e => setForm(f => ({ ...f, aporte_data: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40"
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-[var(--primary)]"
                         style={inputStyle} />
                     </div>
 
@@ -881,7 +884,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                         value={form.aporte_descricao}
                         onChange={e => setForm(f => ({ ...f, aporte_descricao: e.target.value }))}
                         placeholder="Detalhamento do aporte (opcional)"
-                        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40 resize-none"
+                        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-[var(--primary)] resize-none"
                         style={inputStyle}
                       />
                     </div>
@@ -889,17 +892,17 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                     {/* Anexo "Proposta / Aprovação" — SÓ quando destino é projeto PAI */}
                     {!isChildTarget && (
                       <div>
-                        <label className={labelCls}>Aprovação do Cliente / Proposta Assinada <span style={{ color: '#ef4444' }}>*</span></label>
+                        <label className={labelCls}>Aprovação do Cliente / Proposta Assinada <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                         <input
                           type="file"
                           accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
                           onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingFiles(p => [...p.filter(x => x.type !== 'proposta'), { file: f, type: 'proposta' }]); e.target.value = '' } }}
-                          className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-[var(--primary-soft)] file:text-[var(--primary)] hover:file:bg-[var(--primary-soft)] file:cursor-pointer"
+                          className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-[var(--primary)] file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-[var(--primary-soft)] file:text-[var(--primary)] hover:file:bg-[var(--primary-soft)] file:cursor-pointer"
                           style={inputStyle}
                         />
                         {pendProposta
                           ? <p className="text-[11px] text-[var(--success)] mt-1">✓ {pendProposta.file.name} ({Math.round(pendProposta.file.size / 1024)} KB)</p>
-                          : <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>Anexe a aprovação formal — gera proposta comercial pro projeto pai (PDF, imagem, etc. — máx 20 MB)</p>
+                          : <p className="text-[10px] mt-1" style={{ color: 'var(--danger)' }}>Anexe a aprovação formal — gera proposta comercial pro projeto pai (PDF, imagem, etc. — máx 20 MB)</p>
                         }
                       </div>
                     )}
@@ -932,7 +935,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                     type="button"
                     onClick={() => setForm(f => ({ ...f, is_subproject: !f.is_subproject, sub_seq: '', parent_project_id: '' }))}
                     className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors"
-                    style={{ background: form.is_subproject ? 'var(--primary)' : 'rgba(255,255,255,0.12)' }}
+                    style={{ background: form.is_subproject ? 'var(--primary)' : 'var(--surface-hover)' }}
                   >
                     <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-[var(--surface)] shadow transition-transform"
                       style={{ transform: form.is_subproject ? 'translateX(16px)' : 'translateX(0)' }} />
@@ -959,14 +962,14 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                         value={form.code_seq}
                         onChange={e => { setForm(f => ({ ...f, code_seq: e.target.value.replace(/\D/g, '').slice(0, 3) })); setCodeExists(false) }}
                         onBlur={checkCodeExists}
-                        className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
+                        className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-[var(--primary)]"
                         style={{ ...inputStyle, width: '5rem' }} />
                       <span className="text-[var(--text-light)] text-sm font-mono">-</span>
                       <input type="text" maxLength={2} placeholder="26"
                         value={form.code_year}
                         onChange={e => setForm(f => ({ ...f, code_year: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
                         onBlur={checkCodeExists}
-                        className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
+                        className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-[var(--primary)]"
                         style={{ ...inputStyle, width: '4rem' }} />
                       {form.is_subproject && (
                         <>
@@ -975,12 +978,12 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                             value={form.sub_seq}
                             onChange={e => { setForm(f => ({ ...f, sub_seq: e.target.value.replace(/\D/g, '').slice(0, 2) })); setCodeExists(false) }}
                             onBlur={checkCodeExists}
-                            className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
+                            className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-[var(--primary)]"
                             style={{ ...inputStyle, width: '4rem' }} />
                         </>
                       )}
                       {codePreview && (
-                        <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-light)' }}>
+                        <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>
                           {codePreview}{form.is_subproject && !form.sub_seq.trim() ? '-??' : ''}
                         </span>
                       )}
@@ -1009,21 +1012,21 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
 
               {/* Nome do Projeto */}
               <div>
-                <label className={labelCls}>Nome do Projeto <span style={{ color: '#ef4444' }}>*</span></label>
+                <label className={labelCls}>Nome do Projeto <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                 <input
                   type="text"
                   placeholder="Nome do projeto"
                   value={(form as any).project_name ?? ''}
                   onChange={e => setForm(f => ({ ...f, project_name: e.target.value } as any))}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40"
-                  style={{ ...inputStyle, ...(!(form as any).project_name?.trim() ? { borderColor: 'rgba(239,68,68,0.5)' } : {}) }}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-[var(--primary)]"
+                  style={{ ...inputStyle, ...(!(form as any).project_name?.trim() ? { borderColor: 'var(--danger-border)' } : {}) }}
                 />
               </div>
 
               {/* Projeto Pai */}
               {form.customer_id && form.is_subproject && (
                 <div>
-                  <label className={labelCls}>Projeto Pai <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label className={labelCls}>Projeto Pai <span style={{ color: 'var(--danger-border)' }}>*</span></label>
                   {parentProjects.length === 0
                     ? <p className="text-xs text-[var(--warning)] italic px-3 py-2 rounded-lg" style={inputStyle}>Nenhum projeto pai disponível para este cliente</p>
                     : <SearchSelect
@@ -1039,7 +1042,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
               {/* Aprovação do Cliente / Proposta Assinada — mesmo campo da criação */}
               <div>
                 <label className={labelCls}>Aprovação do Cliente / Proposta Assinada</label>
-                {internalEdit && internalEdit.attachments.length > 0 && (
+                {!hideAttachmentView && internalEdit && internalEdit.attachments.length > 0 && (
                   <div className="space-y-1 mb-2">
                     {internalEdit.attachments.map(att => (
                       <div key={att.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--border)' }}>
@@ -1062,7 +1065,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                   type="file"
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
                   onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingFiles(p => [...p.filter(x => x.type !== 'proposta'), { file: f, type: 'proposta' }]); e.target.value = '' } }}
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-cyan-500/40 file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-[var(--primary-soft)] file:text-[var(--primary)] hover:file:bg-[var(--primary-soft)] file:cursor-pointer"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-1 focus:ring-[var(--primary)] file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-[var(--primary-soft)] file:text-[var(--primary)] hover:file:bg-[var(--primary-soft)] file:cursor-pointer"
                   style={inputStyle}
                 />
                 {(() => {
@@ -1070,7 +1073,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                   if (pend) return <p className="text-[11px] text-[var(--success)] mt-1">✓ {pend.file.name} ({Math.round(pend.file.size / 1024)} KB)</p>
                   if (autoProposta) return <p className="text-[11px] text-[var(--success)] mt-1">✓ A proposta assinada será anexada automaticamente ao gerar o contrato.</p>
                   if (internalEdit && internalEdit.attachments.length > 0) return <p className="text-[10px] mt-1 text-[var(--text-muted)]">Selecione um arquivo para substituir/adicionar.</p>
-                  return <p className="text-[10px] mt-1" style={{ color: '#f87171' }}>Anexe a aprovação formal (PDF, imagem ou e-mail exportado) — máx 20 MB</p>
+                  return <p className="text-[10px] mt-1" style={{ color: 'var(--danger)' }}>Anexe a aprovação formal (PDF, imagem ou e-mail exportado) — máx 20 MB</p>
                 })()}
               </div>
               </>)}
@@ -1202,7 +1205,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                   <div>
                     <label className={labelCls}>
                       {isMensalidade ? 'Valor do Contrato (R$) — mensalidade' : 'Valor do Projeto (R$)'}
-                      {(isMensalidade || isOnDemand) && <span style={{ color: '#ef4444' }}> *</span>}
+                      {(isMensalidade || isOnDemand) && <span style={{ color: 'var(--danger-border)' }}> *</span>}
                     </label>
                     <input type="number" min="0" step="0.01" placeholder="0,00"
                       value={form.valor_projeto}
@@ -1327,7 +1330,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-light)]">Do cadastro do cliente</p>
                     <button onClick={addContact}
                       className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium shrink-0"
-                      style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)', color: 'var(--primary)' }}>
+                      style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
                       <Plus size={10} /> Adicionar contato
                     </button>
                   </div>
@@ -1366,7 +1369,7 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
                                   <p className="text-[10px] text-[var(--text-light)]">{[cc.cargo, cc.email].filter(Boolean).join(' · ')}</p>
                                 </div>
                                 <div className="w-4 h-4 rounded flex items-center justify-center shrink-0"
-                                  style={{ background: alreadyAdded ? 'var(--primary)' : 'transparent', border: alreadyAdded ? 'none' : '1px solid #52525b' }}>
+                                  style={{ background: alreadyAdded ? 'var(--primary)' : 'transparent', border: alreadyAdded ? 'none' : '1px solid var(--border-strong)' }}>
                                   {alreadyAdded && <CheckCircle size={12} style={{ color: '#000' }} />}
                                 </div>
                               </div>
@@ -1471,27 +1474,27 @@ export function ContractFormModal({ open, editContract, onClose, onSaved, prefil
         <div className="flex items-center justify-between px-6 py-4 border-t shrink-0" style={{ borderColor: 'var(--border)' }}>
           <div className="flex items-center gap-2">
             {!form.is_aporte && activeTab > 0 && (
-              <button onClick={() => setActiveTab(t => t - 1)} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-white transition-colors" style={{ border: '1px solid var(--border)' }}>
+              <button onClick={() => setActiveTab(t => t - 1)} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors" style={{ border: '1px solid var(--border)' }}>
                 ← Anterior
               </button>
             )}
             {!form.is_aporte && activeTab < TABS.length - 1 && (
-              <button onClick={() => setActiveTab(t => t + 1)} className="px-4 py-2 rounded-lg text-sm text-[var(--text)] hover:text-white transition-colors" style={{ border: '1px solid var(--border)' }}>
+              <button onClick={() => setActiveTab(t => t + 1)} className="px-4 py-2 rounded-lg text-sm text-[var(--text)] hover:text-[var(--text)] transition-colors" style={{ border: '1px solid var(--border)' }}>
                 Próximo →
               </button>
             )}
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-white transition-colors">
+            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
               Cancelar
             </button>
             {(form.is_aporte || internalEdit || activeTab === TABS.length - 1) && (
               <button onClick={save} disabled={saving || uploading || codeExists}
                 className="px-5 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
                 style={{
-                  background: form.is_aporte ? 'rgba(34,197,94,0.15)' : 'var(--primary-soft)',
-                  border: `1px solid ${form.is_aporte ? 'rgba(34,197,94,0.45)' : 'var(--primary)'}`,
-                  color: form.is_aporte ? '#22c55e' : 'var(--primary)',
+                  background: form.is_aporte ? 'var(--success-bg)' : 'var(--primary-soft)',
+                  border: `1px solid ${form.is_aporte ? 'var(--success-border)' : 'var(--primary)'}`,
+                  color: form.is_aporte ? 'var(--success-border)' : 'var(--primary)',
                 }}>
                 {saving ? 'Salvando...' : uploading ? 'Enviando arquivos...' : form.is_aporte ? 'Criar aporte' : internalEdit ? 'Salvar alterações' : 'Criar contrato'}
               </button>

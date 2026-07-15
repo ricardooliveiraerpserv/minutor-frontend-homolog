@@ -114,6 +114,7 @@ export default function FechamentoDiretoriaPage() {
   const [lancs, setLancs] = useState<Lanc[]>([])
   const [adiantamentos, setAdiantamentos] = useState<{ id: number; legenda: string; valor: number; coop: Coop }[]>([]) // 1 linha por adiantamento, coop própria
   const setAdtoLineCoop = (i: number, coop: Coop) => setAdiantamentos(prev => prev.map((a, idx) => idx === i ? { ...a, coop } : a))
+  const [emprestimos, setEmprestimos] = useState<{ legenda: string; valor: number }[]>([]) // empréstimo: aporte que SOMA no mês em que foi feito (coop erpserv por padrão)
   const [folha, setFolha] = useState<FolhaResumo | null>(null)
   const [loading, setLoading] = useState(false)
   // Envio por e-mail
@@ -141,7 +142,8 @@ export default function FechamentoDiretoriaPage() {
   // O REPASSE à cooperativa é o gross-up disso; a TAXA + INSS incide sobre o REPASSE.
   const taxa = num(taxaInss)
   const adiantamentoTotal = Math.round(adiantamentos.reduce((a, x) => a + x.valor, 0) * 100) / 100
-  const somaLanc = Math.round((lancs.reduce((a, l) => a + num(l.valor), 0) - adiantamentoTotal) * 100) / 100 // = VALOR A RECEBER (− adiantamento)
+  const emprestimoTotal = Math.round(emprestimos.reduce((a, x) => a + x.valor, 0) * 100) / 100
+  const somaLanc = Math.round((lancs.reduce((a, l) => a + num(l.valor), 0) - adiantamentoTotal + emprestimoTotal) * 100) / 100 // = VALOR A RECEBER (− adiantamento + empréstimo)
   const valorReceber = somaLanc
   const repasse = Math.round((somaLanc + taxa) * 100) / 100 // REPASSE = valor a receber + taxa
   const total = repasse // "Remuneração Total" exibida = REPASSE
@@ -174,9 +176,10 @@ export default function FechamentoDiretoriaPage() {
     let sErp = lancs.filter(l => l.coop === 'erpserv').reduce((a, l) => a + num(l.valor), 0)
     let sBiz = lancs.filter(l => l.coop === 'bizify').reduce((a, l) => a + num(l.valor), 0)
     adiantamentos.forEach(a => { if (a.coop === 'bizify') sBiz -= a.valor; else sErp -= a.valor })
+    sErp += emprestimoTotal // empréstimo soma na coop padrão (erpserv)
     setValCoopErp(toStr(r2(sErp))); setValCoopBiz(toStr(r2(sBiz)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lancs, adiantamentos, ro])
+  }, [lancs, adiantamentos, emprestimos, ro])
 
   // Taxa por cooperativa AUTOMÁTICA: cada coop é calculada de forma INDEPENDENTE com a
   // mesma montagem (gross-up) sobre o SEU próprio valor — uma coop não influencia a outra.

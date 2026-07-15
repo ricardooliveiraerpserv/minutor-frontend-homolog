@@ -21,6 +21,7 @@ import { PageHeader } from '@/components/ds'
 import { OpenPeriodsPanel } from '@/components/open-periods-panel'
 import { RowMenu } from '@/components/ui/row-menu'
 import { CustomerContactsSection } from '@/components/ui/customer-contacts-section'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -213,7 +214,9 @@ function coordinationMeta(p: ProjectWithTeam, displaySold: number) {
   // Banco apontável inclui o APORTE (aporte soma com as contratadas).
   const aporte = Math.max(0, Number((p as any).total_available_hours ?? displaySold) - displaySold)
   const bank = (explicit ? raw! : displaySold) + aporte
-  const consumed = Number(p.coordination_consumed_hours ?? 0)
+  // Consumido = horas APONTADAS do projeto (não só do coordenador) — o banco apontável
+  // é consumido pelos apontamentos. Saldo = Horas Apontáveis − apontadas.
+  const consumed = Number(p.consumed_hours ?? (p.total_logged_minutes != null ? p.total_logged_minutes / 60 : 0))
   const saldo = Math.round((bank - consumed) * 100) / 100
   const pct = bank > 0 ? (consumed / bank) * 100 : 0
   const risk: 'saudavel' | 'atencao' | 'critico' | 'estourado' =
@@ -425,6 +428,10 @@ interface ProjectRowProps {
 }
 
 function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canChangeStatus, canDetach, onEdit, onChangeStatus, onDelete, treeRow, onTreeToggle, hasUnread, isSelected, onSelect, onConsultantManualToggle, showUnbilled, executiveName }: ProjectRowProps) {
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/gestao-projetos', 'view')
+  const dEdit = isDenied('/gestao-projetos', 'edit')
   const ctName = (project.contract_type_display ?? project.contract_type?.name ?? '').toLowerCase()
   const isOnDemand = ctName.includes('on demand') || (project as any).tipo_faturamento === 'on_demand'
   const isBhMensal = ctName.includes('mensal')
@@ -528,8 +535,8 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
         <td className="py-2 pl-2 pr-1" style={{ width: 60 }} onClick={e => e.stopPropagation()}>
           <div className="flex items-center gap-1">
             <RowMenu items={[
-              { label: 'Visualizar', icon: <Eye size={12} />, onClick: () => onMenuAction('view', project) },
-              ...(canEdit ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => onEdit?.(project) }] : []),
+              ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => onMenuAction('view', project) }]),
+              ...(!dEdit && canEdit ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => onEdit?.(project) }] : []),
               ...(canChangeStatus ? [{ label: 'Alterar Status', icon: <Layers size={12} />, onClick: () => onChangeStatus?.(project) }] : []),
               { label: 'Custo',             icon: <DollarSign  size={12} />, onClick: () => onMenuAction('costs',      project) },
               { label: 'Apont. & Despesas', icon: <Clock       size={12} />, onClick: () => onMenuAction('timesheets', project) },
@@ -599,7 +606,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--surface-hover)', color: 'var(--text-light)' }}>PAI</span>
                 )}
                 {treeRow && isActive && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>ATIVO</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>ATIVO</span>
                 )}
               </div>
               <p className="text-xs font-mono" style={{ color: 'var(--text-light)' }}>
@@ -719,7 +726,8 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
           {(() => {
             const cBank = Number((project as any).coordination_hours ?? 0)
             if (cBank <= 0) return <span className="text-xs" style={{ color: 'var(--text-light)' }}>—</span>
-            const cCons = Number((project as any).coordination_consumed_hours ?? 0)
+            // Banco = Horas Apontáveis; consumido = horas APONTADAS do projeto (não só do coordenador).
+            const cCons = calcProjHours(project).consumedHours
             const cPct  = (cCons / cBank) * 100
             const cColor = cPct >= 90 ? 'var(--danger-border)' : cPct >= 70 ? 'var(--warning-border)' : 'var(--success-border)'
             const cSaldo = cBank - cCons
@@ -749,7 +757,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
                   </div>
                   <div className="grid grid-cols-3 gap-1 text-center mb-2">
                     <div>
-                      <p className="text-[9px]" style={{ color: 'var(--text-light)' }}>Vendidas</p>
+                      <p className="text-[9px]" style={{ color: 'var(--text-light)' }}>Apontáveis</p>
                       <p className="text-xs font-bold tabular-nums" style={{ color: 'var(--text)' }}>{cBank.toFixed(1)}h</p>
                     </div>
                     <div>
@@ -774,7 +782,7 @@ function ProjectRow({ project, expanded, onToggle, onMenuAction, canEdit, canCha
         <td className="py-3 whitespace-nowrap">
           {(() => {
             const stMap: Record<string, { bg: string; fg: string; bd: string }> = {
-              started:        { bg: 'var(--primary-soft)', fg: 'var(--primary)',         bd: 'var(--ring)' },
+              started:        { bg: 'var(--info-bg)',      fg: 'var(--info)',            bd: 'var(--info-border)' },
               paused:         { bg: 'var(--warning-bg)',   fg: 'var(--warning)',         bd: 'var(--warning-border)' },
               cancelled:      { bg: 'var(--danger-bg)',    fg: 'var(--danger)',          bd: 'var(--danger-border)' },
               finished:       { bg: 'var(--surface-hover)',fg: 'var(--text-muted)',      bd: 'var(--border)' },
@@ -1357,14 +1365,14 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                         value={form.code_seq}
                         onChange={e => { setForm(f => ({ ...f, code_seq: e.target.value.replace(/\D/g, '').slice(0, 3) })); setCodeExists(false) }}
                         onBlur={checkCodeExists}
-                        className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
+                        className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-[var(--primary-soft)]"
                         style={{ ...iStyle, width: '5rem' }} />
                       <span className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>-</span>
                       <input type="text" maxLength={2} placeholder="26"
                         value={form.code_year}
                         onChange={e => setForm(f => ({ ...f, code_year: e.target.value.replace(/\D/g, '').slice(0, 2) }))}
                         onBlur={checkCodeExists}
-                        className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-cyan-500/40"
+                        className="px-3 py-2 rounded-lg text-sm font-mono text-center outline-none focus:ring-1 focus:ring-[var(--primary-soft)]"
                         style={{ ...iStyle, width: '4rem' }} />
                       {form.code_suffix && (
                         <>
@@ -1492,7 +1500,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                   accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.txt,.csv,.zip"
                   onChange={e => { const f = e.target.files?.[0]; if (f) { setPendingAttach(p => [...p, { file: f, type: 'proposta' }]); e.target.value = '' } }} />
                 <button type="button" onClick={() => attachFileRef.current?.click()}
-                  className="w-full py-3 rounded-lg border-2 border-dashed text-xs transition-colors hover:border-[var(--primary)]/40"
+                  className="w-full py-3 rounded-lg border-2 border-dashed text-xs transition-colors hover:border-[var(--primary-soft)]"
                   style={{ borderColor: 'var(--border)', color: 'var(--text-light)' }}>
                   Clique para adicionar anexo
                 </button>
@@ -2464,7 +2472,7 @@ function GestaoProjetosInner() {
         case 'coord': {
           const bank = Number((p as any).coordination_hours ?? 0)
           if (bank <= 0) return -1
-          return (Number((p as any).coordination_consumed_hours ?? 0) / bank) * 100
+          return (calcProjHours(p).consumedHours / bank) * 100
         }
       }
     }
@@ -2669,7 +2677,9 @@ function GestaoProjetosInner() {
     if (found) {
       setMessagesProject(found)
       clear()
-    } else if (projects.length > 0) {
+    } else {
+      // Busca por id SEMPRE (mesmo com projects vazio/carregando ou fora do filtro) —
+      // antes exigia projects.length>0 e o deep-link do sino "não abria nada".
       api.get<ProjectWithTeam>(`/projects/${messagesParam}`)
         .then(p => { if (p?.id) setMessagesProject(p) })
         .catch(() => {})
@@ -3959,7 +3969,7 @@ function GestaoProjetosInner() {
             <div className="px-6 py-5 flex items-center gap-3">
               <Trash2 size={20} className="text-[var(--danger)] shrink-0" />
               <div>
-                <p className="font-semibold text-white">Excluir Projeto</p>
+                <p className="font-semibold text-[var(--text)]">Excluir Projeto</p>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">{deleteProject.name} · {deleteProject.code}</p>
               </div>
             </div>
@@ -3968,7 +3978,7 @@ function GestaoProjetosInner() {
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <button onClick={() => setDeleteProject(null)} disabled={deleting}
-                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-white transition-colors">
+                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
                 Cancelar
               </button>
               <button disabled={deleting} onClick={async () => {
@@ -3998,7 +4008,7 @@ function GestaoProjetosInner() {
             <div className="px-6 py-5 flex items-center gap-3">
               <Layers size={20} style={{ color: 'var(--primary)' }} className="shrink-0" />
               <div>
-                <p className="font-semibold text-white">Desvincular projeto do pai</p>
+                <p className="font-semibold text-[var(--text)]">Desvincular projeto do pai</p>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">{detachModal.project.name} · {detachModal.project.code}</p>
               </div>
             </div>
@@ -4036,7 +4046,7 @@ function GestaoProjetosInner() {
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <button onClick={() => setDetachModal(null)} disabled={detaching}
-                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-white transition-colors">
+                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
                 Cancelar
               </button>
               <button disabled={detaching || !detachModal.newCode} onClick={async () => {
@@ -4062,7 +4072,7 @@ function GestaoProjetosInner() {
                 } finally { setDetaching(false) }
               }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                style={{ background: 'var(--primary)', color: '#000' }}>
+                style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
                 <Layers size={14} /> {detaching ? 'Desvinculando...' : 'Desvincular'}
               </button>
             </div>
@@ -4077,7 +4087,7 @@ function GestaoProjetosInner() {
             <div className="px-6 py-5 flex items-center gap-3">
               <Layers size={20} style={{ color: 'var(--primary)' }} className="shrink-0" />
               <div>
-                <p className="font-semibold text-white">Vincular como filho</p>
+                <p className="font-semibold text-[var(--text)]">Vincular como filho</p>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5">{attachModal.project.name} · {attachModal.project.code}</p>
               </div>
             </div>
@@ -4117,7 +4127,7 @@ function GestaoProjetosInner() {
             </div>
             <div className="flex justify-end gap-2 px-6 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <button onClick={() => setAttachModal(null)} disabled={attaching}
-                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-white transition-colors">
+                className="px-4 py-2 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
                 Cancelar
               </button>
               <button disabled={attaching || !attachModal.parentId} onClick={async () => {
@@ -4133,7 +4143,7 @@ function GestaoProjetosInner() {
                 } finally { setAttaching(false) }
               }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                style={{ background: 'var(--primary)', color: '#000' }}>
+                style={{ background: 'var(--primary)', color: 'var(--primary-fg)' }}>
                 <Layers size={14} /> {attaching ? 'Vinculando...' : 'Vincular'}
               </button>
             </div>

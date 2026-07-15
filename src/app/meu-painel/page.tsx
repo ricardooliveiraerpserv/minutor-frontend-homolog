@@ -86,7 +86,7 @@ interface ExpenseItem {
   rejection_reason?: string | null
 }
 
-interface ProjectOption { id: number; name: string; code: string; customer?: { id: number; name: string }; service_type?: { id: number; name: string; code: string } }
+interface ProjectOption { id: number; name: string; code: string; customer?: { id: number; name: string }; service_type?: { id: number; name: string; code: string }; is_investimento_comercial?: boolean; categoria_interna?: string | null }
 interface CategoryOption { id: number; name: string; parent_id?: number | null }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -252,8 +252,8 @@ function RecebimentoFechamentoBlock({ closing }: { closing: MyClosing | null }) 
 function HBBalancePill({ value, size = 'sm' }: { value: number; size?: 'sm' | 'lg' }) {
   const isPos  = value > 0
   const isNeg  = value < 0
-  const color  = isPos ? '#22c55e' : isNeg ? '#ef4444' : '#71717a'
-  const bg     = isPos ? 'rgba(34,197,94,0.1)' : isNeg ? 'rgba(239,68,68,0.1)' : 'rgba(113,113,122,0.1)'
+  const color  = isPos ? 'var(--success-border)' : isNeg ? 'var(--danger-border)' : 'var(--text-light)'
+  const bg     = isPos ? 'var(--success-bg)' : isNeg ? 'var(--danger-bg)' : 'rgba(113,113,122,0.1)'
   const Icon   = isPos ? TrendingUp : isNeg ? TrendingDown : Minus
   const cls    = size === 'lg' ? 'text-lg font-bold' : 'text-xs font-semibold'
   return (
@@ -549,7 +549,7 @@ function HBCurrentMonthCard({ data, isCurrentMonth }: { data: HourBankMonth; isC
         ] as const).map(item => (
           <div key={item.label} className={`rounded-xl p-4 border ${item.neg ? 'border-red-500/20 bg-[var(--danger-bg)]' : 'border-[var(--border)] bg-[var(--surface)]'}`}>
             <p className="text-[10px] uppercase tracking-wider mb-2 text-[var(--text-light)]">{item.label}</p>
-            <p className={`text-xl font-bold ${item.neg ? 'text-[var(--danger)]' : item.neutral ? 'text-[var(--text-muted)]' : 'text-white'}`}>{item.value}</p>
+            <p className={`text-xl font-bold ${item.neg ? 'text-[var(--danger)]' : item.neutral ? 'text-[var(--text-muted)]' : 'text-[var(--text)]'}`}>{item.value}</p>
             {item.sub && <p className={`text-[10px] mt-1 ${item.neg ? 'text-[var(--danger)]/60' : 'text-[var(--text-muted)]'}`}>{item.sub}</p>}
           </div>
         ))}
@@ -599,7 +599,7 @@ function HBEvolutionChart({ history, current }: { history: HourBankMonth[]; curr
   const zeroY = toY(0)
   const pts = all.map((m, i) => `${toX(i)},${toY(m.accumulated_balance)}`).join(' ')
   const isAllNeg = values.every(v => v <= 0)
-  const lineColor = isAllNeg ? '#ef4444' : '#22c55e'
+  const lineColor = isAllNeg ? 'var(--danger-border)' : 'var(--success-border)'
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">
@@ -610,14 +610,14 @@ function HBEvolutionChart({ history, current }: { history: HourBankMonth[]; curr
         {/* Area fill */}
         <polygon
           points={`${PADX},${zeroY} ${pts} ${W - PADX},${zeroY}`}
-          fill={isAllNeg ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)'}
+          fill={isAllNeg ? 'var(--danger-bg)' : 'var(--success-bg)'}
         />
         {/* Line */}
         <polyline points={pts} fill="none" stroke={lineColor} strokeWidth={1.5} strokeLinejoin="round" />
         {/* Dots */}
         {all.map((m, i) => (
           <circle key={m.year_month} cx={toX(i)} cy={toY(m.accumulated_balance)} r={2.5}
-            fill={m.accumulated_balance < 0 ? '#ef4444' : '#22c55e'} />
+            fill={m.accumulated_balance < 0 ? 'var(--danger-border)' : 'var(--success-border)'} />
         ))}
         {/* Month labels */}
         {all.map((m, i) => (
@@ -649,7 +649,7 @@ function HBHistoryRow({ row }: { row: HourBankMonth }) {
         <td className="px-4 py-3 text-center"><HBBalancePill value={row.final_balance} /></td>
       </tr>
       {open && (
-        <tr style={{ background: 'rgba(255,255,255,0.015)', borderBottom: `1px solid var(--border)` }}>
+        <tr style={{ background: 'var(--surface-sunken)', borderBottom: `1px solid var(--border)` }}>
           <td colSpan={6} className="px-6 py-3">
             <div className="flex items-center gap-6 text-xs" style={{ color: 'var(--text-muted)' }}>
               <span><span className="text-[var(--text-light)]">Dias úteis:</span> {row.working_days}</span>
@@ -713,7 +713,7 @@ function ReceiptLinkInline({ url, label = 'Visualizar' }: { url: string; label?:
       </button>
       <button type="button" onClick={() => handle(true)} disabled={loading}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-        style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-light)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        style={{ background: 'var(--surface-hover)', color: 'var(--text-light)', border: '1px solid rgba(255,255,255,0.1)' }}>
         <Download size={11} /> Baixar
       </button>
     </div>
@@ -724,8 +724,8 @@ function ReceiptLinkInline({ url, label = 'Visualizar' }: { url: string; label?:
 
 const EXP_STATUS_CONF: Record<string, { bg: string; color: string; label: string }> = {
   pending:              { bg: 'rgba(234,179,8,0.12)',  color: '#EAB308', label: 'Pendente' },
-  approved:             { bg: 'rgba(34,197,94,0.12)',  color: '#22C55E', label: 'Aprovado' },
-  rejected:             { bg: 'rgba(239,68,68,0.12)',  color: '#EF4444', label: 'Rejeitado' },
+  approved:             { bg: 'var(--success-bg)',  color: 'var(--success-border)', label: 'Aprovado' },
+  rejected:             { bg: 'var(--danger-bg)',  color: 'var(--danger-border)', label: 'Rejeitado' },
   adjustment_requested: { bg: 'rgba(249,115,22,0.12)', color: '#F97316', label: 'Ajuste Solicitado' },
 }
 const EXP_TYPE_LABEL: Record<string, string> = {
@@ -993,8 +993,8 @@ function SummaryCard({
           <Icon size={14} />
         </div>
       </div>
-      <div className={`font-bold tracking-tight break-all leading-tight ${featured ? 'text-2xl text-[var(--primary)]' : 'text-lg text-white'}`}>{value}</div>
-      {sub && <div className={`text-xs mt-1.5 ${featured ? 'text-[var(--primary)]' : 'text-[var(--text-light)]'}`}>{sub}</div>}
+      <div className={`font-bold tracking-tight break-all leading-tight ${featured ? 'text-2xl text-[var(--primary)]' : 'text-lg text-[var(--text)]'}`}>{value}</div>
+      {sub && <div className={`text-xs mt-1.5 ${featured ? 'text-[var(--primary-soft)]' : 'text-[var(--text-light)]'}`}>{sub}</div>}
     </div>
   )
 }
@@ -1013,7 +1013,7 @@ function ExpenseBreakdownCard({ total, paid, pending, count, onClick }: {
           <Receipt size={14} />
         </div>
       </div>
-      <div className="text-lg font-bold text-white tracking-tight">{formatBRL(total)}</div>
+      <div className="text-lg font-bold text-[var(--text)] tracking-tight">{formatBRL(total)}</div>
       <div className="text-xs text-[var(--text-light)] mt-1 mb-3">{count} lançamento{count !== 1 ? 's' : ''}</div>
       <div className="space-y-1.5 border-t border-[var(--border)] pt-3">
         <div className="flex items-center justify-between text-xs">
@@ -1035,14 +1035,14 @@ function MiniDonut({ services, expenses }: { services: number; expenses: number 
   const circ = 2 * Math.PI * r
   if (total <= 0) return (
     <svg width={52} height={52} viewBox="0 0 52 52">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#27272a" strokeWidth={6} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--surface-hover)" strokeWidth={6} />
     </svg>
   )
   const srvLen = (services / total) * circ
   const expLen = (expenses / total) * circ
   return (
     <svg width={52} height={52} viewBox="0 0 52 52" style={{ transform: 'rotate(-90deg)' }}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#27272a" strokeWidth={6} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--surface-hover)" strokeWidth={6} />
       {srvLen > 0 && (
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--primary)" strokeWidth={6}
           strokeDasharray={`${srvLen} ${circ - srvLen}`} strokeDashoffset={0} />
@@ -1492,9 +1492,11 @@ function isSustentacao(serviceTypeName?: string): boolean {
 }
 
 const EMPTY_TS = {
+  user_id:     '',   // admin/coord podem apontar por outro usuário; vazio = eu mesmo
   customer_id: '',
   project_id:  '',
   stage_delivery_id: '',
+  real_project_id: '',
   date:        todayISO(),
   start_time:  '',
   end_time:    '',
@@ -1506,6 +1508,7 @@ const EMPTY_TS = {
 const EMPTY_EXP = {
   customer_id:         '',
   project_id:          '',
+  real_project_id:     '',
   expense_category_id: '',
   expense_date:        todayISO(),
   description:         '',
@@ -1571,6 +1574,8 @@ function MinhasNotasFiscaisCard({ userId }: { userId: number }) {
 export default function MeuPainelPage() {
   const { user } = useAuth()
   const isCoordenador = user?.type === 'coordenador'
+  const isAdmin = user?.type === 'admin'
+  const canActAsUser = isAdmin || isCoordenador   // podem apontar por outro consultor
   const hover = useTimesheetHover()
 
   // Period
@@ -1664,14 +1669,26 @@ export default function MeuPainelPage() {
 
   // ── Support data ───────────────────────────────────────────────────────────
   const [projects,       setProjects]       = useState<ProjectOption[]>([])
+  const [tsRealProjects, setTsRealProjects] = useState<any[]>([])
+  const [expRealProjects, setExpRealProjects] = useState<any[]>([])
   const [categories,     setCategories]     = useState<CategoryOption[]>([])
   const [paymentMethods, setPaymentMethods] = useState<{ value: string; label: string }[]>([])
+  // Admin/coord apontando por outro: lista de usuários + projetos DO usuário selecionado.
+  const [tsUsers,        setTsUsers]        = useState<{ id: number; name: string }[]>([])
+  const [tsUserProjects, setTsUserProjects] = useState<ProjectOption[]>([])
 
   // Load support data once
   useEffect(() => {
     api.get<any>('/my-projects?pageSize=200&status=open').then(r =>
       setProjects(Array.isArray(r?.items) ? r.items : [])
     ).catch(() => {})
+
+    if (canActAsUser) {
+      api.get<any>('/users?pageSize=300&exclude_type=cliente').then(r => {
+        const list = Array.isArray(r?.items) ? r.items : Array.isArray(r?.data) ? r.data : []
+        setTsUsers(list.map((u: any) => ({ id: u.id, name: u.name })))
+      }).catch(() => {})
+    }
 
     api.get<any>('/expense-categories?per_page=50').then(r => {
       const list: CategoryOption[] = Array.isArray(r?.data)  ? r.data
@@ -1886,9 +1903,11 @@ export default function MeuPainelPage() {
       : item.effort_hours ? String(Math.round(parseFloat(String(item.effort_hours).replace(',', '.')) * 10) / 10) : ''
     setTsModeTotal(!item.start_time && !!item.effort_hours)
     setTsForm({
+      user_id:     '',
       customer_id: proj?.customer ? String(proj.customer.id) : '',
       project_id:  String(item.project_id),
       stage_delivery_id: item.stage_delivery_id ? String(item.stage_delivery_id) : '',
+      real_project_id: String((item as any).real_project_id ?? ''),
       date:        item.date,
       start_time:  item.start_time,
       end_time:    item.end_time,
@@ -1909,7 +1928,12 @@ export default function MeuPainelPage() {
     if (!tsForm.observation || tsForm.observation.trim().length < 20) {
       toast.error('Descrição obrigatória com no mínimo 20 caracteres'); return
     }
-    const selectedProject = projects.find(p => p.id === Number(tsForm.project_id))
+    const selectedProject = tsFormProjects.find(p => p.id === Number(tsForm.project_id)) as any
+    const scTs = tsFormCustomers.find(c => String(c.id) === tsForm.customer_id)
+    const isErpTs = String(scTs?.name ?? '').toUpperCase().includes('ERPSERV')
+    const tsIsInvestimento = !!selectedProject?.is_investimento_comercial && !isErpTs
+      && (selectedProject?.categoria_interna === 'Projeto' || selectedProject?.categoria_interna === 'Suporte')
+    if (tsIsInvestimento && !tsForm.real_project_id) { toast.error('Selecione o Projeto Real'); return }
     const projectIsSustentacao = isSustentacao(selectedProject?.service_type?.name)
     if (projectIsSustentacao) {
       if (!tsForm.ticket || !tsForm.ticket.trim()) { toast.error('Informe o número do ticket'); return }
@@ -1919,11 +1943,14 @@ export default function MeuPainelPage() {
     try {
       const payload: Record<string, unknown> = {
         project_id:  Number(tsForm.project_id),
+        ...(tsIsInvestimento && tsForm.real_project_id ? { real_project_id: Number(tsForm.real_project_id) } : {}),
         date:        tsForm.date,
         observation: tsForm.observation || undefined,
         ticket:      tsForm.ticket      || undefined,
       }
       if (tsForm.stage_delivery_id) payload.stage_delivery_id = Number(tsForm.stage_delivery_id)
+      // Admin/coord apontando por outro consultor → manda o user_id (senão o BE usa o logado).
+      if (tsActingAsOther) payload.user_id = Number(tsForm.user_id)
       if (hasTotal && !hasStart) {
         payload.total_hours = hoursToHHMM(totalVal)
       } else {
@@ -1981,6 +2008,7 @@ export default function MeuPainelPage() {
     setExpForm({
       customer_id:         proj?.customer ? String(proj.customer.id) : '',
       project_id:          String(item.project_id),
+      real_project_id:     String((item as any).real_project_id ?? ''),
       expense_category_id: String(item.expense_category_id),
       expense_date:        item.expense_date,
       description:         item.description,
@@ -1998,10 +2026,16 @@ export default function MeuPainelPage() {
     if (!expForm.project_id)  { toast.error('Selecione um projeto'); return }
     if (!expForm.description) { toast.error('Informe a descrição'); return }
     if (!expForm.amount)      { toast.error('Informe o valor'); return }
+    const spExp = projects.find(p => p.id === Number(expForm.project_id)) as any
+    const scExp = consultantCustomers.find(c => String(c.id) === expForm.customer_id)
+    const isErpExp = String(scExp?.name ?? '').toUpperCase().includes('ERPSERV')
+    const expIsInvestimento = !!spExp?.is_investimento_comercial && !isErpExp
+    if (expIsInvestimento && !expForm.real_project_id) { toast.error('Selecione o Projeto Real'); return }
     setExpSaving(true)
     try {
       const fd = new FormData()
       fd.append('project_id',          expForm.project_id)
+      if (expIsInvestimento && expForm.real_project_id) fd.append('real_project_id', expForm.real_project_id)
       fd.append('expense_category_id', expForm.expense_category_id)
       fd.append('expense_date',        expForm.expense_date)
       fd.append('description',         expForm.description)
@@ -2269,6 +2303,25 @@ export default function MeuPainelPage() {
   const pmOptions = paymentMethods.length > 0 ? paymentMethods : PAYMENT_FALLBACK
 
   // Clientes únicos derivados dos projetos do usuário
+  // Candidatos a "Projeto Real" (investimento): TODOS os projetos abertos do cliente.
+  const mapReal = (p: any) => ({ id: p.id, name: p.name, service_type_code: p.service_type?.code ?? null, is_investimento_comercial: !!p.is_investimento_comercial, categoria_interna: p.categoria_interna ?? null })
+  useEffect(() => {
+    if (!tsForm.customer_id) { setTsRealProjects([]); return }
+    let c = false
+    api.get<{ items: any[] }>(`/projects?pageSize=200&customer_id=${tsForm.customer_id}&status=open&include_investimento_comercial=true`)
+      .then(r => { if (!c) setTsRealProjects(Array.isArray(r?.items) ? r.items.map(mapReal) : []) }).catch(() => {})
+    return () => { c = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tsForm.customer_id])
+  useEffect(() => {
+    if (!expForm.customer_id) { setExpRealProjects([]); return }
+    let c = false
+    api.get<{ items: any[] }>(`/projects?pageSize=200&customer_id=${expForm.customer_id}&status=open&include_investimento_comercial=true`)
+      .then(r => { if (!c) setExpRealProjects(Array.isArray(r?.items) ? r.items.map(mapReal) : []) }).catch(() => {})
+    return () => { c = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expForm.customer_id])
+
   const consultantCustomers = useMemo(() => {
     const seen = new Set<number>()
     const list: { id: number; name: string }[] = []
@@ -2288,10 +2341,26 @@ export default function MeuPainelPage() {
   }, [projects, expForm.customer_id])
 
   // Projetos filtrados pelo cliente selecionado no form de apontamento
+  // Admin/coord apontando por OUTRO usuário → carrega os projetos DELE (escopo do consultor).
+  const tsActingAsOther = canActAsUser && !!tsForm.user_id && tsForm.user_id !== String(user?.id)
+  useEffect(() => {
+    if (!tsActingAsOther) { setTsUserProjects([]); return }
+    api.get<any>(`/projects?pageSize=200&status=open&consultant_only=true&user_id=${tsForm.user_id}`)
+      .then(r => setTsUserProjects(Array.isArray(r?.items) ? r.items : []))
+      .catch(() => setTsUserProjects([]))
+  }, [tsActingAsOther, tsForm.user_id])
+
+  // Projetos/clientes do form de APONTAMENTO: os do usuário selecionado (se apontando por outro) ou os meus.
+  const tsFormProjects = tsActingAsOther ? tsUserProjects : projects
+  const tsFormCustomers = useMemo(() => {
+    const seen = new Set<number>(); const list: { id: number; name: string }[] = []
+    tsFormProjects.forEach(p => { if (p.customer && !seen.has(p.customer.id)) { seen.add(p.customer.id); list.push(p.customer) } })
+    return list.sort((a, b) => a.name.localeCompare(b.name))
+  }, [tsFormProjects])
   const tsProjectOptions = useMemo(() => {
-    if (!tsForm.customer_id) return projects
-    return projects.filter(p => p.customer && String(p.customer.id) === tsForm.customer_id)
-  }, [projects, tsForm.customer_id])
+    if (!tsForm.customer_id) return tsFormProjects
+    return tsFormProjects.filter(p => p.customer && String(p.customer.id) === tsForm.customer_id)
+  }, [tsFormProjects, tsForm.customer_id])
 
   // Atividades (deliveries) do projeto selecionado — para vincular o apontamento
   // a uma atividade do cronograma (opcional). Consultor recebe só as que apontar.
@@ -2574,7 +2643,7 @@ export default function MeuPainelPage() {
             {/* Recent timesheets */}
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)]">
               <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">Apontamentos Recentes</h3>
+                <h3 className="text-sm font-semibold text-[var(--text)]">Apontamentos Recentes</h3>
                 <button onClick={() => setActiveTab('timesheets')}
                   className="text-[11px] text-[var(--primary)] hover:text-[var(--primary)] transition-colors">
                   Ver todos →
@@ -2612,7 +2681,7 @@ export default function MeuPainelPage() {
             {/* Recent expenses */}
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)]">
               <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-white">Despesas Recentes</h3>
+                <h3 className="text-sm font-semibold text-[var(--text)]">Despesas Recentes</h3>
                 <button onClick={() => setActiveTab('expenses')}
                   className="text-[11px] text-[var(--primary)] hover:text-[var(--primary)] transition-colors">
                   Ver todas →
@@ -2667,7 +2736,7 @@ export default function MeuPainelPage() {
             <Input value={tsSearch}
               onChange={e => { setTsSearch(e.target.value); setTsPage(1) }}
               placeholder="Buscar por projeto, observação, ticket..."
-              className="flex-1 min-w-40 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+              className="flex-1 min-w-40 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
             <SearchableSelect
               value={tsCustomer}
               onChange={v => { setTsCustomer(v); setTsPage(1) }}
@@ -2697,7 +2766,7 @@ export default function MeuPainelPage() {
               </button>
             )}
             <Button onClick={openCreateTs}
-              className="bg-[var(--primary)] hover:bg-[var(--primary)] text-white h-9 px-4 text-xs gap-1.5 shrink-0">
+              className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-9 px-4 text-xs gap-1.5 shrink-0">
               <Plus size={13} /> Novo
             </Button>
           </div>
@@ -2711,10 +2780,10 @@ export default function MeuPainelPage() {
                   <span className="text-[var(--text-muted)]">+</span>
                   <span>% extra: <span className="text-[var(--success)] font-semibold">+{minutesToHours(tsPctExtraMin)}</span></span>
                   <span className="text-[var(--text-muted)]">=</span>
-                  <span>Total efetivo: <span className="text-white font-bold">{minutesToHours(tsTotalMin + tsPctExtraMin)}</span></span>
+                  <span>Total efetivo: <span className="text-[var(--text)] font-bold">{minutesToHours(tsTotalMin + tsPctExtraMin)}</span></span>
                 </span>
               ) : (
-                <span>Total: <span className="text-white font-semibold">{minutesToHours(tsTotalMin)}</span></span>
+                <span>Total: <span className="text-[var(--text)] font-semibold">{minutesToHours(tsTotalMin)}</span></span>
               )}
               <span>Aprovados: <span className="text-[var(--success)] font-medium">{approvedTs}</span></span>
               <span>Pendentes: <span className="text-[var(--warning)] font-medium">{notApprTs}</span></span>
@@ -2775,7 +2844,7 @@ export default function MeuPainelPage() {
                       <td className="px-4 py-3.5 text-[var(--text-light)] font-mono hidden md:table-cell whitespace-nowrap">
                         {ts.start_time} – {ts.end_time}
                       </td>
-                      <td className="px-4 py-3.5 text-white font-mono font-bold whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-[var(--text)] font-mono font-bold whitespace-nowrap">
                         {ts.consultant_extra_pct ? (() => {
                           const extraMin  = Math.round(ts.effort_minutes * (ts.consultant_extra_pct / 100))
                           const totalMin  = ts.effort_minutes + extraMin
@@ -2859,7 +2928,7 @@ export default function MeuPainelPage() {
             <Input value={expSearch}
               onChange={e => { setExpSearch(e.target.value); setExpPage(1) }}
               placeholder="Buscar por descrição..."
-              className="flex-1 min-w-40 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+              className="flex-1 min-w-40 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
             <SearchableSelect
               value={expCustomer}
               onChange={v => { setExpCustomer(v); setExpPage(1) }}
@@ -2889,7 +2958,7 @@ export default function MeuPainelPage() {
               </button>
             )}
             <Button onClick={openCreateExp}
-              className="bg-[var(--primary)] hover:bg-[var(--primary)] text-white h-9 px-4 text-xs gap-1.5 shrink-0">
+              className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-9 px-4 text-xs gap-1.5 shrink-0">
               <Plus size={13} /> Nova
             </Button>
           </div>
@@ -2897,7 +2966,7 @@ export default function MeuPainelPage() {
           {/* Total */}
           {!expLoading && expTotal > 0 && (
             <div className="text-xs text-[var(--text-light)] mb-3">
-              Total: <span className="text-white font-semibold">{formatBRL(expTotal)}</span>
+              Total: <span className="text-[var(--text)] font-semibold">{formatBRL(expTotal)}</span>
               <span className="ml-4">
                 Aprovadas: <span className="text-[var(--success)] font-medium">
                   {expenses.filter(e => e.status === 'approved').length}
@@ -2947,7 +3016,7 @@ export default function MeuPainelPage() {
                       <td className="px-4 py-3.5 text-[var(--text-muted)] hidden md:table-cell max-w-[260px] truncate">{exp.project?.name ?? '—'}</td>
                       <td className="px-4 py-3.5 text-[var(--text-muted)] hidden lg:table-cell">{exp.category?.name ?? '—'}</td>
                       <td className="px-4 py-3.5 text-[var(--text-light)] hidden xl:table-cell max-w-[120px] truncate">{(exp as any).project?.service_type?.name ?? '—'}</td>
-                      <td className="px-4 py-3.5 text-white font-bold whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-[var(--text)] font-bold whitespace-nowrap">
                         <span className="flex items-center gap-1.5">
                           {exp.formatted_amount}
                           {exp.receipt_url && <Paperclip size={10} className="text-[var(--text-light)] shrink-0" aria-label="Tem comprovante" />}
@@ -3032,7 +3101,7 @@ export default function MeuPainelPage() {
                 </div>
                 <span className="text-[11px] text-[var(--text-muted)] font-medium">Valor Gerado</span>
               </div>
-              <div className="text-2xl font-bold text-white">
+              <div className="text-2xl font-bold text-[var(--text)]">
                 {estimatedValue !== null ? formatBRL(estimatedValue) : '—'}
               </div>
               <div className="text-[11px] text-[var(--text-light)] mt-1.5">
@@ -3056,7 +3125,7 @@ export default function MeuPainelPage() {
                 </div>
                 <span className="text-[11px] text-[var(--text-muted)] font-medium">Ticket Médio</span>
               </div>
-              <div className="text-2xl font-bold text-white">
+              <div className="text-2xl font-bold text-[var(--text)]">
                 {avgTicket !== null ? formatBRL(avgTicket) : '—'}
               </div>
               <div className="text-[11px] text-[var(--text-light)] mt-1.5">por hora trabalhada</div>
@@ -3087,7 +3156,7 @@ export default function MeuPainelPage() {
                 </div>
                 <span className="text-[11px] text-[var(--text-muted)] font-medium">Horas Totais</span>
               </div>
-              <div className="text-2xl font-bold text-white">{minutesToHours(tsTotalMin)}</div>
+              <div className="text-2xl font-bold text-[var(--text)]">{minutesToHours(tsTotalMin)}</div>
               <div className="text-[11px] text-[var(--text-light)] mt-1.5">{tsByProject.length} projeto{tsByProject.length !== 1 ? 's' : ''}</div>
             </div>
           </div>
@@ -3112,15 +3181,15 @@ export default function MeuPainelPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-5 mb-5">
                   <div>
                     <div className="text-[11px] text-[var(--text-light)] mb-1">Dias úteis decorridos</div>
-                    <div className="text-lg font-bold text-white">{elapsedWD} <span className="text-xs font-normal text-[var(--text-light)]">de {workingDaysInMonth}</span></div>
+                    <div className="text-lg font-bold text-[var(--text)]">{elapsedWD} <span className="text-xs font-normal text-[var(--text-light)]">de {workingDaysInMonth}</span></div>
                   </div>
                   <div>
                     <div className="text-[11px] text-[var(--text-light)] mb-1">Dias com apontamento</div>
-                    <div className="text-lg font-bold text-white">{daysWorked} <span className="text-xs font-normal text-[var(--text-light)]">dias</span></div>
+                    <div className="text-lg font-bold text-[var(--text)]">{daysWorked} <span className="text-xs font-normal text-[var(--text-light)]">dias</span></div>
                   </div>
                   <div>
                     <div className="text-[11px] text-[var(--text-light)] mb-1">Média por dia</div>
-                    <div className="text-lg font-bold text-white font-mono">{avgHPerDay.toFixed(1)}<span className="text-xs font-normal text-[var(--text-light)]">h/dia</span></div>
+                    <div className="text-lg font-bold text-[var(--text)] font-mono">{avgHPerDay.toFixed(1)}<span className="text-xs font-normal text-[var(--text-light)]">h/dia</span></div>
                   </div>
                   {isCurrentMonth && remainingWD > 0 ? (
                     <div>
@@ -3130,7 +3199,7 @@ export default function MeuPainelPage() {
                   ) : (
                     <div>
                       <div className="text-[11px] text-[var(--text-light)] mb-1">Total apontado</div>
-                      <div className="text-lg font-bold text-white font-mono">{minutesToHours(tsTotalMin)}</div>
+                      <div className="text-lg font-bold text-[var(--text)] font-mono">{minutesToHours(tsTotalMin)}</div>
                     </div>
                   )}
                 </div>
@@ -3267,7 +3336,7 @@ export default function MeuPainelPage() {
                     {/* Totals row */}
                     <tr className="bg-[var(--surface-hover)] border-t border-[var(--border)]">
                       <td className="px-5 py-3 text-[var(--text)] font-semibold">Total</td>
-                      <td className="px-5 py-3 text-right text-white font-mono font-bold">{minutesToHours(tsTotalMin)}</td>
+                      <td className="px-5 py-3 text-right text-[var(--text)] font-mono font-bold">{minutesToHours(tsTotalMin)}</td>
                       <td className="px-5 py-3 text-right text-[var(--text-muted)]">100%</td>
                       {estimatedValue !== null && !isParceiroSimples && (
                         <td className="px-5 py-3 text-right text-[var(--primary)] font-bold">{formatBRL(estimatedValue)}</td>
@@ -3315,14 +3384,14 @@ export default function MeuPainelPage() {
               const varH = prev !== null && prev > 0 ? ((history[idx].hours - prev) / prev) * 100 : null
               return (
                 <div style={{
-                  background: '#161618', border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.08)',
                   borderRadius: 12, padding: '12px 16px', minWidth: 160,
                   boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                 }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: '#E4E4E7', marginBottom: 10 }}>{label}</p>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 10 }}>{label}</p>
                   {hoursEntry && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 5 }}>
-                      <span style={{ fontSize: 11, color: '#71717A' }}>Horas</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-light)' }}>Horas</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', fontFamily: 'monospace' }}>
                         {Number(hoursEntry.value).toFixed(1)}h
                         {varH !== null && (
@@ -3335,13 +3404,13 @@ export default function MeuPainelPage() {
                   )}
                   {expEntry && Number(expEntry.value) > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, marginBottom: 5 }}>
-                      <span style={{ fontSize: 11, color: '#71717A' }}>Despesas</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#F59E0B' }}>{formatBRL(Number(expEntry.value))}</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-light)' }}>Despesas</span>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--warning-border)' }}>{formatBRL(Number(expEntry.value))}</span>
                     </div>
                   )}
                   {revEntry && Number(revEntry.value) > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20 }}>
-                      <span style={{ fontSize: 11, color: '#71717A' }}>Receita</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-light)' }}>Receita</span>
                       <span style={{ fontSize: 11, fontWeight: 600, color: '#a78bfa' }}>{formatBRL(Number(revEntry.value))}</span>
                     </div>
                   )}
@@ -3363,7 +3432,7 @@ export default function MeuPainelPage() {
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex flex-col items-end">
                       <span className="text-[10px] text-[var(--text-light)]">Horas médias</span>
-                      <span className="text-sm font-bold text-white font-mono">{avgHours.toFixed(1)}h</span>
+                      <span className="text-sm font-bold text-[var(--text)] font-mono">{avgHours.toFixed(1)}h</span>
                     </div>
                     {hasRate && avgRevenue > 0 && (
                       <div className="flex flex-col items-end pl-3 border-l border-[var(--border)]">
@@ -3432,7 +3501,7 @@ export default function MeuPainelPage() {
                         />
                       )}
 
-                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)', radius: 4 } as any} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--surface-hover)', radius: 4 } as any} />
 
                       {/* Linha de referência: média de horas */}
                       {avgHours > 0 && (
@@ -3440,7 +3509,7 @@ export default function MeuPainelPage() {
                           yAxisId="hours" y={avgHours}
                           stroke="var(--primary-soft)"
                           strokeDasharray="5 4"
-                          label={{ value: `~${avgHours.toFixed(0)}h`, position: 'insideTopLeft', fill: 'var(--primary)', fontSize: 10 }}
+                          label={{ value: `~${avgHours.toFixed(0)}h`, position: 'insideTopLeft', fill: 'var(--primary-soft)', fontSize: 10 }}
                         />
                       )}
 
@@ -3449,7 +3518,7 @@ export default function MeuPainelPage() {
                         {history.map((p) => (
                           <Cell
                             key={p.ym}
-                            fill={p.isCurrent ? 'var(--primary)' : 'var(--primary)'}
+                            fill={p.isCurrent ? 'var(--primary)' : 'var(--primary-soft)'}
                           />
                         ))}
                       </Bar>
@@ -3461,16 +3530,16 @@ export default function MeuPainelPage() {
                           dataKey="expenses"
                           name="Despesas"
                           type="monotone"
-                          stroke="#F59E0B"
+                          stroke="var(--warning-border)"
                           strokeWidth={2}
                           dot={(props: any) => {
                             const { cx, cy, payload } = props
                             if (!payload.expenses) return <g key={`exp-${cx}`} />
                             return payload.isCurrent
-                              ? <circle key={`exp-${cx}`} cx={cx} cy={cy} r={4} fill="#F59E0B" stroke="#161618" strokeWidth={2} />
-                              : <circle key={`exp-${cx}`} cx={cx} cy={cy} r={2.5} fill="#F59E0B" stroke="transparent" />
+                              ? <circle key={`exp-${cx}`} cx={cx} cy={cy} r={4} fill="var(--warning-border)" stroke="var(--surface)" strokeWidth={2} />
+                              : <circle key={`exp-${cx}`} cx={cx} cy={cy} r={2.5} fill="var(--warning-border)" stroke="transparent" />
                           }}
-                          activeDot={{ r: 5, fill: '#F59E0B', stroke: '#161618', strokeWidth: 2 }}
+                          activeDot={{ r: 5, fill: 'var(--warning-border)', stroke: 'var(--surface)', strokeWidth: 2 }}
                         />
                       )}
 
@@ -3487,10 +3556,10 @@ export default function MeuPainelPage() {
                             const { cx, cy, payload } = props
                             if (!payload.revenue) return <g key={`rev-${cx}`} />
                             return payload.isCurrent
-                              ? <circle key={`rev-${cx}`} cx={cx} cy={cy} r={4} fill="#a78bfa" stroke="#161618" strokeWidth={2} />
+                              ? <circle key={`rev-${cx}`} cx={cx} cy={cy} r={4} fill="#a78bfa" stroke="var(--surface)" strokeWidth={2} />
                               : <circle key={`rev-${cx}`} cx={cx} cy={cy} r={2.5} fill="#a78bfa" stroke="transparent" />
                           }}
-                          activeDot={{ r: 5, fill: '#a78bfa', stroke: '#161618', strokeWidth: 2 }}
+                          activeDot={{ r: 5, fill: '#a78bfa', stroke: 'var(--surface)', strokeWidth: 2 }}
                         />
                       )}
                     </ComposedChart>
@@ -3500,7 +3569,7 @@ export default function MeuPainelPage() {
                 {/* ── Legenda ── */}
                 <div className="flex items-center gap-5 mt-5 justify-center flex-wrap">
                   <div className="flex items-center gap-2 text-[11px] text-[var(--text-light)]">
-                    <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--primary)' }} />
+                    <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--primary-soft)' }} />
                     Horas
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-[var(--text-muted)] font-medium">
@@ -3585,7 +3654,7 @@ export default function MeuPainelPage() {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs" style={{ background: 'var(--surface)' }}>
-                      <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
+                      <thead style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border)' }}>
                         <tr>
                           <th className="px-2 py-2.5 w-10" />
                           {['Data', 'Projeto', 'Horas', 'Status'].map(h => (
@@ -3679,7 +3748,7 @@ export default function MeuPainelPage() {
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs" style={{ background: 'var(--surface)' }}>
-                      <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
+                      <thead style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border)' }}>
                         <tr>
                           <th className="px-2 py-2.5 w-10" />
                           {['Data', 'Projeto', 'Horas', ...(isParceiroSimples ? [] : ['Valor']), 'Status'].map(h => (
@@ -3710,7 +3779,7 @@ export default function MeuPainelPage() {
                               <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--text)' }}>{fmt(ts.date)}</td>
                               <td className="px-4 py-2.5 text-center max-w-[280px] truncate" style={{ color: 'var(--text-muted)' }}>{ts.project?.name ?? '—'}</td>
                               <td className="px-4 py-2.5 text-center font-mono" style={{ color: 'var(--text)' }}>{fmtHours(hrs)}</td>
-                              {!isParceiroSimples && <td className="px-4 py-2.5 text-center font-mono" style={{ color: val ? '#22c55e' : 'var(--text-light)' }}>{val ? formatBRL(val) : '—'}</td>}
+                              {!isParceiroSimples && <td className="px-4 py-2.5 text-center font-mono" style={{ color: val ? 'var(--success-border)' : 'var(--text-light)' }}>{val ? formatBRL(val) : '—'}</td>}
                               <td className="px-4 py-2.5 text-center">
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                                   ts.status === 'approved' ? 'bg-[var(--success-bg)] text-[var(--success)]' :
@@ -3781,7 +3850,7 @@ export default function MeuPainelPage() {
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs" style={{ background: 'var(--surface)' }}>
-                        <thead style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
+                        <thead style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border)' }}>
                           <tr>
                             {['Mês', 'Previsto', 'Trabalhado', 'Saldo Mês', 'Saldo Ant.', 'Saldo Final'].map(h => (
                               <th key={h} className="px-4 py-2.5 text-center font-semibold uppercase tracking-wider text-[10px] first:text-left" style={{ color: 'var(--text-light)' }}>{h}</th>
@@ -3821,12 +3890,12 @@ export default function MeuPainelPage() {
               <div className="w-10 h-10 rounded-full bg-[var(--danger-bg)] flex items-center justify-center shrink-0">
                 <Trash2 size={18} className="text-[var(--danger)]" />
               </div>
-              <h3 className="text-base font-semibold text-white">Confirmar exclusão</h3>
+              <h3 className="text-base font-semibold text-[var(--text)]">Confirmar exclusão</h3>
             </div>
             <p className="text-sm text-[var(--text-muted)]">{confirmModal.message}</p>
             <div className="flex gap-3 justify-end pt-1">
               <Button variant="outline" onClick={() => setConfirmModal(null)}>Cancelar</Button>
-              <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={confirmModal.onConfirm}>
+              <Button className="bg-red-600 hover:bg-red-700 text-[var(--primary-fg)]" onClick={confirmModal.onConfirm}>
                 Excluir
               </Button>
             </div>
@@ -3837,18 +3906,27 @@ export default function MeuPainelPage() {
       {tsModal.open && (
         <ModalOverlay onClose={() => setTsModal({ open: false })}>
           <div className="p-6 max-h-[90vh] overflow-y-auto space-y-4">
-            <h3 className="text-base font-semibold text-white">
+            <h3 className="text-base font-semibold text-[var(--text)]">
               {tsModal.item ? 'Editar Apontamento' : 'Novo Apontamento'}
             </h3>
 
+            {/* Usuário — admin/coord podem apontar por outro consultor (vazio = eu mesmo). */}
+            {canActAsUser && (
+              <SearchSelectField label="Usuário" value={tsForm.user_id}
+                onChange={v => setTsForm(f => ({ ...f, user_id: v, customer_id: '', project_id: '' }))}
+                options={tsUsers}
+                placeholder="Você mesmo — ou selecione outro consultor…"
+              />
+            )}
+
             <SearchSelectField label="Cliente" value={tsForm.customer_id}
-              onChange={v => setTsForm(f => ({ ...f, customer_id: v, project_id: '', stage_delivery_id: '' }))}
-              options={consultantCustomers}
+              onChange={v => setTsForm(f => ({ ...f, customer_id: v, project_id: '', stage_delivery_id: '', real_project_id: '' }))}
+              options={tsFormCustomers}
               placeholder="Selecione o cliente..."
             />
 
             <SearchSelectField label="Projeto" value={tsForm.project_id}
-              onChange={v => setTsForm(f => ({ ...f, project_id: v, stage_delivery_id: '' }))}
+              onChange={v => setTsForm(f => ({ ...f, project_id: v, stage_delivery_id: '', real_project_id: '' }))}
               options={tsProjectOptions}
               placeholder={tsForm.customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'}
               required
@@ -3866,7 +3944,30 @@ export default function MeuPainelPage() {
             />
 
             {(() => {
-              const selProj = projects.find(p => p.id === Number(tsForm.project_id))
+              const sp = tsFormProjects.find(p => p.id === Number(tsForm.project_id)) as any
+              const sc = tsFormCustomers.find(c => String(c.id) === tsForm.customer_id)
+              const isErp = String(sc?.name ?? '').toUpperCase().includes('ERPSERV')
+              if (!sp?.is_investimento_comercial || isErp) return null
+              if (!(sp?.categoria_interna === 'Projeto' || sp?.categoria_interna === 'Suporte')) return null
+              const soSust = sp?.categoria_interna === 'Suporte'
+              const opts = tsRealProjects.filter((p: any) => {
+                if (p.is_investimento_comercial || String(p.id) === tsForm.project_id) return false
+                if (soSust && p.service_type_code !== 'sustentacao') return false
+                return true
+              })
+              return (
+                <SearchSelectField label={`Projeto Real *${soSust ? ' (Sustentação)' : ''}`}
+                  value={tsForm.real_project_id}
+                  onChange={v => setTsForm(f => ({ ...f, real_project_id: v }))}
+                  options={opts}
+                  placeholder="Selecione o projeto real..."
+                  required
+                />
+              )
+            })()}
+
+            {(() => {
+              const selProj = tsFormProjects.find(p => p.id === Number(tsForm.project_id))
               const stName = selProj?.service_type?.name
               if (!stName) return null
               const colorMap: Record<string, string> = {
@@ -3890,7 +3991,7 @@ export default function MeuPainelPage() {
               <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
               <Input type="date" value={tsForm.date} max={todayISO()}
                 onChange={e => setTsForm(f => ({ ...f, date: e.target.value }))}
-                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
             </div>
 
             {/* Toggle Horário / Total de Horas */}
@@ -3925,7 +4026,7 @@ export default function MeuPainelPage() {
                         return { ...f, start_time: start, end_time: end }
                       })
                     }}
-                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                 </div>
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Fim</Label>
@@ -3939,7 +4040,7 @@ export default function MeuPainelPage() {
                         return { ...f, end_time: end, total_hours: total }
                       })
                     }}
-                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                 </div>
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Total (h)</Label>
@@ -3957,7 +4058,7 @@ export default function MeuPainelPage() {
                       })
                     }}
                     placeholder="–"
-                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                 </div>
               </div>
             )}
@@ -3975,7 +4076,7 @@ export default function MeuPainelPage() {
                     value={tsForm.total_hours}
                     onChange={e => setTsForm(f => ({ ...f, total_hours: e.target.value, start_time: '', end_time: '' }))}
                     placeholder="ex: 2.5"
-                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                 </div>
               </div>
             )}
@@ -4003,7 +4104,7 @@ export default function MeuPainelPage() {
                   <Input type="number" value={tsForm.ticket}
                     onChange={e => setTsForm(f => ({ ...f, ticket: e.target.value.replace(/\D/g, '') }))}
                     placeholder="Ex: 123456"
-                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
+                    className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" />
                 </div>
               )
             })()}
@@ -4014,7 +4115,7 @@ export default function MeuPainelPage() {
                 Cancelar
               </Button>
               <Button onClick={saveTs} disabled={tsSaving}
-                className="h-9 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white px-6">
+                className="h-9 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] px-6">
                 {tsSaving ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
@@ -4028,7 +4129,7 @@ export default function MeuPainelPage() {
       {expModal.open && (
         <ModalOverlay onClose={() => setExpModal({ open: false })}>
           <div className="p-6 max-h-[90vh] overflow-y-auto space-y-4">
-            <h3 className="text-base font-semibold text-white">
+            <h3 className="text-base font-semibold text-[var(--text)]">
               {expModal.item ? 'Editar Despesa' : 'Nova Despesa'}
             </h3>
 
@@ -4039,11 +4140,33 @@ export default function MeuPainelPage() {
             />
 
             <SearchSelectField label="Projeto" value={expForm.project_id}
-              onChange={v => setExpForm(f => ({ ...f, project_id: v }))}
+              onChange={v => setExpForm(f => ({ ...f, project_id: v, real_project_id: '' }))}
               options={expProjectOptions}
               placeholder="Selecione o projeto..."
               required
             />
+
+            {(() => {
+              const sp = projects.find(p => p.id === Number(expForm.project_id)) as any
+              const sc = consultantCustomers.find(c => String(c.id) === expForm.customer_id)
+              const isErp = String(sc?.name ?? '').toUpperCase().includes('ERPSERV')
+              if (!sp?.is_investimento_comercial || isErp) return null
+              const soSust = sp?.categoria_interna === 'Suporte'
+              const opts = expRealProjects.filter((p: any) => {
+                if (p.is_investimento_comercial || String(p.id) === expForm.project_id) return false
+                if (soSust && p.service_type_code !== 'sustentacao') return false
+                return true
+              })
+              return (
+                <SearchSelectField label={`Projeto Real *${soSust ? ' (Sustentação)' : ''}`}
+                  value={expForm.real_project_id}
+                  onChange={v => setExpForm(f => ({ ...f, real_project_id: v }))}
+                  options={opts}
+                  placeholder="Selecione o projeto real..."
+                  required
+                />
+              )
+            })()}
 
             {categories.length > 0 && (
               <SearchSelectField label="Categoria" value={expForm.expense_category_id}
@@ -4057,7 +4180,7 @@ export default function MeuPainelPage() {
               <Label className="text-xs text-[var(--text-muted)]">Data *</Label>
               <Input type="date" value={expForm.expense_date}
                 onChange={e => setExpForm(f => ({ ...f, expense_date: e.target.value }))}
-                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
             </div>
 
             <div>
@@ -4065,7 +4188,7 @@ export default function MeuPainelPage() {
               <Input value={expForm.description}
                 onChange={e => setExpForm(f => ({ ...f, description: e.target.value }))}
                 placeholder="Ex.: Passagem para São Paulo"
-                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
             </div>
 
             <div>
@@ -4073,7 +4196,7 @@ export default function MeuPainelPage() {
               <Input type="number" min="0" step="0.01" value={expForm.amount}
                 onChange={e => setExpForm(f => ({ ...f, amount: e.target.value }))}
                 placeholder="0,00"
-                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                className="mt-1.5 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
             </div>
 
             {/* Receipt upload */}
@@ -4115,7 +4238,7 @@ export default function MeuPainelPage() {
                 Cancelar
               </Button>
               <Button onClick={saveExp} disabled={expSaving}
-                className="h-9 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white px-6">
+                className="h-9 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] px-6">
                 {expSaving ? 'Salvando...' : 'Salvar'}
               </Button>
             </div>
@@ -4125,7 +4248,7 @@ export default function MeuPainelPage() {
 
       {/* ── Modal: Visualizar Despesa ── */}
       {expViewItem && (() => {
-        const sc = EXP_STATUS_CONF[expViewItem.status] ?? { bg: 'rgba(113,113,122,0.12)', color: '#71717A', label: expViewItem.status_display ?? expViewItem.status }
+        const sc = EXP_STATUS_CONF[expViewItem.status] ?? { bg: 'rgba(113,113,122,0.12)', color: 'var(--text-light)', label: expViewItem.status_display ?? expViewItem.status }
         const canEdit = ['pending', 'rejected', 'adjustment_requested'].includes(expViewItem.status)
         return (
           <ModalOverlay onClose={() => setExpViewItem(null)}>
@@ -4137,7 +4260,7 @@ export default function MeuPainelPage() {
                   <Receipt size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-white">Detalhes da Despesa</h3>
+                  <h3 className="text-sm font-semibold text-[var(--text)]">Detalhes da Despesa</h3>
                   <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>
                     #{expViewItem.id} · {fmt(expViewItem.expense_date)}
                   </p>
@@ -4153,7 +4276,7 @@ export default function MeuPainelPage() {
                   </span>
                   {expViewItem.category?.name && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
-                      style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                      style={{ background: 'var(--surface-hover)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                       <Tag size={9} /> {expViewItem.category.name}
                     </span>
                   )}
@@ -4218,7 +4341,7 @@ export default function MeuPainelPage() {
 
       {/* ── Modal: Visualizar Apontamento ── */}
       {tsViewItem && (() => {
-        const sc = EXP_STATUS_CONF[tsViewItem.status] ?? { bg: 'rgba(113,113,122,0.12)', color: '#71717A', label: tsViewItem.status_display ?? tsViewItem.status }
+        const sc = EXP_STATUS_CONF[tsViewItem.status] ?? { bg: 'rgba(113,113,122,0.12)', color: 'var(--text-light)', label: tsViewItem.status_display ?? tsViewItem.status }
         const canEditTs = ['pending', 'rejected', 'adjustment_requested'].includes(tsViewItem.status)
         return (
           <ModalOverlay onClose={() => setTsViewItem(null)}>
@@ -4230,7 +4353,7 @@ export default function MeuPainelPage() {
                   <Clock size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-white">Detalhes do Apontamento</h3>
+                  <h3 className="text-sm font-semibold text-[var(--text)]">Detalhes do Apontamento</h3>
                   <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-light)' }}>
                     #{tsViewItem.id} · {fmt(tsViewItem.date)}
                   </p>
@@ -4313,11 +4436,11 @@ export default function MeuPainelPage() {
                 {/* Motivo da rejeição / ajuste */}
                 {tsViewItem.rejection_reason && ['rejected', 'adjustment_requested'].includes(tsViewItem.status) && (
                   <div className="rounded-xl overflow-hidden"
-                    style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                    style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-bg)' }}>
                     <div className="flex items-center gap-2 px-4 py-2.5"
-                      style={{ borderBottom: '1px solid rgba(239,68,68,0.2)' }}>
-                      <AlertCircle size={11} style={{ color: '#EF4444' }} />
-                      <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: '#EF4444' }}>
+                      style={{ borderBottom: '1px solid var(--danger-bg)' }}>
+                      <AlertCircle size={11} style={{ color: 'var(--danger-border)' }} />
+                      <span className="text-[10px] uppercase tracking-widest font-medium" style={{ color: 'var(--danger-border)' }}>
                         {tsViewItem.status === 'adjustment_requested' ? 'Motivo do Ajuste' : 'Motivo da Rejeição'}
                       </span>
                     </div>
@@ -4358,8 +4481,8 @@ export default function MeuPainelPage() {
       {tsEditConflict && (
         <ModalOverlay onClose={() => setTsEditConflict(null)}>
           <div className="bg-[var(--surface)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)]" style={{ background: 'rgba(239,68,68,0.08)' }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(239,68,68,0.15)' }}>
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--border)]" style={{ background: 'var(--danger-bg)' }}>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--danger-bg)' }}>
                 <AlertTriangle size={16} className="text-[var(--danger)]" />
               </div>
               <div className="flex-1">
@@ -4372,7 +4495,7 @@ export default function MeuPainelPage() {
             </div>
 
             <div className="px-5 py-4 space-y-2.5">
-              <div className="rounded-xl p-3.5 space-y-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <div className="rounded-xl p-3.5 space-y-2" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger-bg)' }}>
                 <div className="flex justify-between text-xs">
                   <span className="text-[var(--text-light)]">Data</span>
                   <span className="text-[var(--text)] font-medium">{fmt(tsEditConflict.date)}</span>

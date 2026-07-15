@@ -6,6 +6,7 @@ import { useState, useMemo, useCallback, useRef, useEffect, Suspense, Fragment }
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { api, apiMessage } from '@/lib/api'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { toast } from 'sonner'
 import {
   Clock, RefreshCw, FileSpreadsheet, Plus, Pencil,
@@ -33,6 +34,7 @@ import {
   EmptyState, SkeletonTable,
 } from '@/components/ds'
 import { ReasonTooltip } from '@/components/ui/reason-tooltip'
+import type { PortalDate } from '@/lib/portal-date'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -57,10 +59,10 @@ function formatMinutes(minutes: number) {
 // Cor semântica do Consumo do Ticket por faixa de horas:
 // < 4h verde | 4-8h amarelo | 8-12h laranja | > 12h vermelho
 function ticketTotalColor(minutes: number): string {
-  if (minutes < 240)  return '#10B981' // green
-  if (minutes < 480)  return '#F59E0B' // amber
-  if (minutes < 720)  return '#F97316' // orange
-  return '#EF4444' // red
+  if (minutes < 240)  return 'var(--success-border)' // green
+  if (minutes < 480)  return 'var(--warning-border)' // amber
+  if (minutes < 720)  return 'var(--warning-border)' // orange
+  return 'var(--danger-border)' // red
 }
 
 function formatDateTime(d: string | null | undefined) {
@@ -97,7 +99,7 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       {isReleased && (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(16,185,129,0.14)', color: '#10B981' }}
+          style={{ background: 'var(--success-bg)', color: 'var(--success-border)' }}
         >
           Liberado
         </span>
@@ -105,7 +107,7 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       {isBillableOnly && (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}
+          style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}
         >
           <DollarSign size={9} /> Fat. Admin
         </span>
@@ -113,7 +115,7 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       {canSeePct && clientExtraPct ? (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B' }}
+          style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}
         >
           +{Number(clientExtraPct)}% cli
         </span>
@@ -121,7 +123,7 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       {canSeePct && consultantExtraPct ? (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(34,197,94,0.12)', color: '#22C55E' }}
+          style={{ background: 'var(--success-bg)', color: 'var(--success-border)' }}
         >
           +{Number(consultantExtraPct)}% cons
         </span>
@@ -129,14 +131,14 @@ function OriginBadge({ origin, isBillableOnly, isInternalAction, isReleased, can
       {origin === 'webhook' ? (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(139,92,246,0.12)', color: '#8B5CF6' }}
+          style={{ background: 'rgba(139,92,246,0.12)', color: 'var(--brand-purple)' }}
         >
           <Webhook size={9} /> Movidesk
         </span>
       ) : origin === 'movidesk_fallback' ? (
         <span
           className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-          style={{ background: 'rgba(245,158,11,0.14)', color: '#F59E0B' }}
+          style={{ background: 'var(--warning-bg)', color: 'var(--warning-border)' }}
           title="Sincronizado do Movidesk com autor não-mapeado — atribuído ao Usuário Padrão pra triagem"
         >
           <Webhook size={9} /> Movidesk (triagem)
@@ -259,7 +261,7 @@ function DateRangePicker({ from, to, onChange }: {
                 className={`h-7 w-full text-xs transition-colors rounded ${s || e ? 'font-bold' : ir ? '' : td ? 'font-semibold' : ''}`}
                 style={{
                   background: s || e ? 'var(--primary)' : ir ? 'var(--primary-soft)' : undefined,
-                  color: s || e ? '#0A0A0B' : ir ? 'var(--primary)' : td ? 'var(--primary)' : 'var(--text)',
+                  color: s || e ? 'var(--bg)' : ir ? 'var(--primary)' : td ? 'var(--primary)' : 'var(--text)',
                 }}>
                 {day}
               </button>
@@ -368,9 +370,9 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative rounded-2xl p-6 w-full max-w-sm mx-4" style={{ background: '#111113', border: '1px solid #3f3f46' }}>
+      <div className="relative rounded-2xl p-6 w-full max-w-sm mx-4" style={{ background: '#111113', border: '1px solid var(--border)' }}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-white">
+          <h3 className="text-sm font-semibold text-[var(--text)]">
             {isBulk ? `% Extras — ${ids.length} apontamentos` : `% Extras — #${ids[0]}`}
           </h3>
           <button onClick={onClose} className="p-1 hover:bg-[var(--surface-hover)] rounded-lg transition-colors">
@@ -391,7 +393,7 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
                 value={clientPct}
                 onChange={e => setClientPct(e.target.value)}
                 placeholder={isBulk ? 'Não alterar' : '0'}
-                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-white placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] placeholder-zinc-600 [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--warning)] pointer-events-none">%</span>
             </div>
@@ -405,7 +407,7 @@ function ExtraPctModal({ ids, initialClientPct, initialConsultantPct, isBillable
                 onChange={e => setConsultantPct(e.target.value)}
                 placeholder={isBillableOnly ? 'N/A — Fat. Admin' : (isBulk ? 'Não alterar' : '0')}
                 disabled={isBillableOnly}
-                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-white placeholder-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="w-full px-3 py-2 pr-7 rounded-xl text-sm outline-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] placeholder-zinc-600 disabled:opacity-40 disabled:cursor-not-allowed [appearance:none] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[var(--success)] pointer-events-none">%</span>
             </div>
@@ -546,6 +548,11 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
   id: number; onView: () => void; onDeleted: () => void; viewOnly?: boolean; onExtraPct?: () => void; onRelease?: () => void; onReverseApproval?: () => void; onReverseRelease?: () => void; onReverseRejection?: () => void; onShowLogs?: () => void; onShowConflict?: () => void; canEdit?: boolean; canDelete?: boolean; reasonEdit?: string | null; reasonDelete?: string | null
 }) {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/timesheets', 'view')
+  const dEdit = isDenied('/timesheets', 'edit')
+  const dDelete = isDenied('/timesheets', 'delete')
 
   // Sub-1 soft-delete (Cat B — nunca otimista). useAsyncAction por instância (anti-duplo-clique por linha).
   // Sequência intacta: fecha modal → API → toast → onDeleted. Soft-delete no backend, migração só de UI.
@@ -559,10 +566,10 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
   const deleting = confirmDeleteAction.pending
 
   const items: RowMenuItem[] = viewOnly
-    ? [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: onView }]
+    ? (dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: onView }])
     : [
-        { label: 'Visualizar', icon: <Eye size={12} />, onClick: onView },
-        { label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` }, disabled: !canEdit, title: canEdit ? undefined : (reasonEdit ?? 'Sem permissão') },
+        ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: onView }]),
+        ...(dEdit ? [] : [{ label: 'Editar',     icon: <Pencil size={12} />, onClick: () => { window.location.href = `/timesheets/${id}/edit` }, disabled: !canEdit, title: canEdit ? undefined : (reasonEdit ?? 'Sem permissão') }]),
         ...(onShowConflict ? [{ label: 'Ver conflito', icon: <AlertTriangle size={12} />, onClick: onShowConflict }] : []),
         ...(onShowLogs ? [{ label: 'Ver histórico', icon: <FileText size={12} />, onClick: onShowLogs }] : []),
         ...(onRelease ? [{ label: 'Liberar', icon: <CheckCircle size={12} />, onClick: onRelease }] : []),
@@ -570,7 +577,7 @@ function RowActions({ id, onView, onDeleted, viewOnly, onExtraPct, onRelease, on
         ...(onReverseRelease ? [{ label: 'Estornar liberação', icon: <X size={12} />, onClick: onReverseRelease }] : []),
         ...(onReverseRejection ? [{ label: 'Estornar rejeição', icon: <RotateCcw size={12} />, onClick: onReverseRejection }] : []),
         ...(onExtraPct ? [{ label: '% Extras', icon: <TrendingUp size={12} />, onClick: onExtraPct }] : []),
-        { label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true, disabled: !canDelete, title: canDelete ? undefined : (reasonDelete ?? 'Sem permissão') },
+        ...(dDelete ? [] : [{ label: deleting ? 'Excluindo...' : 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm(true), danger: true, disabled: !canDelete, title: canDelete ? undefined : (reasonDelete ?? 'Sem permissão') }]),
       ]
 
   return (
@@ -894,7 +901,7 @@ function toHHMM(mins: number): string {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: { scope?: 'sustentacao' | 'investimento'; embedded?: boolean; triagemPadrao?: boolean; leadOptions?: { id: number; name: string }[] } = {}) {
+function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions, extDate }: { scope?: 'sustentacao' | 'investimento'; embedded?: boolean; triagemPadrao?: boolean; leadOptions?: { id: number; name: string }[]; extDate?: PortalDate } = {}) {
   // Filtro de dimensão pra modo Triagem: '' = todos (OR), ou 'user'|'customer'|'project'
   const [triagemField, setTriagemField] = useState<string>('')
   const { user } = useAuth()
@@ -903,7 +910,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const canActAsUser   = isAdmin || isCoordenador
   // Chip "Meus projetos / Todos" pra coordenador.
   // Quando 'meus': injeta coordinator_id[]=user.id no fetch (filtro server-side).
-  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>('meus')
+  const [coordScope, setCoordScope] = useState<'meus' | 'todos'>(scope === 'sustentacao' ? 'todos' : 'meus')
   const isCliente      = user?.type === 'cliente'
   const searchParams = useSearchParams()
   const spProjectId  = searchParams.get('project_id') ?? ''
@@ -971,6 +978,24 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
   const setTicket         = (v: string)              => setFilter('ticket', v)
   const setRequester      = (v: string)              => setFilter('requester', v)
   const setTicketService  = (v: string)              => setFilter('ticketService', v)
+
+  // Portal (embedded): usa o filtro de data DE CIMA do portal e esconde o interno (um filtro só).
+  useEffect(() => {
+    if (!extDate) return
+    setFilterMode(extDate.mode)
+    if (extDate.mode === 'month') {
+      if (extDate.month && extDate.year) {
+        const mm = String(extDate.month).padStart(2, '0')
+        const last = new Date(extDate.year, extDate.month, 0).getDate()
+        setRefMonth(extDate.month); setRefYear(extDate.year)
+        setStartDate(`${extDate.year}-${mm}-01`); setEndDate(`${extDate.year}-${mm}-${String(last).padStart(2, '0')}`)
+      } else { setRefMonth(null); setRefYear(null); setStartDate(''); setEndDate('') }
+    } else {
+      setRefMonth(null); setRefYear(null); setStartDate(extDate.from ?? ''); setEndDate(extDate.to ?? '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extDate?.mode, extDate?.month, extDate?.year, extDate?.from, extDate?.to])
+
   const [exporting, setExporting]     = useState(false)
   const [customers, setCustomers]       = useState<SelectOption[]>([])
   const [projectsList, setProjectsList] = useState<SelectOption[]>([])
@@ -1128,7 +1153,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
 
   // Opções do filtro de projeto em árvore: filho aparece sob o pai com seta ↳ (azul).
   const projectTreeOptions = useMemo(() => {
-    const list = projectsList as Array<{ id: number; name: string; parent_project_id?: number | null }>
+    const list = projectsList as Array<{ id: number; name: string; code?: string | null; parent_project_id?: number | null }>
     const ids = new Set(list.map(p => p.id))
     const byParent = new Map<number | null, typeof list>()
     for (const p of list) {
@@ -1140,7 +1165,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
     const out: { id: number; name: string; depth: number }[] = []
     const walk = (parentId: number | null, depth: number) => {
       for (const p of (byParent.get(parentId) ?? []).sort(sortName)) {
-        out.push({ id: p.id, name: p.name, depth })
+        out.push({ id: p.id, name: p.code ? `${p.code} — ${p.name}` : p.name, depth })
         walk(p.id, depth + 1)
       }
     }
@@ -1330,7 +1355,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
         {/* Aviso para cliente */}
         {isCliente && (
           <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl mb-4 text-xs"
-            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)', color: 'var(--text-muted)' }}>
+            style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--text-muted)' }}>
             <span style={{ color: 'var(--primary)', marginTop: 1 }}>ℹ</span>
             <span>O status de aprovação indica apenas uma validação interna da equipe, sem impacto para o cliente.</span>
           </div>
@@ -1357,7 +1382,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           className={`p-4 mb-4 space-y-3 ${filtersOpen ? 'block' : 'hidden'} md:block
             fixed inset-y-0 left-0 z-50 w-[86%] max-w-xs overflow-y-auto rounded-none shadow-2xl
             md:static md:z-auto md:w-auto md:max-w-none md:overflow-visible md:rounded-2xl md:shadow-none`}
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', WebkitOverflowScrolling: 'touch' }}
+          style={{ background: 'var(--panel)', border: '1px solid var(--border)', WebkitOverflowScrolling: 'touch' }}
         >
           {/* Cabeçalho do Drawer (mobile) */}
           <div className="flex items-center justify-between md:hidden">
@@ -1446,6 +1471,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           {/* Linha 2: datas + categorias + limpar — escondida em modo Triagem */}
           {!triagemPadrao && (
           <div className="flex items-center gap-2 flex-wrap">
+            {!extDate && (<>
             <div className="flex rounded-lg border border-[var(--border)] overflow-hidden text-xs">
               {(['month', 'period'] as const).map((mode) => (
                 <button key={mode} onClick={() => setFilterMode(mode)}
@@ -1477,11 +1503,12 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 onChange={(f, t) => { setStartDate(f); setEndDate(t); setRefMonth(null); setRefYear(null); resetPage() }}
               />
             )}
+            </>)}
             {!isCliente && scope !== 'investimento' && ([
-              { id: 'sustentacao',  label: 'Sustentação', color: '#f59e0b',            bg: 'rgba(245,158,11,0.12)',  border: 'rgba(245,158,11,0.35)' },
+              { id: 'sustentacao',  label: 'Sustentação', color: 'var(--warning-border)',            bg: 'var(--warning-bg)',  border: 'var(--warning-border)' },
               { id: 'projeto',      label: 'Projeto',     color: 'var(--primary)',            bg: 'var(--primary-soft)',   border: 'var(--primary)' },
-              { id: 'bizify',       label: 'Bizify',      color: '#a78bfa',            bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.35)' },
-              { id: 'investimento', label: 'Investimento', color: '#ef4444',           bg: 'rgba(239,68,68,0.12)',   border: 'rgba(239,68,68,0.35)' },
+              { id: 'bizify',       label: 'Bizify',      color: 'var(--brand-purple)',            bg: 'rgba(167,139,250,0.12)', border: 'var(--brand-purple)' },
+              { id: 'investimento', label: 'Investimento', color: 'var(--danger-border)',           bg: 'var(--danger-bg)',   border: 'var(--danger-border)' },
             ] as const).map(opt => {
               const active = (categoriaServico || '') === opt.id
               return (
@@ -1497,7 +1524,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             })}
             {projectId && (
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
-                style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary-soft)', color: 'var(--primary)' }}>
+                style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
                 Projeto #{projectId}
                 <button onClick={() => { setProjectId(''); resetPage() }} className="ml-1 hover:opacity-70 transition-opacity">
                   <X size={10} />
@@ -1506,7 +1533,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             )}
             {requester && (
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
-                style={{ background: 'rgba(139,92,246,0.10)', border: '1px solid rgba(139,92,246,0.25)', color: '#8B5CF6' }}>
+                style={{ background: 'rgba(139,92,246,0.10)', border: '1px solid var(--brand-purple)', color: 'var(--brand-purple)' }}>
                 Solicitante: {requester}
                 <button onClick={() => { setRequester(''); resetPage() }} className="ml-1 hover:opacity-70 transition-opacity">
                   <X size={10} />
@@ -1515,7 +1542,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             )}
             {ticketService && (
               <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium"
-                style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.25)', color: '#10B981' }}>
+                style={{ background: 'var(--success-bg)', border: '1px solid var(--success-border)', color: 'var(--success-border)' }}>
                 Módulo: {ticketService}
                 <button onClick={() => { setTicketService(''); resetPage() }} className="ml-1 hover:opacity-70 transition-opacity">
                   <X size={10} />
@@ -1526,7 +1553,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               <button
                 onClick={clearFilters}
                 className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs transition-all hover:bg-[var(--surface-hover)]"
-                style={{ color: 'var(--danger-border)', border: '1px solid rgba(239,68,68,0.2)' }}
+                style={{ color: 'var(--danger-border)', border: '1px solid var(--danger-border)' }}
               >
                 <X size={11} /> Limpar
               </button>
@@ -1639,7 +1666,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                   <span className="text-xs" style={{ color: 'var(--text-light)' }}>Apontadas:</span>
                   <span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{baseHours}</span>
                   <span className="text-xs" style={{ color: 'var(--text-light)' }}>+ % extra:</span>
-                  <span className="text-sm font-bold" style={{ color: '#22C55E' }}>+{formatMinutes(extraMin)}</span>
+                  <span className="text-sm font-bold" style={{ color: 'var(--success-border)' }}>+{formatMinutes(extraMin)}</span>
                   <span className="text-xs" style={{ color: 'var(--text-light)' }}>=</span>
                   <span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>Total efetivo: {formatMinutes(totalMin)}</span>
                 </>
@@ -1653,7 +1680,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                 <>
                   <span className="text-xs mx-1" style={{ color: 'var(--text-light)' }}>|</span>
                   <span className="text-xs" style={{ color: 'var(--text-light)' }}>Fat. Admin:</span>
-                  <span className="text-sm font-semibold" style={{ color: '#F59E0B' }}>{formatMinutes(fatAdminMin)}</span>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--warning-border)' }}>{formatMinutes(fatAdminMin)}</span>
                 </>
               )}
             </div>
@@ -1729,7 +1756,8 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               ) : data?.items.map(ts => (
                 <Fragment key={ts.id}>
                 <Tr
-                  baseBackground={ts.is_internal_action ? 'rgba(100,116,139,0.07)' : ts.is_billable_only ? 'rgba(245,158,11,0.06)' : undefined}
+                  key={ts.id}
+                  baseBackground={ts.is_internal_action ? 'rgba(100,116,139,0.07)' : ts.is_billable_only ? 'var(--warning-bg)' : undefined}
                   onClick={() => openView(ts)}
                   {...hover.bind(ts)}
                 >
@@ -1819,7 +1847,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
                       return (
                         <div className="flex flex-col items-end gap-0.5">
                           <span>{formatMinutes(ts.effort_minutes)}</span>
-                          <span className="text-[10px] font-normal" style={{ color: '#22C55E' }}>
+                          <span className="text-[10px] font-normal" style={{ color: 'var(--success-border)' }}>
                             +{Number(ts.consultant_extra_pct)}% = {formatMinutes(totalMin)}
                           </span>
                         </div>
@@ -2004,7 +2032,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
       {/* Reprocess result toast */}
       {reprocessResult && (
         <div className="fixed bottom-6 right-6 z-50 max-w-sm px-4 py-3 rounded-xl text-xs shadow-2xl"
-          style={{ background: '#18181B', border: '1px solid #3f3f46', color: '#e4e4e7' }}>
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}>
           {reprocessResult}
         </div>
       )}
@@ -2012,7 +2040,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
       {/* Bulk action bar */}
       {(isAdmin || isCoordenador) && selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl"
-          style={{ background: '#18181B', border: '1px solid #3f3f46' }}>
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <span className="text-xs text-[var(--text)] flex items-center gap-1.5">
             {selectedIds.size} apontamento{selectedIds.size > 1 ? 's' : ''} selecionado{selectedIds.size > 1 ? 's' : ''}
             <span style={{ color: 'var(--text-light)' }}>·</span>
@@ -2022,7 +2050,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           <button
             onClick={() => setBulkPcOpen(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
-            style={{ background: '#3f3f46', color: '#e4e4e7' }}
+            style={{ background: 'var(--surface-hover)', color: 'var(--text)' }}
           >
             <FolderOpen size={11} /> Cliente/Projeto
           </button>
@@ -2037,7 +2065,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
             onClick={() => handleReprocessMovidesk(Array.from(selectedIds))}
             disabled={reprocessing}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
-            style={{ background: '#3f3f46', color: '#e4e4e7' }}
+            style={{ background: 'var(--surface-hover)', color: 'var(--text)' }}
           >
             <RefreshCw size={11} className={reprocessing ? 'animate-spin' : ''} /> Reprocessar Movidesk
           </button>
@@ -2046,7 +2074,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               onClick={handleBulkReverseApproval}
               disabled={bulkReversing}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
-              style={{ background: 'var(--danger, #ef4444)', color: '#fff' }}
+              style={{ background: 'var(--danger, #ef4444)', color: 'var(--primary-fg)' }}
             >
               <RotateCcw size={11} className={bulkReversing ? 'animate-spin' : ''} /> Estornar aprovação ({selectedApprovedCount})
             </button>
@@ -2128,15 +2156,15 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
           <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-full max-w-sm shadow-xl p-5 space-y-4">
             <div className="flex items-center gap-2">
               <RotateCcw size={15} className="text-[var(--warning)]" />
-              <h3 className="text-sm font-semibold text-white">Estornar rejeição</h3>
+              <h3 className="text-sm font-semibold text-[var(--text)]">Estornar rejeição</h3>
             </div>
-            <p className="text-xs text-[var(--text-muted)]">O apontamento voltará para <span className="text-white font-medium">Pendente</span>. Informe o motivo do estorno:</p>
+            <p className="text-xs text-[var(--text-muted)]">O apontamento voltará para <span className="text-[var(--text)] font-medium">Pendente</span>. Informe o motivo do estorno:</p>
             <textarea
               value={reverseRejectionReason}
               onChange={e => setReverseRejectionReason(e.target.value)}
               placeholder="Motivo do estorno..."
               rows={3}
-              className="w-full bg-[var(--surface-hover)] border border-[var(--border)] text-white text-xs rounded-md px-3 py-2 resize-none outline-none focus:border-[var(--border-strong)]"
+              className="w-full bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)] text-xs rounded-md px-3 py-2 resize-none outline-none focus:border-[var(--border-strong)]"
             />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setReverseRejectionModal({ open: false })}
@@ -2146,7 +2174,7 @@ function TimesheetsPageContent({ scope, embedded, triagemPadrao, leadOptions }: 
               <button
                 onClick={confirmReverseRejection}
                 disabled={reverseRejecting || !reverseRejectionReason.trim()}
-                className="px-3 py-1.5 text-xs bg-[var(--warning-bg)] hover:bg-amber-600 text-white rounded-md disabled:opacity-50 flex items-center gap-1.5"
+                className="px-3 py-1.5 text-xs bg-[var(--warning-border)] hover:bg-[var(--warning-border)] text-[var(--primary-fg)] rounded-md disabled:opacity-50 flex items-center gap-1.5"
               >
                 <RotateCcw size={11} />
                 {reverseRejecting ? 'Estornando...' : 'Confirmar estorno'}
@@ -2166,12 +2194,13 @@ export interface TimesheetsScreenProps {
   triagemPadrao?: boolean
   /** No escopo investimento, transforma o filtro de Projeto em filtro de Lead. */
   leadOptions?: { id: number; name: string }[]
+  extDate?: PortalDate
 }
 
 export function TimesheetsScreen(props: TimesheetsScreenProps = {}) {
   return (
     <Suspense>
-      <TimesheetsPageContent scope={props.scope} embedded={props.embedded} triagemPadrao={props.triagemPadrao} leadOptions={props.leadOptions} />
+      <TimesheetsPageContent scope={props.scope} embedded={props.embedded} triagemPadrao={props.triagemPadrao} leadOptions={props.leadOptions} extDate={props.extDate} />
     </Suspense>
   )
 }

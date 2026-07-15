@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 
 // Janela (horas) para editar a própria última interação — espelha ProjectMessage::EDIT_WINDOW_HOURS no backend.
 const EDIT_WINDOW_HOURS = 3
+const MAX_FILE_MB = 25   // limite por arquivo (bate com o php-fpm upload_max_filesize em prod)
 
 interface MentionUser { id: number; name: string }
 
@@ -276,6 +277,13 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? [])
+    // Valida o tamanho ANTES de enviar — mensagem clara com o motivo (nome + tamanho + limite).
+    const tooBig = selected.find(f => f.size > MAX_FILE_MB * 1024 * 1024)
+    if (tooBig) {
+      toast.error(`"${tooBig.name}" tem ${formatBytes(tooBig.size)} — máximo ${MAX_FILE_MB}MB por arquivo. Comprima o arquivo ou envie um link.`)
+      e.target.value = ''
+      return
+    }
     setFiles(prev => {
       const combined = [...prev, ...selected]
       if (combined.length > 10) {
@@ -303,15 +311,23 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
       // Chat de projeto é sempre interno — backend ignora e força 'internal'.
       files.forEach(f => fd.append('files[]', f))
 
-      const res = await fetch(`/api/v1/projects/${projectId}/messages`, {
+      // Upload DIRETO no backend só quando há TOKEN de aba (auth cross-origin via Bearer): o proxy do
+      // Vercel limita o body em ~4.5MB. Sem token (sessão por cookie), mantém o relativo — o cookie de
+      // sessão é do domínio app.minutor.com.br e NÃO vai numa chamada direta ao api.minutor.com.br.
+      const token = typeof window !== 'undefined' ? window.sessionStorage.getItem('minutor_token') : null
+      const direct = !!token && typeof window !== 'undefined' && window.location.hostname === 'app.minutor.com.br'
+      const res = await fetch(`${direct ? 'https://api.minutor.com.br/api/v1' : '/api/v1'}/projects/${projectId}/messages`, {
         method: 'POST',
-        credentials: 'same-origin',
+        credentials: direct ? 'omit' : 'same-origin',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: fd,
       })
 
       if (!res.ok) {
+        // 413 (arquivo/requisição grande demais) costuma vir do nginx como HTML, não JSON.
+        if (res.status === 413) throw new Error(`Arquivo grande demais para o servidor (máximo ${MAX_FILE_MB}MB por arquivo). Comprima ou envie um link.`)
         const err = await res.json().catch(() => ({}))
-        throw new Error(err?.message ?? 'Erro ao enviar')
+        throw new Error(err?.message ?? `Erro ao enviar (HTTP ${res.status}).`)
       }
 
       const msg: MessageWithAttachments = await res.json()
@@ -595,7 +611,7 @@ export function ProjectMessages({ projectId, userRole, readOnly }: Props) {
           </button>
         </div>
         <p className="text-[10px] mt-1.5" style={{ color: 'var(--text-muted)' }}>
-          Enter para enviar · Shift+Enter para nova linha · Máx. 10 arquivos por mensagem (20 MB cada)
+          Enter para enviar · Shift+Enter para nova linha · Máx. 10 arquivos por mensagem ({MAX_FILE_MB} MB cada)
         </p>
       </div>
       )}

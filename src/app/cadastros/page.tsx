@@ -17,6 +17,7 @@ import { RowMenu } from '@/components/ui/row-menu'
 import type { CustomerFull, Executive, ConsultantGroup } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useCrudActions } from '@/hooks/use-crud-actions'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -69,7 +70,8 @@ const TABS = [
 
 interface CrudItem { id: number; name: string; code: string; description?: string; active: boolean; created_at: string }
 
-function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
+function CrudTab({ endpoint, label, screenKey }: { endpoint: string; label: string; screenKey: string }) {
+  const { isDenied } = useDeniedActions()
   const [items, setItems] = useState<CrudItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -120,9 +122,11 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
           <option value="1">Ativos</option>
           <option value="0">Inativos</option>
         </select>
-        <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
-          <Plus size={13} /> Novo
-        </Button>
+        {!isDenied(screenKey, 'create') && (
+          <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
+            <Plus size={13} /> Novo
+          </Button>
+        )}
       </div>
       <div className="rounded-lg border border-[var(--border)] overflow-clip">
         <table className="w-full text-xs">
@@ -141,8 +145,8 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
               <tr key={item.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
-                    { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id },
+                    ...(isDenied(screenKey, 'edit') ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }]),
+                    ...(isDenied(screenKey, 'delete') ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id }]),
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 text-[var(--text)]">{item.name}</td>
@@ -212,6 +216,8 @@ function CrudTab({ endpoint, label }: { endpoint: string; label: string }) {
 // ─── TAB: CLIENTES ───────────────────────────────────────────────────────────
 
 function CustomersTab() {
+  const { isDenied } = useDeniedActions()
+  const screenKey = '/cadastros?tab=customers'
   const [items, setItems] = useState<CustomerFull[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -280,9 +286,11 @@ function CustomersTab() {
           <option value="">Todos os executivos</option>
           {executives.map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
         </select>
-        <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
-          <Plus size={13} /> Novo
-        </Button>
+        {!isDenied(screenKey, 'create') && (
+          <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
+            <Plus size={13} /> Novo
+          </Button>
+        )}
       </div>
       <div className="rounded-lg border border-[var(--border)] overflow-clip">
         <table className="w-full text-xs">
@@ -304,8 +312,8 @@ function CustomersTab() {
               <tr key={item.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
-                    { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id },
+                    ...(isDenied(screenKey, 'edit') ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }]),
+                    ...(isDenied(screenKey, 'delete') ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id }]),
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 text-[var(--text)]">{item.name}</td>
@@ -413,6 +421,8 @@ function CustomersTab() {
 interface ExecutiveUser { id: number; name: string; email: string; is_executive: boolean }
 
 function ExecutivesTab() {
+  const { isDenied } = useDeniedActions()
+  const screenKey = '/cadastros?tab=executives'
   const [executives, setExecutives] = useState<ExecutiveUser[]>([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<number | null>(null)
@@ -464,9 +474,11 @@ function ExecutivesTab() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <p className="text-xs text-[var(--text-light)]">Usuários marcados como executivos ficam disponíveis para vincular a clientes.</p>
-        <Button onClick={openAdd} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
-          <Plus size={13} /> Adicionar
-        </Button>
+        {!isDenied(screenKey, 'create') && (
+          <Button onClick={openAdd} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
+            <Plus size={13} /> Adicionar
+          </Button>
+        )}
       </div>
       <div className="rounded-lg border border-[var(--border)] overflow-clip">
         <table className="w-full text-xs">
@@ -529,6 +541,8 @@ function ExecutivesTab() {
 // ─── TAB: GRUPOS DE CONSULTOR ────────────────────────────────────────────────
 
 function ConsultantGroupsTab() {
+  const { isDenied } = useDeniedActions()
+  const screenKey = '/cadastros?tab=groups'
   const [items, setItems] = useState<ConsultantGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -609,9 +623,11 @@ function ConsultantGroupsTab() {
           <Input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
             placeholder="Buscar grupo..." className="pl-8 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs" />
         </div>
-        <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
-          <Plus size={13} /> Novo
-        </Button>
+        {!isDenied(screenKey, 'create') && (
+          <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
+            <Plus size={13} /> Novo
+          </Button>
+        )}
       </div>
 
       <div className="rounded-lg border border-[var(--border)] overflow-clip">
@@ -631,8 +647,8 @@ function ConsultantGroupsTab() {
               <tr key={item.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
-                    { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id },
+                    ...(isDenied(screenKey, 'edit') ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }]),
+                    ...(isDenied(screenKey, 'delete') ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id }]),
                   ]} />
                 </td>
                 <td className="px-3 py-2.5">
@@ -782,6 +798,8 @@ const HOLIDAY_TYPES = [
 ]
 
 function HolidaysTab() {
+  const { isDenied } = useDeniedActions()
+  const screenKey = '/cadastros?tab=holidays'
   const [items, setItems] = useState<HolidayItem[]>([])
   const [loading, setLoading] = useState(true)
   const [year, setYear] = useState(String(new Date().getFullYear()))
@@ -852,9 +870,11 @@ function HolidaysTab() {
           className="bg-[var(--surface-hover)] hover:bg-[var(--border-strong)] text-[var(--text)] h-8 text-xs gap-1.5 ml-auto">
           <Download size={13} /> {importing ? 'Importando…' : 'Importar Nacionais'}
         </Button>
-        <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
-          <Plus size={13} /> Novo
-        </Button>
+        {!isDenied(screenKey, 'create') && (
+          <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
+            <Plus size={13} /> Novo
+          </Button>
+        )}
       </div>
 
       <div className="rounded-lg border border-[var(--border)] overflow-clip">
@@ -875,9 +895,9 @@ function HolidaysTab() {
               <tr key={item.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
-                    { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
+                    ...(isDenied(screenKey, 'edit') ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }]),
                     // Feriado nacional (importado) não pode ser apagado — só desativado (status).
-                    ...(item.type === 'national'
+                    ...(item.type === 'national' || isDenied(screenKey, 'delete')
                       ? []
                       : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: crud.deletingId === item.id }]),
                   ]} />
@@ -958,6 +978,8 @@ const TPL_CONTRATOS  = [{ value: 'cooperado', label: 'Cooperado' }, { value: 'cl
 const TPL_EMPRESAS   = [{ value: 'erpserv', label: 'ERPSERV' }, { value: 'bizify', label: 'Bizify' }]
 
 function EmailTemplatesTab() {
+  const { isDenied } = useDeniedActions()
+  const screenKey = '/cadastros?tab=email_templates'
   const [items, setItems] = useState<EmailTpl[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<{ open: boolean; item?: EmailTpl }>({ open: false })
@@ -1021,7 +1043,9 @@ function EmailTemplatesTab() {
         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
           Variáveis: <code>{'{nome}'}</code> <code>{'{periodo}'}</code> <code>{'{valor}'}</code> <code>{'{data}'}</code> (dia do mês configurado, no mês seguinte). Consultor distingue por empresa (ERPSERV/Bizify). Só 1 ativo por tipo+empresa.
         </p>
-        <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5"><Plus size={13} /> Novo modelo</Button>
+        {!isDenied(screenKey, 'create') && (
+          <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5"><Plus size={13} /> Novo modelo</Button>
+        )}
       </div>
       <div className="rounded-lg border border-[var(--border)] overflow-clip">
         <table className="w-full text-xs">
@@ -1042,9 +1066,9 @@ function EmailTemplatesTab() {
             ) : items.map(it => (
               <tr key={it.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                 <td className="px-2 py-2.5 w-10"><RowMenu items={[
-                  { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(it) },
+                  ...(isDenied(screenKey, 'edit') ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(it) }]),
                   { label: 'Duplicar', icon: <Copy size={12} />, onClick: () => openDuplicate(it) },
-                  { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: it.id }), danger: true },
+                  ...(isDenied(screenKey, 'delete') ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: it.id }), danger: true }]),
                 ]} /></td>
                 <td className="px-3 py-2.5 text-[var(--text)]">{catLabel(it.categoria)}</td>
                 <td className="px-3 py-2.5 text-[var(--text-muted)]">{ctLabel(it.contract_type)}</td>
@@ -1175,7 +1199,8 @@ function EmailTemplatesTab() {
 
 interface IsActiveItem { id: number; name: string; code: string; description?: string; is_active: boolean; created_at: string }
 
-function IsActiveCrudTab({ endpoint, label }: { endpoint: string; label: string }) {
+function IsActiveCrudTab({ endpoint, label, screenKey }: { endpoint: string; label: string; screenKey: string }) {
+  const { isDenied } = useDeniedActions()
   const [items, setItems]           = useState<IsActiveItem[]>([])
   const [loading, setLoading]       = useState(true)
   const [search, setSearch]         = useState('')
@@ -1227,9 +1252,11 @@ function IsActiveCrudTab({ endpoint, label }: { endpoint: string; label: string 
           <option value="active">Ativos</option>
           <option value="inactive">Inativos</option>
         </select>
-        <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
-          <Plus size={13} /> Novo
-        </Button>
+        {!isDenied(screenKey, 'create') && (
+          <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
+            <Plus size={13} /> Novo
+          </Button>
+        )}
       </div>
       <div className="rounded-lg border border-[var(--border)] overflow-clip">
         <table className="w-full text-xs">
@@ -1248,8 +1275,8 @@ function IsActiveCrudTab({ endpoint, label }: { endpoint: string; label: string 
               <tr key={item.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
-                    { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: crud.deletingId === item.id },
+                    ...(isDenied(screenKey, 'edit') ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }]),
+                    ...(isDenied(screenKey, 'delete') ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: crud.deletingId === item.id }]),
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 text-[var(--text)]">{item.name}</td>
@@ -1330,6 +1357,8 @@ interface CustomerContact {
 interface CustomerOption { id: number; name: string }
 
 function CustomerContactsTab() {
+  const { isDenied } = useDeniedActions()
+  const screenKey = '/cadastros?tab=customer_contacts'
   const [customers, setCustomers]       = useState<CustomerOption[]>([])
   const [customerId, setCustomerId]     = useState('')
   const [contacts, setContacts]         = useState<CustomerContact[]>([])
@@ -1391,7 +1420,7 @@ function CustomerContactsTab() {
             placeholder="Selecione o cliente..."
           />
         </div>
-        {customerId && (
+        {customerId && !isDenied(screenKey, 'create') && (
           <button onClick={openCreate}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
             style={{ background: 'var(--primary-soft)', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
@@ -1429,8 +1458,8 @@ function CustomerContactsTab() {
                 <tr key={c.id} className="border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
                   <td className="px-2 py-2.5 w-10">
                     <RowMenu items={[
-                      { label: 'Editar',  icon: <Pencil size={12} />, onClick: () => openEdit(c) },
-                      { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, item: c }), danger: true },
+                      ...(isDenied(screenKey, 'edit') ? [] : [{ label: 'Editar',  icon: <Pencil size={12} />, onClick: () => openEdit(c) }]),
+                      ...(isDenied(screenKey, 'delete') ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, item: c }), danger: true }]),
                     ]} />
                   </td>
                   <td className="px-3 py-2.5 text-[var(--text)] font-medium">{c.name}</td>
@@ -1534,14 +1563,14 @@ function CadastrosContent() {
           {active.label}
         </h2>
         <div className="flex-1 min-w-0">
-          {activeTab === 'contracts'          && <CrudTab endpoint="contract-types"    label="Tipo de Contrato" />}
-          {activeTab === 'services'           && <CrudTab endpoint="service-types"     label="Tipo de Serviço" />}
+          {activeTab === 'contracts'          && <CrudTab endpoint="contract-types"    label="Tipo de Contrato" screenKey="/cadastros?tab=contracts" />}
+          {activeTab === 'services'           && <CrudTab endpoint="service-types"     label="Tipo de Serviço" screenKey="/cadastros?tab=services" />}
           {activeTab === 'customers'          && <CustomersTab />}
           {activeTab === 'customer_contacts'  && <CustomerContactsTab />}
           {activeTab === 'executives'         && <ExecutivesTab />}
           {activeTab === 'groups'             && <ConsultantGroupsTab />}
           {activeTab === 'holidays'           && <HolidaysTab />}
-          {activeTab === 'expense_categories' && <IsActiveCrudTab endpoint="expense-categories" label="Categoria de Despesa" />}
+          {activeTab === 'expense_categories' && <IsActiveCrudTab endpoint="expense-categories" label="Categoria de Despesa" screenKey="/cadastros?tab=expense_categories" />}
           {activeTab === 'email_templates'    && <EmailTemplatesTab />}
         </div>
       </div>

@@ -75,6 +75,9 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
           </Link>
         </div>
         <ProjectHeaderExecutive project={project} onProjectChange={refetch} />
+        <div style={{ padding: '0 24px', background: 'var(--bg)' }}>
+          <ProjectTabs projectId={project.id} isOperational={project.is_operational !== false} />
+        </div>
         <div style={{ flex: 1, padding: 24, background: 'var(--bg)' }}>
           {children}
         </div>

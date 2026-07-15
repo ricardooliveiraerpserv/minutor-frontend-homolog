@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { X, MessageCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { listConversations } from '@/lib/inbox'
+import { isChatSoundOn, playChatSound } from '@/lib/chat-prefs'
 import type { ConversationSummary } from '@/types/inbox'
 
 interface Popup {
@@ -19,28 +20,6 @@ function initials(name: string): string {
   return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]?.toUpperCase()).join('') || '?'
 }
 
-/** "Ding" curto de 2 notas via Web Audio — sem arquivo de áudio, sem rede. */
-function playPing() {
-  try {
-    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-    if (!Ctx) return
-    const ctx = new Ctx()
-    const now = ctx.currentTime
-    ;[880, 1180].forEach((freq, i) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      const t = now + i * 0.12
-      gain.gain.setValueAtTime(0, t)
-      gain.gain.linearRampToValueAtTime(0.25, t + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18)
-      osc.connect(gain); gain.connect(ctx.destination)
-      osc.start(t); osc.stop(t + 0.2)
-    })
-    setTimeout(() => ctx.close().catch(() => {}), 700)
-  } catch { /* navegador bloqueou áudio até interação — silêncio */ }
-}
 
 function displayName(c: ConversationSummary): string {
   return c.other_user?.name ?? c.title ?? 'Conversa'
@@ -97,9 +76,9 @@ export function ChatNotifier() {
 
     if (fresh.length) {
       setPopups(prev => [...fresh, ...prev].slice(0, 4))
-      playPing()
+      if (isChatSoundOn()) playChatSound(user?.chat_sound ?? undefined, user?.chat_sound_volume ?? undefined)
     }
-  }, [data, onInbox])
+  }, [data, onInbox, user?.chat_sound, user?.chat_sound_volume])
 
   // Auto-dismiss de cada pop-up após 7s.
   useEffect(() => {
@@ -116,7 +95,7 @@ export function ChatNotifier() {
   if (!popups.length) return null
 
   return (
-    <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2.5 w-[400px] max-w-[calc(100vw-2rem)]">
+    <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-3 w-[360px] max-w-[calc(100vw-2rem)]">
       {popups.map(p => (
         <div
           key={p.key}
@@ -124,27 +103,27 @@ export function ChatNotifier() {
           tabIndex={0}
           onClick={() => open(p.convId, p.key)}
           onKeyDown={e => { if (e.key === 'Enter') open(p.convId, p.key) }}
-          className="group cursor-pointer rounded-2xl border shadow-xl p-4 flex items-start gap-3.5 animate-in slide-in-from-bottom-2 fade-in duration-200"
-          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+          className="group cursor-pointer rounded-2xl shadow-2xl p-5 flex items-start gap-4 min-h-[104px] animate-in slide-in-from-bottom-2 fade-in duration-200"
+          style={{ background: 'var(--primary)', color: 'var(--primary-fg)', boxShadow: '0 12px 32px color-mix(in srgb, var(--primary) 45%, transparent)' }}
         >
           <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-semibold shrink-0"
-            style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}
+            className="w-14 h-14 rounded-2xl flex items-center justify-center text-base font-bold shrink-0"
+            style={{ background: 'color-mix(in srgb, var(--primary-fg) 16%, transparent)', color: 'var(--primary-fg)' }}
           >
             {initials(p.name)}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <MessageCircle size={14} style={{ color: 'var(--primary)' }} />
-              <span className="text-base font-semibold truncate" style={{ color: 'var(--text)' }}>{p.name}</span>
+              <MessageCircle size={16} style={{ color: 'var(--primary-fg)' }} />
+              <span className="text-lg font-bold truncate" style={{ color: 'var(--primary-fg)' }}>{p.name}</span>
             </div>
-            <p className="text-sm mt-1 line-clamp-2" style={{ color: 'var(--text-muted)' }}>{p.preview}</p>
+            <p className="text-sm mt-1.5 line-clamp-3 font-medium" style={{ color: 'color-mix(in srgb, var(--primary-fg) 82%, transparent)' }}>{p.preview}</p>
           </div>
           <button
             type="button"
             onClick={e => { e.stopPropagation(); dismiss(p.key) }}
-            className="shrink-0 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ color: 'var(--text-light)' }}
+            className="shrink-0 p-1 rounded-md opacity-70 hover:opacity-100 transition-opacity"
+            style={{ color: 'var(--primary-fg)' }}
             aria-label="Fechar"
           >
             <X size={16} />

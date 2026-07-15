@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, Fragment } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { api } from '@/lib/api'
 import { useAuth } from '@/hooks/use-auth'
+import { useActiveCompany } from '@/hooks/use-active-company'
 import { useRouter } from 'next/navigation'
 import {
   Search, Users, X, Check, TrendingUp, Clock,
@@ -27,7 +28,7 @@ interface ConsultantGroup { id: number; name: string; users: Consultant[] }
 interface ICProject {
   id: number; name: string; code: string; status: string
   categoria_interna: string | null
-  customer: { id: number; name: string } | null
+  customer: { id: number; name: string; active?: boolean } | null
   consultants: Consultant[]
   coordinators: Consultant[]
   parent_project_id: number | null
@@ -105,6 +106,9 @@ const TABS: { id: Tab; label: string; icon: LucideIcon }[] = [
 export default function InvestimentoComercialPage() {
   const { user } = useAuth()
   const router   = useRouter()
+  // Multi-empresa: a "CASA" do investimento interno é a empresa ATIVA (Bizify → cliente BIZIFY).
+  const { isBizify } = useActiveCompany()
+  const houseName = isBizify ? 'BIZIFY' : 'ERPSERV'
 
   const now = new Date()
   const [filterMonth, setFilterMonth] = useState<number>(now.getMonth() + 1)
@@ -125,6 +129,9 @@ export default function InvestimentoComercialPage() {
   const [selected,     setSelected]     = useState<number[]>([])
   const [userSearch,   setUserSearch]   = useState('')
   const [saving,       setSaving]       = useState(false)
+  // Projetos reais por consultor (alocação em investimento): opções do cliente + mapa escolhido.
+  const [realProjectOpts, setRealProjectOpts] = useState<{ id: number; name: string }[]>([])
+  const [realByConsultant, setRealByConsultant] = useState<Record<number, number[]>>({})
 
   // Modal de criação de projeto interno (ERPSERV)
   const [newProjectOpen,      setNewProjectOpen]      = useState(false)
@@ -219,10 +226,13 @@ export default function InvestimentoComercialPage() {
   const [expandedConsultant, setExpandedConsultant] = useState<number | null>(null)
 
   const isAdmin = user?.type === 'admin'
+  const isCoordenador = user?.type === 'coordenador'
+  // Alocação (consultores + projeto real) liberada p/ coordenador também — mesma rotina,
+  // mesmo privilégio de alocar. Criar/editar/abrir-mês seguem admin-only.
+  const canAllocate = isAdmin || isCoordenador
 
   useEffect(() => {
-    // Rotina disponível para admin e TODOS os coordenadores. Ações de gestão
-    // (criar/editar/alocar/abrir mês) ficam só para admin (gated por isAdmin).
+    // Rotina disponível para admin e TODOS os coordenadores.
     if (user && user.type !== 'admin' && user.type !== 'coordenador') router.replace('/dashboard')
   }, [user, router])
 
@@ -271,10 +281,10 @@ export default function InvestimentoComercialPage() {
 
   // Auto-expandir o cliente ERPSERV ao carregar (é o destaque da página)
   useEffect(() => {
-    const erpserv = projects.find(p => (p.customer?.name ?? '').toUpperCase().includes('ERPSERV'))?.customer
+    const erpserv = projects.find(p => (p.customer?.name ?? '').toUpperCase().includes(houseName))?.customer
     if (!erpserv) return
     setExpandedCustomers(prev => prev.has(erpserv.id) ? prev : new Set(prev).add(erpserv.id))
-  }, [projects])
+  }, [projects, houseName])
 
   const handleCreateProject = async () => {
     const name = newProjectName.trim()
@@ -337,12 +347,20 @@ export default function InvestimentoComercialPage() {
   const filtered = useMemo(() => {
     const q = clientSearch.toLowerCase()
     return projects.filter(p => {
+      // Somente clientes ATIVOS (a CASA é ativa; leads ficam aninhados na CASA e não são dropados).
+      if (p.customer && p.customer.active === false) return false
       if (q && !(p.customer?.name.toLowerCase().includes(q) || p.consultants.some(c => c.name.toLowerCase().includes(q)) || (p.name ?? '').toLowerCase().includes(q))) return false
       if (categoriaFilter === 'todas') return true
       if (categoriaFilter === 'sem')   return !p.categoria_interna
       return p.categoria_interna === categoriaFilter
     })
   }, [projects, clientSearch, categoriaFilter])
+
+  // Contagem de CLIENTES distintos (não de projetos) para o rótulo "N clientes".
+  const clientCount = useMemo(
+    () => new Set(filtered.map(p => p.customer?.id).filter(Boolean)).size,
+    [filtered],
+  )
 
   // Opções de Lead (categoria Leads) p/ o filtro das abas Apontamentos/Aprovações.
   const leadOptions = useMemo(
@@ -357,15 +375,36 @@ export default function InvestimentoComercialPage() {
 
   const totalHours = useMemo(() => filtered.reduce((acc, p) => acc + (hoursMap[p.id] ?? 0), 0), [filtered, hoursMap])
 
-  function openModal(project: ICProject) { setModal({ open: true, project }); setSelected(project.consultants.map(c => c.id)); setUserSearch('') }
-  function closeModal() { setModal({ open: false, project: null }); setSelected([]); setUserSearch('') }
+  function openModal(project: ICProject) {
+    setModal({ open: true, project })
+    setSelected(project.consultants.map(c => c.id))
+    setUserSearch('')
+    setRealProjectOpts([])
+    setRealByConsultant({})
+    // Projeto Real só se aplica a investimentos de Projeto/Suporte (não Comercial).
+    if (project.categoria_interna === 'Projeto' || project.categoria_interna === 'Suporte') {
+      api.get<{ real_projects: { id: number; name: string }[]; assignments: Record<string, number[]> }>(`/projects/${project.id}/real-project-assignments`)
+        .then(r => {
+          setRealProjectOpts(Array.isArray(r?.real_projects) ? r.real_projects.map(p => ({ id: p.id, name: p.name })) : [])
+          const map: Record<number, number[]> = {}
+          Object.entries(r?.assignments ?? {}).forEach(([uid, ids]) => { map[Number(uid)] = (ids as number[]).map(Number) })
+          setRealByConsultant(map)
+        })
+        .catch(() => {})
+    }
+  }
+  function closeModal() { setModal({ open: false, project: null }); setSelected([]); setUserSearch(''); setRealProjectOpts([]); setRealByConsultant({}) }
   function toggleUser(id: number) { setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]) }
 
   async function saveTeam() {
     if (!modal.project) return
     setSaving(true)
     try {
-      await api.patch(`/projects/${modal.project.id}`, { consultant_ids: selected })
+      // Envia só os reais dos consultores ainda selecionados.
+      const realMap: Record<number, number[]> = {}
+      selected.forEach(id => { realMap[id] = realByConsultant[id] ?? [] })
+      // Endpoint dedicado (assign_consultants) — coordenador também aloca.
+      await api.patch(`/projects/${modal.project.id}/investment-allocation`, { consultant_ids: selected, real_projects_by_consultant: realMap })
       const updatedConsultants = allUsers.filter(u => selected.includes(u.id))
       setProjects(prev => prev.map(p => p.id === modal.project!.id ? { ...p, consultants: updatedConsultants } : p))
       toast.success('Equipe atualizada')
@@ -423,9 +462,13 @@ export default function InvestimentoComercialPage() {
               <Button size="sm" variant="ghost" onClick={() => openEditModal(project)} aria-label="Editar projeto">
                 <Pencil size={13} className="mr-1" /> Editar
               </Button>
+            </>)}
+            {canAllocate && (
               <Button size="sm" variant="ghost" onClick={() => openModal(project)}>
                 <Users size={13} className="mr-1" /> Alocação
               </Button>
+            )}
+            {isAdmin && (
               <Button size="sm" variant="ghost" onClick={() => setOpenPeriodProject(project)}
                 aria-label={project.has_open_period ? 'Fechar mês' : 'Abrir mês'}
                 style={project.has_open_period ? { color: 'var(--warning)' } : undefined}>
@@ -433,7 +476,7 @@ export default function InvestimentoComercialPage() {
                   ? <><CalendarOff size={13} className="mr-1" /> Fechar Mês</>
                   : <><CalendarPlus size={13} className="mr-1" /> Abrir Mês</>}
               </Button>
-            </>)}
+            )}
           </div>
         </Td>
       </Tr>
@@ -454,7 +497,7 @@ export default function InvestimentoComercialPage() {
       if (!groups.has(key)) groups.set(key, { customer: p.customer, projects: [] })
       groups.get(key)!.projects.push(p)
     }
-    const isErpserv = (name: string) => name.toUpperCase().includes('ERPSERV')
+    const isErpserv = (name: string) => name.toUpperCase().includes(houseName)
     const groupList = [...groups.values()].sort((a, b) => {
       const aErp = isErpserv(a.customer.name)
       const bErp = isErpserv(b.customer.name)
@@ -754,7 +797,7 @@ export default function InvestimentoComercialPage() {
         {activeTab === 'projetos' && (
           <>
             <span className="text-xs ml-auto" style={{ color: 'var(--text-light)' }}>
-              {filtered.length} cliente{filtered.length !== 1 ? 's' : ''}
+              {clientCount} cliente{clientCount !== 1 ? 's' : ''}
               {filterMonth > 0 && !hoursLoading && (
                 <span> · <span className="font-semibold" style={{ color: 'var(--text)' }}>{fmtHours(totalHours)}</span> total</span>
               )}
@@ -764,7 +807,7 @@ export default function InvestimentoComercialPage() {
                 setLeadMode(false); setNewProjectParent(''); setNewProjectCategoria('Projeto')
                 setNewProjectName(''); setNewProjectApprover(''); setNewProjectOpen(true)
               }}>
-                <Plus size={13} className="mr-1" /> Novo Projeto Interno (ERPSERV)
+                <Plus size={13} className="mr-1" /> Novo Projeto Interno ({houseName})
               </Button>
             )}
           </>
@@ -824,7 +867,7 @@ export default function InvestimentoComercialPage() {
       {activeTab === 'mensal'      && renderMensal()}
       {activeTab === 'detalhe'     && renderDetalhe()}
 
-      {/* Modal: Novo Projeto Interno (ERPSERV) */}
+      {/* Modal: Novo Projeto Interno ({houseName}) */}
       {newProjectOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.8)' }}
           onClick={() => !creatingProject && setNewProjectOpen(false)}>
@@ -838,7 +881,7 @@ export default function InvestimentoComercialPage() {
             </div>
             <div className="px-6 py-5 space-y-4">
               <p className="text-xs" style={{ color: 'var(--text-light)' }}>
-                Cliente: <span className="font-semibold" style={{ color: 'var(--text)' }}>ERPSERV</span> · sem horas e sem valor de contrato
+                Cliente: <span className="font-semibold" style={{ color: 'var(--text)' }}>{houseName}</span> · sem horas e sem valor de contrato
               </p>
               {leadMode ? (
                 <p className="text-xs" style={{ color: 'var(--text-light)' }}>
@@ -856,7 +899,7 @@ export default function InvestimentoComercialPage() {
                     value={newProjectParent}
                     onChange={setNewProjectParent}
                     options={projects
-                      .filter(p => (p.customer?.name ?? '').toUpperCase().includes('ERPSERV') && !p.parent_project_id)
+                      .filter(p => (p.customer?.name ?? '').toUpperCase().includes(houseName) && !p.parent_project_id)
                       .map(p => ({ id: p.id, name: p.name || p.code }))}
                     placeholder="Aninhar abaixo de um investimento (ex.: Investimento Leads)..."
                   />
@@ -1061,6 +1104,35 @@ export default function InvestimentoComercialPage() {
                             <X size={11} style={{ color: 'var(--primary)' }} />
                           </button>
                         </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Projeto Real por consultor — só em investimentos de Projeto/Suporte.
+                  Define quais projetos reais do cliente cada consultor pode apontar. */}
+              {(modal.project!.categoria_interna === 'Projeto' || modal.project!.categoria_interna === 'Suporte') && !(modal.project!.customer?.name ?? '').toUpperCase().includes(houseName) && selected.length > 0 && (
+                <div>
+                  <label className="block text-[11px] font-medium mb-1.5" style={{ color: 'var(--text-muted)' }}>Projeto Real por consultor</label>
+                  <p className="text-[10px] mb-2" style={{ color: 'var(--text-light)' }}>
+                    Escolha os projetos reais que cada consultor pode apontar ao lançar horas neste investimento. No apontamento aparecem só os escolhidos aqui.
+                  </p>
+                  <div className="flex flex-col gap-2.5 max-h-64 overflow-y-auto pr-0.5">
+                    {selected.map(id => {
+                      const u = usersById.get(id)
+                      if (!u) return null
+                      return (
+                        <div key={id} className="rounded-xl p-2.5" style={{ background: 'var(--surface-hover)', border: '1px solid var(--border)' }}>
+                          <p className="text-[11px] font-medium mb-1" style={{ color: 'var(--text)' }}>{u.name}</p>
+                          <MultiSelect
+                            fullWidth
+                            value={(realByConsultant[id] ?? []).map(String)}
+                            onChange={vals => setRealByConsultant(prev => ({ ...prev, [id]: vals.map(Number) }))}
+                            options={realProjectOpts}
+                            placeholder={realProjectOpts.length === 0 ? 'Nenhum projeto real disponível' : 'Selecione o(s) projeto(s) real(is)...'}
+                          />
+                        </div>
                       )
                     })}
                   </div>

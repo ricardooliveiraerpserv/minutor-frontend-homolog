@@ -78,7 +78,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
         disabled={disabled}
         className={`flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl text-sm outline-none text-left disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : wide ? 'min-w-52' : 'min-w-36'}`}
         style={{
-          background: 'var(--bg)',
+          background: 'var(--field)',
           border: `1px solid ${selected ? 'var(--primary)' : 'var(--border)'}`,
           color: selected ? 'var(--text)' : 'var(--text-light)',
         }}
@@ -99,7 +99,7 @@ export function SearchSelect({ label, value, onChange, options, placeholder, wid
                   onChange={e => setQuery(e.target.value)}
                   placeholder="Buscar..."
                   className="w-full pl-7 pr-3 py-1.5 rounded-lg text-xs outline-none"
-                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                  style={{ background: 'var(--field)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 />
               </div>
             </div>

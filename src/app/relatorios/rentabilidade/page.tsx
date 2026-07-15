@@ -363,7 +363,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
       const all = results.flat()
       const map = new Map<string, ClienteRow>()
       for (const r of all) {
-        const k = r.cnpj || (r.customer_id != null ? 'c' + r.customer_id : r.cliente)
+        const k = r.customer_id != null ? 'c' + r.customer_id : (r.cnpj || r.cliente)
         const e = map.get(k)
         if (!e) map.set(k, { ...r,
           consultores: (r.consultores || []).map(c => ({ ...c, projetos: (c.projetos || []).map(p => ({ ...p })) })),
@@ -1326,7 +1326,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                                 const temProj = dProj.length > 0
                                 return (
                                   <Fragment key="despesas">
-                                  <tr style={{ borderTop: '1px solid var(--border)', background: 'rgba(245,158,11,0.10)', cursor: temProj ? 'pointer' : 'default' }}
+                                  <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--warning-bg)', cursor: temProj ? 'pointer' : 'default' }}
                                     onClick={() => { if (temProj) setExpandedCons(prev => { const n = new Set(prev); n.has(dKey) ? n.delete(dKey) : n.add(dKey); return n }) }}>
                                     <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)', fontWeight: 600 }}>
                                       {temProj && (dOpen ? <ChevronDown size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}
@@ -1463,7 +1463,7 @@ export default function RentabilidadePage({ visaoForced, embedded, periodo }: { 
                                 const temProj = dProj.length > 0
                                 return (
                                   <Fragment key="despesas">
-                                  <tr style={{ borderTop: '1px solid var(--border)', background: 'rgba(245,158,11,0.10)', cursor: temProj ? 'pointer' : 'default' }}
+                                  <tr style={{ borderTop: '1px solid var(--border)', background: 'var(--warning-bg)', cursor: temProj ? 'pointer' : 'default' }}
                                     onClick={() => { if (temProj) setExpandedCons(prev => { const n = new Set(prev); n.has(dKey) ? n.delete(dKey) : n.add(dKey); return n }) }}>
                                     <td style={{ textAlign: 'left', padding: '5px 8px', color: 'var(--text)', fontWeight: 600 }}>
                                       {temProj && (dOpen ? <ChevronDown size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} /> : <ChevronRight size={11} className="inline mr-1" style={{ color: 'var(--text-light)' }} />)}

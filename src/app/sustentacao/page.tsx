@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
 import { DateRangePicker } from '@/components/ui/date-range-picker'
 import { MonthYearPicker } from '@/components/ui/month-year-picker'
+import type { PortalDate } from '@/lib/portal-date'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import {
@@ -801,6 +802,9 @@ export default function SustentacaoPage() {
     const [ty, tm] = to.split('-').map(Number)
     return { fromM: fm, fromY: fy, toM: tm, toY: ty }
   }, [from, to])
+
+  // Filtro de data DE CIMA repassado às telas embedded — elas escondem o próprio (um filtro só).
+  const portalDate: PortalDate = { mode: filterMode, month: refMonth, year: refYear, from: dateFrom, to: dateTo }
 
   const [queueFilterResp,      setQueueFilterResp]      = useState<string[]>([])
   const [queueFilterCliente,   setQueueFilterCliente]   = useState<string[]>([])
@@ -1758,11 +1762,11 @@ export default function SustentacaoPage() {
         {/* ── CENTRALZINHA: telas idênticas às do menu, escopadas a Sustentação.
             Acionadas pelos cards da Centralzinha (state routineTab), independentes
             das tabs de indicadores. Override de coord é respeitado via ?scope=. ── */}
-        {routineTab === 'timesheets' && <TimesheetsScreen            scope="sustentacao" embedded />}
-        {routineTab === 'expenses'   && <ExpensesScreen              scope="sustentacao" embedded />}
-        {routineTab === 'approvals'  && <ApprovalsScreen             scope="sustentacao" embedded />}
-        {routineTab === 'auditoria'  && <AuditoriaApontamentosScreen scope="sustentacao" embedded />}
-        {routineTab === 'triagem'    && <TimesheetsScreen            scope="sustentacao" embedded triagemPadrao />}
+        {routineTab === 'timesheets' && <TimesheetsScreen            scope="sustentacao" embedded extDate={portalDate} />}
+        {routineTab === 'expenses'   && <ExpensesScreen              scope="sustentacao" embedded extDate={portalDate} />}
+        {routineTab === 'approvals'  && <ApprovalsScreen             scope="sustentacao" embedded extDate={portalDate} />}
+        {routineTab === 'auditoria'  && <AuditoriaApontamentosScreen scope="sustentacao" embedded extDate={portalDate} />}
+        {routineTab === 'triagem'    && <TimesheetsScreen            scope="sustentacao" embedded triagemPadrao extDate={portalDate} />}
         {routineTab === 'rentabilidade' && <RentabilidadePage visaoForced="consultor" embedded periodo={rentabPeriodo} />}
 
         {!routineTab && tab === 'debug' && (

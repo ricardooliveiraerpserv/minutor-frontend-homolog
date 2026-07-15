@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { ChevronDown, Search, Check } from 'lucide-react'
 
 // depth > 0 = projeto filho: indenta e prefixa com uma seta azul "↳".
-export interface MultiSelectOption { id: number | string; name: string; depth?: number }
+export interface MultiSelectOption { id: number | string; name: string; depth?: number; ondemand?: boolean }
 
 export function MultiSelect({
   label,
@@ -89,7 +89,7 @@ export function MultiSelect({
         disabled={disabled}
         className={`flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg text-xs font-medium outline-none text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : wide ? 'min-w-52' : 'min-w-36'}`}
         style={{
-          background: 'var(--surface)',
+          background: 'var(--field)',
           border: `1px solid ${value.length > 0 ? 'var(--primary)' : 'var(--border)'}`,
           color: value.length > 0 ? 'var(--text)' : 'var(--text-muted)',
         }}
@@ -156,7 +156,7 @@ export function MultiSelect({
               : filtered.map(o => {
                   const checked = value.includes(String(o.id))
                   return (
-                    <button key={o.id} type="button" onClick={() => toggle(String(o.id))}
+                    <button key={o.id} type="button" onClick={() => toggle(String(o.id))} title={o.name}
                       className="w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2"
                       style={{ color: checked ? 'var(--primary)' : 'var(--text)', fontWeight: checked ? 500 : 400 }}
                       onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-hover)' }}
@@ -167,10 +167,10 @@ export function MultiSelect({
                       </span>
                       {o.depth ? (
                         <span className="inline-flex items-center gap-1 truncate" style={{ paddingLeft: (o.depth - 1) * 14 }}>
-                          <span style={{ color: 'var(--primary)' }}>↳</span>
-                          <span className="truncate">{o.name}</span>
+                          <span style={{ color: o.ondemand ? 'var(--warning)' : 'var(--primary)' }}>↳</span>
+                          <span className="truncate" style={o.ondemand ? { color: 'var(--warning)', fontWeight: 600 } : undefined}>{o.name}</span>
                         </span>
-                      ) : <span className="truncate">{o.name}</span>}
+                      ) : <span className="truncate" style={o.ondemand ? { color: 'var(--warning)', fontWeight: 600 } : undefined}>{o.name}</span>}
                     </button>
                   )
                 })}

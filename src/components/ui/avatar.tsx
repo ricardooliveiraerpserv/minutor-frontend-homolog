@@ -4,6 +4,7 @@ import * as React from "react"
 import { Avatar as AvatarPrimitive } from "@base-ui/react/avatar"
 
 import { cn } from "@/lib/utils"
+import { useAuthedImage } from "@/hooks/use-authed-image"
 
 function Avatar({
   className,
@@ -25,10 +26,14 @@ function Avatar({
   )
 }
 
-function AvatarImage({ className, ...props }: AvatarPrimitive.Image.Props) {
+function AvatarImage({ className, src, ...props }: AvatarPrimitive.Image.Props) {
+  // Endpoints de foto exigem token — resolve via fetch autenticado → object URL (senão a
+  // <img> toma 401 e cai no fallback). URLs públicas (data:/blob:/externas) passam direto.
+  const resolvedSrc = useAuthedImage(typeof src === "string" ? src : undefined)
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
+      src={resolvedSrc}
       className={cn(
         "aspect-square size-full rounded-full object-cover",
         className

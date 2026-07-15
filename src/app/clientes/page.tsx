@@ -15,12 +15,14 @@ import * as XLSX from 'xlsx'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
 import { useAuth } from '@/hooks/use-auth'
+import { useActiveCompany } from '@/hooks/use-active-company'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 import type { CustomerFull, Executive } from '@/types'
 
 function ActiveBadge({ active }: { active: boolean }) {
   return (
     <Badge variant="outline" className={`text-[10px] border ${active
-      ? 'bg-[var(--success-bg)] text-[var(--success)] border-green-500/30'
+      ? 'bg-[var(--success-bg)] text-[var(--success)] border-[var(--success-border)]'
       : 'bg-[var(--surface-hover)] text-[var(--text-muted)] border-[var(--border)]'}`}>
       {active ? 'Ativo' : 'Inativo'}
     </Badge>
@@ -30,7 +32,7 @@ function ActiveBadge({ active }: { active: boolean }) {
 function TableSkeleton() {
   return <>{Array.from({ length: 6 }).map((_, i) => (
     <tr key={i} className="border-b border-[var(--border)]">
-      {Array.from({ length: 7 }).map((_, j) => (
+      {Array.from({ length: 8 }).map((_, j) => (
         <td key={j} className="px-3 py-2.5"><Skeleton className="h-3 w-full bg-[var(--surface-hover)]" /></td>
       ))}
     </tr>
@@ -56,6 +58,12 @@ export default function ClientesPage() {
   const canCreate = isAdmin || hasPermission('customers.create') || hasPermission('customers.manage')
   const canUpdate = isAdmin || hasPermission('customers.update') || hasPermission('customers.manage')
   const canDelete = isAdmin || hasPermission('customers.delete') || hasPermission('customers.manage')
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isBizify } = useActiveCompany()
+  const { isDenied } = useDeniedActions()
+  const dCreate = isDenied('/clientes', 'create')
+  const dEdit   = isDenied('/clientes', 'edit')
+  const dDelete = isDenied('/clientes', 'delete')
 
   const [items, setItems] = useState<CustomerFull[]>([])
   const [loading, setLoading] = useState(true)
@@ -64,7 +72,7 @@ export default function ClientesPage() {
   const [filterStatus, setFilterStatus] = useState<'todos' | 'ativo' | 'inativo'>('todos')
   const [executives, setExecutives] = useState<Executive[]>([])
   const [modal, setModal] = useState<{ open: boolean; item?: CustomerFull }>({ open: false })
-  const [form, setForm] = useState({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, executive_id: '', emails_administrativos: [] as string[], secondary_cgcs: [] as string[] })
+  const [form, setForm] = useState({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, executive_id: '', executive_bizify_id: '', emails_administrativos: [] as string[], secondary_cgcs: [] as string[] })
   const [novoCgcCli, setNovoCgcCli] = useState('')
   const addCgcCli = () => {
     const c = novoCgcCli.replace(/\D/g, '')
@@ -109,7 +117,8 @@ export default function ClientesPage() {
   const filtered = items.filter(c => {
     const q = search.toLowerCase()
     const matchSearch = !q || c.name.toLowerCase().includes(q) || (c.company_name ?? '').toLowerCase().includes(q) || (c.cgc ?? '').includes(q)
-    const matchExec = !filterExecutive || String(c.executive_id) === filterExecutive
+    // Multi-empresa: filtra pelo executivo da empresa ATIVA (Bizify → executive_bizify_id).
+    const matchExec = !filterExecutive || String(isBizify ? c.executive_bizify_id : c.executive_id) === filterExecutive
     const matchStatus = filterStatus === 'todos' || (filterStatus === 'ativo' ? c.active : !c.active)
     return matchSearch && matchExec && matchStatus
   })
@@ -132,7 +141,8 @@ export default function ClientesPage() {
       'Razão Social': c.company_name ?? '',
       'CPF/CNPJ':     c.cgc ?? '',
       Prefixo:        c.code_prefix ?? '',
-      Executivo:      c.executive?.name ?? '',
+      'Executivo ERPSERV':      c.executive?.name ?? '',
+      'Executivo Bizify':   c.executive_bizify?.name ?? '',
       Status:         c.active ? 'Ativo' : 'Inativo',
     }))
     const ws = XLSX.utils.json_to_sheet(rows)
@@ -142,7 +152,7 @@ export default function ClientesPage() {
   }
 
   const openCreate = () => {
-    setForm({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, executive_id: '', emails_administrativos: [], secondary_cgcs: [] })
+    setForm({ name: '', company_name: '', cgc: '', code_prefix: '', active: true, executive_id: '', executive_bizify_id: '', emails_administrativos: [], secondary_cgcs: [] })
     setNovoEmailCli('')
     setModal({ open: true })
   }
@@ -155,6 +165,7 @@ export default function ClientesPage() {
       code_prefix: item.code_prefix ?? '',
       active: item.active,
       executive_id: item.executive_id ? String(item.executive_id) : '',
+      executive_bizify_id: item.executive_bizify_id ? String(item.executive_bizify_id) : '',
       emails_administrativos: (item as CustomerFull & { emails_administrativos?: string[] }).emails_administrativos ?? [],
       secondary_cgcs: item.secondary_cgcs ?? [],
     })
@@ -168,7 +179,10 @@ export default function ClientesPage() {
       const payload = {
         ...form,
         executive_id: form.executive_id ? Number(form.executive_id) : null,
+        executive_bizify_id: form.executive_bizify_id ? Number(form.executive_bizify_id) : null,
         code_prefix: form.code_prefix || null,
+        // Nova inclusão com Bizify ativo já nasce como cliente Bizify (aparece na lista).
+        ...(isBizify && !modal.item ? { is_bizify_customer: true } : {}),
       }
       if (modal.item) await api.put(`/customers/${modal.item.id}`, payload)
       else await api.post('/customers', payload)
@@ -177,6 +191,34 @@ export default function ClientesPage() {
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
     finally { setSaving(false) }
+  }
+
+  // "Do cadastro geral" (Bizify): busca TODA a base, vincula o cliente escolhido à Bizify.
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerSearch, setPickerSearch] = useState('')
+  const [pickerResults, setPickerResults] = useState<CustomerFull[]>([])
+  const [pickerLoading, setPickerLoading] = useState(false)
+  useEffect(() => {
+    if (!pickerOpen) return
+    const t = setTimeout(async () => {
+      setPickerLoading(true)
+      try {
+        const r = await api.get<{ items?: CustomerFull[] }>(`/customers?bizify_scope=all&pageSize=50${pickerSearch ? `&search=${encodeURIComponent(pickerSearch)}` : ''}`)
+        // Só clientes que ainda NÃO são Bizify (os que já são já estão na lista principal).
+        setPickerResults((r?.items ?? []).filter(c => !c.is_bizify_customer))
+      } catch { toast.error('Erro ao buscar clientes') }
+      finally { setPickerLoading(false) }
+    }, 250)
+    return () => clearTimeout(t)
+  }, [pickerOpen, pickerSearch])
+
+  const vincularBizify = async (c: CustomerFull) => {
+    try {
+      await api.put(`/customers/${c.id}`, { is_bizify_customer: true })
+      toast.success(`${c.name} vinculado à Bizify`)
+      setPickerOpen(false); setPickerSearch('')
+      load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao vincular') }
   }
 
   const confirmDelete = async () => {
@@ -194,7 +236,7 @@ export default function ClientesPage() {
   return (
     <AppLayout>
       <div className="p-6 max-w-5xl mx-auto w-full">
-        <h2 className="text-sm font-semibold text-white mb-5 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-[var(--text)] mb-5 flex items-center gap-2">
           <Users size={14} className="text-[var(--text-muted)]" />
           Clientes
         </h2>
@@ -206,7 +248,7 @@ export default function ClientesPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar por nome, razão social ou CPF/CNPJ..."
-              className="pl-8 bg-[var(--surface-hover)] border-[var(--border)] text-white h-8 text-xs"
+              className="pl-8 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-8 text-xs"
             />
           </div>
           <select
@@ -229,9 +271,14 @@ export default function ClientesPage() {
           <Button onClick={exportExcel} disabled={filtered.length === 0} variant="outline" className="border-[var(--border)] text-[var(--text)] h-8 text-xs gap-1.5">
             <Download size={13} /> Exportar
           </Button>
-          {canCreate && (
-            <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary)] text-white h-8 text-xs gap-1.5">
-              <Plus size={13} /> Novo
+          {canCreate && !dCreate && isBizify && (
+            <Button onClick={() => { setPickerSearch(''); setPickerOpen(true) }} variant="outline" className="border-[var(--border)] text-[var(--text)] h-8 text-xs gap-1.5">
+              <Users size={13} /> Do cadastro geral
+            </Button>
+          )}
+          {canCreate && !dCreate && (
+            <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
+              <Plus size={13} /> {isBizify ? 'Nova inclusão' : 'Novo'}
             </Button>
           )}
         </div>
@@ -245,7 +292,8 @@ export default function ClientesPage() {
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden md:table-cell">Razão Social</th>
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden sm:table-cell">CPF/CNPJ</th>
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden xl:table-cell">Prefixo</th>
-                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Executivo</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Executivo ERPSERV</th>
+                <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium hidden lg:table-cell">Executivo Bizify</th>
                 <th className="text-left px-3 py-2.5 text-[var(--text-light)] font-medium">Status</th>
               </tr>
             </thead>
@@ -257,8 +305,8 @@ export default function ClientesPage() {
                   <td className="px-2 py-2.5 w-10">
                     <RowMenu items={[
                       { label: 'Ficha 360°', icon: <LayoutDashboard size={12} />, onClick: () => router.push(`/empresas/${item.id}/360`) },
-                      ...(canUpdate ? [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }] : []),
-                      ...(canDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: deleting === item.id }] : []),
+                      ...(canUpdate && !dEdit ? [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }] : []),
+                      ...(canDelete && !dDelete ? [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => setDeleteConfirm({ open: true, id: item.id }), danger: true, disabled: deleting === item.id }] : []),
                     ]} />
                   </td>
                   <td className="px-3 py-2.5 text-[var(--text)]">{item.name}</td>
@@ -266,6 +314,7 @@ export default function ClientesPage() {
                   <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden sm:table-cell">{item.cgc || '—'}</td>
                   <td className="px-3 py-2.5 text-[var(--text-muted)] font-mono hidden xl:table-cell">{item.code_prefix || '—'}</td>
                   <td className="px-3 py-2.5 text-[var(--text-muted)] hidden lg:table-cell">{item.executive?.name || '—'}</td>
+                  <td className="px-3 py-2.5 text-[var(--text-muted)] hidden lg:table-cell">{item.executive_bizify?.name || '—'}</td>
                   <td className="px-3 py-2.5"><ActiveBadge active={item.active} /></td>
                 </tr>
               ))}
@@ -276,14 +325,14 @@ export default function ClientesPage() {
         {modal.open && (
           <ModalOverlay onClose={() => setModal({ open: false })}>
             <div className="p-5">
-              <h3 className="text-sm font-semibold text-white mb-4">{modal.item ? 'Editar Cliente' : 'Novo Cliente'}</h3>
+              <h3 className="text-sm font-semibold text-[var(--text)] mb-4">{modal.item ? 'Editar Cliente' : 'Novo Cliente'}</h3>
               <div className="space-y-3">
                 <div>
                   <Label className="text-xs text-[var(--text-muted)]">Nome *</Label>
                   <Input
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs"
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
                   />
                 </div>
                 <div>
@@ -291,7 +340,7 @@ export default function ClientesPage() {
                   <Input
                     value={form.company_name}
                     onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))}
-                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs"
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs"
                   />
                 </div>
                 <div>
@@ -303,7 +352,7 @@ export default function ClientesPage() {
                     // SEM maxLength: ele cortaria a string mascarada (ex: 21.160.979/0001-08, 18 chars)
                     // antes do onChange rodar. O .slice(0,14) abaixo limita os DÍGITOS depois de tirar a máscara.
                     onChange={e => setForm(f => ({ ...f, cgc: e.target.value.replace(/\D/g, '').slice(0, 14) }))}
-                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs font-mono"
+                    className="mt-1 bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs font-mono"
                   />
                 </div>
                 <div>
@@ -324,7 +373,7 @@ export default function ClientesPage() {
                       onChange={e => setNovoCgcCli(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCgcCli() } }}
                       placeholder="adicionar CNPJ…"
-                      className="bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs font-mono" />
+                      className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs font-mono" />
                     <Button variant="outline" onClick={addCgcCli} className="h-9 text-xs border-[var(--border)] text-[var(--text)] shrink-0">Adicionar</Button>
                   </div>
                   <p className="mt-1 text-[11px] text-[var(--text-light)]">Une os recebimentos do Keruak (Rentabilidade › Clientes) destes CNPJs sob este cliente.</p>
@@ -337,7 +386,7 @@ export default function ClientesPage() {
                     placeholder="ex: ABC"
                     maxLength={3}
                     aria-invalid={prefixoDuplicado}
-                    className={`mt-1 bg-[var(--surface-hover)] text-white h-9 text-xs font-mono uppercase tracking-widest ${prefixoDuplicado ? 'border-red-500' : 'border-[var(--border)]'}`}
+                    className={`mt-1 bg-[var(--surface-hover)] text-[var(--text)] h-9 text-xs font-mono uppercase tracking-widest ${prefixoDuplicado ? 'border-[var(--danger-border)]' : 'border-[var(--border)]'}`}
                   />
                   {prefixoDuplicado ? (
                     <p className="mt-1 text-[11px] text-[var(--danger)]">Prefixo já usado por <strong>{prefixoEmUsoPor?.name}</strong>. Escolha outro.</p>
@@ -346,11 +395,22 @@ export default function ClientesPage() {
                   )}
                 </div>
                 <div>
-                  <Label className="text-xs text-[var(--text-muted)]">Executivo</Label>
+                  <Label className="text-xs text-[var(--text-muted)]">Executivo ERPSERV</Label>
                   <select
                     value={form.executive_id}
                     onChange={e => setForm(f => ({ ...f, executive_id: e.target.value }))}
-                    className="mt-1 w-full px-3 py-2 rounded-lg text-xs outline-none appearance-none bg-[var(--surface-hover)] border border-[var(--border)] text-white"
+                    className="mt-1 w-full px-3 py-2 rounded-lg text-xs outline-none appearance-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)]"
+                  >
+                    <option value="">Sem executivo</option>
+                    {executives.map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs text-[var(--text-muted)]">Executivo Bizify</Label>
+                  <select
+                    value={form.executive_bizify_id}
+                    onChange={e => setForm(f => ({ ...f, executive_bizify_id: e.target.value }))}
+                    className="mt-1 w-full px-3 py-2 rounded-lg text-xs outline-none appearance-none bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text)]"
                   >
                     <option value="">Sem executivo</option>
                     {executives.map(ex => <option key={ex.id} value={ex.id}>{ex.name}</option>)}
@@ -374,7 +434,7 @@ export default function ClientesPage() {
                       onChange={e => setNovoEmailCli(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addEmailCli() } }}
                       placeholder="adicionar e-mail…"
-                      className="bg-[var(--surface-hover)] border-[var(--border)] text-white h-9 text-xs" />
+                      className="bg-[var(--surface-hover)] border-[var(--border)] text-[var(--text)] h-9 text-xs" />
                     <Button variant="outline" onClick={addEmailCli} className="h-9 text-xs border-[var(--border)] text-[var(--text)] shrink-0">Adicionar</Button>
                   </div>
                   <p className="mt-1 text-[11px] text-[var(--text-light)]">Mesma lista usada no fechamento e nos comunicados (reajuste) do cliente.</p>
@@ -393,7 +453,7 @@ export default function ClientesPage() {
                 <Button variant="outline" onClick={() => setModal({ open: false })} className="h-8 text-xs border-[var(--border)] text-[var(--text)]">
                   Cancelar
                 </Button>
-                <Button onClick={save} disabled={saving || !formValido} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary)] text-white">
+                <Button onClick={save} disabled={saving || !formValido} className="h-8 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)]">
                   {saving ? 'Salvando...' : 'Salvar'}
                 </Button>
               </div>
@@ -407,6 +467,36 @@ export default function ClientesPage() {
           onClose={() => setDeleteConfirm({ open: false })}
           onConfirm={confirmDelete}
         />
+
+        {/* Picker "Do cadastro geral" — busca toda a base e vincula o cliente à Bizify. */}
+        {pickerOpen && (
+          <ModalOverlay onClose={() => setPickerOpen(false)}>
+            <div className="p-5">
+              <h3 className="text-sm font-semibold text-[var(--text)] mb-1">Vincular cliente do cadastro geral</h3>
+              <p className="text-xs text-[var(--text-muted)] mb-3">Busque um cliente já cadastrado e vincule-o à Bizify — ele passa a aparecer na lista.</p>
+              <div className="relative mb-3">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
+                <Input autoFocus value={pickerSearch} onChange={e => setPickerSearch(e.target.value)} placeholder="Nome ou CNPJ..." className="pl-8 h-9 text-xs" />
+              </div>
+              <div className="max-h-72 overflow-auto rounded-lg border border-[var(--border)]">
+                {pickerLoading ? (
+                  <p className="text-xs text-center py-6 text-[var(--text-light)]">Buscando...</p>
+                ) : pickerResults.length === 0 ? (
+                  <p className="text-xs text-center py-6 text-[var(--text-light)]">{pickerSearch ? 'Nenhum cliente encontrado (ou já é Bizify).' : 'Digite para buscar.'}</p>
+                ) : pickerResults.map(c => (
+                  <button key={c.id} onClick={() => vincularBizify(c)}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-xs hover:bg-[var(--surface-hover)] border-b border-[var(--border)] last:border-0">
+                    <span className="min-w-0">
+                      <span className="block font-medium text-[var(--text)] truncate">{c.name}</span>
+                      <span className="block text-[var(--text-light)] truncate">{c.company_name || c.cgc}</span>
+                    </span>
+                    <span className="text-[var(--primary)] font-medium shrink-0">Vincular</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </ModalOverlay>
+        )}
       </div>
     </AppLayout>
   )

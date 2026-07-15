@@ -53,23 +53,25 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
+  /* Tema CLARO — superfícies suavizadas (canvas cinza < superfície off-white <
+     input/popover branco). Valores em hex p/ precisão; o dark segue em oklch. */
+  --background: #EEF2F7;                 /* Surface 0: fundo/conteúdo */
   --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
+  --card: #FFFFFF;                       /* Surface 2: cards brancos */
   --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
+  --popover: #FFFFFF;                    /* popover/dropdown/drawer = branco (camada alta) */
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
+  --secondary: #EEF2F7;
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
+  --muted: #EEF2F7;
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --accent: #EEF2F7;
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  --border: #E2E8F0;
+  --input: #E2E8F0;                      /* cor de BORDA de input no shadcn */
   --ring: oklch(0.708 0 0);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -77,13 +79,13 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
+  --sidebar: #F5F7FA;                    /* Surface 1: chrome lateral */
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: #EEF2F7;
   --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-border: #E2E8F0;
   --sidebar-ring: oklch(0.708 0 0);
 }
 
@@ -139,18 +141,18 @@
  */
 :root {
   /* ── NEUTRO ──────────────────────────────────────── */
-  --brand-bg:       #E3E5EA;   /* fundo cinza-claro (menos "branco duro"); cards brancos dão profundidade */
-  --brand-surface:  #FBFBFD;
-  --brand-panel:    #F0F1F4;   /* Nível 1: painéis/seções/colunas kanban (Sprint 1) */
-  --brand-border:   #E2E4E9;
+  --brand-bg:       #E3E5EA;   /* Surface 0: fundo cinza-claro (cards brancos dão profundidade) */
+  --brand-panel:    #F0F1F4;   /* Surface 1: painéis/seções/colunas kanban */
+  --brand-surface:  #FBFBFD;   /* Surface 2: cards — branco SUAVIZADO (sem glare) */
+  --brand-border:   #E2E4E9;   /* borda hairline única */
   --brand-text:     #14161B;
   --brand-muted:    #475569;   /* spec text-secondary */
   --brand-subtle:   #64748B;   /* text terciário — contraste WCAG no claro (Sprint 1) */
 
   /* ── PRIMARY (ação — cyan brand premium) ─────────── */
-  --brand-primary:        #157582;   /* cyan brand brilhante */
-  --brand-primary-strong: #0E5C67;   /* hover ~5% mais escuro */
-  --brand-primary-dim:    #E9F0F1;   /* sidebar active / badge soft (spec) */
+  --brand-primary:        #157582;   /* cyan AÇÃO sóbrio — logo segue --brand-logo */
+  --brand-primary-strong: #0E5C67;   /* hover primário */
+  --brand-primary-dim:    #E9F0F1;   /* sidebar active / badge soft */
 
   /* ── Semantic — light (tons de border/accent) ────── */
   --brand-success:  #22C55E;
@@ -161,16 +163,16 @@
   /* ── Marca (identidade independente de UI) ───────── */
   --brand-logo: #06B6D4;
 
-  /* ── Elevation & dividers — só ativos no light ──── */
-  --brand-card-shadow:    0 1px 2px 0 rgba(0, 0, 0, 0.04);
-  --brand-card-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
-  --brand-table-divider:  rgba(15, 23, 42, 0.06);
+  /* ── Elevation & dividers — só ativos no light (sombras discretas, estilo HubSpot) ── */
+  --brand-card-shadow:    0 1px 2px rgba(18, 26, 42, 0.045), 0 1px 3px rgba(18, 26, 42, 0.05);
+  --brand-card-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.04);
+  --brand-table-divider:  rgba(15, 23, 42, 0.07);
 
   /* ── Shadow system (semântico — usar em código novo) ── */
   --shadow-xs:      0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm:      0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
-  --shadow-md:      0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
-  --shadow-lg:      0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.06);
+  --shadow-sm:      0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-md:      0 4px 12px rgba(15, 23, 42, 0.04);
+  --shadow-lg:      0 12px 28px -6px rgba(15, 23, 42, 0.14), 0 4px 12px rgba(15, 23, 42, 0.06);
   --shadow-overlay: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
 
   /* Scrollbar */
@@ -179,18 +181,19 @@
 
   /* ══ Tokens públicos (use estes em componentes) ══════ */
 
-  /* NEUTRO */
-  --bg:            var(--brand-bg);
-  --surface:       var(--brand-surface);
-  --panel:         var(--brand-panel);
-  --surface-hover: #ECEDF1;
-  --surface-sunken:#F1F2F5;   /* inputs, table header — superfície "afundada" */
+  /* NEUTRO — escala de superfícies (0 fundo → 1 painel → 2 card → input) */
+  --bg:            var(--brand-bg);          /* Surface 0 */
+  --panel:         var(--brand-panel);       /* Surface 1: painéis/containers */
+  --surface:       var(--brand-surface);     /* Surface 2: cards */
+  --surface-hover: #ECEDF1;                  /* hover */
+  --surface-sunken:#F1F2F5;                  /* inputs, table header — superfície "afundada"/zebra */
+  --field:         #F5F6F8;                  /* input — neutro sutil */
   --text:          var(--brand-text);
   --text-muted:    var(--brand-muted);
   --text-light:    var(--brand-subtle);
   --border:        var(--brand-border);
   --border-strong: #CBCFD7;   /* divisores fortes, hover de inputs */
-  --ring:          rgba(21,117,130,0.32);  /* focus ring (primary @ 30%) */
+  --ring:          rgba(21, 117, 130, 0.32);  /* focus ring (primary @ 30%) */
 
   /* PRIMARY */
   --primary:       var(--brand-primary);
@@ -217,9 +220,9 @@
   --info:           #0369A1;
   --info-border:    #0EA5E9;
   --info-bg:        #E0F2FE;
-  --purple:         #6D28D9;
-  --purple-border:  #8B5CF6;
-  --purple-bg:      #EDE9FE;
+  --purple:         #6D28D9;   /* roxo denso (texto) — Sprint 3 */
+  --purple-border:  #8B5CF6;   /* roxo vibrante (borda/ícone) */
+  --purple-bg:      #EDE9FE;   /* roxo suave (badge/bg) */
 
   /* Aliases retrocompat (usar --success/etc em código novo) */
   --text-success: var(--success);
@@ -231,6 +234,7 @@
 .dark {
   /* ── NEUTRO — dark (paleta original) ──────────────── */
   --brand-bg:       #0A0A0B;
+  --brand-panel:    #121215;   /* Surface 1 dark: entre bg e surface */
   --brand-surface:  #161618;
   --brand-panel:    #101013;
   --brand-border:   #27272A;
@@ -269,8 +273,10 @@
   --scrollbar-thumb-hover:  #3A3A3E;
 
   /* ══ Tokens públicos — dark ══════════════════════════ */
+  --panel:          var(--brand-panel);     /* Surface 1 dark */
   --surface-hover:  #1F1F23;
   --surface-sunken: #121215;   /* mais fundo que surface no dark */
+  --field:          var(--brand-surface);  /* campo de input no dark = superfície escura */
   --border-strong:  #3F3F46;
   --ring:           rgba(0, 245, 255, 0.35);
   --primary-fg:     #0A0A0B;   /* texto sobre cyan vibrante */
@@ -663,7 +669,7 @@ tr.row--pausado:hover {
 
 /* ── Inputs ────────────────────────────────────────────────── */
 .ds-input {
-  background: var(--surface-sunken);    /* afundado vs surface — visual de campo */
+  background: var(--field);    /* campo branco — destaca da superfície (não "buraco") */
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 0.5rem;
@@ -677,7 +683,7 @@ tr.row--pausado:hover {
 }
 .ds-input:focus {
   outline: none;
-  background: var(--surface);
+  background: var(--field);
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--ring);
 }
@@ -809,10 +815,16 @@ tr.row--pausado:hover {
   background: var(--surface-hover);
   color: var(--text);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 var(--primary);
+  box-shadow: inset 3px 0 0 var(--primary);   /* barra azul de ação, superfície neutra */
 }
 .sidebar-item-active svg {
   color: var(--primary);
+}
+/* Após clicar num item e navegar, o link retém :focus e o outline global
+ * (outline-ring) desenha um anel — parecia um 2º item "selecionado". Remove o
+ * anel no foco por mouse; mantém no foco por teclado (:focus-visible) p/ a11y. */
+.sidebar-item:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Sub-grupos aninhados: borda lateral mais sutil + indent suave */
@@ -862,6 +874,11 @@ html:not(.dark) .bg-zinc-900 { background-color: var(--surface); }
 html:not(.dark) .bg-zinc-800 { background-color: var(--surface-hover); }
 html:not(.dark) .hover\:bg-zinc-800:hover { background-color: var(--surface-hover); }
 html:not(.dark) .hover\:bg-zinc-700:hover { background-color: var(--surface-hover); }
+
+/* Rede de segurança: telas ainda em `bg-white` (fundo sólido) acompanham a
+ * superfície off-white do tema claro. Sem !important + especificidade 0,2,0 →
+ * componente que REALMENTE precise de branco (pílula sobre cor) vence por inline. */
+html:not(.dark) .bg-white { background-color: var(--surface); }
 
 html:not(.dark) .border-zinc-950,
 html:not(.dark) .border-zinc-900,
@@ -1050,7 +1067,7 @@ html:not(.dark) .ds-table tbody tr:hover {
 
 /* ── Sidebar container (complementa .sidebar-item / -active) ── */
 .sidebar {
-  background: var(--surface);
+  background: var(--panel);
   border-right: 1px solid var(--border);
 }
 

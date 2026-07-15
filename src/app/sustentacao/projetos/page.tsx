@@ -17,6 +17,7 @@ import { CustomerContactsSection } from '@/components/ui/customer-contacts-secti
 import { PageHeader } from '@/components/ds'
 import { ProjectMessages } from '@/components/shared/ProjectMessages'
 import { formatBRL } from '@/lib/format'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -103,7 +104,10 @@ function getTab(p: SustProject): string {
 function isSustProject(p: SustProject): boolean {
   const ct = (p.contract_type_display ?? p.contract_type?.name ?? '').toLowerCase()
   const st = (p.service_type?.name ?? '').toLowerCase()
+  // Investimento Suporte (todos os clientes) conta como sustentação.
+  const isInvestSuporte = !!(p as any).is_investimento_comercial && (p as any).categoria_interna === 'Suporte'
   return (
+    isInvestSuporte ||
     ct.includes('sust') || ct.includes('cloud') || ct.includes('bizify') ||
     ct.includes('bh fixo') || ct.includes('bh mensal') || ct.includes('bh_fixo') || ct.includes('bh_mensal') ||
     st.includes('sust') || st.includes('cloud') || st.includes('bizify')
@@ -354,6 +358,11 @@ export default function SustentacaoProjetosPage() {
   const [saudeFilter, setSaudeFilter] = useState('')
 
   const isAdmin = user?.type === 'admin'
+
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dView = isDenied('/sustentacao', 'view')
+  const dEdit = isDenied('/sustentacao', 'edit')
 
   // Modals
   const [viewProject, setViewProject]         = useState<SustProject | null>(null)
@@ -642,8 +651,8 @@ export default function SustentacaoProjetosPage() {
                       <td className="py-2 pl-2 pr-1" style={{ width: 48 }} onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-1">
                           <RowMenu items={[
-                            { label: 'Visualizar',      icon: <Eye size={12} />,        onClick: () => setViewProject(p) },
-                            ...(isAdmin ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => router.push(`/gestao-projetos?edit=${p.id}`) }] : []),
+                            ...(dView ? [] : [{ label: 'Visualizar', icon: <Eye size={12} />, onClick: () => setViewProject(p) }]),
+                            ...(isAdmin && !dEdit ? [{ label: 'Editar', icon: <Edit2 size={12} />, onClick: () => router.push(`/gestao-projetos?edit=${p.id}`) }] : []),
                             { label: 'Alterar Status',  icon: <Layers size={12} />,     onClick: () => setStatusModal({ project: p, newStatus: p.status }) },
                             { label: 'Custo',           icon: <DollarSign size={12} />, onClick: () => setCostProject(p) },
                             { label: 'Apontamentos',    icon: <Clock size={12} />,      onClick: () => router.push(`/timesheets?project_id=${p.id}`) },

@@ -14,6 +14,7 @@ import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight, Search, Handshake } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 
 interface PartnerItem {
   id: number
@@ -58,6 +59,11 @@ const EMPTY_FORM = { name: '', document: '', email: '', phone: '', active: true,
 
 export default function PartnersPage() {
   const { user } = useAuth()
+  // Configurador (universal): esconde a ação se o perfil/usuário estiver bloqueado nesta tela.
+  const { isDenied } = useDeniedActions()
+  const dEdit   = isDenied('/partners', 'edit')
+  const dDelete = isDenied('/partners', 'delete')
+  const dCreate = isDenied('/partners', 'create')
   const [items, setItems]   = useState<PartnerItem[]>([])
   const [loading, setLoading] = useState(true)
   const [hasNext, setHasNext] = useState(false)
@@ -208,9 +214,11 @@ export default function PartnersPage() {
           <option value="true">Ativos</option>
           <option value="false">Inativos</option>
         </select>
-        <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
-          <Plus size={13} /> Novo
-        </Button>
+        {!dCreate && (
+          <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
+            <Plus size={13} /> Novo
+          </Button>
+        )}
       </div>
 
       {/* Tabela */}
@@ -243,8 +251,8 @@ export default function PartnersPage() {
               <tr key={item.id} className="border-b border-[var(--border)] hover:bg-[var(--surface-hover)] transition-colors">
                 <td className="px-2 py-2.5 w-10">
                   <RowMenu items={[
-                    { label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) },
-                    { label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: deleting === item.id },
+                    ...(dEdit ? [] : [{ label: 'Editar', icon: <Pencil size={12} />, onClick: () => openEdit(item) }]),
+                    ...(dDelete ? [] : [{ label: 'Excluir', icon: <Trash2 size={12} />, onClick: () => remove(item.id), danger: true, disabled: deleting === item.id }]),
                   ]} />
                 </td>
                 <td className="px-3 py-2.5 text-[var(--text)] font-medium">{item.name}</td>

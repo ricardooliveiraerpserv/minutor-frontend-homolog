@@ -120,7 +120,7 @@ export function StageActivityTimeline({ stageId, deliveryId, refreshKey, limit =
           <div style={{ flexShrink: 0, paddingTop: 5 }}>
             <span style={{
               display: 'inline-block', width: 6, height: 6,
-              borderRadius: '50%', background: 'var(--primary)',
+              borderRadius: '50%', background: 'var(--info)',
             }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
