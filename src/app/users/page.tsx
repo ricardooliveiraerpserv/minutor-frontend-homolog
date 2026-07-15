@@ -16,6 +16,7 @@ import {
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
 import { useAuth } from '@/hooks/use-auth'
+import { useDeniedActions } from '@/contexts/denied-actions-context'
 import { useRouter } from 'next/navigation'
 import { usePersistedFilters } from '@/hooks/use-persisted-filters'
 import { UserFormModal } from '@/components/users/user-form-modal'
@@ -146,6 +147,7 @@ function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
 
 export default function UsersPage() {
   const { user: authUser } = useAuth()
+  const { isDenied } = useDeniedActions()
   const router = useRouter()
 
   // Consultor não acessa esta rotina, nem com extra_permissions — redireciona.
@@ -157,23 +159,19 @@ export default function UsersPage() {
 
   const isAdmin      = authUser?.type === 'admin'
   const ep: string[] = (authUser as any)?.permissions ?? authUser?.extra_permissions ?? []
-  // Coordenador de projetos acessa esta tela apenas para RESETAR SENHA.
-  // Nada de Visualizar/Editar/Criar/Excluir/Reenviar boas-vindas — só reset.
-  const isCoordProjetos = authUser?.type === 'coordenador' && authUser?.coordinator_type === 'projetos'
-  // Modo SÓ-RESET: coord de projetos e grupos não-admin sem users.* completo acessam a tela
-  // apenas para RESETAR SENHA — nada de Visualizar/Editar/Criar/Excluir/Reenviar boas-vindas.
-  const resetOnlyByGroup = !isAdmin && !isCoordProjetos
-  const resetOnly = isCoordProjetos || resetOnlyByGroup
-  const canCreate    = !resetOnly && (isAdmin || ep.includes('users.create'))
-  // canView: precisa ser true pra o modo só-reset enxergar a lista de usuários
-  // (sem isso o backend filtra só o próprio user). A ação "Visualizar" do menu
-  // de linha é gateada à parte abaixo.
-  const canView      = resetOnly || isAdmin || ep.includes('users.view_all')
-  const canViewDetail = !resetOnly && canView
-  const canEdit      = !resetOnly && (isAdmin || ep.includes('users.update'))
-  const canDelete    = !resetOnly && isAdmin
-  const canResetPwd  = resetOnly || isAdmin || ep.includes('users.reset_password')
-  const canResendWelcome = !resetOnly && (isAdmin || ep.includes('users.reset_password'))
+  // FONTE DA VERDADE DO ACESSO = Configurador (nav_screens via /my-denied-actions), por cima da
+  // perm-base. `isDenied('/users', <ação>)` esconde o botão quando a política nega o perfil/usuário
+  // — exatamente o que o middleware screen.action bloqueia na API. Sem hardcode de perfil.
+  const has = (perm: string) => isAdmin || ep.includes(perm)
+  const canCreate     = has('users.create')        && !isDenied('/users', 'users.create')
+  const canEdit       = has('users.update')        && !isDenied('/users', 'users.update')
+  const canDelete     = has('users.delete')        && !isDenied('/users', 'users.delete')
+  const canResetPwd   = has('users.reset_password') && !isDenied('/users', 'users.reset_password')
+  // Reenviar boas-vindas usa o MESMO gate de reset na API (mesmo grupo de rota) — espelha aqui.
+  const canResendWelcome = canResetPwd
+  // Ver a lista: quem tem view_all OU quem pode resetar (precisa enxergar p/ resetar — grupos reset-only).
+  const canView       = has('users.view_all') || canResetPwd
+  const canViewDetail = has('users.view_all') && !isDenied('/users', 'users.view_all')
 
   const [users,     setUsers]     = useState<UserItem[]>([])
   const [customers, setCustomers] = useState<CustomerOption[]>([])
