@@ -179,6 +179,8 @@ export default function ClientesPage() {
         executive_id: form.executive_id ? Number(form.executive_id) : null,
         executive_bizify_id: form.executive_bizify_id ? Number(form.executive_bizify_id) : null,
         code_prefix: form.code_prefix || null,
+        // Nova inclusão com Bizify ativo já nasce como cliente Bizify (aparece na lista).
+        ...(isBizify && !modal.item ? { is_bizify_customer: true } : {}),
       }
       if (modal.item) await api.put(`/customers/${modal.item.id}`, payload)
       else await api.post('/customers', payload)
@@ -187,6 +189,34 @@ export default function ClientesPage() {
       load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao salvar') }
     finally { setSaving(false) }
+  }
+
+  // "Do cadastro geral" (Bizify): busca TODA a base, vincula o cliente escolhido à Bizify.
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerSearch, setPickerSearch] = useState('')
+  const [pickerResults, setPickerResults] = useState<CustomerFull[]>([])
+  const [pickerLoading, setPickerLoading] = useState(false)
+  useEffect(() => {
+    if (!pickerOpen) return
+    const t = setTimeout(async () => {
+      setPickerLoading(true)
+      try {
+        const r = await api.get<{ items?: CustomerFull[] }>(`/customers?bizify_scope=all&pageSize=50${pickerSearch ? `&search=${encodeURIComponent(pickerSearch)}` : ''}`)
+        // Só clientes que ainda NÃO são Bizify (os que já são já estão na lista principal).
+        setPickerResults((r?.items ?? []).filter(c => !c.is_bizify_customer))
+      } catch { toast.error('Erro ao buscar clientes') }
+      finally { setPickerLoading(false) }
+    }, 250)
+    return () => clearTimeout(t)
+  }, [pickerOpen, pickerSearch])
+
+  const vincularBizify = async (c: CustomerFull) => {
+    try {
+      await api.put(`/customers/${c.id}`, { is_bizify_customer: true })
+      toast.success(`${c.name} vinculado à Bizify`)
+      setPickerOpen(false); setPickerSearch('')
+      load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao vincular') }
   }
 
   const confirmDelete = async () => {
@@ -239,9 +269,14 @@ export default function ClientesPage() {
           <Button onClick={exportExcel} disabled={filtered.length === 0} variant="outline" className="border-[var(--border)] text-[var(--text)] h-8 text-xs gap-1.5">
             <Download size={13} /> Exportar
           </Button>
+          {canCreate && !dCreate && isBizify && (
+            <Button onClick={() => { setPickerSearch(''); setPickerOpen(true) }} variant="outline" className="border-[var(--border)] text-[var(--text)] h-8 text-xs gap-1.5">
+              <Users size={13} /> Do cadastro geral
+            </Button>
+          )}
           {canCreate && !dCreate && (
             <Button onClick={openCreate} className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-[var(--primary-fg)] h-8 text-xs gap-1.5">
-              <Plus size={13} /> Novo
+              <Plus size={13} /> {isBizify ? 'Nova inclusão' : 'Novo'}
             </Button>
           )}
         </div>
@@ -431,6 +466,36 @@ export default function ClientesPage() {
           onClose={() => setDeleteConfirm({ open: false })}
           onConfirm={confirmDelete}
         />
+
+        {/* Picker "Do cadastro geral" — busca toda a base e vincula o cliente à Bizify. */}
+        {pickerOpen && (
+          <ModalOverlay onClose={() => setPickerOpen(false)}>
+            <div className="p-5">
+              <h3 className="text-sm font-semibold text-[var(--text)] mb-1">Vincular cliente do cadastro geral</h3>
+              <p className="text-xs text-[var(--text-muted)] mb-3">Busque um cliente já cadastrado e vincule-o à Bizify — ele passa a aparecer na lista.</p>
+              <div className="relative mb-3">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-light)]" />
+                <Input autoFocus value={pickerSearch} onChange={e => setPickerSearch(e.target.value)} placeholder="Nome ou CNPJ..." className="pl-8 h-9 text-xs" />
+              </div>
+              <div className="max-h-72 overflow-auto rounded-lg border border-[var(--border)]">
+                {pickerLoading ? (
+                  <p className="text-xs text-center py-6 text-[var(--text-light)]">Buscando...</p>
+                ) : pickerResults.length === 0 ? (
+                  <p className="text-xs text-center py-6 text-[var(--text-light)]">{pickerSearch ? 'Nenhum cliente encontrado (ou já é Bizify).' : 'Digite para buscar.'}</p>
+                ) : pickerResults.map(c => (
+                  <button key={c.id} onClick={() => vincularBizify(c)}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-xs hover:bg-[var(--surface-hover)] border-b border-[var(--border)] last:border-0">
+                    <span className="min-w-0">
+                      <span className="block font-medium text-[var(--text)] truncate">{c.name}</span>
+                      <span className="block text-[var(--text-light)] truncate">{c.company_name || c.cgc}</span>
+                    </span>
+                    <span className="text-[var(--primary)] font-medium shrink-0">Vincular</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </ModalOverlay>
+        )}
       </div>
     </AppLayout>
   )
