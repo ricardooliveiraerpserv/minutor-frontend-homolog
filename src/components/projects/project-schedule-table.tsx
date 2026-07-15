@@ -249,18 +249,24 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
     return m
   }, [displayStages])
 
-  // Rollup da etapa-mãe: soma horas + intervalo de datas das sub-etapas (+ atividades diretas).
-  const rollupFor = (etapa: ScheduleStage): { hours: number; start: string | null; end: string | null } | null => {
-    const subs = childrenByParent.get(etapa.id)
-    if (!subs || subs.length === 0) return null
+  // Rollup da etapa: horas somadas + janela de datas DERIVADA DAS ATIVIDADES
+  // (menor início / maior fim das deliveries, incluindo as das sub-etapas).
+  // Início/fim da etapa são automáticos pelas atividades — igual as horas já eram
+  // somadas. Retorna sempre (mesmo etapa-folha, sem sub-etapas).
+  const rollupFor = (etapa: ScheduleStage): { hours: number; start: string | null; end: string | null } => {
+    const subs = childrenByParent.get(etapa.id) ?? []
     let hours = num(etapa.effective_hours_planned ?? etapa.deliveries_hours_planned_sum)
     const starts: string[] = [], ends: string[] = []
-    if (etapa.stage_start_at) starts.push(etapa.stage_start_at.slice(0, 10))
-    if (etapa.expected_end_date) ends.push(etapa.expected_end_date.slice(0, 10))
+    const collect = (st: ScheduleStage) => {
+      for (const d of st.deliveries ?? []) {
+        if (d.planned_start_at) starts.push(d.planned_start_at.slice(0, 10))
+        if (d.due_date) ends.push(d.due_date.slice(0, 10))
+      }
+    }
+    collect(etapa)
     for (const sub of subs) {
       hours += num(sub.effective_hours_planned ?? sub.deliveries_hours_planned_sum)
-      if (sub.stage_start_at) starts.push(sub.stage_start_at.slice(0, 10))
-      if (sub.expected_end_date) ends.push(sub.expected_end_date.slice(0, 10))
+      collect(sub)
     }
     starts.sort(); ends.sort()
     return { hours, start: starts[0] ?? null, end: ends[ends.length - 1] ?? null }
@@ -590,8 +596,8 @@ export function ProjectScheduleTable({ projectId, stages, coordinators, canEdit,
             const etapaCollapsed = !!collapsed[etapa.id]
             return (
               <Fragment key={etapa.id}>
-                {renderStage(etapa, 0, subs.length ? rollupFor(etapa) : null)}
-                {!etapaCollapsed && subs.map(sub => renderStage(sub, 1, null))}
+                {renderStage(etapa, 0, rollupFor(etapa))}
+                {!etapaCollapsed && subs.map(sub => renderStage(sub, 1, rollupFor(sub)))}
                 {!etapaCollapsed && canEdit && (
                   creatingStage && subParentId === etapa.id
                     ? stageFormRow(1)
@@ -782,16 +788,22 @@ function StageRows(props: StageRowProps) {
         </td>
         <td style={cell()} />
         <td style={cell()}>
-          <CronogramaDate value={stage.stage_start_at ?? null} canEdit={canEdit} onSave={v => { if (dateAfter(v, stage.expected_end_date)) { toast.error('Início não pode ser depois do fim'); return } patchStage('stage_start_at', v) }} placeholder="Definir início" />
+          {/* Início da etapa é automático: menor início das atividades. Sem atividade com data, permite definir manualmente. */}
+          {rollup?.start
+            ? <CronogramaDate value={rollup.start} canEdit={false} onSave={() => {}} />
+            : <CronogramaDate value={stage.stage_start_at ?? null} canEdit={canEdit} onSave={v => { if (dateAfter(v, stage.expected_end_date)) { toast.error('Início não pode ser depois do fim'); return } patchStage('stage_start_at', v) }} placeholder="Definir início" />}
         </td>
         <td style={cell()}>
-          <CronogramaDate value={stage.expected_end_date ?? null} canEdit={canEdit} onSave={v => { if (dateAfter(stage.stage_start_at, v)) { toast.error('Fim não pode ser antes do início'); return } patchStage('expected_end_date', v) }} placeholder="Definir fim" />
+          {/* Fim da etapa é automático: maior fim das atividades. Sem atividade com data, permite definir manualmente. */}
+          {rollup?.end
+            ? <CronogramaDate value={rollup.end} canEdit={false} onSave={() => {}} />
+            : <CronogramaDate value={stage.expected_end_date ?? null} canEdit={canEdit} onSave={v => { if (dateAfter(stage.stage_start_at, v)) { toast.error('Fim não pode ser antes do início'); return } patchStage('expected_end_date', v) }} placeholder="Definir fim" />}
         </td>
         <td style={cell()}>
           {(() => {
             // Etapa-mãe: usa o intervalo de datas somado das sub-etapas (rollup).
-            const start = rollup ? rollup.start : stage.stage_start_at
-            const end = rollup ? rollup.end : stage.expected_end_date
+            const start = rollup?.start ?? stage.stage_start_at
+            const end = rollup?.end ?? stage.expected_end_date
             return start && end ? (
               <span style={{ color: 'var(--text-muted)', fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
                 {calendar.calendarDaysBetween(start, end)} dias
