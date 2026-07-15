@@ -119,7 +119,12 @@ function EmailFrame({ html }: { html: string }) {
     const measure = () => {
       const d = f.contentDocument
       if (!d || !d.body) return
-      setSize({ w: Math.ceil(d.body.scrollWidth), h: Math.ceil(d.body.scrollHeight) })
+      // LARGURA = offsetWidth (a caixa do body JÁ limitada por max-width:880) — nunca
+      // cresce além disso, então não há loop de realimentação (scrollWidth incluiria o
+      // overflow e realimentaria). Capa dura em 880 por segurança.
+      const w = Math.min(Math.ceil(d.body.offsetWidth) || 880, 880)
+      const h = Math.ceil(Math.max(d.body.scrollHeight, d.documentElement.scrollHeight))
+      setSize(prev => (prev.w === w && prev.h === h ? prev : { w, h }))
     }
     const onload = () => {
       measure()
