@@ -41,8 +41,25 @@ export function CronogramaExecutiveHeader({ executive, teamLoad, alerts }: Props
         gap: 14,
         alignItems: 'stretch',
       }}>
-        {/* Progresso */}
-        <Card icon={<TrendingUp size={14} />} label="Progresso">
+        {/* Progresso por HORAS: horas planejadas concluídas / total planejado. */}
+        {(() => {
+          const pctH = e.progress_hours_pct ?? 0
+          const doneH = e.hours_done ?? 0
+          return (
+            <Card icon={<Clock size={14} />} label="Progresso (horas)">
+              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
+                {pctH.toFixed(0)}%
+              </div>
+              <ProgressBar pct={pctH} />
+              <div className="ds-text-body-sm" style={{ color: 'var(--text-muted)' }}>
+                {Math.round(doneH)}h / {Math.round(e.hours_planned)}h concluídas
+              </div>
+            </Card>
+          )
+        })()}
+
+        {/* Evolução por ATIVIDADE: quantas atividades já foram concluídas (contagem). */}
+        <Card icon={<TrendingUp size={14} />} label="Evolução (atividades)">
           <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', fontVariantNumeric: 'tabular-nums' }}>
             {e.progress_pct.toFixed(0)}%
           </div>
