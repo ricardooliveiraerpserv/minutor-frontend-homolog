@@ -73,6 +73,7 @@ import type { NavTreeNode, NavModuleConfig } from '@/contexts/nav-config-context
 import type { User } from '@/types'
 import { type ModuleId } from '@/lib/modules'
 import { useModules } from '@/contexts/module-context'
+import { useActiveCompany } from '@/hooks/use-active-company'
 
 import { MinutorIcon } from '@/components/branding/MinutorIcon'
 
@@ -669,6 +670,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   // ── Módulos de navegação (Serviços / Administrativo) — estado compartilhado (header + sidebar).
   // Cliente não tem módulos → vê o portal inteiro como hoje (sem filtro).
   const { allowedModules, selectedModule, modules: navModules, itemConfig } = useModules()
+  const { isBizify } = useActiveCompany()   // logo do rodapé varia pela empresa ativa
   // Nav já filtrada pelo módulo (mantém o gating de perfil/permissão do visibleNav).
   // GARANTIA: o filtro de módulo só faz sentido quando há MAIS DE UM módulo para
   // alternar. Em perfil de módulo único (ex.: coordenador só de Serviços), filtrar
@@ -1083,15 +1085,15 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
         })}
       </nav>
 
-      {/* ── Company logo ── */}
+      {/* ── Company logo (varia pela empresa ativa) ── */}
       {!collapsed && (
         <div className="flex items-center justify-center px-5 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
           <Image
-            src="/logo.png"
-            alt="ERPServ"
+            src={isBizify ? '/logo-bizify.png' : '/logo.png'}
+            alt={isBizify ? 'Bizify' : 'ERPServ'}
             width={90}
             height={36}
-            className="object-contain sidebar-erpserv-logo"
+            className={isBizify ? 'object-contain' : 'object-contain sidebar-erpserv-logo'}
           />
         </div>
       )}
