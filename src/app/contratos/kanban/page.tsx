@@ -1572,11 +1572,26 @@ function KanbanContent() {
   const matchProjectKanban = (projectName?: string | null): boolean =>
     filterProjectNames.length === 0 || filterProjectNames.includes(projectName ?? '')
 
+  // SaaS é definido pelo TIPO de contrato — no kanban Bizify vira coluna de tipo
+  // (igual sustentação): sempre na coluna SaaS, nunca numa coluna de coordenador.
+  const isSaasCard = (c: { contract_type?: string | null; service_type?: string | null } | any): boolean =>
+    !!(c?.contract_type?.toLowerCase().includes('saas') || c?.service_type?.toLowerCase().includes('saas'))
+
   // Contract cards per column
   const contractsInCol = (colId: string): (ContractCard | ProjectCard)[] => {
-    const base = colId.startsWith('sust_')
-      ? (sustGroups[colId] ?? [])
+    let base: (ContractCard | ProjectCard)[] = colId.startsWith('sust_')
+      ? [...(sustGroups[colId] ?? [])]
       : demandCards.filter(c => contractColumnId(c) === colId)
+    // Kanban Bizify: SaaS sempre na coluna SaaS. Coordenador não recebe SaaS;
+    // a coluna SaaS agrega também os projetos SaaS ativos que não vieram no grupo.
+    if (isBizifyActive) {
+      if (colId === 'sust_saas') {
+        const already = new Set(base.map((c: any) => c.id))
+        base = [...base, ...projectCards.filter(p => isActiveProject(p) && isSaasCard(p) && !already.has(p.id))]
+      } else if (colId.startsWith('coordinator:')) {
+        base = base.filter(c => !isSaasCard(c))
+      }
+    }
     // Em colunas de coordenador, oculta contratos cujo projeto já aparece em activeProjectsInCoordCol
     const activeProjectIds = colId.startsWith('coordinator:')
       ? new Set(projectCards.filter(isActiveProject).map(p => p.id))
@@ -1604,6 +1619,8 @@ function KanbanContent() {
   const activeProjectsInCoordCol = (coordId: number): ProjectCard[] =>
     projectCards.filter(p => {
       if (!isActiveProject(p)) return false
+      // Kanban Bizify: SaaS nunca cai em coluna de coordenador (vai pra coluna SaaS).
+      if (isBizifyActive && isSaasCard(p)) return false
       if (!projectHasCoord(p, coordId)) return false
       return matchFilter(p.customer_name, p.project_name)
         && matchExecutivoKanban(p.executivo_conta_name)
