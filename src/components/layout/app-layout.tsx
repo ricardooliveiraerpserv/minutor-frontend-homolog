@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Sidebar } from './sidebar'
 import { Header } from './header'
+import { ContextBar } from './context-bar'
 import { ModuleProvider } from '@/contexts/module-context'
 import { useAuth } from '@/hooks/use-auth'
 import { api } from '@/lib/api'
@@ -83,6 +84,9 @@ export function AppLayout({ children, title, actions, fullBleed = false }: AppLa
         <Sidebar user={user} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <Header title={title} actions={actions} onMenuClick={() => setMobileNavOpen(true)} />
+
+          {/* ── Faixa de contexto: empresa ativa (cor da empresa) + módulo (cor do módulo) ── */}
+          <ContextBar />
 
           {/* ── Faixa de identidade ── */}
           {displayName && (

@@ -154,6 +154,9 @@ export interface CustomerFull {
   active: boolean
   executive_id?: number | null
   executive?: Executive
+  executive_bizify_id?: number | null
+  executive_bizify?: Executive
+  is_bizify_customer?: boolean
   created_at: string
 }
 

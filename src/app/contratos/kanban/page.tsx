@@ -319,6 +319,19 @@ const BIZIFY_COL: Column = {
   sustentacaoValidator: (c) => !!(c.service_type?.toLowerCase().includes('bizify') || c.contract_type?.toLowerCase().includes('bizify')),
 }
 
+// Coluna SaaS — só no kanban da empresa Bizify (definida pelo tipo de contrato SaaS).
+const SAAS_COLOR = '#a78bfa'
+const SAAS_COL: Column = {
+  id: 'sust_saas', label: 'SaaS', type: 'sustentacao', emoji: '🧩', color: SAAS_COLOR,
+  sustentacaoValidator: (c) => !!(c.contract_type?.toLowerCase().includes('saas') || c.service_type?.toLowerCase().includes('saas')),
+}
+
+// Colunas de sustentação do kanban BIZIFY: mantém BH Fixo/Mensal/On Demand, troca Cloud→SaaS.
+const SUSTENTACAO_COLS_BIZIFY: Column[] = [
+  ...SUSTENTACAO_COLS.filter(c => c.id !== 'sust_cloud'),
+  SAAS_COL,
+]
+
 const APORTE_COLOR = '#22c55e'
 const APORTE_COL: Column = {
   id: 'aporte', label: 'Aporte', type: 'aporte', emoji: '💰', color: APORTE_COLOR,
@@ -969,6 +982,12 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
                 {card.customer_name}
               </p>
               <p className="text-xs break-normal" style={{ color: 'var(--text-light)' }}>{card.project_name}</p>
+              {/* SaaS: valor do projeto na capa (SaaS é só valor, sem horas). */}
+              {(card.contract_type?.toLowerCase().includes('saas')) && card.project_value != null && (
+                <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--primary)', fontVariantNumeric: 'tabular-nums' }}>
+                  {Number(card.project_value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap"
@@ -1060,7 +1079,7 @@ const COL_LABEL: Record<string, string> = {
   em_planejamento: 'Em Planejamento', em_validacao: 'Em Validação', em_revisao: 'Em Revisão',
   aprovado: 'Aprovado', inicio_autorizado: 'Início Autorizado', alocado: 'Alocado',
   sust_bh_fixo: 'BH Fixo', sust_bh_mensal: 'BH Mensal', sust_on_demand: 'On Demand',
-  sust_cloud: 'Cloud', sust_bizify: 'Bizify',
+  sust_cloud: 'Cloud', sust_bizify: 'Bizify', sust_saas: 'SaaS',
 }
 function colLabel(col: string) {
   if (col?.startsWith('coordinator:')) return 'Coordenador'
@@ -1388,8 +1407,11 @@ function KanbanContent() {
   const [aporteCards,       setAporteCards]        = useState<AporteCard[]>([])
   const [selectedAporte,    setSelectedAporte]     = useState<AporteCard | null>(null)
   const [coordinators,      setCoordinators]       = useState<Coordinator[]>([])
+  // Multi-empresa: kanban Bizify — colunas por "Coordenador Bizify" + SaaS quando a empresa ativa é Bizify.
+  const [isBizifyActive,    setIsBizifyActive]     = useState(false)
+  const [bizifyCoordinators, setBizifyCoordinators] = useState<Coordinator[]>([])
   const [sustGroups,        setSustGroups]         = useState<SustGroups>({
-    sust_bh_fixo: [], sust_bh_mensal: [], sust_on_demand: [], sust_cloud: [], sust_bizify: [],
+    sust_bh_fixo: [], sust_bh_mensal: [], sust_on_demand: [], sust_cloud: [], sust_bizify: [], sust_saas: [],
   })
   const [loading,           setLoading]            = useState(true)
   const [selected,          setSelected]           = useState<ContractCard | null>(null)
@@ -1415,12 +1437,15 @@ function KanbanContent() {
       setProjectCards(r.project_cards ?? [])
       setAporteCards(r.aporte_cards ?? [])
       setCoordinators(r.coordinators ?? [])
+      setIsBizifyActive(r.is_bizify_active ?? false)
+      setBizifyCoordinators(r.bizify_coordinators ?? [])
       setSustGroups({
         sust_bh_fixo:   r.sustentacao_groups?.sust_bh_fixo   ?? [],
         sust_bh_mensal: r.sustentacao_groups?.sust_bh_mensal ?? [],
         sust_on_demand: r.sustentacao_groups?.sust_on_demand ?? [],
         sust_cloud:     r.sustentacao_groups?.sust_cloud     ?? [],
         sust_bizify:    r.sustentacao_groups?.sust_bizify    ?? [],
+        sust_saas:      r.sustentacao_groups?.sust_saas      ?? [],
       })
     } catch { toast.error('Erro ao carregar kanban') }
     finally   { setLoading(false) }
@@ -1451,7 +1476,25 @@ function KanbanContent() {
   // + status (Encerrado/Pausado/Cancelado). Mesmos endpoints do board de contratos →
   // movimentação reflete em Demandas e Projetos (e vice-versa). Colunas de status escopadas
   // aos projetos desses coordenadores (ver projectsInStatusCol). Sem intake/Bizify/Aporte.
-  const columns: Column[] = isSustCoordenador
+  const columns: Column[] = isBizifyActive
+    // Kanban BIZIFY (empresa ativa = Bizify): colunas por "Coordenador Bizify" (flag no user)
+    // + BH Fixo/Mensal/On Demand/SaaS + status. Sem Cloud, sem coluna Bizify genérica.
+    ? [
+        ...FIXED_COLUMNS,
+        ...bizifyCoordinators.map(c => ({
+          id:            `coordinator:${c.id}`,
+          label:         c.name,
+          type:          'coordinator' as const,
+          coordinatorId: c.id,
+          emoji:         '👤',
+          color:         BIZIFY_COLOR,
+        })),
+        ...SUSTENTACAO_COLS_BIZIFY,
+        ...STATUS_PROJECT_COLUMNS,
+        APORTE_COL,
+        ADITIVO_COL,
+      ]
+    : isSustCoordenador
     ? [
         {
           id:            `coordinator:${user!.id}`,
@@ -1535,11 +1578,26 @@ function KanbanContent() {
   const matchProjectKanban = (projectName?: string | null): boolean =>
     filterProjectNames.length === 0 || filterProjectNames.includes(projectName ?? '')
 
+  // SaaS é definido pelo TIPO de contrato — no kanban Bizify vira coluna de tipo
+  // (igual sustentação): sempre na coluna SaaS, nunca numa coluna de coordenador.
+  const isSaasCard = (c: { contract_type?: string | null; service_type?: string | null } | any): boolean =>
+    !!(c?.contract_type?.toLowerCase().includes('saas') || c?.service_type?.toLowerCase().includes('saas'))
+
   // Contract cards per column
   const contractsInCol = (colId: string): (ContractCard | ProjectCard)[] => {
-    const base = colId.startsWith('sust_')
-      ? (sustGroups[colId] ?? [])
+    let base: (ContractCard | ProjectCard)[] = colId.startsWith('sust_')
+      ? [...(sustGroups[colId] ?? [])]
       : demandCards.filter(c => contractColumnId(c) === colId)
+    // Kanban Bizify: SaaS sempre na coluna SaaS. Coordenador não recebe SaaS;
+    // a coluna SaaS agrega também os projetos SaaS ativos que não vieram no grupo.
+    if (isBizifyActive) {
+      if (colId === 'sust_saas') {
+        const already = new Set(base.map((c: any) => c.id))
+        base = [...base, ...projectCards.filter(p => isActiveProject(p) && isSaasCard(p) && !already.has(p.id))]
+      } else if (colId.startsWith('coordinator:')) {
+        base = base.filter(c => !isSaasCard(c))
+      }
+    }
     // Em colunas de coordenador, oculta contratos cujo projeto já aparece em activeProjectsInCoordCol
     const activeProjectIds = colId.startsWith('coordinator:')
       ? new Set(projectCards.filter(isActiveProject).map(p => p.id))
@@ -1567,6 +1625,8 @@ function KanbanContent() {
   const activeProjectsInCoordCol = (coordId: number): ProjectCard[] =>
     projectCards.filter(p => {
       if (!isActiveProject(p)) return false
+      // Kanban Bizify: SaaS nunca cai em coluna de coordenador (vai pra coluna SaaS).
+      if (isBizifyActive && isSaasCard(p)) return false
       if (!projectHasCoord(p, coordId)) return false
       return matchFilter(p.customer_name, p.project_name)
         && matchExecutivoKanban(p.executivo_conta_name)

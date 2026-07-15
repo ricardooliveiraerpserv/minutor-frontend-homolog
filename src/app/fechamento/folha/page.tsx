@@ -220,6 +220,8 @@ export default function FechamentoFolhaPage() {
   const [togglingKey, setTogglingKey] = useState<string | null>(null)
   // Empresa (aba de topo): ERPSERV (cooperativa, esta tela) | Bizify (lançamentos manuais).
   const [empresa, setEmpresa] = useState<'erpserv' | 'bizify'>('erpserv')
+  // Multi-empresa: quando ligado, a folha é única da empresa ATIVA (sem abas). Nome vem do backend.
+  const [singleCompany, setSingleCompany] = useState<string | null>(null)
 
   // ─── Modal "Novo usuário" (cadastro inline de cooperado) ────────────────────
   // Cria um consultor cooperado direto no cadastro (POST /users), sem sair da
@@ -278,9 +280,14 @@ export default function FechamentoFolhaPage() {
     setRows([])
     setEdits({})
     try {
-      const res = await api.get<{ data: FolhaRow[] }>(`/fechamento-folha/${yearMonth}`)
+      const res = await api.get<{ data: FolhaRow[]; company?: string | null; empresa?: 'erpserv' | 'bizify' | null }>(`/fechamento-folha/${yearMonth}`)
       const data = res.data ?? []
       setRows(data)
+      // Multi-empresa: a folha é ÚNICA da empresa ativa — esconde as abas e alinha o modo.
+      if (res.company) {
+        setSingleCompany(res.company)
+        if (res.empresa && res.empresa !== empresa) setEmpresa(res.empresa)
+      }
       // Semeia o estado editável a partir dos valores vindos do backend, por row_key.
       // Carrega o conjunto completo de campos (sócios usam todos; linhas normais
       // ignoram os campos extras, que permanecem read-only na UI).
@@ -692,7 +699,8 @@ export default function FechamentoFolhaPage() {
     <AppLayout title="Fechamento — Folha Cooperativa">
       <div className="space-y-6">
 
-        {/* Abas por empresa: ERPSERV (cooperativa) | Bizify (lançamentos manuais) */}
+        {/* Abas por empresa (só quando multi-empresa DESLIGADO). Ligado → folha única da empresa ativa. */}
+        {!singleCompany && (
         <div className="flex gap-1 border-b" role="tablist" style={{ borderColor: 'var(--border)' }}>
           {([
             { key: 'erpserv' as const, label: 'ERPSERV' },
@@ -712,6 +720,7 @@ export default function FechamentoFolhaPage() {
             )
           })}
         </div>
+        )}
 
         {empresa === 'bizify' ? (
           <BizifyFolha yearMonth={yearMonth} setYearMonth={setYearMonth} />

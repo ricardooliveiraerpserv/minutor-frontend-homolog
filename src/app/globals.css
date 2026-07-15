@@ -819,6 +819,12 @@ tr.row--pausado:hover {
 .sidebar-item-active svg {
   color: var(--primary);
 }
+/* Após clicar num item e navegar, o link retém :focus e o outline global
+ * (outline-ring) desenha um anel — parecia um 2º item "selecionado". Remove o
+ * anel no foco por mouse; mantém no foco por teclado (:focus-visible) p/ a11y. */
+.sidebar-item:focus:not(:focus-visible) {
+  outline: none;
+}
 
 /* Sub-grupos aninhados: borda lateral mais sutil + indent suave */
 .sidebar-subgroup {
