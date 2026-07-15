@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
-import { Video, CalendarClock, Users, ExternalLink, X, Search, Plus, Link2, Trash2 } from 'lucide-react'
+import { Video, CalendarClock, Users, ExternalLink, X, Search, Plus, Link2, Trash2, Pencil, AlertTriangle } from 'lucide-react'
 import { AgendarReuniaoModal } from '@/components/help-desk/agendar-reuniao-modal'
 import { MeetingDetailsModal } from '@/components/meetings/meeting-details-modal'
 import { AgendaSidebar } from '@/components/notifications/agenda-sidebar'
@@ -53,6 +53,9 @@ export function CentralReunioes() {
   const [provider, setProvider] = useState('')
   const [search, setSearch] = useState('')
   const [novaOpen, setNovaOpen] = useState(false)
+  const [editMeeting, setEditMeeting] = useState<{ id: number; title: string; starts_at: string; duration_minutes: number } | null>(null)
+  const [confirmCancel, setConfirmCancel] = useState<Meeting | null>(null)
+  const [canceling, setCanceling] = useState(false)
   const [detailId, setDetailId] = useState<number | null>(null)
   const [calDetail, setCalDetail] = useState<CalEvent | null>(null)
   const [connecting, setConnecting] = useState(false)
@@ -85,10 +88,11 @@ export function CentralReunioes() {
   }, [period, status, provider, search])
   useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t) }, [load])
 
-  const cancelMeeting = async (m: Meeting) => {
-    if (!confirm(`Cancelar "${m.title}"?`)) return
-    try { await api.post(`/meetings/${m.id}/cancel`, {}); toast.success('Cancelada.'); load() }
+  const doCancel = async (m: Meeting) => {
+    setCanceling(true)
+    try { await api.post(`/meetings/${m.id}/cancel`, {}); toast.success('Reunião cancelada.'); load() }
     catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro') }
+    finally { setCanceling(false); setConfirmCancel(null) }
   }
   const clearMeeting = async (m: Meeting) => {
     try { await api.delete(`/meetings/${m.id}`); toast.success('Reunião removida da agenda.'); load() }
@@ -122,7 +126,7 @@ export function CentralReunioes() {
       <div className="flex items-center gap-2 flex-wrap">
         <h1 className="text-lg font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text)' }}><Video size={18} style={{ color: 'var(--primary)' }} /> Central de Reuniões</h1>
         <span className="text-sm" style={{ color: 'var(--text-light)' }}>· {meetings.length} reunião(ões)</span>
-        <button onClick={() => setNovaOpen(true)} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg ml-auto"><Plus size={15} /> Nova reunião</button>
+        <button onClick={() => { setEditMeeting(null); setNovaOpen(true) }} className="ds-btn-primary inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg ml-auto"><Plus size={15} /> Nova reunião</button>
       </div>
 
       {/* Filtros */}
@@ -199,7 +203,8 @@ export function CentralReunioes() {
                         <div className="flex items-center gap-1.5 shrink-0">
                           {m.status !== 'canceled' && m.status !== 'ended' && m.join_url &&
                             <a href={m.join_url} target="_blank" onClick={e => e.stopPropagation()} className="ds-btn-secondary text-xs px-2.5 py-1 rounded-md inline-flex items-center gap-1"><ExternalLink size={11} /> Entrar</a>}
-                          {m.status === 'scheduled' && <button onClick={e => { e.stopPropagation(); cancelMeeting(m) }} title="Cancelar" className="p-1 rounded hover:bg-[var(--surface-hover)]"><X size={14} style={{ color: 'var(--danger-border)' }} /></button>}
+                          {m.status === 'scheduled' && <button onClick={e => { e.stopPropagation(); setEditMeeting({ id: m.id, title: m.title, starts_at: m.starts_at, duration_minutes: m.duration_minutes ?? 30 }); setNovaOpen(true) }} title="Editar (reagendar)" className="p-1 rounded hover:bg-[var(--surface-hover)]"><Pencil size={13} style={{ color: 'var(--text-muted)' }} /></button>}
+                          {m.status === 'scheduled' && <button onClick={e => { e.stopPropagation(); setConfirmCancel(m) }} title="Cancelar" className="p-1 rounded hover:bg-[var(--surface-hover)]"><X size={14} style={{ color: 'var(--danger-border)' }} /></button>}
                           {m.status === 'canceled' && <button onClick={e => { e.stopPropagation(); clearMeeting(m) }} title="Limpar da agenda" className="p-1 rounded hover:bg-[var(--surface-hover)]"><Trash2 size={13} style={{ color: 'var(--text-light)' }} /></button>}
                         </div>
                       </div>
@@ -214,7 +219,29 @@ export function CentralReunioes() {
         </aside>
       </div>
 
-      {novaOpen && <AgendarReuniaoModal onClose={() => setNovaOpen(false)} onCreated={() => { setNovaOpen(false); load() }} />}
+      {novaOpen && <AgendarReuniaoModal meeting={editMeeting} onClose={() => { setNovaOpen(false); setEditMeeting(null) }} onCreated={() => { setNovaOpen(false); setEditMeeting(null); load() }} />}
+      {confirmCancel && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => !canceling && setConfirmCancel(null)}>
+          <div className="ds-card w-full max-w-sm p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--danger-bg)' }}>
+                <AlertTriangle size={18} style={{ color: 'var(--danger-border)' }} />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Cancelar reunião?</div>
+                <div className="text-[13px] mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>“{confirmCancel.title}”</div>
+              </div>
+            </div>
+            <p className="text-[13px]" style={{ color: 'var(--text-muted)' }}>Os participantes são notificados do cancelamento. Esta ação não pode ser desfeita.</p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button className="ds-btn-secondary text-sm px-3 py-1.5 rounded-lg" onClick={() => setConfirmCancel(null)} disabled={canceling}>Voltar</button>
+              <button className="text-sm px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 disabled:opacity-60" style={{ background: 'var(--danger-border)', color: '#fff' }} onClick={() => doCancel(confirmCancel)} disabled={canceling}>
+                <X size={14} /> {canceling ? 'Cancelando…' : 'Cancelar reunião'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {detailId !== null && <MeetingDetailsModal meetingId={detailId} onClose={() => setDetailId(null)} onChanged={load} />}
 
       {calDetail && (
