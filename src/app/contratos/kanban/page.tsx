@@ -982,6 +982,12 @@ function ProjectKanbanCard({ card, index, onClick, onAction, onMove, availableCo
                 {card.customer_name}
               </p>
               <p className="text-xs break-normal" style={{ color: 'var(--text-light)' }}>{card.project_name}</p>
+              {/* SaaS: valor do projeto na capa (SaaS é só valor, sem horas). */}
+              {(card.contract_type?.toLowerCase().includes('saas')) && card.project_value != null && (
+                <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--primary)', fontVariantNumeric: 'tabular-nums' }}>
+                  {Number(card.project_value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full whitespace-nowrap"
