@@ -112,19 +112,14 @@ const avatarColor = (name?: string | null) => {
  */
 function EmailFrame({ html }: { html: string }) {
   const ref = useRef<HTMLIFrameElement>(null)
-  const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
+  const [h, setH] = useState(0)
   useEffect(() => {
     const f = ref.current
     if (!f) return
     const measure = () => {
       const d = f.contentDocument
       if (!d || !d.body) return
-      // LARGURA = offsetWidth (a caixa do body JÁ limitada por max-width:880) — nunca
-      // cresce além disso, então não há loop de realimentação (scrollWidth incluiria o
-      // overflow e realimentaria). Capa dura em 880 por segurança.
-      const w = Math.min(Math.ceil(d.body.offsetWidth) || 880, 880)
-      const h = Math.ceil(Math.max(d.body.scrollHeight, d.documentElement.scrollHeight))
-      setSize(prev => (prev.w === w && prev.h === h ? prev : { w, h }))
+      setH(Math.ceil(Math.max(d.body.scrollHeight, d.documentElement.scrollHeight)))
     }
     const onload = () => {
       measure()
@@ -135,8 +130,10 @@ function EmailFrame({ html }: { html: string }) {
     onload() // srcDoc pode já ter carregado
     return () => f.removeEventListener('load', onload)
   }, [html])
-  // body width:fit-content + max-width:880 → e-mail no layout de design; margin:0 = sem borda extra.
-  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html{margin:0;padding:0}body{margin:0;padding:0;width:fit-content;max-width:880px}</style></head><body>${html}</body></html>`
+  // DETERMINÍSTICO (Gmail/Outlook Web): iframe = 100% do balão (preso à largura da coluna); body
+  // width:auto → o TEXTO quebra na largura disponível e a assinatura acompanha. Sem width fixa,
+  // sem offsetWidth/scrollWidth como largura. Mede SÓ a ALTURA.
+  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0}body{width:auto;overflow-wrap:break-word;word-break:break-word}img{max-width:100%;height:auto}</style></head><body>${html}</body></html>`
   return (
     <iframe
       ref={ref}
@@ -144,7 +141,7 @@ function EmailFrame({ html }: { html: string }) {
       title="Conteúdo do e-mail"
       scrolling="no"
       sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      style={{ width: size.w || 880, height: size.h || 200, border: 0, display: 'block', colorScheme: 'light' }}
+      style={{ width: '100%', height: h || 200, border: 0, display: 'block', colorScheme: 'light' }}
     />
   )
 }
@@ -759,7 +756,7 @@ export default function HelpDeskTicketDetailPage() {
                     return (
                     <div key={c.id} className={`flex gap-2.5 ${right && !isHtmlBody(c.body) ? 'flex-row-reverse' : ''}`}>
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
-                      <div className={`flex flex-col ${editing ? 'w-full min-w-0' : isHtmlBody(c.body) ? 'w-max max-w-[min(880px,calc(100vw_-_380px))] shrink-0' : 'min-w-0 max-w-full'} ${right && !isHtmlBody(c.body) ? 'items-end' : 'items-start'}`} style={!editing && isHtmlBody(c.body) ? { maxWidth: 'min(880px, calc(100vw - 380px))' } : undefined}>
+                      <div className={`flex flex-col ${editing ? 'w-full min-w-0' : isHtmlBody(c.body) ? 'w-full min-w-0' : 'min-w-0 max-w-full'} ${right && !isHtmlBody(c.body) ? 'items-end' : 'items-start'}`}>
                         <div className="flex items-center gap-2 mb-1 text-[11px]">
                           <span className="font-semibold" style={{ color: 'var(--text)' }}>{autor}</span>
                           {isInternal && <span className="inline-flex items-center gap-0.5 text-[10px]" style={{ color: 'var(--warning-border)' }}><Lock size={10} /> nota interna</span>}
@@ -825,7 +822,7 @@ export default function HelpDeskTicketDetailPage() {
                         ) : c.solution ? (
                           <div className="w-full"><SolutionView solution={c.solution as Solution} /></div>
                         ) : c.body ? (
-                          <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(c.body) ? 'w-max max-w-[min(880px,calc(100vw_-_380px))] overflow-x-auto' : 'hd-msg-body w-fit max-w-full'}`} style={{ ...(isHtmlBody(c.body) ? { maxWidth: 'min(880px, calc(100vw - 380px))' } : {}), background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
+                          <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(c.body) ? 'w-full min-w-0 overflow-x-auto' : 'hd-msg-body w-fit max-w-full'}`} style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
                             {isHtmlBody(c.body)
                               ? <EmailFrame html={sanitizeEmail(c.body)} />
                               : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
@@ -858,10 +855,10 @@ export default function HelpDeskTicketDetailPage() {
                     return (
                     <div className="flex gap-2.5">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
-                      {/* HTML (assinatura de e-mail): wrapper NÃO encolhe (shrink-0) e cresce
-                          até o conteúdo (w-max), teto na área principal — sai do aperto da
-                          flex-row de largura-da-coluna. Texto puro segue quebrando (max-w-full). */}
-                      <div className={`flex flex-col items-start ${editDesc ? 'w-full min-w-0' : isHtmlBody(t.description) ? 'w-max max-w-[min(880px,calc(100vw_-_380px))] shrink-0' : 'min-w-0 max-w-full'}`} style={!editDesc && isHtmlBody(t.description) ? { maxWidth: 'min(880px, calc(100vw - 380px))' } : undefined}>
+                      {/* HTML (assinatura de e-mail): layout FLUIDO (Gmail/Outlook Web) — wrapper
+                          ocupa a coluna (w-full min-w-0), iframe = 100% do balão e o texto quebra
+                          na largura disponível. Sem largura fixa. Texto puro segue com max-w-full. */}
+                      <div className={`flex flex-col items-start ${editDesc ? 'w-full min-w-0' : isHtmlBody(t.description) ? 'w-full min-w-0' : 'min-w-0 max-w-full'}`}>
                         <div className="flex items-center gap-2 mb-1 text-[11px]">
                           <span className="font-semibold" style={{ color: 'var(--text)' }}>{autor}</span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>descrição inicial</span>
@@ -883,7 +880,7 @@ export default function HelpDeskTicketDetailPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(t.description) ? 'w-max max-w-[min(880px,calc(100vw_-_380px))] overflow-x-auto' : 'hd-msg-body w-fit max-w-full'}`} style={{ ...(isHtmlBody(t.description) ? { maxWidth: 'min(880px, calc(100vw - 380px))' } : {}), background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
+                          <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(t.description) ? 'w-full min-w-0 overflow-x-auto' : 'hd-msg-body w-fit max-w-full'}`} style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
                             {isHtmlBody(t.description)
                               ? <EmailFrame html={sanitizeEmail(t.description)} />
                               : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
