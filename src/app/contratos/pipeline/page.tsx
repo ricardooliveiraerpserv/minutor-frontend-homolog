@@ -2441,8 +2441,26 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
                             } />
                           )
                         })()}
+                        <Row label="Percentual de Entrega" value={p.delivery_percentage != null ? `${Number(p.delivery_percentage).toFixed(0)}%` : '—'} />
                       </div>
                     </div>
+                    {/* Barra de evolução da entrega (somente leitura) — vazia se não preenchido */}
+                    {(() => {
+                      const filled = p.delivery_percentage != null
+                      const pct = filled ? Math.max(0, Math.min(100, Number(p.delivery_percentage))) : 0
+                      const barColor = pct >= 100 ? 'var(--success-border)' : 'var(--primary)'
+                      return (
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Evolução da Entrega</span>
+                            <span className="text-xs font-bold tabular-nums" style={{ color: filled ? barColor : 'var(--text-light)' }}>{filled ? `${pct.toFixed(0)}%` : '—'}</span>
+                          </div>
+                          <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
+                          </div>
+                        </div>
+                      )
+                    })()}
                   </div>
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-light)' }}>Equipe</p>
