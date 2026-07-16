@@ -20,7 +20,7 @@ import { RichEditor, type RichEditorHandle } from '@/components/help-desk/rich-e
 import { ModoAtendimentoBar, FilaConcluida, type SessionSummary } from '@/components/help-desk/modo-atendimento'
 import { getSession, nextTicketId, queuePosition, queueHref } from '@/lib/help-desk-session'
 import { wsActive, wsContains, wsNext, wsPrev, wsIncr, logEvent, endWorkSession, fetchSummary, wsSetIds, getWorkSession } from '@/lib/work-session'
-import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Lock, Paperclip, Clock, UserCheck, CheckCircle2, ArrowRight, ListFilter, CheckSquare, X, Pencil, Search, Mail, GitMerge, Unlink, MoreHorizontal, Trash2, Gauge, FileText, Copy, CalendarClock, RotateCcw, Send, BookOpen, Info, RefreshCw, Calendar, type LucideIcon } from 'lucide-react'
 import { MesclarModal } from '@/components/help-desk/mesclar-modal'
 import { TicketDetailsModal } from '@/components/help-desk/ticket-details-modal'
 import { SlaDetailsModal } from '@/components/help-desk/sla-details-modal'
@@ -112,14 +112,19 @@ const avatarColor = (name?: string | null) => {
  */
 function EmailFrame({ html }: { html: string }) {
   const ref = useRef<HTMLIFrameElement>(null)
-  const [h, setH] = useState(0)
+  const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 })
   useEffect(() => {
     const f = ref.current
     if (!f) return
     const measure = () => {
       const d = f.contentDocument
       if (!d || !d.body) return
-      setH(Math.ceil(Math.max(d.body.scrollHeight, d.documentElement.scrollHeight)))
+      // Largura/altura NATURAIS do e-mail. body{width:max-content} → o body encolhe até o conteúdo,
+      // então scrollWidth é a largura REAL da assinatura (a mais larga). Sem cap, sem clip: o iframe
+      // passa a ter exatamente o tamanho do conteúdo e nada é recortado.
+      const w = Math.ceil(Math.max(d.body.scrollWidth, d.body.offsetWidth))
+      const h = Math.ceil(Math.max(d.body.scrollHeight, d.documentElement.scrollHeight))
+      setSize(prev => (prev.w === w && prev.h === h ? prev : { w, h }))
     }
     const onload = () => {
       measure()
@@ -130,10 +135,12 @@ function EmailFrame({ html }: { html: string }) {
     onload() // srcDoc pode já ter carregado
     return () => f.removeEventListener('load', onload)
   }, [html])
-  // DETERMINÍSTICO (Gmail/Outlook Web): iframe = 100% do balão (preso à largura da coluna); body
-  // width:auto → o TEXTO quebra na largura disponível e a assinatura acompanha. Sem width fixa,
-  // sem offsetWidth/scrollWidth como largura. Mede SÓ a ALTURA.
-  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0}body{width:auto;overflow-wrap:break-word;word-break:break-word}img{max-width:100%;height:auto}</style></head><body>${html}</body></html>`
+  // ÍNTEGRO + texto que quebra: body tem uma LARGURA DE LEITURA (max-content com teto de 640px), então
+  // o texto quebra normalmente nessa largura. Elementos MAIS LARGOS que isso (assinatura/tabela/imagem)
+  // TRANSBORDAM — não são reduzidos nem cortados. Medimos scrollWidth (que inclui o transbordo) e o
+  // iframe cresce até a assinatura inteira. Quem rola, se passar da coluna, é o BALÃO externo
+  // (overflow-x:auto), nunca o iframe — nenhum elemento é escondido.
+  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>html,body{margin:0;padding:0}body{width:max-content;max-width:640px}</style></head><body>${html}</body></html>`
   return (
     <iframe
       ref={ref}
@@ -141,9 +148,22 @@ function EmailFrame({ html }: { html: string }) {
       title="Conteúdo do e-mail"
       scrolling="no"
       sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-      style={{ width: '100%', height: h || 200, border: 0, display: 'block', colorScheme: 'light' }}
+      style={{ width: size.w || 'auto', height: size.h || 200, border: 0, display: 'block', colorScheme: 'light' }}
     />
   )
+}
+
+// Card de sistema: reduz o corpo (pode vir HTML) a texto e escolhe um ícone pelo assunto.
+const stripTags = (s: string) => s.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
+function sysIconFor(text: string): LucideIcon {
+  const s = text.toLowerCase()
+  if (/reuni|agendad/.test(s)) return Calendar
+  if (/status/.test(s)) return RefreshCw
+  if (/respons|atribu|assign|equipe/.test(s)) return UserCheck
+  if (/anexo|arquivo/.test(s)) return Paperclip
+  if (/reabert|reaberto/.test(s)) return RotateCcw
+  if (/e-?mail|email/.test(s)) return Mail
+  return Info
 }
 
 const PRIO_LABEL: Record<string, string> = { baixa: 'Baixa', normal: 'Média', alta: 'Alta', urgente: 'Urgente' }
@@ -704,7 +724,7 @@ export default function HelpDeskTicketDetailPage() {
               </div>
 
               {tab === 'conversa' ? (
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-3">
                   {/* Card de reunião (Central de Reuniões) — próxima acima da conversa; muda pós-realização. */}
                   <ReunioesCard ticketId={id} refreshKey={reuniaoKey} onTicketChange={() => { loadTicket(); loadComments(); loadEvents() }} onSchedule={() => { setEditMeeting(null); setReuniaoOpen(true) }} onEdit={(m) => { setEditMeeting({ id: m.id, title: m.title, starts_at: m.starts_at, duration_minutes: m.duration_minutes ?? 30 }); setReuniaoOpen(true) }} />
                   {/* Chamado FECHADO (terminal): sem novas interações — só reabrindo. */}
@@ -746,27 +766,45 @@ export default function HelpDeskTicketDetailPage() {
                   {comments.length === 0 && <p className="text-sm text-center py-4" style={{ color: 'var(--text-muted)' }}>Sem interações ainda.</p>}
                   {/* Mais recente em cima, mais antiga embaixo */}
                   {comments.slice().reverse().map(c => {
-                    // Estilo WhatsApp (igual ao portal): cliente à ESQUERDA, atendente/equipe à DIREITA.
+                    // Chat moderno: cliente à ESQUERDA, consultor/equipe à DIREITA, sistema ao CENTRO.
                     const isCustomer = c.author?.type === 'cliente' || (!c.author && !!c.contact)
-                    const right = !isCustomer
+                    const isSystem = c.is_system && !c.solution
+                    const right = !isCustomer && !isSystem
                     const isInternal = c.visibility === 'internal'
                     const autor = c.author?.name ?? c.contact?.name ?? 'Sistema'
                     const editing = editCommentId === c.id
                     const hasEffort = typeof c.effort_minutes === 'number' && c.effort_minutes > 0
+                    const html = !!c.body && isHtmlBody(c.body)
+                    // ——— Evento de sistema: card central discreto (nunca parece e-mail) ———
+                    if (isSystem && !editing) {
+                      const txt = html ? stripTags(c.body) : c.body
+                      const SIcon = sysIconFor(txt)
+                      return (
+                        <div key={c.id} className="hd-msg flex justify-center">
+                          <div className="hd-syscard">
+                            <SIcon size={13} />
+                            <span className="whitespace-pre-wrap break-words">{txt}</span>
+                            <span style={{ color: 'var(--text-light)' }}>· {fmtDate(c.created_at)}</span>
+                          </div>
+                        </div>
+                      )
+                    }
                     return (
-                    <div key={c.id} className={`flex gap-2.5 ${right && !isHtmlBody(c.body) ? 'flex-row-reverse' : ''}`}>
+                    <div key={c.id} className={`hd-msg flex gap-2.5 ${right ? 'flex-row-reverse' : ''}`}>
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
-                      <div className={`flex flex-col ${editing ? 'w-full min-w-0' : isHtmlBody(c.body) ? 'w-full min-w-0' : 'min-w-0 max-w-full'} ${right && !isHtmlBody(c.body) ? 'items-end' : 'items-start'}`}>
-                        <div className="flex items-center gap-2 mb-1 text-[11px]">
+                      <div className={`flex flex-col min-w-0 ${editing ? 'w-full' : html ? 'max-w-full' : 'max-w-[85%] sm:max-w-[75%]'} ${right ? 'items-end' : 'items-start'}`}>
+                        <div className={`flex items-center gap-2 mb-0.5 text-[11px] ${right ? 'flex-row-reverse' : ''}`}>
                           <span className="font-semibold" style={{ color: 'var(--text)' }}>{autor}</span>
-                          {isInternal && <span className="inline-flex items-center gap-0.5 text-[10px]" style={{ color: 'var(--warning-border)' }}><Lock size={10} /> nota interna</span>}
+                          {isInternal
+                            ? <span className="hd-role hd-role-internal"><Lock size={9} /> nota interna</span>
+                            : <span className={`hd-role ${right ? 'hd-role-agent' : 'hd-role-client'}`}>{right ? 'Consultor' : 'Cliente'}</span>}
+                          <span style={{ color: 'var(--text-light)' }}>{fmtDate(c.created_at)}</span>
                           {c.can_edit && !editing && (
                             <button title={c.solution ? (c.form_kind === 'gmud' ? 'Editar GMUD' : 'Editar solução') : 'Editar interação'} onClick={() => c.solution ? openFormEdit(c) : openEditComment(c)}><Pencil size={12} style={{ color: 'var(--text-light)' }} /></button>
                           )}
                           {c.can_candidate_kb && !editing && (
                             <button title="Transformar em artigo da Base de Conhecimento" onClick={() => toKb(c.id)}><BookOpen size={12} style={{ color: 'var(--text-light)' }} /></button>
                           )}
-                          <span style={{ color: 'var(--text-light)' }}>{fmtDate(c.created_at)}</span>
                         </div>
                         {hasEffort && (
                           <div className={`flex items-center gap-1.5 flex-wrap mb-1.5 text-[11px] ${right ? 'justify-end' : ''}`}>
@@ -822,8 +860,8 @@ export default function HelpDeskTicketDetailPage() {
                         ) : c.solution ? (
                           <div className="w-full"><SolutionView solution={c.solution as Solution} /></div>
                         ) : c.body ? (
-                          <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(c.body) ? 'w-full min-w-0 overflow-x-auto' : 'hd-msg-body w-fit max-w-full'}`} style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
-                            {isHtmlBody(c.body)
+                          <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${html ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : `hd-msg-body w-fit max-w-full px-3.5 py-2 ${isInternal ? 'hd-bubble-internal' : right ? 'hd-bubble-agent' : 'hd-bubble-client'}`}`} style={{ borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
+                            {html
                               ? <EmailFrame html={sanitizeEmail(c.body)} />
                               : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
                           </div>
@@ -852,20 +890,18 @@ export default function HelpDeskTicketDetailPage() {
                   {/* Descrição = interação MAIS ANTIGA (do solicitante), sempre no fim da lista — bolha à esquerda. */}
                   {t.description && (() => {
                     const autor = t.solicitante?.name ?? t.requester_name ?? t.contact?.name ?? 'Solicitante'
+                    const descHtml = isHtmlBody(t.description ?? '')
                     return (
-                    <div className="flex gap-2.5">
+                    <div className="hd-msg flex gap-2.5">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 text-white" style={{ background: avatarColor(autor) }}>{iniciais(autor)}</div>
-                      {/* HTML (assinatura de e-mail): layout FLUIDO (Gmail/Outlook Web) — wrapper
-                          ocupa a coluna (w-full min-w-0), iframe = 100% do balão e o texto quebra
-                          na largura disponível. Sem largura fixa. Texto puro segue com max-w-full. */}
-                      <div className={`flex flex-col items-start ${editDesc ? 'w-full min-w-0' : isHtmlBody(t.description) ? 'w-full min-w-0' : 'min-w-0 max-w-full'}`}>
-                        <div className="flex items-center gap-2 mb-1 text-[11px]">
+                      <div className={`flex flex-col items-start min-w-0 ${editDesc ? 'w-full' : descHtml ? 'max-w-full' : 'max-w-[85%] sm:max-w-[75%]'}`}>
+                        <div className="flex items-center gap-2 mb-0.5 text-[11px]">
                           <span className="font-semibold" style={{ color: 'var(--text)' }}>{autor}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>descrição inicial</span>
+                          <span className="hd-role hd-role-desc">descrição inicial</span>
+                          <span style={{ color: 'var(--text-light)' }}>{fmtDate(t.created_at)}</span>
                           {t.can_edit_description && !editDesc && (
                             <button title="Editar descrição" onClick={() => setEditDesc(true)}><Pencil size={12} style={{ color: 'var(--text-light)' }} /></button>
                           )}
-                          <span style={{ color: 'var(--text-light)' }}>{fmtDate(t.created_at)}</span>
                         </div>
                         {editDesc ? (
                           <div className="space-y-2 w-full">
@@ -880,9 +916,9 @@ export default function HelpDeskTicketDetailPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(t.description) ? 'w-full min-w-0 overflow-x-auto' : 'hd-msg-body w-fit max-w-full'}`} style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
-                            {isHtmlBody(t.description)
-                              ? <EmailFrame html={sanitizeEmail(t.description)} />
+                          <div className={`hd-bubble text-sm text-left rounded-2xl relative z-[1] ${descHtml ? 'hd-bubble-html w-fit max-w-full min-w-0 overflow-x-auto px-3 py-2.5' : 'hd-msg-body w-fit max-w-full px-3.5 py-2 hd-bubble-client'}`} style={{ borderTopLeftRadius: 4 }}>
+                            {descHtml
+                              ? <EmailFrame html={sanitizeEmail(t.description ?? '')} />
                               : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
                           </div>
                         )}

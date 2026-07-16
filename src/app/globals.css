@@ -1213,3 +1213,37 @@ html.dark .sidebar-erpserv-logo {
 .hd-msg-body { word-break: break-word; }
 .hd-msg-body img { max-width: 100%; }
 .hd-msg-body table { max-width: 100%; }
+
+/* ============================================================
+   Help Desk — CONVERSA estilo chat (WhatsApp/Teams/Slack)
+   Só camada visual do shell; renderer/iframe/parser intactos.
+   ============================================================ */
+
+/* Entrada suave de cada mensagem (discreta) */
+@keyframes hd-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.hd-msg { animation: hd-in .22s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .hd-msg { animation: none; } }
+
+/* Balão base — hover discreto */
+.hd-bubble { transition: box-shadow .15s ease, border-color .15s ease; }
+.hd-bubble:hover { box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+
+/* Hierarquia de cor por autor */
+.hd-bubble-client   { background: var(--surface);      border: 1px solid var(--border); color: var(--text); }
+.hd-bubble-agent    { background: var(--info-bg);       border: 1px solid transparent;   color: var(--text); }
+.hd-bubble-internal { background: var(--warning-bg);    border: 1px solid var(--warning-border); color: var(--text); }
+/* Balão de e-mail (HTML) — sempre branco por baixo do iframe, nos dois temas */
+.hd-bubble-html     { background: #ffffff;              border: 1px solid var(--border); color: #1f2937; }
+
+/* Chip de papel (cliente / consultor / nota interna) */
+.hd-role          { font-size: 10px; line-height: 1; padding: 2px 6px; border-radius: 999px; font-weight: 600; }
+.hd-role-client   { background: var(--surface-sunken); color: var(--text-muted); }
+.hd-role-agent    { background: var(--info-bg);         color: var(--info); }
+.hd-role-internal { background: var(--warning-bg);      color: var(--warning); display: inline-flex; align-items: center; gap: 3px; }
+.hd-role-desc     { background: var(--primary-soft);    color: var(--primary); }
+
+/* Card de evento de sistema — centralizado, discreto, nunca parece e-mail */
+.hd-syscard      { display: inline-flex; align-items: center; gap: 8px; max-width: 92%; padding: 6px 12px;
+                   border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border);
+                   color: var(--text-muted); font-size: 12px; }
+.hd-syscard svg  { color: var(--text-light); flex-shrink: 0; }
