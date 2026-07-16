@@ -825,7 +825,6 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       const nav: NavEntry[] = [
         { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone, badge: 'comunicados' },
         { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2 },
-        { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone },
         { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid },
         { type: 'item', label: 'Central de Atendimento', href: '/help-desk/portal', icon: Headphones },
       ]
