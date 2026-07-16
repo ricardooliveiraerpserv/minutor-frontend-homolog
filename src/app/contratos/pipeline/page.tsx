@@ -2,6 +2,7 @@
 
 import { AppLayout } from '@/components/layout/app-layout'
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { ProjectStagesSidePanel } from '@/components/projects/project-stages-side-panel'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -573,24 +574,46 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
   const { user: viewerUser } = useAuth()
   const { isDenied } = useDeniedActions()
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const h = (e: MouseEvent) => {
+      if (btnRef.current?.contains(e.target as Node) || menuRef.current?.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    const close = () => setOpen(false)
     document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('mousedown', h)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
   }, [open])
+  const items = PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action))
+  const toggle = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      // Menu w-48 (192px): abre abaixo do botão, alinhado à esquerda, sem estourar a viewport.
+      setPos({ top: r.bottom + 4, left: Math.min(r.left, window.innerWidth - 192 - 8) })
+    }
+    setOpen(v => !v)
+  }
   return (
-    <div ref={ref} className="relative inline-block">
-      <button onClick={e => { e.stopPropagation(); setOpen(v => !v) }}
+    <>
+      <button ref={btnRef} onClick={toggle}
         className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)] transition-colors"
         style={{ color: 'var(--text-light)' }}>
         <MoreVertical size={14} />
       </button>
-      {open && (
-        <div className="absolute right-0 top-7 z-[100] w-48 rounded-xl overflow-hidden shadow-2xl"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {PROJECT_MENU_ITEMS.filter(item => (!item.adminOnly || canWrite) && (!(item as any).coordHidden || viewerUser?.type !== 'coordenador') && !isDenied('/contratos/pipeline', item.action)).map(item => {
+      {open && pos && createPortal(
+        <div ref={menuRef} className="fixed z-[9999] w-48 rounded-xl overflow-hidden shadow-2xl"
+          style={{ top: pos.top, left: pos.left, background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          {items.map(item => {
             const Icon = item.icon
             const isDanger = (item as any).danger
             return (
@@ -603,9 +626,10 @@ function ListProjectActionMenu({ onAction, canWrite }: { onAction: (action: stri
               </button>
             )
           })}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   )
 }
 
@@ -5142,7 +5166,7 @@ function KanbanContent() {
                             )}
                             {!isCliente && (
                               <td className="px-4 py-3 text-center"
-                                style={{ color: !hideHours && !onDemand && (rowSaldo ?? 0) < 0 ? '#ef4444' : 'rgb(212 212 216)' }}>
+                                style={{ color: !hideHours && !onDemand && (rowSaldo ?? 0) < 0 ? 'var(--danger-border)' : 'var(--text)' }}>
                                 {hideHours || onDemand ? '—' : rowSaldo != null ? `${Number(rowSaldo).toFixed(1)}h` : '—'}
                               </td>
                             )}
