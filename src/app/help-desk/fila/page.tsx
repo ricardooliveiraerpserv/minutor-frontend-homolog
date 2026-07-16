@@ -135,7 +135,8 @@ export default function HelpDeskFilaPage() {
   const [viewScope, setViewScope] = useState('all') // escopo de visão: 'all' vê de outros; 'assigned' só os próprios
   // Só faz sentido oferecer "apenas meus chamados" se o agente enxerga chamados além dos dele.
   const canSeeOthers = viewScope === 'all' || viewScope === 'parent' || viewScope === 'assigned_or_parent'
-  const [pendFilter, setPendFilter] = useState<'' | 'mine' | 'team'>('') // filtro pelos cards de pendentes
+  // Filtro rápido dos cards/chips do resumo: '' | mine | team | open | sla | status:<id>.
+  const [pendFilter, setPendFilter] = useState('') // filtro pelos cards de pendentes/indicadores/status
   const [view, setView] = useState<'kanban' | 'lista'>('kanban')          // visão do board: Kanban ou Lista
   const [f, setF] = useState({ search: '' })
   const [mine, setMine] = useState(false)
@@ -256,7 +257,7 @@ export default function HelpDeskFilaPage() {
   }, [local, statuses, matchFilters])
 
   // Resumo por coluna (chips) + indicadores (cards).
-  const statColumns = boardStatuses.map(s => ({ label: s.label, cor: s.color, count: (byColumn[s.id] ?? []).length }))
+  const statColumns = boardStatuses.map(s => ({ id: s.id, label: s.label, cor: s.color, count: (byColumn[s.id] ?? []).length }))
   const flt = local.filter(matchFilters).filter(t => !isHiddenStatus(t.status_id))
   const slaCnt = flt.reduce((a, t) => {
     const d = slaDot(t.sla).dot
@@ -274,7 +275,15 @@ export default function HelpDeskFilaPage() {
   const isAdmin = user?.type === 'admin'
   const pendentesEquipe = local.filter(isNossaPendencia).length
   // Filtro aplicado ao clicar nos cards de pendentes (filtra o board; cards seguem contando o total).
-  const pendPass = (t: TicketRow) => pendFilter === '' ? true : (pendFilter === 'mine' ? (t.assignee?.id === user?.id && isNossaPendencia(t)) : isNossaPendencia(t))
+  const pendPass = (t: TicketRow) => {
+    if (pendFilter === '') return true
+    if (pendFilter === 'mine') return t.assignee?.id === user?.id && isNossaPendencia(t)
+    if (pendFilter === 'team') return isNossaPendencia(t)
+    if (pendFilter === 'open') return isPendente(t)
+    if (pendFilter === 'sla') return slaDot(t.sla).dot !== '🔴' // "no prazo" = SLA não estourado
+    if (pendFilter.startsWith('status:')) return t.status_id === Number(pendFilter.slice(7))
+    return true
+  }
   // Visão em LISTA — mesmos filtros do board, mais recente primeiro.
   const listRows = flt.filter(pendPass).slice().sort((a, b) => new Date(b.updated_at ?? b.created_at ?? 0).getTime() - new Date(a.updated_at ?? a.created_at ?? 0).getTime())
   // Chamados sem interação da EQUIPE (resposta do cliente não zera). Buckets calculados SEM aplicar o
@@ -291,9 +300,9 @@ export default function HelpDeskFilaPage() {
   const statMetrics: { label: string; value: number | string; cor: string; hint?: string; highlight?: boolean; icon?: string; onClick?: () => void; active?: boolean }[] = [
     { label: 'Meus pendentes', value: meusPendentes, cor: '#14b8a6', hint: 'clique para filtrar', icon: '👤', onClick: () => setPendFilter(p => p === 'mine' ? '' : 'mine'), active: pendFilter === 'mine' },
     ...(isAdmin ? [{ label: 'Pendentes da equipe', value: pendentesEquipe, cor: '#8b5cf6', hint: 'clique para filtrar', icon: '👥', onClick: () => setPendFilter(p => p === 'team' ? '' : 'team'), active: pendFilter === 'team' }] : []),
-    { label: 'Total', value: totalFila, cor: '#64748b' },
-    { label: 'Abertos', value: abertos, cor: '#3b82f6' },
-    { label: '% SLA no prazo', value: `${pctSlaFila}%`, hint: `${totalFila - slaCnt.r} de ${totalFila} no prazo`, cor: slaCorFila },
+    { label: 'Total', value: totalFila, cor: '#64748b', hint: pendFilter ? 'clique para ver todos' : undefined, onClick: () => setPendFilter('') },
+    { label: 'Abertos', value: abertos, cor: '#3b82f6', hint: 'clique para filtrar', onClick: () => setPendFilter(p => p === 'open' ? '' : 'open'), active: pendFilter === 'open' },
+    { label: '% SLA no prazo', value: `${pctSlaFila}%`, hint: pendFilter === 'sla' ? undefined : `${totalFila - slaCnt.r} de ${totalFila} no prazo`, cor: slaCorFila, onClick: () => setPendFilter(p => p === 'sla' ? '' : 'sla'), active: pendFilter === 'sla' },
   ]
 
   // Modo Atendimento — restaura filtros da sessão ao voltar para a fila.
@@ -425,13 +434,24 @@ export default function HelpDeskFilaPage() {
             </div>
             {resumoOpen && (
               <div className="flex flex-wrap gap-1.5">
-                {statColumns.map((c, i) => (
-                  <span key={i} className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                    <span className="w-2 h-2 rounded-full" style={{ background: c.cor ?? 'var(--text-muted)' }} />
-                    <span style={{ color: 'var(--text-muted)' }}>{c.label}</span>
-                    <span className="font-bold" style={{ color: 'var(--text)' }}>{c.count}</span>
-                  </span>
-                ))}
+                {statColumns.map((c) => {
+                  // Chip por STATUS = filtro clicável. Dinâmico: novo status já entra clicável.
+                  const key = `status:${c.id}`
+                  const on = pendFilter === key
+                  return (
+                    <button key={c.id} onClick={() => setPendFilter(p => p === key ? '' : key)}
+                      title={on ? 'Filtrando por este status — clique para limpar' : `Filtrar por status: ${c.label}`}
+                      className="inline-flex items-center gap-1.5 text-[11px] px-2 py-1 rounded-md cursor-pointer transition-colors ds-row-hover"
+                      style={on
+                        ? { border: `1px solid ${c.cor ?? 'var(--primary)'}`, background: 'var(--surface-hover)', boxShadow: `0 0 0 2px ${c.cor ?? 'var(--primary)'}` }
+                        : { border: '1px solid var(--border)', background: 'var(--surface)' }}>
+                      <span className="w-2 h-2 rounded-full" style={{ background: c.cor ?? 'var(--text-muted)' }} />
+                      <span style={{ color: on ? (c.cor ?? 'var(--text)') : 'var(--text-muted)', fontWeight: on ? 600 : 400 }}>{c.label}</span>
+                      <span className="font-bold" style={{ color: 'var(--text)' }}>{c.count}</span>
+                      {on && <span style={{ color: c.cor ?? 'var(--text)' }}>✓</span>}
+                    </button>
+                  )
+                })}
               </div>
             )}
             {(
