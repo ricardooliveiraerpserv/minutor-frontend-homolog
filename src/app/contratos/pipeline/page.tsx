@@ -2034,6 +2034,7 @@ interface ProjectFull {
   diary_access?: boolean
   customer?: { id: number; name: string }
   description?: string | null; start_date?: string | null; expected_end_date?: string | null
+  delivery_percentage?: number | null
   project_value?: number | null; hourly_rate?: number | null
   additional_hourly_rate?: number | null; initial_cost?: number | null
   initial_hours_balance?: number | null; sold_hours?: number | null
@@ -2887,7 +2888,7 @@ function ProjectViewModal({ projectId, onClose, userRole, initialTab }: { projec
 
 interface ProjectEditForm {
   name: string; description: string; status: string; start_date: string
-  expected_end_date: string
+  expected_end_date: string; delivery_percentage: string
   sold_hours: string; project_value: string; hourly_rate: string
   additional_hourly_rate: string; initial_hours_balance: string
   allow_negative_balance: boolean
@@ -2900,6 +2901,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
     status:                  project.status ?? 'awaiting_start',
     start_date:              project.start_date?.slice(0, 10) ?? '',
     expected_end_date:       project.expected_end_date?.slice(0, 10) ?? '',
+    delivery_percentage:     project.delivery_percentage != null ? String(project.delivery_percentage) : '',
     sold_hours:              String(project.sold_hours ?? ''),
     project_value:           String(project.project_value ?? ''),
     hourly_rate:             String(project.hourly_rate ?? ''),
@@ -2922,6 +2924,7 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
         status:      form.status,
         start_date:         form.start_date || null,
         expected_end_date:  form.expected_end_date || null,
+        delivery_percentage: form.delivery_percentage === '' ? null : Number(form.delivery_percentage),
         allow_negative_balance: form.allow_negative_balance,
       }
       if (form.sold_hours !== '')             payload.sold_hours             = Number(form.sold_hours)
@@ -2971,21 +2974,11 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
                 <label style={labelStyle}>Nome do Projeto *</label>
                 <input value={form.name} onChange={setF('name')} style={inputStyle} placeholder="Nome do projeto" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label style={labelStyle}>Status</label>
-                  <select value={form.status} onChange={setF('status')} style={inputStyle}>
-                    {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={labelStyle}>Data de Início</label>
-                  <input type="date" value={form.start_date} onChange={setF('start_date')} style={inputStyle} />
-                </div>
-              </div>
               <div>
-                <label style={labelStyle}>Data de Conclusão</label>
-                <input type="date" value={form.expected_end_date} onChange={setF('expected_end_date')} style={inputStyle} />
+                <label style={labelStyle}>Status</label>
+                <select value={form.status} onChange={setF('status')} style={inputStyle}>
+                  {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
               </div>
               <div>
                 <label style={labelStyle}>Descrição</label>
@@ -2996,14 +2989,51 @@ function ProjectInlineEditModal({ project, onClose, onSaved }: { project: Projec
             </div>
           </div>
 
-          {/* Financeiro */}
+          {/* Entrega e Prazo — inclusão manual (3 campos por linha) + barra de evolução */}
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Financeiro</p>
-            <div className="grid grid-cols-2 gap-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Entrega e Prazo</p>
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label style={labelStyle}>Valor do Projeto (R$)</label>
                 <input type="number" value={form.project_value} onChange={setF('project_value')} style={inputStyle} placeholder="0.00" step="0.01" />
               </div>
+              <div>
+                <label style={labelStyle}>Data de Início</label>
+                <input type="date" value={form.start_date} onChange={setF('start_date')} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Percentual de Entrega (%)</label>
+                <input type="number" min={0} max={100} value={form.delivery_percentage} onChange={setF('delivery_percentage')} style={inputStyle} placeholder="0" step="1" />
+              </div>
+              <div>
+                <label style={labelStyle}>Previsão de Encerramento</label>
+                <input type="date" value={form.expected_end_date} onChange={setF('expected_end_date')} style={inputStyle} />
+              </div>
+            </div>
+            {/* Barra de evolução da entrega — vazia quando o percentual não é preenchido */}
+            {(() => {
+              const filled = form.delivery_percentage !== ''
+              const pct = filled ? Math.max(0, Math.min(100, Number(form.delivery_percentage) || 0)) : 0
+              const barColor = pct >= 100 ? 'var(--success-border)' : 'var(--primary)'
+              return (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-light)' }}>Evolução da Entrega</span>
+                    <span className="text-xs font-bold tabular-nums" style={{ color: filled ? barColor : 'var(--text-light)' }}>{filled ? `${pct}%` : '—'}</span>
+                  </div>
+                  <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
+                  </div>
+                  {!filled && <p className="text-[10px] mt-1" style={{ color: 'var(--text-light)' }}>Informe o percentual de entrega para acompanhar a evolução.</p>}
+                </div>
+              )
+            })()}
+          </div>
+
+          {/* Financeiro */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Financeiro</p>
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label style={labelStyle}>Valor da Hora (R$)</label>
                 <input type="number" value={form.hourly_rate} onChange={setF('hourly_rate')} style={inputStyle} placeholder="0.00" step="0.01" />
