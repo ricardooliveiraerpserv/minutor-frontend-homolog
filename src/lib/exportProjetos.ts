@@ -7,11 +7,11 @@ export interface ProjetoExportRow {
   tipoContrato: string
   tipoServico: string
   fase: string
+  /** Perfil interno: Horas Apontáveis (banco de coordenação). Cliente: horas contratadas. */
   horas: string
   consumidas?: string
   saldo?: string
   saude?: string
-  coord?: string
   status: string
 }
 
@@ -25,13 +25,12 @@ export function exportProjetosToExcel(rows: ProjetoExportRow[], includeInternal:
       'Tipo Contrato': r.tipoContrato,
       'Tipo Serviço':  r.tipoServico,
       'Fase':          r.fase,
-      'Horas':         r.horas,
     }
+    row[includeInternal ? 'HS Apontáveis' : 'Horas'] = r.horas
     if (includeInternal) {
       row['HS Consumidas'] = r.consumidas ?? ''
       row['Saldo']         = r.saldo ?? ''
       row['Saúde']         = r.saude ?? ''
-      row['Coordenação']   = r.coord ?? ''
     }
     row['Status'] = r.status
     return row
@@ -40,7 +39,7 @@ export function exportProjetosToExcel(rows: ProjetoExportRow[], includeInternal:
   const ws = XLSX.utils.json_to_sheet(data)
   const widths: Record<string, number> = {
     'Cliente': 24, 'Projeto': 34, 'Código': 16, 'Tipo Contrato': 16, 'Tipo Serviço': 16,
-    'Fase': 16, 'Horas': 10, 'HS Consumidas': 14, 'Saldo': 10, 'Saúde': 12, 'Coordenação': 14, 'Status': 16,
+    'Fase': 16, 'Horas': 10, 'HS Apontáveis': 14, 'HS Consumidas': 14, 'Saldo': 10, 'Saúde': 12, 'Status': 16,
   }
   const headers = Object.keys(data[0] ?? {})
   ws['!cols'] = headers.map(h => ({ wch: widths[h] ?? 16 }))

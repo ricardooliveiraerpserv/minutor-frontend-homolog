@@ -799,17 +799,18 @@ function ProjectKanbanCard({
             // Visão do CLIENTE: se o projeto não tem o acompanhamento de horas ligado
             // (client_follows_timesheets = false), NÃO mostrar horas/progresso no card.
             if (isCliente && card.client_follows_timesheets === false) return null
-            // NESTA TELA (Demandas e Projetos): a lente de coordenação vale pra TODOS os
-            // perfis internos — inclusive admin — quando há banco de coordenação. Mostra
-            // só as horas disponibilizadas pra coordenação (não o operacional). Exceção:
+            // NESTA TELA (Demandas e Projetos): perfil interno NUNCA vê horas vendidas nem
+            // cálculo sobre elas — só o banco apontável (coordination_hours). Sem banco não
+            // há número legítimo: não mostra barra (nunca cai pras vendidas). Exceção:
             // CLIENTE continua vendo as horas contratadas. (Demais telas: regra antiga.)
-            const isCoordViewer = !isCliente && Number(card.coordination_hours ?? 0) > 0
-            const sold = isCoordViewer ? Number(card.coordination_hours ?? 0) : Number(card.sold_hours ?? 0)
-            const consumed = isCoordViewer ? Number(card.coordination_consumed_hours ?? 0) : Number(card.consumed_hours ?? 0)
-            const pct = sold > 0 ? Math.min(100, Math.round((consumed / sold) * 100)) : 0
+            const bank = Number(card.coordination_hours ?? 0)
+            if (!isCliente && bank <= 0) return null
+            const total = isCliente ? Number(card.sold_hours ?? 0) : bank
+            const consumed = Number(card.consumed_hours ?? 0)
+            const pct = total > 0 ? Math.min(100, Math.round((consumed / total) * 100)) : 0
             const barColor = pct >= 100 ? '#ef4444' : pct >= 90 ? '#f97316' : pct >= 70 ? '#eab308' : '#22c55e'
             const consultantCount = card.consultants?.length ?? 0
-            if (sold <= 0 && consumed <= 0) return null
+            if (total <= 0 && consumed <= 0) return null
             return (
               <div className="mt-2 mb-1">
                 <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
@@ -817,7 +818,7 @@ function ProjectKanbanCard({
                 </div>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>
-                    {Math.round(consumed)}h / {Math.round(sold)}h
+                    {Math.round(consumed)}h / {Math.round(total)}h
                   </span>
                   <span className="text-[10px]" style={{ color: barColor }}>{pct}%</span>
                 </div>
@@ -4152,7 +4153,7 @@ function KanbanContent() {
   // Coordenador: chip "Meus projetos / Todos". Default 'meus' — filtra pelos projetos
   // onde o coordenador logado está em `coordinator_ids`. Esconde de outros perfis.
   const [coordScope,          setCoordScope]          = useState<'meus' | 'todos'>('meus')
-  type SortKey = 'customer' | 'project' | 'contract_type' | 'service_type' | 'phase' | 'vendidas' | 'consumed' | 'saldo' | 'saude' | 'coord' | 'status'
+  type SortKey = 'customer' | 'project' | 'contract_type' | 'service_type' | 'phase' | 'apontaveis' | 'consumed' | 'saldo' | 'saude' | 'status'
   const [sortKey,             setSortKey]             = useState<SortKey | ''>('')
   const [sortDir,             setSortDir]             = useState<'asc' | 'desc'>('asc')
   const toggleSort = (k: SortKey) => { setSortKey(prev => prev === k ? k : k); setSortDir(prev => sortKey === k ? (prev === 'asc' ? 'desc' : 'asc') : 'asc') }
@@ -4475,15 +4476,29 @@ function KanbanContent() {
     finally { setSavingCell(false) }
   }
 
+  // ── Horas em Demandas e Projetos ────────────────────────────────────────────
+  // Perfil INTERNO (todos, inclusive admin/coordenador) NUNCA vê horas vendidas nem
+  // cálculo derivado delas: só o banco apontável (coordination_hours) × consumidas ×
+  // saldo. Sem banco apontável não existe número legítimo -> null (renderiza "—"),
+  // nunca cai pras vendidas. CLIENTE é a exceção: mantém a visão contratual intacta.
+  // Fonte única — tabela e export Excel consomem daqui pra não divergirem.
+  const rowApontaveis = (p: ProjectCard): number | null =>
+    isCliente ? (p.sold_hours ?? null) : (Number(p.coordination_hours ?? 0) > 0 ? Number(p.coordination_hours) : null)
+  const rowConsumidas = (p: ProjectCard): number | null => p.consumed_hours ?? null
+  const rowSaldoHoras = (p: ProjectCard): number | null => {
+    if (isCliente) return p.general_hours_balance ?? null
+    const bank = rowApontaveis(p)
+    return bank == null ? null : bank - Number(p.consumed_hours ?? 0)
+  }
+  const rowHealthOf = (p: ProjectCard): 'green' | 'yellow' | 'red' => {
+    const base = Number(rowApontaveis(p) ?? 0)
+    const pct = base > 0 ? (Number(p.consumed_hours ?? 0) / base) * 100 : 0
+    return pct >= 90 ? 'red' : pct >= 70 ? 'yellow' : 'green'
+  }
+
   // Exportação Excel da lista de Projetos (respeita os filtros aplicados). Disponível a todos os perfis.
   const handleExportProjetos = () => {
-    const rowHealth = (p: ProjectCard): 'green' | 'yellow' | 'red' => {
-      const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
-      const sold = isCoordRow ? Number(p.coordination_hours ?? 0) : Number(p.sold_hours ?? 0)
-      const cons = isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : Number(p.consumed_hours ?? 0)
-      const pct = sold > 0 ? (cons / sold) * 100 : 0
-      return pct >= 90 ? 'red' : pct >= 70 ? 'yellow' : 'green'
-    }
+    const rowHealth = rowHealthOf
     const isOnDemand = (p: ProjectCard) => (p.contract_type ?? '').toLowerCase().includes('on demand')
     const sq = filterSearch.trim().toLowerCase()
     const list = projectCards
@@ -4503,14 +4518,11 @@ function KanbanContent() {
     if (list.length === 0) { toast.info('Nenhum projeto para exportar.'); return }
 
     const rows: ProjetoExportRow[] = list.map(p => {
-      const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
-      const rowVendidas = isCoordRow ? Number(p.coordination_hours) : (p.sold_hours ?? null)
-      const rowConsumed = isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : (p.consumed_hours ?? null)
-      const rowSaldo    = isCoordRow ? (Number(rowVendidas) - Number(rowConsumed)) : (p.general_hours_balance ?? null)
+      const rowHoras    = rowApontaveis(p)
+      const rowConsumed = rowConsumidas(p)
+      const rowSaldo    = rowSaldoHoras(p)
       const onDemand = isOnDemand(p)
       const saude = rowHealth(p)
-      const cBank = Number(p.coordination_hours ?? 0)
-      const cCons = Number(p.coordination_consumed_hours ?? 0)
       return {
         cliente:      p.customer_name ?? '',
         projeto:      p.project_name ?? '',
@@ -4518,11 +4530,10 @@ function KanbanContent() {
         tipoContrato: p.contract_type ?? '',
         tipoServico:  p.service_type ?? '',
         fase:         PROJECT_COLS.find(c => c.id === PROJECT_STATUS_TO_COL[p.status])?.label ?? 'Projeto',
-        horas:        rowVendidas != null ? `${rowVendidas}${isCoordRow ? ' *' : ''}` : '',
+        horas:        rowHoras != null ? String(rowHoras) : '',
         consumidas:   rowConsumed != null ? Number(rowConsumed).toFixed(1) : '',
         saldo:        onDemand ? '—' : rowSaldo != null ? Number(rowSaldo).toFixed(1) : '',
         saude:        saude === 'red' ? 'Crítico' : saude === 'yellow' ? 'Atenção' : 'Saudável',
-        coord:        cBank > 0 ? `${Math.round((cCons / cBank) * 100)}%` : '—',
         status:       STATUS_BADGE[p.status]?.label ?? p.status,
       }
     })
@@ -5023,35 +5034,23 @@ function KanbanContent() {
               {/* Tab: Projetos */}
               {listTab === 'projetos' && (() => {
                 // Helpers do row p/ saúde + on-demand
-                const rowHealth = (p: ProjectCard): 'green' | 'yellow' | 'red' => {
-                  const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
-                  const sold = isCoordRow ? Number(p.coordination_hours ?? 0) : Number(p.sold_hours ?? 0)
-                  const cons = isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : Number(p.consumed_hours ?? 0)
-                  const pct = sold > 0 ? (cons / sold) * 100 : 0
-                  return pct >= 90 ? 'red' : pct >= 70 ? 'yellow' : 'green'
-                }
+                const rowHealth = rowHealthOf
                 const isOnDemand = (p: ProjectCard) => (p.contract_type ?? '').toLowerCase().includes('on demand')
                 // Aplica saudeFilter + sort
                 let rows = allProjects
                 if (saudeFilter) rows = rows.filter(p => rowHealth(p) === saudeFilter)
                 if (sortKey) {
                   const getVal = (p: ProjectCard): string | number => {
-                    const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
                     switch (sortKey) {
                       case 'customer':      return (p.customer_name ?? '').toLowerCase()
                       case 'project':       return (p.project_name ?? '').toLowerCase()
                       case 'contract_type': return (p.contract_type ?? '').toLowerCase()
                       case 'service_type':  return (p.service_type ?? '').toLowerCase()
                       case 'phase':         return (PROJECT_COLS.find(c => c.id === PROJECT_STATUS_TO_COL[p.status])?.label ?? 'Projeto').toLowerCase()
-                      case 'vendidas':      return isCoordRow ? Number(p.coordination_hours ?? 0) : Number(p.sold_hours ?? 0)
-                      case 'consumed':      return isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : Number(p.consumed_hours ?? 0)
-                      case 'saldo':         return isOnDemand(p) ? -Infinity : (isCoordRow ? (Number(p.coordination_hours ?? 0) - Number(p.coordination_consumed_hours ?? 0)) : Number(p.general_hours_balance ?? 0))
+                      case 'apontaveis':    return rowApontaveis(p) ?? -1
+                      case 'consumed':      return Number(rowConsumidas(p) ?? 0)
+                      case 'saldo':         return isOnDemand(p) ? -Infinity : (rowSaldoHoras(p) ?? -Infinity)
                       case 'saude':         return rowHealth(p) === 'green' ? 0 : rowHealth(p) === 'yellow' ? 1 : 2
-                      case 'coord':         {
-                                              const bank = Number(p.coordination_hours ?? 0)
-                                              if (bank <= 0) return -1
-                                              return (Number(p.coordination_consumed_hours ?? 0) / bank) * 100
-                                            }
                       case 'status':        return (p.status ?? '')
                     }
                   }
@@ -5077,11 +5076,10 @@ function KanbanContent() {
                         <SortTh k="contract_type" label="Tipo Contrato" />
                         <SortTh k="service_type" label="Tipo Serviço" />
                         <SortTh k="phase" label="Fase" />
-                        <SortTh k="vendidas" label="Horas" align="center" />
+                        <SortTh k="apontaveis" label={isCliente ? 'Horas' : 'HS Apontáveis'} align="center" />
                         {!isCliente && <SortTh k="consumed" label="HS Consumidas" align="center" />}
                         {!isCliente && <SortTh k="saldo" label="Saldo" align="center" />}
                         {!isCliente && <SortTh k="saude" label="Saúde" align="center" />}
-                        {!isCliente && <SortTh k="coord" label="Coord." align="center" />}
                         <SortTh k="status" label="Status" align="center" />
                         <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Início</th>
                         <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Previsão</th>
@@ -5090,18 +5088,15 @@ function KanbanContent() {
                     </thead>
                     <tbody>
                       {rows.length === 0 && (
-                        <tr><td colSpan={isCliente ? 10 : 15} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum projeto.</td></tr>
+                        <tr><td colSpan={isCliente ? 10 : 14} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum projeto.</td></tr>
                       )}
                       {rows.map(p => {
                         const isClosed  = p.status === 'finished' || p.status === 'cancelled'
                         const hideHours = isCliente && isClosed
                         const onDemand  = isOnDemand(p)
-                        // Lente do coordenador: swap Horas/HS Consumidas/Saldo p/ banco de coordenação
-                        // quando o usuário logado é coordenador do projeto + banco explícito.
-                        const isCoordRow = !!user?.id && (p.coordinator_ids ?? []).includes(user.id) && Number(p.coordination_hours ?? 0) > 0
-                        const rowVendidas = isCoordRow ? Number(p.coordination_hours) : (p.sold_hours ?? null)
-                        const rowConsumed = isCoordRow ? Number(p.coordination_consumed_hours ?? 0) : (p.consumed_hours ?? null)
-                        const rowSaldo    = isCoordRow ? (Number(rowVendidas) - Number(rowConsumed)) : (p.general_hours_balance ?? null)
+                        const rowHoras    = rowApontaveis(p)
+                        const rowConsumed = rowConsumidas(p)
+                        const rowSaldo    = rowSaldoHoras(p)
                         const saude       = rowHealth(p)
                         const saudeColor  = saude === 'red' ? 'var(--danger-border)' : saude === 'yellow' ? 'var(--warning-border)' : 'var(--success-border)'
                         return (
@@ -5120,8 +5115,8 @@ function KanbanContent() {
                             <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{p.contract_type ?? '—'}</td>
                             <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{p.service_type ?? '—'}</td>
                             <td className="px-4 py-3 text-[var(--text-muted)] text-xs">{PROJECT_COLS.find(c => c.id === PROJECT_STATUS_TO_COL[p.status])?.label ?? 'Projeto'}</td>
-                            <td className="px-4 py-3 text-center text-[var(--text)]" title={isCoordRow ? 'Horas de Coordenação' : undefined}>
-                              {rowVendidas != null ? `${rowVendidas}h${isCoordRow ? ' *' : ''}` : '—'}
+                            <td className="px-4 py-3 text-center text-[var(--text)]" title={isCliente ? undefined : 'Horas Apontáveis (banco de coordenação)'}>
+                              {rowHoras != null ? `${rowHoras}h` : '—'}
                             </td>
                             {!isCliente && (
                               <td className="px-4 py-3 text-center text-[var(--text)]">
@@ -5139,28 +5134,6 @@ function KanbanContent() {
                                 <span className="inline-block w-3 h-3 rounded-full" style={{ background: saudeColor }} title={saude === 'red' ? 'Crítico (>90%)' : saude === 'yellow' ? 'Atenção (70–90%)' : 'Saudável (<70%)'} />
                               </td>
                             )}
-                            {!isCliente && (() => {
-                              const cBank = Number(p.coordination_hours ?? 0)
-                              if (cBank <= 0) return <td className="px-4 py-3 text-center text-[var(--text-muted)] text-xs">—</td>
-                              const cCons = Number(p.coordination_consumed_hours ?? 0)
-                              const cPct  = (cCons / cBank) * 100
-                              const cColor = cPct >= 90 ? 'var(--danger-border)' : cPct >= 70 ? 'var(--warning-border)' : 'var(--success-border)'
-                              const cSaldo = cBank - cCons
-                              return (
-                                <td className="px-4 py-3 min-w-[140px]"
-                                  title={`Coordenação: ${cCons.toFixed(1)}h de ${cBank.toFixed(1)}h (${Math.round(cPct)}%) · saldo ${cSaldo.toFixed(1)}h`}>
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
-                                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(cPct, 100)}%`, background: cColor }} />
-                                    </div>
-                                    <span className="text-[10px] tabular-nums font-semibold shrink-0" style={{ color: cColor }}>{Math.round(cPct)}%</span>
-                                  </div>
-                                  <div className="text-[9px] mt-0.5 tabular-nums" style={{ color: 'var(--text-light)' }}>
-                                    {cCons.toFixed(1)}h / {cBank.toFixed(1)}h
-                                  </div>
-                                </td>
-                              )
-                            })()}
                             <td className="px-4 py-3 text-center">
                               {(() => { const b = STATUS_BADGE[p.status] ?? { label: p.status, color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' }; return (
                                 <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: b.bg, color: b.color }}>{b.label}</span>
