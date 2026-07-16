@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ProjectHeaderExecutive } from '@/components/projects/project-header-executive'
+import { ProjectTabs } from '@/components/projects/project-tabs'
 import { useApiQuery } from '@/hooks/use-query'
 
 interface ProjectResponse {
