@@ -589,7 +589,15 @@ function Inner() {
                     genérico (FileText) e não havia como corrigir pela tela. É por NÓ (não pela
                     tela), então a mesma tela pode ter ícone diferente em cada módulo. */}
                 <IconPicker value={n.icon} onPick={name => patchTreeNode(moduleId, n.id, g => ({ ...g, icon: name }))} fallback={FileText} />
-                <input value={editLabel(s, n.screen)} onChange={e => patchScreen(n.screen!, { label: e.target.value })}
+                {/* Nome DESTA ocorrência (nó), não da tela. "A árvore é o menu real": a mesma
+                    tela reusada em vários módulos pode ter nome próprio em cada um — ex.: o
+                    módulo do consultor chama /help-desk/tickets de "Help Desk", enquanto no
+                    admin ela segue "Chamados" dentro do grupo Help Desk. Antes isto editava
+                    nav_screens.label e renomeava a tela em TODAS as ocorrências.
+                    Vazio = herda o nome da tela (editLabel). Permissões seguem da tela. */}
+                <input value={n.label ?? editLabel(s, n.screen)} placeholder={editLabel(s, n.screen)}
+                  onChange={e => patchTreeNode(moduleId, n.id, g => ({ ...g, label: e.target.value }))}
+                  title="Nome no menu deste módulo (não renomeia a tela nos outros)"
                   className="flex-1 bg-transparent text-[13px] outline-none min-w-0" style={{ color: 'var(--text)', fontWeight: hasKids ? 600 : 400 }} />
                 {hasKids && <span title="Submenu (pai)" className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>{n.children!.length}</span>}
                 {inOtherFolders && (
