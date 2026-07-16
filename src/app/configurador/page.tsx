@@ -585,6 +585,10 @@ function Inner() {
                 <button onClick={() => setPermOpen(permOpen === n.id ? null : n.id)} className="shrink-0" title="Acessos por usuário">
                   <FileText size={13} style={{ color: permOpen === n.id ? 'var(--primary)' : hasKids ? 'var(--primary)' : 'var(--text-light)' }} />
                 </button>
+                {/* Ícone da TELA no menu. Só pastas tinham seletor; sem isto a folha caía no
+                    genérico (FileText) e não havia como corrigir pela tela. É por NÓ (não pela
+                    tela), então a mesma tela pode ter ícone diferente em cada módulo. */}
+                <IconPicker value={n.icon} onPick={name => patchTreeNode(moduleId, n.id, g => ({ ...g, icon: name }))} fallback={FileText} />
                 <input value={editLabel(s, n.screen)} onChange={e => patchScreen(n.screen!, { label: e.target.value })}
                   className="flex-1 bg-transparent text-[13px] outline-none min-w-0" style={{ color: 'var(--text)', fontWeight: hasKids ? 600 : 400 }} />
                 {hasKids && <span title="Submenu (pai)" className="text-[10px] shrink-0" style={{ color: 'var(--text-light)' }}>{n.children!.length}</span>}
