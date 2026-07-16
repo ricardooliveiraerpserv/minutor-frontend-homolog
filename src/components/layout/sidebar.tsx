@@ -867,17 +867,18 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
 
   // ── Módulos de navegação (Serviços / Administrativo) — estado compartilhado (header + sidebar).
   // Cliente não tem módulos → vê o portal inteiro como hoje (sem filtro).
-  const { allowedModules, selectedModule, modules: navModules, itemConfig } = useModules()
-  // Nav já filtrada pelo módulo (mantém o gating de perfil/permissão do visibleNav).
-  // GARANTIA: o filtro de módulo só faz sentido quando há MAIS DE UM módulo para
-  // alternar. Em perfil de módulo único (ex.: coordenador só de Serviços), filtrar
-  // apenas ESCONDERIA itens que as permissões já concederam — então NÃO filtramos:
-  // tudo que o perfil/grupo permite aparece. Com 2+ módulos, o filtro organiza as abas.
-  // Menu do módulo selecionado vem da ÁRVORE do Configurador (estrutura real). Com módulo único
-  // ou cliente, mantém o NAV hardcoded (fallback seguro). Itens "home" (Meu Dia/Meu Painel) são
-  // prefixados, sem duplicar telas que já estão na árvore.
+  const { selectedModule, modules: navModules, itemConfig } = useModules()
+  // Menu do módulo selecionado vem da ÁRVORE do Configurador — ela é a fonte de verdade.
+  // O guard antigo (`allowedModules.length <= 1`) era resquício dos módulos Serviços/
+  // Administrativo: com o modelo atual (um módulo POR PERFIL) todo perfil interno tem
+  // exatamente 1 módulo, então o guard desligava a árvore justamente pra consultor/parceiro
+  // — a aba deles no Configurador era editável mas não surtia efeito nenhum.
+  // CLIENTE continua no NAV hardcoded: o menu dele é calculado por cliente (dashboards por
+  // clienteContractCodes, Indicadores só p/ customer_id 220) e a árvore não expressa isso.
+  // Fallbacks preservados: sem módulo resolvido ou árvore vazia → NAV hardcoded.
+  // Itens "home" (Meu Dia/Meu Painel) são prefixados, sem duplicar telas já na árvore.
   const moduleNav = useMemo(() => {
-    if (isCliente || !selectedModule || allowedModules.length <= 1) return visibleNav
+    if (isCliente || !selectedModule) return visibleNav
     const eff = effectiveProfiles(user)
     const built = buildModuleNav(selectedModule, navModules, itemConfig, eff, user?.id ?? 0)
     if (built.length === 0) return visibleNav
@@ -894,7 +895,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
     const home: NavEntry[] = []
     for (const e of visibleNav) { if (e.type !== 'item') break; if (!builtHrefs.has(e.href) && keepHome(e)) home.push(e) }
     return [...home, ...built]
-  }, [visibleNav, selectedModule, allowedModules, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
+  }, [visibleNav, selectedModule, navModules, itemConfig, user?.type, user?.coordinator_type, user?.consultant_type, user?.is_executive, user?.id, isCliente, isConsultor, isParceiroAdmin, isCoordenador, isAdministrativo])
 
   // Auto-abre o grupo (e o sub-grupo aninhado, se houver) que contém a rota atual,
   // sem fechar os já abertos manualmente.

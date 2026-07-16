@@ -31,12 +31,15 @@ export function ModuleProvider({ children }: { children: React.ReactNode }) {
   // Ordenados por sort_order (a ordem definida no Configurador) — usado pela sidebar e pelo launcher.
   const modules = useMemo(() => {
     if (!user || user.type === 'cliente') return []
-    // Menus de PERFIL (cliente/consultor/parceiro) são gerenciados no Configurador em abas separadas
-    // e NÃO entram no launcher/sidebar interno (esses perfis têm sidebar própria no código).
     // Menus independentes por perfil: cada usuário vê os módulos do SEU perfil (user.modules,
     // vindo de NavModule::keysForProfile). Admin tem os módulos dele (não vê mais por bypass —
     // senão veria as cópias de todos os perfis, duplicadas).
-    const active = navModules.filter(m => m.active && !['cliente', 'consultor', 'parceiro'].includes(m.key)).slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    // CONSULTOR/PARCEIRO entram aqui: o menu deles obedece a árvore do Configurador (a aba do
+    // perfil era editável mas ignorada — o módulo era descartado justamente neste filtro).
+    // CLIENTE segue de fora (sidebar própria no código): o menu dele é calculado por cliente
+    // (dashboards filtrados por clienteContractCodes, Indicadores só p/ customer_id 220) e a
+    // árvore, sendo estática, ainda não sabe expressar "só se tiver contrato X".
+    const active = navModules.filter(m => m.active && m.key !== 'cliente').slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     const mine = new Set((user as { modules?: string[] }).modules ?? [])
     return active.filter(m => mine.has(m.key))
   }, [user, navModules])
