@@ -5121,7 +5121,7 @@ function KanbanContent() {
                         <SortTh k="status" label="Status" align="center" />
                         <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Início</th>
                         <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Previsão</th>
-                        <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Entrega</th>
+                        <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">% Entrega</th>
                       </tr>
                     </thead>
                     <tbody>
