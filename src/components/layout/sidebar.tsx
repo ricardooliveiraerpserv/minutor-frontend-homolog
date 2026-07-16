@@ -497,6 +497,9 @@ const putIcon = (href: string, icon: LucideIcon) => {
     }
   }
 })(NAV)
+// Telas que não vivem no NAV estático (nascem em ramos por perfil) mas podem ser
+// referenciadas na árvore do Configurador — registra o ícone p/ não cair no FileText.
+putIcon('/meus-projetos', FolderOpen)
 
 type ItemConfMap = Record<string, { modules: string[]; active: boolean; profiles: string[]; users: number[]; label?: string }>
 
@@ -511,21 +514,40 @@ function effectiveProfiles(u?: { type?: string | null; coordinator_type?: string
   return type ? [type] : []
 }
 
+// Condição de negócio que a árvore NÃO expressa: a tela pode estar no menu do perfil e
+// ainda assim não fazer sentido pra ESTE usuário. A árvore decide o QUE existe e em que
+// posição; a condição decide se aquele usuário específico enxerga.
+// Agente do Help Desk = vinculado a alguma equipe (`is_helpdesk_agent`, vem do /user).
+// Admin sempre vê — espelha o bypass do HelpDeskAccessPolicy no backend.
+const isHelpDeskAgent = (u?: User | null): boolean =>
+  u?.type === 'admin' || !!u?.is_helpdesk_agent
+
+function screenConditionAllows(href: string, user?: User | null): boolean {
+  const base = href.split('?')[0]
+  // /help-desk/portal é a via do CLIENTE (abrir chamado), não do agente — sem condição.
+  if (base === '/help-desk/portal' || base.startsWith('/help-desk/portal/')) return true
+  if (base === '/help-desk' || base.startsWith('/help-desk/')) return isHelpDeskAgent(user)
+  return true
+}
+
 // Converte a árvore de um módulo (nav_modules.items) em NavEntry[] (grupos/subgrupos/itens),
-// já filtrando por ativo + permissão (perfil OU usuário).
-function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], itemConfig: ItemConfMap, effProfiles: string[], userId: number): NavEntry[] {
+// já filtrando por ativo + condição de negócio + override por usuário.
+function buildModuleNav(moduleKey: ModuleId, navModules: NavModuleConfig[], itemConfig: ItemConfMap, user: User | null | undefined): NavEntry[] {
   const mod = navModules.find(m => m.key === moduleKey)
   if (!mod) return []
   // Módulo é do PRÓPRIO perfil (menus independentes): a presença na árvore já é a visibilidade.
-  // Escondemos: telas globalmente desativadas, nós ocultos (hidden), ou override por usuário no nó.
-  void effProfiles
+  // Escondemos: telas globalmente desativadas, nós ocultos (hidden), override por usuário no nó,
+  // ou condição de negócio não satisfeita (ex.: Help Desk só p/ agente).
+  const userId = user?.id ?? 0
   // Visibilidade do NÓ p/ ESTE usuário: allow (users) sobrepõe hidden; deny (deny_users) esconde.
   const nodeVis = (n: NavTreeNode) => {
     if (n.users && n.users.includes(userId)) return true
     if (n.deny_users && n.deny_users.includes(userId)) return false
     return !n.hidden
   }
-  const keep = (href: string) => itemConfig[href]?.active !== false
+  // Grupo sem filho visível não é renderizado (`if (items.length)`), então esconder as
+  // folhas do Help Desk já faz a pasta inteira sumir p/ quem não é agente.
+  const keep = (href: string) => itemConfig[href]?.active !== false && screenConditionAllows(href, user)
   const lbl = (href: string) => itemConfig[href]?.label || CATALOG_LABEL[href] || href
   const ico = (href: string) => HREF_ICON[href] || HREF_ICON[href.split('?')[0]] || FileText
   // Ícone da folha: prioriza o ícone salvo no nó (Configurador), depois o estático
@@ -729,7 +751,8 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       if (hasAnyUserPerm) nav.push({ type: 'item', label: 'Usuários', href: '/users', icon: Users, alwaysVisible: true })
 
       // 🎫 Help Desk — coordenador entra pela Central de Operações (torre de controle).
-      if (has('help_desk.tickets.view'))
+      // Só p/ quem atende (agente = vinculado a alguma equipe); admin sempre.
+      if (has('help_desk.tickets.view') && isHelpDeskAgent(user))
         nav.push({
           type: 'group', label: 'Help Desk', icon: Headphones,
           items: [
@@ -838,7 +861,8 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
 
       // 🎫 Help Desk — experiência OPERACIONAL (sem Configurações, que é gestão).
       // Mesma experiência de atendimento dos demais perfis internos.
-      if (ep.includes('help_desk.tickets.view'))
+      // Só p/ quem atende (agente = vinculado a alguma equipe); admin sempre.
+      if (ep.includes('help_desk.tickets.view') && isHelpDeskAgent(user))
         baseNav.push({
           type: 'group', label: 'Help Desk', icon: Headphones,
           items: [
@@ -880,7 +904,7 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
   const moduleNav = useMemo(() => {
     if (isCliente || !selectedModule) return visibleNav
     const eff = effectiveProfiles(user)
-    const built = buildModuleNav(selectedModule, navModules, itemConfig, eff, user?.id ?? 0)
+    const built = buildModuleNav(selectedModule, navModules, itemConfig, user)
     if (built.length === 0) return visibleNav
     const builtHrefs = new Set<string>()
     built.forEach(e => { if (e.type === 'item') builtHrefs.add(e.href); else e.items.forEach(it => ('href' in it) ? builtHrefs.add(it.href) : it.items.forEach(s => builtHrefs.add(s.href))) })

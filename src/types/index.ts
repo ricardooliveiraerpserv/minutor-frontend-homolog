@@ -9,9 +9,9 @@ export interface User {
   customer_id?: number | null
   partner_id?: number | null
   is_executive?: boolean | null
+  // Agente do Help Desk = vinculado a alguma equipe (helpdesk_team_user). Vem do /user.
+  is_helpdesk_agent?: boolean | null
   extra_permissions?: string[] | null
-  // Módulos de navegação (Serviços/Administrativo) do perfil — ver lib/modules.ts
-  modules?: string[] | null
   consultant_type?: string | null
   daily_hours?: number | null
   bank_hours_start_date?: string | null

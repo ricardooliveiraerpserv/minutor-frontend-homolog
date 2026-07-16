@@ -11,6 +11,8 @@ export interface CatalogItem {
 export const NAV_CATALOG: CatalogItem[] = [
   // Home / Configurador
   { key: '/meu-painel',          label: 'Meu Painel',                 group: 'Home' },
+  // Projetos onde o consultor está alocado (abre o cronograma p/ apontar).
+  { key: '/meus-projetos',       label: 'Projetos',                   group: 'Home' },
   { key: '/configurador',        label: 'Configurador de Menus',      group: 'Configurador' },
 
   // Serviços — Projetos / Sustentação / Operação
