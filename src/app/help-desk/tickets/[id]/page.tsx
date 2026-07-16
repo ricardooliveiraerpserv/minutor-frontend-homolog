@@ -821,7 +821,7 @@ export default function HelpDeskTicketDetailPage() {
                         ) : c.solution ? (
                           <div className="w-full"><SolutionView solution={c.solution as Solution} /></div>
                         ) : c.body ? (
-                          <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(c.body) ? 'w-max max-w-[min(880px,calc(100vw_-_380px))] overflow-x-auto' : 'hd-msg-body w-fit max-w-[min(880px,calc(100vw_-_380px))]'}`} style={{ background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
+                          <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(c.body) ? 'w-max overflow-x-auto' : 'hd-msg-body w-fit'}`} style={{ maxWidth: 'min(880px, calc(100vw - 380px))', background: '#ffffff', color: '#1f2937', border: `1px solid ${isInternal ? 'var(--warning-border)' : right ? 'var(--primary)' : '#e5e7eb'}`, borderTopRightRadius: right ? 4 : 16, borderTopLeftRadius: right ? 16 : 4 }}>
                             {isHtmlBody(c.body)
                               ? <EmailFrame html={sanitizeEmail(c.body)} />
                               : <p className="whitespace-pre-wrap break-words">{c.body}</p>}
@@ -876,7 +876,7 @@ export default function HelpDeskTicketDetailPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(t.description) ? 'w-max max-w-[min(880px,calc(100vw_-_380px))] overflow-x-auto' : 'hd-msg-body w-fit max-w-[min(880px,calc(100vw_-_380px))]'}`} style={{ background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
+                          <div className={`text-sm text-left rounded-2xl px-3.5 py-2.5 relative z-[1] ${isHtmlBody(t.description) ? 'w-max overflow-x-auto' : 'hd-msg-body w-fit'}`} style={{ maxWidth: 'min(880px, calc(100vw - 380px))', background: '#ffffff', color: '#1f2937', border: '1px solid #e5e7eb', borderTopLeftRadius: 4 }}>
                             {isHtmlBody(t.description)
                               ? <EmailFrame html={sanitizeEmail(t.description)} />
                               : <p className="whitespace-pre-wrap break-words">{t.description}</p>}
