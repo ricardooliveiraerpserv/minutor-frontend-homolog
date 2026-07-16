@@ -65,7 +65,9 @@ interface ProjectCard {
   consumed_hours?: number | null
   client_follows_timesheets?: boolean | null   // cliente só vê horas se true (BH Fixo nasce false)
   general_hours_balance?: number | null
+  start_date?: string | null
   expected_end_date?: string | null
+  delivery_percentage?: number | null
   coordinator_ids?: number[]
   coordinators?: string[]
   executivo_conta_name?: string
@@ -1963,6 +1965,12 @@ const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }>
   paused:                 { label: 'Pausado',                  color: '#eab308', bg: 'rgba(234,179,8,0.12)'   },
   finished:               { label: 'Encerrado',                color: '#22c55e', bg: 'rgba(34,197,94,0.12)'   },
   cancelled:              { label: 'Cancelado',                color: '#ef4444', bg: 'rgba(239,68,68,0.12)'   },
+}
+
+// Estilo do input de edição inline (colunas Início/Previsão/Entrega).
+const inlineEditStyle: React.CSSProperties = {
+  background: 'var(--surface-sunken)', border: '1px solid var(--primary)', borderRadius: 6,
+  padding: '2px 6px', color: 'var(--text)', fontSize: '0.75rem', outline: 'none', textAlign: 'center',
 }
 
 function KanbanLogTab({ logs, loading }: { logs: KanbanLogEntry[]; loading: boolean }) {
@@ -4115,6 +4123,10 @@ function KanbanContent() {
   const [demandCards,     setDemandCards]     = useState<ContractCard[]>([])
   const [transitionCards, setTransitionCards] = useState<ContractCard[]>([])
   const [projectCards,    setProjectCards]    = useState<ProjectCard[]>([])
+  // Edição inline das colunas Início/Previsão/Entrega na tabela de projetos.
+  const [editCell, setEditCell] = useState<{ id: number; field: 'start_date' | 'expected_end_date' | 'delivery_percentage' } | null>(null)
+  const [editVal, setEditVal] = useState('')
+  const [savingCell, setSavingCell] = useState(false)
   // Aporte: cards mostrados APENAS no Kanban Contratos (/contratos/kanban), não aqui.
   const [requestCards,    setRequestCards]    = useState<RequestCard[]>([])
   const [coordinators,    setCoordinators]    = useState<Coordinator[]>([])
@@ -4453,6 +4465,26 @@ function KanbanContent() {
   }
 
   const isSustType = (st?: string | null) => /sustentac|cloud|bizify/i.test(st ?? '')
+
+  // Salva a edição inline de uma célula (Início/Previsão/Entrega) e atualiza o card local.
+  const startEditCell = (p: ProjectCard, field: 'start_date' | 'expected_end_date' | 'delivery_percentage') => {
+    if (isCliente) return
+    setEditCell({ id: p.id, field })
+    if (field === 'delivery_percentage') setEditVal(p.delivery_percentage != null ? String(p.delivery_percentage) : '')
+    else setEditVal((p as any)[field]?.slice(0, 10) ?? '')
+  }
+  const saveEditCell = async () => {
+    if (!editCell || savingCell) return
+    const { id, field } = editCell
+    const value = editVal === '' ? null : (field === 'delivery_percentage' ? Number(editVal) : editVal)
+    setSavingCell(true)
+    try {
+      await api.patch(`/projects/${id}/delivery`, { [field]: value })
+      setProjectCards(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p))
+      setEditCell(null)
+    } catch { toast.error('Erro ao salvar') }
+    finally { setSavingCell(false) }
+  }
 
   // Exportação Excel da lista de Projetos (respeita os filtros aplicados). Disponível a todos os perfis.
   const handleExportProjetos = () => {
@@ -5063,11 +5095,14 @@ function KanbanContent() {
                         {!isCliente && <SortTh k="saude" label="Saúde" align="center" />}
                         {!isCliente && <SortTh k="coord" label="Coord." align="center" />}
                         <SortTh k="status" label="Status" align="center" />
+                        <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Início</th>
+                        <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Previsão</th>
+                        <th className="text-center px-4 py-3 text-[var(--text-muted)] font-medium">Entrega</th>
                       </tr>
                     </thead>
                     <tbody>
                       {rows.length === 0 && (
-                        <tr><td colSpan={isCliente ? 7 : 12} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum projeto.</td></tr>
+                        <tr><td colSpan={isCliente ? 10 : 15} className="px-4 py-8 text-center text-[var(--text-muted)] text-xs">Nenhum projeto.</td></tr>
                       )}
                       {rows.map(p => {
                         const isClosed  = p.status === 'finished' || p.status === 'cancelled'
@@ -5142,6 +5177,55 @@ function KanbanContent() {
                               {(() => { const b = STATUS_BADGE[p.status] ?? { label: p.status, color: '#94a3b8', bg: 'rgba(148,163,184,0.12)' }; return (
                                 <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: b.bg, color: b.color }}>{b.label}</span>
                               )})()}
+                            </td>
+                            {/* Início — editável inline */}
+                            <td className="px-4 py-3 text-center text-xs tabular-nums whitespace-nowrap"
+                              onClick={e => { e.stopPropagation(); startEditCell(p, 'start_date') }}
+                              style={{ cursor: isCliente ? 'default' : 'pointer', color: 'var(--text-muted)' }}
+                              title={isCliente ? undefined : 'Clique para editar'}>
+                              {editCell?.id === p.id && editCell.field === 'start_date' ? (
+                                <input type="date" autoFocus value={editVal} disabled={savingCell}
+                                  onClick={e => e.stopPropagation()} onChange={e => setEditVal(e.target.value)} onBlur={saveEditCell}
+                                  onKeyDown={e => { if (e.key === 'Enter') saveEditCell(); if (e.key === 'Escape') setEditCell(null) }}
+                                  style={inlineEditStyle} />
+                              ) : (p.start_date ? p.start_date.slice(0, 10).split('-').reverse().join('/') : '—')}
+                            </td>
+                            {/* Previsão — editável inline */}
+                            <td className="px-4 py-3 text-center text-xs tabular-nums whitespace-nowrap"
+                              onClick={e => { e.stopPropagation(); startEditCell(p, 'expected_end_date') }}
+                              style={{ cursor: isCliente ? 'default' : 'pointer', color: 'var(--text-muted)' }}
+                              title={isCliente ? undefined : 'Clique para editar'}>
+                              {editCell?.id === p.id && editCell.field === 'expected_end_date' ? (
+                                <input type="date" autoFocus value={editVal} disabled={savingCell}
+                                  onClick={e => e.stopPropagation()} onChange={e => setEditVal(e.target.value)} onBlur={saveEditCell}
+                                  onKeyDown={e => { if (e.key === 'Enter') saveEditCell(); if (e.key === 'Escape') setEditCell(null) }}
+                                  style={inlineEditStyle} />
+                              ) : (p.expected_end_date ? p.expected_end_date.slice(0, 10).split('-').reverse().join('/') : '—')}
+                            </td>
+                            {/* Entrega % — editável inline (barra) */}
+                            <td className="px-4 py-3 text-center"
+                              onClick={e => { e.stopPropagation(); startEditCell(p, 'delivery_percentage') }}
+                              style={{ cursor: isCliente ? 'default' : 'pointer' }}
+                              title={isCliente ? undefined : 'Clique para editar'}>
+                              {editCell?.id === p.id && editCell.field === 'delivery_percentage' ? (
+                                <input type="number" min={0} max={100} autoFocus value={editVal} disabled={savingCell} placeholder="0"
+                                  onClick={e => e.stopPropagation()} onChange={e => setEditVal(e.target.value)} onBlur={saveEditCell}
+                                  onKeyDown={e => { if (e.key === 'Enter') saveEditCell(); if (e.key === 'Escape') setEditCell(null) }}
+                                  style={{ ...inlineEditStyle, width: '64px' }} />
+                              ) : p.delivery_percentage == null ? (
+                                <span className="text-[var(--text-muted)] text-xs">—</span>
+                              ) : (() => {
+                                const pct = Math.max(0, Math.min(100, Number(p.delivery_percentage)))
+                                const c = pct >= 100 ? 'var(--success-border)' : 'var(--primary)'
+                                return (
+                                  <div className="flex items-center gap-2 min-w-[90px]">
+                                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--surface-sunken)' }}>
+                                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c }} />
+                                    </div>
+                                    <span className="text-[10px] tabular-nums font-semibold shrink-0" style={{ color: c }}>{pct.toFixed(0)}%</span>
+                                  </div>
+                                )
+                              })()}
                             </td>
                           </tr>
                         )
