@@ -5,7 +5,6 @@ import { CalendarDays, Pencil, AlertTriangle } from 'lucide-react'
 import { api, ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
-import { useApiQuery } from '@/hooks/use-query'
 import { useDelayRisk } from '@/hooks/use-delay-risk'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 
@@ -25,14 +24,6 @@ interface Project {
   executivo_conta?: { id: number; name: string } | null
 }
 
-interface TimesheetItem {
-  id: number
-  date: string
-  user?: { name: string } | null
-  effort_minutes: number
-  observation?: string | null
-}
-
 interface Props {
   project: Project
   consultantsCount?: number
@@ -49,30 +40,20 @@ function formatHours(value: number): string {
   return value >= 100 ? `${Math.round(value)}h` : `${value.toFixed(1)}h`
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'agora'
-  if (m < 60) return `há ${m}min`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `há ${h}h`
-  const d = Math.floor(h / 24)
-  return `há ${d}d`
-}
-
-function KPI({ label, value, sub }: { label: string; value: string; sub?: string }) {
+// Indicador compacto (~70px) da tira do header.
+function KPI({ label, value, sub, valueColor }: { label: string; value: string; sub?: string; valueColor?: string }) {
   return (
     <div style={{
-      padding: '12px 14px',
+      padding: '10px 12px',
       borderRadius: 8,
       background: 'var(--surface)',
       border: '1px solid var(--border)',
       minWidth: 0,
     }}>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
         {label}
       </div>
-      <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text)', marginTop: 2 }}>
+      <div style={{ fontSize: 19, fontWeight: 600, color: valueColor ?? 'var(--text)', marginTop: 2, lineHeight: 1.1 }}>
         {value}
       </div>
       {sub && (
@@ -105,9 +86,7 @@ function PrazoKPI({
   const endLocal = hasDate ? new Date((expectedEndDate as string).slice(0, 10) + 'T00:00:00') : null
   const isOverdue = !!endLocal && endLocal < new Date(new Date().toDateString())
 
-  const displayDate = endLocal
-    ? endLocal.toLocaleDateString('pt-BR')
-    : '—'
+  const displayDate = endLocal ? endLocal.toLocaleDateString('pt-BR') : '—'
 
   async function save() {
     if (saving) return
@@ -126,18 +105,17 @@ function PrazoKPI({
 
   return (
     <div style={{
-      padding: '12px 14px',
+      padding: '10px 12px',
       borderRadius: 8,
       background: 'var(--surface)',
       border: `1px solid ${isOverdue ? 'var(--danger)' : 'var(--border)'}`,
       minWidth: 0,
-      position: 'relative',
     }}>
       <div style={{
-        fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em',
-        display: 'flex', alignItems: 'center', gap: 6,
+        fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em',
+        display: 'flex', alignItems: 'center', gap: 5,
       }}>
-        <CalendarDays size={11} /> Prazo de entrega
+        <CalendarDays size={10} /> Prazo
       </div>
 
       {!editing ? (
@@ -148,23 +126,21 @@ function PrazoKPI({
           style={{
             background: 'transparent', border: 'none', padding: 0, margin: 0,
             cursor: canEdit ? 'pointer' : 'default',
-            display: 'flex', alignItems: 'baseline', gap: 8,
+            display: 'flex', alignItems: 'baseline', gap: 6,
             marginTop: 2, width: '100%', textAlign: 'left',
           }}
         >
           <span style={{
-            fontSize: 20, fontWeight: 600,
+            fontSize: 19, fontWeight: 600, lineHeight: 1.1,
             color: hasDate ? (isOverdue ? 'var(--danger)' : 'var(--text)') : 'var(--text-muted)',
             fontStyle: hasDate ? 'normal' : 'italic',
           }}>
-            {hasDate ? displayDate : 'Definir prazo'}
+            {hasDate ? displayDate : 'Definir'}
           </span>
-          {canEdit && (
-            <Pencil size={11} style={{ color: 'var(--text-light)', marginLeft: 'auto' }} />
-          )}
+          {canEdit && <Pencil size={10} style={{ color: 'var(--text-light)', marginLeft: 'auto' }} />}
         </button>
       ) : (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 3 }}>
           <input
             type="date"
             className="ds-input"
@@ -175,25 +151,12 @@ function PrazoKPI({
               if (e.key === 'Enter') save()
               if (e.key === 'Escape') setEditing(false)
             }}
-            style={{ fontSize: 14, padding: '4px 8px', flex: 1, minWidth: 0 }}
+            style={{ fontSize: 13, padding: '3px 6px', flex: 1, minWidth: 0 }}
           />
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="ds-btn-primary"
-            style={{ fontSize: 12, padding: '4px 10px', flexShrink: 0 }}
-          >
-            {saving ? '…' : 'Salvar'}
+          <button type="button" onClick={save} disabled={saving} className="ds-btn-primary" style={{ fontSize: 12, padding: '3px 8px', flexShrink: 0 }}>
+            {saving ? '…' : 'OK'}
           </button>
-          <button
-            type="button"
-            onClick={() => setEditing(false)}
-            className="ds-btn-ghost"
-            style={{ fontSize: 12, padding: '4px 8px', flexShrink: 0 }}
-          >
-            ✕
-          </button>
+          <button type="button" onClick={() => setEditing(false)} className="ds-btn-ghost" style={{ fontSize: 12, padding: '3px 6px', flexShrink: 0 }}>✕</button>
         </div>
       )}
 
@@ -223,9 +186,7 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
   const isConsultor = user?.type === 'consultor'
   const canEditPrazo = user?.type !== 'consultor' && user?.type !== 'cliente'
 
-  // Visão ÚNICA da página (todos os perfis, inclusive admin): horas APONTÁVEIS —
-  // o pool liberado à gestão (coordination_hours ou, na ausência, sold_hours).
-  // Nunca expõe a base comercial "Vendidas" aqui.
+  // Horas APONTÁVEIS (pool liberado à gestão) — nunca a base comercial "Vendidas".
   const appointable = cronogramaPoolHours(project)
   const consumed = n(project.consumed_hours)
   const balance = appointable - consumed
@@ -235,64 +196,79 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
     pct >= 90 ? 'var(--danger)' :
     pct >= 70 ? 'var(--warning)' : 'var(--success)'
 
-  // Última atividade — V1: último timesheet do projeto
-  const { data: tsResp } = useApiQuery<{ items: TimesheetItem[] }>(
-    `/timesheets?project_id=${project.id}&pageSize=1&order=-date,-created_at`
-  )
-  const last = tsResp?.items?.[0]
-
   // Risco de atraso (Pilar 2): última etapa termina depois do prazo macro?
   const { data: delayRisk } = useDelayRisk(project.id)
 
+  // Risco geral do header (badge): compõe horas + risco de atraso.
+  const riskLevel: 'baixo' | 'medio' | 'alto' =
+    (pct >= 90 || (delayRisk?.has_risk === true && delayRisk.delay_days >= 14)) ? 'alto'
+    : (pct >= 70 || delayRisk?.has_risk === true) ? 'medio' : 'baixo'
+  const riskMeta = {
+    baixo: { cls: 'ds-status-success', dot: '🟢', label: 'Baixo' },
+    medio: { cls: 'ds-status-warning', dot: '🟡', label: 'Médio' },
+    alto:  { cls: 'ds-status-danger',  dot: '🔴', label: 'Alto' },
+  }[riskLevel]
+
   return (
     <div style={{
-      padding: '16px 24px',
+      padding: '10px 24px 10px',
       borderBottom: '1px solid var(--border)',
       background: 'var(--bg)',
       position: 'sticky',
       top: 0,
       zIndex: 10,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
-              {project.name}
-            </h1>
-            {project.code && (
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                {project.code}
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, fontSize: 13, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-            {project.customer?.name && <span>{project.customer.name}</span>}
-            {project.status_display && (
-              <span className="ds-status ds-status-info" style={{ fontSize: 11 }}>
-                {project.status_display}
-              </span>
-            )}
-            {project.coordinators && project.coordinators.length > 0 && (
-              <span title="Coordenador do projeto">👤 {project.coordinators[0].name}</span>
-            )}
-            {project.executivo_conta?.name && (
-              <span title="Executivo de conta">🎯 Exec: {project.executivo_conta.name}</span>
-            )}
-          </div>
+      {/* Linha 1 — identidade + pessoas + risco + alertas (barra superior) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <h1 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', margin: 0 }}>{project.name}</h1>
+        {project.code && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'monospace' }}>{project.code}</span>
+        )}
+        {project.customer?.name && (
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>· {project.customer.name}</span>
+        )}
+        {project.status_display && (
+          <span className="ds-status ds-status-info" style={{ fontSize: 11 }}>{project.status_display}</span>
+        )}
+        {project.coordinators && project.coordinators.length > 0 && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }} title="Responsável">👤 {project.coordinators[0].name}</span>
+        )}
+        {project.executivo_conta?.name && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }} title="Executivo de conta">🎯 {project.executivo_conta.name}</span>
+        )}
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {/* Alertas → indicador compacto na barra (era banner) */}
+          {!isConsultor && delayRisk?.has_risk && delayRisk.latest_stage_end && (
+            <span
+              className={`ds-status ${delayRisk.delay_days >= 14 ? 'ds-status-danger' : 'ds-status-warning'}`}
+              style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              title={`Última etapa termina em ${new Date(delayRisk.latest_stage_end).toLocaleDateString('pt-BR')} — ${delayRisk.delay_days} dia(s) após o prazo do projeto`}
+            >
+              <AlertTriangle size={11} /> {delayRisk.delay_days}d de atraso
+            </span>
+          )}
+          {/* Risco → badge (era card) */}
+          {!isConsultor && (
+            <span className={`ds-status ${riskMeta.cls}`} style={{ fontSize: 11 }} title="Risco geral (horas + prazo)">
+              {riskMeta.dot} {riskMeta.label}
+            </span>
+          )}
         </div>
       </div>
 
+      {/* Linha 2 — indicadores ~70px */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: 12,
-        marginTop: 14,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: 8,
+        marginTop: 8,
       }}>
-        {/* Consultor NÃO vê o total de horas do projeto — só suas atividades (no board). */}
+        {/* Consultor não vê o total de horas do projeto — só suas atividades no board. */}
         {!isConsultor && (
           <>
             <KPI label="Apontáveis" value={formatHours(appointable)} />
-            <KPI label="Consumidas" value={formatHours(consumed)} sub={`${Math.round(pct)}%`} />
+            <KPI label="Consumidas" value={formatHours(consumed)} sub={`${Math.round(pct)}% consumido`} valueColor={healthColor} />
             <KPI label="Saldo" value={formatHours(balance)} />
           </>
         )}
@@ -304,71 +280,10 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         />
       </div>
 
+      {/* Barra de progresso fina (percentual consumido) */}
       {!isConsultor && appointable > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <div style={{
-            height: 4,
-            width: '100%',
-            background: 'var(--surface-hover)',
-            borderRadius: 2,
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              height: '100%',
-              width: `${pct}%`,
-              background: healthColor,
-              transition: 'width .3s ease',
-            }} />
-          </div>
-        </div>
-      )}
-
-      {!isConsultor && delayRisk?.has_risk && delayRisk.latest_stage_end && (
-        <div style={{
-          marginTop: 12,
-          padding: '6px 10px',
-          borderRadius: 6,
-          background: delayRisk.delay_days >= 14 ? 'var(--danger-bg)' : 'var(--warning-bg)',
-          color: delayRisk.delay_days >= 14 ? 'var(--danger)' : 'var(--warning)',
-          fontSize: 12,
-          fontWeight: 500,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-        }}>
-          <AlertTriangle size={13} />
-          <span>
-            Última etapa termina em{' '}
-            <strong>{new Date(delayRisk.latest_stage_end).toLocaleDateString('pt-BR')}</strong>
-            {' — '}
-            {delayRisk.delay_days} dia{delayRisk.delay_days === 1 ? '' : 's'} após o prazo do projeto
-          </span>
-        </div>
-      )}
-
-      {last && (
-        <div style={{
-          marginTop: 12,
-          fontSize: 12,
-          color: 'var(--text-muted)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-        }}>
-          <span style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: 'var(--success)',
-            display: 'inline-block',
-          }} />
-          <span>
-            <strong style={{ color: 'var(--text)', fontWeight: 500 }}>{last.user?.name ?? 'Alguém'}</strong>
-            {' apontou '}
-            {formatHours((last.effort_minutes ?? 0) / 60)}
-            {' · '}
-            {timeAgo(last.date)}
-          </span>
+        <div style={{ height: 3, width: '100%', background: 'var(--surface-hover)', borderRadius: 2, overflow: 'hidden', marginTop: 8 }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: healthColor, transition: 'width .3s ease' }} />
         </div>
       )}
     </div>
