@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import {
   Plus, Pencil, Trash2, X, ChevronLeft, ChevronRight,
-  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2
+  Search, KeyRound, Check, Copy, Eye, Mail, Square, CheckSquare2, UserPlus
 } from 'lucide-react'
 import { ConfirmDeleteModal } from '@/components/ui/confirm-delete-modal'
 import { RowMenu } from '@/components/ui/row-menu'
@@ -44,6 +44,8 @@ interface UserItem {
   type?: string | null
   extra_permissions?: string[]
   can_timesheet_sustentacao?: boolean
+  // Pré-cadastro cliente pendente de convite (sem senha, desabilitado) — fase 1a/1b
+  is_pending_invite?: boolean
   // Folha de pagamento
   full_name?: string | null
   cpf?: string | null
@@ -319,6 +321,17 @@ export default function UsersPage() {
     finally { setResending(null) }
   }
 
+  // Convite (fase 1b): ativa um pré-cadastro cliente (senha temp + habilita + e-mail).
+  const invite = async (user: UserItem) => {
+    setResending(user.id)
+    try {
+      await api.post(`/users/${user.id}/invite`, {})
+      toast.success(`Convite enviado para ${user.name}`)
+      await load()
+    } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar convite') }
+    finally { setResending(null) }
+  }
+
   const resendWelcomeBulk = async () => {
     if (selectedIds.size === 0) return
     setBulkResending(true)
@@ -569,7 +582,8 @@ export default function UsersPage() {
                     ...(canViewDetail    ? [{ label: 'Visualizar',           icon: <Eye      size={12} />, onClick: () => setViewUser(user) }] : []),
                     ...(canEdit          ? [{ label: 'Editar',               icon: <Pencil   size={12} />, onClick: () => openEdit(user) }] : []),
                     ...(canResetPwd      ? [{ label: 'Resetar senha',        icon: <KeyRound size={12} />, onClick: () => resetPassword(user), disabled: resetting === user.id }] : []),
-                    ...(canResendWelcome ? [{ label: 'Reenviar boas-vindas', icon: <Mail     size={12} />, onClick: () => resendWelcome(user), disabled: resending === user.id }] : []),
+                    ...(canResendWelcome && user.is_pending_invite ? [{ label: 'Convidar', icon: <UserPlus size={12} />, onClick: () => invite(user), disabled: resending === user.id }] : []),
+                    ...(canResendWelcome && !user.is_pending_invite ? [{ label: 'Reenviar boas-vindas', icon: <Mail     size={12} />, onClick: () => resendWelcome(user), disabled: resending === user.id }] : []),
                     ...(canDelete        ? [{ label: 'Excluir',              icon: <Trash2   size={12} />, onClick: () => remove(user.id), danger: true, disabled: deleting === user.id }] : []),
                   ]} />
                 </td>
