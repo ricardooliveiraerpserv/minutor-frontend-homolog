@@ -1078,8 +1078,10 @@ function ContractDetailModal({ card, onClose, onGenerate, coordinators, canGener
   )
 }
 
-function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: ProjectCard; onClose: () => void; userRole: string; initialTab?: 'details' | 'req' | 'chat' | 'log' }) {
-  const [tab, setTab]             = useState<'details' | 'req' | 'chat' | 'log'>(initialTab ?? 'details')
+function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: ProjectCard; onClose: () => void; userRole: string; initialTab?: 'details' | 'req' | 'comments' | 'chat' | 'log' }) {
+  const [tab, setTab]             = useState<'details' | 'req' | 'comments' | 'chat' | 'log'>(
+    initialTab === 'chat' && userRole === 'cliente' ? 'comments' : (initialTab ?? 'details')
+  )
   const [logs, setLogs]           = useState<KanbanLogEntry[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
   const [logsLoaded, setLogsLoaded]   = useState(false)
@@ -1115,7 +1117,7 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
         })
         .finally(() => setLogsLoading(false))
     }
-    if (tab === 'req' && !reqLoaded && card.contract_request_id) {
+    if ((tab === 'req' || tab === 'comments') && !reqLoaded && card.contract_request_id) {
       setReqLoading(true)
       api.get<ContractRequestDetail>(`/projects/${card.id}/contract-request`)
         .then(r => { setReqData(r); setReqLoaded(true) })
@@ -1161,7 +1163,10 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
   const tabs = [
     { id: 'details', label: 'Detalhes', icon: <ExternalLink size={11} /> },
     ...(hasReq ? [{ id: 'req', label: 'Requisição', icon: <Layers size={11} /> }] : []),
-    { id: 'chat', label: isCliente ? 'Histórico de Mensagens' : 'Diário do Projeto', icon: <MessageSquare size={11} /> },
+    // Comentários = histórico do canal do cliente (read-only); todos veem, inclusive o cliente.
+    ...(hasReq ? [{ id: 'comments', label: 'Comentários', icon: <MessageSquare size={11} /> }] : []),
+    // Diário do Projeto = interno; dá continuidade ao projeto e NÃO é visível ao cliente.
+    ...(!isCliente ? [{ id: 'chat', label: 'Diário do Projeto', icon: <MessageSquare size={11} /> }] : []),
     { id: 'log', label: 'Histórico', icon: <Clock size={11} /> },
   ] as const
 
@@ -1277,55 +1282,67 @@ function ProjectDetailModal({ card, onClose, userRole, initialTab }: { card: Pro
                   </div>
                 )}
 
-                {/* Mensagens */}
-                {reqData.messages && reqData.messages.length > 0 && (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-light)' }}>Conversas da Requisição</p>
-                    <div className="space-y-3">
-                      {reqData.messages.map(msg => (
-                        <div key={msg.id} className="rounded-xl p-3" style={{ background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)' }}>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xs font-semibold" style={{ color: '#a78bfa' }}>{msg.author?.name ?? '—'}</span>
-                            <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{new Date(msg.created_at).toLocaleString('pt-BR')}</span>
-                          </div>
-                          <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{msg.message}</p>
-                          {msg.attachments && msg.attachments.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {msg.attachments.map(att => (
-                                <div key={att.id} className="flex items-center gap-0 rounded-lg overflow-hidden text-[11px]"
-                                  style={{ border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.06)' }}>
-                                  <span className="flex items-center gap-1 px-2 py-1.5" style={{ color: '#a78bfa' }}>
-                                    <Paperclip size={9} />
-                                    <span className="max-w-[160px] truncate">{att.original_name}</span>
-                                  </span>
-                                  <button
-                                    onClick={() => viewReqAttachment(msg.id, att)}
-                                    className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
-                                    style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
-                                    title="Visualizar"
-                                  >
-                                    <ExternalLink size={10} />
-                                  </button>
-                                  <button
-                                    onClick={() => downloadReqAttachment(msg.id, att)}
-                                    className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
-                                    style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
-                                    title="Baixar"
-                                  >
-                                    <Download size={10} />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* As conversas do cliente foram movidas para a aba "Comentários". */}
               </div>
             ) : (
               <p className="text-center text-xs py-10" style={{ color: 'var(--text-light)' }}>Nenhuma requisição vinculada</p>
+            )}
+          </div>
+        ) : tab === 'comments' ? (
+          <div className="flex-1 overflow-y-auto">
+            {reqLoading ? (
+              <p className="text-center text-xs py-10" style={{ color: 'var(--text-light)' }}>Carregando...</p>
+            ) : reqData && reqData.messages && reqData.messages.length > 0 ? (
+              <div className="px-6 py-5">
+                <div className="mb-3 px-3 py-1.5 rounded-lg text-[11px]" style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>
+                  Histórico do canal do cliente (trazido da requisição). Somente leitura.
+                </div>
+                <div className="space-y-3">
+                  {reqData.messages.map(msg => (
+                    <div key={msg.id} className="rounded-xl p-3" style={{ background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)' }}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold" style={{ color: '#a78bfa' }}>{msg.author?.name ?? '—'}</span>
+                        <span className="text-[10px]" style={{ color: 'var(--text-light)' }}>{new Date(msg.created_at).toLocaleString('pt-BR')}</span>
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>{msg.message}</p>
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {msg.attachments.map(att => (
+                            <div key={att.id} className="flex items-center gap-0 rounded-lg overflow-hidden text-[11px]"
+                              style={{ border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.06)' }}>
+                              <span className="flex items-center gap-1 px-2 py-1.5" style={{ color: '#a78bfa' }}>
+                                <Paperclip size={9} />
+                                <span className="max-w-[160px] truncate">{att.original_name}</span>
+                              </span>
+                              <button
+                                onClick={() => viewReqAttachment(msg.id, att)}
+                                className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
+                                style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
+                                title="Visualizar"
+                              >
+                                <ExternalLink size={10} />
+                              </button>
+                              <button
+                                onClick={() => downloadReqAttachment(msg.id, att)}
+                                className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
+                                style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
+                                title="Baixar"
+                              >
+                                <Download size={10} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 gap-1">
+                <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
+                <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum comentário do cliente</p>
+              </div>
             )}
           </div>
         ) : tab === 'details' ? (
@@ -3573,14 +3590,17 @@ function ProjectTeamModal({ projectId, projectName, onClose, onSaved }: { projec
   )
 }
 
-function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; onClose: () => void; initialTab?: 'details' | 'comments' | 'log' }) {
+// Painel de chat da Requisição, reutilizado nas duas abas:
+//  - visibility='client'   → Comentários (canal do cliente)
+//  - visibility='internal' → Diário (equipe; cliente não vê)
+function ReqChatPanel({ requestId, visibility, readOnly }: {
+  requestId: number
+  visibility: 'client' | 'internal'
+  readOnly?: boolean
+}) {
   const { user: currentUser } = useAuth()
-  const [tab, setTab]               = useState<'details' | 'comments' | 'log'>(initialTab ?? 'details')
   const [msgs, setMsgs]             = useState<ReqMsg[]>([])
-  const [msgsLoaded, setMsgsLoaded] = useState(false)
-  const [logs, setLogs]             = useState<KanbanLogEntry[]>([])
-  const [logsLoading, setLogsLoading] = useState(false)
-  const [logsLoaded, setLogsLoaded] = useState(false)
+  const [loaded, setLoaded]         = useState(false)
   const [input, setInput]           = useState('')
   const [sending, setSending]       = useState(false)
   const [files, setFiles]           = useState<File[]>([])
@@ -3593,26 +3613,17 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (tab === 'comments' && !msgsLoaded) {
-      api.get<ReqMsg[]>(`/contract-requests/${card.id}/messages`)
-        .then(r => { setMsgs(Array.isArray(r) ? r : []); setMsgsLoaded(true) })
-        .catch(() => toast.error('Erro ao carregar comentários'))
-      api.get<MentionUser[]>(`/contract-requests/${card.id}/mentionable-users`)
+    api.get<ReqMsg[]>(`/contract-requests/${requestId}/messages?visibility=${visibility}`)
+      .then(r => { setMsgs(Array.isArray(r) ? r : []); setLoaded(true) })
+      .catch(() => { setLoaded(true); toast.error('Erro ao carregar mensagens') })
+    if (!readOnly) {
+      api.get<MentionUser[]>(`/contract-requests/${requestId}/mentionable-users?visibility=${visibility}`)
         .then(r => setMentionUsers(Array.isArray(r) ? r : []))
         .catch(() => {})
     }
-    if (tab === 'log' && !logsLoaded) {
-      setLogsLoading(true)
-      api.get<KanbanLogEntry[]>(`/contract-requests/${card.id}/kanban-logs`)
-        .then(r => { setLogs(Array.isArray(r) ? r : []); setLogsLoaded(true) })
-        .catch(() => {})
-        .finally(() => setLogsLoading(false))
-    }
-  }, [tab, card.id, msgsLoaded, logsLoaded])
+  }, [requestId, visibility, readOnly])
 
-  useEffect(() => {
-    if (tab === 'comments') bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [msgs, tab])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs])
 
   const handleInputChange = (val: string) => {
     setInput(val)
@@ -3631,7 +3642,6 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
   const insertMention = (user: MentionUser) => {
     const before = input.slice(0, mentionStart)
     const after  = input.slice(textareaRef.current?.selectionStart ?? input.length)
-    // Token canônico que o backend parseia: @[id:Nome]
     const next   = `${before}@[${user.id}:${user.name}] ${after}`
     setInput(next)
     setShowMentions(false)
@@ -3649,18 +3659,22 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
     try {
       const fd = new FormData()
       fd.append('message', text)
+      fd.append('visibility', visibility)
       files.forEach(f => fd.append('files[]', f))
-      const res = await fetch(`/api/v1/contract-requests/${card.id}/messages`, {
+      const res = await fetch(`/api/v1/contract-requests/${requestId}/messages`, {
         method: 'POST',
         credentials: 'same-origin',
         body: fd,
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const err = await res.json().catch(() => null)
+        throw new Error(err?.message ?? '')
+      }
       const msg: ReqMsg = await res.json()
       setMsgs(prev => [...prev, msg])
       setInput('')
       setFiles([])
-    } catch { toast.error('Erro ao enviar comentário') }
+    } catch (e) { toast.error((e as Error)?.message || 'Erro ao enviar mensagem') }
     finally { setSending(false) }
   }
 
@@ -3678,11 +3692,204 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
     } catch { toast.error('Erro ao baixar arquivo') }
   }
 
+  return (
+    <div className="flex flex-col flex-1 min-h-0">
+      {visibility === 'internal' && (
+        <div className="mx-4 mt-3 px-3 py-1.5 rounded-lg text-[11px] shrink-0"
+          style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning)' }}>
+          Diário interno — dá continuidade ao projeto e <strong>não é visível ao cliente</strong>.
+        </div>
+      )}
+      {/* Feed */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        {!loaded && (
+          <p className="text-center text-xs py-8" style={{ color: 'var(--text-light)' }}>Carregando...</p>
+        )}
+        {loaded && msgs.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-10 gap-1">
+            <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
+            <p className="text-xs" style={{ color: 'var(--text-light)' }}>
+              {visibility === 'internal' ? 'Nenhuma anotação no diário ainda' : 'Nenhum comentário ainda'}
+            </p>
+          </div>
+        )}
+        {msgs.map(msg => (
+          <div key={msg.id} className="flex gap-2.5 items-start">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+              style={{ background: 'rgba(139,92,246,0.2)', color: '#a78bfa' }}>
+              {(msg.author?.name ?? '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2 mb-0.5">
+                <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{msg.author?.name ?? 'Usuário'}</span>
+                <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                  {new Date(msg.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--text)' }}>{msg.message}</p>
+              {msg.attachments && msg.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-1.5">
+                  {msg.attachments.map(att => (
+                    <div key={att.id} className="flex items-center gap-0 rounded-lg overflow-hidden text-[11px]"
+                      style={{ border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.06)' }}>
+                      <span className="flex items-center gap-1 px-2 py-1.5" style={{ color: '#a78bfa' }}>
+                        <Paperclip size={9} />
+                        <span className="max-w-[150px] truncate">{att.original_name}</span>
+                      </span>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download`, { credentials: 'same-origin' })
+                            if (!res.ok) throw new Error()
+                            const blob = await res.blob()
+                            window.open(URL.createObjectURL(blob), '_blank')
+                          } catch { toast.error('Erro ao abrir arquivo') }
+                        }}
+                        className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
+                        style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
+                        title="Visualizar"
+                      ><ExternalLink size={10} /></button>
+                      <button
+                        onClick={() => downloadAttachment(msg.id, att)}
+                        className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
+                        style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
+                        title="Baixar"
+                      ><Download size={10} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      {/* Input */}
+      {readOnly ? (
+        <div className="px-4 pb-4 pt-2 border-t shrink-0 text-center text-[11px]" style={{ borderColor: 'rgba(139,92,246,0.2)', color: 'var(--text-light)' }}>
+          Somente leitura.
+        </div>
+      ) : (
+      <div className="px-4 pb-4 pt-2 border-t shrink-0" style={{ borderColor: 'rgba(139,92,246,0.2)' }}>
+        {/* File chips */}
+        {files.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            {files.map((f, i) => (
+              <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px]"
+                style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', color: '#a78bfa' }}>
+                {f.name}
+                <button onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}><X size={10} /></button>
+              </span>
+            ))}
+          </div>
+        )}
+        {/* Mention dropdown */}
+        <div className="relative">
+          {showMentions && filteredMentions.length > 0 && (
+            <div className="absolute bottom-full left-0 mb-1 w-64 max-h-60 overflow-y-auto rounded-lg shadow-lg z-10"
+              style={{ background: 'var(--bg)', border: '1px solid rgba(139,92,246,0.3)' }}>
+              {filteredMentions.map(u => {
+                const isCliente = u.role === 'cliente'
+                const accent = isCliente ? 'var(--success)' : '#a78bfa'
+                return (
+                  <button key={u.id} onClick={() => insertMention(u)}
+                    className="w-full flex items-center justify-between gap-2 text-left px-3 py-2 text-sm hover:opacity-80 transition-opacity"
+                    style={{ color: isCliente ? 'var(--success)' : 'var(--text)' }}>
+                    <span className="truncate">
+                      <span style={{ color: accent }} className="font-semibold">@</span>{u.name}
+                    </span>
+                    {u.role && (
+                      <span className="text-[10px] uppercase tracking-wider opacity-70 shrink-0"
+                        style={{ color: accent }}>
+                        {u.role}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <div className="flex gap-2 items-end">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={e => handleInputChange(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') { setShowMentions(false); return }
+                if (e.key === 'Enter' && !e.shiftKey && !showMentions) { e.preventDefault(); handleSend() }
+              }}
+              placeholder={visibility === 'internal' ? 'Anotação interna... Use @ para mencionar a equipe' : 'Escreva um comentário... Use @ para mencionar'}
+              rows={2}
+              className="flex-1 resize-none rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: 'var(--surface-hover)', border: '1px solid rgba(139,92,246,0.25)', color: 'var(--text)' }}
+            />
+            <div className="flex flex-col gap-1 shrink-0">
+              <button onClick={() => fileInputRef.current?.click()}
+                className="flex items-center justify-center w-9 h-9 rounded-lg transition-all"
+                style={{ background: 'var(--surface-hover)', border: '1px solid rgba(139,92,246,0.2)', color: 'var(--text-light)' }}
+                title="Anexar arquivo">
+                <Paperclip size={14} />
+              </button>
+              <button onClick={handleSend} disabled={(!input.trim() && files.length === 0) || sending}
+                className="flex items-center justify-center w-9 h-9 rounded-lg transition-all disabled:opacity-40"
+                style={{ background: 'rgba(139,92,246,0.2)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.35)' }}>
+                <Send size={15} />
+              </button>
+            </div>
+          </div>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={e => {
+            const picked = Array.from(e.target.files ?? [])
+            setFiles(prev => [...prev, ...picked].slice(0, 10))
+            e.target.value = ''
+          }}
+        />
+      </div>
+      )}
+    </div>
+  )
+}
+
+function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; onClose: () => void; initialTab?: 'details' | 'comments' | 'diary' | 'log' }) {
+  const { user: currentUser } = useAuth()
+  const isCliente = currentUser?.type === 'cliente'
+  const [tab, setTab]               = useState<'details' | 'comments' | 'diary' | 'log'>(
+    initialTab === 'diary' && isCliente ? 'comments' : (initialTab ?? 'details')
+  )
+  const [logs, setLogs]             = useState<KanbanLogEntry[]>([])
+  const [logsLoading, setLogsLoading] = useState(false)
+  const [logsLoaded, setLogsLoaded] = useState(false)
+
+  useEffect(() => {
+    if (tab === 'log' && !logsLoaded) {
+      setLogsLoading(true)
+      api.get<KanbanLogEntry[]>(`/contract-requests/${card.id}/kanban-logs`)
+        .then(r => { setLogs(Array.isArray(r) ? r : []); setLogsLoaded(true) })
+        .catch(() => {})
+        .finally(() => setLogsLoading(false))
+    }
+  }, [tab, card.id, logsLoaded])
+
   const tipoLabel = card.tipo_necessidade === 'outro' && card.tipo_necessidade_outro
     ? card.tipo_necessidade_outro
     : (TIPO_NECESSIDADE_LABEL[card.tipo_necessidade] ?? card.tipo_necessidade)
   const urgColor = URGENCIA_COLOR[card.nivel_urgencia] ?? '#64748b'
   const statusMap: Record<string, string> = { pendente: 'Pendente', em_analise: 'Em Análise', aprovado: 'Aprovado', recusado: 'Recusado' }
+
+  const tabBtn = (id: 'details' | 'comments' | 'diary' | 'log', icon: React.ReactNode, label: string) => (
+    <button onClick={() => setTab(id)}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+      style={tab === id
+        ? { background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }
+        : { color: 'var(--text-light)', border: '1px solid transparent' }}>
+      {icon} {label}
+    </button>
+  )
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
@@ -3705,32 +3912,19 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
           </div>
           {/* Tabs */}
           <div className="flex gap-1 mt-3">
-            <button onClick={() => setTab('details')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              style={tab === 'details'
-                ? { background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }
-                : { color: 'var(--text-light)', border: '1px solid transparent' }}>
-              <ExternalLink size={11} /> Detalhes
-            </button>
-            <button onClick={() => setTab('comments')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              style={tab === 'comments'
-                ? { background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }
-                : { color: 'var(--text-light)', border: '1px solid transparent' }}>
-              <MessageSquare size={11} /> Comentários {msgs.length > 0 && `(${msgs.length})`}
-            </button>
-            <button onClick={() => setTab('log')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-              style={tab === 'log'
-                ? { background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }
-                : { color: 'var(--text-light)', border: '1px solid transparent' }}>
-              <Clock size={11} /> Histórico
-            </button>
+            {tabBtn('details', <ExternalLink size={11} />, 'Detalhes')}
+            {tabBtn('comments', <MessageSquare size={11} />, 'Comentários')}
+            {!isCliente && tabBtn('diary', <MessageSquare size={11} />, 'Diário')}
+            {tabBtn('log', <Clock size={11} />, 'Histórico')}
           </div>
         </div>
 
         {/* Body */}
-        {tab === 'log' ? (
+        {tab === 'comments' ? (
+          <ReqChatPanel requestId={card.id} visibility="client" />
+        ) : tab === 'diary' && !isCliente ? (
+          <ReqChatPanel requestId={card.id} visibility="internal" />
+        ) : tab === 'log' ? (
           <div className="flex-1 overflow-y-auto">
             <KanbanLogTab logs={logs} loading={logsLoading} />
           </div>
@@ -3780,165 +3974,12 @@ function RequestDetailModal({ card, onClose, initialTab }: { card: RequestCard; 
               <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm" style={{ color: 'var(--text-muted)' }}>Fechar</button>
             </div>
           </>
-        ) : (
-          <div className="flex flex-col flex-1 min-h-0">
-            {/* Back button */}
-            <div className="px-4 pt-3 shrink-0">
-              <button onClick={() => setTab('details')}
-                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
-                style={{ color: 'var(--text-light)' }}>
-                <ChevronRight size={12} className="rotate-180" /> Voltar aos detalhes
-              </button>
-            </div>
-            {/* Feed */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-              {!msgsLoaded && (
-                <p className="text-center text-xs py-8" style={{ color: 'var(--text-light)' }}>Carregando...</p>
-              )}
-              {msgsLoaded && msgs.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-10 gap-1">
-                  <MessageSquare size={24} style={{ color: 'var(--text-light)', opacity: 0.4 }} />
-                  <p className="text-xs" style={{ color: 'var(--text-light)' }}>Nenhum comentário ainda</p>
-                </div>
-              )}
-              {msgs.map(msg => (
-                <div key={msg.id} className="flex gap-2.5 items-start">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                    style={{ background: 'rgba(139,92,246,0.2)', color: '#a78bfa' }}>
-                    {(msg.author?.name ?? '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2 mb-0.5">
-                      <span className="text-xs font-semibold" style={{ color: 'var(--text)' }}>{msg.author?.name ?? 'Usuário'}</span>
-                      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                        {new Date(msg.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--text)' }}>{msg.message}</p>
-                    {msg.attachments && msg.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-1.5">
-                        {msg.attachments.map(att => (
-                          <div key={att.id} className="flex items-center gap-0 rounded-lg overflow-hidden text-[11px]"
-                            style={{ border: '1px solid rgba(139,92,246,0.25)', background: 'rgba(139,92,246,0.06)' }}>
-                            <span className="flex items-center gap-1 px-2 py-1.5" style={{ color: '#a78bfa' }}>
-                              <Paperclip size={9} />
-                              <span className="max-w-[150px] truncate">{att.original_name}</span>
-                            </span>
-                            <button
-                              onClick={async () => {
-                                try {
-                                  const res = await fetch(`/api/v1/req-messages/${msg.id}/attachments/${att.id}/download`, { credentials: 'same-origin' })
-                                  if (!res.ok) throw new Error()
-                                  const blob = await res.blob()
-                                  window.open(URL.createObjectURL(blob), '_blank')
-                                } catch { toast.error('Erro ao abrir arquivo') }
-                              }}
-                              className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
-                              style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
-                              title="Visualizar"
-                            ><ExternalLink size={10} /></button>
-                            <button
-                              onClick={() => downloadAttachment(msg.id, att)}
-                              className="px-2 py-1.5 border-l transition-colors hover:bg-[var(--surface-hover)]"
-                              style={{ borderColor: 'rgba(139,92,246,0.25)', color: '#a78bfa' }}
-                              title="Baixar"
-                            ><Download size={10} /></button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              <div ref={bottomRef} />
-            </div>
-            {/* Input */}
-            <div className="px-4 pb-4 pt-2 border-t shrink-0" style={{ borderColor: 'rgba(139,92,246,0.2)' }}>
-              {/* File chips */}
-              {files.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {files.map((f, i) => (
-                    <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px]"
-                      style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)', color: '#a78bfa' }}>
-                      {f.name}
-                      <button onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}><X size={10} /></button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {/* Mention dropdown */}
-              <div className="relative">
-                {showMentions && filteredMentions.length > 0 && (
-                  <div className="absolute bottom-full left-0 mb-1 w-64 max-h-60 overflow-y-auto rounded-lg shadow-lg z-10"
-                    style={{ background: 'var(--bg)', border: '1px solid rgba(139,92,246,0.3)' }}>
-                    {filteredMentions.map(u => {
-                      const isCliente = u.role === 'cliente'
-                      const accent = isCliente ? 'var(--success)' : '#a78bfa'
-                      return (
-                        <button key={u.id} onClick={() => insertMention(u)}
-                          className="w-full flex items-center justify-between gap-2 text-left px-3 py-2 text-sm hover:opacity-80 transition-opacity"
-                          style={{ color: isCliente ? 'var(--success)' : 'var(--text)' }}>
-                          <span className="truncate">
-                            <span style={{ color: accent }} className="font-semibold">@</span>{u.name}
-                          </span>
-                          {u.role && (
-                            <span className="text-[10px] uppercase tracking-wider opacity-70 shrink-0"
-                              style={{ color: accent }}>
-                              {u.role}
-                            </span>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-                <div className="flex gap-2 items-end">
-                  <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={e => handleInputChange(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Escape') { setShowMentions(false); return }
-                      if (e.key === 'Enter' && !e.shiftKey && !showMentions) { e.preventDefault(); handleSend() }
-                    }}
-                    placeholder="Escreva um comentário... Use @ para mencionar"
-                    rows={2}
-                    className="flex-1 resize-none rounded-lg px-3 py-2 text-sm outline-none"
-                    style={{ background: 'var(--surface-hover)', border: '1px solid rgba(139,92,246,0.25)', color: 'var(--text)' }}
-                  />
-                  <div className="flex flex-col gap-1 shrink-0">
-                    <button onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center justify-center w-9 h-9 rounded-lg transition-all"
-                      style={{ background: 'var(--surface-hover)', border: '1px solid rgba(139,92,246,0.2)', color: 'var(--text-light)' }}
-                      title="Anexar arquivo">
-                      <Paperclip size={14} />
-                    </button>
-                    <button onClick={handleSend} disabled={(!input.trim() && files.length === 0) || sending}
-                      className="flex items-center justify-center w-9 h-9 rounded-lg transition-all disabled:opacity-40"
-                      style={{ background: 'rgba(139,92,246,0.2)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.35)' }}>
-                      <Send size={15} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={e => {
-                  const picked = Array.from(e.target.files ?? [])
-                  setFiles(prev => [...prev, ...picked].slice(0, 10))
-                  e.target.value = ''
-                }}
-              />
-            </div>
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
   )
 }
+
 
 // ─── Column Component ─────────────────────────────────────────────────────────
 
