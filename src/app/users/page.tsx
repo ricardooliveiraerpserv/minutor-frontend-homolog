@@ -322,11 +322,19 @@ export default function UsersPage() {
   }
 
   // Convite (fase 1b): ativa um pré-cadastro cliente (senha temp + habilita + e-mail).
+  // Se o ambiente bloqueia o e-mail (allowlist), o BE devolve a senha temporária —
+  // reusamos o modal de reset p/ o admin repassar manualmente.
   const invite = async (user: UserItem) => {
     setResending(user.id)
     try {
-      await api.post(`/users/${user.id}/invite`, {})
-      toast.success(`Convite enviado para ${user.name}`)
+      const r = await api.post<{ email_sent?: boolean; temporary_password?: string | null }>(`/users/${user.id}/invite`, {})
+      if (r.email_sent) {
+        toast.success(`Convite enviado para ${user.name}`)
+      } else if (r.temporary_password) {
+        setResetModal({ open: true, userId: user.id, userName: user.name, userEmail: user.email, confirmed: true, tempPassword: r.temporary_password, emailSent: false })
+      } else {
+        toast.success(`${user.name} ativado`)
+      }
       await load()
     } catch (e) { toast.error(e instanceof ApiError ? e.message : 'Erro ao enviar convite') }
     finally { setResending(null) }
