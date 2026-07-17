@@ -148,6 +148,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
     start_time: '', end_time: '', total_hours: '',
     ticket: '', observation: '',
     is_billable_only: false,
+    stage_delivery_id: '',
   })
 
   const [customers,    setCustomers]    = useState<SelectOption[]>([])
@@ -155,6 +156,8 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   const [projects,     setProjects]     = useState<SelectOption[]>([])
   // Candidatos a "Projeto Real": todos os projetos abertos do cliente, sem consultant_only.
   const [realProjects, setRealProjects] = useState<SelectOption[]>([])
+  // Atividades (cronograma) do projeto selecionado — pra vincular o apontamento a uma atividade.
+  const [activities,   setActivities]   = useState<{ id: number; title: string; stage_name?: string }[]>([])
   const [loadingData,  setLoadingData]  = useState(false)
 
   // Reset and load users list when modal opens
@@ -260,6 +263,16 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.project_id, form.user_id])
 
+  // Atividades do cronograma do projeto — pro seletor "Atividade" (evita horas órfãs).
+  useEffect(() => {
+    if (!form.project_id) { setActivities([]); return }
+    let cancelled = false
+    api.get<{ items: { id: number; title: string; stage_name?: string }[] }>(`/projects/${form.project_id}/deliveries`)
+      .then(r => { if (!cancelled) setActivities(Array.isArray(r?.items) ? r.items : []) })
+      .catch(() => { if (!cancelled) setActivities([]) })
+    return () => { cancelled = true }
+  }, [form.project_id])
+
   // Auto-calculate times in Horário mode
   useEffect(() => {
     if (useTotal) return
@@ -315,6 +328,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
           : undefined,
         ticket:      form.ticket || null,
         observation: form.observation || null,
+        ...(form.stage_delivery_id ? { stage_delivery_id: Number(form.stage_delivery_id) } : {}),
       }
       if (canActAsUser && form.user_id) body.user_id = Number(form.user_id)
       if (isAdmin && form.user_id && form.user_id !== String(currentUser?.id) && form.is_billable_only) {
@@ -401,7 +415,7 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               <div className="mt-1">
                 <SearchSelect
                   value={form.project_id}
-                  onChange={v => setForm(f => ({ ...f, project_id: v, real_project_id: '' }))}
+                  onChange={v => setForm(f => ({ ...f, project_id: v, real_project_id: '', stage_delivery_id: '' }))}
                   options={projects}
                   placeholder={form.customer_id ? 'Selecione o projeto...' : 'Selecione o cliente primeiro'}
                   disabled={!form.customer_id}
@@ -448,6 +462,25 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
                 </div>
               )
             })()}
+
+            {/* Atividade (cronograma) — vincula o apontamento a uma atividade do projeto.
+                Opcional; aparece só quando o projeto tem cronograma. Evita horas "órfãs". */}
+            {activities.length > 0 && (
+              <div>
+                <Label className="text-xs text-[var(--text-muted)]">Atividade</Label>
+                <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>
+                  Vincule esta hora a uma atividade do cronograma (opcional).
+                </p>
+                <div className="mt-1">
+                  <SearchSelect
+                    value={form.stage_delivery_id}
+                    onChange={v => setForm(f => ({ ...f, stage_delivery_id: v }))}
+                    options={activities.map(a => ({ id: a.id, name: a.stage_name ? `${a.stage_name} · ${a.title}` : a.title }))}
+                    placeholder="Sem atividade"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Data */}
             <div>
