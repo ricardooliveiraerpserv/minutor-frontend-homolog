@@ -187,7 +187,7 @@ const ACTIVE_PROJECT_STATUSES = ['planning', 'started', 'liberado_para_testes', 
 
 const PROJECT_COLS: Column[] = [
   { id: 'proj_backlog',        label: 'Backlog',           phase: 'project', projectStatuses: ['backlog', 'awaiting_start'], color: '#94a3b8' },
-  { id: 'em_planejamento',     label: 'Em Planejamento',   phase: 'project', projectStatuses: ['planning'],              color: '#a78bfa' },
+  { id: 'proj_em_planejamento', label: 'Em Planejamento',  phase: 'project', projectStatuses: ['planning'],              color: '#a78bfa' },
   { id: 'em_andamento',        label: 'Em Andamento',      phase: 'project', projectStatuses: ['started'],               color: '#60a5fa' },
   { id: 'em_homologacao',      label: 'Em Homologação',    phase: 'project', projectStatuses: ['liberado_para_testes'],  color: '#22d3ee' },
   { id: 'em_producao',         label: 'Em Produção',       phase: 'project', projectStatuses: ['em_producao'],           color: '#14b8a6' },
@@ -199,7 +199,7 @@ const PROJECT_COLS: Column[] = [
 const PROJECT_STATUS_TO_COL: Record<string, string> = {
   backlog:              'proj_backlog',
   awaiting_start:       'proj_backlog',
-  planning:             'em_planejamento',
+  planning:             'proj_em_planejamento',
   started:              'em_andamento',
   liberado_para_testes: 'em_homologacao',
   em_producao:          'em_producao',
@@ -213,7 +213,7 @@ const PROJECT_STATUS_TO_COL: Record<string, string> = {
 // que preserva o sub-status quando o card já está ativo — gerido pelo cronograma).
 const PROJECT_COL_TO_STATUS: Record<string, string> = {
   proj_backlog:         'awaiting_start',
-  em_planejamento:      'planning',
+  proj_em_planejamento: 'planning',
   em_andamento:         'started',
   em_homologacao:       'liberado_para_testes',
   em_producao:          'em_producao',
