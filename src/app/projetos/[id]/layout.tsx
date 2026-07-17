@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { ProjectHeaderExecutive } from '@/components/projects/project-header-executive'
-import { ProjectTabs } from '@/components/projects/project-tabs'
 import { useApiQuery } from '@/hooks/use-query'
 
 interface ProjectResponse {
@@ -76,9 +75,8 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
           </Link>
         </div>
         <ProjectHeaderExecutive project={project} onProjectChange={refetch} />
-        <div style={{ padding: '0 24px', background: 'var(--bg)' }}>
-          <ProjectTabs projectId={project.id} isOperational={project.is_operational !== false} />
-        </div>
+        {/* Barra de abas (Visão Geral/Horas/Financeiro/Arquivos) removida a pedido —
+            o projeto abre direto na Visão Geral (index redireciona pra visao-geral). */}
         <div style={{ flex: 1, padding: 24, background: 'var(--bg)' }}>
           {children}
         </div>
