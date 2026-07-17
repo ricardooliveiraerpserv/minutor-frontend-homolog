@@ -4,6 +4,8 @@ export interface User {
   email: string
   profile_photo_url?: string | null
   modules?: string[] | null   // navegação modular: módulos liberados pro usuário
+  // Acesso a módulos POR USUÁRIO cliente: ['projetos','help_desk']. null/undefined = todos (legado).
+  allowed_modules?: string[] | null
   type?: string | null
   coordinator_type?: 'projetos' | 'sustentacao' | null
   customer_id?: number | null

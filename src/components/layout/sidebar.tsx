@@ -822,17 +822,26 @@ function SidebarInner({ user, mobileOpen = false, onClose }: { user: User; mobil
       const dashItems = Object.entries(DASH_MAP)
         .filter(([code]) => clienteContractCodes.has(code))
         .map(([, item]) => item)
+      // Acesso por módulo POR USUÁRIO: null/ausente = todos (legado); senão só o que foi liberado.
+      const allowed = user?.allowed_modules ?? null
+      const canModule = (m: string) => !allowed || allowed.includes(m)
+      // Home e Comunicados são sempre visíveis (não pertencem a Projetos nem Help Desk).
       const nav: NavEntry[] = [
         { type: 'item', label: 'Comunicados',          href: '/comunicados',         icon: Megaphone, badge: 'comunicados' },
         { type: 'item', label: 'Home',                 href: '/portal-cliente',      icon: Building2 },
-        { type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid },
-        { type: 'item', label: 'Central de Atendimento', href: '/help-desk/portal', icon: Headphones },
       ]
-      if (dashItems.length > 0) {
+      if (canModule('projetos')) {
+        nav.push({ type: 'item', label: 'Demandas e Projetos', href: '/contratos/pipeline',  icon: LayoutGrid })
+      }
+      if (canModule('help_desk')) {
+        nav.push({ type: 'item', label: 'Central de Atendimento', href: '/help-desk/portal', icon: Headphones })
+      }
+      // Dashboards de contrato e Indicadores pertencem ao módulo Projetos.
+      if (canModule('projetos') && dashItems.length > 0) {
         nav.push({ type: 'group', label: 'Contratos', icon: FileText, items: dashItems })
       }
       // Indicadores da própria empresa (atualmente só Auster)
-      if (user?.customer_id === 220) {
+      if (canModule('projetos') && user?.customer_id === 220) {
         nav.push({ type: 'item', label: 'Indicadores', href: '/indicadores/auster', icon: BarChart2 })
       }
       return nav

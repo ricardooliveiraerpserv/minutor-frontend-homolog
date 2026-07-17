@@ -34,6 +34,7 @@ interface UserData {
   coordinator_type?: 'projetos' | 'sustentacao' | null
   guaranteed_hours?: number | null
   customer_id?: number | null
+  allowed_modules?: string[] | null
   partner_id?: number | null
   partner?: { id: number; name: string } | null
   is_executive?: boolean
@@ -335,6 +336,8 @@ const EMPTY_FORM = {
   is_partner_consultor: false,
   is_partner_adm: false,
   customer_id: '' as number | '',
+  // Acesso a módulos do cliente. null = todos (legado); [] ou lista = recorte explícito.
+  allowed_modules: null as string[] | null,
   partner_id: '' as number | '',
   extra_permissions: [] as string[],
   can_timesheet_sustentacao: false,
@@ -464,6 +467,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
           is_partner_consultor: false,
           is_partner_adm:       item.is_executive ?? false,
           customer_id:          item.customer_id ?? '',
+          allowed_modules:      (item.allowed_modules ?? null) as string[] | null,
           partner_id:           item.partner_id  ?? '',
           extra_permissions:          item.extra_permissions ?? [],
           can_timesheet_sustentacao:  item.can_timesheet_sustentacao ?? false,
@@ -507,6 +511,8 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         inbox_email_disabled: form.inbox_email_disabled,
         type:        resolveTypeForBackend(form.profiles[0]),
         customer_id:  form.profiles.includes('cliente') && form.customer_id ? form.customer_id : null,
+        // Acesso por módulo só faz sentido p/ cliente; null = todos (não restringe).
+        allowed_modules: form.profiles.includes('cliente') ? form.allowed_modules : null,
         partner_id:   needsPartnerField && form.partner_id ? form.partner_id : null,
         is_executive: form.profiles.includes('parceiro_adm') ? form.is_partner_adm : false,
         rate_type:    form.rate_type,
@@ -637,6 +643,7 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
         contract_type:    (profiles.length && !profiles.includes('cliente')) ? f.contract_type : '',
         coordinator_type: profiles.includes('coordenador')  ? f.coordinator_type : '',
         customer_id:      profiles.includes('cliente')      ? f.customer_id : '',
+        allowed_modules:  profiles.includes('cliente')      ? f.allowed_modules : null,
         partner_id:       profiles.includes('parceiro_adm') ? f.partner_id  : '',
       }
     })
@@ -864,6 +871,50 @@ export function UserFormModal({ open, userId, onClose, onSaved }: UserFormModalP
                 placeholder="Selecione a empresa..."
               />
             )}
+
+            {/* ── Cliente: o que o usuário acessa (Projetos / Help Desk) ── */}
+            {isCliente && (() => {
+              // null = todos (legado). Materializa em lista ao interagir.
+              const checked = (m: string) => form.allowed_modules === null || form.allowed_modules.includes(m)
+              const toggle = (m: string) => setForm(f => {
+                const cur = f.allowed_modules ?? ['projetos', 'help_desk']
+                const next = cur.includes(m) ? cur.filter(x => x !== m) : [...cur, m]
+                return { ...f, allowed_modules: next }
+              })
+              const MODS: { key: string; label: string }[] = [
+                { key: 'projetos',  label: 'Projetos' },
+                { key: 'help_desk', label: 'Help Desk' },
+              ]
+              return (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium" style={{ color: 'var(--text)' }}>Acesso</label>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    O que este usuário enxerga no portal. Sem seleção = acesso total (padrão).
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {MODS.map(m => (
+                      <label
+                        key={m.key}
+                        className="flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer"
+                        style={{
+                          border: '1px solid var(--border)',
+                          background: checked(m.key) ? 'var(--primary-soft)' : 'var(--surface)',
+                          color: 'var(--text)',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked(m.key)}
+                          onChange={() => toggle(m.key)}
+                          className="accent-[var(--primary)]"
+                        />
+                        {m.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* ── Consultor: tipo de consultor (colapsável) ── */}
             {isConsultor && (
