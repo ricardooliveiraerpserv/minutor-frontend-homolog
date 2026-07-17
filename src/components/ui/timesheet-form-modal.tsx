@@ -263,15 +263,20 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.project_id, form.user_id])
 
-  // Atividades do cronograma do projeto — pro seletor "Atividade" (evita horas órfãs).
+  // Atividades do cronograma do projeto EM QUE O DONO DA HORA está alocado/responsável.
+  // O BE filtra por user_id — se o consultor não está alocado em nenhuma, volta vazio e
+  // o campo nem aparece ("se não tiver alocado não traga"). Quando aparece, é obrigatório.
   useEffect(() => {
     if (!form.project_id) { setActivities([]); return }
     let cancelled = false
-    api.get<{ items: { id: number; title: string; stage_name?: string }[] }>(`/projects/${form.project_id}/deliveries`)
+    const targetUser = (canActAsUser && form.user_id) ? form.user_id : String(currentUser?.id ?? '')
+    const qs = targetUser ? `?user_id=${targetUser}` : ''
+    api.get<{ items: { id: number; title: string; stage_name?: string }[] }>(`/projects/${form.project_id}/deliveries${qs}`)
       .then(r => { if (!cancelled) setActivities(Array.isArray(r?.items) ? r.items : []) })
       .catch(() => { if (!cancelled) setActivities([]) })
     return () => { cancelled = true }
-  }, [form.project_id])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.project_id, form.user_id])
 
   // Auto-calculate times in Horário mode
   useEffect(() => {
@@ -309,6 +314,12 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
     const isInvestimento = !!selProj?.is_investimento_comercial && !isErpservCustomer
       && (selProj?.categoria_interna === 'Projeto' || selProj?.categoria_interna === 'Suporte')
     if (isInvestimento && !form.real_project_id) { toast.error('Selecione o Projeto Real'); return }
+    // Atividade obrigatória quando o dono da hora está alocado no cronograma (a lista só
+    // vem preenchida nesse caso — ver efeito acima).
+    if (activities.length > 0 && !form.stage_delivery_id) {
+      toast.error('Selecione a atividade — você está alocado no cronograma deste projeto')
+      return
+    }
     if (useTotal) {
       if (!form.total_hours) { toast.error('Informe o total de horas'); return }
     } else {
@@ -463,13 +474,13 @@ export function TimesheetFormModal({ open, onClose, onSaved, currentUser }: Prop
               )
             })()}
 
-            {/* Atividade (cronograma) — vincula o apontamento a uma atividade do projeto.
-                Opcional; aparece só quando o projeto tem cronograma. Evita horas "órfãs". */}
+            {/* Atividade (cronograma) — aparece SÓ quando o dono da hora está alocado em
+                alguma atividade do projeto (lista filtrada por user_id no BE). Obrigatória. */}
             {activities.length > 0 && (
               <div>
-                <Label className="text-xs text-[var(--text-muted)]">Atividade</Label>
+                <Label className="text-xs text-[var(--text-muted)]">Atividade <span style={{ color: 'var(--danger)' }}>*</span></Label>
                 <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-light)' }}>
-                  Vincule esta hora a uma atividade do cronograma (opcional).
+                  Você está alocado no cronograma — selecione a atividade desta hora.
                 </p>
                 <div className="mt-1">
                   <SearchSelect
