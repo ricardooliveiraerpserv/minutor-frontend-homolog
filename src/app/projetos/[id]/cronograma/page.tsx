@@ -58,24 +58,30 @@ export default function CronogramaPage() {
   return <InternalCronogramaPage />
 }
 
-// Badge compacto dos indicadores secundários (substitui os cards grandes).
-function Chip({ label, value, hint, tone = 'default', onClick }: {
-  label: string; value: number | string; hint?: string
-  tone?: 'default' | 'primary' | 'warning' | 'danger'; onClick?: () => void
+function fmtShortDate(iso?: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(String(iso).slice(0, 10) + 'T00:00:00')
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}
+
+// Mini card dos indicadores secundários — rótulo em cima, valor embaixo. Denso, uma linha.
+// Recupera TODOS os indicadores sem virar card grande (densidade, não simplificação).
+function MiniCard({ label, value, sub, tone = 'default', onClick }: {
+  label: string; value: number | string; sub?: string
+  tone?: 'default' | 'primary' | 'warning' | 'danger' | 'success'; onClick?: () => void
 }) {
   const toneColor = tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)'
-    : tone === 'primary' ? 'var(--primary)' : 'var(--text)'
+    : tone === 'success' ? 'var(--success)' : tone === 'primary' ? 'var(--primary)' : 'var(--text)'
   const common = {
-    display: 'inline-flex', alignItems: 'baseline', gap: 6,
-    padding: '4px 10px', borderRadius: 999,
+    flex: '1 1 0', minWidth: 84, padding: '7px 10px', borderRadius: 8,
     border: '1px solid var(--border)', background: 'var(--surface)',
-    fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' as const,
+    textAlign: 'left' as const,
   }
   const inner = (
     <>
-      <span>{label}</span>
-      <strong style={{ fontSize: 13, color: toneColor }}>{value}</strong>
-      {hint && <span style={{ fontSize: 11, color: 'var(--text-light)' }}>{hint}</span>}
+      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
+      <div style={{ fontSize: 17, fontWeight: 600, color: toneColor, lineHeight: 1.15, marginTop: 1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: 'var(--text-light)' }}>{sub}</div>}
     </>
   )
   return onClick
@@ -99,7 +105,7 @@ function InternalCronogramaPage() {
 
   const view: ViewMode = normalizeView(searchParams.get('view')) ?? 'operacao'
 
-  const { isOperational, project, stages, projectWindow, holidays, alerts, teamLoad, loading, error, refetch } =
+  const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, loading, error, refetch } =
     useProjectSchedule(projectId)
 
   // Pós-mutação no cronograma: refaz o schedule E avisa o header (layout) pra
@@ -267,33 +273,45 @@ function InternalCronogramaPage() {
       {/* Fase 10: header executivo + alertas (acima dos KPIs simples).
           Consultor NÃO vê o resumo/alertas do projeto (total, equipe, risco) —
           só o board com as atividades dele. */}
-      {/* Indicadores secundários → badges compactos (substituem o header executivo de
-          cards grandes + a tira de KpiCards + o card de alertas). Risco/Progresso/Horas/
-          Prazo já vivem no header do topo. Alertas = chip que expande a lista. */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-        <Chip label="Etapas" value={stages.length} />
-        <Chip label="Atividades" value={counts.totalActivities} hint={`${Math.round(counts.totalHoursPlanned)}h`} />
-        <Chip label="Em execução" value={counts.inProgressCount} tone={counts.inProgressCount > 0 ? 'primary' : 'default'} />
-        <Chip label="Bloqueadas" value={counts.blockedCount} tone={counts.blockedCount > 0 ? 'danger' : 'default'} />
-        <Chip label="Aguard. cliente" value={counts.waitingClientCount} tone={counts.waitingClientCount > 0 ? 'warning' : 'default'} />
-        {!isConsultor && <Chip label="Equipe" value={teamLoad.length} />}
-        {!isConsultor && alerts.length > 0 && (
-          <Chip
-            label="⚠ Alertas"
+      {/* Indicadores secundários = MINI CARDS numa única linha (aproveita a largura).
+          NÃO esconde indicador: recupera todos (Etapas..Prazo) em pouca altura. */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10, overflowX: 'auto', paddingBottom: 2 }}>
+        <MiniCard label="Etapas" value={stages.length} />
+        <MiniCard label="Atividades" value={counts.totalActivities} sub={`${Math.round(counts.totalHoursPlanned)}h`} />
+        <MiniCard label="Em execução" value={counts.inProgressCount} tone={counts.inProgressCount > 0 ? 'primary' : 'default'} />
+        <MiniCard label="Bloqueadas" value={counts.blockedCount} tone={counts.blockedCount > 0 ? 'danger' : 'default'} />
+        <MiniCard label="Aguard. cliente" value={counts.waitingClientCount} tone={counts.waitingClientCount > 0 ? 'warning' : 'default'} />
+        {!isConsultor && <MiniCard label="Equipe" value={teamLoad.length} />}
+        {!isConsultor && (
+          <MiniCard
+            label="Alertas"
             value={alerts.length}
-            tone={alerts.some((a: any) => a.severity === 'danger' || a.severity === 'critical') ? 'danger' : 'warning'}
-            onClick={() => setAlertsOpen(o => !o)}
+            tone={alerts.length === 0 ? 'default' : (alerts.some((a: any) => a.severity === 'danger' || a.severity === 'critical') ? 'danger' : 'warning')}
+            onClick={alerts.length > 0 ? () => setAlertsOpen(o => !o) : undefined}
           />
+        )}
+        {!isConsultor && (
+          <MiniCard label="Evolução" value={`${Math.round(executiveSummary?.progress_pct ?? 0)}%`} tone="primary" />
+        )}
+        {!isConsultor && (
+          <MiniCard
+            label="Operacional"
+            value={(counts.blockedCount + counts.overdueCount) === 0 ? 'OK' : (counts.blockedCount + counts.overdueCount)}
+            tone={(counts.blockedCount + counts.overdueCount) === 0 ? 'success' : 'danger'}
+          />
+        )}
+        {!isConsultor && (
+          <MiniCard label="Prazo final" value={fmtShortDate(executiveSummary?.estimated_end_date ?? project?.expected_end_date)} />
         )}
       </div>
       {!isConsultor && alertsOpen && alerts.length > 0 && (
-        <div style={{ marginBottom: 12 }}><CronogramaAlertsList alerts={alerts} /></div>
+        <div style={{ marginBottom: 10 }}><CronogramaAlertsList alerts={alerts} /></div>
       )}
 
       {/* Toolbar: segmented control + ações — sticky no topo */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexWrap: 'wrap', gap: 12, marginBottom: 16,
+        flexWrap: 'wrap', gap: 12, marginBottom: 10,
         position: 'sticky',
         top: 0,
         zIndex: 6,

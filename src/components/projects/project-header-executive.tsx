@@ -268,8 +268,8 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
         {!isConsultor && (
           <>
             <KPI label="Apontáveis" value={formatHours(appointable)} />
-            <KPI label="Consumidas" value={formatHours(consumed)} sub={`${Math.round(pct)}% consumido`} valueColor={healthColor} />
-            <KPI label="Saldo" value={formatHours(balance)} />
+            <KPI label="Consumidas" value={formatHours(consumed)} sub={appointable > 0 ? `${Math.round(pct)}%` : undefined} valueColor={healthColor} />
+            <KPI label="Saldo" value={formatHours(balance)} sub={appointable > 0 ? `${Math.round(100 - pct)}%` : undefined} />
           </>
         )}
         <PrazoKPI

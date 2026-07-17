@@ -77,7 +77,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
         <ProjectHeaderExecutive project={project} onProjectChange={refetch} />
         {/* Barra de abas (Visão Geral/Horas/Financeiro/Arquivos) removida a pedido —
             o projeto abre direto na Visão Geral (index redireciona pra visao-geral). */}
-        <div style={{ flex: 1, padding: 24, background: 'var(--bg)' }}>
+        <div style={{ flex: 1, padding: '12px 24px', background: 'var(--bg)' }}>
           {children}
         </div>
       </div>
