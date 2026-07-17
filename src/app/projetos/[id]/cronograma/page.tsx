@@ -6,20 +6,18 @@ import { ApiError, api } from '@/lib/api'
 import { toast } from 'sonner'
 import {
   Info, Plus, Eye, EyeOff, Settings,
-  Layers, CheckSquare, Play, Lock, UserCheck, CalendarClock,
+  Layers, CalendarClock,
 } from 'lucide-react'
 import { useProjectSchedule } from '@/hooks/use-project-schedule'
 import { notifyProjectUpdated } from '@/lib/project-events'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 import { useAuth } from '@/hooks/use-auth'
 import { useExecutiveMode } from '@/hooks/use-executive-mode'
-import { KpiCard } from '@/components/ui/kpi-card'
 import type { ProjectStage } from '@/lib/types/project-stage'
 import { OperacaoView } from './views/operacao'
 import { PlanejamentoView } from './views/planejamento'
 import { TimelineView } from './views/timeline'
 import { CronogramaSettingsModal } from '@/components/projects/cronograma-settings-modal'
-import { CronogramaExecutiveHeader } from '@/components/projects/cronograma-executive-header'
 import { CronogramaAlertsList } from '@/components/projects/cronograma-alerts-list'
 import { CronogramaRecalcModal } from '@/components/projects/cronograma-recalc-modal'
 import { CronogramaModelosModal } from '@/components/projects/cronograma-modelos-modal'
@@ -60,6 +58,31 @@ export default function CronogramaPage() {
   return <InternalCronogramaPage />
 }
 
+// Badge compacto dos indicadores secundários (substitui os cards grandes).
+function Chip({ label, value, hint, tone = 'default', onClick }: {
+  label: string; value: number | string; hint?: string
+  tone?: 'default' | 'primary' | 'warning' | 'danger'; onClick?: () => void
+}) {
+  const toneColor = tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)'
+    : tone === 'primary' ? 'var(--primary)' : 'var(--text)'
+  const common = {
+    display: 'inline-flex', alignItems: 'baseline', gap: 6,
+    padding: '4px 10px', borderRadius: 999,
+    border: '1px solid var(--border)', background: 'var(--surface)',
+    fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' as const,
+  }
+  const inner = (
+    <>
+      <span>{label}</span>
+      <strong style={{ fontSize: 13, color: toneColor }}>{value}</strong>
+      {hint && <span style={{ fontSize: 11, color: 'var(--text-light)' }}>{hint}</span>}
+    </>
+  )
+  return onClick
+    ? <button type="button" onClick={onClick} style={{ ...common, cursor: 'pointer' }}>{inner}</button>
+    : <div style={common}>{inner}</div>
+}
+
 function InternalCronogramaPage() {
   const params = useParams<{ id: string }>()
   const projectId = Number(params.id)
@@ -72,10 +95,11 @@ function InternalCronogramaPage() {
   // Consultor nunca fica em modo executivo (toggle escondido); ignora valor preso no localStorage.
   const executive = executiveRaw && !isConsultor
   const [highlightUserId, setHighlightUserId] = useState<number | null>(null)
+  const [alertsOpen, setAlertsOpen] = useState(false)
 
   const view: ViewMode = normalizeView(searchParams.get('view')) ?? 'operacao'
 
-  const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, loading, error, refetch } =
+  const { isOperational, project, stages, projectWindow, holidays, alerts, teamLoad, loading, error, refetch } =
     useProjectSchedule(projectId)
 
   // Pós-mutação no cronograma: refaz o schedule E avisa o header (layout) pra
@@ -243,35 +267,28 @@ function InternalCronogramaPage() {
       {/* Fase 10: header executivo + alertas (acima dos KPIs simples).
           Consultor NÃO vê o resumo/alertas do projeto (total, equipe, risco) —
           só o board com as atividades dele. */}
-      {!isConsultor && executiveSummary && (
-        <CronogramaExecutiveHeader
-          executive={executiveSummary}
-          teamLoad={teamLoad}
-          alerts={alerts}
-        />
-      )}
-      {!isConsultor && alerts.length > 0 && <CronogramaAlertsList alerts={alerts} />}
-
-      {/* Strip de KPIs operacionais */}
-      <div style={{
-        display: 'grid', gap: 8, marginBottom: 12,
-        gridTemplateColumns: executive
-          ? 'repeat(auto-fit, minmax(160px, 1fr))'
-          : 'repeat(auto-fit, minmax(160px, 1fr))',
-      }}>
-        <KpiCard label="Etapas"     value={stages.length}                icon={Layers}      accent="default" />
-        <KpiCard label="Atividades" value={counts.totalActivities}        icon={CheckSquare} accent="default"
-                 hint={`${Math.round(counts.totalHoursPlanned)}h planejadas`} />
-        {!executive && (
-          <KpiCard label="Em execução" value={counts.inProgressCount} icon={Play} accent="primary" />
-        )}
-        <KpiCard label="Bloqueadas" value={counts.blockedCount} icon={Lock}
-                 accent={counts.blockedCount > 0 ? 'danger' : 'default'} />
-        {!executive && (
-          <KpiCard label="Aguardando cliente" value={counts.waitingClientCount} icon={UserCheck}
-                   accent={counts.waitingClientCount > 0 ? 'warning' : 'default'} />
+      {/* Indicadores secundários → badges compactos (substituem o header executivo de
+          cards grandes + a tira de KpiCards + o card de alertas). Risco/Progresso/Horas/
+          Prazo já vivem no header do topo. Alertas = chip que expande a lista. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+        <Chip label="Etapas" value={stages.length} />
+        <Chip label="Atividades" value={counts.totalActivities} hint={`${Math.round(counts.totalHoursPlanned)}h`} />
+        <Chip label="Em execução" value={counts.inProgressCount} tone={counts.inProgressCount > 0 ? 'primary' : 'default'} />
+        <Chip label="Bloqueadas" value={counts.blockedCount} tone={counts.blockedCount > 0 ? 'danger' : 'default'} />
+        <Chip label="Aguard. cliente" value={counts.waitingClientCount} tone={counts.waitingClientCount > 0 ? 'warning' : 'default'} />
+        {!isConsultor && <Chip label="Equipe" value={teamLoad.length} />}
+        {!isConsultor && alerts.length > 0 && (
+          <Chip
+            label="⚠ Alertas"
+            value={alerts.length}
+            tone={alerts.some((a: any) => a.severity === 'danger' || a.severity === 'critical') ? 'danger' : 'warning'}
+            onClick={() => setAlertsOpen(o => !o)}
+          />
         )}
       </div>
+      {!isConsultor && alertsOpen && alerts.length > 0 && (
+        <div style={{ marginBottom: 12 }}><CronogramaAlertsList alerts={alerts} /></div>
+      )}
 
       {/* Toolbar: segmented control + ações — sticky no topo */}
       <div style={{
