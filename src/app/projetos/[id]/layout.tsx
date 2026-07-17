@@ -1,6 +1,6 @@
 'use client'
 
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useSearchParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { AppLayout } from '@/components/layout/app-layout'
@@ -25,6 +25,33 @@ const BACK_MAP: Record<string, { href: string; label: string }> = {
   pipeline:       { href: '/contratos/pipeline', label: 'Demandas e Projetos' },
   gestao:         { href: '/gestao-projetos',    label: 'Gestão de Projetos' },
   'meus-projetos': { href: '/meus-projetos',     label: 'Meus Projetos' },
+}
+
+// Nav de módulos do projeto — alterna entre o Cronograma (Planejamento/Linha do Tempo/
+// Operação) e a Gestão Operacional (Apontamentos/Aprovações/Despesas), sem sair do projeto.
+function ProjectModuleNav({ projectId }: { projectId: number }) {
+  const pathname = usePathname()
+  const items = [
+    { label: 'Cronograma', href: `/projetos/${projectId}/cronograma`, match: '/cronograma' },
+    { label: 'Gestão Operacional', href: `/projetos/${projectId}/gestao-operacional`, match: '/gestao-operacional' },
+  ]
+  return (
+    <div style={{ display: 'flex', gap: 2, padding: '0 24px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+      {items.map(it => {
+        const active = pathname.includes(it.match)
+        return (
+          <Link key={it.href} href={it.href}
+            style={{
+              padding: '8px 12px', fontSize: 13, fontWeight: active ? 600 : 500, textDecoration: 'none',
+              color: active ? 'var(--text)' : 'var(--text-muted)',
+              borderBottom: active ? '2px solid var(--primary)' : '2px solid transparent', marginBottom: -1,
+            }}>
+            {it.label}
+          </Link>
+        )
+      })}
+    </div>
+  )
 }
 
 export default function ProjectLayout({ children }: { children: React.ReactNode }) {
@@ -75,8 +102,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
           </Link>
         </div>
         <ProjectHeaderExecutive project={project} onProjectChange={refetch} />
-        {/* Barra de abas (Visão Geral/Horas/Financeiro/Arquivos) removida a pedido —
-            o projeto abre direto na Visão Geral (index redireciona pra visao-geral). */}
+        <ProjectModuleNav projectId={project.id} />
         <div style={{ flex: 1, padding: '12px 24px', background: 'var(--bg)' }}>
           {children}
         </div>
