@@ -9,6 +9,7 @@ import {
   Layers, CalendarClock,
 } from 'lucide-react'
 import { useProjectSchedule } from '@/hooks/use-project-schedule'
+import { useApiQuery } from '@/hooks/use-query'
 import { notifyProjectUpdated } from '@/lib/project-events'
 import { cronogramaPoolHours } from '@/lib/cronograma-pool'
 import { useAuth } from '@/hooks/use-auth'
@@ -64,6 +65,17 @@ function fmtShortDate(iso?: string | null): string {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 }
 
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return 'agora'
+  if (m < 60) return `há ${m}min`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `há ${h}h`
+  const d = Math.floor(h / 24)
+  return `há ${d} dia${d === 1 ? '' : 's'}`
+}
+
 // Mini card dos indicadores secundários — rótulo em cima, valor embaixo. Denso, uma linha.
 // Recupera TODOS os indicadores sem virar card grande (densidade, não simplificação).
 function MiniCard({ label, value, sub, tone = 'default', onClick }: {
@@ -107,6 +119,19 @@ function InternalCronogramaPage() {
 
   const { isOperational, project, stages, projectWindow, holidays, executive: executiveSummary, alerts, teamLoad, loading, error, refetch } =
     useProjectSchedule(projectId)
+
+  // Último apontamento do projeto — "Última movimentação" (o projeto está parado?).
+  const { data: lastTsResp } = useApiQuery<{ items: Array<{ user?: { name?: string } | null; effort_minutes?: number; date: string }> }>(
+    Number.isFinite(projectId) ? `/timesheets?project_id=${projectId}&pageSize=1&order=-date,-created_at` : null
+  )
+  const lastTs = lastTsResp?.items?.[0]
+
+  // Saúde operacional resumida (badge) a partir do risco geral do executive summary.
+  const saude = executiveSummary?.overall_risk === 'high'
+    ? { label: '🔴 Alto', tone: 'danger' as const }
+    : executiveSummary?.overall_risk === 'medium'
+    ? { label: '🟡 Médio', tone: 'warning' as const }
+    : { label: '🟢 Baixo', tone: 'success' as const }
 
   // Pós-mutação no cronograma: refaz o schedule E avisa o header (layout) pra
   // ele recarregar o projeto — o "Prazo de entrega" deriva da última data daqui.
@@ -281,7 +306,17 @@ function InternalCronogramaPage() {
         <MiniCard label="Em execução" value={counts.inProgressCount} tone={counts.inProgressCount > 0 ? 'primary' : 'default'} />
         <MiniCard label="Bloqueadas" value={counts.blockedCount} tone={counts.blockedCount > 0 ? 'danger' : 'default'} />
         <MiniCard label="Aguard. cliente" value={counts.waitingClientCount} tone={counts.waitingClientCount > 0 ? 'warning' : 'default'} />
+        <MiniCard label="Atrasadas" value={counts.overdueCount} tone={counts.overdueCount > 0 ? 'danger' : 'default'} />
         {!isConsultor && <MiniCard label="Equipe" value={teamLoad.length} />}
+        {!isConsultor && (
+          <MiniCard
+            label="Evolução"
+            value={`${Math.round(executiveSummary?.progress_pct ?? 0)}%`}
+            sub={executiveSummary ? `${executiveSummary.done_deliveries}/${executiveSummary.total_deliveries} ativ.` : undefined}
+            tone="primary"
+          />
+        )}
+        {!isConsultor && <MiniCard label="Saúde" value={saude.label} tone={saude.tone} />}
         {!isConsultor && (
           <MiniCard
             label="Alertas"
@@ -290,22 +325,50 @@ function InternalCronogramaPage() {
             onClick={alerts.length > 0 ? () => setAlertsOpen(o => !o) : undefined}
           />
         )}
-        {!isConsultor && (
-          <MiniCard label="Evolução" value={`${Math.round(executiveSummary?.progress_pct ?? 0)}%`} tone="primary" />
-        )}
-        {!isConsultor && (
-          <MiniCard
-            label="Operacional"
-            value={(counts.blockedCount + counts.overdueCount) === 0 ? 'OK' : (counts.blockedCount + counts.overdueCount)}
-            tone={(counts.blockedCount + counts.overdueCount) === 0 ? 'success' : 'danger'}
-          />
-        )}
-        {!isConsultor && (
-          <MiniCard label="Prazo final" value={fmtShortDate(executiveSummary?.estimated_end_date ?? project?.expected_end_date)} />
-        )}
+        <MiniCard label="Prazo final" value={fmtShortDate(executiveSummary?.estimated_end_date ?? project?.expected_end_date)} />
       </div>
       {!isConsultor && alertsOpen && alerts.length > 0 && (
         <div style={{ marginBottom: 10 }}><CronogramaAlertsList alerts={alerts} /></div>
+      )}
+
+      {/* Equipe (horas/capacidade por consultor) + Última movimentação — inteligência
+          operacional sem trocar de aba. */}
+      {!isConsultor && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 8, marginBottom: 10 }}>
+          <div style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-muted)', marginBottom: 6 }}>Equipe · horas por consultor</div>
+            {teamLoad.length === 0 ? (
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem alocações.</span>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {teamLoad.map(t => {
+                  const barColor = t.overloaded ? 'var(--danger)' : t.usage_pct > 85 ? 'var(--warning)' : 'var(--success)'
+                  return (
+                    <div key={t.user.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ flex: '0 0 130px', fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.user.name}</span>
+                      <div style={{ flex: 1, height: 6, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, t.usage_pct)}%`, background: barColor }} />
+                      </div>
+                      <span style={{ flex: '0 0 auto', fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{Math.round(t.actual_hours)}h / {Math.round(t.capacity_hours)}h</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          <div style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-muted)', marginBottom: 6 }}>Última movimentação</div>
+            {lastTs ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{lastTs.user?.name ?? '—'}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--success)' }}>+{Math.round((lastTs.effort_minutes ?? 0) / 60)}h</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{timeAgo(lastTs.date)}</span>
+              </div>
+            ) : (
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sem apontamentos.</span>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Toolbar: segmented control + ações — sticky no topo */}
