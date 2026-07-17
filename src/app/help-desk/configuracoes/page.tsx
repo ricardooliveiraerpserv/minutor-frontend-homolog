@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { Settings, Plus, Trash2, Save, ChevronRight, ChevronDown, Pencil } from 'lucide-react'
 import { SearchSelect } from '@/components/ui/search-select'
 import { AccessProfiles, HelpDeskPeople } from '@/components/help-desk/access-profiles'
+import { Departments } from '@/components/help-desk/departments'
 import { AssociationRules } from '@/components/help-desk/association-rules'
 import { EmailAccounts } from '@/components/help-desk/email-accounts'
 import { Triggers } from '@/components/help-desk/triggers'
@@ -38,6 +39,7 @@ const TABS = [
   { id: 'filas', label: 'Equipes' },
   { id: 'perfis', label: 'Perfis de Acesso' },
   { id: 'pessoas', label: 'Pessoas' },
+  { id: 'departamentos', label: 'Departamentos' },
   { id: 'associacoes', label: 'Regras de Associação' },
   { id: 'contas-email', label: 'Contas de E-mail' },
   { id: 'gatilhos', label: 'Gatilhos (automação)' },
@@ -80,6 +82,7 @@ function ConfigContent() {
         {tab === 'filas' && <Filas />}
         {tab === 'perfis' && <AccessProfiles />}
         {tab === 'pessoas' && <HelpDeskPeople />}
+        {tab === 'departamentos' && <Departments />}
         {tab === 'associacoes' && <AssociationRules />}
         {tab === 'contas-email' && <EmailAccounts />}
         {tab === 'gatilhos' && <Triggers />}

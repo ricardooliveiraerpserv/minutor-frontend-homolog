@@ -265,18 +265,33 @@ function AccessProfileForm({ profile, onBack, onSaved }: { profile: AccessProfil
   )
 }
 
-// ── Pessoas do Help Desk — vínculo usuário ↔ perfil de acesso ──────────────
-interface Person { id: number; name: string; type: string; helpdesk_access_profile_id: number | null }
+// ── Pessoas do Help Desk — vínculo usuário ↔ perfil de acesso (+ departamento p/ clientes) ──
+interface Person { id: number; name: string; type: string; helpdesk_access_profile_id: number | null; customer_id?: number | null; helpdesk_department_id?: number | null }
+interface Dept { id: number; name: string; active: boolean }
 export function HelpDeskPeople() {
   const [kind, setKind] = useState<Kind>('agent')
   const [people, setPeople] = useState<Person[]>([])
   const [profiles, setProfiles] = useState<AccessProfile[]>([])
+  // Departamentos por cliente (só carregados no modo 'cliente'). Escopo por customer_id.
+  const [deptsByCustomer, setDeptsByCustomer] = useState<Record<number, Dept[]>>({})
   const [q, setQ] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [bulkProfile, setBulkProfile] = useState('')
   const load = useCallback(() => {
-    api.get<{ data: Person[] }>(`/help-desk/people?kind=${kind}`).then(r => setPeople(r?.data ?? [])).catch(() => {})
+    api.get<{ data: Person[] }>(`/help-desk/people?kind=${kind}`).then(r => {
+      const ppl = r?.data ?? []
+      setPeople(ppl)
+      if (kind === 'cliente') {
+        const custIds = Array.from(new Set(ppl.map(p => p.customer_id).filter((x): x is number => !!x)))
+        Promise.all(custIds.map(cid =>
+          api.get<{ data: Dept[] }>(`/help-desk/departments?customer_id=${cid}`)
+            .then(r => [cid, (r?.data ?? []).filter(d => d.active)] as const).catch(() => [cid, [] as Dept[]] as const)
+        )).then(pairs => setDeptsByCustomer(Object.fromEntries(pairs)))
+      } else {
+        setDeptsByCustomer({})
+      }
+    }).catch(() => {})
     api.get<{ data: AccessProfile[] }>(`/help-desk/access-profiles?all=1&kind=${kind}`).then(r => setProfiles((r?.data ?? []).filter(p => p.enabled))).catch(() => {})
   }, [kind])
   useEffect(() => { load(); setSelected(new Set()); setTypeFilter('') }, [load])
@@ -285,6 +300,12 @@ export function HelpDeskPeople() {
       await api.patch(`/help-desk/people/${userId}/access-profile`, { access_profile_id: profileId ? Number(profileId) : null })
       setPeople(ps => ps.map(p => p.id === userId ? { ...p, helpdesk_access_profile_id: profileId ? Number(profileId) : null } : p))
     } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao vincular') }
+  }
+  const setDept = async (userId: number, deptId: string) => {
+    try {
+      await api.patch(`/help-desk/people/${userId}/department`, { helpdesk_department_id: deptId ? Number(deptId) : null })
+      setPeople(ps => ps.map(p => p.id === userId ? { ...p, helpdesk_department_id: deptId ? Number(deptId) : null } : p))
+    } catch (e) { toast.error((e as { message?: string })?.message ?? 'Erro ao vincular departamento') }
   }
   const types = Array.from(new Set(people.map(p => p.type))).sort()
   const filtered = people.filter(p => p.name.toLowerCase().includes(q.trim().toLowerCase()) && (!typeFilter || p.type === typeFilter))
@@ -345,9 +366,10 @@ export function HelpDeskPeople() {
           <thead><tr style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }} className="text-left text-[11px] uppercase">
             <th className="px-3 py-2 w-8"><input type="checkbox" checked={allSelected} onChange={toggleAll} title="Selecionar todos" /></th>
             <th className="px-3 py-2">Nome</th><th className="px-3 py-2">Perfil de usuário</th><th className="px-3 py-2">Perfil de acesso</th>
+            {kind === 'cliente' && <th className="px-3 py-2">Departamento</th>}
           </tr></thead>
           <tbody>
-            {filtered.length === 0 && <tr><td colSpan={4} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhuma pessoa.</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={kind === 'cliente' ? 5 : 4} className="px-3 py-6 text-center" style={{ color: 'var(--text-muted)' }}>Nenhuma pessoa.</td></tr>}
             {filtered.map(p => (
               <tr key={p.id} className="border-t" style={{ borderColor: selected.has(p.id) ? 'var(--primary)' : 'var(--border)', background: selected.has(p.id) ? 'var(--primary-soft)' : 'transparent' }}>
                 <td className="px-3 py-2"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} /></td>
@@ -359,6 +381,20 @@ export function HelpDeskPeople() {
                     {profiles.map(pr => <option key={pr.id} value={pr.id}>{pr.name}{pr.is_default ? ' (padrão)' : ''}</option>)}
                   </select>
                 </td>
+                {kind === 'cliente' && (
+                  <td className="px-3 py-2">
+                    {(() => {
+                      const deps = p.customer_id ? (deptsByCustomer[p.customer_id] ?? []) : []
+                      if (!p.customer_id) return <span className="text-[11px]" style={{ color: 'var(--text-light)' }}>sem cliente</span>
+                      return (
+                        <select className={`${fieldCls} max-w-xs`} style={inputStyle} value={p.helpdesk_department_id ?? ''} onChange={e => setDept(p.id, e.target.value)} title={deps.length === 0 ? 'Cadastre departamentos deste cliente na aba Departamentos' : ''}>
+                          <option value="">— sem departamento —</option>
+                          {deps.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                        </select>
+                      )
+                    })()}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
