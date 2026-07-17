@@ -141,7 +141,9 @@ export function ContractCreateModal({
   excludeSustentacao = false,
 }: Props) {
   const TABS = ['Cliente', 'Classificação', 'Faturamento', 'Despesas', 'Operacional', 'Contatos', 'Financeiro', 'Comercial', 'Observações']
-  const [activeTab, setActiveTab] = useState(customerReadOnly ? 1 : 0)
+  // Aba "Cliente" (índice 0) é a PRINCIPAL — traz cliente (read-only quando fixo),
+  // código e o ANEXO DA APROVAÇÃO. Sempre começa nela, inclusive em Novo Projeto/Subprojeto.
+  const [activeTab, setActiveTab] = useState(0)
   const [saving, setSaving] = useState(false)
   const [clientApprovalFile, setClientApprovalFile] = useState<File | null>(null)
 
@@ -713,7 +715,9 @@ export function ContractCreateModal({
   const inputStyle = { border: '1px solid var(--border)', color: 'var(--text)', background: 'var(--surface-sunken)' }
   const labelCls  = 'block text-xs mb-1'
 
-  const tabOffset  = customerReadOnly ? 1 : 0
+  // Antes escondia a aba "Cliente" quando customerReadOnly — mas é lá que fica o
+  // anexo da aprovação (obrigatório). Mantém visível como primeira aba (principal).
+  const tabOffset  = 0
   // Abas visíveis (índices reais). Subprojeto NÃO tem aba Financeiro (índice 6) —
   // Condição de Pagamento é definida no contrato pai e herdada pelo filho.
   const hiddenTabs = form.is_subproject ? [6] : []
