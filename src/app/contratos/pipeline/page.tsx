@@ -1444,7 +1444,9 @@ function PlanDecisionModal({ card, coordinators, onClose, onDone, onNovoProjeto,
       api.get<{ hasNext: boolean; items: { id: number; name: string; code?: string }[] }>(
         `/projects?minimal=true&per_page=200&customer_id=${card.customer_id}`
       )
-        .then(r => setProjects((r as any).items ?? []))
+        // Só projetos de TOPO podem receber subprojeto — um subprojeto (filho)
+        // não pode ter outros subprojetos. Exclui quem já tem parent_project_id.
+        .then(r => setProjects(((r as any).items ?? []).filter((p: any) => !p.parent_project_id)))
         .catch(() => toast.error('Erro ao carregar projetos'))
         .finally(() => setProjectsLoading(false))
     }
