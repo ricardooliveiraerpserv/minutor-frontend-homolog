@@ -6,7 +6,7 @@ import { ApiError, api } from '@/lib/api'
 import { toast } from 'sonner'
 import {
   Info, Plus, Eye, EyeOff, Settings,
-  Layers, CalendarClock,
+  Layers, CalendarClock, ListChecks, Play, Lock, UserCheck, Clock, Users, TrendingUp, Activity, Bell,
 } from 'lucide-react'
 import { useProjectSchedule } from '@/hooks/use-project-schedule'
 import { useApiQuery } from '@/hooks/use-query'
@@ -76,24 +76,33 @@ function timeAgo(iso: string): string {
   return `há ${d} dia${d === 1 ? '' : 's'}`
 }
 
-// Mini card dos indicadores secundários — rótulo em cima, valor embaixo. Denso, uma linha.
-// Recupera TODOS os indicadores sem virar card grande (densidade, não simplificação).
-function MiniCard({ label, value, sub, tone = 'default', onClick }: {
-  label: string; value: number | string; sub?: string
+// Mini card dos indicadores — ícone + rótulo em cima, valor embaixo, barra opcional.
+// NÃO trunca: rótulos curtos e quebra de linha se faltar largura (nunca "...").
+function MiniCard({ label, value, sub, tone = 'default', onClick, icon, bar }: {
+  label: string; value: React.ReactNode; sub?: string
   tone?: 'default' | 'primary' | 'warning' | 'danger' | 'success'; onClick?: () => void
+  icon?: React.ReactNode; bar?: number
 }) {
   const toneColor = tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)'
     : tone === 'success' ? 'var(--success)' : tone === 'primary' ? 'var(--primary)' : 'var(--text)'
   const common = {
-    flex: '1 1 0', minWidth: 84, padding: '7px 10px', borderRadius: 8,
+    flex: '1 1 0', minWidth: 96, padding: '6px 10px', borderRadius: 8,
     border: '1px solid var(--border)', background: 'var(--surface)',
     textAlign: 'left' as const,
   }
   const inner = (
     <>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.03em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
-      <div style={{ fontSize: 17, fontWeight: 600, color: toneColor, lineHeight: 1.15, marginTop: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: 'var(--text-light)' }}>{sub}</div>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.02em', lineHeight: 1.1 }}>
+        {icon && <span style={{ display: 'inline-flex', color: 'var(--text-light)', flexShrink: 0 }}>{icon}</span>}
+        <span>{label}</span>
+      </div>
+      <div style={{ fontSize: 17, fontWeight: 600, color: toneColor, lineHeight: 1.15, marginTop: 2 }}>{value}</div>
+      {typeof bar === 'number' && (
+        <div style={{ height: 4, background: 'var(--surface-hover)', borderRadius: 2, overflow: 'hidden', marginTop: 3 }}>
+          <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, bar))}%`, background: toneColor }} />
+        </div>
+      )}
+      {sub && <div style={{ fontSize: 10, color: 'var(--text-light)', marginTop: 2 }}>{sub}</div>}
     </>
   )
   return onClick
@@ -128,10 +137,10 @@ function InternalCronogramaPage() {
 
   // Saúde operacional resumida (badge) a partir do risco geral do executive summary.
   const saude = executiveSummary?.overall_risk === 'high'
-    ? { label: '🔴 Alto', tone: 'danger' as const }
+    ? { text: 'Alto', color: 'var(--danger)' }
     : executiveSummary?.overall_risk === 'medium'
-    ? { label: '🟡 Médio', tone: 'warning' as const }
-    : { label: '🟢 Baixo', tone: 'success' as const }
+    ? { text: 'Médio', color: 'var(--warning)' }
+    : { text: 'Baixo', color: 'var(--success)' }
 
   // Pós-mutação no cronograma: refaz o schedule E avisa o header (layout) pra
   // ele recarregar o projeto — o "Prazo de entrega" deriva da última data daqui.
@@ -300,41 +309,58 @@ function InternalCronogramaPage() {
           só o board com as atividades dele. */}
       {/* Indicadores secundários = MINI CARDS numa única linha (aproveita a largura).
           NÃO esconde indicador: recupera todos (Etapas..Prazo) em pouca altura. */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10, overflowX: 'auto', paddingBottom: 2 }}>
-        <MiniCard label="Etapas" value={stages.length} />
-        <MiniCard label="Atividades" value={counts.totalActivities} sub={`${Math.round(counts.totalHoursPlanned)}h`} />
-        <MiniCard label="Em execução" value={counts.inProgressCount} tone={counts.inProgressCount > 0 ? 'primary' : 'default'} />
-        <MiniCard label="Bloqueadas" value={counts.blockedCount} tone={counts.blockedCount > 0 ? 'danger' : 'default'} />
-        <MiniCard label="Aguard. cliente" value={counts.waitingClientCount} tone={counts.waitingClientCount > 0 ? 'warning' : 'default'} />
-        <MiniCard label="Atrasadas" value={counts.overdueCount} tone={counts.overdueCount > 0 ? 'danger' : 'default'} />
-        {!isConsultor && <MiniCard label="Equipe" value={teamLoad.length} />}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 6, overflowX: 'auto', paddingBottom: 2, alignItems: 'stretch' }}>
+        {/* Grupo Operacional */}
+        <MiniCard icon={<Layers size={11} />} label="Etapas" value={stages.length} />
+        <MiniCard icon={<ListChecks size={11} />} label="Atividades" value={counts.totalActivities} sub={`${Math.round(counts.totalHoursPlanned)}h`} />
+        <MiniCard icon={<Play size={11} />} label="Execução" value={counts.inProgressCount} tone={counts.inProgressCount > 0 ? 'primary' : 'default'} />
+        <MiniCard icon={<Lock size={11} />} label="Bloqueadas" value={counts.blockedCount} tone={counts.blockedCount > 0 ? 'danger' : 'default'} />
+        <MiniCard icon={<UserCheck size={11} />} label="Cliente" value={counts.waitingClientCount} tone={counts.waitingClientCount > 0 ? 'warning' : 'default'} />
+        <MiniCard icon={<Clock size={11} />} label="Atrasadas" value={counts.overdueCount} tone={counts.overdueCount > 0 ? 'danger' : 'default'} />
+        {/* Divisor discreto entre os grupos */}
+        {!isConsultor && <div style={{ width: 1, alignSelf: 'stretch', background: 'var(--border)', margin: '2px 2px', flexShrink: 0 }} />}
+        {/* Grupo Gestão */}
+        {!isConsultor && <MiniCard icon={<Users size={11} />} label="Equipe" value={teamLoad.length} sub="consultores" />}
         {!isConsultor && (
           <MiniCard
+            icon={<TrendingUp size={11} />}
             label="Evolução"
             value={`${Math.round(executiveSummary?.progress_pct ?? 0)}%`}
+            bar={executiveSummary?.progress_pct ?? 0}
             sub={executiveSummary ? `${executiveSummary.done_deliveries}/${executiveSummary.total_deliveries} ativ.` : undefined}
             tone="primary"
           />
         )}
-        {!isConsultor && <MiniCard label="Saúde" value={saude.label} tone={saude.tone} />}
         {!isConsultor && (
           <MiniCard
+            icon={<Activity size={11} />}
+            label="Saúde"
+            value={
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: saude.color, flexShrink: 0 }} />
+                <span style={{ color: 'var(--text)' }}>{saude.text}</span>
+              </span>
+            }
+          />
+        )}
+        {!isConsultor && (
+          <MiniCard
+            icon={<Bell size={11} />}
             label="Alertas"
             value={alerts.length}
             tone={alerts.length === 0 ? 'default' : (alerts.some((a: any) => a.severity === 'danger' || a.severity === 'critical') ? 'danger' : 'warning')}
             onClick={alerts.length > 0 ? () => setAlertsOpen(o => !o) : undefined}
           />
         )}
-        <MiniCard label="Prazo final" value={fmtShortDate(executiveSummary?.estimated_end_date ?? project?.expected_end_date)} />
+        <MiniCard icon={<CalendarClock size={11} />} label="Prazo final" value={fmtShortDate(executiveSummary?.estimated_end_date ?? project?.expected_end_date)} />
       </div>
       {!isConsultor && alertsOpen && alerts.length > 0 && (
-        <div style={{ marginBottom: 10 }}><CronogramaAlertsList alerts={alerts} /></div>
+        <div style={{ marginBottom: 6 }}><CronogramaAlertsList alerts={alerts} /></div>
       )}
 
-      {/* Equipe (horas/capacidade por consultor) + Última movimentação — inteligência
-          operacional sem trocar de aba. */}
+      {/* Equipe (horas apontadas / planejadas por consultor) + Última movimentação. */}
       {!isConsultor && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 8, marginBottom: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 8, marginBottom: 6 }}>
           <div style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)' }}>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.03em', color: 'var(--text-muted)', marginBottom: 6 }}>Equipe · horas por consultor</div>
             {teamLoad.length === 0 ? (
@@ -342,14 +368,17 @@ function InternalCronogramaPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                 {teamLoad.map(t => {
-                  const barColor = t.overloaded ? 'var(--danger)' : t.usage_pct > 85 ? 'var(--warning)' : 'var(--success)'
+                  const actual = Number(t.actual_hours) || 0
+                  const planned = Number(t.planned_hours) || 0
+                  const pctP = planned > 0 ? (actual / planned) * 100 : 0
+                  const barColor = pctP > 100 ? 'var(--danger)' : pctP > 85 ? 'var(--warning)' : 'var(--success)'
                   return (
                     <div key={t.user.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ flex: '0 0 130px', fontSize: 12, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.user.name}</span>
                       <div style={{ flex: 1, height: 6, background: 'var(--surface-hover)', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${Math.min(100, t.usage_pct)}%`, background: barColor }} />
+                        <div style={{ height: '100%', width: `${Math.min(100, pctP)}%`, background: barColor }} />
                       </div>
-                      <span style={{ flex: '0 0 auto', fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{Math.round(t.actual_hours)}h / {Math.round(t.capacity_hours)}h</span>
+                      <span style={{ flex: '0 0 auto', fontSize: 11, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{Math.round(actual)}h / {Math.round(planned)}h</span>
                     </div>
                   )
                 })}
@@ -361,7 +390,7 @@ function InternalCronogramaPage() {
             {lastTs ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{lastTs.user?.name ?? '—'}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--success)' }}>+{Math.round((lastTs.effort_minutes ?? 0) / 60)}h</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--success)' }}>Apontou +{Math.round((lastTs.effort_minutes ?? 0) / 60)}h</span>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{timeAgo(lastTs.date)}</span>
               </div>
             ) : (
@@ -374,7 +403,7 @@ function InternalCronogramaPage() {
       {/* Toolbar: segmented control + ações — sticky no topo */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexWrap: 'wrap', gap: 12, marginBottom: 10,
+        flexWrap: 'wrap', gap: 12, marginBottom: 6,
         position: 'sticky',
         top: 0,
         zIndex: 6,

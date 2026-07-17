@@ -282,9 +282,9 @@ export function ProjectHeaderExecutive({ project, onProjectChange }: Props) {
 
       {/* Barra de progresso geral (com informação: % + consumidas/restantes) */}
       {!isConsultor && appointable > 0 && (
-        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 13, fontWeight: 600, color: healthColor, minWidth: 38 }}>{Math.round(pct)}%</span>
-          <div style={{ flex: 1, height: 8, background: 'var(--surface-hover)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ flex: 1, height: 10, background: 'var(--surface-hover)', borderRadius: 5, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${pct}%`, background: healthColor, transition: 'width .3s ease' }} />
           </div>
           <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
